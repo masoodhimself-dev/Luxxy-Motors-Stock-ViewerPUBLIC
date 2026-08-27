@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useStock } from '@/lib/stock-context';
-import { UploadView } from '@/components/upload-view';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
 
@@ -94,7 +93,14 @@ export default function Home() {
   }
 
   if (!stock || stock.cars.length === 0) {
-    return <UploadView />;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] px-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight mb-2">No Vehicles Available</h2>
+          <p className="text-muted-foreground">Our showroom is currently being updated. Please check back later.</p>
+        </div>
+      </div>
+    );
   }
 
   return (

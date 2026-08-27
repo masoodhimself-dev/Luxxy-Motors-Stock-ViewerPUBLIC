@@ -5,11 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface Car { [key: string]: unknown }
+import type { Car } from './car';
 
 export interface StockData {
   dealerName?: string;
@@ -19,6 +15,3 @@ export interface StockData {
   cars: Car[];
   [key: string]: unknown;
  }
-
-export type StockInput = StockData;
-

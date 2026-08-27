@@ -1,38 +1,9 @@
 import { Link } from 'wouter';
-import { Upload, Car as CarIcon, MapPin, Clock } from 'lucide-react';
+import { Car as CarIcon, MapPin, Clock } from 'lucide-react';
 import { useStock } from '@/lib/stock-context';
-import { Button } from '@/components/ui/button';
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { stock, setStock } = useStock();
-
-  const handleUploadClick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const parsed = JSON.parse(text);
-        let newStock;
-        if (Array.isArray(parsed)) {
-          newStock = { cars: parsed.map((c, i) => ({ ...c, id: c.id || c.advertId || `car-${i}` })) };
-        } else if (parsed.cars) {
-          newStock = {
-            ...parsed,
-            cars: parsed.cars.map((c: any, i: number) => ({ ...c, id: c.id || c.advertId || `car-${i}` }))
-          };
-        }
-        if (newStock) setStock(newStock);
-      } catch (err) {
-        console.error('Failed to update stock', err);
-        alert('Invalid JSON file.');
-      }
-    };
-    input.click();
-  };
+  const { stock } = useStock();
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
@@ -59,11 +30,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
               </div>
-              <div className="h-8 w-px bg-border hidden md:block"></div>
-              <Button onClick={handleUploadClick} variant="outline" size="sm" className="gap-2">
-                <Upload className="w-4 h-4" />
-                <span className="hidden sm:inline">Update Stock</span>
-              </Button>
             </div>
           )}
         </div>

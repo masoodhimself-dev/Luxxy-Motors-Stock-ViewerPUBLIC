@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: stock
+    description: Shared showroom stock
 paths:
   /healthz:
     get:
@@ -24,6 +26,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /stock:
+    get:
+      operationId: getStock
+      tags: [stock]
+      summary: Get shared showroom stock
+      responses:
+        "200":
+          description: Current shared stock, or an empty response when no stock has been saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockData"
+        "204":
+          description: No shared stock has been saved
+    post:
+      operationId: replaceStock
+      tags: [stock]
+      summary: Replace shared showroom stock
+      parameters:
+        - in: header
+          name: x-portal-password
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockInput"
+      responses:
+        "200":
+          description: Stock replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockData"
+        "400":
+          description: Invalid stock JSON
+        "401":
+          description: Invalid portal password
+  /stock/auth:
+    post:
+      operationId: verifyPortalPassword
+      tags: [stock]
+      summary: Verify the staff portal password
+      parameters:
+        - in: header
+          name: x-portal-password
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Password accepted
+        "401":
+          description: Invalid portal password
 components:
   schemas:
     HealthStatus:
@@ -33,4 +92,26 @@ components:
           type: string
       required:
         - status
+    Car:
+      type: object
+      additionalProperties: true
+    StockData:
+      type: object
+      additionalProperties: true
+      properties:
+        dealerName:
+          type: string
+        count:
+          type: number
+        scrapedAt:
+          type: string
+        cars:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Car"
+      required:
+        - cars
+    StockInput:
+      $ref: "#/components/schemas/StockData"
 
