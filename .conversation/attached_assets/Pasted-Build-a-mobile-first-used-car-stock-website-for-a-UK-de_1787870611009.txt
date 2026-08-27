@@ -1,0 +1,74 @@
+Build a mobile-first used-car stock website for a UK dealer called Luxxy Motors (Harrow).
+
+The user will upload a JSON file of current stock. The site must parse it and show every vehicle with photos. Do not hardcode cars. Do not fetch AutoTrader. Local JSON only, kept in memory / localStorage after upload.
+
+JSON SHAPE (handle all of these):
+
+{ "dealerName", "count", "scrapedAt", "cars": [ ... ] } ← this is the real file
+A bare array of car objects
+A car may have plate or only registration (e.g. "2024 (24 reg)")
+Each car looks like:
+
+{
+  "title": "2024 MG MG ZS",
+  "variant": "1.0 T-GDI Exclusive Euro 6 5dr",
+  "make": "MG",
+  "model": "MG ZS",
+  "trim": "Exclusive",
+  "year": 2024,
+  "price": 99,
+  "priceType": "cash",
+  "currency": "GBP",
+  "mileage": 22000,
+  "mileageText": "22,000 miles",
+  "registration": "2024 (24 reg)",
+  "plate": "NV24 LNZ",
+  "fuel": "Petrol",
+  "transmission": "Manual",
+  "bodyType": "SUV",
+  "engineSize": "1.0L",
+  "engineCC": 999,
+  "doors": 5,
+  "seats": 5,
+  "colour": "Silver",
+  "emissionClass": "Euro 6",
+  "drivetrain": "Front Wheel Drive",
+  "owners": "1",
+  "writeOffCategory": "S",
+  "advertId": "202608265438052",
+  "advertUrl": "https://www.autotrader.co.uk/car-details/...",
+  "dealerName": "LUXXY MOTORS LIMITED",
+  "dealerLocation": "Harrow",
+  "imageCount": 51,
+  "heroImage": "https://m.atcdn.co.uk/a/media/w1024/....jpg",
+  "images": [
+    { "url": "https://m.atcdn.co.uk/a/media/w1024/....jpg", "caption": "Front Left" }
+  ]
+}
+
+IMAGES (critical):
+
+Photos are public HTTPS URLs on m.atcdn.co.uk. Use them directly as <img src>. Do not download, proxy, or convert to base64.
+Set referrerPolicy="no-referrer" and loading="lazy" on imgs. On error, show a grey placeholder, do not break the card.
+For the stock-grid thumbnail, do NOT blindly use heroImage (it is often an interior). Prefer the first images[] entry whose caption matches /front|side|exterior/i. Fall back to heroImage, then images[0].url.
+Vehicle detail page: full gallery. Click a thumb to make it the large shot. Show caption if present. Keyboard + swipe on mobile.
+images may be {url, caption} objects OR plain URL strings. Support both.
+UPLOAD:
+
+Prominent “Upload stock JSON” dropzone on first visit (also in the header after data is loaded).
+Accept .json. Parse, validate that cars (or the root array) has items, then render.
+Persist last upload in localStorage so refresh keeps the stock.
+Show dealer name, vehicle count, and scrapedAt if present.
+Clear error if the file is not this shape.
+PAGES:
+
+Stock grid (home). Card: photo, title, variant, price, mileage, year, plate, Cat S / Cat N pill when writeOffCategory is "S" or "N". Click card → detail.
+Vehicle detail: big gallery, specs (year, mileage, fuel, gearbox, body, colour, engine, doors, seats, owners, Euro class, drivetrain), Cat badge, plate, price. Button “View on AutoTrader” if advertUrl exists (new tab).
+Filters/sort on the grid: search box (make/model/plate/title), make, min/max price, Cat S / Cat N / no write-off, sort price and mileage.
+UI:
+
+UK dealer look. Dark header, white cards, GBP with Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }). Mileage like 22,000 miles.
+Responsive: 1 col mobile, 2 tablet, 3 desktop.
+Stack: Vite + React + TypeScript. No backend. Works on Replit preview.
+Empty state explains: upload full-stock.json.
+Do not invent extra vehicles. Do not put fake phone numbers in. Just the stock viewer.
