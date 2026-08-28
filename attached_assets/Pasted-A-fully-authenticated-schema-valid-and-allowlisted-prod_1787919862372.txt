@@ -1,0 +1,211 @@
+A fully authenticated, schema-valid and allowlisted production import has failed with HTTP 500.
+
+Do not import or seed any stock manually.
+Do not loosen validation.
+Do not change the Grok payload contract.
+Do not ask Grok to retry yet.
+Do not expose secret values or sensitive payload contents.
+
+FAILED REQUEST
+
+Endpoint:
+POST /api/stock/imports/autotrader
+
+Run ID:
+7c21716c-4668-4b4d-91a5-dbbb24fbea19
+
+Approximate time:
+28 August 2026 at 13:15 BST
+
+Response:
+
+{"status":"rejected","errors":[{"code":"unexpected_error","message":"Unable to import stock","path":null,"advertId":null}]}
+
+The payload had already passed the exact Replit Zod and route-semantic checks locally:
+
+- schemaVersion = 1
+- source = "autotrader"
+- retailerId = "10040438"
+- complete = true
+- expectedAdvertCount = 32
+- count = 32
+- cars.length = 32
+- failedAdvertIds = []
+- errors = []
+- 32 unique advertIds
+- all required car properties present
+- £99 MG retained exactly as source data
+
+After the failure:
+
+- GET /api/stock count = 0
+- showroom remains empty
+- Grok made no retry
+
+Please perform a production incident investigation using the runId and request timestamp.
+
+1. Find the precise production exception
+
+Search the production API logs for:
+
+- runId 7c21716c-4668-4b4d-91a5-dbbb24fbea19
+- POST /api/stock/imports/autotrader
+- the approximate timestamp above
+
+Identify the exact thrown exception, SQL error code, failing query, stack location and affected application file.
+
+Provide a sanitised technical error report, but do not reveal secrets or complete private request data.
+
+Do not stop at the public “Unable to import stock” wrapper.
+
+2. Inspect the failed import-run record
+
+Query production stock_import_runs for this runId and report:
+
+- whether a row exists
+- status
+- complete flag
+- expected/received count
+- any recorded error metadata
+- whether rawSnapshot was retained
+- whether the transaction was rolled back
+- whether this runId must now be considered consumed
+
+3. Verify all production table state
+
+Report current row counts for:
+
+- stock_import_runs
+- vehicles
+- vehicle_images
+- vehicle_changes
+
+Confirm there are no partial vehicle, image or change records from the failed import.
+
+4. Compare the complete production schema with the current code
+
+Do not merely confirm that the four tables exist.
+
+Compare every required production column, type, nullability, enum/check constraint, index and foreign key against the current Drizzle schema and generated migrations, especially:
+
+- stock_import_runs fields
+- vehicle review/suspicious-price fields
+- sourceStatus and inventoryStatus
+- vehicle image active/state fields added during the later review fixes
+- image uniqueness/indexes
+- vehicle change history fields
+- source/retailer constraints
+- runId uniqueness and payload-hash fields
+
+Identify any migration or schema drift.
+
+5. Investigate import performance and transaction behaviour
+
+The real payload contains 32 vehicles and a very large number of gallery images.
+
+Check for:
+
+- request or transaction timeout
+- database statement timeout
+- connection termination
+- N+1 queries
+- one-row-at-a-time image insertion
+- excessive change-history inserts
+- payload-size limits
+- memory limits
+- connection-pool exhaustion
+- deadlock/advisory-lock problems
+- JSONB or canonical-hash errors
+- unique/check constraint violations
+- invalid null handling not covered by Zod
+
+State whether the failure occurred before, during or after vehicle/image reconciliation.
+
+6. Reproduce safely in development
+
+Use the exact production-shaped payload only in development.
+
+If the payload is not available in the Replit workspace, say clearly that the exact JSON file is required rather than fabricating substitute data.
+
+Reproduce the full 32-car import, including the complete image arrays—not a two-car or synthetic reduced fixture.
+
+7. Fix the root cause minimally
+
+Make only the change necessary to fix the identified production defect.
+
+Do not:
+
+- weaken authentication
+- remove the retailer allowlist
+- remove transactionality
+- bypass idempotency
+- manually seed production
+- suppress the error without fixing it
+- change source vehicle data
+- silently discard images
+
+If the issue is performance, use safe bulk operations and preserve atomic rollback.
+
+8. Improve error classification
+
+A foreseeable payload/data or database-constraint problem should return a meaningful 4xx/422 response where appropriate.
+
+Reserve HTTP 500 for genuinely unexpected server faults.
+
+Continue preventing internal stack traces from being exposed publicly.
+
+9. Add an exact regression test
+
+Add a regression test covering the precise failure found, using:
+
+- 32 vehicles
+- complete image arrays or a fixture representative of the actual image volume
+- £99 suspicious-price handling
+- transaction rollback
+- import summary counts
+- public visibility behavior
+
+Run the full integration suite afterward.
+
+10. Publish and verify
+
+After the fix:
+
+- apply any required migration safely
+- republish production
+- verify API/database health
+- do not execute the real Grok import
+- verify production remains free of partial stock
+- confirm the import endpoint is ready for another fresh-runId attempt
+
+At the end provide:
+
+PRODUCTION IMPORT INCIDENT
+
+Root cause:
+Exact failing component/file:
+Database/SQL error:
+Failure stage:
+Transaction rolled back: YES/NO
+Partial records found: YES/NO
+Failed runId recorded: YES/NO
+Failed runId reusable: YES/NO
+
+FIX
+
+Code/config/migration changed:
+Regression test added:
+Full test result:
+Republished: YES/NO
+
+PRODUCTION STATE
+
+stock_import_runs:
+vehicles:
+vehicle_images:
+vehicle_changes:
+GET /api/stock healthy: YES/NO
+
+GROK RETRY READY: YES/NO
+
+Do not claim GROK RETRY READY: YES until the root cause is identified, fixed, tested and republished.

@@ -14,6 +14,7 @@ import { eq, sql } from "drizzle-orm";
 import {
   GetStockResponse,
   GetVehicleResponse,
+  ImportAutotraderStockBody,
   ImportAutotraderStockResponse,
   type StockImportErrorResponse,
 } from "@workspace/api-zod";
@@ -122,6 +123,41 @@ function snapshot(runId: string, cars: Record<string, unknown>[], overrides: Rec
     cars,
     ...overrides,
   };
+}
+
+function highVolumeGallery(vehicleNumber: number) {
+  const images = Array.from({ length: 60 }, (_, imageNumber) => ({
+    url: `https://images.example.test/production-shaped/${vehicleNumber}/gallery-${String(imageNumber).padStart(2, "0")}.jpg`,
+    caption: imageNumber === 0 ? "front" : `gallery image ${imageNumber + 1}`,
+  }));
+  // This mirrors the production failure shape: a scraper can repeat a gallery
+  // URL late in a single vehicle's otherwise complete source image array.
+  if (vehicleNumber === 17) images[59] = { ...images[7] };
+  return images;
+}
+
+function productionShapedSnapshot(runId: string) {
+  const cars = Array.from({ length: 32 }, (_, index) => {
+    const vehicleNumber = index + 1;
+    const images = highVolumeGallery(vehicleNumber);
+    return car(vehicleNumber, {
+      title: `Representative Source Vehicle ${vehicleNumber}`,
+      price: vehicleNumber === 32 ? 99 : 18_000 + vehicleNumber,
+      imageCount: images.length,
+      heroImage: images[0]!.url,
+      images,
+      specifications: {
+        bodyStyle: "SUV",
+        fuelType: "Petrol",
+        representativeSourceVehicle: vehicleNumber,
+      },
+      sourceExtras: {
+        sourceRecord: `representative-${vehicleNumber}`,
+        galleryComplete: true,
+      },
+    });
+  });
+  return snapshot(runId, cars);
 }
 
 async function request(path: string, init: RequestInit = {}) {
@@ -284,6 +320,87 @@ test("imports 32 synthetic cars and makes an identical replay idempotent", async
   const detail = await request(`/vehicles/${firstVehicle.id}`);
   assert.equal(detail.status, 200);
   assert.equal(GetVehicleResponse.parse(await detail.json()).advertId, car(1).advertId);
+});
+
+test("imports a production-shaped 32-vehicle gallery snapshot atomically", async () => {
+  const body = productionShapedSnapshot("production-shaped-32");
+  const parsedBody = ImportAutotraderStockBody.parse(body);
+  const duplicateContainingCar = parsedBody.cars[16]!;
+  const duplicateImages = duplicateContainingCar.images;
+  const uniqueImageTotal = parsedBody.cars.reduce(
+    (total, sourceCar) => total + new Set(sourceCar.images.map((image) => image.url)).size,
+    0,
+  );
+
+  assert.equal(parsedBody.cars.length, 32);
+  assert.ok(parsedBody.cars.every((sourceCar) => sourceCar.images.length >= 60));
+  assert.equal(duplicateImages[59]?.url, duplicateImages[7]?.url);
+  assert.notEqual(duplicateImages[59]?.url, duplicateImages[58]?.url);
+
+  const response = await importStock(body);
+  assert.equal(response.status, 201);
+  assert.deepEqual(ImportAutotraderStockResponse.parse(await response.json()), {
+    schemaVersion: 1,
+    status: "imported",
+    runId: "production-shaped-32",
+    source: "autotrader",
+    retailerId: "phase-1-test-retailer",
+    received: 32,
+    created: 32,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+    errors: [],
+  });
+
+  const storedVehicles = await db.select().from(vehiclesTable);
+  const storedImages = await db.select().from(vehicleImagesTable);
+  assert.equal(storedVehicles.length, 32);
+  assert.equal(storedImages.length, uniqueImageTotal);
+  for (const sourceCar of parsedBody.cars) {
+    const stored = await vehicle(sourceCar.advertId);
+    const sourceUrls = sourceCar.images.map((image) => image.url);
+    const persisted = storedImages.filter((image) => image.vehicleId === stored.id);
+    assert.equal(persisted.length, new Set(sourceUrls).size);
+    assert.equal(new Set(persisted.map((image) => image.sourceUrl)).size, persisted.length);
+  }
+
+  const duplicateVehicle = await vehicle(duplicateContainingCar.advertId);
+  assert.deepEqual(
+    (duplicateVehicle.rawSourceData as { images?: unknown }).images,
+    duplicateImages,
+    "raw source data must retain the complete duplicate-containing gallery",
+  );
+
+  const suspiciousVehicle = await vehicle(parsedBody.cars[31]!.advertId);
+  assert.equal(suspiciousVehicle.sourcePrice, null);
+  assert.equal(suspiciousVehicle.pendingSourcePrice, 99);
+  assert.equal(suspiciousVehicle.priceReviewRequired, true);
+  const publicStock = GetStockResponse.parse(await request("/stock").then((stock) => stock.json()));
+  assert.equal(publicStock.count, 31);
+  assert.ok(!publicStock.cars.some((sourceCar) => sourceCar.advertId === suspiciousVehicle.advertId));
+  assert.equal((await request(`/vehicles/${suspiciousVehicle.id}`)).status, 404);
+
+  const changeCountBeforeRollback = (await db.select().from(vehicleChangesTable)).length;
+  const failedBody = {
+    ...body,
+    runId: "production-shaped-rollback",
+    cars: parsedBody.cars.map((sourceCar, index) => ({
+      ...sourceCar,
+      title: index === 0
+        ? "This update must roll back"
+        : index === 31
+          ? "invalid\u0000postgres-text"
+          : sourceCar.title,
+    })),
+  };
+  const failed = await importStock(failedBody);
+  assert.equal(failed.status, 500);
+  assert.equal((await db.select().from(stockImportRunsTable)).length, 1);
+  assert.equal((await db.select().from(vehiclesTable)).length, 32);
+  assert.equal((await db.select().from(vehicleImagesTable)).length, uniqueImageTotal);
+  assert.equal((await db.select().from(vehicleChangesTable)).length, changeCountBeforeRollback);
+  assert.equal((await vehicle(parsedBody.cars[0]!.advertId)).title, parsedBody.cars[0]!.title);
 });
 
 test("records source changes, preserves website overrides, and accepts a new advert", async () => {

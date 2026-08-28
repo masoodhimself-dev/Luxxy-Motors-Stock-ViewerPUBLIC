@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import {
   GetStockResponse,
   GetVehicleParams,
@@ -107,7 +107,9 @@ async function recordRejected(body: unknown, status: "failed" | "quarantined", p
 
 const heroCaptionOrder = ["front right", "front", "front left", "side right", "side left", "rear right", "rear", "rear left"];
 function normalizedImages(car: Import["cars"][number]) {
-  const images = car.images.filter((image) => safeUrl(image.url));
+  const seen = new Set<string>();
+  // Keep the first source occurrence: galleries occasionally repeat a URL.
+  const images = car.images.filter((image) => safeUrl(image.url) && !seen.has(image.url) && (seen.add(image.url), true));
   const captionHero = heroCaptionOrder
     .map((caption) => images.find((image) => (image.caption ?? "").trim().toLowerCase() === caption))
     .find((image) => image !== undefined);
@@ -139,16 +141,31 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
     .map((image: { sourceUrl: string; caption: string | null; sortOrder: number; isHero: boolean }) => ({
       url: image.sourceUrl, caption: image.caption, sortOrder: image.sortOrder, isHero: image.isHero,
     }));
-  for (const image of incoming) {
-    const existing = old.find((row: { sourceUrl: string }) => row.sourceUrl === image.url);
-    if (existing) await tx.update(vehicleImagesTable).set({ caption: image.caption, sortOrder: image.sortOrder, isHero: image.isHero, isActive: true, lastSeenAt: now }).where(eq(vehicleImagesTable.id, existing.id));
-    else await tx.insert(vehicleImagesTable).values({ vehicleId, origin: "source", sourceUrl: image.url, caption: image.caption, sortOrder: image.sortOrder, isHero: image.isHero, isActive: true, firstSeenAt: now, lastSeenAt: now });
+  if (incoming.length) {
+    await tx.insert(vehicleImagesTable).values(incoming.map((image) => ({
+      vehicleId, origin: "source" as const, sourceUrl: image.url, caption: image.caption,
+      sortOrder: image.sortOrder, isHero: image.isHero, isActive: true, firstSeenAt: now, lastSeenAt: now,
+    }))).onConflictDoUpdate({
+      target: [vehicleImagesTable.vehicleId, vehicleImagesTable.sourceUrl],
+      // Do not set firstSeenAt here; an upsert must retain the original sighting.
+      set: {
+        caption: sql`excluded.caption`,
+        sortOrder: sql`excluded.sort_order`,
+        isHero: sql`excluded.is_hero`,
+        isActive: true,
+        lastSeenAt: now,
+      },
+    });
   }
   const urls = incoming.map((image) => image.url);
-  for (const image of old) {
-    if (!urls.includes(image.sourceUrl) && image.isActive) {
-      await tx.update(vehicleImagesTable).set({ isActive: false, isHero: false }).where(eq(vehicleImagesTable.id, image.id));
-    }
+  const absentImages = and(
+    eq(vehicleImagesTable.vehicleId, vehicleId),
+    eq(vehicleImagesTable.origin, "source"),
+    eq(vehicleImagesTable.isActive, true),
+    ...(urls.length ? [notInArray(vehicleImagesTable.sourceUrl, urls)] : []),
+  );
+  if (old.some((image: { isActive: boolean; sourceUrl: string }) => image.isActive && !urls.includes(image.sourceUrl))) {
+    await tx.update(vehicleImagesTable).set({ isActive: false, isHero: false }).where(absentImages);
   }
   const after = incoming.map((image) => ({ url: image.url, caption: image.caption, sortOrder: image.sortOrder, isHero: image.isHero }));
   return { before, after };
@@ -219,8 +236,11 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
         if (!existing) {
           const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, importRunId: run.id, dealerId: settings.dealerId, source: "autotrader", advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
           const imageChanges = await syncImages(tx, vehicle.id, car, now); created++;
-          for (const [fieldName, newValue] of Object.entries({ ...values, ...priceValues })) if (newValue !== null && newValue !== undefined) await tx.insert(vehicleChangesTable).values({ vehicleId: vehicle.id, importRunId: run.id, fieldName, oldValue: null, newValue });
-          if (imageChanges.after.length) await tx.insert(vehicleChangesTable).values({ vehicleId: vehicle.id, importRunId: run.id, fieldName: "sourceImages", oldValue: [], newValue: imageChanges.after });
+          const changes = Object.entries({ ...values, ...priceValues })
+            .filter(([, newValue]) => newValue !== null && newValue !== undefined)
+            .map(([fieldName, newValue]) => ({ vehicleId: vehicle.id, importRunId: run.id, fieldName, oldValue: null as unknown, newValue }));
+          if (imageChanges.after.length) changes.push({ vehicleId: vehicle.id, importRunId: run.id, fieldName: "sourceImages", oldValue: [], newValue: imageChanges.after });
+          if (changes.length) await tx.insert(vehicleChangesTable).values(changes);
         } else {
           const databaseChanges: Record<string, unknown> = {};
           for (const [key, value] of Object.entries({ ...values, ...priceValues })) if (canonicalJson((existing as any)[key]) !== canonicalJson(value)) databaseChanges[key] = value;
@@ -237,7 +257,10 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
             ...databaseChanges, importRunId: run.id, lastSeenAt: now,
             ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0 }),
           }).where(eq(vehiclesTable.id, existing.id));
-          for (const [fieldName, change] of Object.entries(auditChanges)) await tx.insert(vehicleChangesTable).values({ vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue });
+          const changes = Object.entries(auditChanges).map(([fieldName, change]) => ({
+            vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue,
+          }));
+          if (changes.length) await tx.insert(vehicleChangesTable).values(changes);
           Object.keys(auditChanges).length ? updated++ : unchanged++;
         }
       }
