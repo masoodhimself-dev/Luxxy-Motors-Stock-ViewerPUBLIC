@@ -1,0 +1,60 @@
+The new Phase 1 build has now been published.
+
+Please perform the post-publish production verification now.
+
+Do NOT import or seed any real vehicle stock yet. Grok will perform the first real 32-car production import after we verify the contract.
+
+Please verify against the actual published production deployment:
+
+1. Production database migration completed successfully.
+2. PostgreSQL connectivity is healthy.
+3. GET /api/stock works and is database-backed.
+4. The machine-to-machine stock import endpoint is live.
+5. Invalid/missing STOCK_IMPORT_SECRET is rejected correctly.
+6. The public showroom loads correctly with the current empty production database.
+7. GET /api/vehicles/:id is live and database-backed.
+8. /portal loads correctly.
+9. data/stock.json and public/full-stock.json are not runtime stock sources.
+10. The production database is currently clean/empty of the synthetic test vehicles.
+11. No real 32-car baseline has already been imported.
+12. Check production logs for any migration, database, API or frontend errors after publication.
+
+Do not expose STOCK_IMPORT_SECRET or any other secret value.
+
+Then provide exactly:
+
+GROK PRODUCTION CONTRACT
+
+Production origin:
+Import method:
+Import path:
+Authentication header:
+Secret environment variable:
+Supported schemaVersion:
+Required envelope fields:
+Success HTTP status:
+Idempotent replay HTTP status:
+Validation failure HTTP status:
+Authentication failure HTTP status:
+Incomplete/quarantined snapshot HTTP status:
+Unexpected server error HTTP status:
+
+LIVE DEPLOYMENT STATUS
+
+Phase 1 deployed: YES/NO
+Production migration applied: YES/NO
+PostgreSQL stock source of truth: YES/NO
+Import endpoint operational: YES/NO
+GET /api/stock operational: YES/NO
+GET /api/vehicles/:id operational: YES/NO
+Legacy JSON runtime dependency removed: YES/NO
+Production vehicle count:
+Production public vehicle count:
+Production import-run count:
+Errors detected:
+
+FIRST GROK IMPORT READY: YES/NO
+
+If NO, explain the exact blocker.
+
+Do not make any further changes unless required to fix a production deployment problem discovered during these checks. If you make such a fix, clearly report what changed and re-run the production verification.
