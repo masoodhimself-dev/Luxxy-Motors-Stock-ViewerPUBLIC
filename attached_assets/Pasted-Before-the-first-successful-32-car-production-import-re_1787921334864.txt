@@ -1,0 +1,98 @@
+Before the first successful 32-car production import, resolve one production-database continuity discrepancy.
+
+Do not import, seed, delete, truncate, reset or modify any production data during this check.
+
+EARLIER VERIFIED PRODUCTION STATE
+
+After the retailer allowlist republish, the reported production count was:
+
+- stock_import_runs: 2
+- vehicles: 0
+
+CURRENT REPORTED PRODUCTION STATE
+
+After the duplicate-image/batching fix republish, the reported count is:
+
+- stock_import_runs: 0
+- vehicles: 0
+- vehicle_images: 0
+- vehicle_changes: 0
+
+A normal code republish should not silently remove persistent PostgreSQL rows. Determine whether:
+
+- the latest query accidentally used the development database;
+- the live deployment changed to a different PostgreSQL resource;
+- the earlier count was inaccurate;
+- rejected import-run records were deliberately or automatically removed;
+- a cleanup, reset, migration or truncation occurred.
+
+Perform read-only checks only.
+
+1. Query the actual database used by the active production deployment—not the development workspace database.
+
+2. Search for these previous run IDs:
+
+- 7e4bec74-acf8-4c0a-a3f0-df3f5877895a
+- 93c53406-a370-4229-8b89-ecc684a2ed37
+- 7c21716c-4668-4b4d-91a5-dbbb24fbea19
+
+Expected context:
+
+- The first run ID was involved in the validation rejection and subsequent run-ID conflict.
+- The second was rejected by the retailer allowlist.
+- The third encountered the duplicate-image 500 and was reported as fully rolled back, so it may correctly have no row.
+
+For each runId, report:
+
+- row exists: YES/NO
+- status if present
+- created timestamp if present
+- reason it is present or absent
+
+3. Confirm whether the currently published API and the previously published API use the same persistent PostgreSQL resource.
+
+Do not expose DATABASE_URL, usernames, passwords, hostnames or credentials.
+
+Provide only a safe non-secret resource identifier or fingerprint sufficient to confirm continuity.
+
+4. Check whether any of the following occurred between deployments:
+
+- table truncation
+- database reset
+- test cleanup against production
+- migration rollback
+- database-resource replacement
+- deployment environment switching
+- production/dev database confusion
+- import-run retention cleanup
+
+5. Report the actual current production counts:
+
+- stock_import_runs
+- vehicles
+- vehicle_images
+- vehicle_changes
+
+6. Confirm the production migration/schema history remains intact.
+
+7. Confirm that publishing a future code update will continue using the same persistent production database and will not reset imported vehicle stock.
+
+8. Confirm that the source-code check, database-count check and live endpoint check all refer to the same published production deployment.
+
+At the end report:
+
+PRODUCTION DATABASE CONTINUITY
+
+Previous count of 2 explained:
+Actual production database queried: YES/NO
+Same persistent database across republishes: YES/NO
+Any production data deletion/reset occurred: YES/NO
+Current stock_import_runs:
+Current vehicles:
+Current vehicle_images:
+Current vehicle_changes:
+Future republish will preserve vehicle stock: YES/NO
+
+FIRST GROK IMPORT SAFE: YES/NO
+
+Do not report FIRST GROK IMPORT SAFE: YES unless the change from 2 import runs to 0 has been fully explained.

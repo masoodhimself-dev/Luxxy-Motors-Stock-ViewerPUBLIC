@@ -1,0 +1,1 @@
+- [Production database verification](production-database-verification.md) — label DB environments and use safe fingerprints before reporting production continuity.
