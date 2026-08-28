@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface GalleryProps {
   images: CarImage[];
-  heroImage?: string;
+  heroImage?: string | null;
 }
 
 export function Gallery({ images, heroImage }: GalleryProps) {

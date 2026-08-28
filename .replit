@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -18,3 +18,18 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+STOCK_DEALER_ID = "luxxy-motors"
+STOCK_MAX_AGE_HOURS = "24"
+STOCK_MAX_DROP_PERCENT = "30"
+STOCK_MAX_PRICE_CHANGE_PERCENT = "50"
+STOCK_MIN_PRICE = "500"
+STOCK_MISSING_HIDE_THRESHOLD = "2"
+STOCK_RETAILER_ID = "luxxy-motors"
+STOCK_SUPPORTED_SCHEMA_VERSION = "1"

@@ -1,0 +1,114 @@
+Grok has completed a fresh local-only Auto Trader collection successfully:
+
+* 32 advert IDs discovered
+* 32 parsed successfully
+* 32 unique advertIds
+* count === cars.length
+* complete = true
+* no failedAdvertIds
+* no production POST has been made
+
+However, Grok inspected the live deployment and found:
+
+* /api/stock currently returns HTTP 500
+* the obvious stock-import paths return 404
+* /openapi.json returns 500
+* /portal still shows the existing portal UI
+* Grok cannot identify the new machine-to-machine import endpoint or authentication header without guessing
+
+Do NOT make any Grok-side assumptions.
+
+Please inspect the actual current Replit code, deployment configuration and production deployment and answer these questions precisely.
+
+1. Has the Phase 1 production stock foundation actually been IMPLEMENTED in code, or was only the task/plan/checkpoint created?
+
+2. Has that implementation actually been DEPLOYED to the live .replit.app production URL?
+
+3. What is the exact live production origin/domain?
+
+4. What is the exact machine stock-import endpoint:
+
+   * HTTP method
+   * exact path
+
+5. What is the exact authentication header name?
+
+6. What environment variable/secret name backs that header?
+   Do not reveal the secret value.
+
+7. What exact JSON envelope/schema does the live endpoint currently accept?
+
+8. What schemaVersion is supported?
+
+9. What HTTP status/code should Grok expect for:
+
+   * successful new import
+   * repeated same runId
+   * validation rejection
+   * authentication failure
+   * quarantined/incomplete snapshot
+   * unexpected server error
+
+10. Confirm whether the following endpoint is live and database-backed:
+    GET /api/stock
+
+11. Explain why the live GET /api/stock is currently returning HTTP 500.
+
+12. Confirm whether this endpoint exists and is live:
+    GET /api/vehicles/:id
+
+13. Confirm whether PostgreSQL is now the stock source of truth in the LIVE deployment.
+
+14. Confirm whether data/stock.json and public/full-stock.json have been removed as runtime stock sources in the LIVE deployment.
+
+15. Confirm whether the required database migrations have been applied to the production database.
+
+16. Give the current production database counts for:
+
+* stock_import_runs
+* vehicles
+* vehicle_images
+* vehicle_changes
+
+17. Confirm whether the initial 32-car baseline has been seeded into production.
+
+18. If it has not been seeded, explain exactly why.
+
+19. Confirm whether the £99 MG validation/review rule exists and how it affects public visibility.
+
+20. Perform read-only production checks and report the exact results for:
+
+* GET /api/stock
+* one GET /api/vehicles/:id if vehicles exist
+* health endpoint
+* database connectivity
+
+If the new code has not actually been deployed, deploy the completed Phase 1 implementation now after verifying migrations and tests.
+
+If the implementation itself has NOT been completed yet, say that clearly and complete the approved Task #1 before deploying.
+
+Do not expose secret values.
+
+At the end give me a section called:
+
+GROK PRODUCTION CONTRACT
+
+It must contain only:
+
+Production origin:
+Import method:
+Import path:
+Authentication header:
+Secret environment variable:
+schemaVersion:
+Success status:
+Idempotent replay status:
+Validation failure status:
+Authentication failure status:
+Incomplete/quarantined snapshot status:
+
+Then give me a second section:
+
+LIVE DEPLOYMENT STATUS
+
+State clearly whether the Phase 1 stock system is fully deployed and safe for Grok’s first production POST.

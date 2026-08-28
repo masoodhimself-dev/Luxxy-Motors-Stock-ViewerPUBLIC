@@ -5,10 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(price: number, currency: string = 'GBP') {
+export function formatPrice(price: number, currency: string | null = 'GBP') {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
-    currency: currency,
+    currency: currency || 'GBP',
     maximumFractionDigits: 0,
   }).format(price);
 }
@@ -18,7 +18,7 @@ export function formatMileage(mileage: number) {
 }
 
 // Ensure remote images don't fail due to referrers
-export function getSafeImageUrl(img: string | { url: string; caption?: string }) {
+export function getSafeImageUrl(img: string | { url: string; caption?: string | null }) {
   if (!img) return '';
   return typeof img === 'string' ? img : img.url;
 }

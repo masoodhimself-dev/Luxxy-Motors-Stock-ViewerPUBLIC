@@ -5,6 +5,5 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { StockData } from './stockData';
 
-export type StockInput = StockData;
+export interface VehicleSourceExtras { [key: string]: unknown }

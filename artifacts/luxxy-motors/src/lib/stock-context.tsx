@@ -1,57 +1,64 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { useGetStock } from '@workspace/api-client-react';
 
-export type CarImage = { url: string; caption?: string } | string;
+export type CarImage = { url: string; caption: string | null } | string;
 
 export interface Car {
   [key: string]: unknown;
-  id: string; // locally generated
-  title?: string;
-  variant?: string;
-  make?: string;
-  model?: string;
-  trim?: string;
-  year?: number;
-  price?: number;
-  priceType?: string;
-  currency?: string;
-  mileage?: number;
-  mileageText?: string;
-  registration?: string;
-  plate?: string;
-  fuel?: string;
-  transmission?: string;
-  bodyType?: string;
-  engineSize?: string;
-  engineCC?: number;
-  doors?: number;
-  seats?: number;
-  colour?: string;
-  emissionClass?: string;
-  drivetrain?: string;
-  owners?: number;
-  writeOffCategory?: string;
-  advertId?: string;
-  advertUrl?: string;
-  dealerName?: string;
-  dealerLocation?: string;
-  imageCount?: number;
-  heroImage?: string;
-  images?: CarImage[];
+  id: string;
+  advertId: string;
+  title: string | null;
+  variant: string | null;
+  make: string | null;
+  model: string | null;
+  trim: string | null;
+  year: number | null;
+  price: number | null;
+  priceType: string | null;
+  currency: string | null;
+  mileage: number | null;
+  mileageText: string | null;
+  registration: string | null;
+  registrationBand: string | null;
+  plate: string | null;
+  vrm: string | null;
+  vrmVerified: boolean | null;
+  fuel: string | null;
+  transmission: string | null;
+  bodyType: string | null;
+  engineSize: string | null;
+  engineCC: number | null;
+  doors: number | null;
+  seats: number | null;
+  colour: string | null;
+  emissionClass: string | null;
+  drivetrain: string | null;
+  owners: number | null;
+  writeOffCategory: string | null;
+  advertUrl: string | null;
+  dealerName: string | null;
+  dealerLocation: string | null;
+  imageCount: number | null;
+  heroImage: string | null;
+  images: CarImage[];
+  specifications: Record<string, unknown> | null;
+  sourceExtras: Record<string, unknown> | null;
 }
 
 export interface StockData {
   [key: string]: unknown;
-  dealerName?: string;
-  dealerLocation?: string;
-  count?: number;
-  scrapedAt?: string;
+  schemaVersion: 1;
+  dealerName: string | null;
+  dealerLocation: string | null;
+  count: number;
+  scrapedAt: string | null;
   cars: Car[];
 }
 
 interface StockContextType {
   stock: StockData | null;
   isLoading: boolean;
+  error: string | null;
 }
 
 const StockContext = createContext<StockContextType | undefined>(undefined);
@@ -59,7 +66,7 @@ const StockContext = createContext<StockContextType | undefined>(undefined);
 function normalizeStock(data: unknown): StockData | null {
   if (!data || typeof data !== 'object') return null;
   const candidate = data as Record<string, unknown>;
-  if (!Array.isArray(candidate.cars) || candidate.cars.length === 0) return null;
+  if (!Array.isArray(candidate.cars)) return null;
 
   return {
     ...candidate,
@@ -70,8 +77,7 @@ function normalizeStock(data: unknown): StockData | null {
           : {};
       return {
         ...value,
-        id:
-          (typeof value.id === 'string' && value.id) ||
+        id: (typeof value.id === 'string' && value.id) ||
           (typeof value.advertId === 'string' && value.advertId) ||
           `car-${index}`,
       } as Car;
@@ -80,45 +86,12 @@ function normalizeStock(data: unknown): StockData | null {
 }
 
 export function StockProvider({ children }: { children: ReactNode }) {
-  const { data: apiStock, isLoading: isApiLoading } = useGetStock();
-  const [fallbackStock, setFallbackStock] = useState<StockData | null>(null);
-  const [isFallbackLoading, setIsFallbackLoading] = useState(false);
-  const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
-
-  useEffect(() => {
-    // If API loaded but returned no valid cars, try fallback once
-    if (!isApiLoading && (!apiStock || !apiStock.cars || apiStock.cars.length === 0) && !hasAttemptedFallback) {
-      setIsFallbackLoading(true);
-      setHasAttemptedFallback(true);
-      
-      fetch(`${import.meta.env.BASE_URL}full-stock.json`)
-        .then(res => {
-          if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
-            return null;
-          }
-          return res.json();
-        })
-        .then(data => {
-          if (!data) return;
-          if (Array.isArray(data)) {
-            setFallbackStock({ cars: data.map((c, i) => ({ ...c, id: c.id || c.advertId || `car-${i}` })) });
-          } else if (data && data.cars) {
-            setFallbackStock(normalizeStock(data));
-          }
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          setIsFallbackLoading(false);
-        });
-    }
-  }, [apiStock, isApiLoading, hasAttemptedFallback]);
-
-  // Use API stock if valid, otherwise fallback
-  const stock = normalizeStock(apiStock) ?? fallbackStock;
-  const isLoading = isApiLoading || isFallbackLoading;
+  const { data: apiStock, isLoading, error } = useGetStock();
+  const stock = normalizeStock(apiStock);
+  const errorMessage = error instanceof Error ? error.message : error ? 'Unable to load current stock.' : null;
 
   return (
-    <StockContext.Provider value={{ stock, isLoading }}>
+    <StockContext.Provider value={{ stock, isLoading, error: errorMessage }}>
       {children}
     </StockContext.Provider>
   );

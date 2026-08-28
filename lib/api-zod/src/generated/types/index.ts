@@ -6,7 +6,23 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export * from './car';
+export * from './apiError';
 export * from './healthStatus';
-export * from './stockData';
-export * from './stockInput';
+export * from './importedVehicle';
+export * from './sourceImportError';
+export * from './stock';
+export * from './stockImportEnvelope';
+export * from './stockImportEnvelopeSchemaVersion';
+export * from './stockImportEnvelopeSource';
+export * from './stockImportErrorResponse';
+export * from './stockImportErrorResponseStatus';
+export * from './stockImportIssue';
+export * from './stockImportResult';
+export * from './stockImportResultSchemaVersion';
+export * from './stockImportResultSource';
+export * from './stockImportResultStatus';
+export * from './stockSchemaVersion';
+export * from './vehicle';
+export * from './vehicleImage';
+export * from './vehicleSourceExtras';
+export * from './vehicleSpecifications';

@@ -30,88 +30,513 @@ paths:
     get:
       operationId: getStock
       tags: [stock]
-      summary: Get shared showroom stock
+      summary: Get current showroom stock
+      description: Returns the current full stock snapshot persisted in the database.
       responses:
         "200":
-          description: Current shared stock, or an empty response when no stock has been saved
+          description: Current showroom stock
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StockData"
-        "204":
-          description: No shared stock has been saved
+                $ref: "#/components/schemas/Stock"
+  /stock/imports/autotrader:
     post:
-      operationId: replaceStock
+      operationId: importAutotraderStock
       tags: [stock]
-      summary: Replace shared showroom stock
+      summary: Import a full Auto Trader stock snapshot
+      description: Reconciles the database to the supplied complete Auto Trader snapshot. Schema version 1 is the only supported version.
       parameters:
         - in: header
-          name: x-portal-password
+          name: x-stock-import-secret
           required: true
+          description: Shared secret used to authenticate the stock importer.
           schema:
             type: string
+            minLength: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/StockInput"
+              $ref: "#/components/schemas/StockImportEnvelope"
       responses:
-        "200":
-          description: Stock replaced
+        "201":
+          description: Full snapshot imported for the first time
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StockData"
+                $ref: "#/components/schemas/StockImportResult"
+        "200":
+          description: Idempotent replay of a previously imported run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportResult"
         "400":
-          description: Invalid stock JSON
+          description: Import envelope failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
         "401":
-          description: Invalid portal password
-  /stock/auth:
-    post:
-      operationId: verifyPortalPassword
+          description: Missing or invalid import secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "409":
+          description: The run ID conflicts with an existing non-replayable import run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "422":
+          description: Import was quarantined because its source records could not be safely applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "500":
+          description: Unexpected processing or server configuration error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+  /vehicles/{id}:
+    get:
+      operationId: getVehicle
       tags: [stock]
-      summary: Verify the staff portal password
+      summary: Get a vehicle
       parameters:
-        - in: header
-          name: x-portal-password
+        - in: path
+          name: id
           required: true
+          description: Database identifier of the vehicle.
           schema:
             type: string
+            minLength: 1
       responses:
-        "204":
-          description: Password accepted
-        "401":
-          description: Invalid portal password
+        "200":
+          description: Vehicle details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "404":
+          description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
       type: object
+      additionalProperties: false
       properties:
         status:
           type: string
       required:
         - status
-    Car:
+    VehicleImage:
       type: object
-      additionalProperties: true
-    StockData:
-      type: object
-      additionalProperties: true
+      additionalProperties: false
       properties:
+        url:
+          type: string
+          minLength: 1
+        caption:
+          type: [string, "null"]
+      required:
+        - url
+        - caption
+    VehicleSourceExtras:
+      type: object
+      additionalProperties: true
+    VehicleSpecifications:
+      type: object
+      additionalProperties: true
+    ImportedVehicle:
+      type: object
+      additionalProperties: false
+      properties: &importedVehicleProperties
+        advertId:
+          type: string
+          minLength: 1
+        title:
+          type: [string, "null"]
+        variant:
+          type: [string, "null"]
+        make:
+          type: [string, "null"]
+        model:
+          type: [string, "null"]
+        trim:
+          type: [string, "null"]
+        year:
+          type: [number, "null"]
+          multipleOf: 1
+        price:
+          type: [number, "null"]
+        priceType:
+          type: [string, "null"]
+        currency:
+          type: [string, "null"]
+        mileage:
+          type: [number, "null"]
+          multipleOf: 1
+        mileageText:
+          type: [string, "null"]
+        registration:
+          type: [string, "null"]
+        registrationBand:
+          type: [string, "null"]
+        plate:
+          type: [string, "null"]
+        vrm:
+          type: [string, "null"]
+        vrmVerified:
+          type: [boolean, "null"]
+        fuel:
+          type: [string, "null"]
+        transmission:
+          type: [string, "null"]
+        bodyType:
+          type: [string, "null"]
+        engineSize:
+          type: [string, "null"]
+        engineCC:
+          type: [number, "null"]
+          multipleOf: 1
+        doors:
+          type: [number, "null"]
+          multipleOf: 1
+        seats:
+          type: [number, "null"]
+          multipleOf: 1
+        colour:
+          type: [string, "null"]
+        emissionClass:
+          type: [string, "null"]
+        drivetrain:
+          type: [string, "null"]
+        owners:
+          type: [number, "null"]
+          multipleOf: 1
+        writeOffCategory:
+          type: [string, "null"]
+        advertUrl:
+          type: [string, "null"]
+        dealerName:
+          type: [string, "null"]
+        dealerLocation:
+          type: [string, "null"]
+        imageCount:
+          type: [number, "null"]
+          multipleOf: 1
+        heroImage:
+          type: [string, "null"]
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/VehicleImage"
+        specifications:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleSpecifications"
+            - type: "null"
+        sourceExtras:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleSourceExtras"
+            - type: "null"
+      required:
+        - advertId
+        - title
+        - variant
+        - make
+        - model
+        - trim
+        - year
+        - price
+        - priceType
+        - currency
+        - mileage
+        - mileageText
+        - registration
+        - registrationBand
+        - plate
+        - vrm
+        - vrmVerified
+        - fuel
+        - transmission
+        - bodyType
+        - engineSize
+        - engineCC
+        - doors
+        - seats
+        - colour
+        - emissionClass
+        - drivetrain
+        - owners
+        - writeOffCategory
+        - advertUrl
+        - dealerName
+        - dealerLocation
+        - imageCount
+        - heroImage
+        - images
+        - specifications
+        - sourceExtras
+    Vehicle:
+      type: object
+      additionalProperties: false
+      properties:
+        <<: *importedVehicleProperties
+        id:
+          type: string
+          minLength: 1
+      required:
+        - id
+        - advertId
+        - title
+        - variant
+        - make
+        - model
+        - trim
+        - year
+        - price
+        - priceType
+        - currency
+        - mileage
+        - mileageText
+        - registration
+        - registrationBand
+        - plate
+        - vrm
+        - vrmVerified
+        - fuel
+        - transmission
+        - bodyType
+        - engineSize
+        - engineCC
+        - doors
+        - seats
+        - colour
+        - emissionClass
+        - drivetrain
+        - owners
+        - writeOffCategory
+        - advertUrl
+        - dealerName
+        - dealerLocation
+        - imageCount
+        - heroImage
+        - images
+        - specifications
+        - sourceExtras
+    StockImportEnvelope:
+      type: object
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        runId:
+          type: string
+          minLength: 1
+        source:
+          type: string
+          enum: [autotrader]
+        retailerId:
+          type: string
+          minLength: 1
         dealerName:
           type: string
-        count:
-          type: number
+          minLength: 1
         scrapedAt:
           type: string
+          format: date-time
+        complete:
+          type: boolean
+        expectedAdvertCount:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        count:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        failedAdvertIds:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceImportError"
         cars:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportedVehicle"
+      required:
+        - schemaVersion
+        - runId
+        - source
+        - retailerId
+        - dealerName
+        - scrapedAt
+        - complete
+        - expectedAdvertCount
+        - count
+        - failedAdvertIds
+        - errors
+        - cars
+    Stock:
+      type: object
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        dealerName:
+          type: [string, "null"]
+        dealerLocation:
+          type: [string, "null"]
+        count:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        scrapedAt:
+          type: ["string", "null"]
+          format: date-time
+        cars:
+          type: array
+          items:
+            $ref: "#/components/schemas/Vehicle"
+      required:
+        - schemaVersion
+        - dealerName
+        - dealerLocation
+        - count
+        - scrapedAt
+        - cars
+    StockImportIssue:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+        path:
+          type: ["string", "null"]
+        advertId:
+          type: ["string", "null"]
+      required:
+        - code
+        - message
+        - path
+        - advertId
+    SourceImportError:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+        advertId:
+          type: [string, "null"]
+        sourceExtras:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleSourceExtras"
+            - type: "null"
+      required:
+        - code
+        - message
+        - advertId
+        - sourceExtras
+    StockImportResult:
+      type: object
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        status:
+          type: string
+          enum: [imported, replayed]
+        runId:
+          type: string
+          minLength: 1
+        source:
+          type: string
+          enum: [autotrader]
+        retailerId:
+          type: string
+          minLength: 1
+        received:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        created:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        updated:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        deleted:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        unchanged:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockImportIssue"
+      required:
+        - schemaVersion
+        - status
+        - runId
+        - source
+        - retailerId
+        - received
+        - created
+        - updated
+        - deleted
+        - unchanged
+        - errors
+    StockImportErrorResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [rejected, quarantined]
+        errors:
           type: array
           minItems: 1
           items:
-            $ref: "#/components/schemas/Car"
+            $ref: "#/components/schemas/StockImportIssue"
       required:
-        - cars
-    StockInput:
-      $ref: "#/components/schemas/StockData"
+        - status
+        - errors
+    ApiError:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+          minLength: 1
+      required:
+        - error
 

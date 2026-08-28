@@ -31,4 +31,40 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  req.log.error({ err: error }, "Unhandled API error");
+  if (res.headersSent) return;
+
+  if (
+    error instanceof SyntaxError &&
+    "status" in error &&
+    (error as SyntaxError & { status?: number }).status === 400
+  ) {
+    res.status(400).json({
+      status: "rejected",
+      errors: [
+        {
+          code: "invalid_json",
+          message: "Request body is not valid JSON",
+          path: null,
+          advertId: null,
+        },
+      ],
+    });
+    return;
+  }
+
+  res.status(500).json({
+    status: "rejected",
+    errors: [
+      {
+        code: "unexpected_error",
+        message: "Internal server error",
+        path: null,
+        advertId: null,
+      },
+    ],
+  });
+});
+
 export default app;

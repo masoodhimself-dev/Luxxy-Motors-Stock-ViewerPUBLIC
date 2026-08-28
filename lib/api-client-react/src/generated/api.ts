@@ -20,8 +20,13 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApiError,
   HealthStatus,
-  StockData
+  Stock,
+  StockImportEnvelope,
+  StockImportErrorResponse,
+  StockImportResult,
+  Vehicle
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -138,11 +143,12 @@ export const getGetStockUrl = () => {
 }
 
 /**
- * @summary Get shared showroom stock
+ * Returns the current full stock snapshot persisted in the database.
+ * @summary Get current showroom stock
  */
-export const getStock = async ( options?: Parameters<typeof customFetch>[1]): Promise<StockData | void> => {
+export const getStock = async ( options?: Parameters<typeof customFetch>[1]): Promise<Stock> => {
 
-  return customFetch<StockData | void>(getGetStockUrl(),
+  return customFetch<Stock>(getGetStockUrl(),
   {
     ...options,
     method: 'GET'
@@ -185,7 +191,7 @@ export type GetStockQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get shared showroom stock
+ * @summary Get current showroom stock
  */
 
 export function useGetStock<TData = Awaited<ReturnType<typeof getStock>>, TError = ErrorType<unknown>>(
@@ -206,25 +212,26 @@ export function useGetStock<TData = Awaited<ReturnType<typeof getStock>>, TError
 
 
 
-export const getReplaceStockUrl = () => {
+export const getImportAutotraderStockUrl = () => {
 
 
 
 
-  return `/api/stock`
+  return `/api/stock/imports/autotrader`
 }
 
 /**
- * @summary Replace shared showroom stock
+ * Reconciles the database to the supplied complete Auto Trader snapshot. Schema version 1 is the only supported version.
+ * @summary Import a full Auto Trader stock snapshot
  */
-export const replaceStock = async (stockData: StockData, options?: Parameters<typeof customFetch>[1]): Promise<StockData> => {
+export const importAutotraderStock = async (stockImportEnvelope: StockImportEnvelope, options?: Parameters<typeof customFetch>[1]): Promise<StockImportResult> => {
 
-  return customFetch<StockData>(getReplaceStockUrl(),
+  return customFetch<StockImportResult>(getImportAutotraderStockUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(stockData)
+    body: JSON.stringify(stockImportEnvelope)
   }
 );}
 
@@ -232,11 +239,11 @@ export const replaceStock = async (stockData: StockData, options?: Parameters<ty
 
 
 
-export const getReplaceStockMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceStock>>, TError,{data: BodyType<StockData>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof replaceStock>>, TError,{data: BodyType<StockData>}, TContext> => {
+export const getImportAutotraderStockMutationOptions = <TError = ErrorType<StockImportErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAutotraderStock>>, TError,{data: BodyType<StockImportEnvelope>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importAutotraderStock>>, TError,{data: BodyType<StockImportEnvelope>}, TContext> => {
 
-const mutationKey = ['replaceStock'];
+const mutationKey = ['importAutotraderStock'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -246,10 +253,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replaceStock>>, {data: BodyType<StockData>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importAutotraderStock>>, {data: BodyType<StockImportEnvelope>}> = (props) => {
           const {data} = props ?? {};
 
-          return  replaceStock(data,requestOptions)
+          return  importAutotraderStock(data,requestOptions)
         }
 
 
@@ -259,41 +266,41 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ReplaceStockMutationResult = NonNullable<Awaited<ReturnType<typeof replaceStock>>>
-    export type ReplaceStockMutationBody = BodyType<StockData>
-    export type ReplaceStockMutationError = ErrorType<void>
+    export type ImportAutotraderStockMutationResult = NonNullable<Awaited<ReturnType<typeof importAutotraderStock>>>
+    export type ImportAutotraderStockMutationBody = BodyType<StockImportEnvelope>
+    export type ImportAutotraderStockMutationError = ErrorType<StockImportErrorResponse>
 
     /**
- * @summary Replace shared showroom stock
+ * @summary Import a full Auto Trader stock snapshot
  */
-export const useReplaceStock = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceStock>>, TError,{data: BodyType<StockData>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useImportAutotraderStock = <TError = ErrorType<StockImportErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAutotraderStock>>, TError,{data: BodyType<StockImportEnvelope>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof replaceStock>>,
+        Awaited<ReturnType<typeof importAutotraderStock>>,
         TError,
-        {data: BodyType<StockData>},
+        {data: BodyType<StockImportEnvelope>},
         TContext
       > => {
-      return useMutation(getReplaceStockMutationOptions(options));
+      return useMutation(getImportAutotraderStockMutationOptions(options));
     }
 
-export const getVerifyPortalPasswordUrl = () => {
+export const getGetVehicleUrl = (id: string,) => {
 
 
 
 
-  return `/api/stock/auth`
+  return `/api/vehicles/${id}`
 }
 
 /**
- * @summary Verify the staff portal password
+ * @summary Get a vehicle
  */
-export const verifyPortalPassword = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const getVehicle = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Vehicle> => {
 
-  return customFetch<void>(getVerifyPortalPasswordUrl(),
+  return customFetch<Vehicle>(getGetVehicleUrl(id),
   {
     ...options,
-    method: 'POST'
+    method: 'GET'
 
 
   }
@@ -303,48 +310,47 @@ export const verifyPortalPassword = async ( options?: Parameters<typeof customFe
 
 
 
-export const getVerifyPortalPasswordMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPortalPassword>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof verifyPortalPassword>>, TError,void, TContext> => {
-
-const mutationKey = ['verifyPortalPassword'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyPortalPassword>>, void> = () => {
-
-
-          return  verifyPortalPassword(requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type VerifyPortalPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof verifyPortalPassword>>>
-
-    export type VerifyPortalPasswordMutationError = ErrorType<void>
-
-    /**
- * @summary Verify the staff portal password
- */
-export const useVerifyPortalPassword = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPortalPassword>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof verifyPortalPassword>>,
-        TError,
-        void,
-        TContext
-      > => {
-      return useMutation(getVerifyPortalPasswordMutationOptions(options));
+export const getGetVehicleQueryKey = (id: string,) => {
+    return [
+    `/api/vehicles/${id}`
+    ] as const;
     }
 
+
+export const getGetVehicleQueryOptions = <TData = Awaited<ReturnType<typeof getVehicle>>, TError = ErrorType<ApiError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVehicle>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVehicleQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVehicle>>> = ({ signal }) => getVehicle(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVehicle>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVehicleQueryResult = NonNullable<Awaited<ReturnType<typeof getVehicle>>>
+export type GetVehicleQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get a vehicle
+ */
+
+export function useGetVehicle<TData = Awaited<ReturnType<typeof getVehicle>>, TError = ErrorType<ApiError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVehicle>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVehicleQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

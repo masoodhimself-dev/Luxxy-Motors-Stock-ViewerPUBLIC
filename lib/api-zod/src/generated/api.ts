@@ -18,54 +18,297 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Get shared showroom stock
+ * Returns the current full stock snapshot persisted in the database.
+ * @summary Get current showroom stock
  */
+export const getStockResponseCountMin = 0;
+export const getStockResponseCountMultipleOf = 1;
+
+
+export const getStockResponseCarsItemYearMultipleOf = 1;
+
+export const getStockResponseCarsItemMileageMultipleOf = 1;
+
+export const getStockResponseCarsItemEngineCCMultipleOf = 1;
+
+export const getStockResponseCarsItemDoorsMultipleOf = 1;
+
+export const getStockResponseCarsItemSeatsMultipleOf = 1;
+
+export const getStockResponseCarsItemOwnersMultipleOf = 1;
+
+export const getStockResponseCarsItemImageCountMultipleOf = 1;
+
+
 
 
 
 export const GetStockResponse = zod.object({
-  "dealerName": zod.string().optional(),
-  "count": zod.number().optional(),
-  "scrapedAt": zod.string().optional(),
-  "cars": zod.array(zod.record(zod.string(), zod.unknown())).min(1)
+  "schemaVersion": zod.literal(1),
+  "dealerName": zod.string().nullable(),
+  "dealerLocation": zod.string().nullable(),
+  "count": zod.number().min(getStockResponseCountMin).multipleOf(getStockResponseCountMultipleOf),
+  "scrapedAt": zod.coerce.date().nullable(),
+  "cars": zod.array(zod.object({
+  "advertId": zod.string().min(1),
+  "title": zod.string().nullable(),
+  "variant": zod.string().nullable(),
+  "make": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "trim": zod.string().nullable(),
+  "year": zod.number().multipleOf(getStockResponseCarsItemYearMultipleOf).nullable(),
+  "price": zod.number().nullable(),
+  "priceType": zod.string().nullable(),
+  "currency": zod.string().nullable(),
+  "mileage": zod.number().multipleOf(getStockResponseCarsItemMileageMultipleOf).nullable(),
+  "mileageText": zod.string().nullable(),
+  "registration": zod.string().nullable(),
+  "registrationBand": zod.string().nullable(),
+  "plate": zod.string().nullable(),
+  "vrm": zod.string().nullable(),
+  "vrmVerified": zod.boolean().nullable(),
+  "fuel": zod.string().nullable(),
+  "transmission": zod.string().nullable(),
+  "bodyType": zod.string().nullable(),
+  "engineSize": zod.string().nullable(),
+  "engineCC": zod.number().multipleOf(getStockResponseCarsItemEngineCCMultipleOf).nullable(),
+  "doors": zod.number().multipleOf(getStockResponseCarsItemDoorsMultipleOf).nullable(),
+  "seats": zod.number().multipleOf(getStockResponseCarsItemSeatsMultipleOf).nullable(),
+  "colour": zod.string().nullable(),
+  "emissionClass": zod.string().nullable(),
+  "drivetrain": zod.string().nullable(),
+  "owners": zod.number().multipleOf(getStockResponseCarsItemOwnersMultipleOf).nullable(),
+  "writeOffCategory": zod.string().nullable(),
+  "advertUrl": zod.string().nullable(),
+  "dealerName": zod.string().nullable(),
+  "dealerLocation": zod.string().nullable(),
+  "imageCount": zod.number().multipleOf(getStockResponseCarsItemImageCountMultipleOf).nullable(),
+  "heroImage": zod.string().nullable(),
+  "images": zod.array(zod.object({
+  "url": zod.string().min(1),
+  "caption": zod.string().nullable()
+})),
+  "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "id": zod.string().min(1)
+}))
 })
 
 
 /**
- * @summary Replace shared showroom stock
+ * Reconciles the database to the supplied complete Auto Trader snapshot. Schema version 1 is the only supported version.
+ * @summary Import a full Auto Trader stock snapshot
  */
-export const ReplaceStockHeader = zod.object({
-  "x-portal-password": zod.string()
+
+
+
+export const ImportAutotraderStockHeader = zod.object({
+  "x-stock-import-secret": zod.string().min(1).describe('Shared secret used to authenticate the stock importer.')
 })
 
 
 
 
-export const ReplaceStockBody = zod.object({
-  "dealerName": zod.string().optional(),
-  "count": zod.number().optional(),
-  "scrapedAt": zod.string().optional(),
-  "cars": zod.array(zod.record(zod.string(), zod.unknown())).min(1)
+export const importAutotraderStockBodyExpectedAdvertCountMin = 0;
+export const importAutotraderStockBodyExpectedAdvertCountMultipleOf = 1;
+
+export const importAutotraderStockBodyCountMin = 0;
+export const importAutotraderStockBodyCountMultipleOf = 1;
+
+
+
+
+
+export const importAutotraderStockBodyCarsItemYearMultipleOf = 1;
+
+export const importAutotraderStockBodyCarsItemMileageMultipleOf = 1;
+
+export const importAutotraderStockBodyCarsItemEngineCCMultipleOf = 1;
+
+export const importAutotraderStockBodyCarsItemDoorsMultipleOf = 1;
+
+export const importAutotraderStockBodyCarsItemSeatsMultipleOf = 1;
+
+export const importAutotraderStockBodyCarsItemOwnersMultipleOf = 1;
+
+export const importAutotraderStockBodyCarsItemImageCountMultipleOf = 1;
+
+
+
+
+export const ImportAutotraderStockBody = zod.object({
+  "schemaVersion": zod.literal(1),
+  "runId": zod.string().min(1),
+  "source": zod.enum(['autotrader']),
+  "retailerId": zod.string().min(1),
+  "dealerName": zod.string().min(1),
+  "scrapedAt": zod.coerce.date(),
+  "complete": zod.boolean(),
+  "expectedAdvertCount": zod.number().min(importAutotraderStockBodyExpectedAdvertCountMin).multipleOf(importAutotraderStockBodyExpectedAdvertCountMultipleOf),
+  "count": zod.number().min(importAutotraderStockBodyCountMin).multipleOf(importAutotraderStockBodyCountMultipleOf),
+  "failedAdvertIds": zod.array(zod.string().min(1)),
+  "errors": zod.array(zod.object({
+  "code": zod.string().min(1),
+  "message": zod.string().min(1),
+  "advertId": zod.string().nullable(),
+  "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()])
+})),
+  "cars": zod.array(zod.object({
+  "advertId": zod.string().min(1),
+  "title": zod.string().nullable(),
+  "variant": zod.string().nullable(),
+  "make": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "trim": zod.string().nullable(),
+  "year": zod.number().multipleOf(importAutotraderStockBodyCarsItemYearMultipleOf).nullable(),
+  "price": zod.number().nullable(),
+  "priceType": zod.string().nullable(),
+  "currency": zod.string().nullable(),
+  "mileage": zod.number().multipleOf(importAutotraderStockBodyCarsItemMileageMultipleOf).nullable(),
+  "mileageText": zod.string().nullable(),
+  "registration": zod.string().nullable(),
+  "registrationBand": zod.string().nullable(),
+  "plate": zod.string().nullable(),
+  "vrm": zod.string().nullable(),
+  "vrmVerified": zod.boolean().nullable(),
+  "fuel": zod.string().nullable(),
+  "transmission": zod.string().nullable(),
+  "bodyType": zod.string().nullable(),
+  "engineSize": zod.string().nullable(),
+  "engineCC": zod.number().multipleOf(importAutotraderStockBodyCarsItemEngineCCMultipleOf).nullable(),
+  "doors": zod.number().multipleOf(importAutotraderStockBodyCarsItemDoorsMultipleOf).nullable(),
+  "seats": zod.number().multipleOf(importAutotraderStockBodyCarsItemSeatsMultipleOf).nullable(),
+  "colour": zod.string().nullable(),
+  "emissionClass": zod.string().nullable(),
+  "drivetrain": zod.string().nullable(),
+  "owners": zod.number().multipleOf(importAutotraderStockBodyCarsItemOwnersMultipleOf).nullable(),
+  "writeOffCategory": zod.string().nullable(),
+  "advertUrl": zod.string().nullable(),
+  "dealerName": zod.string().nullable(),
+  "dealerLocation": zod.string().nullable(),
+  "imageCount": zod.number().multipleOf(importAutotraderStockBodyCarsItemImageCountMultipleOf).nullable(),
+  "heroImage": zod.string().nullable(),
+  "images": zod.array(zod.object({
+  "url": zod.string().min(1),
+  "caption": zod.string().nullable()
+})),
+  "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()])
+}))
 })
 
 
 
+export const importAutotraderStockResponseReceivedMin = 0;
+export const importAutotraderStockResponseReceivedMultipleOf = 1;
 
-export const ReplaceStockResponse = zod.object({
-  "dealerName": zod.string().optional(),
-  "count": zod.number().optional(),
-  "scrapedAt": zod.string().optional(),
-  "cars": zod.array(zod.record(zod.string(), zod.unknown())).min(1)
+export const importAutotraderStockResponseCreatedMin = 0;
+export const importAutotraderStockResponseCreatedMultipleOf = 1;
+
+export const importAutotraderStockResponseUpdatedMin = 0;
+export const importAutotraderStockResponseUpdatedMultipleOf = 1;
+
+export const importAutotraderStockResponseDeletedMin = 0;
+export const importAutotraderStockResponseDeletedMultipleOf = 1;
+
+export const importAutotraderStockResponseUnchangedMin = 0;
+export const importAutotraderStockResponseUnchangedMultipleOf = 1;
+
+
+
+
+
+export const ImportAutotraderStockResponse = zod.object({
+  "schemaVersion": zod.literal(1),
+  "status": zod.enum(['imported', 'replayed']),
+  "runId": zod.string().min(1),
+  "source": zod.enum(['autotrader']),
+  "retailerId": zod.string().min(1),
+  "received": zod.number().min(importAutotraderStockResponseReceivedMin).multipleOf(importAutotraderStockResponseReceivedMultipleOf),
+  "created": zod.number().min(importAutotraderStockResponseCreatedMin).multipleOf(importAutotraderStockResponseCreatedMultipleOf),
+  "updated": zod.number().min(importAutotraderStockResponseUpdatedMin).multipleOf(importAutotraderStockResponseUpdatedMultipleOf),
+  "deleted": zod.number().min(importAutotraderStockResponseDeletedMin).multipleOf(importAutotraderStockResponseDeletedMultipleOf),
+  "unchanged": zod.number().min(importAutotraderStockResponseUnchangedMin).multipleOf(importAutotraderStockResponseUnchangedMultipleOf),
+  "errors": zod.array(zod.object({
+  "code": zod.string().min(1),
+  "message": zod.string().min(1),
+  "path": zod.string().nullable(),
+  "advertId": zod.string().nullable()
+}))
 })
 
 
 /**
- * @summary Verify the staff portal password
+ * @summary Get a vehicle
  */
-export const VerifyPortalPasswordHeader = zod.object({
-  "x-portal-password": zod.string()
+
+
+
+export const GetVehicleParams = zod.object({
+  "id": zod.coerce.string().min(1).describe('Database identifier of the vehicle.')
 })
 
-export const VerifyPortalPasswordResponse = zod.void()
+
+export const getVehicleResponseYearMultipleOf = 1;
+
+export const getVehicleResponseMileageMultipleOf = 1;
+
+export const getVehicleResponseEngineCCMultipleOf = 1;
+
+export const getVehicleResponseDoorsMultipleOf = 1;
+
+export const getVehicleResponseSeatsMultipleOf = 1;
+
+export const getVehicleResponseOwnersMultipleOf = 1;
+
+export const getVehicleResponseImageCountMultipleOf = 1;
+
+
+
+
+
+export const GetVehicleResponse = zod.object({
+  "advertId": zod.string().min(1),
+  "title": zod.string().nullable(),
+  "variant": zod.string().nullable(),
+  "make": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "trim": zod.string().nullable(),
+  "year": zod.number().multipleOf(getVehicleResponseYearMultipleOf).nullable(),
+  "price": zod.number().nullable(),
+  "priceType": zod.string().nullable(),
+  "currency": zod.string().nullable(),
+  "mileage": zod.number().multipleOf(getVehicleResponseMileageMultipleOf).nullable(),
+  "mileageText": zod.string().nullable(),
+  "registration": zod.string().nullable(),
+  "registrationBand": zod.string().nullable(),
+  "plate": zod.string().nullable(),
+  "vrm": zod.string().nullable(),
+  "vrmVerified": zod.boolean().nullable(),
+  "fuel": zod.string().nullable(),
+  "transmission": zod.string().nullable(),
+  "bodyType": zod.string().nullable(),
+  "engineSize": zod.string().nullable(),
+  "engineCC": zod.number().multipleOf(getVehicleResponseEngineCCMultipleOf).nullable(),
+  "doors": zod.number().multipleOf(getVehicleResponseDoorsMultipleOf).nullable(),
+  "seats": zod.number().multipleOf(getVehicleResponseSeatsMultipleOf).nullable(),
+  "colour": zod.string().nullable(),
+  "emissionClass": zod.string().nullable(),
+  "drivetrain": zod.string().nullable(),
+  "owners": zod.number().multipleOf(getVehicleResponseOwnersMultipleOf).nullable(),
+  "writeOffCategory": zod.string().nullable(),
+  "advertUrl": zod.string().nullable(),
+  "dealerName": zod.string().nullable(),
+  "dealerLocation": zod.string().nullable(),
+  "imageCount": zod.number().multipleOf(getVehicleResponseImageCountMultipleOf).nullable(),
+  "heroImage": zod.string().nullable(),
+  "images": zod.array(zod.object({
+  "url": zod.string().min(1),
+  "caption": zod.string().nullable()
+})),
+  "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "id": zod.string().min(1)
+})
 
 

@@ -9,16 +9,302 @@ export interface HealthStatus {
   status: string;
 }
 
-export interface Car { [key: string]: unknown }
+export interface VehicleImage {
+  /** @minLength 1 */
+  url: string;
+  /** @nullable */
+  caption: string | null;
+}
 
-export interface StockData {
-  dealerName?: string;
-  count?: number;
-  scrapedAt?: string;
+export interface VehicleSourceExtras { [key: string]: unknown }
+
+export interface VehicleSpecifications { [key: string]: unknown }
+
+export interface ImportedVehicle {
+  /** @minLength 1 */
+  advertId: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  variant: string | null;
+  /** @nullable */
+  make: string | null;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  trim: string | null;
+  /** @nullable */
+  year: number | null;
+  /** @nullable */
+  price: number | null;
+  /** @nullable */
+  priceType: string | null;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  mileage: number | null;
+  /** @nullable */
+  mileageText: string | null;
+  /** @nullable */
+  registration: string | null;
+  /** @nullable */
+  registrationBand: string | null;
+  /** @nullable */
+  plate: string | null;
+  /** @nullable */
+  vrm: string | null;
+  /** @nullable */
+  vrmVerified: boolean | null;
+  /** @nullable */
+  fuel: string | null;
+  /** @nullable */
+  transmission: string | null;
+  /** @nullable */
+  bodyType: string | null;
+  /** @nullable */
+  engineSize: string | null;
+  /** @nullable */
+  engineCC: number | null;
+  /** @nullable */
+  doors: number | null;
+  /** @nullable */
+  seats: number | null;
+  /** @nullable */
+  colour: string | null;
+  /** @nullable */
+  emissionClass: string | null;
+  /** @nullable */
+  drivetrain: string | null;
+  /** @nullable */
+  owners: number | null;
+  /** @nullable */
+  writeOffCategory: string | null;
+  /** @nullable */
+  advertUrl: string | null;
+  /** @nullable */
+  dealerName: string | null;
+  /** @nullable */
+  dealerLocation: string | null;
+  /** @nullable */
+  imageCount: number | null;
+  /** @nullable */
+  heroImage: string | null;
+  images: VehicleImage[];
+  specifications: VehicleSpecifications | null;
+  sourceExtras: VehicleSourceExtras | null;
+}
+
+export interface Vehicle {
+  /** @minLength 1 */
+  advertId: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  variant: string | null;
+  /** @nullable */
+  make: string | null;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  trim: string | null;
+  /** @nullable */
+  year: number | null;
+  /** @nullable */
+  price: number | null;
+  /** @nullable */
+  priceType: string | null;
+  /** @nullable */
+  currency: string | null;
+  /** @nullable */
+  mileage: number | null;
+  /** @nullable */
+  mileageText: string | null;
+  /** @nullable */
+  registration: string | null;
+  /** @nullable */
+  registrationBand: string | null;
+  /** @nullable */
+  plate: string | null;
+  /** @nullable */
+  vrm: string | null;
+  /** @nullable */
+  vrmVerified: boolean | null;
+  /** @nullable */
+  fuel: string | null;
+  /** @nullable */
+  transmission: string | null;
+  /** @nullable */
+  bodyType: string | null;
+  /** @nullable */
+  engineSize: string | null;
+  /** @nullable */
+  engineCC: number | null;
+  /** @nullable */
+  doors: number | null;
+  /** @nullable */
+  seats: number | null;
+  /** @nullable */
+  colour: string | null;
+  /** @nullable */
+  emissionClass: string | null;
+  /** @nullable */
+  drivetrain: string | null;
+  /** @nullable */
+  owners: number | null;
+  /** @nullable */
+  writeOffCategory: string | null;
+  /** @nullable */
+  advertUrl: string | null;
+  /** @nullable */
+  dealerName: string | null;
+  /** @nullable */
+  dealerLocation: string | null;
+  /** @nullable */
+  imageCount: number | null;
+  /** @nullable */
+  heroImage: string | null;
+  images: VehicleImage[];
+  specifications: VehicleSpecifications | null;
+  sourceExtras: VehicleSourceExtras | null;
+  /** @minLength 1 */
+  id: string;
+}
+
+export type StockImportEnvelopeSchemaVersion = typeof StockImportEnvelopeSchemaVersion[keyof typeof StockImportEnvelopeSchemaVersion];
+
+
+export const StockImportEnvelopeSchemaVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type StockImportEnvelopeSource = typeof StockImportEnvelopeSource[keyof typeof StockImportEnvelopeSource];
+
+
+export const StockImportEnvelopeSource = {
+  autotrader: 'autotrader',
+} as const;
+
+export interface SourceImportError {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  message: string;
+  /** @nullable */
+  advertId: string | null;
+  sourceExtras: VehicleSourceExtras | null;
+}
+
+export interface StockImportEnvelope {
+  schemaVersion: StockImportEnvelopeSchemaVersion;
+  /** @minLength 1 */
+  runId: string;
+  source: StockImportEnvelopeSource;
+  /** @minLength 1 */
+  retailerId: string;
+  /** @minLength 1 */
+  dealerName: string;
+  scrapedAt: string;
+  complete: boolean;
+  /** @minimum 0 */
+  expectedAdvertCount: number;
+  /** @minimum 0 */
+  count: number;
+  /** @items.minLength 1 */
+  failedAdvertIds: string[];
+  errors: SourceImportError[];
+  cars: ImportedVehicle[];
+}
+
+export type StockSchemaVersion = typeof StockSchemaVersion[keyof typeof StockSchemaVersion];
+
+
+export const StockSchemaVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export interface Stock {
+  schemaVersion: StockSchemaVersion;
+  /** @nullable */
+  dealerName: string | null;
+  /** @nullable */
+  dealerLocation: string | null;
+  /** @minimum 0 */
+  count: number;
+  /** @nullable */
+  scrapedAt: string | null;
+  cars: Vehicle[];
+}
+
+export interface StockImportIssue {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  message: string;
+  /** @nullable */
+  path: string | null;
+  /** @nullable */
+  advertId: string | null;
+}
+
+export type StockImportResultSchemaVersion = typeof StockImportResultSchemaVersion[keyof typeof StockImportResultSchemaVersion];
+
+
+export const StockImportResultSchemaVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type StockImportResultStatus = typeof StockImportResultStatus[keyof typeof StockImportResultStatus];
+
+
+export const StockImportResultStatus = {
+  imported: 'imported',
+  replayed: 'replayed',
+} as const;
+
+export type StockImportResultSource = typeof StockImportResultSource[keyof typeof StockImportResultSource];
+
+
+export const StockImportResultSource = {
+  autotrader: 'autotrader',
+} as const;
+
+export interface StockImportResult {
+  schemaVersion: StockImportResultSchemaVersion;
+  status: StockImportResultStatus;
+  /** @minLength 1 */
+  runId: string;
+  source: StockImportResultSource;
+  /** @minLength 1 */
+  retailerId: string;
+  /** @minimum 0 */
+  received: number;
+  /** @minimum 0 */
+  created: number;
+  /** @minimum 0 */
+  updated: number;
+  /** @minimum 0 */
+  deleted: number;
+  /** @minimum 0 */
+  unchanged: number;
+  errors: StockImportIssue[];
+}
+
+export type StockImportErrorResponseStatus = typeof StockImportErrorResponseStatus[keyof typeof StockImportErrorResponseStatus];
+
+
+export const StockImportErrorResponseStatus = {
+  rejected: 'rejected',
+  quarantined: 'quarantined',
+} as const;
+
+export interface StockImportErrorResponse {
+  status: StockImportErrorResponseStatus;
   /** @minItems 1 */
-  cars: Car[];
-  [key: string]: unknown;
- }
+  errors: StockImportIssue[];
+}
 
-export type StockInput = StockData;
+export interface ApiError {
+  /** @minLength 1 */
+  error: string;
+}
 

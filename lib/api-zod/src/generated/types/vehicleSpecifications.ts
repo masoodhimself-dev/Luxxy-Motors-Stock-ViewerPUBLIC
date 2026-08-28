@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Car { [key: string]: unknown }
+export interface VehicleSpecifications { [key: string]: unknown }
