@@ -1,0 +1,239 @@
+Implement Phase 1 of a production-grade Auto Trader stock synchronisation system for the audited Luxxy Motors stock viewer.
+
+This is an implementation task, not another audit.
+
+Important scope:
+- Build the database-backed stock foundation and safe import/reconciliation system.
+- Do not build or run an Auto Trader scraper.
+- Do not add a scheduler yet.
+- Do not make unrelated CRM changes.
+- Preserve the existing public design where reasonably possible.
+- Do not use local JSON files as the source of truth after migration.
+
+1. PostgreSQL / Drizzle data model
+
+Create appropriate tables for:
+
+A. stock_import_runs
+Include:
+- id
+- runId, unique
+- dealerId
+- source
+- retailerId
+- schemaVersion
+- scrapedAt
+- receivedAt
+- expectedCount
+- receivedCount
+- complete
+- status
+- failedAdvertIds
+- errors
+- rawSnapshot as JSONB
+- addedCount
+- changedCount
+- missingCount
+- timestamps
+
+B. vehicles
+Include:
+- internal UUID id
+- dealerId
+- source
+- advertId
+- unique constraint on dealerId + source + advertId
+- all imported vehicle fields currently used by the frontend
+- registrationBand separate from vrm/plate
+- vrmVerified boolean
+- sourcePrice
+- websitePriceOverride
+- sourceHeroImage
+- inventoryStatus
+- sourceStatus
+- firstSeenAt
+- lastSeenAt
+- missingCount
+- website/manual fields that must not be overwritten by imports
+- timestamps
+
+C. vehicle_images
+Include:
+- vehicleId
+- sourceUrl
+- caption
+- sortOrder
+- isHero
+- firstSeenAt
+- lastSeenAt
+
+D. vehicle_changes
+Include:
+- vehicleId
+- importRunId
+- fieldName
+- oldValue
+- newValue
+- changedAt
+
+Use migrations and proper foreign keys/indexes.
+
+2. Status model
+
+Use two independent fields:
+
+inventoryStatus:
+- available
+- reserved
+- sold
+- hidden
+- archived
+
+sourceStatus:
+- live
+- missing
+
+An import must never automatically change inventoryStatus to sold.
+
+3. Secure import endpoint
+
+Create:
+
+POST /api/stock/imports/autotrader
+
+Use a dedicated server-to-server secret such as STOCK_IMPORT_SECRET. If the repository already has a secure IMPORT_SECRET convention, follow that convention, but do not use PORTAL_PASSWORD for machine imports.
+
+Remove any built-in fallback password from protected stock routes.
+
+The new endpoint should accept a versioned full-snapshot payload:
+
+- schemaVersion
+- runId
+- source
+- retailerId
+- dealerName
+- scrapedAt
+- complete
+- expectedAdvertCount
+- count
+- failedAdvertIds
+- errors
+- cars
+
+Ensure runId is idempotent.
+
+4. Strict validation
+
+Use Zod or the project’s generated validation approach.
+
+Require:
+- valid and unique runId
+- supported schemaVersion
+- correct retailer/dealer
+- fresh scrapedAt
+- count equals cars.length
+- complete is explicit
+- advertId exists for every car
+- duplicate advertIds are rejected
+- valid numeric price/mileage/year ranges
+- owners normalised to integer or null
+- writeOffCategory limited to S, N or null
+- safe image URL structure
+- explicit null handling
+
+If complete is false, failedAdvertIds is non-empty, count mismatches, or the snapshot is otherwise incomplete:
+- store the import run and raw payload for audit
+- mark the run failed/quarantined
+- make no changes to vehicles
+- do not increment missing counts
+
+Add configurable protection for:
+- stock count dropping by more than 30%
+- prices below £500
+- price changes greater than 50%
+
+A suspicious individual price should not overwrite the previous public price without approval.
+
+5. Transactional reconciliation
+
+For a successful complete snapshot, process everything in one database transaction.
+
+For each advertId:
+- insert new vehicles
+- update controlled source fields on existing vehicles
+- preserve all manual website, CRM and inventory-status fields
+- update lastSeenAt
+- reset sourceStatus to live
+- reset missingCount
+- synchronise images
+- record meaningful field changes
+
+For existing vehicles absent from a successful complete snapshot:
+- set sourceStatus to missing
+- increment missingCount
+- do not delete
+- do not mark sold
+- retain them publicly during the first missing check
+- after a configurable threshold of consecutive complete misses, hide them from the public stock response and flag them for staff review
+
+If a missing vehicle reappears and it is not sold/archived:
+- set sourceStatus to live
+- reset missingCount
+
+6. Public APIs
+
+Replace file-backed stock reads with database-backed endpoints:
+
+GET /api/stock
+GET /api/vehicles/:id
+
+Public stock should use the database and include only vehicles permitted by inventory/source visibility rules.
+
+Remove the static full-stock.json fallback after the migration is confirmed, so there is one source of truth.
+
+7. Hero images
+
+Do not blindly use images[0].
+
+Select the first available exterior-caption image in this order:
+Front Right, Front, Front Left, Side Right, Side Left, Rear Right, Rear, Rear Left.
+
+Fall back safely only when no recognised exterior image exists.
+
+8. Migration and seed
+
+Provide a safe way to import the existing 32-car full-stock JSON as the initial baseline without duplicating records.
+
+9. Tests
+
+Add automated tests for:
+- initial 32-car import
+- repeated identical import
+- one new advert
+- field changes
+- suspicious £99 price
+- one missing advert
+- repeated missing advert
+- missing advert reappearing
+- manual override preservation
+- sold vehicle protection
+- duplicate advertId
+- incomplete five-car snapshot
+- count mismatch
+- completely failed run
+- same runId submitted twice
+- concurrent imports
+
+Do not rely only on type checking. Exercise the actual endpoints and database behavior.
+
+10. Completion report
+
+At the end provide:
+- migration/schema summary
+- endpoint contract
+- exact authentication header
+- validation behavior
+- reconciliation behavior
+- tests run and results
+- any remaining risks
+- confirmation that local JSON files are no longer the stock source of truth
