@@ -1,0 +1,63 @@
+I am reviewing the current Luxxy Motors Auto Trader/Grok stock integration before making further changes.
+
+DO NOT modify code, database schemas, secrets, deployments, scheduled jobs, UI, APIs or data. This is a read-only technical audit.
+
+Inspect the entire existing project and tell me exactly how the vehicle-stock system currently works.
+
+Please report:
+
+1. Current application architecture and relevant technologies.
+2. Where vehicle stock is stored.
+3. The current vehicle/database schema, including all important fields.
+4. How Grok currently sends/imports Auto Trader stock into this application.
+5. Every API route/endpoint involved in stock importing or updating.
+6. How those endpoints are authenticated. Do NOT reveal actual secret values; give secret/environment-variable names only.
+7. What happens internally when the full-stock JSON is received.
+8. What field is currently used to uniquely identify a vehicle.
+9. Whether advertId is stored and/or unique.
+10. Whether registration/plate is stored and how it is used.
+11. How duplicate vehicles are prevented.
+12. Whether an existing vehicle is updated when the same vehicle is imported again.
+13. Which fields are updated on subsequent imports.
+14. Whether price changes are currently detected/stored.
+15. Whether mileage changes are detected/stored.
+16. Whether image changes are detected.
+17. Whether previous values/history are retained anywhere.
+18. What currently happens to a vehicle in the database if it disappears from the next Grok/Auto Trader import.
+19. All existing vehicle statuses and exactly what each means.
+20. How sold, reserved, hidden and deleted vehicles currently work.
+21. Whether manually edited website/CRM information can be overwritten by the next Grok import.
+22. How the public website decides which vehicles to display.
+23. How individual vehicle pages and image galleries are generated.
+24. Whether Auto Trader image URLs are stored directly or images are copied/cached elsewhere.
+25. Any CRM relationships already connected to vehicles, including customers, leads, sales and invoices.
+26. Any existing scheduled jobs/background jobs related to stock.
+27. Existing logging/audit/history mechanisms.
+28. Existing validation of incoming stock data.
+29. What happens if Grok sends malformed data, an incomplete snapshot, duplicate records, suspicious prices, zero vehicles, or fails part-way through an import.
+30. Any technical debt, bugs, race conditions, data-loss risks or architectural weaknesses you can identify in the current stock-import system.
+
+Also inspect the current implementation against the supplied/imported stock structure, which includes things such as advertId, plate, price, mileage, specifications, writeOffCategory, heroImage and images.
+
+At the end, give me these four sections:
+
+CURRENT ARCHITECTURE
+Describe the Auto Trader → Grok → Replit → database → website flow exactly as it exists today.
+
+CURRENT DATA MODEL
+Show the relevant tables/models and relationships in a concise readable format.
+
+CURRENT SYNC BEHAVIOUR
+Explain exactly what happens on import for:
+
+* a brand-new advert
+* an existing advert with no changes
+* an existing advert with changed details
+* a vehicle missing from the new snapshot
+* malformed/incomplete data
+* a completely failed import
+
+GAPS / RISKS
+Identify what is missing for this to become a safe production-grade automatic stock synchronisation system.
+
+Do not implement your recommendations yet. I only want the audit.
