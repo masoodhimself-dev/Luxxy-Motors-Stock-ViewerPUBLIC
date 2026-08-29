@@ -6,7 +6,13 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed:stock": "tsx ./src/seed-stock.ts",
+    "backfill:tenant": "tsx ./src/backfill-tenant.ts",
+    "preservation:manifest": "tsx ./src/preservation-manifest.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

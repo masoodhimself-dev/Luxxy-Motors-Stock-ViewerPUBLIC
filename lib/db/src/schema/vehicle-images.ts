@@ -1,5 +1,6 @@
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -13,6 +14,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { vehiclesTable } from "./vehicles";
+import { dealerIntegrationsTable, dealersTable } from "./tenants";
 
 export const vehicleImageOriginEnum = pgEnum("vehicle_image_origin", [
   "source",
@@ -26,6 +28,8 @@ export const vehicleImagesTable = pgTable(
     vehicleId: uuid("vehicle_id")
       .notNull()
       .references(() => vehiclesTable.id, { onDelete: "cascade" }),
+    tenantDealerId: uuid("tenant_dealer_id").references(() => dealersTable.id, { onDelete: "restrict" }),
+    dealerIntegrationId: uuid("dealer_integration_id"),
     origin: vehicleImageOriginEnum("origin").notNull().default("source"),
     sourceUrl: text("source_url").notNull(),
     caption: text("caption"),
@@ -48,6 +52,25 @@ export const vehicleImagesTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    foreignKey({
+      name: "vehicle_images_vehicle_dealer_fk",
+      columns: [table.vehicleId, table.tenantDealerId],
+      foreignColumns: [vehiclesTable.id, vehiclesTable.tenantDealerId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "vehicle_images_vehicle_integration_fk",
+      columns: [table.vehicleId, table.tenantDealerId, table.dealerIntegrationId],
+      foreignColumns: [
+        vehiclesTable.id,
+        vehiclesTable.tenantDealerId,
+        vehiclesTable.dealerIntegrationId,
+      ],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "vehicle_images_integration_dealer_fk",
+      columns: [table.dealerIntegrationId, table.tenantDealerId],
+      foreignColumns: [dealerIntegrationsTable.id, dealerIntegrationsTable.dealerId],
+    }).onDelete("restrict"),
     uniqueIndex("vehicle_images_vehicle_url_uidx").on(
       table.vehicleId,
       table.sourceUrl,
@@ -56,6 +79,8 @@ export const vehicleImagesTable = pgTable(
       table.vehicleId,
       table.sortOrder,
     ),
+    index("vehicle_images_tenant_dealer_id_idx").on(table.tenantDealerId),
+    index("vehicle_images_dealer_integration_id_idx").on(table.dealerIntegrationId),
     index("vehicle_images_vehicle_active_idx").on(
       table.vehicleId,
       table.isActive,

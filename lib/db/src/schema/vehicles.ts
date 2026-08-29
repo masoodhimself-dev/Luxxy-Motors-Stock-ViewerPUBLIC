@@ -1,6 +1,7 @@
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -9,12 +10,14 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { stockImportRunsTable } from "./stock-import-runs";
+import { dealerIntegrationsTable, dealersTable } from "./tenants";
 
 export const inventoryStatusEnum = pgEnum("inventory_status", [
   "available",
@@ -35,6 +38,8 @@ export const vehiclesTable = pgTable(
       { onDelete: "set null" },
     ),
     dealerId: text("dealer_id").notNull(),
+    tenantDealerId: uuid("tenant_dealer_id").references(() => dealersTable.id, { onDelete: "restrict" }),
+    dealerIntegrationId: uuid("dealer_integration_id"),
     source: text("source").notNull(),
     advertId: text("advert_id").notNull(),
     inventoryStatus: inventoryStatusEnum("inventory_status")
@@ -109,12 +114,30 @@ export const vehiclesTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    unique("vehicles_id_tenant_dealer_unique").on(table.id, table.tenantDealerId),
+    unique("vehicles_id_tenant_dealer_integration_unique").on(
+      table.id,
+      table.tenantDealerId,
+      table.dealerIntegrationId,
+    ),
+    foreignKey({
+      name: "vehicles_run_dealer_fk",
+      columns: [table.importRunId, table.tenantDealerId],
+      foreignColumns: [stockImportRunsTable.id, stockImportRunsTable.tenantDealerId],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "vehicles_integration_dealer_fk",
+      columns: [table.dealerIntegrationId, table.tenantDealerId],
+      foreignColumns: [dealerIntegrationsTable.id, dealerIntegrationsTable.dealerId],
+    }).onDelete("restrict"),
     uniqueIndex("vehicles_dealer_source_advert_uidx").on(
       table.dealerId,
       table.source,
       table.advertId,
     ),
     index("vehicles_import_run_id_idx").on(table.importRunId),
+    index("vehicles_tenant_dealer_id_idx").on(table.tenantDealerId),
+    index("vehicles_dealer_integration_id_idx").on(table.dealerIntegrationId),
     index("vehicles_dealer_inventory_status_idx").on(
       table.dealerId,
       table.inventoryStatus,

@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 import {
   GetStockResponse,
   GetVehicleParams,
@@ -10,12 +10,14 @@ import {
 } from "@workspace/api-zod";
 import {
   db,
+  LUXXY_AUTOTRADER_CONTEXT,
   stockImportRunsTable,
   vehicleChangesTable,
   vehicleImagesTable,
   vehiclesTable,
   type Vehicle,
 } from "@workspace/db";
+import { tenantStockRepository } from "../lib/tenant-stock-repository";
 
 const router: IRouter = Router();
 type Issue = { code: string; message: string; path: string | null; advertId: string | null };
@@ -33,6 +35,10 @@ const config = () => ({
   minPrice: envNumber("STOCK_MIN_PRICE", 500),
   maxPriceChange: envNumber("STOCK_MAX_PRICE_CHANGE_PERCENT", 50),
   missingHideThreshold: envNumber("STOCK_MISSING_HIDE_THRESHOLD", 2),
+});
+const compatibilityContext = (): typeof LUXXY_AUTOTRADER_CONTEXT => ({
+  ...LUXXY_AUTOTRADER_CONTEXT,
+  legacyDealerId: config().dealerId,
 });
 const issue = (code: string, message: string, path: string | null = null, advertId: string | null = null): Issue => ({ code, message, path, advertId });
 /** Stable JSON for idempotency: JSONB does not preserve object insertion order. */
@@ -95,7 +101,10 @@ async function recordRejected(body: unknown, status: "failed" | "quarantined", p
     const [existing] = await db.select().from(stockImportRunsTable).where(eq(stockImportRunsTable.runId, candidate.runId));
     if (existing) return hash(existing.rawSnapshot) === hash(body) ? "existing" : "conflict";
     await db.insert(stockImportRunsTable).values({
-      runId: candidate.runId, dealerId: config().dealerId, retailerId: candidate.retailerId, source: candidate.source,
+      runId: candidate.runId, dealerId: config().dealerId,
+      tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId,
+      dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId,
+      retailerId: candidate.retailerId, source: candidate.source,
       schemaVersion: String(candidate.schemaVersion ?? "unknown"), scrapedAt, expectedCount: Number(candidate.expectedAdvertCount) || 0,
       receivedCount: Array.isArray(candidate.cars) ? candidate.cars.length : 0, complete: candidate.complete === true,
       status, failedAdvertIds: Array.isArray(candidate.failedAdvertIds) ? candidate.failedAdvertIds.filter((x): x is string => typeof x === "string") : [],
@@ -143,7 +152,9 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
     }));
   if (incoming.length) {
     await tx.insert(vehicleImagesTable).values(incoming.map((image) => ({
-      vehicleId, origin: "source" as const, sourceUrl: image.url, caption: image.caption,
+      vehicleId, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId,
+      dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId,
+      origin: "source" as const, sourceUrl: image.url, caption: image.caption,
       sortOrder: image.sortOrder, isHero: image.isHero, isActive: true, firstSeenAt: now, lastSeenAt: now,
     }))).onConflictDoUpdate({
       target: [vehicleImagesTable.vehicleId, vehicleImagesTable.sourceUrl],
@@ -218,13 +229,17 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
         if (prior.status !== "completed") return { conflict: true as const };
         return { replay: true as const, prior };
       }
-      const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, "autotrader")));
+       const current = await tx.select().from(vehiclesTable).where(and(
+         eq(vehiclesTable.tenantDealerId, LUXXY_AUTOTRADER_CONTEXT.dealerId),
+         eq(vehiclesTable.dealerId, settings.dealerId),
+         eq(vehiclesTable.source, "autotrader"),
+       ));
       const liveCount = current.filter((v) => v.sourceStatus === "live").length;
       if (liveCount && data.cars.length < liveCount * (1 - settings.maxDrop / 100)) {
-        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: "autotrader", retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body });
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId, dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId, source: "autotrader", retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body });
         return { quarantined: true as const };
       }
-      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: "autotrader", retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body }).returning();
+      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId, dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId, source: "autotrader", retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body }).returning();
       let created = 0, updated = 0, unchanged = 0, missing = 0;
       const now = new Date(), incomingIds = new Set(data.cars.map((car) => car.advertId));
       for (const car of data.cars) {
@@ -234,12 +249,12 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
         const suspicious = candidate != null && (candidate < settings.minPrice || (existing?.sourcePrice != null && Math.abs(candidate - existing.sourcePrice) / existing.sourcePrice * 100 > settings.maxPriceChange));
         const priceValues = suspicious ? { pendingSourcePrice: candidate, priceReviewRequired: true } : { sourcePrice: candidate, pendingSourcePrice: null, priceReviewRequired: false };
         if (!existing) {
-          const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, importRunId: run.id, dealerId: settings.dealerId, source: "autotrader", advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
+          const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, importRunId: run.id, dealerId: settings.dealerId, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId, dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId, source: "autotrader", advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
           const imageChanges = await syncImages(tx, vehicle.id, car, now); created++;
           const changes = Object.entries({ ...values, ...priceValues })
             .filter(([, newValue]) => newValue !== null && newValue !== undefined)
-            .map(([fieldName, newValue]) => ({ vehicleId: vehicle.id, importRunId: run.id, fieldName, oldValue: null as unknown, newValue }));
-          if (imageChanges.after.length) changes.push({ vehicleId: vehicle.id, importRunId: run.id, fieldName: "sourceImages", oldValue: [], newValue: imageChanges.after });
+            .map(([fieldName, newValue]) => ({ vehicleId: vehicle.id, importRunId: run.id, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId, dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId, fieldName, oldValue: null as unknown, newValue }));
+          if (imageChanges.after.length) changes.push({ vehicleId: vehicle.id, importRunId: run.id, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId, dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId, fieldName: "sourceImages", oldValue: [], newValue: imageChanges.after });
           if (changes.length) await tx.insert(vehicleChangesTable).values(changes);
         } else {
           const databaseChanges: Record<string, unknown> = {};
@@ -258,7 +273,7 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
             ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0 }),
           }).where(eq(vehiclesTable.id, existing.id));
           const changes = Object.entries(auditChanges).map(([fieldName, change]) => ({
-            vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue,
+            vehicleId: existing.id, importRunId: run.id, tenantDealerId: LUXXY_AUTOTRADER_CONTEXT.dealerId, dealerIntegrationId: LUXXY_AUTOTRADER_CONTEXT.dealerIntegrationId, fieldName, oldValue: change.oldValue, newValue: change.newValue,
           }));
           if (changes.length) await tx.insert(vehicleChangesTable).values(changes);
           Object.keys(auditChanges).length ? updated++ : unchanged++;
@@ -285,7 +300,7 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
 
 async function projectVehicles(vehicles: Vehicle[]) {
   const ids = vehicles.map((vehicle) => vehicle.id);
-  const images = ids.length ? await db.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
+  const images = await tenantStockRepository(compatibilityContext()).activeImages(ids);
   return vehicles.map((vehicle) => {
     const vehicleImages = images.filter((image) => image.vehicleId === vehicle.id).map((image) => ({ url: image.sourceUrl, caption: image.caption }));
     const hero = vehicle.websiteHeroImageOverride ?? images.find((image) => image.vehicleId === vehicle.id && image.isHero)?.sourceUrl ?? null;
@@ -301,9 +316,10 @@ function visible(vehicle: Vehicle, settings: ReturnType<typeof config>) {
 }
 router.get("/stock", async (req, res): Promise<void> => {
   const settings = config();
-  const all = await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, settings.dealerId)).orderBy(vehiclesTable.advertId);
+  const repository = tenantStockRepository(compatibilityContext());
+  const all = await repository.listVehicles();
   const cars = await projectVehicles(all.filter((vehicle) => visible(vehicle, settings)));
-  const [latest] = await db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
+  const [latest] = await repository.latestCompletedRun();
   const snapshot = latest?.rawSnapshot as { dealerName?: unknown } | undefined;
   res.json(GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof snapshot?.dealerName === "string" ? snapshot.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
 });
@@ -313,7 +329,7 @@ router.get("/vehicles/:id", async (req, res): Promise<void> => {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.data.id)) {
     res.status(400).json({ error: "Invalid vehicle id" }); return;
   }
-  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, parsed.data.id), eq(vehiclesTable.dealerId, config().dealerId), eq(vehiclesTable.source, "autotrader")));
+  const [vehicle] = await tenantStockRepository(compatibilityContext()).findVehicle(parsed.data.id);
   if (!vehicle || !visible(vehicle, config())) { res.status(404).json({ error: "Vehicle not found" }); return; }
   const [projected] = await projectVehicles([vehicle]);
   res.json(GetVehicleResponse.parse(projected));
