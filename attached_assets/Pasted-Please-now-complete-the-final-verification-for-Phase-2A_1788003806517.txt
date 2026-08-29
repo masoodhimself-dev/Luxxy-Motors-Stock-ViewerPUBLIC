@@ -1,0 +1,50 @@
+Please now complete the final verification for Phase 2A only and provide the full completion report.
+Do not make any further architectural changes unless required to fix a failing Phase 2A test or a release-blocking issue found during final verification.
+Do not publish.
+Do not migrate or modify production.
+Do not change Grok, production secrets, production configuration, or the current production import contract.
+Please provide the following:
+1. Migration names and exactly what each migration does.
+2. All new tables, indexes, constraints and relationships.
+3. All shadow tenant/integration columns added to existing tables.
+4. Exact deterministic mapping/backfill of existing Luxxy data to the Luxxy organization, dealer and Auto Trader integration.
+5. Development/rehearsal row counts before and after migration, explicitly confirming:
+   - 32 vehicles
+   - 1,596 vehicle images
+   - 1,084 vehicle changes
+   - 3 import runs
+   - 31 publicly eligible vehicles
+   - 1 vehicle pending suspicious-price review
+6. UUID preservation results, including confirmation that existing vehicle UUIDs and public vehicle detail URLs remain unchanged.
+7. Raw snapshot/hash and relationship preservation results, including image ordering.
+8. Public API compatibility results for the existing showroom, GET /api/stock, GET /api/vehicles/:id, and the current response contracts.
+9. Existing Auto Trader/Grok import compatibility test results, including confirmation that POST /api/stock/imports/autotrader, schemaVersion 1, existing authentication behaviour, idempotency, reconciliation and suspicious-price protection remain unchanged.
+10. New Phase 2A tenancy/security test results, including:
+    - tenant-aware repository isolation
+    - Dealer A cannot access Dealer B test data
+    - cross-tenant foreign-key rejection
+    - composite vehicle/import-run tenancy protection
+    - credential hashing/verifier enforcement
+    - idempotent seed/backfill
+    - no plaintext credentials
+11. Production-shaped migration rehearsal and rollback results. Explain how you proved migration starts from the original Phase 1 schema rather than an already-migrated development schema, and confirm rollback leaves the legacy application/schema usable.
+12. Every unresolved critical, high or medium risk. Do not omit known issues simply because they are planned for a later phase.
+13. The exact production migration procedure you would propose if I later approve it, including backup/preservation checks, migration, backfill, validation, compatibility checks and rollback criteria.
+Also include:
+FILES CHANGED
+List all files added or modified during Phase 2A.
+SCOPE CHECK
+Explicitly confirm whether any out-of-scope functionality was implemented.
+PRODUCTION CHECK
+Explicitly confirm:
+- production database modified: YES/NO
+- production configuration modified: YES/NO
+- production secrets modified: YES/NO
+- Grok modified: YES/NO
+- production published/redeployed: YES/NO
+Finish with exactly:
+PHASE 2A DEVELOPMENT READY FOR REVIEW: YES
+or
+PHASE 2A DEVELOPMENT READY FOR REVIEW: NO
+If NO, explain every blocker.
+After producing the report, STOP and wait for my approval. Do not publish or migrate production.
