@@ -1,0 +1,54 @@
+Phase 2A production migration is now approved.
+Use the current production state and hashes from the latest read-only verification as the official pre-migration preservation baseline.
+Current approved production baseline:
+- Import runs: 3
+- Vehicles: 32
+- Vehicle images: 1,596
+- Vehicle changes: 1,084
+- Public vehicles: 31
+- Pending suspicious-price-review vehicles: 1
+Official pre-migration hashes:
+- Run raw hash: 38984be445b755d88364758ef1d34058
+- Vehicle raw hash: 9eefd3397eb3cdd6124b1dbc0e74812f
+- Image raw/relationship hash: 1cf3694f31736462c88e7a1f629c73ac
+- Change relationship hash: e68f575d91d22c3126c30aaba9ac263c
+- Image-order hash: 3b9a7e3276e77635d46c06ff235c592b
+- Vehicle UUID-set hash: 76d5a5eda070099ae65a6713a7156f26
+Proceed with Phase 2A production migration only.
+Apply only:
+- 0001_youthful_lizard.sql
+- 0002_curly_nuke.sql
+- 0003_spicy_zaladane.sql
+- 0004_quiet_captain_marvel.sql
+Use the normal supported Replit production migration/publish lifecycle.
+Do not begin Phase 2B or any later phase.
+Do not change Grok.
+Do not change STOCK_IMPORT_SECRET.
+Do not change production configuration unless required by the already-approved Phase 2A build and explicitly identified before making the change.
+Do not add any new functionality outside the approved Phase 2A scope.
+After applying the migration:
+1. Run the deterministic Luxxy seed/backfill.
+2. Run it a second time to prove idempotency.
+3. Require zero unowned Luxxy import runs, vehicles, images and changes.
+4. Recompute every preservation hash.
+5. Require exact equality with the official pre-migration hashes above for all legacy/raw/relationship/image-order projections.
+6. Require unchanged row counts:
+   - 3 runs
+   - 32 vehicles
+   - 1,596 images
+   - 1,084 changes
+   - 31 public
+   - 1 pending suspicious-price review.
+7. Confirm all existing vehicle UUIDs remain unchanged.
+8. Confirm the suspicious-price vehicle remains hidden.
+9. Confirm /api/healthz, /api/stock, a representative existing /api/vehicles/:id, /portal, and / all work after deployment.
+10. Confirm the existing Auto Trader schemaVersion 1/Grok contract remains unchanged.
+If any count, UUID, raw hash, relationship hash, image-order hash, public projection or suspicious-price state differs unexpectedly, STOP and roll back using the already-tested Phase 2A rollback sequence.
+After successful production deployment, return the full:
+PHASE 2A PRODUCTION MIGRATION REPORT
+including before/after counts, before/after hashes, ownership counts, migration status, backfill result, idempotency result, API checks, Grok compatibility checks, production warnings/errors and rollback status.
+Finish with exactly:
+PHASE 2A PRODUCTION VERIFIED: YES
+or
+PHASE 2A PRODUCTION VERIFIED: NO
+Then stop and wait for approval. Do not begin Phase 2B.
