@@ -1,0 +1,107 @@
+Phase 2A development review is approved. You are now authorized to migrate and publish Phase 2A to production only, using the exact controlled procedure below.
+This authorization applies only to the already-reviewed Phase 2A migrations:
+- 0001_youthful_lizard.sql
+- 0002_curly_nuke.sql
+- 0003_spicy_zaladane.sql
+- 0004_quiet_captain_marvel.sql
+Do not expand scope.
+Do not implement Phase 2B or any later phase.
+Do not change Grok.
+Do not rotate or replace STOCK_IMPORT_SECRET.
+Do not change the public API contract.
+Do not add Motors/Cazoo, eBay, generic import v2, hostname tenancy, staff authentication, RLS, CRM, billing, subscriptions, or vehicle listings.
+Before applying any production migration:
+1. Explicitly confirm that you are connected to the actual production database, not development.
+2. Generate the secret-free production preservation manifest.
+3. Confirm the expected baseline exactly:
+   - 3 import runs
+   - 32 vehicles
+   - 1,596 vehicle images
+   - 1,084 vehicle changes
+   - 31 publicly eligible vehicles
+   - 1 vehicle pending suspicious-price review
+4. Record all current vehicle, image, change and import-run UUIDs and preservation hashes.
+5. Confirm the current public stock projection and suspicious-price state.
+If any baseline count, UUID set, hash, relationship, image ordering or public projection differs from the approved baseline, STOP immediately and do not migrate. Report the discrepancy to me.
+If the baseline matches:
+6. Apply the approved Phase 2A migration chain through the normal supported Replit production migration/publish lifecycle.
+7. Run the deterministic Luxxy tenant seed/backfill.
+8. Run the backfill a second time to prove production idempotency.
+9. Verify exactly zero unowned Luxxy:
+   - import runs
+   - vehicles
+   - images
+   - changes
+10. Confirm every existing Luxxy record maps to:
+    - the deterministic Luxxy organization
+    - the deterministic Luxxy dealer
+    - the Luxxy Auto Trader integration where applicable.
+11. Recreate the production preservation manifest after migration.
+12. Require exact preservation of:
+    - row counts
+    - UUIDs
+    - relationships
+    - raw hashes
+    - image order
+    - hero state
+    - public vehicle projection
+    - suspicious-price state.
+Then verify the live application:
+- GET /api/healthz → healthy
+- GET /api/stock → 31 publicly eligible vehicles
+- representative existing GET /api/vehicles/:id → works with the same UUID
+- /portal → operational
+- existing showroom → operational
+- current Auto Trader import endpoint → operational
+Verify the existing Grok contract remains unchanged:
+- POST /api/stock/imports/autotrader
+- schemaVersion 1
+- x-stock-import-secret
+- existing STOCK_IMPORT_SECRET
+- existing retailer ID 10040438
+- same status codes
+- same replay/idempotency behaviour
+- same suspicious-price protection
+- same reconciliation behaviour.
+Do not perform a fresh stock scrape merely to test this deployment.
+Use a safe compatibility/read-only check or a known idempotent replay only if required and if it cannot mutate stock unexpectedly.
+Rollback immediately if any of the following occurs:
+- count mismatch
+- UUID change
+- raw-hash mismatch
+- relationship mismatch
+- image-order change
+- public stock changes unexpectedly
+- suspicious-price vehicle becomes public
+- any Luxxy row remains unowned
+- current import authentication fails
+- existing replay behaviour changes
+- health, stock, vehicle detail or portal checks fail
+- unexpected foreign-key/ownership errors occur.
+If rollback is required, execute only the already-tested dependency-safe Phase 2A down sequence and verify the original Phase 1 application remains fully usable.
+After successful production migration and verification, STOP.
+Do not begin the next phase.
+Return:
+PHASE 2A PRODUCTION MIGRATION REPORT
+1. Production database identity verification
+2. Pre-migration baseline
+3. Pre-migration preservation hash result
+4. Migrations applied
+5. Backfill result
+6. Second/idempotent backfill result
+7. Ownership counts
+8. Before/after row counts
+9. UUID preservation
+10. Hash/relationship/image-order preservation
+11. Public stock result
+12. Suspicious-price vehicle result
+13. Public API/live showroom checks
+14. Existing Auto Trader/Grok compatibility checks
+15. Production logs/errors
+16. Any rollback performed
+17. Any unresolved risk
+Finish with exactly:
+PHASE 2A PRODUCTION VERIFIED: YES
+or
+PHASE 2A PRODUCTION VERIFIED: NO
+Then stop and wait for my approval before any further development.
