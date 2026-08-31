@@ -22,8 +22,14 @@ function getMaxScrollTop(): number {
   return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
 }
 
+function getScrollSpacer(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-home-scroll-spacer]');
+}
+
 export function scrollToHomeTarget(target: string): boolean {
   if (target === 'top') {
+    const spacer = getScrollSpacer();
+    if (spacer) spacer.style.height = '0px';
     window.scrollTo({ top: 0, behavior: scrollBehavior() });
     return true;
   }
@@ -31,8 +37,16 @@ export function scrollToHomeTarget(target: string): boolean {
   const element = document.getElementById(target);
   if (!element) return false;
 
+  const spacer = getScrollSpacer();
+  if (spacer) spacer.style.height = '0px';
+
   const sectionTop = element.getBoundingClientRect().top + window.scrollY;
   const headerAwareTop = sectionTop - getHeaderHeight();
+  const scrollSpaceNeeded = Math.max(0, headerAwareTop - getMaxScrollTop());
+  if (spacer && scrollSpaceNeeded > 0) {
+    spacer.style.height = `${Math.ceil(scrollSpaceNeeded)}px`;
+  }
+
   const destinationTop = Math.min(Math.max(0, headerAwareTop), getMaxScrollTop());
 
   window.scrollTo({ top: destinationTop, behavior: scrollBehavior() });

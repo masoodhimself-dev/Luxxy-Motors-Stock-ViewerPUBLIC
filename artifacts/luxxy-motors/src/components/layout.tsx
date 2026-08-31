@@ -144,7 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer id="contact" data-home-section className="bg-primary text-primary-foreground pt-20 pb-10 mt-auto border-t-4 border-accent">
+      <footer id="contact" data-home-section className="bg-primary text-primary-foreground pt-20 pb-28 xl:pb-10 mt-auto border-t-4 border-accent">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 mb-16">
             <div className="lg:col-span-4">
@@ -245,6 +245,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </footer>
+      <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
       {/* Mobile Bottom Bar */}
       <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe">
