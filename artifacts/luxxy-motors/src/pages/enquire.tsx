@@ -50,7 +50,7 @@ export default function Enquire() {
             <p className="mt-5 leading-relaxed text-primary-foreground/75">{copy.description}</p>
             {vehicle && (
               <div className="mt-8 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07]">
-                <div className="relative aspect-[16/10] overflow-hidden bg-black/20">
+                <div className="relative h-20 overflow-hidden bg-black/20 sm:h-24">
                   {vehicleImage ? (
                     <img
                       src={vehicleImage}
