@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownUp,
   ArrowRight,
@@ -112,6 +112,7 @@ export default function LuxxyConcierge() {
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const [mobileFilters, setMobileFilters] = useState(false);
   const [sent, setSent] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
   const visibleVehicles = useMemo(() => {
     const needle = query.toLowerCase().trim();
@@ -131,8 +132,19 @@ export default function LuxxyConcierge() {
   }, [activeFilter, query, sort]);
 
   const toggleShortlist = (id: string) => {
-    setShortlist((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+    const vehicle = vehicles.find((item) => item.id === id);
+    setShortlist((current) => {
+      const isSaved = current.includes(id);
+      setSaveNotice(`${vehicle?.name ?? "Vehicle"} ${isSaved ? "removed from" : "saved to"} your shortlist.`);
+      return isSaved ? current.filter((item) => item !== id) : [...current, id];
+    });
   };
+
+  useEffect(() => {
+    if (!saveNotice) return;
+    const timeoutId = window.setTimeout(() => setSaveNotice(null), 2800);
+    return () => window.clearTimeout(timeoutId);
+  }, [saveNotice]);
 
   return (
     <div className="min-h-[100dvh] bg-[#f3f4ee] text-[#17252a] [font-family:ui-sans-serif,system-ui,sans-serif]">
@@ -169,9 +181,14 @@ export default function LuxxyConcierge() {
             <h1 className="max-w-[690px] text-[clamp(3rem,7vw,6.5rem)] font-black leading-[0.89] tracking-[-0.075em] text-[#17353a]">Start with<br /><em className="font-serif font-normal tracking-[-0.06em] text-[#b68729]">what matters.</em></h1>
             <p className="mt-7 max-w-[525px] text-[17px] leading-7 text-[#60706d]">Tell us what your next car needs to do. We’ll narrow the showroom to a few good fits — no scrolling through hundreds of listings.</p>
             <div className="mt-8 flex flex-wrap gap-2 text-[12px] font-bold text-[#5a6b68]">
-              <span className="rounded-full bg-[#e6ebe4] px-3 py-2">✓ 42 cars in stock</span>
-              <span className="rounded-full bg-[#e6ebe4] px-3 py-2">✓ Harrow, London</span>
-              <span className="rounded-full bg-[#e6ebe4] px-3 py-2">✓ View by appointment</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6ebe4] px-3 py-2"><Check className="h-3.5 w-3.5 text-[#b68729]" />42 cars in stock</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6ebe4] px-3 py-2"><Check className="h-3.5 w-3.5 text-[#b68729]" />Harrow, London</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6ebe4] px-3 py-2"><Check className="h-3.5 w-3.5 text-[#b68729]" />View by appointment</span>
+            </div>
+            <div className="mt-7 flex max-w-[600px] flex-wrap items-center gap-x-4 gap-y-2 border-y border-[#d9ddd5] py-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71807b]">
+              <span className="flex items-center gap-2 text-[#17353a]"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#17353a] text-[9px] text-[#f4edd9]">1</span> Find a fit</span>
+              <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full border border-[#b9c5bd] text-[9px]">2</span> Save your options</span>
+              <button type="button" onClick={() => setAppointmentOpen(true)} className="flex items-center gap-2 text-[#9a6d12] transition-colors hover:text-[#17353a] motion-reduce:transition-none"><span className="grid h-5 w-5 place-items-center rounded-full border border-[#d5ba78] text-[9px]">3</span> Book a visit</button>
             </div>
           </div>
           <div className="relative min-h-[270px] overflow-hidden rounded-[28px] bg-[#17353a] shadow-[0_22px_55px_rgba(30,54,54,0.16)] lg:min-h-[355px]">
@@ -203,7 +220,7 @@ export default function LuxxyConcierge() {
               <div className="space-y-4">
                 {visibleVehicles.map((vehicle) => {
                   const isSaved = shortlist.includes(vehicle.id);
-                  return <article key={vehicle.id} className={`group grid overflow-hidden rounded-[22px] border bg-[#f7f8f3] transition-all md:grid-cols-[245px_minmax(0,1fr)] ${activeVehicle.id === vehicle.id ? "border-[#b8c5bd] shadow-[0_10px_28px_rgba(29,52,51,0.08)]" : "border-[#d9ddd5]"}`}>
+                  return <article key={vehicle.id} className={`group grid overflow-hidden rounded-[22px] border bg-[#f7f8f3] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(29,52,51,0.10)] motion-reduce:transform-none motion-reduce:transition-none md:grid-cols-[245px_minmax(0,1fr)] ${activeVehicle.id === vehicle.id ? "border-[#b8c5bd] shadow-[0_10px_28px_rgba(29,52,51,0.08)]" : "border-[#d9ddd5]"}`}>
                     <button type="button" onClick={() => setActiveVehicle(vehicle)} className={`relative min-h-[178px] overflow-hidden bg-gradient-to-br ${vehicle.accent} text-left md:min-h-[190px]`}>
                       <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(ellipse at 40% 42%, rgba(255,255,255,.7), transparent 36%), linear-gradient(145deg, transparent 44%, rgba(12,28,32,.45) 45%, transparent 49%)" }} />
                       <div className="absolute bottom-3 left-3 rounded-full bg-[#f5f6ef]/85 px-2.5 py-1 text-[10px] font-extrabold text-[#17353a] backdrop-blur">{vehicle.tag}</div>
@@ -212,7 +229,8 @@ export default function LuxxyConcierge() {
                     <div className="flex flex-col justify-between p-5">
                       <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#899691]">{vehicle.year} · {vehicle.color}</p><button type="button" onClick={() => setActiveVehicle(vehicle)} className="mt-1 text-left text-[21px] font-black tracking-[-0.04em] text-[#17353a] hover:text-[#b68729]">{vehicle.name}</button><p className="mt-0.5 text-[13px] font-semibold text-[#71807b]">{vehicle.detail}</p></div><button type="button" onClick={() => toggleShortlist(vehicle.id)} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-colors ${isSaved ? "border-[#e6b34b] bg-[#fff1cc] text-[#a87616]" : "border-[#d5ddd6] text-[#95a29c] hover:text-[#17353a]"}`} aria-label={isSaved ? `Remove ${vehicle.name} from saved` : `Save ${vehicle.name}`}><Heart className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} /></button></div>
                       <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-[11px] font-bold text-[#64736e]"><span><CalendarDays className="mr-1 inline h-3.5 w-3.5 text-[#b68729]" />{vehicle.year}</span><span><GaugeIcon />{vehicle.mileage}</span><span><Fuel className="mr-1 inline h-3.5 w-3.5 text-[#b68729]" />{vehicle.fuel}</span><span><Settings2 className="mr-1 inline h-3.5 w-3.5 text-[#b68729]" />{vehicle.gearbox}</span></div>
-                      <div className="mt-5 flex items-end justify-between gap-3 border-t border-[#e1e5df] pt-4"><div><p className="text-[23px] font-black tracking-[-0.04em] text-[#17353a]">{vehicle.price}</p><p className="text-[10px] font-bold text-[#899691]">{vehicle.monthly}</p></div><button type="button" onClick={() => setAppointmentOpen(true)} className="rounded-full bg-[#17353a] px-4 py-2.5 text-[11px] font-extrabold text-white transition-colors hover:bg-[#28555a]">View & book <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button></div>
+                      {activeVehicle.id === vehicle.id && <div className="mt-4 flex flex-col gap-3 rounded-xl bg-[#e8eee7] px-3 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[9px] font-extrabold uppercase tracking-[0.16em] text-[#9a6d12]">Why it stands out</p><p className="mt-1 text-[12px] font-bold text-[#365052]">{vehicle.tag} · a {vehicle.fit}% fit for your brief</p></div><button type="button" onClick={() => toggleShortlist(vehicle.id)} className="shrink-0 text-left text-[11px] font-extrabold text-[#9a6d12] hover:text-[#17353a]">{isSaved ? "Saved to shortlist" : "Save for later"} <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button></div>}
+                      <div className="mt-5 flex items-end justify-between gap-3 border-t border-[#e1e5df] pt-4"><div><p className="text-[23px] font-black tracking-[-0.04em] text-[#17353a]">{vehicle.price}</p><p className="text-[10px] font-bold text-[#899691]">{vehicle.monthly}</p></div><button type="button" onClick={() => { setActiveVehicle(vehicle); setAppointmentOpen(true); }} className="rounded-full bg-[#17353a] px-4 py-2.5 text-[11px] font-extrabold text-white transition-colors hover:bg-[#28555a] motion-reduce:transition-none">View & book <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button></div>
                     </div>
                   </article>;
                 })}
@@ -229,6 +247,8 @@ export default function LuxxyConcierge() {
           <div className="border-l-2 border-[#e6b34b] pl-4"><Clock3 className="h-5 w-5 text-[#b68729]" /><h3 className="mt-4 text-lg font-black text-[#17353a]">Your pace, always</h3><p className="mt-2 text-sm leading-6 text-[#71807b]">Save a few options and pick up the conversation when you’re ready.</p></div>
         </section>
       </main>
+
+      {saveNotice && <div className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full border border-[#c9d5ca] bg-[#f7f8f3] px-4 py-3 text-[12px] font-bold text-[#17353a] shadow-[0_12px_30px_rgba(29,52,51,0.16)] animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none" role="status"><Check className="mr-2 inline h-4 w-4 text-[#b68729]" />{saveNotice}</div>}
 
       {appointmentOpen && <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#17353a]/40 p-0 backdrop-blur-sm sm:items-center sm:p-5" role="dialog" aria-modal="true" aria-label="Book a viewing"><div className="w-full max-w-[480px] rounded-t-[28px] bg-[#f7f8f3] p-6 shadow-2xl sm:rounded-[28px] sm:p-8"><div className="flex items-start justify-between"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#b68729]">A good next step</p><h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#17353a]">Come and see it.</h2><p className="mt-2 text-sm leading-6 text-[#71807b]">We’ll have {activeVehicle.name} ready, plus the other cars you saved.</p></div><button type="button" onClick={() => { setAppointmentOpen(false); setSent(false); }} className="rounded-full p-2 text-[#75827e] hover:bg-[#e9ede6]" aria-label="Close booking dialog"><X className="h-5 w-5" /></button></div>{sent ? <div className="my-8 rounded-2xl bg-[#e5efe5] p-5 text-center"><Check className="mx-auto h-7 w-7 text-[#3e7559]" /><p className="mt-3 font-black text-[#17353a]">We’ll be in touch shortly.</p><p className="mt-1 text-xs text-[#60706d]">Your shortlist is saved for the conversation.</p></div> : <div className="mt-7 space-y-3"><label className="block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#60706d]">Your name<input className="mt-2 h-11 w-full rounded-xl border border-[#cfd7d0] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#e6b34b]" placeholder="How should we address you?" /></label><label className="block text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#60706d]">Best day to visit<select className="mt-2 h-11 w-full rounded-xl border border-[#cfd7d0] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#e6b34b]"><option>Choose a day</option><option>Saturday morning</option><option>Saturday afternoon</option><option>Next week</option></select></label><button type="button" onClick={() => setSent(true)} className="mt-3 h-12 w-full rounded-full bg-[#e6b34b] text-sm font-extrabold text-[#17353a] transition-transform hover:-translate-y-0.5">Request a viewing <ArrowRight className="ml-1 inline h-4 w-4" /></button><p className="text-center text-[10px] font-semibold text-[#8a9792]">Or call 020 8472 9917</p></div>}</div></div>}
     </div>
