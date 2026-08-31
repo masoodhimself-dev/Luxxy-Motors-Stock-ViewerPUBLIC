@@ -55,7 +55,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={brandStyle} className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
-      <header ref={headerRef} className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${scrolled ? 'bg-background/95 backdrop-blur-md shadow-sm border-b' : 'bg-background/80 backdrop-blur-sm border-transparent'}`}>
+      <header ref={headerRef} data-site-header className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${scrolled ? 'bg-background/95 backdrop-blur-md shadow-sm border-b' : 'bg-background/80 backdrop-blur-sm border-transparent'}`}>
         <div className="container mx-auto px-4 lg:px-8 h-[4.5rem] flex items-center justify-between">
           <button type="button" onClick={() => handleNav('top')} className="flex items-center gap-3 group">
             {dealerConfig.identity.logoAsset ? (

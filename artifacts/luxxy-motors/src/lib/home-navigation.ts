@@ -8,6 +8,20 @@ function scrollBehavior(): ScrollBehavior {
     : 'smooth';
 }
 
+function getHeaderHeight(): number {
+  const header = document.querySelector<HTMLElement>('[data-site-header]');
+  if (header) return header.getBoundingClientRect().height;
+
+  const configuredHeight = Number.parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--site-header-height'),
+  );
+  return Number.isFinite(configuredHeight) ? configuredHeight : 0;
+}
+
+function getMaxScrollTop(): number {
+  return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+}
+
 export function scrollToHomeTarget(target: string): boolean {
   if (target === 'top') {
     window.scrollTo({ top: 0, behavior: scrollBehavior() });
@@ -17,10 +31,11 @@ export function scrollToHomeTarget(target: string): boolean {
   const element = document.getElementById(target);
   if (!element) return false;
 
-  element.scrollIntoView({
-    behavior: scrollBehavior(),
-    block: 'start',
-  });
+  const sectionTop = element.getBoundingClientRect().top + window.scrollY;
+  const headerAwareTop = sectionTop - getHeaderHeight();
+  const destinationTop = Math.min(Math.max(0, headerAwareTop), getMaxScrollTop());
+
+  window.scrollTo({ top: destinationTop, behavior: scrollBehavior() });
   return true;
 }
 
