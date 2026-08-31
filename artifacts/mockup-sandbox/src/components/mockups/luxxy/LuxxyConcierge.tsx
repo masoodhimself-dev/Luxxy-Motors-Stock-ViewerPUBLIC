@@ -7,7 +7,6 @@ import {
   ChevronDown,
   CircleHelp,
   Clock3,
-  Compass,
   Fuel,
   Heart,
   MapPin,
@@ -140,12 +139,12 @@ export default function LuxxyConcierge() {
       <header className="sticky top-0 z-30 border-b border-[#d9ddd5] bg-[#f3f4ee]/95 backdrop-blur-md">
         <div className="mx-auto flex h-[74px] max-w-[1450px] items-center justify-between gap-5 px-5 lg:px-8">
           <button type="button" onClick={() => { setQuery(""); setActiveFilter("Automatic"); }} className="group flex items-center gap-3 text-left">
-            <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#17353a] text-[#e8b54a] shadow-sm transition-transform group-hover:-rotate-3">
-              <Compass className="h-5 w-5" />
+            <span className="transition-transform duration-300 group-hover:-rotate-3">
+              <LuxxyMark />
             </span>
             <span>
               <span className="block text-[15px] font-extrabold tracking-[0.16em] text-[#17353a]">LUXXY</span>
-              <span className="block text-[9px] font-bold tracking-[0.26em] text-[#7b8987]">MOTORS / HARROW</span>
+              <span className="block text-[9px] font-bold tracking-[0.26em] text-[#7b8987]">MOTORS · HARROW</span>
             </span>
           </button>
           <div className="hidden items-center gap-8 text-[13px] font-bold text-[#526160] md:flex">
@@ -238,4 +237,15 @@ export default function LuxxyConcierge() {
 
 function GaugeIcon() {
   return <span className="mr-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-[#b68729] align-[-2px]"><Minus className="h-2.5 w-2.5 text-[#b68729]" /></span>;
+}
+
+function LuxxyMark() {
+  return (
+    <svg viewBox="0 0 40 40" className="h-10 w-10 drop-shadow-sm" role="img" aria-label="Luxxy Motors">
+      <rect width="40" height="40" rx="11" fill="#17353a" />
+      <path d="M11.5 9.5v15.25c0 3.6 2.9 6.5 6.5 6.5h10.5" fill="none" stroke="#e6b34b" strokeWidth="3.8" strokeLinecap="round" />
+      <path d="M21.25 10.5 29 18.25M29 10.5l-7.75 7.75" fill="none" stroke="#f4edd9" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M24.4 28.25h5.75" fill="none" stroke="#f4edd9" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }

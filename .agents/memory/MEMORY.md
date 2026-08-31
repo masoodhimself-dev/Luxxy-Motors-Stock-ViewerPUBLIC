@@ -3,3 +3,4 @@
 - [Stock integration test isolation](stock-integration-test-isolation.md) — the API stock suite clears shared development inventory; protect or restore real dev stock when running it.
 - [OpenAPI/Zod compatibility](openapi-zod-compatibility.md) — keep generated constraints compatible with the workspace’s Zod runtime and typecheck after codegen.
 - [Workspace dependency removal](workspace-dependency-removal.md) — verify nested package manifests and the lockfile after generic package-tool removals.
+- [Approved Luxxy visual direction](luxxy-visual-direction.md) — use the editorial concierge identity with sage, ink teal, brass, and the L/X road monogram.
