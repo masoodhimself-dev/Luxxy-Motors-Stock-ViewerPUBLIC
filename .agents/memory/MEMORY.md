@@ -1,2 +1,1 @@
 - [Production database verification](production-database-verification.md) — label DB environments and use safe fingerprints before reporting production continuity.
-- [Owned import-run retention](owned-import-run-retention.md) — tenant-owned import runs cannot be deleted while referenced; reassignment must preserve ownership.
