@@ -29,14 +29,19 @@ function dateString(date: Date) {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+function addDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function bookingDates() {
   const dates: string[] = [];
-  const current = new Date();
+  const today = dateString(new Date());
   for (let offset = 0; offset <= 30 && dates.length < 14; offset += 1) {
-    const candidate = new Date(current);
-    candidate.setDate(current.getDate() + offset);
-    const weekday = candidate.getDay();
-    if (weekday !== 0) dates.push(dateString(candidate));
+    const candidate = addDays(today, offset);
+    const weekday = new Date(`${candidate}T00:00:00.000Z`).getUTCDay();
+    if (weekday !== 0) dates.push(candidate);
   }
   return dates;
 }
@@ -194,12 +199,14 @@ export function EnquiryForm({
             <CalendarDays className="h-4 w-4 text-primary" /> Choose your viewing time
           </legend>
           <p className="text-sm text-muted-foreground">Appointments are 30 minutes, Monday to Saturday, 10:00 am–6:00 pm.</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div role="group" aria-label="Choose a viewing date" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {dates.map((date) => (
               <button
                 key={date}
                 type="button"
                 onClick={() => setSelectedDate(date)}
+                  aria-label={`Select ${formatDateLabel(date)}`}
+                  aria-pressed={selectedDate === date}
                 className={`rounded-lg border px-3 py-3 text-left text-sm font-semibold transition-colors ${
                   selectedDate === date
                     ? 'border-primary bg-primary text-primary-foreground'
@@ -226,6 +233,8 @@ export function EnquiryForm({
                   type="button"
                   disabled={!slot.available}
                   onClick={() => setSelectedSlot(slot.startAt)}
+                  aria-label={`${slot.label}${slot.available ? '' : ' unavailable'}`}
+                  aria-pressed={selectedSlot === slot.startAt}
                   className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors ${
                     selectedSlot === slot.startAt
                       ? 'border-primary bg-primary text-primary-foreground'
