@@ -1,0 +1,263 @@
+Investigate QR Digital Sales & Signing Workflow
+Planning/research only. Do not implement anything yet.
+I want to add a complete digital vehicle-sale workflow to the existing single-dealer Luxxy Motors system.
+The core idea is:
+A salesperson creates a sale in the dealer portal → the system generates a secure QR code → the customer scans it with their own phone → reviews the complete sale/document pack → completes required acknowledgements → signs once at the end → the dealer portal receives the signed status → staff performs final checks → sale is completed → invoice and permanent Deal Vault/evidence record are created.
+Please inspect the actual current codebase, database schema, portal, stock model, vehicle UUIDs and existing API architecture and produce an implementation design that fits the current single-dealer architecture.
+Do not modify the database, code, production, Grok or existing stock importer during this investigation.
+Desired staff journey
+From /portal, salesperson should eventually be able to:
+1. Create Sale
+Select:
+- existing vehicle
+- existing/new customer
+- agreed sale price
+- deposit
+- payments/balance
+- discount/adjustment where applicable
+- part exchange where applicable
+- warranty where applicable
+- collection or delivery
+- mileage at sale
+- relevant disclosures
+- internal notes
+2. Prepare Sale Pack
+System validates required information and generates the documents required for that transaction.
+Examples may include:
+- sales/order agreement
+- vehicle details
+- agreed price/payment breakdown
+- relevant vehicle/write-off disclosures
+- warranty information where applicable
+- delivery/collection details
+- terms and conditions
+- any other required acknowledgements
+Do not assume the final legal document set. Identify what should be configurable and what needs legal/compliance review.
+3. Generate QR
+Portal displays a large QR code:
+Scan to Review & Sign
+The QR must point to a secure, tokenised customer signing URL.
+It must NOT expose:
+- sequential sale IDs;
+- unrestricted customer records;
+- portal access;
+- database IDs that alone grant access;
+- internal notes;
+- secrets.
+Explain how the signing token should be generated, hashed/stored, expired, revoked and prevented from being reused incorrectly.
+4. Customer scans QR
+No customer account/login should be required for V1 unless you believe there is a strong security/legal reason.
+Customer phone should show a premium mobile-first Luxxy signing experience:
+- Luxxy branding
+- vehicle photo
+- make/model
+- registration
+- mileage
+- agreed price
+- payment breakdown
+- customer details
+- document list
+- disclosures
+- terms
+Customer reviews everything.
+One signature for the complete pack
+I specifically want to investigate ONE signature at the end, rather than requiring the customer to sign every individual page/document.
+The UI might say:
+Review
+✓ Vehicle details
+Review
+✓ Sale agreement
+Review
+✓ Required disclosures
+Review
+✓ Terms & Conditions
+Then:
+I confirm I have reviewed and agree to the documents and acknowledgements above.
+[Signature box]
+Sign & Complete
+Determine how we can make one signature cryptographically/auditably relate to the exact versions of every document in the pack.
+Consider hashing/fingerprinting each document and the complete pack before signing so documents cannot silently change after signature.
+Evidence/audit requirements
+Design a strong signing audit trail.
+Investigate storing appropriate evidence such as:
+- sale ID
+- signing-session ID
+- random token hash
+- customer
+- vehicle
+- document IDs
+- document versions
+- document hashes
+- complete-pack hash
+- acknowledgement states
+- signature representation
+- signing started timestamp
+- signed timestamp
+- IP address where appropriate/lawful
+- user agent/device metadata where appropriate
+- terms version
+- staff member who prepared the sale
+- staff member who completed it
+- relevant status transitions
+Explain what is useful evidence versus unnecessary/privacy-invasive collection.
+Locking documents after signing
+Once signed, the signed pack must become immutable.
+If material information such as:
+- price
+- vehicle
+- customer
+- mileage
+- warranty
+- PX
+- terms
+- disclosures
+changes afterwards, determine whether the existing signature should become invalid and a new version/re-signing session should be required.
+I strongly prefer this over silently modifying signed documents.
+Dealer portal live status
+While the customer is using their phone, portal should eventually show:
+Sale Pack
+QR generated ✓
+Customer opened link ✓
+Reviewing documents…
+Customer signed ✓
+Signed at 14:42
+Then:
+Continue Sale
+Investigate whether this should use polling, Server-Sent Events or WebSockets. Prefer the simplest reliable solution for V1.
+Final Sale Check
+After signing, staff should not immediately be able to complete a broken deal.
+Design a deterministic rules-based final check first:
+✓ required customer information
+✓ vehicle still available
+✓ agreed price consistent
+✓ required disclosures acknowledged
+✓ document pack signed
+✓ signed document hashes still match
+✓ payment/deposit records reconcile
+✓ collection/delivery information present where required
+Later we may add AI Final Sale Check, but AI must supplement rather than replace deterministic validation.
+Complete Sale
+Once validation passes:
+COMPLETE SALE
+should eventually trigger the appropriate transaction:
+- mark sale completed
+- update vehicle lifecycle appropriately
+- generate/finalise invoice
+- preserve signed documents
+- preserve audit evidence
+- create Deal Vault
+- update customer/deal history
+- remove/hide vehicle from public stock according to the existing stock lifecycle rules
+Investigate carefully how this should interact with the existing Auto Trader reconciliation system so a completed sale is not accidentally resurrected as available by a later stock import.
+Deal Vault
+Design a permanent deal evidence record containing appropriate snapshots/evidence such as:
+- vehicle snapshot at sale
+- advert/listing snapshot where available
+- customer snapshot
+- agreed commercial terms
+- payments
+- PX details
+- warranty
+- delivery/collection
+- communications linked to the deal
+- signed document pack
+- document hashes
+- signature audit evidence
+- invoice
+- staff audit trail
+- final sale-check result
+This should eventually help with complaints, disputes and chargebacks.
+Invoice
+Investigate how the existing/future invoice generator should fit into this process:
+Sale → Signature → Final validation → Complete → Final invoice
+Determine what should be snapshotted so a historic invoice never changes simply because current dealer/customer/vehicle details later change.
+Security
+Threat-model the customer signing flow.
+Cover:
+- guessing signing URLs
+- leaked QR links
+- replay/reuse
+- expired sessions
+- editing another customer's sale
+- CSRF
+- XSS
+- rate limiting
+- token storage
+- signature tampering
+- document tampering
+- staff changing deal after signature
+- accidental public exposure
+Remember that /portal is currently passwordless for development. Explain what parts of this sales/signing system must not be published for real customer use until dealer authentication exists.
+E-sign implementation decision
+Compare two approaches:
+A. Build the signing/audit system ourselves
+versus
+B. Integrate a specialist e-signature provider
+Compare:
+- implementation difficulty
+- API availability
+- cost
+- evidence/audit quality
+- document hashing
+- signatures
+- webhooks
+- customer UX
+- branding
+- legal/compliance considerations
+- long-term maintenance
+Recommend which approach makes sense for V1.
+Do not assume that drawing a signature on a canvas alone is sufficient.
+Architecture
+Propose the minimum clean database model.
+Consider concepts such as:
+- customers
+- sales
+- sale_adjustments
+- sale_payments
+- sale_documents
+- signing_sessions
+- acknowledgements
+- signatures
+- sale_events/audit_log
+- invoices
+- deal_vault artifacts
+Do not create these yet.
+Show the relationships and identify which records should be immutable after completion.
+Current architecture constraints
+Preserve:
+- one dealership per Replit project/remix
+- one database per dealership
+- existing Phase 1 stock system
+- existing vehicle UUIDs
+- existing Auto Trader import contract
+- schemaVersion 1
+- Grok integration
+- suspicious-price protection
+- sold/archive lifecycle protection
+Do NOT reintroduce multi-tenancy.
+Deliverable
+Return a detailed design report containing:
+1. Current-codebase fit assessment
+2. Proposed customer journey
+3. Proposed salesperson journey
+4. QR/token security design
+5. One-signature document-pack design
+6. Proposed database model
+7. Document generation architecture
+8. Audit/evidence model
+9. Deal-locking/versioning rules
+10. Final Sale Check rules
+11. Vehicle lifecycle/import interaction
+12. Invoice architecture
+13. Deal Vault architecture
+14. Real-time/polling status recommendation
+15. Security/threat model
+16. Self-built vs specialist e-sign comparison
+17. Privacy/data-retention considerations
+18. What requires authentication before production
+19. Suggested implementation phases
+20. Estimated implementation difficulty and major risks
+21. Exact questions/decisions you need from me before implementation
+Finish with:
+QR SALES WORKFLOW READY FOR IMPLEMENTATION: YES/NO
+Do not implement anything. Do not migrate the database. Do not publish.
