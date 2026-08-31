@@ -173,7 +173,7 @@ export function EnquiryForm({
       </div>
 
       {vehicle && (
-        <div className="hidden items-center justify-between gap-3 rounded-xl border border-[#d5c59e] bg-[#fbf6e8] px-4 py-3 sm:flex" data-testid="card-enquiry-vehicle">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[#d5c59e] bg-[#fbf6e8] px-4 py-3" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Viewing</p>
             <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
@@ -209,7 +209,19 @@ export function EnquiryForm({
             </div>
             <span className="hidden rounded-full border border-[#d8cfbe] bg-background px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:block">London time</span>
           </div>
-          <div role="group" aria-label="Choose a viewing date" className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" data-testid="group-viewing-dates">
+          <label className="block sm:hidden" data-testid="label-viewing-date-mobile">
+            <span className="sr-only">Choose a viewing date</span>
+            <select
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              aria-label="Choose a viewing date"
+              className="h-12 w-full rounded-xl border border-[#d9d0c1] bg-background px-4 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid="select-viewing-date"
+            >
+              {dates.map((date) => <option key={date} value={date}>{formatDateLabel(date)}</option>)}
+            </select>
+          </label>
+          <div role="group" aria-label="Choose a viewing date" className="no-scrollbar hidden gap-2 overflow-x-auto px-1 pb-1 sm:flex" data-testid="group-viewing-dates">
             {dates.map((date) => {
               const parts = dateParts(date);
               const weekday = parts.find((part) => part.type === 'weekday')?.value ?? '';

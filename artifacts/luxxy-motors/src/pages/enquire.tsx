@@ -46,7 +46,7 @@ export default function Enquire() {
         </Link>
 
         <div className="mt-8 grid gap-8 lg:mt-12 lg:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)] lg:items-start lg:gap-12">
-          <aside className="appointment-rise appointment-rise-delay-1 relative overflow-hidden rounded-[1.5rem] bg-primary px-6 py-7 text-primary-foreground shadow-[0_18px_48px_hsl(var(--primary)/.18)] sm:px-9 sm:py-10 lg:sticky lg:top-28">
+          <aside className="appointment-rise appointment-rise-delay-1 order-2 relative overflow-hidden rounded-[1.5rem] bg-primary px-6 py-7 text-primary-foreground shadow-[0_18px_48px_hsl(var(--primary)/.18)] sm:px-9 sm:py-10 lg:order-1 lg:sticky lg:top-28">
             <div className="pointer-events-none absolute -right-20 -top-24 hidden h-64 w-64 rounded-full border border-accent/20 sm:block" />
             <div className="pointer-events-none absolute -right-9 -top-12 hidden h-44 w-44 rounded-full border border-accent/15 sm:block" />
             <div className="relative">
@@ -120,7 +120,7 @@ export default function Enquire() {
             </div>
           </aside>
 
-          <section className="appointment-rise appointment-rise-delay-2 min-w-0">
+          <section className="appointment-rise appointment-rise-delay-2 order-1 min-w-0 lg:order-2">
             <div className="mb-6 flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[11px] text-accent-foreground">1</span>
