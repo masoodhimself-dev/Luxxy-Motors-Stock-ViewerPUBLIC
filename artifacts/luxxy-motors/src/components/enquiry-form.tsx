@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
-import { CalendarDays, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, Send } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,6 +44,15 @@ function bookingDates() {
     if (weekday !== 0) dates.push(candidate);
   }
   return dates;
+}
+
+function dateParts(value: string) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: bookingTimezone,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).formatToParts(new Date(`${value}T12:00:00Z`));
 }
 
 function formatDateLabel(value: string) {
@@ -99,6 +108,8 @@ export function EnquiryForm({
   );
 
   const vehicleLabel = vehicle?.title || [vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
+  const availableSlots = availabilityQuery.data?.slots.filter((slot) => slot.available) ?? [];
+  const selectedSlotLabel = availabilityQuery.data?.slots.find((slot) => slot.startAt === selectedSlot)?.label;
 
   useEffect(() => {
     setSelectedSlot(null);
@@ -128,151 +139,162 @@ export function EnquiryForm({
 
   if (mutation.isSuccess) {
     return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-          <CheckCircle2 className="h-7 w-7 text-green-700" />
+      <div className="appointment-rise overflow-hidden rounded-[1.5rem] border border-[#b5cbbd] bg-[#edf5ef] p-7 text-center sm:p-12" data-testid="status-enquiry-success">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#d3e8d9] text-[#2e6245]">
+          <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h2 className="text-2xl font-black text-green-950">{isViewing ? 'Viewing booked' : 'Enquiry received'}</h2>
-        <p className="mx-auto mt-3 max-w-lg text-green-900/80">
+        <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#47725a]">{isViewing ? 'Your visit is reserved' : 'Message received'}</p>
+        <h2 className="font-display mt-2 text-4xl text-[#173a2a] sm:text-5xl">{isViewing ? 'See you at the showroom.' : 'We will be in touch.'}</h2>
+        <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#47725a]">
           {isViewing
-            ? `Thank you, ${customerName.trim()}. Your viewing is booked for ${formatAppointment(selectedSlot!)}.`
-            : `Thank you, ${customerName.trim()}. The Luxxy Motors team has your request and will be in touch using your preferred contact method.`}
+            ? `Thank you, ${customerName.trim()}. We have held your appointment for ${formatAppointment(selectedSlot!)}.`
+            : `Thank you, ${customerName.trim()}. The Luxxy Motors team has your request and will reply by email.`}
         </p>
-        {vehicle && <p className="mt-4 text-sm font-semibold text-green-900">{vehicleLabel}</p>}
-        <Button type="button" variant="outline" className="mt-7 border-green-300 bg-white" onClick={() => mutation.reset()}>
-          Send another enquiry
+        {vehicle && <p className="mt-5 text-sm font-bold text-[#173a2a]" data-testid="text-confirmed-vehicle">{vehicleLabel}</p>}
+        <div className="mx-auto mt-7 flex max-w-sm items-center justify-center gap-2 rounded-full border border-[#b5cbbd] bg-[#f6fbf7] px-4 py-3 text-xs font-semibold text-[#47725a]">
+          <Mail className="h-4 w-4" /> A confirmation is on its way
+        </div>
+        <Button type="button" variant="outline" className="mt-8 border-[#9fbea9] bg-transparent text-[#2e6245] hover:bg-[#dcecdf]" onClick={() => mutation.reset()} data-testid="button-send-another-enquiry">
+          Send another enquiry <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="space-y-8" data-testid="form-enquiry">
+      <div className="flex items-start justify-between gap-5 border-b border-[#e6dfd2] pb-6">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Your details</p>
+          <h2 className="font-display mt-1 text-3xl text-foreground sm:text-4xl">{isViewing ? 'Let’s make it easy.' : 'How can we help?'}</h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">A few details is all we need. No pressure, no sales script.</p>
+        </div>
+        <div className="hidden rounded-full bg-[#f3e8c9] p-3 text-[#8d6714] sm:block"><Sparkles className="h-5 w-5" /></div>
+      </div>
+
       {vehicle && (
-        <div className="rounded-xl border border-primary/15 bg-primary/5 p-5">
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">Enquiring about</p>
-          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-            <p className="font-bold text-foreground">{vehicleLabel}</p>
-            {vehicle.price != null && <p className="font-bold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
+        <div className="hidden items-center justify-between gap-3 rounded-xl border border-[#d5c59e] bg-[#fbf6e8] px-4 py-3 sm:flex" data-testid="card-enquiry-vehicle">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Viewing</p>
+            <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
           </div>
-          {(vehicle.registration || vehicle.plate) && (
-            <p className="mt-1 text-sm text-muted-foreground">{vehicle.registration || vehicle.plate}</p>
-          )}
+          {vehicle.price != null && <p className="shrink-0 text-sm font-bold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
         </div>
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <label className="space-y-2 text-sm font-semibold">
+        <label className="space-y-2 text-sm font-semibold text-foreground">
           <span>Your name</span>
-          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Jane Smith" />
+          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" data-testid="input-customer-name" />
         </label>
-        <label className="space-y-2 text-sm font-semibold">
-          <span>Enquiry type</span>
-          <select
-            value={type}
-            onChange={(event) => setType(event.target.value as EnquiryType)}
-            className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <label className="space-y-2 text-sm font-semibold">
+        <label className="space-y-2 text-sm font-semibold text-foreground">
           <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" />Email address</span>
-          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@example.com" />
+          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" data-testid="input-customer-email" />
         </label>
       </div>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold">Confirmation method</legend>
-        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm font-semibold text-primary">
-          <Mail className="h-4 w-4" />
-          We’ll email your confirmation and viewing reminder
-        </div>
-      </fieldset>
+      <label className="block space-y-2 text-sm font-semibold text-foreground">
+        <span>What can we help with?</span>
+        <select value={type} onChange={(event) => setType(event.target.value as EnquiryType)} className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="select-enquiry-type">
+          {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
 
       {isViewing && (
-        <fieldset className="space-y-4 rounded-xl border border-primary/15 bg-primary/5 p-5">
-          <legend className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <CalendarDays className="h-4 w-4 text-primary" /> Choose your viewing time
-          </legend>
-          <p className="text-sm text-muted-foreground">Appointments are 30 minutes, Monday to Saturday, 10:00 am–6:00 pm.</p>
-            <div role="group" aria-label="Choose a viewing date" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {dates.map((date) => (
-              <button
-                key={date}
-                type="button"
-                onClick={() => setSelectedDate(date)}
+        <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-viewing-availability">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CalendarDays className="h-5 w-5 text-primary" /> Choose a time to visit</legend>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">30 minutes · Monday to Saturday · 10:00–18:00</p>
+            </div>
+            <span className="hidden rounded-full border border-[#d8cfbe] bg-background px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:block">London time</span>
+          </div>
+          <div role="group" aria-label="Choose a viewing date" className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" data-testid="group-viewing-dates">
+            {dates.map((date) => {
+              const parts = dateParts(date);
+              const weekday = parts.find((part) => part.type === 'weekday')?.value ?? '';
+              const day = parts.find((part) => part.type === 'day')?.value ?? '';
+              const month = parts.find((part) => part.type === 'month')?.value ?? '';
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setSelectedDate(date)}
                   aria-label={`Select ${formatDateLabel(date)}`}
                   aria-pressed={selectedDate === date}
-                className={`rounded-lg border px-3 py-3 text-left text-sm font-semibold transition-colors ${
-                  selectedDate === date
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-background hover:border-primary/50'
-                }`}
-              >
-                {formatDateLabel(date)}
-              </button>
-            ))}
-          </div>
-          {availabilityQuery.isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock3 className="h-4 w-4 animate-pulse text-primary" /> Loading available times…
-            </div>
-          ) : availabilityQuery.isError ? (
-            <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> Could not load available times. Please try another date.
-            </div>
-          ) : availabilityQuery.data?.slots.some((slot) => slot.available) ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {availabilityQuery.data.slots.map((slot) => (
-                <button
-                  key={slot.startAt}
-                  type="button"
-                  disabled={!slot.available}
-                  onClick={() => setSelectedSlot(slot.startAt)}
-                  aria-label={`${slot.label}${slot.available ? '' : ' unavailable'}`}
-                  aria-pressed={selectedSlot === slot.startAt}
-                  className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    selectedSlot === slot.startAt
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : slot.available
-                        ? 'border-border bg-background hover:border-primary/50'
-                        : 'cursor-not-allowed border-border/60 bg-muted text-muted-foreground/50 line-through'
-                  }`}
+                  className={`min-w-[76px] rounded-xl border px-3 py-3 text-center transition-all duration-200 ${selectedDate === date ? 'border-primary bg-primary text-primary-foreground shadow-[0_8px_16px_hsl(var(--primary)/.18)]' : 'border-[#ddd4c4] bg-background text-muted-foreground hover:-translate-y-0.5 hover:border-primary/50'}`}
+                  data-testid={`button-viewing-date-${date}`}
                 >
-                  {slot.label}
+                  <span className="block text-[10px] font-bold uppercase tracking-wider opacity-75">{weekday}</span>
+                  <span className="mt-1 block text-2xl font-bold leading-none">{day}</span>
+                  <span className="mt-1 block text-[10px] font-semibold">{month}</span>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+          <div className="border-t border-[#e3ddcf] pt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Available times</p>
+              {availableSlots.length > 0 && <p className="text-xs font-semibold text-[#47725a]">{availableSlots.length} times open</p>}
             </div>
-          ) : (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">There are no remaining times on this date. Please choose another day.</p>
-          )}
-          {selectedSlot && <p className="text-sm font-semibold text-primary">Selected: {formatAppointment(selectedSlot)}</p>}
+            {availabilityQuery.isLoading ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="loading-availability">
+                {[1, 2, 3, 4].map((item) => <div key={item} className="h-11 animate-pulse rounded-lg bg-[#e7e1d6]" />)}
+              </div>
+            ) : availabilityQuery.isError ? (
+              <div role="alert" className="flex items-start gap-2 rounded-lg border border-[#e8c6c0] bg-[#fff2ef] p-3 text-sm text-[#8d3e34]" data-testid="status-availability-error">
+                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> Could not load available times. Please choose another date.
+              </div>
+            ) : availableSlots.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="group-viewing-slots">
+                {availabilityQuery.data?.slots.map((slot) => (
+                  <button
+                    key={slot.startAt}
+                    type="button"
+                    disabled={!slot.available}
+                    onClick={() => setSelectedSlot(slot.startAt)}
+                    aria-label={`${slot.label}${slot.available ? '' : ' unavailable'}`}
+                    aria-pressed={selectedSlot === slot.startAt}
+                    className={`flex h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-bold transition-all duration-200 ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground shadow-[0_6px_14px_hsl(var(--primary)/.2)]' : slot.available ? 'border-[#d9d0c1] bg-background hover:-translate-y-0.5 hover:border-primary/60 hover:bg-[#fffdf7]' : 'cursor-not-allowed border-transparent bg-[#e9e5dc] text-muted-foreground/40 line-through'}`}
+                    data-testid={`button-viewing-slot-${slot.startAt}`}
+                  >
+                    {selectedSlot === slot.startAt && <Check className="h-4 w-4" />}
+                    {slot.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-[#e2cf9d] bg-[#fff8e6] p-3 text-sm text-[#80611f]" data-testid="status-availability-empty">There are no remaining times on this date. Please choose another day.</p>
+            )}
+          </div>
+          <div className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            {selectedSlotLabel ? <span><strong className="text-foreground">Your time:</strong> {selectedSlotLabel} · {formatDateLabel(selectedDate)}</span> : <span>Select any open time to reserve your visit.</span>}
+          </div>
         </fieldset>
       )}
 
-      <label className="block space-y-2 text-sm font-semibold">
-        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Your message {isViewing && <span className="font-normal text-muted-foreground">(optional)</span>}</span>
-        <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={type === 'viewing' ? 'Anything you would like us to know? (optional)' : 'How can the Luxxy Motors team help?'} />
+      <label className="block space-y-2 text-sm font-semibold text-foreground">
+        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Your message <span className="font-normal text-muted-foreground">(optional for a viewing)</span></span>
+        <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={4} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={isViewing ? 'Anything you would like us to prepare?' : 'How can the Luxxy Motors team help?'} data-testid="textarea-enquiry-message" />
       </label>
 
       {mutation.isError && (
-        <div role="alert" className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div role="alert" className="flex items-start gap-3 rounded-lg border border-[#e8c6c0] bg-[#fff2ef] p-4 text-sm text-[#8d3e34]" data-testid="status-enquiry-error">
           <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
       )}
-      <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="h-12 w-full font-bold sm:w-auto">
-        <Send className="mr-2 h-4 w-4" />
-        {mutation.isPending ? (isViewing ? 'Booking viewing…' : 'Sending enquiry…') : isViewing ? 'Confirm booking' : `Send ${typeLabels[type].toLowerCase()}`}
-      </Button>
-      <p className="flex items-start gap-2 text-xs text-muted-foreground">
-        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" />
-        {isViewing ? `Your booking is saved in the Luxxy Motors enquiry inbox. We’ll email your confirmation and send a reminder about 24 hours before your appointment (${bookingTimezone}).` : 'Your details are sent securely to the Luxxy Motors enquiry inbox. We’ll email a confirmation to this address.'}
-      </p>
+      <div className="space-y-4">
+        <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="group h-13 w-full rounded-xl bg-primary font-bold shadow-[0_10px_24px_hsl(var(--primary)/.18)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_hsl(var(--primary)/.24)] sm:w-full" data-testid="button-submit-enquiry">
+          {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve this viewing' : `Send ${typeLabels[type].toLowerCase()}`}
+          {!mutation.isPending && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+        </Button>
+        <div className="flex items-start gap-3 rounded-lg bg-[#f5f1e8] px-3 py-3 text-xs leading-5 text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#47725a]" />
+          <span>{isViewing ? `Your details are only used to confirm this appointment. We will email your confirmation and a reminder 24 hours before (${bookingTimezone}).` : 'Your details are sent securely to the Luxxy Motors enquiry inbox. We will email a confirmation to this address.'}</span>
+        </div>
+      </div>
     </form>
   );
 }
