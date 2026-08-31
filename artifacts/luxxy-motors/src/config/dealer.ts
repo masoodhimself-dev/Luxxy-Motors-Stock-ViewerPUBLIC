@@ -76,9 +76,10 @@ export const dealerConfig: DealerConfig = {
   identity: {
     name: "Luxxy Motors",
     logoText: "LUXXY MOTORS",
+    logoAsset: `${import.meta.env.BASE_URL}brand/luxxy-lockup-horizontal.svg`,
     brandColors: {
-      primaryHsl: "222 47% 11%",
-      accentHsl: "38 92% 50%",
+      primaryHsl: "184 38% 16%",
+      accentHsl: "42 67% 57%",
     },
   },
   contact: {

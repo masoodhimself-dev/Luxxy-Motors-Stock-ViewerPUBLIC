@@ -45,36 +45,36 @@
 
 :root {
   --site-header-height: 4.5rem;
-  /* Luxxy Motors — concierge editorial: ink navy, warm paper, brass and sea-glass */
-  --background: 42 38% 96%;
-  --foreground: 218 35% 15%;
+  /* Luxxy Motors — concierge editorial: deep ink teal, warm sage paper and brass */
+  --background: 80 20% 95%;
+  --foreground: 184 38% 16%;
   
-  --border: 38 22% 84%;
-  --input: 38 22% 84%;
-  --ring: 42 82% 49%;
+  --border: 104 14% 83%;
+  --input: 104 14% 83%;
+  --ring: 42 67% 57%;
   
-  --card: 45 40% 99%;
-  --card-foreground: 218 35% 15%;
-  --card-border: 38 22% 84%;
+  --card: 60 30% 98%;
+  --card-foreground: 184 38% 16%;
+  --card-border: 104 14% 83%;
   
-  --popover: 45 40% 99%;
-  --popover-foreground: 218 35% 15%;
-  --popover-border: 38 22% 84%;
+  --popover: 60 30% 98%;
+  --popover-foreground: 184 38% 16%;
+  --popover-border: 104 14% 83%;
   
   /* Primary: midnight dealership ink */
-  --primary: 218 39% 16%;
-  --primary-foreground: 42 38% 96%;
+  --primary: 184 38% 16%;
+  --primary-foreground: 80 20% 95%;
   
   /* Secondary: warm limestone */
-  --secondary: 39 26% 90%;
-  --secondary-foreground: 218 35% 20%;
+  --secondary: 100 17% 90%;
+  --secondary-foreground: 184 30% 20%;
   
-  --muted: 40 24% 91%;
-  --muted-foreground: 217 14% 43%;
+  --muted: 100 15% 91%;
+  --muted-foreground: 164 10% 40%;
   
   /* Accent: brushed brass */
-  --accent: 42 82% 49%;
-  --accent-foreground: 218 39% 16%;
+  --accent: 42 67% 57%;
+  --accent-foreground: 184 38% 16%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
