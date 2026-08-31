@@ -160,12 +160,6 @@ export default function Home() {
 
         <div className="container relative z-10 mx-auto px-4 text-white md:mt-0">
           <div className="max-w-3xl">
-            {stock && (
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md sm:mb-8">
-                <Car className="w-4 h-4 text-accent" />
-                {stock.count ?? stock.cars.length} vehicles available
-              </div>
-            )}
             {dealerConfig.hero.announcement && (
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md animate-in slide-in-from-bottom-4 duration-500 sm:mb-8">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
@@ -190,6 +184,14 @@ export default function Home() {
             </div>
 
             <div className="mt-7 max-w-4xl rounded-2xl border border-white/20 bg-white/95 p-3 text-primary shadow-2xl shadow-black/20 backdrop-blur-md sm:mt-8 sm:p-4" data-testid="hero-search">
+              <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Search the showroom</p>
+                {stock && (
+                  <span className="shrink-0 rounded-full bg-primary/5 px-3 py-1 text-[11px] font-bold text-muted-foreground" data-testid="text-hero-stock-count">
+                    {stock.count ?? stock.cars.length} vehicles available
+                  </span>
+                )}
+              </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
