@@ -435,6 +435,7 @@ async function finalChecks(tx: QueryDb, context: NonNullable<Awaited<ReturnType<
       .filter((acknowledgement) => acknowledgement.revisionId === revision?.id)
       .map((acknowledgement) => acknowledgement.code),
   );
+  const isCompleted = sale.status === "completed";
   const required = requiredAcknowledgements(revision?.snapshot);
   const activeSales = vehicle
     ? await tx
@@ -458,23 +459,31 @@ async function finalChecks(tx: QueryDb, context: NonNullable<Awaited<ReturnType<
   checks.push({
     code: "vehicle",
     label: "Vehicle is still saleable",
-    passed: Boolean(
-      vehicle &&
-        !["sold", "archived"].includes(vehicle.inventoryStatus) &&
-        vehicle.sourceStatus === "live",
-    ),
+    passed:
+      Boolean(
+        vehicle &&
+          !["sold", "archived"].includes(vehicle.inventoryStatus) &&
+          vehicle.sourceStatus === "live",
+      ) ||
+      Boolean(isCompleted && vehicle?.inventoryStatus === "sold" && vehicle.sourceStatus === "live"),
     message:
-      vehicle && vehicle.inventoryStatus !== "sold" && vehicle.inventoryStatus !== "archived"
+      isCompleted && vehicle?.inventoryStatus === "sold"
+        ? "The vehicle was marked sold by this completed sale."
+        : vehicle && vehicle.inventoryStatus !== "sold" && vehicle.inventoryStatus !== "archived"
         ? "The vehicle is not sold or archived."
         : "The vehicle is no longer available for completion.",
   });
+  const ownsActiveLock = activeSales.length === 1 && activeSales[0]?.id === sale.id;
+  const completedLockReleased = isCompleted && activeSales.length === 0;
   checks.push({
     code: "vehicle_lock",
     label: "Sale-level vehicle lock",
-    passed: activeSales.length === 1 && activeSales[0]?.id === sale.id,
+    passed: ownsActiveLock || completedLockReleased,
     message:
-      activeSales.length === 1 && activeSales[0]?.id === sale.id
+      ownsActiveLock
         ? "This sale owns the active lock for the vehicle."
+        : completedLockReleased
+        ? "The completed sale released its active lock after completion."
         : "Another active sale owns this vehicle.",
   });
   checks.push({

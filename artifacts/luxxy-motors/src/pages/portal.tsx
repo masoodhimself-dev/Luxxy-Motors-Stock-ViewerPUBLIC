@@ -342,7 +342,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
       <div className="mt-7 border-t pt-6">
         <div className="flex items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 text-lg font-black"><ClipboardCheck className="h-5 w-5 text-primary" /> Final-sale checks</h3>
-          <span className={`text-sm font-bold ${checks?.canComplete ? 'text-green-700' : 'text-amber-700'}`}>{checks?.canComplete ? 'Ready to complete' : 'Not ready'}</span>
+          <span className={`text-sm font-bold ${sale.status === 'completed' || checks?.canComplete ? 'text-green-700' : 'text-amber-700'}`}>{sale.status === 'completed' ? 'Completed' : checks?.canComplete ? 'Ready to complete' : 'Not ready'}</span>
         </div>
         {checksQuery.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Checking sale readiness…</p> : (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">

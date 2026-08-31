@@ -169,8 +169,19 @@ test("rejects incomplete or duplicate signing and completes a signed sale once",
 
   const completed = await request(`/sales/${created.id}/complete`, { method: "POST" });
   assert.equal(completed.status, 200);
+  const finalChecksResponse = await request(`/sales/${created.id}/final-checks`);
+  assert.equal(finalChecksResponse.status, 200);
+  const finalChecks = await finalChecksResponse.json() as {
+    canComplete: boolean;
+    checks: Array<{ code: string; passed: boolean }>;
+  };
+  assert.equal(finalChecks.canComplete, true);
+  assert.equal(finalChecks.checks.find((check) => check.code === "vehicle")?.passed, true);
+  assert.equal(finalChecks.checks.find((check) => check.code === "vehicle_lock")?.passed, true);
   const completedAgain = await request(`/sales/${created.id}/complete`, { method: "POST" });
-  assert.equal(completedAgain.status, 422);
+  assert.equal(completedAgain.status, 200);
+  const completedAgainBody = await completedAgain.json() as { idempotent: boolean };
+  assert.equal(completedAgainBody.idempotent, true);
   const [vehicle] = await db.select({ inventoryStatus: vehiclesTable.inventoryStatus }).from(vehiclesTable).where(eq(vehiclesTable.id, vehicleId));
   assert.equal(vehicle?.inventoryStatus, "sold");
 });
