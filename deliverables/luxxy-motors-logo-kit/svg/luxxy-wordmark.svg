@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="104" viewBox="0 0 520 104" role="img" aria-label="Luxxy Motors Harrow wordmark">
+  <g transform="translate(10 14) scale(1.28)"><g fill="none" stroke="#17363D" stroke-width="7" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M0 0V48H28"/>
+    <path d="M45 0V31C45 42 51 48 61 48C71 48 77 42 77 31V0"/>
+    <path d="M94 0L126 48M126 0L94 48"/>
+    <path d="M143 0L175 48M175 0L143 48"/>
+    <path d="M192 0L208 24L224 0M208 24V48"/>
+  </g></g>
+    <text x="10" y="96" fill="#6A7B76" font-family="DejaVu Sans, Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="4.4">MOTORS · HARROW</text>
+</svg>

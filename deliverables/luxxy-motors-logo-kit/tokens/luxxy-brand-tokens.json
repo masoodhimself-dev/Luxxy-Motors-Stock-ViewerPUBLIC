@@ -1,0 +1,22 @@
+{
+  "name": "Luxxy Motors",
+  "direction": "Premium and understated editorial automotive concierge",
+  "colors": {
+    "ink": "#17363D",
+    "brass": "#DEB148",
+    "ivory": "#F1EAD3",
+    "sage": "#E7ECE4",
+    "muted": "#6A7B76"
+  },
+  "typography": {
+    "display": "Instrument Serif",
+    "interface": "DM Sans",
+    "logoFallback": "DejaVu Sans"
+  },
+  "logo": {
+    "preferred": "svg/luxxy-lockup-horizontal.svg",
+    "icon": "svg/luxxy-mark-primary.svg",
+    "minimumDigitalIconSize": "32px",
+    "clearSpace": "At least half the icon width on every side"
+  }
+}
