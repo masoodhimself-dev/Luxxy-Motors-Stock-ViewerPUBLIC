@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, X, Car, Banknote, Fuel, Settings2, Filter, AlertTriangle } from 'lucide-react';
+import { Search, X, Car, Banknote, Fuel, Settings2, Filter, AlertTriangle, ChevronDown, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Car as CarType } from '@/lib/stock-context';
@@ -58,7 +58,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
     return Array.from(t).sort();
   }, [cars]);
 
-  const activeAdvancedCount = (filters.search ? 1 : 0) +
+  const activeAdvancedCount =
     (filters.catS ? 1 : 0) +
     (filters.catN ? 1 : 0) +
     (filters.noWriteOff ? 1 : 0);
@@ -71,15 +71,81 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
     <div className="bg-background relative -mt-10 mx-4 lg:mx-auto max-w-7xl rounded-2xl shadow-xl border border-border/50 z-20 overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-accent to-primary" />
 
-      <div className="p-6 md:p-8">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+      <div className="p-5 sm:p-6 md:p-8">
+        <div className="flex flex-col gap-3 mb-6 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2 text-primary">
-              <Search className="w-5 h-5" />
-              <p className="text-sm font-bold uppercase tracking-widest">Find Your Next Car</p>
+              <Sparkles className="w-4 h-4" />
+              <p className="text-xs font-bold uppercase tracking-[0.18em]">Start your search</p>
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Search our stock of {vehicleCount} vehicles</h2>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Find a car you’ll love</h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              Search by make, model, registration or a feature, then refine your shortlist below.
+            </p>
           </div>
+          <div className="inline-flex w-fit items-center rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-bold text-muted-foreground">
+            {vehicleCount} vehicles in stock
+          </div>
+        </div>
+
+        {/* Primary search */}
+        <div className="mb-7 rounded-2xl border border-primary/10 bg-secondary/50 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
+              <Input
+                aria-label="Search vehicles"
+                placeholder="Try “BMW”, “Golf”, “automatic” or a registration"
+                className="h-14 border-border/70 bg-background pl-12 pr-12 text-base font-medium shadow-sm focus-visible:ring-primary"
+                value={filters.search}
+                onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearchClick();
+                  }
+                }}
+              />
+              {filters.search && (
+                <button
+                  type="button"
+                  aria-label="Clear vehicle search"
+                  onClick={() => setFilters(f => ({ ...f, search: '' }))}
+                  className="absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              type="button"
+              onClick={handleSearchClick}
+              size="lg"
+              className="h-14 w-full shrink-0 px-8 font-bold shadow-md shadow-primary/20 sm:w-auto"
+            >
+              Find cars
+              <Search className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+          {makes.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 px-1">
+              <span className="mr-1 text-xs font-semibold text-muted-foreground">Quick picks</span>
+              {makes.slice(0, 5).map((make) => (
+                <button
+                  key={make}
+                  type="button"
+                  onClick={() => setFilters(f => ({ ...f, make, model: '' }))}
+                  className={`rounded-full border px-3 py-1 text-xs font-bold transition-colors ${
+                    filters.make === make
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border/70 bg-background text-foreground hover:border-primary/40 hover:text-primary'
+                  }`}
+                >
+                  {make}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Primary Filters */}
@@ -173,15 +239,16 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <Button
             variant="outline"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full md:w-auto relative font-semibold rounded-lg h-11 border-border/80 hover:bg-secondary"
+            className="relative h-11 w-full rounded-lg border-border/80 font-semibold hover:bg-secondary md:w-auto"
           >
             <Filter className="w-4 h-4 mr-2" />
-            Advanced Filters
+            More filters
             {activeAdvancedCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-accent text-accent-foreground font-bold text-[10px] rounded-full flex items-center justify-center shadow-sm">
                 {activeAdvancedCount}
               </span>
             )}
+            <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
           </Button>
 
           <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
@@ -196,42 +263,21 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
               <option value="mileage-asc">Mileage: Low to High</option>
               <option value="mileage-desc">Mileage: High to Low</option>
             </select>
-            <Button
-              onClick={handleSearchClick}
-              size="lg"
-              className="w-full sm:w-auto px-8 font-bold h-11 shadow-md shadow-primary/20"
-            >
-              Search Stock
-            </Button>
+              <Button
+                type="button"
+                onClick={handleSearchClick}
+                variant="outline"
+                size="lg"
+                className="h-11 w-full px-6 font-bold sm:w-auto"
+              >
+                Show results
+              </Button>
           </div>
         </div>
 
         {/* Advanced Filters */}
         {showAdvanced && (
-          <div className="mt-6 pt-6 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Search className="w-3.5 h-3.5" /> Keyword Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="e.g. Navigation, Leather, M Sport..."
-                  className="pl-10 h-11 font-medium bg-card"
-                  value={filters.search}
-                  onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
-                />
-                {filters.search && (
-                  <button
-                    onClick={() => setFilters(f => ({ ...f, search: '' }))}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
+          <div className="mt-6 border-t border-border/50 pt-6 animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="space-y-3">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" /> Condition History
