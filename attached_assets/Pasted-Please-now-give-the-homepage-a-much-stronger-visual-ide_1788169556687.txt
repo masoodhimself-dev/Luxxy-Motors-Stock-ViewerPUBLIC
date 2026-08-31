@@ -1,0 +1,173 @@
+Please now give the homepage a much stronger visual identity using colour, real vehicle photography, tasteful icons, and richer section styling, while preserving all functionality and scope boundaries already approved.
+Keep this frontend-only. Do not change APIs, database, stock logic, routes, Grok, secrets, schema, or publish anything.
+Visual direction
+I want the homepage to feel:
+premium, modern, automotive, energetic, trustworthy and memorable
+not flat, plain, generic or like a basic dealership template.
+Add more visual interest through:
+- tasteful accent colours;
+- stronger section backgrounds;
+- real Luxxy stock photography;
+- vehicle detail imagery;
+- subtle gradients only where appropriate;
+- automotive/service icons;
+- stronger CTA treatments;
+- visually distinct content blocks;
+- better use of dark/light contrast;
+- subtle borders, depth and layering;
+- tasteful decorative shapes or patterns where they improve the design.
+Do not make it flashy, childish, neon-heavy or overly futuristic.
+Real vehicle photography
+Use real images from the existing 31 public development vehicles wherever suitable.
+Use real stock images for:
+- homepage hero;
+- featured/latest vehicle cards;
+- appropriate background/detail imagery in conversion sections if it improves the page.
+Do not use unrelated stock photography when real dealer stock imagery can fulfil the purpose.
+Do not mutate or alter stock records.
+Avoid loading excessive full-resolution images. Use efficient thumbnails/hero images and sensible lazy loading.
+Colour system
+Introduce a richer but controlled automotive palette.
+Keep the primary Luxxy identity sophisticated.
+Use:
+- a strong dark/navy/charcoal foundation;
+- clean white/light sections;
+- one confident Luxxy accent colour;
+- subtle secondary tones for status/service cards.
+Apply colour deliberately to:
+- CTA buttons;
+- section headings;
+- icons;
+- badges;
+- trust indicators;
+- selected filters;
+- service cards;
+- section backgrounds.
+Do not colour everything. Maintain plenty of breathing room and contrast.
+Keep brand colour values in the existing typed dealer configuration boundary so another dealership remix can easily receive a different colour scheme later.
+Icons
+Add a consistent, premium icon system to relevant sections.
+Suitable examples:
+- vehicle / steering wheel for Browse Stock;
+- calendar for Book Viewing;
+- arrows/vehicle exchange for Part Exchange;
+- shield/check for Warranty;
+- truck for Delivery;
+- phone for Call;
+- WhatsApp/message icon;
+- map pin for Visit Us;
+- clock for Opening Hours;
+- check-circle for buying benefits;
+- mileage/fuel/transmission icons where vehicle cards benefit from them.
+Use the existing icon library if one is already installed.
+Do not add a new dependency merely for icons unless genuinely necessary.
+Keep icon style consistent across the page.
+Hero
+Make the hero particularly impressive.
+Use a genuine public vehicle image with a strong photographic crop.
+Keep:
+Find Your Next Car
+Quality used vehicles. Straightforward buying. Exceptional service.
+Improve the hero with:
+- better dark image overlay/contrast;
+- tasteful colour accent;
+- stronger Browse Stock CTA;
+- secondary Part Exchange CTA;
+- dynamic public stock count;
+- perhaps a compact trust/service row;
+- subtle depth/visual layering.
+The text must remain very readable on all image backgrounds.
+Stock search
+Make the search component feel like a premium automotive search console rather than a plain group of inputs.
+Use icons, labels, spacing, selected states and colour carefully.
+Preserve:
+- Make
+- Model
+- Min price
+- Max price
+- Fuel
+- Transmission
+- Search Stock
+and the existing advanced filters.
+Do not alter filtering logic.
+Featured vehicles
+Make vehicle cards visually richer.
+Use:
+- larger vehicle imagery;
+- tasteful image hover movement on desktop;
+- clear price hierarchy;
+- compact icons for mileage/fuel/transmission;
+- Cat S/N badges where applicable;
+- polished View Vehicle CTA;
+- subtle border/elevation;
+- good mobile card layout.
+Do not invent missing facts.
+Why Buy / Trust
+Give these sections more personality with icons and subtle colour blocks.
+Keep the approved neutral copy exactly.
+Do not introduce fabricated ratings, awards, inspection promises or other claims.
+Warranty / Delivery
+Make these visually distinct service cards.
+Warranty may use shield/protection imagery/iconography.
+Delivery may use transport/truck/location iconography.
+Use configured copy and hide the section if disabled.
+Do not introduce new service promises.
+Part Exchange
+Make Part Exchange a strong conversion section with automotive imagery or tasteful visual treatment.
+Keep the approved wording and CTA.
+Do not imply an instant/guaranteed valuation.
+Book Viewing
+Make this one of the strongest conversion areas on the page.
+Use calendar/vehicle imagery and a prominent CTA.
+It remains a frontend CTA only.
+Do not create booking persistence or fake forms.
+Visit Us
+Give Visit Us a polished dealership-contact presentation using:
+- map/location icon;
+- configured contact information;
+- configured opening hours;
+- Call/WhatsApp actions when available.
+Hide information that is not configured.
+Do not invent map/address/contact data.
+Footer
+Give the footer a strong premium dark treatment.
+Keep configured navigation/legal/social information.
+Use small tasteful icons where appropriate.
+Motion
+Add lightweight tasteful micro-interactions:
+- button hover/focus transitions;
+- vehicle image hover zoom;
+- card lift;
+- icon transition;
+- very subtle section reveal only if appropriate.
+Respect prefers-reduced-motion.
+No heavy animation libraries.
+Responsive quality
+Make desktop, tablet and mobile each feel intentionally designed.
+On mobile especially:
+- avoid oversized decorative elements;
+- maintain clear vehicle photography;
+- keep filters easy to use;
+- keep conversion actions obvious;
+- preserve the working sticky/navigation behaviour.
+Safety
+Preserve all current working behaviour:
+- 31 public development vehicles;
+- existing filters;
+- Cat badges;
+- anchor scrolling;
+- cross-route navigation;
+- vehicle detail;
+- portal;
+- stock API behaviour.
+No finance anywhere.
+No invented business data or claims.
+After the pass:
+- run typecheck;
+- run production frontend build;
+- run the existing 11 stock integration tests;
+- check browser console;
+- test desktop/tablet/mobile;
+- capture new screenshots.
+Do not publish.
+Stop and show me the finished homepage for visual review.

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
-import { Menu, X, Car as CarIcon, Phone, MessageCircle, Calendar, Search } from 'lucide-react';
+import { Menu, X, Car as CarIcon, Phone, MessageCircle, Calendar, Search, ArrowRight, Instagram, Facebook, Twitter, MapPin } from 'lucide-react';
 import { dealerConfig } from '@/config/dealer';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
+import { Button } from '@/components/ui/button';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const brandStyle = {
     ...(dealerConfig.identity.brandColors?.primaryHsl
@@ -16,6 +18,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ? { '--accent': dealerConfig.identity.brandColors.accentHsl }
       : {}),
   } as CSSProperties;
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const header = headerRef.current;
@@ -45,17 +55,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={brandStyle} className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
-      <header ref={headerRef} className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <button type="button" onClick={() => handleNav('top')} className="flex items-center gap-2 group">
+      <header ref={headerRef} className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${scrolled ? 'bg-background/95 backdrop-blur-md shadow-sm border-b' : 'bg-background/80 backdrop-blur-sm border-transparent'}`}>
+        <div className="container mx-auto px-4 lg:px-8 h-[4.5rem] flex items-center justify-between">
+          <button type="button" onClick={() => handleNav('top')} className="flex items-center gap-3 group">
             {dealerConfig.identity.logoAsset ? (
               <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 object-contain" />
             ) : (
               <>
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground group-hover:scale-105 transition-transform">
+                <div className="w-9 h-9 rounded bg-primary flex items-center justify-center text-primary-foreground group-hover:scale-105 transition-transform duration-300 shadow-sm">
                   <CarIcon className="w-5 h-5" />
                 </div>
-                <span className="font-bold text-base sm:text-xl tracking-tight">
+                <span className="font-bold text-lg sm:text-xl tracking-tight">
                   {dealerConfig.identity.logoText || dealerConfig.identity.name}
                 </span>
               </>
@@ -63,36 +73,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
 
           {/* Desktop Nav */}
-          <nav className="hidden xl:flex items-center gap-6 text-sm font-medium">
-            <button onClick={() => handleNav('top')} className="hover:text-primary transition-colors">Home</button>
-            <button onClick={() => handleNav('stock')} className="hover:text-primary transition-colors">Stock</button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="hover:text-primary transition-colors">Part Exchange</button>}
-            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="hover:text-primary transition-colors">Warranty</button>}
-            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="hover:text-primary transition-colors">Delivery</button>}
-            <button onClick={() => handleNav('about')} className="hover:text-primary transition-colors">About Us</button>
-            <button onClick={() => handleNav('visit')} className="hover:text-primary transition-colors">Contact</button>
+          <nav className="hidden xl:flex items-center gap-8 text-sm font-semibold">
+            <button onClick={() => handleNav('top')} className="text-foreground/80 hover:text-primary transition-colors">Home</button>
+            <button onClick={() => handleNav('stock')} className="text-foreground/80 hover:text-primary transition-colors">Stock</button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="text-foreground/80 hover:text-primary transition-colors">Part Exchange</button>}
+            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="text-foreground/80 hover:text-primary transition-colors">Warranty</button>}
+            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="text-foreground/80 hover:text-primary transition-colors">Delivery</button>}
+            <button onClick={() => handleNav('about')} className="text-foreground/80 hover:text-primary transition-colors">About Us</button>
+            <button onClick={() => handleNav('visit')} className="text-foreground/80 hover:text-primary transition-colors">Contact</button>
 
-            <div className="flex items-center gap-4 ml-4 pl-4 border-l">
-              {dealerConfig.contact.phone && (
-                <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-1.5 hover:text-primary transition-colors">
-                  <Phone className="w-4 h-4" /> {dealerConfig.contact.phone}
-                </a>
-              )}
-              {dealerConfig.contact.whatsapp && (
-                <a href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-primary transition-colors">
-                  <MessageCircle className="w-4 h-4" /> WhatsApp
-                </a>
-              )}
-              <button type="button" onClick={() => handleNav('book-viewing')} className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors">
-                Book a Viewing
-              </button>
+            <div className="flex items-center gap-5 ml-2 pl-6 border-l">
+              <div className="flex items-center gap-4 text-muted-foreground">
+                {dealerConfig.contact.phone && (
+                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-2 hover:text-primary transition-colors group">
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center group-hover:bg-primary/10">
+                      <Phone className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-bold text-foreground">{dealerConfig.contact.phone}</span>
+                  </a>
+                )}
+              </div>
+              <Button onClick={() => handleNav('book-viewing')} className="font-bold rounded-full px-6">
+                 Book a Viewing
+              </Button>
             </div>
           </nav>
 
           {/* Mobile Menu Toggle */}
           <button
             type="button"
-            className="xl:hidden p-2"
+            className="xl:hidden p-2 text-foreground/80 hover:text-foreground"
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -103,114 +113,163 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
-          <div className="xl:hidden absolute top-16 left-0 w-full bg-background border-b shadow-lg py-4 px-4 flex flex-col gap-4">
-            <button onClick={() => handleNav('top')} className="text-left font-medium p-2 hover:bg-muted rounded">Home</button>
-            <button onClick={() => handleNav('stock')} className="text-left font-medium p-2 hover:bg-muted rounded">Stock</button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="text-left font-medium p-2 hover:bg-muted rounded">Part Exchange</button>}
-            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="text-left font-medium p-2 hover:bg-muted rounded">Warranty</button>}
-            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="text-left font-medium p-2 hover:bg-muted rounded">Delivery</button>}
-            <button onClick={() => handleNav('about')} className="text-left font-medium p-2 hover:bg-muted rounded">About Us</button>
-            <button onClick={() => handleNav('visit')} className="text-left font-medium p-2 hover:bg-muted rounded">Contact</button>
+          <div className="xl:hidden absolute top-[4.5rem] left-0 w-full bg-background border-b shadow-xl py-6 px-4 flex flex-col gap-2 max-h-[calc(100vh-4.5rem)] overflow-y-auto">
+            <button onClick={() => handleNav('top')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Home</button>
+            <button onClick={() => handleNav('stock')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors flex justify-between items-center">
+              Browse Stock <ArrowRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Part Exchange</button>}
+            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Warranty</button>}
+            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Delivery</button>}
+            <button onClick={() => handleNav('about')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Why Buy From Us</button>
+            <button onClick={() => handleNav('visit')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Contact & Location</button>
+
+            <div className="mt-4 pt-4 border-t flex flex-col gap-3">
+              {dealerConfig.contact.phone && (
+                <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg text-foreground font-semibold">
+                  <Phone className="w-5 h-5 text-primary" /> Call Us: {dealerConfig.contact.phone}
+                </a>
+              )}
+              {dealerConfig.contact.whatsapp && (
+                <a href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg text-foreground font-semibold">
+                  <MessageCircle className="w-5 h-5 text-green-600" /> WhatsApp Us
+                </a>
+              )}
+            </div>
           </div>
         )}
       </header>
 
-      <main className="flex-1 w-full pb-20 xl:pb-0">
+      <main className={`flex-1 w-full pb-20 xl:pb-0 ${location === '/' ? '' : 'pt-[var(--site-header-height)]'}`}>
         {children}
       </main>
 
-      <footer id="contact" data-home-section className="border-t bg-card py-16 mt-auto">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h3 className="font-bold text-lg mb-4">{dealerConfig.identity.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+      <footer id="contact" data-home-section className="bg-primary text-primary-foreground pt-20 pb-10 mt-auto border-t-4 border-accent">
+        <div className="container mx-auto px-4 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 mb-16">
+            <div className="lg:col-span-4">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded bg-white/10 flex items-center justify-center text-white shadow-sm">
+                  <CarIcon className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-2xl tracking-tight text-white">
+                  {dealerConfig.identity.logoText || dealerConfig.identity.name}
+                </span>
+              </div>
+              <p className="text-primary-foreground/70 mb-8 leading-relaxed max-w-sm">
                 {dealerConfig.hero.subcopy}
               </p>
-              <div className="flex flex-col gap-2 text-sm">
-                {dealerConfig.contact.phone && <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="hover:text-primary">{dealerConfig.contact.phone}</a>}
-                {dealerConfig.contact.email && <a href={`mailto:${dealerConfig.contact.email}`} className="hover:text-primary">{dealerConfig.contact.email}</a>}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg mb-4">Explore</h3>
-              <nav className="flex flex-col items-start gap-2 text-sm text-muted-foreground">
-                <button onClick={() => handleNav('stock')} className="hover:text-primary">Stock</button>
-                {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="hover:text-primary">Part Exchange</button>}
-                {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="hover:text-primary">Warranty</button>}
-                {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="hover:text-primary">Delivery</button>}
-                <button onClick={() => handleNav('about')} className="hover:text-primary">About</button>
-                <button onClick={() => handleNav('visit')} className="hover:text-primary">Contact</button>
-              </nav>
-            </div>
-
-            {dealerConfig.address && (dealerConfig.address.street || dealerConfig.address.city) && (
-              <div>
-                <h3 className="font-bold text-lg mb-4">Visit Us</h3>
-                <address className="not-italic text-sm text-muted-foreground space-y-1">
-                  {dealerConfig.address.street && <p>{dealerConfig.address.street}</p>}
-                  {dealerConfig.address.city && <p>{dealerConfig.address.city}</p>}
-                  {dealerConfig.address.postcode && <p>{dealerConfig.address.postcode}</p>}
-                </address>
-                {dealerConfig.address.mapsUrl && (
-                  <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline mt-2 inline-block">
-                    View on Map
+              <div className="flex items-center gap-4">
+                {dealerConfig.social.instagram && (
+                  <a href={dealerConfig.social.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
+                    <Instagram className="w-4 h-4" />
+                  </a>
+                )}
+                {dealerConfig.social.facebook && (
+                  <a href={dealerConfig.social.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
+                    <Facebook className="w-4 h-4" />
+                  </a>
+                )}
+                {dealerConfig.social.twitter && (
+                  <a href={dealerConfig.social.twitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-primary transition-all">
+                    <Twitter className="w-4 h-4" />
                   </a>
                 )}
               </div>
-            )}
+            </div>
+
+            <div className="lg:col-span-2">
+              <h3 className="font-bold text-lg mb-6 text-white">Vehicles</h3>
+              <nav className="flex flex-col items-start gap-3 text-sm text-primary-foreground/70">
+                <button onClick={() => handleNav('stock')} className="hover:text-accent transition-colors">View All Stock</button>
+                <button onClick={() => handleNav('part-exchange')} className="hover:text-accent transition-colors">Part Exchange</button>
+                 <button onClick={() => handleNav('book-viewing')} className="hover:text-accent transition-colors">Book a Viewing</button>
+                <button onClick={() => handleNav('warranty')} className="hover:text-accent transition-colors">Warranty Information</button>
+              </nav>
+            </div>
+
+            <div className="lg:col-span-3">
+              <h3 className="font-bold text-lg mb-6 text-white">Contact & Visit</h3>
+              <div className="space-y-4 text-sm text-primary-foreground/70">
+                {dealerConfig.contact.phone && (
+                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex items-center gap-3 hover:text-accent transition-colors">
+                    <Phone className="w-4 h-4 text-accent" /> {dealerConfig.contact.phone}
+                  </a>
+                )}
+                {dealerConfig.contact.email && (
+                  <a href={`mailto:${dealerConfig.contact.email}`} className="flex items-center gap-3 hover:text-accent transition-colors">
+                    <MessageCircle className="w-4 h-4 text-accent" /> {dealerConfig.contact.email}
+                  </a>
+                )}
+                {dealerConfig.address && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-accent shrink-0 mt-1" />
+                    <address className="not-italic space-y-1">
+                      {dealerConfig.address.street && <p>{dealerConfig.address.street}</p>}
+                      {dealerConfig.address.city && <p>{dealerConfig.address.city}</p>}
+                      {dealerConfig.address.postcode && <p>{dealerConfig.address.postcode}</p>}
+                      {dealerConfig.address.mapsUrl && (
+                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline inline-block mt-1">
+                          Get Directions &rarr;
+                        </a>
+                      )}
+                    </address>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {dealerConfig.hours && dealerConfig.hours.length > 0 && (
-              <div>
-                <h3 className="font-bold text-lg mb-4">Opening Hours</h3>
-                <ul className="text-sm text-muted-foreground space-y-2">
+              <div className="lg:col-span-3">
+                <h3 className="font-bold text-lg mb-6 text-white">Opening Hours</h3>
+                <ul className="text-sm text-primary-foreground/70 space-y-3">
                   {dealerConfig.hours.map((h, i) => (
-                    <li key={i} className="flex gap-4"><span className="w-20">{h.days}</span> <span>{h.times}</span></li>
+                    <li key={i} className="flex justify-between border-b border-white/10 pb-2">
+                      <span className="font-medium">{h.days}</span>
+                      <span>{h.times}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
             )}
           </div>
 
-          <div className="border-t pt-8 text-center text-sm text-muted-foreground flex flex-col md:flex-row justify-between items-center gap-4">
-            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}.</p>
-            <div className="flex flex-wrap justify-center gap-4">
+          <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-primary-foreground/50">
+            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. All rights reserved.</p>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               {dealerConfig.legal.companyNumber && <span>Company No: {dealerConfig.legal.companyNumber}</span>}
               {dealerConfig.legal.vatNumber && <span>VAT: {dealerConfig.legal.vatNumber}</span>}
-              {dealerConfig.legal.termsUrl && <a className="hover:text-primary" href={dealerConfig.legal.termsUrl}>Terms &amp; Conditions</a>}
-              {dealerConfig.legal.privacyUrl && <a className="hover:text-primary" href={dealerConfig.legal.privacyUrl}>Privacy Policy</a>}
-              {dealerConfig.legal.cookieUrl && <a className="hover:text-primary" href={dealerConfig.legal.cookieUrl}>Cookie Policy</a>}
-              {dealerConfig.social.instagram && <a className="hover:text-primary" href={dealerConfig.social.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>}
-              {dealerConfig.social.facebook && <a className="hover:text-primary" href={dealerConfig.social.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>}
-              {dealerConfig.social.twitter && <a className="hover:text-primary" href={dealerConfig.social.twitter} target="_blank" rel="noopener noreferrer">X</a>}
+              {dealerConfig.legal.termsUrl && <a className="hover:text-white transition-colors" href={dealerConfig.legal.termsUrl}>Terms &amp; Conditions</a>}
+              {dealerConfig.legal.privacyUrl && <a className="hover:text-white transition-colors" href={dealerConfig.legal.privacyUrl}>Privacy Policy</a>}
             </div>
           </div>
         </div>
       </footer>
 
       {/* Mobile Bottom Bar */}
-      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border pb-safe">
-        <div className="flex items-center justify-between px-2 py-2">
+      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe">
+        <div className="flex items-center justify-between px-2 py-1">
           {dealerConfig.contact.phone && (
-            <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-foreground">
+            <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
               <Phone className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-medium uppercase tracking-wider">Call</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Call</span>
             </a>
           )}
           {dealerConfig.contact.whatsapp && (
-            <a href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-foreground">
-              <MessageCircle className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-medium uppercase tracking-wider">WhatsApp</span>
+            <a href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
+              <MessageCircle className="w-5 h-5 mb-1 text-green-600" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">WhatsApp</span>
             </a>
           )}
-          <button onClick={() => handleNav('stock')} className="flex flex-col items-center justify-center w-full py-2 text-primary hover:text-primary/80">
-            <Search className="w-5 h-5 mb-1" />
+          <button onClick={() => handleNav('stock')} className="flex flex-col items-center justify-center w-full py-2 text-primary hover:text-primary/80 transition-colors relative -top-3">
+            <div className="bg-primary text-primary-foreground p-3 rounded-full shadow-lg mb-1">
+              <Search className="w-5 h-5" />
+            </div>
             <span className="text-[10px] font-bold uppercase tracking-wider">Browse</span>
           </button>
-          <button type="button" onClick={() => handleNav('book-viewing')} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={() => handleNav('book-viewing')} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
             <Calendar className="w-5 h-5 mb-1" />
-            <span className="text-[10px] font-medium uppercase tracking-wider">Book</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Book</span>
           </button>
         </div>
       </div>

@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Car, Banknote, Fuel, Settings2, Filter, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Car } from '@/lib/stock-context';
+import { Car as CarType } from '@/lib/stock-context';
 import { Badge } from '@/components/ui/badge';
 
 export interface FilterState {
@@ -20,7 +20,7 @@ export interface FilterState {
 }
 
 interface FiltersProps {
-  cars: Car[];
+  cars: CarType[];
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   onSearch?: () => void;
@@ -68,105 +68,125 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="bg-card border-y shadow-sm">
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
+    <div className="bg-background relative -mt-10 mx-4 lg:mx-auto max-w-7xl rounded-2xl shadow-xl border border-border/50 z-20 overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-accent to-primary" />
+
+      <div className="p-6 md:p-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary mb-1">Search Stock</p>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Find the right vehicle</h2>
+            <div className="flex items-center gap-2 mb-2 text-primary">
+              <Search className="w-5 h-5" />
+              <p className="text-sm font-bold uppercase tracking-widest">Find Your Next Car</p>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Search our stock of {vehicleCount} vehicles</h2>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {vehicleCount} {vehicleCount === 1 ? 'vehicle' : 'vehicles'} publicly available
-          </p>
         </div>
+
         {/* Primary Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Make</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5 mb-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Car className="w-3.5 h-3.5" /> Make
+            </label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary hover:border-primary/50"
               value={filters.make}
               onChange={(e) => setFilters(f => ({ ...f, make: e.target.value, model: '' }))}
             >
-              <option value="">All</option>
+              <option value="">Any Make</option>
               {makes.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Model</label>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Car className="w-3.5 h-3.5" /> Model
+            </label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed hover:border-primary/50"
               value={filters.model}
               onChange={(e) => setFilters(f => ({ ...f, model: e.target.value }))}
               disabled={!filters.make || models.length === 0}
             >
-              <option value="">All</option>
+              <option value="">Any Model</option>
               {models.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Min Price</label>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Banknote className="w-3.5 h-3.5" /> Min Price
+            </label>
             <Input
               type="number"
-              placeholder="£"
+              placeholder="£ Min"
               value={filters.minPrice}
               onChange={(e) => setFilters(f => ({ ...f, minPrice: e.target.value }))}
-              className="h-10"
+              className="h-11 font-medium bg-card"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Max Price</label>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Banknote className="w-3.5 h-3.5" /> Max Price
+            </label>
             <Input
               type="number"
-              placeholder="£"
+              placeholder="£ Max"
               value={filters.maxPrice}
               onChange={(e) => setFilters(f => ({ ...f, maxPrice: e.target.value }))}
-              className="h-10"
+              className="h-11 font-medium bg-card"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Fuel</label>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Fuel className="w-3.5 h-3.5" /> Fuel
+            </label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary hover:border-primary/50"
               value={filters.fuel}
               onChange={(e) => setFilters(f => ({ ...f, fuel: e.target.value }))}
             >
-              <option value="">All</option>
+              <option value="">Any Fuel</option>
               {fuels.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Transmission</label>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Settings2 className="w-3.5 h-3.5" /> Transmission
+            </label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary hover:border-primary/50"
               value={filters.transmission}
               onChange={(e) => setFilters(f => ({ ...f, transmission: e.target.value }))}
             >
-              <option value="">All</option>
+              <option value="">Any Transmission</option>
               {transmissions.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </div>
 
         {/* Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-border/50">
           <Button
             variant="outline"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full sm:w-auto relative"
+            className="w-full md:w-auto relative font-semibold rounded-lg h-11 border-border/80 hover:bg-secondary"
           >
-            <SlidersHorizontal className="w-4 h-4 mr-2" />
+            <Filter className="w-4 h-4 mr-2" />
             Advanced Filters
             {activeAdvancedCount > 0 && (
-              <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-accent text-accent-foreground font-bold text-[10px] rounded-full flex items-center justify-center shadow-sm">
                 {activeAdvancedCount}
               </span>
             )}
           </Button>
 
-          <div className="flex w-full sm:w-auto gap-4">
+          <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
             <select
-              className="flex h-10 w-full sm:w-48 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-11 w-full sm:w-56 rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               value={filters.sort}
               onChange={(e) => setFilters(f => ({ ...f, sort: e.target.value as FilterState['sort'] }))}
             >
@@ -176,7 +196,11 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
               <option value="mileage-asc">Mileage: Low to High</option>
               <option value="mileage-desc">Mileage: High to Low</option>
             </select>
-            <Button onClick={handleSearchClick} className="w-full sm:w-auto px-8 font-semibold">
+            <Button
+              onClick={handleSearchClick}
+              size="lg"
+              className="w-full sm:w-auto px-8 font-bold h-11 shadow-md shadow-primary/20"
+            >
               Search Stock
             </Button>
           </div>
@@ -184,21 +208,23 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
 
         {/* Advanced Filters */}
         {showAdvanced && (
-          <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Keyword Search</label>
+          <div className="mt-6 pt-6 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5" /> Keyword Search
+              </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Make, model, plate..."
-                  className="pl-9 h-10"
+                  placeholder="e.g. Navigation, Leather, M Sport..."
+                  className="pl-10 h-11 font-medium bg-card"
                   value={filters.search}
                   onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
                 />
                 {filters.search && (
                   <button
                     onClick={() => setFilters(f => ({ ...f, search: '' }))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -206,35 +232,62 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Condition History</label>
-              <div className="flex flex-wrap gap-2 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
-                    checked={filters.noWriteOff}
-                    onChange={(e) => setFilters(f => ({ ...f, noWriteOff: e.target.checked }))}
-                  />
-                  <span className="text-sm font-medium">HPI Clear</span>
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" /> Condition History
+              </label>
+              <div className="flex flex-wrap gap-4 pt-1 bg-secondary/30 p-3 rounded-lg border border-border/50">
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="peer appearance-none w-5 h-5 border-2 border-muted-foreground/30 rounded focus:ring-2 focus:ring-primary focus:ring-offset-2 checked:bg-primary checked:border-primary transition-all"
+                      checked={filters.noWriteOff}
+                      onChange={(e) => setFilters(f => ({ ...f, noWriteOff: e.target.checked }))}
+                    />
+                    <div className="absolute text-primary-foreground pointer-events-none opacity-0 peer-checked:opacity-100">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold group-hover:text-primary transition-colors">HPI Clear</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
-                    checked={filters.catS}
-                    onChange={(e) => setFilters(f => ({ ...f, catS: e.target.checked }))}
-                  />
-                  <Badge variant="destructive">Cat S</Badge>
+
+                <div className="w-px h-5 bg-border mx-1 hidden sm:block"></div>
+
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="peer appearance-none w-5 h-5 border-2 border-muted-foreground/30 rounded focus:ring-2 focus:ring-destructive focus:ring-offset-2 checked:bg-destructive checked:border-destructive transition-all"
+                      checked={filters.catS}
+                      onChange={(e) => setFilters(f => ({ ...f, catS: e.target.checked }))}
+                    />
+                    <div className="absolute text-destructive-foreground pointer-events-none opacity-0 peer-checked:opacity-100">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <Badge variant="destructive" className="font-bold tracking-wider rounded-md">CAT S</Badge>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
-                    checked={filters.catN}
-                    onChange={(e) => setFilters(f => ({ ...f, catN: e.target.checked }))}
-                  />
-                  <Badge variant="warning">Cat N</Badge>
+
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="peer appearance-none w-5 h-5 border-2 border-muted-foreground/30 rounded focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 checked:bg-amber-500 checked:border-amber-500 transition-all"
+                      checked={filters.catN}
+                      onChange={(e) => setFilters(f => ({ ...f, catN: e.target.checked }))}
+                    />
+                    <div className="absolute text-black pointer-events-none opacity-0 peer-checked:opacity-100">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <Badge variant="warning" className="font-bold tracking-wider rounded-md bg-amber-500 text-black border-transparent">CAT N</Badge>
                 </label>
               </div>
             </div>
