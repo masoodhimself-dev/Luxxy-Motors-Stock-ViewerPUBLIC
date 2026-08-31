@@ -68,7 +68,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="bg-background relative -mt-10 mx-4 lg:mx-auto max-w-7xl rounded-2xl shadow-xl border border-border/50 z-20 overflow-hidden">
+    <div className="relative z-20 mx-4 max-w-7xl overflow-hidden rounded-2xl border border-border/50 bg-background shadow-xl lg:mx-auto">
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-accent to-primary" />
 
       <div className="p-5 sm:p-6 md:p-8">
@@ -76,7 +76,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <div>
             <div className="flex items-center gap-2 mb-2 text-primary">
               <Sparkles className="w-4 h-4" />
-              <p className="text-xs font-bold uppercase tracking-[0.18em]">Start your search</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em]">Browse our stock</p>
             </div>
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Find a car you’ll love</h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
