@@ -7,7 +7,7 @@ import type { EnquiryType } from '@/lib/cta-helpers';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
-  viewing: { eyebrow: 'Choose your appointment', title: 'Book a viewing', description: 'Choose a date and available time that suits you, then confirm your viewing in a few simple steps.' },
+  viewing: { eyebrow: 'Plan your visit', title: 'Choose a time that works for you', description: 'Pick an available date and time below and we’ll have everything ready for your Luxxy Motors viewing.' },
   general: { eyebrow: 'We are here to help', title: 'Send an enquiry', description: 'Share your question and the Luxxy Motors team will get back to you shortly.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Ask about delivery', description: 'Tell us where you are and we will help plan the next steps for getting your vehicle to you.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Ask about warranty', description: 'Send your details and we will explain the warranty options available for your vehicle.' },
@@ -39,7 +39,7 @@ export default function Enquire() {
             <p className="mt-5 leading-relaxed text-primary-foreground/75">{copy.description}</p>
             <div className="mt-8 border-t border-white/15 pt-6 text-sm text-primary-foreground/70">
               <p className="font-bold text-white">Luxxy Motors</p>
-              <p className="mt-1">We aim to respond during opening hours.</p>
+              <p className="mt-1">We’ll confirm your appointment during opening hours.</p>
             </div>
           </aside>
           <section className="rounded-2xl border bg-card p-6 shadow-sm sm:p-9">
