@@ -6,26 +6,29 @@ import { dealerConfig } from '@/config/dealer';
 import { getThumbnailUrl } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
-import { ArrowRight, Car, CheckCircle2, Clock, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Truck, RefreshCcw, Calendar, ChevronRight, Search } from 'lucide-react';
+import { ArrowRight, Banknote, Car, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck, RefreshCcw, Calendar, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
+const defaultFilters: FilterState = {
+  make: '',
+  model: '',
+  minPrice: '',
+  maxPrice: '',
+  fuel: '',
+  transmission: '',
+  search: '',
+  catS: false,
+  catN: false,
+  noWriteOff: false,
+  sort: '',
+};
 
 export default function Home() {
   const { stock, isLoading } = useStock();
   const [showAll, setShowAll] = useState(false);
 
-  const [filters, setFilters] = useState<FilterState>({
-    make: '',
-    model: '',
-    minPrice: '',
-    maxPrice: '',
-    fuel: '',
-    transmission: '',
-    search: '',
-    catS: false,
-    catN: false,
-    noWriteOff: false,
-    sort: ''
-  });
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
   const filteredCars = useMemo(() => {
     if (!stock) return [];
@@ -104,6 +107,20 @@ export default function Home() {
   const heroCar = stock?.cars?.find(c => Boolean(getThumbnailUrl(c)));
   const heroImage = heroCar ? getThumbnailUrl(heroCar) : null;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', ');
+  const makes = useMemo(
+    () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
+    [stock?.cars],
+  );
+
+  const revealResults = () => {
+    setShowAll(true);
+    requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+  };
+
+  const applyQuickFilter = (nextFilters: Partial<FilterState>) => {
+    setFilters({ ...defaultFilters, ...nextFilters });
+    revealResults();
+  };
 
   if (isLoading) {
     return (
@@ -121,7 +138,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative h-[85vh] min-h-[600px] w-full bg-primary overflow-hidden flex items-center">
+      <section className="relative flex min-h-[690px] w-full items-center overflow-hidden bg-primary py-16 md:h-[85vh] md:min-h-[600px] md:py-0">
         {heroImage ? (
           <img
             src={heroImage}
@@ -135,41 +152,77 @@ export default function Home() {
         )}
 
         {/* Stronger overlay for better text contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/80 to-black/40 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/75 to-primary/25" />
+        <div className="absolute inset-0 bg-black/15 md:bg-black/25" />
 
         {/* subtle decorative pattern overlay */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none mix-blend-overlay"></div>
 
-        <div className="container relative mx-auto px-4 z-10 text-white mt-16 md:mt-0">
+        <div className="container relative z-10 mx-auto px-4 text-white md:mt-0">
           <div className="max-w-3xl">
             {stock && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full text-sm font-bold tracking-wide mb-8 border border-white/20 shadow-lg">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md sm:mb-8">
                 <Car className="w-4 h-4 text-accent" />
                 {stock.count ?? stock.cars.length} vehicles available
               </div>
             )}
             {dealerConfig.hero.announcement && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full text-sm font-bold tracking-wide mb-8 border border-white/20 shadow-lg animate-in slide-in-from-bottom-4 duration-500">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md animate-in slide-in-from-bottom-4 duration-500 sm:mb-8">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
                 {dealerConfig.hero.announcement}
               </div>
             )}
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-6 leading-[1.1] animate-in slide-in-from-bottom-8 duration-700">
+            <h1 className="mb-5 text-5xl font-black leading-[1.02] tracking-tighter animate-in slide-in-from-bottom-8 duration-700 sm:text-6xl md:mb-6 md:text-7xl lg:text-8xl">
               {dealerConfig.hero.copy}
             </h1>
-            <p className="text-lg md:text-2xl font-medium text-white/90 max-w-2xl mb-10 leading-relaxed animate-in slide-in-from-bottom-10 duration-700 delay-100">
+            <p className="mb-7 max-w-2xl text-base font-medium leading-relaxed text-white/90 animate-in slide-in-from-bottom-10 duration-700 delay-100 sm:text-lg md:mb-10 md:text-2xl">
               {dealerConfig.hero.subcopy}
             </p>
             <div className="flex flex-col sm:flex-row flex-wrap gap-4 animate-in slide-in-from-bottom-12 duration-700 delay-200">
-               <Button size="lg" onClick={() => scrollToHomeTarget('stock')} className="font-bold px-10 h-14 text-lg bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl shadow-accent/20">
+               <Button size="lg" onClick={revealResults} className="h-14 px-10 text-lg font-bold bg-accent text-accent-foreground shadow-xl shadow-accent/20 hover:bg-accent/90">
                 {dealerConfig.hero.primaryCta} <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
               {dealerConfig.partExchange?.enabled && (
-                <Button size="lg" variant="outline" asChild className="font-bold px-10 h-14 text-lg border-white/30 bg-black/20 backdrop-blur-sm text-white hover:bg-white hover:text-primary transition-all">
+                <Button size="lg" variant="outline" asChild className="h-14 px-10 text-lg font-bold border-white/30 bg-black/20 text-white backdrop-blur-sm transition-all hover:bg-white hover:text-primary">
                   <a href={getContactHref('Part Exchange Enquiry')}>{dealerConfig.hero.secondaryCta}</a>
                 </Button>
               )}
+            </div>
+
+            <div className="mt-7 max-w-4xl rounded-2xl border border-white/20 bg-white/95 p-3 text-primary shadow-2xl shadow-black/20 backdrop-blur-md sm:mt-8 sm:p-4" data-testid="hero-search">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
+                  <Input
+                    aria-label="Search showroom stock"
+                    placeholder="Search make, model or registration"
+                    value={filters.search}
+                    onChange={(event) => setFilters(current => ({ ...current, search: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        revealResults();
+                      }
+                    }}
+                    className="h-12 border-primary/10 bg-background pl-12 text-sm font-semibold shadow-sm focus-visible:ring-primary sm:h-14 sm:text-base"
+                    data-testid="input-hero-search"
+                  />
+                </div>
+                <select
+                  aria-label="Filter by make"
+                  value={filters.make}
+                  onChange={(event) => setFilters(current => ({ ...current, make: event.target.value, model: '' }))}
+                  className="h-12 rounded-lg border border-primary/10 bg-background px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-14 sm:w-48"
+                  data-testid="select-hero-make"
+                >
+                  <option value="">Any make</option>
+                  {makes.map(make => <option key={make} value={make}>{make}</option>)}
+                </select>
+                <Button type="button" onClick={revealResults} size="lg" className="h-12 shrink-0 px-6 font-bold sm:h-14">
+                  Search stock <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-2 px-1 text-xs font-medium text-muted-foreground">Try “BMW”, “automatic” or a registration number.</p>
             </div>
           </div>
         </div>
@@ -179,9 +232,9 @@ export default function Home() {
       </section>
 
       {/* Trust Strip */}
-      <div className="bg-background relative z-20 border-b border-border/50">
+      <div className="relative z-20 border-b border-border/50 bg-background" aria-label="Luxxy Motors benefits">
         <div className="container mx-auto px-4">
-          <div className="flex flex-wrap justify-center md:justify-between items-center py-6 gap-x-8 gap-y-4 text-sm font-bold tracking-wide uppercase text-muted-foreground">
+          <div className="grid grid-cols-2 items-center gap-x-5 gap-y-4 py-5 text-xs font-bold uppercase tracking-wide text-muted-foreground sm:flex sm:justify-center sm:gap-x-8 md:justify-between md:py-6 md:text-sm">
             {dealerConfig.trustItems.map(item => (
               <span key={item} className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-5 h-5 text-accent" />
@@ -191,6 +244,32 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Quick search shortcuts */}
+      <section className="border-b border-border/50 bg-background py-6" aria-labelledby="quick-search-heading">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Shop your way</p>
+              <h2 id="quick-search-heading" className="mt-1 text-lg font-black tracking-tight text-foreground">Quick searches</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-automatic">
+                <Settings2 className="h-4 w-4 text-primary" /> Automatic
+              </button>
+              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-under-5000">
+                <Banknote className="h-4 w-4 text-primary" /> Under £5,000
+              </button>
+              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-low-mileage">
+                <Gauge className="h-4 w-4 text-primary" /> Low mileage
+              </button>
+              <button type="button" onClick={() => applyQuickFilter({ noWriteOff: true })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-hpi-clear">
+                <ShieldCheck className="h-4 w-4 text-primary" /> HPI clear
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Search & Filter - Pulled up to overlap hero slightly */}
       <div id="stock" data-home-section className="bg-muted/30">
@@ -213,8 +292,9 @@ export default function Home() {
             <div>
               <p className="text-sm font-bold uppercase tracking-widest text-primary mb-2">Showroom</p>
               <h2 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">
-                 {showAll ? 'All Vehicles' : 'Latest Vehicles'}
+                 {showAll ? 'All Vehicles' : 'Recently Added Cars'}
               </h2>
+              {!showAll && <p className="mt-2 max-w-xl text-sm text-muted-foreground">Fresh arrivals, carefully selected and ready to view.</p>}
             </div>
             {stock && (
               <div className="bg-background px-4 py-2 rounded-full border border-border shadow-sm flex items-center gap-2">
@@ -260,7 +340,7 @@ export default function Home() {
               <Button
                 size="lg"
                 onClick={() => {
-                  setFilters({ search: '', make: '', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', catS: false, catN: false, noWriteOff: false, sort: '' });
+                   setFilters(defaultFilters);
                   setShowAll(false);
                 }}
                 className="font-bold"

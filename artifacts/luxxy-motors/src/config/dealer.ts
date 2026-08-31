@@ -114,7 +114,7 @@ export const dealerConfig: DealerConfig = {
   partExchange: {
     enabled: true,
     title: "Looking to part exchange your current car?",
-    description: "Get started with a quick vehicle valuation enquiry.",
+    description: "Give us your registration and mileage and we’ll help you understand what your current car could be worth.",
     ctaLabel: "Value My Car",
   },
   bookViewing: {
