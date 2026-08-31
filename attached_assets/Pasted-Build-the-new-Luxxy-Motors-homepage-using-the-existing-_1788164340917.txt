@@ -1,0 +1,180 @@
+Build the new Luxxy Motors homepage using the existing working Phase 1 application and stock database.
+This is a homepage/frontend task only. Do not alter the existing Auto Trader import architecture, database schema, Grok integration, stock reconciliation logic, API contracts, production secrets or production data.
+Design direction
+Create a premium, modern UK independent used-car dealership homepage. It should feel bespoke and high-end rather than like a generic dealership template or AI-generated website.
+Use the existing Luxxy Motors branding and logo. Keep the design sophisticated, clean, spacious and strongly focused on getting customers to browse vehicles, enquire, call, WhatsApp, part exchange or book a viewing.
+Do NOT include finance anywhere on the website.
+No finance navigation item, finance CTA, finance calculator, monthly payment figures, finance application, finance eligibility wording or finance marketing.
+Homepage structure
+1. Header
+Desktop navigation:
+- Luxxy Motors logo
+- Home
+- Stock
+- Part Exchange
+- Warranty
+- Delivery
+- About Us
+- Contact
+- telephone icon/number
+- WhatsApp
+- prominent Book a Viewing button
+Sticky navigation on desktop.
+Mobile should use a clean menu and retain prominent Call / WhatsApp / Book Viewing actions.
+2. Hero
+Large premium automotive hero using genuine dealership/vehicle imagery where available.
+Suggested copy:
+Find Your Next Car
+Quality used vehicles. Straightforward buying. Exceptional service.
+Primary CTA:
+Browse Stock
+Secondary CTA:
+Part Exchange
+Do not use fake stock photography if suitable real Luxxy vehicle imagery already exists in the stock database.
+3. Stock search
+Make this one of the most prominent homepage components.
+Provide fast filters for:
+- Make
+- Model
+- Min price
+- Max price
+- Fuel
+- Transmission
+Primary button:
+Search Stock
+Display the current number of publicly available vehicles dynamically from the existing stock API rather than hardcoding it.
+4. Latest / Featured Vehicles
+Pull real public vehicles from the existing database/API.
+Show approximately 4 vehicles on desktop and an appropriate responsive carousel/grid on mobile.
+Each card should contain:
+- actual hero image
+- make/model
+- year
+- mileage
+- fuel
+- transmission
+- price
+- View Vehicle
+Include:
+View All Stock
+Do not invent vehicle information.
+5. Trust section
+Create a compact trust strip that can eventually support real dealer information such as:
+- customer reviews
+- warranty available
+- nationwide delivery
+- carefully selected vehicles
+- straightforward buying
+Do not invent review scores, review counts, accreditations or awards.
+If real review data is not currently configured, design the component so it can be populated later.
+6. Why Buy From Luxxy Motors
+Use four concise benefit cards:
+Quality Vehicles
+Carefully selected used vehicles.
+Transparent Buying
+Clear vehicle information and straightforward pricing.
+Warranty Options
+Warranty options available on eligible vehicles.
+Customer Support
+Support throughout the purchase and handover process.
+7. Warranty + Nationwide Delivery
+Create two attractive side-by-side promotional sections.
+Warranty
+Explain briefly that warranty options are available and provide:
+Learn About Warranty
+Nationwide Delivery
+Explain that customers may be able to have their vehicle delivered.
+CTA:
+Ask About Delivery
+These should be configuration-driven so another dealership remix can change or disable either service.
+8. Part Exchange
+Strong full-width CTA:
+Looking to part exchange your current car?
+Get started with a quick vehicle valuation enquiry.
+Value My Car
+Do not promise an automatic valuation unless that functionality actually exists.
+9. Book a Viewing
+Give this meaningful homepage prominence.
+Seen something you like?
+Arrange a viewing at a time that suits you.
+Book a Viewing
+This should later connect to the CRM/Quick Appointment system, so structure the component cleanly for that future integration.
+10. Visit Us
+Show configuration-driven:
+- dealership address
+- telephone
+- WhatsApp
+- email
+- opening hours
+- map/location
+Include:
+Get Directions
+Opening hours must not be hardcoded into the page component. They should be designed to come from dealer settings because dealers will eventually be able to edit their own opening hours.
+11. Footer
+Include:
+- logo
+- dealership contact details
+- Stock
+- Part Exchange
+- Warranty
+- Delivery
+- About
+- Contact
+- Terms & Conditions
+- Privacy Policy
+- Cookie Policy
+- company/legal information where configured
+- social links where configured
+Again: no finance links or finance wording.
+Template architecture
+Although this project represents Luxxy Motors, build the homepage so it can later become our single-dealer master template.
+Avoid unnecessary hardcoding of Luxxy-specific business information.
+Prepare clean configuration boundaries for:
+- dealer name
+- logo
+- brand colours
+- telephone
+- WhatsApp
+- email
+- address
+- opening hours
+- company information
+- social links
+- warranty enabled
+- delivery enabled
+- review links/data
+- homepage hero copy
+- homepage announcement
+Do not introduce multi-tenancy. One project/remix represents exactly one dealership.
+Existing stock system
+Continue using the existing working:
+- /api/stock
+- /api/vehicles/:id
+Do not duplicate stock into a new frontend data source.
+Do not change stock visibility rules.
+The suspicious-price vehicle must remain excluded according to the existing backend rules.
+Responsive design
+Build desktop, tablet and mobile layouts properly.
+Mobile is particularly important because many customers will arrive directly on vehicle pages from their phones.
+Make Call, WhatsApp, Browse Stock and Book Viewing easy to access on mobile without making the interface cluttered.
+Performance
+Optimise images and avoid unnecessarily loading every stock image on the homepage.
+Use only the required hero/thumbnail images.
+Preserve good Core Web Vitals and accessibility.
+Safety boundaries
+Do not:
+- change the database schema;
+- create migrations;
+- modify production data;
+- change Grok;
+- change the Auto Trader import endpoint;
+- change schemaVersion 1;
+- change STOCK_IMPORT_SECRET;
+- change retailer configuration;
+- introduce multi-tenancy;
+- add finance functionality.
+Build and test the homepage in development first.
+Run the existing stock integration tests and workspace typecheck afterwards.
+Test the homepage at desktop and mobile sizes.
+Then provide screenshots/previews and a report of what was changed.
+Do not publish until I approve the finished homepage.
