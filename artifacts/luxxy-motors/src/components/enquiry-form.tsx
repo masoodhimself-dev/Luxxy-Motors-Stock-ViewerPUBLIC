@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
-import { CalendarDays, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, Phone, Send } from 'lucide-react';
+import { CalendarDays, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,8 +76,6 @@ export function EnquiryForm({
   const [type, setType] = useState<EnquiryType>(initialType);
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [preferredContact, setPreferredContact] = useState<'phone' | 'email' | 'whatsapp'>('phone');
   const [message, setMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -114,9 +112,9 @@ export function EnquiryForm({
       vehicleId: vehicle?.id ?? null,
       type,
       customerName: customerName.trim(),
-      email: email.trim() || null,
-      phone: phone.trim() || null,
-      preferredContact: preferredContact || null,
+      email: email.trim(),
+      phone: null,
+      preferredContact: 'email',
       message: message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''),
       appointmentAt: isViewing ? selectedSlot : null,
     };
@@ -177,29 +175,16 @@ export function EnquiryForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="space-y-2 text-sm font-semibold">
-          <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" />Email address <span className="font-normal text-muted-foreground">(optional)</span></span>
-          <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@example.com" />
-        </label>
-        <label className="space-y-2 text-sm font-semibold">
-          <span className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" />Phone number <span className="font-normal text-muted-foreground">(optional)</span></span>
-          <Input type="tel" minLength={5} maxLength={40} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="07xxx xxx xxx" />
+          <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" />Email address</span>
+          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@example.com" />
         </label>
       </div>
 
       <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold">How should we contact you?</legend>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {([
-            ['phone', 'Phone', Phone],
-            ['email', 'Email', Mail],
-            ['whatsapp', 'WhatsApp', MessageSquare],
-          ] as const).map(([value, label, Icon]) => (
-            <label key={value} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm font-semibold transition-colors ${preferredContact === value ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:border-primary/40'}`}>
-              <input type="radio" name="preferredContact" value={value} checked={preferredContact === value} onChange={() => setPreferredContact(value)} className="accent-primary" />
-              <Icon className="h-4 w-4" />
-              {label}
-            </label>
-          ))}
+        <legend className="text-sm font-semibold">Confirmation method</legend>
+        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm font-semibold text-primary">
+          <Mail className="h-4 w-4" />
+          We’ll email your confirmation and viewing reminder
         </div>
       </fieldset>
 
@@ -277,7 +262,7 @@ export function EnquiryForm({
       </Button>
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" />
-        {isViewing ? 'Your details and appointment are sent securely to the Luxxy Motors enquiry inbox. Please provide an email address or phone number.' : 'Your details are sent securely to the Luxxy Motors enquiry inbox. Please provide an email address or phone number.'}
+        {isViewing ? `Your booking is saved in the Luxxy Motors enquiry inbox. We’ll email your confirmation and send a reminder about 24 hours before your appointment (${bookingTimezone}).` : 'Your details are sent securely to the Luxxy Motors enquiry inbox. We’ll email a confirmation to this address.'}
       </p>
     </form>
   );

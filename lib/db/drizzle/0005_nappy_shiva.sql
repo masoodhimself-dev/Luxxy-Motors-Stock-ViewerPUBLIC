@@ -1,0 +1,2 @@
+ALTER TABLE "enquiries" ALTER COLUMN "customer_notification_status" SET DEFAULT 'not_sent';--> statement-breakpoint
+ALTER TABLE "enquiries" ALTER COLUMN "dealer_notification_status" SET DEFAULT 'not_sent';

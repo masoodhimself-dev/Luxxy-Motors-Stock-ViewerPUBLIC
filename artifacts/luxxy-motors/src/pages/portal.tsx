@@ -47,9 +47,18 @@ function statusVariant(status: Enquiry['status']): 'default' | 'secondary' | 'ou
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function deliveryLabel(status: string) {
+  if (status === 'sent') return 'Sent';
+  if (status === 'failed') return 'Failed';
+  if (status === 'sending') return 'Sending';
+  if (status === 'not_sent') return 'Not sent';
+  return 'Pending';
 }
 
 function EnquiryCard({ enquiry }: { enquiry: Enquiry }) {
@@ -137,6 +146,31 @@ function EnquiryCard({ enquiry }: { enquiry: Enquiry }) {
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Message</p>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">{enquiry.message}</p>
+      </div>
+      <div className="mt-5 grid gap-3 border-t pt-5 sm:grid-cols-3">
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Customer confirmation</p>
+          <p className={`mt-1 text-sm font-bold ${enquiry.customerNotificationStatus === 'failed' ? 'text-destructive' : 'text-foreground'}`}>
+            {deliveryLabel(enquiry.customerNotificationStatus)}
+          </p>
+          {enquiry.customerNotificationError && <p className="mt-1 text-xs text-destructive">{enquiry.customerNotificationError}</p>}
+        </div>
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Dealer notification</p>
+          <p className={`mt-1 text-sm font-bold ${enquiry.dealerNotificationStatus === 'failed' ? 'text-destructive' : 'text-foreground'}`}>
+            {deliveryLabel(enquiry.dealerNotificationStatus)}
+          </p>
+          {enquiry.dealerNotificationError && <p className="mt-1 text-xs text-destructive">{enquiry.dealerNotificationError}</p>}
+        </div>
+        {enquiry.appointmentAt && (
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Reminder · Europe/London</p>
+            <p className={`mt-1 text-sm font-bold ${enquiry.reminderStatus === 'failed' ? 'text-destructive' : 'text-foreground'}`}>
+              {enquiry.reminderStatus === 'not_scheduled' ? 'Not scheduled' : deliveryLabel(enquiry.reminderStatus)}
+            </p>
+            {enquiry.reminderError && <p className="mt-1 text-xs text-destructive">{enquiry.reminderError}</p>}
+          </div>
+        )}
       </div>
       {updateStatus.isError && <p className="mt-4 text-sm text-destructive">Could not update this enquiry. Please try again.</p>}
     </article>

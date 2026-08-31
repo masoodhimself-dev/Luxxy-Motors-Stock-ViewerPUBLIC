@@ -34,6 +34,21 @@ export interface Enquiry {
   /** @nullable */
   preferredContact: string | null;
   message: string;
+  customerNotificationStatus: string;
+  /** @nullable */
+  customerNotificationError: string | null;
+  /** @nullable */
+  customerNotificationSentAt: Date | null;
+  dealerNotificationStatus: string;
+  /** @nullable */
+  dealerNotificationError: string | null;
+  /** @nullable */
+  dealerNotificationSentAt: Date | null;
+  reminderStatus: string;
+  /** @nullable */
+  reminderError: string | null;
+  /** @nullable */
+  reminderSentAt: Date | null;
   /** @nullable */
   appointmentAt: Date | null;
   source: string;

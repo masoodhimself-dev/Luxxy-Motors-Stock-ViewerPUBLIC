@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "postgresql-16", "python-base-3.13"]
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -33,3 +33,4 @@ STOCK_MIN_PRICE = "500"
 STOCK_MISSING_HIDE_THRESHOLD = "2"
 STOCK_RETAILER_ID = "10040438"
 STOCK_SUPPORTED_SCHEMA_VERSION = "1"
+DEALER_NOTIFICATION_EMAIL = "masoodhimself@gmail.com"

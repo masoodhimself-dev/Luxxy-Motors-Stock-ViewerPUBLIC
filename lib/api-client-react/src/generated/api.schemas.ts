@@ -354,6 +354,21 @@ export interface Enquiry {
   /** @nullable */
   preferredContact: string | null;
   message: string;
+  customerNotificationStatus: string;
+  /** @nullable */
+  customerNotificationError: string | null;
+  /** @nullable */
+  customerNotificationSentAt: string | null;
+  dealerNotificationStatus: string;
+  /** @nullable */
+  dealerNotificationError: string | null;
+  /** @nullable */
+  dealerNotificationSentAt: string | null;
+  reminderStatus: string;
+  /** @nullable */
+  reminderError: string | null;
+  /** @nullable */
+  reminderSentAt: string | null;
   /** @nullable */
   appointmentAt: string | null;
   source: string;
@@ -379,9 +394,7 @@ export type EnquiryInputPreferredContact = typeof EnquiryInputPreferredContact[k
 
 
 export const EnquiryInputPreferredContact = {
-  phone: 'phone',
   email: 'email',
-  whatsapp: 'whatsapp',
 } as const;
 
 export interface EnquiryInput {
@@ -393,8 +406,8 @@ export interface EnquiryInput {
      * @maxLength 120
      */
   customerName: string;
-  /** @nullable */
-  email: string | null;
+  /** @minLength 3 */
+  email: string;
   /**
      * @minLength 5
      * @maxLength 40

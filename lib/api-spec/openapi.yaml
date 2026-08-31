@@ -718,6 +718,27 @@ components:
           type: [string, "null"]
         message:
           type: string
+        customerNotificationStatus:
+          type: string
+        customerNotificationError:
+          type: [string, "null"]
+        customerNotificationSentAt:
+          type: [string, "null"]
+          format: date-time
+        dealerNotificationStatus:
+          type: string
+        dealerNotificationError:
+          type: [string, "null"]
+        dealerNotificationSentAt:
+          type: [string, "null"]
+          format: date-time
+        reminderStatus:
+          type: string
+        reminderError:
+          type: [string, "null"]
+        reminderSentAt:
+          type: [string, "null"]
+          format: date-time
         appointmentAt:
           type: [string, "null"]
           format: date-time
@@ -745,6 +766,15 @@ components:
         - preferredContact
         - message
         - appointmentAt
+        - customerNotificationStatus
+        - customerNotificationError
+        - customerNotificationSentAt
+        - dealerNotificationStatus
+        - dealerNotificationError
+        - dealerNotificationSentAt
+        - reminderStatus
+        - reminderError
+        - reminderSentAt
         - source
         - createdAt
         - updatedAt
@@ -762,14 +792,15 @@ components:
           minLength: 2
           maxLength: 120
         email:
-          type: [string, "null"]
+          type: string
+          minLength: 3
         phone:
           type: [string, "null"]
           minLength: 5
           maxLength: 40
         preferredContact:
           type: [string, "null"]
-          enum: [phone, email, whatsapp]
+          enum: [email]
         message:
           type: string
           minLength: 1

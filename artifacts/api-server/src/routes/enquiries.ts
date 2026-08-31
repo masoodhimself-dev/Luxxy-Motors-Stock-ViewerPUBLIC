@@ -17,11 +17,14 @@ import {
   vehiclesTable,
   type Vehicle,
 } from "@workspace/db";
+import {
+  deliverEnquiryNotifications,
+  bookingTimezone,
+} from "../lib/enquiry-notifications";
 
 const router: IRouter = Router();
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const bookingTimezone = "Europe/London";
 const bookingStartHour = 10;
 const bookingEndHour = 18;
 const slotMinutes = 30;
@@ -247,7 +250,15 @@ router.post("/enquiries", async (req, res): Promise<void> => {
 
   const input = parsed.data;
   if (!input.email && !input.phone) {
-    res.status(400).json(errorResponse("Please provide an email address or phone number."));
+    res.status(400).json(errorResponse("Please provide an email address."));
+    return;
+  }
+  if (!input.email) {
+    res.status(400).json(errorResponse("Please provide an email address for confirmation."));
+    return;
+  }
+  if (input.preferredContact !== "email") {
+    res.status(400).json(errorResponse("Email is the only available contact method."));
     return;
   }
   if (input.email && !validEmail(input.email)) {
@@ -313,12 +324,24 @@ router.post("/enquiries", async (req, res): Promise<void> => {
         phone: input.phone?.trim() ?? null,
         preferredContact: input.preferredContact ?? null,
         message: input.message.trim(),
-         appointmentAt: input.appointmentAt ?? null,
+        appointmentAt: input.appointmentAt ?? null,
+        customerNotificationStatus: "pending",
+        dealerNotificationStatus: "pending",
+        reminderStatus: input.type === "viewing" ? "pending" : "not_scheduled",
         source: "website",
       })
       .returning();
 
-    res.status(201).json(CreateEnquiryResponse.parse(created));
+    try {
+      const updated = await deliverEnquiryNotifications(created, req.log);
+      res.status(201).json(CreateEnquiryResponse.parse(updated));
+    } catch (error) {
+      req.log.error(
+        { err: error, enquiryId: created.id },
+        "Notification processing failed after enquiry was saved",
+      );
+      res.status(201).json(CreateEnquiryResponse.parse(created));
+    }
   } catch (error) {
     if (isUniqueViolation(error)) {
       res.status(409).json(errorResponse("That viewing slot has just been booked. Please choose another."));

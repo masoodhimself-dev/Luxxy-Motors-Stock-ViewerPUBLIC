@@ -46,6 +46,37 @@ export const enquiriesTable = pgTable(
     preferredContact: text("preferred_contact"),
     message: text("message").notNull(),
     appointmentAt: timestamp("appointment_at", { withTimezone: true }),
+    customerNotificationStatus: text("customer_notification_status")
+      .notNull()
+      .default("not_sent"),
+    customerNotificationError: text("customer_notification_error"),
+    customerNotificationAttemptedAt: timestamp(
+      "customer_notification_attempted_at",
+      { withTimezone: true },
+    ),
+    customerNotificationSentAt: timestamp("customer_notification_sent_at", {
+      withTimezone: true,
+    }),
+    customerNotificationProviderId: text("customer_notification_provider_id"),
+    dealerNotificationStatus: text("dealer_notification_status")
+      .notNull()
+      .default("not_sent"),
+    dealerNotificationError: text("dealer_notification_error"),
+    dealerNotificationAttemptedAt: timestamp(
+      "dealer_notification_attempted_at",
+      { withTimezone: true },
+    ),
+    dealerNotificationSentAt: timestamp("dealer_notification_sent_at", {
+      withTimezone: true,
+    }),
+    dealerNotificationProviderId: text("dealer_notification_provider_id"),
+    reminderStatus: text("reminder_status").notNull().default("not_scheduled"),
+    reminderError: text("reminder_error"),
+    reminderAttemptedAt: timestamp("reminder_attempted_at", {
+      withTimezone: true,
+    }),
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    reminderProviderId: text("reminder_provider_id"),
     source: text("source").notNull().default("website"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

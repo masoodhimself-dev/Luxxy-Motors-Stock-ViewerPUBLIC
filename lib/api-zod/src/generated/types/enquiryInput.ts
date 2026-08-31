@@ -17,8 +17,8 @@ export interface EnquiryInput {
      * @maxLength 120
      */
   customerName: string;
-  /** @nullable */
-  email: string | null;
+  /** @minLength 3 */
+  email: string;
   /**
      * @minLength 5
      * @maxLength 40

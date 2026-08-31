@@ -342,6 +342,15 @@ export const GetEnquiriesResponseItem = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -357,6 +366,8 @@ export const GetEnquiriesResponse = zod.array(GetEnquiriesResponseItem)
 export const createEnquiryBodyCustomerNameMin = 2;
 export const createEnquiryBodyCustomerNameMax = 120;
 
+export const createEnquiryBodyEmailMin = 3;
+
 export const createEnquiryBodyPhoneMin = 5;
 export const createEnquiryBodyPhoneMax = 40;
 
@@ -368,9 +379,9 @@ export const CreateEnquiryBody = zod.object({
   "vehicleId": zod.string().nullable(),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
   "customerName": zod.string().min(createEnquiryBodyCustomerNameMin).max(createEnquiryBodyCustomerNameMax),
-  "email": zod.string().nullable(),
+  "email": zod.string().min(createEnquiryBodyEmailMin),
   "phone": zod.string().min(createEnquiryBodyPhoneMin).max(createEnquiryBodyPhoneMax).nullable(),
-  "preferredContact": zod.enum(['phone', 'email', 'whatsapp']).nullable(),
+  "preferredContact": zod.enum(['email']).nullable(),
   "message": zod.string().min(1).max(createEnquiryBodyMessageMax),
   "appointmentAt": zod.coerce.date().nullable()
 })
@@ -397,6 +408,15 @@ export const CreateEnquiryResponse = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -465,6 +485,15 @@ export const UpdateEnquiryStatusResponse = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
