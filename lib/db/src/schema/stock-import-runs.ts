@@ -15,6 +15,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { dealerIntegrationsTable, dealersTable } from "./tenants";
+import { includeCompositeTenantForeignKeys } from "./publish-mode";
 
 export const stockImportStatusEnum = pgEnum("stock_import_status", [
   "pending",
@@ -67,11 +68,15 @@ export const stockImportRunsTable = pgTable(
       table.tenantDealerId,
       table.dealerIntegrationId,
     ),
-    foreignKey({
-      name: "stock_import_runs_integration_dealer_fk",
-      columns: [table.dealerIntegrationId, table.tenantDealerId],
-      foreignColumns: [dealerIntegrationsTable.id, dealerIntegrationsTable.dealerId],
-    }).onDelete("restrict"),
+    ...(includeCompositeTenantForeignKeys
+      ? [
+          foreignKey({
+            name: "stock_import_runs_integration_dealer_fk",
+            columns: [table.dealerIntegrationId, table.tenantDealerId],
+            foreignColumns: [dealerIntegrationsTable.id, dealerIntegrationsTable.dealerId],
+          }).onDelete("restrict"),
+        ]
+      : []),
     uniqueIndex("stock_import_runs_run_id_uidx").on(table.runId),
     index("stock_import_runs_tenant_dealer_id_idx").on(table.tenantDealerId),
     index("stock_import_runs_dealer_integration_id_idx").on(table.dealerIntegrationId),

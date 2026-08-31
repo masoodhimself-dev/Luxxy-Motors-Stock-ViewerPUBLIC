@@ -18,6 +18,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { stockImportRunsTable } from "./stock-import-runs";
 import { dealerIntegrationsTable, dealersTable } from "./tenants";
+import { includeCompositeTenantForeignKeys } from "./publish-mode";
 
 export const inventoryStatusEnum = pgEnum("inventory_status", [
   "available",
@@ -120,16 +121,20 @@ export const vehiclesTable = pgTable(
       table.tenantDealerId,
       table.dealerIntegrationId,
     ),
-    foreignKey({
-      name: "vehicles_run_dealer_fk",
-      columns: [table.importRunId, table.tenantDealerId],
-      foreignColumns: [stockImportRunsTable.id, stockImportRunsTable.tenantDealerId],
-    }).onDelete("restrict"),
-    foreignKey({
-      name: "vehicles_integration_dealer_fk",
-      columns: [table.dealerIntegrationId, table.tenantDealerId],
-      foreignColumns: [dealerIntegrationsTable.id, dealerIntegrationsTable.dealerId],
-    }).onDelete("restrict"),
+    ...(includeCompositeTenantForeignKeys
+      ? [
+          foreignKey({
+            name: "vehicles_run_dealer_fk",
+            columns: [table.importRunId, table.tenantDealerId],
+            foreignColumns: [stockImportRunsTable.id, stockImportRunsTable.tenantDealerId],
+          }).onDelete("restrict"),
+          foreignKey({
+            name: "vehicles_integration_dealer_fk",
+            columns: [table.dealerIntegrationId, table.tenantDealerId],
+            foreignColumns: [dealerIntegrationsTable.id, dealerIntegrationsTable.dealerId],
+          }).onDelete("restrict"),
+        ]
+      : []),
     uniqueIndex("vehicles_dealer_source_advert_uidx").on(
       table.dealerId,
       table.source,

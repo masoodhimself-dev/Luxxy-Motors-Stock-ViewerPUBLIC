@@ -8,9 +8,10 @@
     "./schema": "./src/schema/index.ts"
   },
   "scripts": {
-    "generate": "drizzle-kit generate --config ./drizzle.config.ts",
-    "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "generate": "PHASE2A_SCHEMA_MODE=final drizzle-kit generate --config ./drizzle.config.ts",
+    "push": "PHASE2A_SCHEMA_MODE=final drizzle-kit push --config ./drizzle.config.ts",
+    "push-force": "PHASE2A_SCHEMA_MODE=final drizzle-kit push --force --config ./drizzle.config.ts",
+    "push:phase2a-parent-keys": "PHASE2A_SCHEMA_MODE=parent-keys drizzle-kit push --config ./drizzle.config.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

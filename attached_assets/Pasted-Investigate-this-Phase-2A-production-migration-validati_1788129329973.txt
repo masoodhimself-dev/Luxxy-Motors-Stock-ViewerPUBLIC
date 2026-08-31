@@ -1,0 +1,32 @@
+Investigate this Phase 2A production migration validation failure without modifying production.
+The failed statement is:
+vehicle_images(vehicle_id, tenant_dealer_id) referencing vehicles(id, tenant_dealer_id)
+PostgreSQL reports:
+there is no unique constraint matching given keys for referenced table "vehicles"
+Phase 2A development/rehearsal previously intended to create the required composite uniqueness before creating this foreign key, so determine why Replit's generated production migration/schema diff does not satisfy that dependency.
+Check specifically:
+1. Whether UNIQUE (id, tenant_dealer_id) exists in the development Drizzle schema for vehicles.
+2. Which migration creates it.
+3. Whether Replit Publish generated/applied the production migration statements in an order where the child FK is attempted before the parent unique constraint.
+4. Whether the generated production diff omitted the composite unique constraint entirely.
+5. Whether migrations 0001–0004 differ from the schema diff Replit Publish is actually trying to apply.
+6. Whether other Phase 2A composite foreign keys have the same dependency problem.
+Fix the development schema/migration representation only so the supported Replit Publish flow can generate a valid additive production migration in dependency-safe order.
+Do not weaken or remove the tenant-isolation foreign key merely to make validation pass.
+Do not remove the intended composite uniqueness.
+Do not copy the development database or its data to production.
+Do not modify, reset, truncate, backfill or migrate production.
+Do not publish/retry automatically.
+After fixing development, rerun the Phase 1 → Phase 2A migration rehearsal from a fresh isolated Phase 1 schema and confirm:
+- 3 import runs preserved
+- 32 vehicles preserved
+- 1,596 images preserved
+- 1,084 changes preserved
+- 31 public vehicles preserved
+- 1 pending suspicious-price vehicle preserved
+- UUIDs/hashes/relationships/image ordering preserved
+- all composite tenant constraints work
+- rollback still works
+Then inspect the new generated production schema diff and explicitly show that every referenced composite parent key is created before its child foreign key.
+Stop after reporting the root cause, files/migrations changed, tests, rehearsal result and proposed corrected publish diff.
+Do not touch production and do not retry Publish until I approve it.
