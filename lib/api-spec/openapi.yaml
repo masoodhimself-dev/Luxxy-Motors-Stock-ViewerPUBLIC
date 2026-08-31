@@ -194,6 +194,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /enquiries/availability:
+    get:
+      operationId: getEnquiryAvailability
+      tags: [enquiries]
+      summary: Get available viewing appointments
+      description: Returns bookable 30-minute viewing slots for a date in the dealership timezone.
+      parameters:
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      responses:
+        "200":
+          description: Viewing availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnquiryAvailability"
+        "400":
+          description: Invalid or unavailable date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to load availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /enquiries/{id}/status:
     patch:
       operationId: updateEnquiryStatus
@@ -686,6 +718,9 @@ components:
           type: [string, "null"]
         message:
           type: string
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
         source:
           type: string
         createdAt:
@@ -709,6 +744,7 @@ components:
         - phone
         - preferredContact
         - message
+        - appointmentAt
         - source
         - createdAt
         - updatedAt
@@ -738,6 +774,9 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
       required:
         - vehicleId
         - type
@@ -746,6 +785,7 @@ components:
         - phone
         - preferredContact
         - message
+        - appointmentAt
     EnquiryStatusUpdate:
       type: object
       additionalProperties: false
@@ -755,4 +795,36 @@ components:
           enum: [new, contacted, closed]
       required:
         - status
+    EnquiryAvailabilitySlot:
+      type: object
+      additionalProperties: false
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        label:
+          type: string
+          minLength: 1
+        available:
+          type: boolean
+      required:
+        - startAt
+        - label
+        - available
+    EnquiryAvailability:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+        timezone:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnquiryAvailabilitySlot"
+      required:
+        - date
+        - timezone
+        - slots
 

@@ -8,6 +8,8 @@
 
 export * from './apiError';
 export * from './enquiry';
+export * from './enquiryAvailability';
+export * from './enquiryAvailabilitySlot';
 export * from './enquiryInput';
 export * from './enquiryInputPreferredContact';
 export * from './enquiryInputType';
@@ -17,6 +19,7 @@ export * from './enquiryStatusUpdateStatus';
 export * from './enquiryType';
 export * from './getEnquiriesParams';
 export * from './getEnquiriesStatus';
+export * from './getEnquiryAvailabilityParams';
 export * from './healthStatus';
 export * from './importedVehicle';
 export * from './sourceImportError';

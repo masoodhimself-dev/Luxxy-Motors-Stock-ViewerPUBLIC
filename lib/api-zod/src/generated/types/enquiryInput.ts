@@ -32,4 +32,6 @@ export interface EnquiryInput {
      * @maxLength 2000
      */
   message: string;
+  /** @nullable */
+  appointmentAt: Date | null;
 }

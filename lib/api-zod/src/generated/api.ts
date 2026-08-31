@@ -342,6 +342,7 @@ export const GetEnquiriesResponseItem = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -370,7 +371,8 @@ export const CreateEnquiryBody = zod.object({
   "email": zod.string().nullable(),
   "phone": zod.string().min(createEnquiryBodyPhoneMin).max(createEnquiryBodyPhoneMax).nullable(),
   "preferredContact": zod.enum(['phone', 'email', 'whatsapp']).nullable(),
-  "message": zod.string().min(1).max(createEnquiryBodyMessageMax)
+  "message": zod.string().min(1).max(createEnquiryBodyMessageMax),
+  "appointmentAt": zod.coerce.date().nullable()
 })
 
 
@@ -395,9 +397,35 @@ export const CreateEnquiryResponse = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Returns bookable 30-minute viewing slots for a date in the dealership timezone.
+ * @summary Get available viewing appointments
+ */
+export const getEnquiryAvailabilityQueryDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetEnquiryAvailabilityQueryParams = zod.object({
+  "date": zod.coerce.string().regex(getEnquiryAvailabilityQueryDateRegExp)
+})
+
+
+
+
+export const GetEnquiryAvailabilityResponse = zod.object({
+  "date": zod.string(),
+  "timezone": zod.string(),
+  "slots": zod.array(zod.object({
+  "startAt": zod.coerce.date(),
+  "label": zod.string().min(1),
+  "available": zod.boolean()
+}))
 })
 
 
@@ -437,6 +465,7 @@ export const UpdateEnquiryStatusResponse = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()

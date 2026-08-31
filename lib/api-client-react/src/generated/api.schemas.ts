@@ -354,6 +354,8 @@ export interface Enquiry {
   /** @nullable */
   preferredContact: string | null;
   message: string;
+  /** @nullable */
+  appointmentAt: string | null;
   source: string;
   createdAt: string;
   updatedAt: string;
@@ -406,6 +408,8 @@ export interface EnquiryInput {
      * @maxLength 2000
      */
   message: string;
+  /** @nullable */
+  appointmentAt: string | null;
 }
 
 export type EnquiryStatusUpdateStatus = typeof EnquiryStatusUpdateStatus[keyof typeof EnquiryStatusUpdateStatus];
@@ -421,6 +425,19 @@ export interface EnquiryStatusUpdate {
   status: EnquiryStatusUpdateStatus;
 }
 
+export interface EnquiryAvailabilitySlot {
+  startAt: string;
+  /** @minLength 1 */
+  label: string;
+  available: boolean;
+}
+
+export interface EnquiryAvailability {
+  date: string;
+  timezone: string;
+  slots: EnquiryAvailabilitySlot[];
+}
+
 export type GetEnquiriesParams = {
 status?: GetEnquiriesStatus;
 };
@@ -433,4 +450,11 @@ export const GetEnquiriesStatus = {
   contacted: 'contacted',
   closed: 'closed',
 } as const;
+
+export type GetEnquiryAvailabilityParams = {
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+date: string;
+};
 

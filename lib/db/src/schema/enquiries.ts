@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -44,6 +45,7 @@ export const enquiriesTable = pgTable(
     phone: text("phone"),
     preferredContact: text("preferred_contact"),
     message: text("message").notNull(),
+    appointmentAt: timestamp("appointment_at", { withTimezone: true }),
     source: text("source").notNull().default("website"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -61,6 +63,10 @@ export const enquiriesTable = pgTable(
     ),
     index("enquiries_dealer_created_idx").on(table.dealerId, table.createdAt),
     index("enquiries_vehicle_id_idx").on(table.vehicleId),
+    uniqueIndex("enquiries_dealer_appointment_uidx").on(
+      table.dealerId,
+      table.appointmentAt,
+    ),
   ],
 );
 

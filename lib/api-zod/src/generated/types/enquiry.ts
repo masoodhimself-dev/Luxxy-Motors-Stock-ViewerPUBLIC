@@ -34,6 +34,8 @@ export interface Enquiry {
   /** @nullable */
   preferredContact: string | null;
   message: string;
+  /** @nullable */
+  appointmentAt: Date | null;
   source: string;
   createdAt: Date;
   updatedAt: Date;
