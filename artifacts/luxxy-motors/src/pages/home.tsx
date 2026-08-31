@@ -27,6 +27,7 @@ const defaultFilters: FilterState = {
 export default function Home() {
   const { stock, isLoading } = useStock();
   const [showAll, setShowAll] = useState(false);
+  const [heroMakeIndex, setHeroMakeIndex] = useState(0);
 
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
@@ -111,6 +112,15 @@ export default function Home() {
     () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
     [stock?.cars],
   );
+  const heroMake = makes.length > 0 ? makes[heroMakeIndex % makes.length] : null;
+
+  useEffect(() => {
+    if (makes.length < 2) return;
+    const intervalId = window.setInterval(() => {
+      setHeroMakeIndex(current => current + 1);
+    }, 3200);
+    return () => window.clearInterval(intervalId);
+  }, [makes]);
 
   const revealResults = () => {
     setShowAll(true);
@@ -167,7 +177,9 @@ export default function Home() {
               </div>
             )}
             <h1 className="mb-5 text-5xl font-black leading-[1.02] tracking-tighter animate-in slide-in-from-bottom-8 duration-700 sm:text-6xl md:mb-6 md:text-7xl lg:text-8xl">
-              {dealerConfig.hero.copy}
+              {heroMake ? (
+                <>Find Your Next <span key={heroMake} className="inline-block animate-in fade-in slide-in-from-bottom-2 duration-500">{heroMake}</span> Car</>
+              ) : dealerConfig.hero.copy}
             </h1>
             <p className="mb-7 max-w-2xl text-base font-medium leading-relaxed text-white/90 animate-in slide-in-from-bottom-10 duration-700 delay-100 sm:text-lg md:mb-10 md:text-2xl">
               {dealerConfig.hero.subcopy}
