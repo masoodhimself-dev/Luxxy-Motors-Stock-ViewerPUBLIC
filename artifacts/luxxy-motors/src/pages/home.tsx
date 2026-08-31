@@ -158,7 +158,7 @@ export default function Home() {
         {/* subtle decorative pattern overlay */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none mix-blend-overlay"></div>
 
-        <div className="container relative z-10 mx-auto px-4 text-white md:mt-0">
+        <div className="container relative z-10 mx-auto translate-y-8 px-4 text-white md:translate-y-0 md:mt-0">
           <div className="max-w-3xl">
             {dealerConfig.hero.announcement && (
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md animate-in slide-in-from-bottom-4 duration-500 sm:mb-8">
