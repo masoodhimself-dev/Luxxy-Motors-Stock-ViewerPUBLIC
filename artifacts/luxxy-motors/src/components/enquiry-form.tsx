@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CalendarDays, Check, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarDays, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -91,6 +91,8 @@ export function EnquiryForm({
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [partExchangeRegistration, setPartExchangeRegistration] = useState('');
+  const [partExchangeMileage, setPartExchangeMileage] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const mutation = useCreateEnquiry();
@@ -108,6 +110,7 @@ export function EnquiryForm({
   );
 
   const vehicleLabel = vehicle?.title || [vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
+  const isPartExchange = type === 'part_exchange';
   const availableSlots = availabilityQuery.data?.slots.filter((slot) => slot.available) ?? [];
   const selectedSlotLabel = availabilityQuery.data?.slots.find((slot) => slot.startAt === selectedSlot)?.label;
 
@@ -124,6 +127,13 @@ export function EnquiryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isViewing && !selectedSlot) return;
+    const partExchangeDetails = isPartExchange
+      ? [
+          'Part exchange vehicle',
+          `Registration: ${partExchangeRegistration.trim().toUpperCase()}`,
+          `Mileage: ${Number(partExchangeMileage).toLocaleString('en-GB')} miles`,
+        ].join('\n')
+      : '';
     const data: EnquiryInput = {
       vehicleId: vehicle?.id ?? null,
       type,
@@ -131,7 +141,9 @@ export function EnquiryForm({
       email: email.trim(),
       phone: null,
       preferredContact: 'email',
-      message: message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''),
+      message: [partExchangeDetails, message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : '')]
+        .filter(Boolean)
+        .join('\n\n'),
       appointmentAt: isViewing ? selectedSlot : null,
     };
     mutation.mutate({ data });
@@ -199,6 +211,46 @@ export function EnquiryForm({
           {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
+
+      {isPartExchange && (
+        <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-part-exchange-details">
+          <div>
+            <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CarFront className="h-5 w-5 text-primary" /> Tell us about your car</legend>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">We’ll use these details to prepare an accurate part-exchange valuation.</p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="space-y-2 text-sm font-semibold text-foreground">
+              <span>Registration number</span>
+              <Input
+                required
+                minLength={2}
+                maxLength={12}
+                value={partExchangeRegistration}
+                onChange={(event) => setPartExchangeRegistration(event.target.value.toUpperCase())}
+                placeholder="AB12 CDE"
+                autoCapitalize="characters"
+                spellCheck={false}
+                data-testid="input-part-exchange-registration"
+              />
+            </label>
+            <label className="space-y-2 text-sm font-semibold text-foreground">
+              <span className="flex items-center gap-2"><Gauge className="h-4 w-4 text-primary" />Current mileage</span>
+              <Input
+                required
+                type="number"
+                min={0}
+                max={2000000}
+                step={1}
+                inputMode="numeric"
+                value={partExchangeMileage}
+                onChange={(event) => setPartExchangeMileage(event.target.value)}
+                placeholder="45,000"
+                data-testid="input-part-exchange-mileage"
+              />
+            </label>
+          </div>
+        </fieldset>
+      )}
 
       {isViewing && (
         <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-viewing-availability">
