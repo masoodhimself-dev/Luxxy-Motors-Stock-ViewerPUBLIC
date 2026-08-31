@@ -7,7 +7,7 @@ import type { EnquiryType } from '@/lib/cta-helpers';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
-  viewing: { eyebrow: 'Viewings by appointment', title: 'Book a viewing', description: 'Tell us how we can arrange a convenient time for you to see the car in person.' },
+  viewing: { eyebrow: 'Choose your appointment', title: 'Book a viewing', description: 'Choose a date and available time that suits you, then confirm your viewing in a few simple steps.' },
   general: { eyebrow: 'We are here to help', title: 'Send an enquiry', description: 'Share your question and the Luxxy Motors team will get back to you shortly.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Ask about delivery', description: 'Tell us where you are and we will help plan the next steps for getting your vehicle to you.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Ask about warranty', description: 'Send your details and we will explain the warranty options available for your vehicle.' },

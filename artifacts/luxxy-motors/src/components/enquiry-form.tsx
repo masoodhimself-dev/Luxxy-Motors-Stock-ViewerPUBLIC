@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
-import { CalendarDays, CheckCircle2, CircleAlert, Mail, MessageSquare, Phone, Send } from 'lucide-react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
+import { CalendarDays, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, Phone, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,6 +15,48 @@ const typeLabels: Record<EnquiryType, string> = {
   warranty: 'Warranty enquiry',
   part_exchange: 'Part exchange valuation',
 };
+
+const bookingTimezone = 'Europe/London';
+
+function dateString(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: bookingTimezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function bookingDates() {
+  const dates: string[] = [];
+  const current = new Date();
+  for (let offset = 0; offset <= 30 && dates.length < 14; offset += 1) {
+    const candidate = new Date(current);
+    candidate.setDate(current.getDate() + offset);
+    const weekday = candidate.getDay();
+    if (weekday !== 0) dates.push(dateString(candidate));
+  }
+  return dates;
+}
+
+function formatDateLabel(value: string) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: bookingTimezone,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(`${value}T12:00:00Z`));
+}
+
+function formatAppointment(value: string) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: bookingTimezone,
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
 
 function apiErrorMessage(error: unknown) {
   if (error && typeof error === 'object' && 'data' in error) {
@@ -37,12 +79,37 @@ export function EnquiryForm({
   const [phone, setPhone] = useState('');
   const [preferredContact, setPreferredContact] = useState<'phone' | 'email' | 'whatsapp'>('phone');
   const [message, setMessage] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const mutation = useCreateEnquiry();
+  const isViewing = type === 'viewing';
+  const dates = useMemo(() => bookingDates(), []);
+  const availabilityQuery = useGetEnquiryAvailability(
+    { date: selectedDate },
+    {
+      query: {
+        queryKey: getGetEnquiryAvailabilityQueryKey({ date: selectedDate }),
+        enabled: isViewing && Boolean(selectedDate),
+        staleTime: 30_000,
+      },
+    },
+  );
 
   const vehicleLabel = vehicle?.title || [vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
 
+  useEffect(() => {
+    setSelectedSlot(null);
+  }, [selectedDate, type]);
+
+  useEffect(() => {
+    if (selectedSlot && availabilityQuery.data && !availabilityQuery.data.slots.some((slot) => slot.startAt === selectedSlot && slot.available)) {
+      setSelectedSlot(null);
+    }
+  }, [availabilityQuery.data, selectedSlot]);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isViewing && !selectedSlot) return;
     const data: EnquiryInput = {
       vehicleId: vehicle?.id ?? null,
       type,
@@ -50,7 +117,8 @@ export function EnquiryForm({
       email: email.trim() || null,
       phone: phone.trim() || null,
       preferredContact: preferredContact || null,
-      message: message.trim(),
+      message: message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''),
+      appointmentAt: isViewing ? selectedSlot : null,
     };
     mutation.mutate({ data });
   };
@@ -61,9 +129,11 @@ export function EnquiryForm({
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
           <CheckCircle2 className="h-7 w-7 text-green-700" />
         </div>
-        <h2 className="text-2xl font-black text-green-950">Enquiry received</h2>
+        <h2 className="text-2xl font-black text-green-950">{isViewing ? 'Viewing booked' : 'Enquiry received'}</h2>
         <p className="mx-auto mt-3 max-w-lg text-green-900/80">
-          Thank you, {customerName.trim()}. The Luxxy Motors team has your request and will be in touch using your preferred contact method.
+          {isViewing
+            ? `Thank you, ${customerName.trim()}. Your viewing is booked for ${formatAppointment(selectedSlot!)}.`
+            : `Thank you, ${customerName.trim()}. The Luxxy Motors team has your request and will be in touch using your preferred contact method.`}
         </p>
         {vehicle && <p className="mt-4 text-sm font-semibold text-green-900">{vehicleLabel}</p>}
         <Button type="button" variant="outline" className="mt-7 border-green-300 bg-white" onClick={() => mutation.reset()}>
@@ -133,9 +203,66 @@ export function EnquiryForm({
         </div>
       </fieldset>
 
+      {isViewing && (
+        <fieldset className="space-y-4 rounded-xl border border-primary/15 bg-primary/5 p-5">
+          <legend className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <CalendarDays className="h-4 w-4 text-primary" /> Choose your viewing time
+          </legend>
+          <p className="text-sm text-muted-foreground">Appointments are 30 minutes, Monday to Saturday, 10:00 am–6:00 pm.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {dates.map((date) => (
+              <button
+                key={date}
+                type="button"
+                onClick={() => setSelectedDate(date)}
+                className={`rounded-lg border px-3 py-3 text-left text-sm font-semibold transition-colors ${
+                  selectedDate === date
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background hover:border-primary/50'
+                }`}
+              >
+                {formatDateLabel(date)}
+              </button>
+            ))}
+          </div>
+          {availabilityQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock3 className="h-4 w-4 animate-pulse text-primary" /> Loading available times…
+            </div>
+          ) : availabilityQuery.isError ? (
+            <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> Could not load available times. Please try another date.
+            </div>
+          ) : availabilityQuery.data?.slots.some((slot) => slot.available) ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {availabilityQuery.data.slots.map((slot) => (
+                <button
+                  key={slot.startAt}
+                  type="button"
+                  disabled={!slot.available}
+                  onClick={() => setSelectedSlot(slot.startAt)}
+                  className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    selectedSlot === slot.startAt
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : slot.available
+                        ? 'border-border bg-background hover:border-primary/50'
+                        : 'cursor-not-allowed border-border/60 bg-muted text-muted-foreground/50 line-through'
+                  }`}
+                >
+                  {slot.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">There are no remaining times on this date. Please choose another day.</p>
+          )}
+          {selectedSlot && <p className="text-sm font-semibold text-primary">Selected: {formatAppointment(selectedSlot)}</p>}
+        </fieldset>
+      )}
+
       <label className="block space-y-2 text-sm font-semibold">
-        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Your message</span>
-        <Textarea required minLength={1} maxLength={2000} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={type === 'viewing' ? 'Tell us when you would like to visit…' : 'How can the Luxxy Motors team help?'} />
+        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Your message {isViewing && <span className="font-normal text-muted-foreground">(optional)</span>}</span>
+        <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={type === 'viewing' ? 'Anything you would like us to know? (optional)' : 'How can the Luxxy Motors team help?'} />
       </label>
 
       {mutation.isError && (
@@ -144,13 +271,13 @@ export function EnquiryForm({
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
       )}
-      <Button type="submit" size="lg" disabled={mutation.isPending} className="h-12 w-full font-bold sm:w-auto">
+      <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="h-12 w-full font-bold sm:w-auto">
         <Send className="mr-2 h-4 w-4" />
-        {mutation.isPending ? 'Sending enquiry…' : `Send ${typeLabels[type].toLowerCase()}`}
+        {mutation.isPending ? (isViewing ? 'Booking viewing…' : 'Sending enquiry…') : isViewing ? 'Confirm booking' : `Send ${typeLabels[type].toLowerCase()}`}
       </Button>
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" />
-        Your details are sent securely to the Luxxy Motors enquiry inbox. Please provide an email address or phone number.
+        {isViewing ? 'Your details and appointment are sent securely to the Luxxy Motors enquiry inbox. Please provide an email address or phone number.' : 'Your details are sent securely to the Luxxy Motors enquiry inbox. Please provide an email address or phone number.'}
       </p>
     </form>
   );

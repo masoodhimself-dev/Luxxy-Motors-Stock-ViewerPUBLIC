@@ -139,8 +139,7 @@ function getSlotsForDate(dateValue: string) {
   return slots;
 }
 
-function validBookingDateTime(value: string) {
-  const appointmentAt = new Date(value);
+function validBookingDateTime(appointmentAt: Date) {
   if (Number.isNaN(appointmentAt.getTime()) || appointmentAt.getTime() <= Date.now()) {
     return false;
   }
@@ -153,12 +152,14 @@ function validBookingDateTime(value: string) {
 }
 
 function isUniqueViolation(error: unknown) {
-  return Boolean(
-    error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code?: string }).code === "23505",
-  );
+  if (!error || typeof error !== "object") return false;
+  if ("code" in error && (error as { code?: string }).code === "23505") {
+    return true;
+  }
+  if ("cause" in error) {
+    return isUniqueViolation((error as { cause?: unknown }).cause);
+  }
+  return false;
 }
 
 router.get("/enquiries", async (req, res): Promise<void> => {
@@ -312,7 +313,7 @@ router.post("/enquiries", async (req, res): Promise<void> => {
         phone: input.phone?.trim() ?? null,
         preferredContact: input.preferredContact ?? null,
         message: input.message.trim(),
-         appointmentAt: input.appointmentAt ? new Date(input.appointmentAt) : null,
+         appointmentAt: input.appointmentAt ?? null,
         source: "website",
       })
       .returning();

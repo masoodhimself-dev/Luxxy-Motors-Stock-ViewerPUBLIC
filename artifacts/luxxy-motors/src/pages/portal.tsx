@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
+  CalendarDays,
   ExternalLink,
   Inbox,
   LoaderCircle,
@@ -70,6 +71,11 @@ function EnquiryCard({ enquiry }: { enquiry: Enquiry }) {
           </div>
           <h2 className="mt-3 text-xl font-black tracking-tight">{enquiry.customerName}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{formatDate(enquiry.createdAt)}</p>
+          {enquiry.appointmentAt && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-sm font-bold text-primary">
+              <CalendarDays className="h-4 w-4" /> Viewing: {formatDate(enquiry.appointmentAt)}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {enquiry.status !== 'new' && (

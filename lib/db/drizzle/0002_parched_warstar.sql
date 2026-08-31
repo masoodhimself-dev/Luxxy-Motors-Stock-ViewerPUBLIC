@@ -1,0 +1,2 @@
+ALTER TABLE "enquiries" ADD COLUMN "appointment_at" timestamp with time zone;--> statement-breakpoint
+CREATE UNIQUE INDEX "enquiries_dealer_appointment_uidx" ON "enquiries" USING btree ("dealer_id","appointment_at");

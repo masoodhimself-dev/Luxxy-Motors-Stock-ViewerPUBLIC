@@ -15,6 +15,13 @@
       "when": 1788175185239,
       "tag": "0001_milky_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788176669676,
+      "tag": "0002_parched_warstar",
+      "breakpoints": true
     }
   ]
 }
