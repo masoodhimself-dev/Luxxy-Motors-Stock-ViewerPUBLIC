@@ -1,0 +1,48 @@
+We have changed the long-term architecture decision.
+This project will remain SINGLE-DEALER.
+We are no longer converting this Replit project into a multi-tenant SaaS application.
+Each new dealership will receive its own separate Replit project/remix, separate PostgreSQL database, separate secrets/configuration and separate deployment.
+Therefore Phase 2A multi-tenancy is cancelled and should not be reintroduced into this project.
+For now this is a verification-only task.
+We have rolled the project back to:
+Initialize agent memory and document production database verification logs
+Verify that this restored checkpoint represents the known-good single-dealer Luxxy Motors architecture.
+Do not publish.
+Do not modify production.
+Do not import vehicles.
+Do not change Grok.
+Do not change production secrets/configuration.
+Confirm:
+1. Phase 2A tenant/multi-tenant implementation is absent from the active codebase.
+2. No organizations, multi-dealer tenancy, tenant shadow columns, composite tenant foreign keys or staged Phase 2A publishing logic remains active.
+3. The existing Auto Trader endpoint remains:
+   POST /api/stock/imports/autotrader
+4. schemaVersion 1 remains supported.
+5. x-stock-import-secret / STOCK_IMPORT_SECRET behaviour remains intact.
+6. Retailer 10040438 remains compatible with the Luxxy configuration.
+7. Duplicate-image URL handling remains fixed.
+8. Batched image/change reconciliation remains present.
+9. Suspicious-price protection remains present.
+10. Idempotency/replay protection remains present.
+11. Complete-snapshot reconciliation and missing/reappearance behaviour remain present.
+12. Sold/archive protection remains present.
+13. Existing /api/stock, /api/vehicles/:id, /portal and showroom behaviour remains intact.
+Run the existing stock integration tests and full workspace typecheck.
+Read-only compare the restored application schema against the current production Phase 1 database.
+Determine whether publishing this restored build would require any database migration.
+The intended architecture going forward is:
+ONE DEALERSHIP = ONE REPLIT PROJECT/REMIX = ONE DATABASE = ONE DEPLOYMENT.
+Do not introduce multi-tenancy.
+We will later make this project into a reusable single-dealer master template where dealership-specific configuration can be changed during onboarding.
+Future functionality may include multiple stock sources inside a single dealership project, such as Auto Trader + Motors + eBay, but this must not be confused with multi-tenancy. One project still represents exactly one dealership.
+Report:
+- Restored checkpoint
+- Phase 2A artifacts remaining: YES/NO
+- Stock integration tests
+- Typecheck
+- Duplicate-image/batching fix present: YES/NO
+- Auto Trader contract preserved: YES/NO
+- Production schema compatible: YES/NO
+- Production database migration required: YES/NO
+- Safe to publish restored build: YES/NO
+Then stop and wait for approval.

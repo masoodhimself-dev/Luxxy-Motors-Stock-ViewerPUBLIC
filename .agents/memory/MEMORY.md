@@ -1,1 +1,2 @@
 - [Production database verification](production-database-verification.md) — label DB environments and use safe fingerprints before reporting production continuity.
+- [Single-dealer architecture](single-dealer-architecture.md) — one dealership per project/database/deployment; multi-source stock is not multi-tenancy.
