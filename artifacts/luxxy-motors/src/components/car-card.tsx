@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import { formatPrice, formatMileage, getThumbnailUrl } from '@/lib/utils';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Fuel, Settings, Calendar, AlertTriangle, ArrowRight, Camera } from 'lucide-react';
+import { MapPin, Fuel, Settings, Calendar, AlertTriangle, ArrowRight, Camera, MessageCircle, Phone } from 'lucide-react';
 
 export function CarCard({ car }: { car: Car }) {
   const thumb = getThumbnailUrl(car);
   const [imgError, setImgError] = useState(false);
+  const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
+  const phoneHref = getPhoneHref();
+  const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle');
+  const bookingHref = getVehicleBookingHref(car);
 
   const getWriteOffBadge = () => {
     if (!car.writeOffCategory) return null;
@@ -22,11 +27,10 @@ export function CarCard({ car }: { car: Car }) {
   };
 
   return (
-    <Link href={`/vehicle/${car.id}`} className="group block h-full outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
-      <div className="bg-card rounded-xl border border-border/60 overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transform group-hover:-translate-y-1">
+    <div className="group bg-card rounded-xl border border-border/60 overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transform hover:-translate-y-1">
         
         {/* Image Container */}
-        <div className="relative aspect-[3/2] bg-muted overflow-hidden">
+        <Link href={`/vehicle/${car.id}`} aria-label={`View details for ${vehicleLabel}`} className="relative block aspect-[3/2] bg-muted overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
           {getWriteOffBadge()}
           {thumb && !imgError ? (
             <img 
@@ -54,10 +58,10 @@ export function CarCard({ car }: { car: Car }) {
               </Badge>
             ) : null}
           </div>
-        </div>
+        </Link>
 
         {/* Content */}
-        <div className="p-5 flex flex-col flex-1">
+        <Link href={`/vehicle/${car.id}`} className="p-5 flex flex-col flex-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
           <div className="mb-4">
             <h3 className="font-bold text-lg lg:text-xl leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors">
               {car.title || `${car.make} ${car.model}`}
@@ -112,9 +116,47 @@ export function CarCard({ car }: { car: Car }) {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
-        </div>
+        </Link>
 
-      </div>
-    </Link>
+        <div className="px-5 pb-5 grid grid-cols-2 gap-2">
+          {phoneHref && (
+            <a
+              href={phoneHref}
+              title={`Call about ${vehicleLabel}`}
+              aria-label={`Call about ${vehicleLabel}`}
+              data-vehicle-contact="call"
+              className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Phone className="w-4 h-4 text-primary" />
+              Call
+            </a>
+          )}
+          {whatsappHref && (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`WhatsApp about ${vehicleLabel}`}
+              aria-label={`WhatsApp about ${vehicleLabel}`}
+              data-vehicle-contact="whatsapp"
+              className="flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm font-bold text-green-700 transition-colors hover:border-green-300 hover:bg-green-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
+            >
+              <MessageCircle className="w-4 h-4" />
+              WhatsApp
+            </a>
+          )}
+          <a
+            href={bookingHref}
+            target={bookingHref.startsWith('https://') ? '_blank' : undefined}
+            rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
+            aria-label={`Book a viewing for ${vehicleLabel}`}
+            data-vehicle-contact="booking"
+            className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <Calendar className="w-4 h-4" />
+            Book a Viewing
+          </a>
+        </div>
+    </div>
   );
 }

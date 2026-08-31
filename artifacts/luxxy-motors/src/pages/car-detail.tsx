@@ -1,9 +1,10 @@
 import { useRoute } from 'wouter';
-import { ArrowLeft, ExternalLink, Calendar, MapPin, Fuel, Settings, Activity, ShieldCheck, Info } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Fuel, Settings, Activity, ShieldCheck, Info, MessageCircle, Phone } from 'lucide-react';
 import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { Gallery } from '@/components/gallery';
 import { formatPrice, formatMileage } from '@/lib/utils';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import NotFound from '@/pages/not-found';
@@ -149,13 +150,41 @@ export default function CarDetail() {
               </div>
             </div>
 
-            {car.advertUrl && (
-              <Button asChild size="lg" className="w-full text-base h-12 shadow-md">
-                <a href={car.advertUrl} target="_blank" rel="noopener noreferrer">
-                  View on AutoTrader <ExternalLink className="w-4 h-4 ml-2" />
+            <div className="grid grid-cols-2 gap-3">
+              <Button asChild size="lg" className="col-span-2 text-base h-12 shadow-md">
+                <a
+                  href={getVehicleBookingHref(car)}
+                  target={getVehicleBookingHref(car).startsWith('https://') ? '_blank' : undefined}
+                  rel={getVehicleBookingHref(car).startsWith('https://') ? 'noopener noreferrer' : undefined}
+                  data-vehicle-contact="booking"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Book a Viewing
                 </a>
               </Button>
-            )}
+              {getPhoneHref() && (
+                <Button asChild variant="outline" size="lg" className="text-base h-12">
+                  <a href={getPhoneHref()!} aria-label={`Call about ${car.title || `${car.make || ''} ${car.model || ''}`.trim()}`}>
+                    <Phone className="w-4 h-4 mr-2 text-primary" />
+                    Call
+                  </a>
+                </Button>
+              )}
+              {getVehicleWhatsAppHref(car, 'get more information about this vehicle') && (
+                <Button asChild variant="outline" size="lg" className="text-base h-12 border-green-200 text-green-700 hover:bg-green-50">
+                  <a
+                    href={getVehicleWhatsAppHref(car, 'get more information about this vehicle')!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`WhatsApp about ${car.title || `${car.make || ''} ${car.model || ''}`.trim()}`}
+                    data-vehicle-contact="whatsapp"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    WhatsApp
+                  </a>
+                </Button>
+              )}
+            </div>
             
             <div className="mt-6 p-4 bg-muted/40 rounded-lg border flex gap-3 text-sm text-muted-foreground">
               <ShieldCheck className="w-5 h-5 text-primary shrink-0" />

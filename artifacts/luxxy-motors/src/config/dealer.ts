@@ -81,7 +81,10 @@ export const dealerConfig: DealerConfig = {
       accentHsl: "38 92% 50%",
     },
   },
-  contact: {},
+  contact: {
+    phone: "02084729917",
+    whatsapp: "+447388831790",
+  },
   address: {
     city: "Harrow",
     region: "London",
