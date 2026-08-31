@@ -928,7 +928,7 @@ export const getPrepareSaleUrl = (id: string,) => {
 
 /**
  * Creates an immutable revision and development-only signing session.
- * @summary Prepare and create a QR signing session
+ * @summary Prepare and create a secure signing link
  */
 export const prepareSale = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SalePreparation> => {
 
@@ -977,7 +977,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type PrepareSaleMutationError = ErrorType<ApiError>
 
     /**
- * @summary Prepare and create a QR signing session
+ * @summary Prepare and create a secure signing link
  */
 export const usePrepareSale = <TError = ErrorType<ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}

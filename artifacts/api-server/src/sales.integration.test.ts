@@ -113,8 +113,7 @@ test("stores only a token hash and binds the signing session to its revision", a
 
   const preparedResponse = await request(`/sales/${created.id}/prepare`, { method: "POST" });
   assert.equal(preparedResponse.status, 201);
-  const prepared = await preparedResponse.json() as { signingUrl: string; revision: { id: string }; qrSvg?: string };
-  assert.equal(prepared.qrSvg, undefined);
+  const prepared = await preparedResponse.json() as { signingUrl: string; revision: { id: string } };
   const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
   assert.ok(token.length >= 32);
 

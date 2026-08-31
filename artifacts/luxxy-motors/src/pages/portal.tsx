@@ -27,12 +27,12 @@ import {
   CalendarDays,
   ExternalLink,
   Inbox,
+  Link2,
   LoaderCircle,
   Mail,
   MessageSquare,
   Phone,
   Plus,
-  QrCode,
   ShieldAlert,
   XCircle,
 } from 'lucide-react';
@@ -269,7 +269,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   });
   const sale = saleView(saleQuery.data);
   const checks = (checksQuery.data as unknown as { canComplete?: boolean; checks?: SaleCheck[] } | undefined);
-  const prepared = prepare.data as unknown as { signingUrl?: string; qrSvg?: string; revision?: { revisionNumber: number; packHash: string } } | undefined;
+  const prepared = prepare.data as unknown as { signingUrl?: string; revision?: { revisionNumber: number; packHash: string } } | undefined;
 
   if (saleQuery.isLoading || !sale) {
     return <div className="flex min-h-32 items-center justify-center rounded-2xl border bg-card text-muted-foreground"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-primary" /> Loading sale…</div>;
@@ -315,24 +315,26 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
-      {prepared?.qrSvg && (
-        <div className="mt-6 grid gap-5 rounded-2xl border border-primary/20 bg-primary/5 p-5 md:grid-cols-[auto_1fr] md:items-center">
-          <div className="mx-auto w-56 rounded-xl bg-white p-3" dangerouslySetInnerHTML={{ __html: prepared.qrSvg }} />
+      {prepared?.signingUrl && (
+        <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-5">
           <div>
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary"><QrCode className="h-4 w-4" /> Development signing QR</p>
-            <h3 className="mt-2 text-xl font-black">Share this session for testing</h3>
-            <p className="mt-2 text-sm text-muted-foreground">This link is opaque, expires automatically, and is bound to revision {prepared.revision?.revisionNumber}. It is not a production signature.</p>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary"><Link2 className="h-4 w-4" /> Secure signing link ready</p>
+            <h3 className="mt-2 text-xl font-black">Send this link to the customer</h3>
+            <p className="mt-2 text-sm text-muted-foreground">The link expires automatically and is bound to revision {prepared.revision?.revisionNumber}. Open it yourself or copy it into an email or message.</p>
+            <div className="mt-4 flex flex-col gap-2 lg:flex-row">
               <Input readOnly value={prepared.signingUrl || ''} className="text-xs" />
-              <Button type="button" variant="outline" onClick={() => prepared.signingUrl && navigator.clipboard?.writeText(prepared.signingUrl)}><Copy className="mr-2 h-4 w-4" /> Copy link</Button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button type="button" variant="outline" onClick={() => prepared.signingUrl && navigator.clipboard?.writeText(prepared.signingUrl)}><Copy className="mr-2 h-4 w-4" /> Copy link</Button>
+                <Button type="button" variant="outline" asChild><a href={prepared.signingUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" /> Open link</a></Button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {canPrepare && <Button type="button" onClick={() => prepare.mutate({ id })} disabled={prepare.isPending}><QrCode className="mr-2 h-4 w-4" /> {prepare.isPending ? 'Preparing pack…' : sale.latestRevision ? 'Create new revision & QR' : 'Prepare pack & create QR'}</Button>}
-        {sessionStatus === 'pending' && <Button type="button" variant="outline" onClick={() => revoke.mutate({ id })} disabled={revoke.isPending}><XCircle className="mr-2 h-4 w-4" /> Revoke QR</Button>}
+        {canPrepare && <Button type="button" onClick={() => prepare.mutate({ id })} disabled={prepare.isPending}><Link2 className="mr-2 h-4 w-4" /> {prepare.isPending ? 'Preparing pack…' : sale.latestRevision ? 'Create new revision & link' : 'Prepare pack & create link'}</Button>}
+        {sessionStatus === 'pending' && <Button type="button" variant="outline" onClick={() => revoke.mutate({ id })} disabled={revoke.isPending}><XCircle className="mr-2 h-4 w-4" /> Revoke signing link</Button>}
         {checks?.canComplete && sale.status === 'signed' && <Button type="button" variant="secondary" onClick={() => complete.mutate({ id })} disabled={complete.isPending}><CheckCircle2 className="mr-2 h-4 w-4" /> {complete.isPending ? 'Completing…' : 'Complete sale'}</Button>}
       </div>
       {(prepare.isError || revoke.isError || complete.isError) && <p className="mt-3 text-sm text-destructive">{apiMessage(prepare.error || revoke.error || complete.error, 'The sale action could not be completed.')}</p>}
@@ -515,9 +517,9 @@ export default function Portal() {
         <section className="mb-10">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary"><QrCode className="h-4 w-4" /> Digital sales</p>
+              <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary"><ClipboardCheck className="h-4 w-4" /> Digital sales</p>
               <h2 className="mt-2 text-3xl font-black tracking-tight">Deal workspace</h2>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Create a development sale, prepare a hashed document pack, and test the QR signing ceremony before production decisions are made.</p>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
             </div>
             <Button type="button" variant={showSaleForm ? 'outline' : 'default'} onClick={() => setShowSaleForm((value) => !value)}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
           </div>
@@ -533,7 +535,7 @@ export default function Portal() {
           ) : salesQuery.isError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-900"><p className="font-bold">Could not load development sales</p><p className="mt-1">The sale workspace may need a database migration or a refresh.</p></div>
           ) : sales.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-card p-8 text-center"><QrCode className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><h3 className="text-lg font-black">No development sales yet</h3><p className="mt-1 text-sm text-muted-foreground">Start with an existing vehicle and customer details to generate a testable signing session.</p></div>
+            <div className="rounded-2xl border border-dashed bg-card p-8 text-center"><ClipboardCheck className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><h3 className="text-lg font-black">No development sales yet</h3><p className="mt-1 text-sm text-muted-foreground">Start with an existing vehicle and customer details to generate a secure signing link.</p></div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {sales.map((value) => {
@@ -543,7 +545,7 @@ export default function Portal() {
                   <button key={sale.id} type="button" onClick={() => setSelectedSaleId(sale.id)} className="rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="flex flex-wrap items-center gap-2"><Badge variant={sale.status === 'completed' ? 'default' : 'secondary'}>{sale.status}</Badge>{sale.signingSession?.status === 'pending' && <Badge variant="outline"><QrCode className="mr-1 h-3 w-3" /> QR active</Badge>}</div>
+                        <div className="flex flex-wrap items-center gap-2"><Badge variant={sale.status === 'completed' ? 'default' : 'secondary'}>{sale.status}</Badge>{sale.signingSession?.status === 'pending' && <Badge variant="outline"><Link2 className="mr-1 h-3 w-3" /> Signing link active</Badge>}</div>
                         <h3 className="mt-3 text-xl font-black">{sale.customer?.name || 'Unnamed customer'}</h3>
                         <p className="mt-1 text-sm text-muted-foreground">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ${sale.vehicle.registration}` : ''}</p>
                       </div>

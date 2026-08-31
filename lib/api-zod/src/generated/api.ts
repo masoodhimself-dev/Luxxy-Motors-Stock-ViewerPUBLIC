@@ -598,7 +598,7 @@ export const GetSaleResponse = zod.object({
 
 /**
  * Creates an immutable revision and development-only signing session.
- * @summary Prepare and create a QR signing session
+ * @summary Prepare and create a secure signing link
  */
 export const PrepareSaleParams = zod.object({
   "id": zod.coerce.string()
