@@ -44,6 +44,7 @@
 }
 
 :root {
+  --site-header-height: 4rem;
   /* Luxxy Motors - Deep Indigo & Platinum */
   --background: 210 20% 98%;
   --foreground: 222 47% 11%;
@@ -116,6 +117,17 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: var(--site-header-height);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
   * {
     @apply border-border;
   }

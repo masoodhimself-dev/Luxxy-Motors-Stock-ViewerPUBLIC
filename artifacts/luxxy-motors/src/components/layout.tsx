@@ -1,12 +1,13 @@
-import { useState, type CSSProperties } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useLocation } from 'wouter';
 import { Menu, X, Car as CarIcon, Phone, MessageCircle, Calendar, Search } from 'lucide-react';
 import { dealerConfig } from '@/config/dealer';
-import { getContactHref } from '@/lib/cta-helpers';
+import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
   const brandStyle = {
     ...(dealerConfig.identity.brandColors?.primaryHsl
       ? { '--primary': dealerConfig.identity.brandColors.primaryHsl }
@@ -16,29 +17,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
       : {}),
   } as CSSProperties;
 
-  const handleNav = (href: string) => {
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const updateHeaderHeight = () => {
+      document.documentElement.style.setProperty(
+        '--site-header-height',
+        `${header.getBoundingClientRect().height}px`,
+      );
+    };
+
+    updateHeaderHeight();
+    const observer = new ResizeObserver(updateHeaderHeight);
+    observer.observe(header);
+
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--site-header-height');
+    };
+  }, []);
+
+  const handleNav = (target: string) => {
     setMobileMenuOpen(false);
-    if (href.startsWith('#')) {
-      if (location !== '/') {
-        setLocation('/');
-        setTimeout(() => {
-          document.getElementById(href.substring(1))?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      } else {
-        document.getElementById(href.substring(1))?.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else if (href.startsWith('http') || href.startsWith('tel') || href.startsWith('mailto')) {
-      window.location.href = href;
-    } else {
-      setLocation(href);
-    }
+    navigateToHomeTarget(target, location, setLocation);
   };
 
   return (
     <div style={brandStyle} className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <header ref={headerRef} className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
+          <button type="button" onClick={() => handleNav('top')} className="flex items-center gap-2 group">
             {dealerConfig.identity.logoAsset ? (
               <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 object-contain" />
             ) : (
@@ -51,17 +60,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </span>
               </>
             )}
-          </Link>
+          </button>
 
           {/* Desktop Nav */}
           <nav className="hidden xl:flex items-center gap-6 text-sm font-medium">
-            <button onClick={() => handleNav('/')} className="hover:text-primary transition-colors">Home</button>
-            <button onClick={() => handleNav('#stock')} className="hover:text-primary transition-colors">Stock</button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('#part-exchange')} className="hover:text-primary transition-colors">Part Exchange</button>}
-            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('#warranty')} className="hover:text-primary transition-colors">Warranty</button>}
-            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('#delivery')} className="hover:text-primary transition-colors">Delivery</button>}
-            <button onClick={() => handleNav('#about')} className="hover:text-primary transition-colors">About Us</button>
-            <button onClick={() => handleNav('#contact')} className="hover:text-primary transition-colors">Contact</button>
+            <button onClick={() => handleNav('top')} className="hover:text-primary transition-colors">Home</button>
+            <button onClick={() => handleNav('stock')} className="hover:text-primary transition-colors">Stock</button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="hover:text-primary transition-colors">Part Exchange</button>}
+            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="hover:text-primary transition-colors">Warranty</button>}
+            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="hover:text-primary transition-colors">Delivery</button>}
+            <button onClick={() => handleNav('about')} className="hover:text-primary transition-colors">About Us</button>
+            <button onClick={() => handleNav('visit')} className="hover:text-primary transition-colors">Contact</button>
 
             <div className="flex items-center gap-4 ml-4 pl-4 border-l">
               {dealerConfig.contact.phone && (
@@ -74,9 +83,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <MessageCircle className="w-4 h-4" /> WhatsApp
                 </a>
               )}
-              <a href={getContactHref('Book a Viewing')} className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors">
+              <button type="button" onClick={() => handleNav('book-viewing')} className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors">
                 Book a Viewing
-              </a>
+              </button>
             </div>
           </nav>
 
@@ -95,13 +104,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
           <div className="xl:hidden absolute top-16 left-0 w-full bg-background border-b shadow-lg py-4 px-4 flex flex-col gap-4">
-            <button onClick={() => handleNav('/')} className="text-left font-medium p-2 hover:bg-muted rounded">Home</button>
-            <button onClick={() => handleNav('#stock')} className="text-left font-medium p-2 hover:bg-muted rounded">Stock</button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('#part-exchange')} className="text-left font-medium p-2 hover:bg-muted rounded">Part Exchange</button>}
-            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('#warranty')} className="text-left font-medium p-2 hover:bg-muted rounded">Warranty</button>}
-            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('#delivery')} className="text-left font-medium p-2 hover:bg-muted rounded">Delivery</button>}
-            <button onClick={() => handleNav('#about')} className="text-left font-medium p-2 hover:bg-muted rounded">About Us</button>
-            <button onClick={() => handleNav('#contact')} className="text-left font-medium p-2 hover:bg-muted rounded">Contact</button>
+            <button onClick={() => handleNav('top')} className="text-left font-medium p-2 hover:bg-muted rounded">Home</button>
+            <button onClick={() => handleNav('stock')} className="text-left font-medium p-2 hover:bg-muted rounded">Stock</button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="text-left font-medium p-2 hover:bg-muted rounded">Part Exchange</button>}
+            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="text-left font-medium p-2 hover:bg-muted rounded">Warranty</button>}
+            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="text-left font-medium p-2 hover:bg-muted rounded">Delivery</button>}
+            <button onClick={() => handleNav('about')} className="text-left font-medium p-2 hover:bg-muted rounded">About Us</button>
+            <button onClick={() => handleNav('visit')} className="text-left font-medium p-2 hover:bg-muted rounded">Contact</button>
           </div>
         )}
       </header>
@@ -110,10 +119,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer id="contact" className="border-t bg-card py-16 mt-auto">
+      <footer id="contact" data-home-section className="border-t bg-card py-16 mt-auto">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            <div id="about">
+            <div>
               <h3 className="font-bold text-lg mb-4">{dealerConfig.identity.name}</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 {dealerConfig.hero.subcopy}
@@ -127,12 +136,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div>
               <h3 className="font-bold text-lg mb-4">Explore</h3>
               <nav className="flex flex-col items-start gap-2 text-sm text-muted-foreground">
-                <button onClick={() => handleNav('#stock')} className="hover:text-primary">Stock</button>
-                {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('#part-exchange')} className="hover:text-primary">Part Exchange</button>}
-                {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('#warranty')} className="hover:text-primary">Warranty</button>}
-                {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('#delivery')} className="hover:text-primary">Delivery</button>}
-                <button onClick={() => handleNav('#about')} className="hover:text-primary">About</button>
-                <button onClick={() => handleNav('#contact')} className="hover:text-primary">Contact</button>
+                <button onClick={() => handleNav('stock')} className="hover:text-primary">Stock</button>
+                {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="hover:text-primary">Part Exchange</button>}
+                {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="hover:text-primary">Warranty</button>}
+                {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="hover:text-primary">Delivery</button>}
+                <button onClick={() => handleNav('about')} className="hover:text-primary">About</button>
+                <button onClick={() => handleNav('visit')} className="hover:text-primary">Contact</button>
               </nav>
             </div>
 
@@ -195,14 +204,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span className="text-[10px] font-medium uppercase tracking-wider">WhatsApp</span>
             </a>
           )}
-          <button onClick={() => handleNav('#stock')} className="flex flex-col items-center justify-center w-full py-2 text-primary hover:text-primary/80">
+          <button onClick={() => handleNav('stock')} className="flex flex-col items-center justify-center w-full py-2 text-primary hover:text-primary/80">
             <Search className="w-5 h-5 mb-1" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Browse</span>
           </button>
-          <a href={getContactHref('Book a Viewing')} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={() => handleNav('book-viewing')} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-foreground">
             <Calendar className="w-5 h-5 mb-1" />
             <span className="text-[10px] font-medium uppercase tracking-wider">Book</span>
-          </a>
+          </button>
         </div>
       </div>
     </div>

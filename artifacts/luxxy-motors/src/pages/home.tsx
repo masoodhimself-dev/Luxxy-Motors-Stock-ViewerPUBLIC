@@ -5,6 +5,7 @@ import { Filters, type FilterState } from '@/components/filters';
 import { dealerConfig } from '@/config/dealer';
 import { getThumbnailUrl } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
+import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { ArrowRight, CheckCircle2, Clock, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -91,6 +92,12 @@ export default function Home() {
     setShowAll(false);
   }, [filters]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      requestAnimationFrame(flushPendingHomeTarget);
+    }
+  }, [isLoading]);
+
   const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
 
   const heroCar = stock?.cars?.find(c => Boolean(getThumbnailUrl(c)));
@@ -137,9 +144,7 @@ export default function Home() {
             {dealerConfig.hero.subcopy}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" onClick={() => {
-              document.getElementById('stock')?.scrollIntoView({ behavior: 'smooth' });
-            }} className="font-semibold px-8 h-12 text-base bg-white text-black hover:bg-white/90">
+             <Button size="lg" onClick={() => scrollToHomeTarget('stock')} className="font-semibold px-8 h-12 text-base bg-white text-black hover:bg-white/90">
               {dealerConfig.hero.primaryCta}
             </Button>
             {dealerConfig.partExchange?.enabled && (
@@ -166,18 +171,21 @@ export default function Home() {
       </div>
 
       {/* Search & Filter */}
-      <div id="stock">
+      <div id="stock" data-home-section>
         <Filters
           cars={stock?.cars || []}
           filters={filters}
           setFilters={setFilters}
-          onSearch={() => setShowAll(true)}
+          onSearch={() => {
+            setShowAll(true);
+            requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+          }}
           vehicleCount={stock?.count ?? stock?.cars.length ?? 0}
         />
       </div>
 
       {/* Stock Grid */}
-      <section className="container mx-auto px-4 py-12">
+      <section id="vehicle-results" data-home-section className="container mx-auto px-4 py-12">
         <div className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <h2 className="text-3xl font-bold tracking-tight">
              {showAll ? 'All Vehicles' : 'Latest Vehicles'}
@@ -200,7 +208,10 @@ export default function Home() {
             {filteredCars.length > 4 && !showAll && (
               <div className="mt-12 flex justify-center">
                 <Button
-                  onClick={() => setShowAll(true)}
+                  onClick={() => {
+                    setShowAll(true);
+                    requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+                  }}
                   size="lg"
                   className="font-semibold px-8"
                 >
@@ -228,7 +239,7 @@ export default function Home() {
 
       {/* Why Buy Section */}
       {dealerConfig.whyBuy && dealerConfig.whyBuy.length > 0 && (
-        <section className="bg-muted/50 py-20 border-y">
+        <section id="about" data-home-section className="bg-muted/50 py-20 border-y">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-12">Why Buy From {dealerConfig.identity.name}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -250,7 +261,7 @@ export default function Home() {
       <section className="container mx-auto px-4 py-20">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {dealerConfig.warranty?.enabled && (
-            <div id="warranty" className="bg-card border p-8 rounded-xl flex flex-col justify-between items-start">
+            <div id="warranty" data-home-section className="bg-card border p-8 rounded-xl flex flex-col justify-between items-start">
               <div>
                 <h3 className="text-2xl font-bold mb-4">{dealerConfig.warranty.title}</h3>
                 <p className="text-muted-foreground mb-6 max-w-md">{dealerConfig.warranty.description}</p>
@@ -261,7 +272,7 @@ export default function Home() {
             </div>
           )}
           {dealerConfig.delivery?.enabled && (
-            <div id="delivery" className="bg-primary text-primary-foreground p-8 rounded-xl flex flex-col justify-between items-start">
+            <div id="delivery" data-home-section className="bg-primary text-primary-foreground p-8 rounded-xl flex flex-col justify-between items-start">
               <div>
                 <h3 className="text-2xl font-bold mb-4">{dealerConfig.delivery.title}</h3>
                 <p className="text-primary-foreground/80 mb-6 max-w-md">{dealerConfig.delivery.description}</p>
@@ -276,7 +287,7 @@ export default function Home() {
 
       {/* Part Exchange Full Width */}
       {dealerConfig.partExchange?.enabled && (
-        <section id="part-exchange" className="bg-card border-y py-20">
+        <section id="part-exchange" data-home-section className="bg-card border-y py-20">
           <div className="container mx-auto px-4 text-center max-w-3xl">
             <h2 className="text-3xl font-bold tracking-tight mb-4">{dealerConfig.partExchange.title}</h2>
             <p className="text-muted-foreground text-lg mb-8">{dealerConfig.partExchange.description}</p>
@@ -288,7 +299,7 @@ export default function Home() {
       )}
 
       {/* Book Viewing CTA Block */}
-      <section id="book-viewing" className="py-20 text-center container mx-auto px-4 max-w-2xl">
+      <section id="book-viewing" data-home-section className="py-20 text-center container mx-auto px-4 max-w-2xl">
         <h2 className="text-3xl font-bold tracking-tight mb-4">{dealerConfig.bookViewing.title}</h2>
         <p className="text-muted-foreground mb-8 text-lg">{dealerConfig.bookViewing.description}</p>
         <Button size="lg" asChild className="px-10 h-14 text-lg font-semibold w-full sm:w-auto">
@@ -297,7 +308,7 @@ export default function Home() {
       </section>
 
       {dealerConfig.address && locationLabel && (
-        <section id="visit" className="bg-muted/50 border-y py-20">
+        <section id="visit" data-home-section className="bg-muted/50 border-y py-20">
           <div className="container mx-auto px-4">
             <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
               <div>
