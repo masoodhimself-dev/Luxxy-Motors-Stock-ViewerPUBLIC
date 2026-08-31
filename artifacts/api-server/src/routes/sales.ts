@@ -1,5 +1,4 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import QRCode from "qrcode";
 import { Router, type IRouter, type Request } from "express";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -811,17 +810,10 @@ async function createRevisionAndSession(tx: Tx, saleId: string, req: Request) {
     packHash,
     providerKind: "demo",
   });
-  const qrSvg = await QRCode.toString(signingUrl(req, rawToken), {
-    type: "svg",
-    margin: 1,
-    errorCorrectionLevel: "M",
-    width: 320,
-  });
   return {
     revision,
     session,
     signingUrl: signingUrl(req, rawToken),
-    qrSvg,
   };
 }
 
@@ -1010,7 +1002,6 @@ router.post("/sales/:id/prepare", async (req, res) => {
         expiresAt: result.prepared.session.expiresAt,
       },
       signingUrl: result.prepared.signingUrl,
-      qrSvg: result.prepared.qrSvg,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to prepare sale";

@@ -7,8 +7,8 @@ import { createServer, type Server } from "node:http";
 import test, { after, beforeEach } from "node:test";
 import { and, eq } from "drizzle-orm";
 
-process.env.SESSION_SECRET = "qr-sales-integration-session-secret";
-process.env.STOCK_DEALER_ID = `qr-sales-test-${process.pid}`;
+process.env.SESSION_SECRET = "sales-integration-session-secret";
+process.env.STOCK_DEALER_ID = `sales-test-${process.pid}`;
 
 const {
   db,
@@ -71,11 +71,11 @@ beforeEach(async () => {
   await cleanupNamespace();
   const [vehicle] = await db.insert(vehiclesTable).values({
     dealerId,
-    source: "qr-sales-test",
-    advertId: `qr-sales-${process.pid}`,
-    title: "Synthetic QR Test Vehicle",
+    source: "sales-integration-test",
+    advertId: `sales-${process.pid}`,
+    title: "Synthetic Sale Test Vehicle",
     make: "Testmaker",
-    model: "Signing",
+    model: "Workflow",
     year: 2022,
     sourcePrice: 12500,
     currency: "GBP",
@@ -101,7 +101,7 @@ test("stores only a token hash and binds the signing session to its revision", a
     method: "POST",
     body: JSON.stringify({
       vehicleId,
-      customer: { name: "QR Test Customer", email: "qr@example.test" },
+      customer: { name: "Sale Test Customer", email: "sale@example.test" },
       agreedPricePence: 1250000,
       depositPence: 250000,
       disclosureNotes: "Synthetic integration disclosure",
@@ -113,8 +113,8 @@ test("stores only a token hash and binds the signing session to its revision", a
 
   const preparedResponse = await request(`/sales/${created.id}/prepare`, { method: "POST" });
   assert.equal(preparedResponse.status, 201);
-  const prepared = await preparedResponse.json() as { signingUrl: string; qrSvg: string; revision: { id: string } };
-  assert.match(prepared.qrSvg, /^<svg/);
+  const prepared = await preparedResponse.json() as { signingUrl: string; revision: { id: string }; qrSvg?: string };
+  assert.equal(prepared.qrSvg, undefined);
   const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
   assert.ok(token.length >= 32);
 
@@ -189,7 +189,7 @@ test("prevents two active sales from claiming one vehicle", async () => {
   assert.equal(second.status, 409);
 });
 
-test("revokes the old QR session when a new revision is prepared", async () => {
+test("revokes the old signing session when a new revision is prepared", async () => {
   const created = await (await request("/sales", {
     method: "POST",
     body: JSON.stringify({ vehicleId, customer: { name: "Revision Test Customer" }, agreedPricePence: 100000 }),

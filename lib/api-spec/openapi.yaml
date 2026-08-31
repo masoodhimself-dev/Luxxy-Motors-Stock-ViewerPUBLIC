@@ -352,7 +352,7 @@ paths:
     post:
       operationId: prepareSale
       tags: [sales]
-      summary: Prepare and create a QR signing session
+      summary: Prepare and create a secure signing link
       description: Creates an immutable revision and development-only signing session.
       parameters:
         - in: path
@@ -1241,7 +1241,6 @@ components:
         - revision
         - signingSession
         - signingUrl
-        - qrSvg
     FinalChecks:
       type: object
       additionalProperties: true

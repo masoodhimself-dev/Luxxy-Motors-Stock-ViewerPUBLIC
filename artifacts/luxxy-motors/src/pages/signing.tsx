@@ -171,7 +171,7 @@ export default function Signing() {
               </div>
               {complete.isError && <p className="mt-4 flex items-center gap-2 text-sm text-destructive"><CircleAlert className="h-4 w-4" />{apiMessage(complete.error)}</p>}
               <Button type="submit" size="lg" className="mt-6 w-full font-bold sm:w-auto" disabled={complete.isPending || !allAccepted}><Signature className="mr-2 h-4 w-4" />{complete.isPending ? 'Recording demo signature…' : 'Sign development pack'}</Button>
-              <p className="mt-4 text-xs text-muted-foreground">Your signature is bound to pack hash <span className="font-mono">{view.revision.packHash.slice(0, 18)}…</span>. No raw QR token is stored.</p>
+               <p className="mt-4 text-xs text-muted-foreground">Your signature is bound to pack hash <span className="font-mono">{view.revision.packHash.slice(0, 18)}…</span>. The raw signing token is never stored in the database.</p>
             </form>
           )}
         </div>
