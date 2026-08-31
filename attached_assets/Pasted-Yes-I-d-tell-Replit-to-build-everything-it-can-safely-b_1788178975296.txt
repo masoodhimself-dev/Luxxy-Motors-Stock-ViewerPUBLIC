@@ -1,0 +1,307 @@
+Yes. I’d tell Replit to build everything it can safely build now, but stop before choosing or wiring a real e-sign provider.
+Send this:
+Build QR Sales Foundation — Development Only
+Implement everything possible for the QR sales workflow without integrating a live e-sign provider yet.
+Keep the current single-dealer architecture. Do not reintroduce multi-tenancy.
+Do not publish.
+Do not modify production.
+Preserve the existing Phase 1 stock system, vehicle UUIDs, Auto Trader import contract, schemaVersion 1, Grok integration, suspicious-price protection, sold/archive protections, enquiry portal, Call/WhatsApp actions, and existing showroom behaviour.
+Goal
+Build the internal sales foundation so the Dealer OS can:
+Create sale → prepare immutable sale revision → generate secure QR signing session → customer reviews on phone → development/demo signature → portal detects signed state → deterministic final sale check → complete sale → generate invoice/evidence records
+The implementation must be provider-ready so a specialist e-sign provider such as SignWell or BoldSign can later replace the temporary development signing ceremony without rewriting the sales domain.
+1. Customers
+Add a proper customers model.
+Support:
+- UUID
+- name
+- phone
+- email
+- address fields where needed later
+- created/updated timestamps
+Allow an enquiry to be promoted/linked to a customer without destroying the original enquiry snapshot.
+2. Sales
+Add a sales aggregate linked to:
+- vehicle UUID
+- customer UUID
+Support draft commercial information:
+- agreed vehicle price
+- currency GBP
+- deposit
+- balance
+- adjustments/discounts
+- mileage at sale
+- part exchange optional
+- warranty optional
+- collection/delivery choice
+- internal notes
+- sale status
+Use integer minor units/pence for sale accounting.
+Suggested statuses:
+- draft
+- preparing
+- ready_for_signing
+- customer_reviewing
+- signed
+- needs_revision
+- ready_to_complete
+- completed
+- voided
+3. Sale revisions
+Add immutable sale_revisions.
+When staff prepares a sale pack, snapshot the exact customer-facing transaction state.
+Include:
+- customer snapshot
+- vehicle snapshot
+- agreed price
+- mileage
+- adjustments
+- deposit/balance
+- PX
+- warranty
+- delivery/collection
+- disclosures
+- terms/template versions
+Material edits after pack preparation must create a new revision rather than silently altering the old revision.
+4. Sale documents / pack manifest
+Build the document metadata architecture even if the final legal PDFs are basic development templates for now.
+Add:
+- sale documents
+- document type
+- document/template version
+- exact content/document hash
+- ordered pack manifest
+- manifest hash
+- unsigned pack hash where applicable
+Do not pretend the development templates are legally approved.
+Clearly label them in development as:
+Development document template — legal review required before production use
+5. QR signing sessions
+Implement secure signing-session infrastructure.
+Generate at least 32 random bytes for the raw signing token.
+QR must contain only a secure opaque signing URL.
+Do not expose the sale/customer IDs as authorization.
+Store only a secure token hash/HMAC, not the raw token.
+Support:
+- created
+- expires
+- opened
+- reviewing
+- signed
+- revoked
+- consumed
+Bind each session to exactly:
+- one sale
+- one sale revision
+- one intended customer
+A new material sale revision must revoke the previous signing session.
+6. QR code
+Generate the QR ourselves in the app.
+Do not add or depend on a commercial QR provider.
+Portal should show:
+Scan to Review & Sign
+with:
+- QR
+- sale reference
+- customer
+- vehicle
+- status
+- expiry
+- Regenerate/Revoke controls where appropriate
+7. Customer signing page
+Add a mobile-first public tokenized route such as:
+/sign/...
+Do not require a customer account for this development version.
+Show only the exact sale revision:
+- dealer branding
+- vehicle image
+- make/model
+- registration
+- mileage
+- agreed price
+- payment summary
+- PX where applicable
+- warranty where applicable
+- collection/delivery
+- required disclosures
+- document list
+- terms
+No internal staff notes.
+No portal access.
+No secrets.
+8. One-signature flow
+Build the UX for:
+Review complete pack → acknowledgements → one signature at the end
+The single signing action must bind to:
+- sale revision
+- document manifest hash
+- unsigned pack hash
+- acknowledgement state
+For this development version, implement a clearly labelled demo/internal signature capture mechanism only.
+Do not represent it as production-grade legal e-signature.
+Architect an ESignProvider boundary/interface so later we can replace the demo signing step with SignWell/BoldSign.
+Example abstraction:
+- createSigningRequest
+- getSigningStatus
+- cancelSigningRequest
+- downloadSignedPack
+- verifyWebhook
+- getAuditEvidence
+Do not add SignWell/BoldSign credentials yet.
+9. Audit trail
+Add append-only sale events.
+Record appropriate events such as:
+- sale created
+- sale edited
+- revision created
+- signing session created
+- QR opened
+- customer review started
+- acknowledgement completed
+- demo signature completed
+- final check run
+- sale completed
+- sale voided
+Include actor type:
+- staff
+- customer
+- system
+- future provider
+Do not collect unnecessary device fingerprinting.
+10. Portal sale UI
+Add a Sales section to /portal.
+Provide:
+- Sales list
+- New Sale
+- Sale detail
+New Sale should allow:
+- select customer/enquiry
+- select available vehicle
+- agreed price
+- deposit
+- adjustments
+- mileage
+- optional PX
+- optional warranty
+- collection/delivery
+Then:
+Prepare Sale Pack
+Then:
+Generate QR
+Then show live signing status.
+Poll every 3–5 seconds using the existing React Query approach.
+No WebSockets yet.
+11. Vehicle locking
+Prevent two active sales from completing against the same vehicle.
+Implement a clean sale-level lock/guard rather than assuming the current reserved visibility state is sufficient.
+Do not change public visibility behaviour yet unless required.
+Report how the lock works.
+12. Deterministic Final Sale Check
+Build rules-based validation only.
+Check:
+- customer exists
+- vehicle exists
+- vehicle not sold/archived
+- valid vehicle lock
+- price totals reconcile
+- deposit/balance valid
+- required sale revision exists
+- required documents exist
+- hashes match
+- acknowledgements complete
+- signature/demo-signing state is for the current revision
+- no material edits occurred afterwards
+- required warranty/PX/delivery fields complete where used
+- required write-off disclosure present for Cat S/N
+Return structured check results.
+AI is out of scope for now.
+13. Complete Sale
+Implement completion as one safe server-side transaction.
+Recheck all final validation server-side.
+On success:
+- sale → completed
+- vehicle → sold
+- preserve vehicle UUID
+- record audit event
+- create immutable invoice snapshot/record
+- create Deal Vault manifest/metadata
+Confirm a later Auto Trader import cannot resurrect the vehicle into available.
+Add regression tests for:
+- sale completed then Auto Trader vehicle reappears
+- changed source price after sale
+- changed image set after sale
+- duplicate completion request
+- concurrent/import versus completion protection where practical
+14. Invoice foundation
+Build immutable invoice data/snapshot structure.
+The invoice should snapshot the relevant dealer, customer, vehicle and commercial details at completion.
+Do not build unsupported tax/legal assumptions.
+Clearly isolate VAT/margin-scheme rules for later accountant/legal confirmation.
+Generate a development invoice preview if practical.
+15. Deal Vault foundation
+Add Deal Vault metadata/manifests for completed sales.
+Include references/hashes for:
+- vehicle snapshot
+- customer snapshot
+- sale revision
+- document manifest
+- signature evidence
+- final sale-check result
+- invoice
+- audit events
+If private object storage is not already available, do not introduce an unsafe public-file workaround.
+Keep file-storage integration behind a clean abstraction and report what remains.
+16. Security
+Add appropriate:
+- server-side validation
+- token expiry
+- revocation
+- one-time signing semantics
+- rate limiting for public token/signing endpoints if supported cleanly
+- no raw tokens in logs
+- safe error messages
+Remember /portal is currently passwordless.
+Keep the entire sales/admin workflow clearly marked:
+DEVELOPMENT ONLY — staff authentication required before production use
+Do not publish this workflow to production.
+17. Provider readiness
+At the end, show exactly how we could plug one central SignWell/BoldSign platform account into this architecture later.
+Do not require each dealership to have its own e-sign provider account.
+Keep provider-specific code out of the core sales domain.
+18. Test isolation
+Do not wipe the shared development stock.
+Use an isolated PostgreSQL test schema/database for automated tests.
+Production must remain untouched.
+Verification
+Run:
+- new sales/database tests
+- QR/signing-session tests
+- final-sale-check tests
+- completion/import resurrection tests
+- existing enquiry tests
+- existing stock integration tests
+- workspace typecheck
+- production/frontend build
+- desktop/mobile browser QA
+Verify shared development stock remains intact after testing.
+Do not publish.
+Return a completion report covering:
+1. tables/schema added
+2. migrations added
+3. portal Sales screens
+4. QR/token implementation
+5. demo signing implementation
+6. provider abstraction
+7. revision/hash implementation
+8. final-sale-check rules
+9. completion transaction
+10. Auto Trader resurrection protection
+11. invoice foundation
+12. Deal Vault foundation
+13. security implemented
+14. remaining production blockers
+15. test results
+16. screenshots
+Finish with:
+QR SALES FOUNDATION READY FOR REVIEW: YES/NO
+Then stop.
