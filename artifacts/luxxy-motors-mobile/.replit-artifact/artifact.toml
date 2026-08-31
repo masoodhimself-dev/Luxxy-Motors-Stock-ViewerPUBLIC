@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/luxxy-motors-mobile/"
+title = "Luxxy Motors Mobile"
+description = "A native iOS and Android companion for Luxxy Motors, with live public vehicle stock, vehicle galleries, contact actions, enquiries, and viewing appointments powered by the shared API."
+version = "1.0.0"
+id = "artifacts/luxxy-motors-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/luxxy-motors-mobile/" ]
+localPort = 18946
+
+[services.development]
+run = "pnpm --filter @workspace/luxxy-motors-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/luxxy-motors-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/luxxy-motors-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "18946"
+BASE_PATH = "/luxxy-motors-mobile/"
