@@ -21,6 +21,10 @@ import type {
 
 import type {
   ApiError,
+  Enquiry,
+  EnquiryInput,
+  EnquiryStatusUpdate,
+  GetEnquiriesParams,
   HealthStatus,
   Stock,
   StockImportEnvelope,
@@ -354,3 +358,238 @@ export function useGetVehicle<TData = Awaited<ReturnType<typeof getVehicle>>, TE
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
+export const getGetEnquiriesUrl = (params?: GetEnquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/enquiries?${stringifiedParams}` : `/api/enquiries`
+}
+
+/**
+ * Returns customer enquiries for the configured dealer, newest first.
+ * @summary List customer enquiries
+ */
+export const getEnquiries = async (params?: GetEnquiriesParams, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry[]> => {
+
+  return customFetch<Enquiry[]>(getGetEnquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEnquiriesQueryKey = (params?: GetEnquiriesParams,) => {
+    return [
+    `/api/enquiries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetEnquiriesQueryOptions = <TData = Awaited<ReturnType<typeof getEnquiries>>, TError = ErrorType<ApiError>>(params?: GetEnquiriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEnquiries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEnquiriesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEnquiries>>> = ({ signal }) => getEnquiries(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEnquiries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEnquiriesQueryResult = NonNullable<Awaited<ReturnType<typeof getEnquiries>>>
+export type GetEnquiriesQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary List customer enquiries
+ */
+
+export function useGetEnquiries<TData = Awaited<ReturnType<typeof getEnquiries>>, TError = ErrorType<ApiError>>(
+ params?: GetEnquiriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEnquiries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEnquiriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEnquiryUrl = () => {
+
+
+
+
+  return `/api/enquiries`
+}
+
+/**
+ * Stores a website enquiry and snapshots the selected visible vehicle when provided.
+ * @summary Create a customer enquiry
+ */
+export const createEnquiry = async (enquiryInput: EnquiryInput, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getCreateEnquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryInput)
+  }
+);}
+
+
+
+
+
+export const getCreateEnquiryMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnquiry>>, TError,{data: BodyType<EnquiryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEnquiry>>, TError,{data: BodyType<EnquiryInput>}, TContext> => {
+
+const mutationKey = ['createEnquiry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEnquiry>>, {data: BodyType<EnquiryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEnquiry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEnquiryMutationResult = NonNullable<Awaited<ReturnType<typeof createEnquiry>>>
+    export type CreateEnquiryMutationBody = BodyType<EnquiryInput>
+    export type CreateEnquiryMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Create a customer enquiry
+ */
+export const useCreateEnquiry = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEnquiry>>, TError,{data: BodyType<EnquiryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEnquiry>>,
+        TError,
+        {data: BodyType<EnquiryInput>},
+        TContext
+      > => {
+      return useMutation(getCreateEnquiryMutationOptions(options));
+    }
+
+export const getUpdateEnquiryStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/enquiries/${id}/status`
+}
+
+/**
+ * @summary Update enquiry status
+ */
+export const updateEnquiryStatus = async (id: string,
+    enquiryStatusUpdate: EnquiryStatusUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getUpdateEnquiryStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryStatusUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateEnquiryStatusMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEnquiryStatus>>, TError,{id: string;data: BodyType<EnquiryStatusUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEnquiryStatus>>, TError,{id: string;data: BodyType<EnquiryStatusUpdate>}, TContext> => {
+
+const mutationKey = ['updateEnquiryStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEnquiryStatus>>, {id: string;data: BodyType<EnquiryStatusUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateEnquiryStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEnquiryStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateEnquiryStatus>>>
+    export type UpdateEnquiryStatusMutationBody = BodyType<EnquiryStatusUpdate>
+    export type UpdateEnquiryStatusMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Update enquiry status
+ */
+export const useUpdateEnquiryStatus = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEnquiryStatus>>, TError,{id: string;data: BodyType<EnquiryStatusUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEnquiryStatus>>,
+        TError,
+        {id: string;data: BodyType<EnquiryStatusUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateEnquiryStatusMutationOptions(options));
+    }

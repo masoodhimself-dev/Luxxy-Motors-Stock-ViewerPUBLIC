@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { Menu, X, Car as CarIcon, Phone, MessageCircle, Calendar, Search, ArrowRight, Instagram, Facebook, Twitter, MapPin } from 'lucide-react';
 import { dealerConfig } from '@/config/dealer';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
+import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -93,7 +94,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </a>
                 )}
               </div>
-              <Button onClick={() => handleNav('book-viewing')} className="font-bold rounded-full px-6">
+               <Button onClick={() => setLocation(getEnquiryHref('viewing'))} className="font-bold rounded-full px-6">
                  Book a Viewing
               </Button>
             </div>
@@ -183,7 +184,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <nav className="flex flex-col items-start gap-3 text-sm text-primary-foreground/70">
                 <button onClick={() => handleNav('stock')} className="hover:text-accent transition-colors">View All Stock</button>
                 <button onClick={() => handleNav('part-exchange')} className="hover:text-accent transition-colors">Part Exchange</button>
-                 <button onClick={() => handleNav('book-viewing')} className="hover:text-accent transition-colors">Book a Viewing</button>
+                 <button onClick={() => setLocation(getEnquiryHref('viewing'))} className="hover:text-accent transition-colors">Book a Viewing</button>
                 <button onClick={() => handleNav('warranty')} className="hover:text-accent transition-colors">Warranty Information</button>
               </nav>
             </div>
@@ -268,7 +269,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider">Browse</span>
           </button>
-          <button type="button" onClick={() => handleNav('book-viewing')} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
+           <button type="button" onClick={() => setLocation(getEnquiryHref('viewing'))} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
             <Calendar className="w-5 h-5 mb-1" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Book</span>
           </button>

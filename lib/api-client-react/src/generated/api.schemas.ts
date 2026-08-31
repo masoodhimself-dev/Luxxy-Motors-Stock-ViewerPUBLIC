@@ -308,3 +308,129 @@ export interface ApiError {
   error: string;
 }
 
+export type EnquiryType = typeof EnquiryType[keyof typeof EnquiryType];
+
+
+export const EnquiryType = {
+  viewing: 'viewing',
+  general: 'general',
+  delivery: 'delivery',
+  warranty: 'warranty',
+  part_exchange: 'part_exchange',
+} as const;
+
+export type EnquiryStatus = typeof EnquiryStatus[keyof typeof EnquiryStatus];
+
+
+export const EnquiryStatus = {
+  new: 'new',
+  contacted: 'contacted',
+  closed: 'closed',
+} as const;
+
+export interface Enquiry {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  dealerId: string;
+  /** @nullable */
+  vehicleId: string | null;
+  /** @nullable */
+  vehicleTitle: string | null;
+  /** @nullable */
+  vehicleRegistration: string | null;
+  /** @nullable */
+  vehiclePrice: number | null;
+  /** @nullable */
+  vehicleUrl: string | null;
+  type: EnquiryType;
+  status: EnquiryStatus;
+  /** @minLength 1 */
+  customerName: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  preferredContact: string | null;
+  message: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EnquiryInputType = typeof EnquiryInputType[keyof typeof EnquiryInputType];
+
+
+export const EnquiryInputType = {
+  viewing: 'viewing',
+  general: 'general',
+  delivery: 'delivery',
+  warranty: 'warranty',
+  part_exchange: 'part_exchange',
+} as const;
+
+/**
+ * @nullable
+ */
+export type EnquiryInputPreferredContact = typeof EnquiryInputPreferredContact[keyof typeof EnquiryInputPreferredContact] | null;
+
+
+export const EnquiryInputPreferredContact = {
+  phone: 'phone',
+  email: 'email',
+  whatsapp: 'whatsapp',
+} as const;
+
+export interface EnquiryInput {
+  /** @nullable */
+  vehicleId: string | null;
+  type: EnquiryInputType;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  customerName: string;
+  /** @nullable */
+  email: string | null;
+  /**
+     * @minLength 5
+     * @maxLength 40
+     * @nullable
+     */
+  phone: string | null;
+  /** @nullable */
+  preferredContact: EnquiryInputPreferredContact;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  message: string;
+}
+
+export type EnquiryStatusUpdateStatus = typeof EnquiryStatusUpdateStatus[keyof typeof EnquiryStatusUpdateStatus];
+
+
+export const EnquiryStatusUpdateStatus = {
+  new: 'new',
+  contacted: 'contacted',
+  closed: 'closed',
+} as const;
+
+export interface EnquiryStatusUpdate {
+  status: EnquiryStatusUpdateStatus;
+}
+
+export type GetEnquiriesParams = {
+status?: GetEnquiriesStatus;
+};
+
+export type GetEnquiriesStatus = typeof GetEnquiriesStatus[keyof typeof GetEnquiriesStatus];
+
+
+export const GetEnquiriesStatus = {
+  new: 'new',
+  contacted: 'contacted',
+  closed: 'closed',
+} as const;
+

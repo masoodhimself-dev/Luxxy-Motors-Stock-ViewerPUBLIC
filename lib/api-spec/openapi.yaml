@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: stock
     description: Shared showroom stock
+  - name: enquiries
+    description: Customer enquiries and viewing requests
 paths:
   /healthz:
     get:
@@ -124,6 +126,113 @@ paths:
                 $ref: "#/components/schemas/Vehicle"
         "404":
           description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /enquiries:
+    get:
+      operationId: getEnquiries
+      tags: [enquiries]
+      summary: List customer enquiries
+      description: Returns customer enquiries for the configured dealer, newest first.
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [new, contacted, closed]
+      responses:
+        "200":
+          description: Customer enquiries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Enquiry"
+        "500":
+          description: Unable to load enquiries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createEnquiry
+      tags: [enquiries]
+      summary: Create a customer enquiry
+      description: Stores a website enquiry and snapshots the selected visible vehicle when provided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnquiryInput"
+      responses:
+        "201":
+          description: Enquiry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "400":
+          description: Enquiry failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Selected vehicle was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to create enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /enquiries/{id}/status:
+    patch:
+      operationId: updateEnquiryStatus
+      tags: [enquiries]
+      summary: Update enquiry status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnquiryStatusUpdate"
+      responses:
+        "200":
+          description: Updated enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "400":
+          description: Enquiry failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Enquiry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to update enquiry
           content:
             application/json:
               schema:
@@ -539,4 +648,111 @@ components:
           minLength: 1
       required:
         - error
+    Enquiry:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+        dealerId:
+          type: string
+          minLength: 1
+        vehicleId:
+          type: [string, "null"]
+        vehicleTitle:
+          type: [string, "null"]
+        vehicleRegistration:
+          type: [string, "null"]
+        vehiclePrice:
+          type: [number, "null"]
+          multipleOf: 1
+        vehicleUrl:
+          type: [string, "null"]
+        type:
+          type: string
+          enum: [viewing, general, delivery, warranty, part_exchange]
+        status:
+          type: string
+          enum: [new, contacted, closed]
+        customerName:
+          type: string
+          minLength: 1
+        email:
+          type: [string, "null"]
+        phone:
+          type: [string, "null"]
+        preferredContact:
+          type: [string, "null"]
+        message:
+          type: string
+        source:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - dealerId
+        - vehicleId
+        - vehicleTitle
+        - vehicleRegistration
+        - vehiclePrice
+        - vehicleUrl
+        - type
+        - status
+        - customerName
+        - email
+        - phone
+        - preferredContact
+        - message
+        - source
+        - createdAt
+        - updatedAt
+    EnquiryInput:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleId:
+          type: [string, "null"]
+        type:
+          type: string
+          enum: [viewing, general, delivery, warranty, part_exchange]
+        customerName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: [string, "null"]
+        phone:
+          type: [string, "null"]
+          minLength: 5
+          maxLength: 40
+        preferredContact:
+          type: [string, "null"]
+          enum: [phone, email, whatsapp]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+        - vehicleId
+        - type
+        - customerName
+        - email
+        - phone
+        - preferredContact
+        - message
+    EnquiryStatusUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [new, contacted, closed]
+      required:
+        - status
 

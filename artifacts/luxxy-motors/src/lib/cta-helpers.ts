@@ -21,12 +21,12 @@ export function getWhatsAppHref(message?: string) {
 }
 
 export function getContactHref(subject?: string) {
-  const whatsappHref = getWhatsAppHref(subject);
-  if (whatsappHref) return whatsappHref;
-  if (dealerConfig.contact.email) return `mailto:${dealerConfig.contact.email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
-  const phoneHref = getPhoneHref();
-  if (phoneHref) return phoneHref;
-  return '#contact';
+  const normalized = (subject || '').toLowerCase();
+  if (normalized.includes('part exchange')) return getEnquiryHref('part_exchange');
+  if (normalized.includes('warranty')) return getEnquiryHref('warranty');
+  if (normalized.includes('delivery')) return getEnquiryHref('delivery');
+  if (normalized.includes('viewing') || normalized.includes('booking')) return getEnquiryHref('viewing');
+  return getEnquiryHref('general');
 }
 
 function getVehicleLabel(car: Car) {
@@ -51,11 +51,13 @@ export function getVehicleWhatsAppHref(car: Car, request: string) {
 }
 
 export function getVehicleBookingHref(car: Car) {
-  const message = getVehicleContactMessage(car, 'book a viewing for this vehicle');
-  const whatsappHref = getWhatsAppHref(message);
-  if (whatsappHref) return whatsappHref;
-  if (dealerConfig.contact.email) {
-    return `mailto:${dealerConfig.contact.email}?subject=${encodeURIComponent('Book a viewing')}&body=${encodeURIComponent(message)}`;
-  }
-  return getPhoneHref() || '#contact';
+  return getEnquiryHref('viewing', car);
+}
+
+export type EnquiryType = 'viewing' | 'general' | 'delivery' | 'warranty' | 'part_exchange';
+
+export function getEnquiryHref(type: EnquiryType, car?: Car) {
+  const params = new URLSearchParams({ type });
+  if (car?.id) params.set('vehicleId', car.id);
+  return `/enquire?${params.toString()}`;
 }

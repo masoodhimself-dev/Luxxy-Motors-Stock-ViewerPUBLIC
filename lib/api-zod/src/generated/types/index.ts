@@ -7,6 +7,16 @@
  */
 
 export * from './apiError';
+export * from './enquiry';
+export * from './enquiryInput';
+export * from './enquiryInputPreferredContact';
+export * from './enquiryInputType';
+export * from './enquiryStatus';
+export * from './enquiryStatusUpdate';
+export * from './enquiryStatusUpdateStatus';
+export * from './enquiryType';
+export * from './getEnquiriesParams';
+export * from './getEnquiriesStatus';
 export * from './healthStatus';
 export * from './importedVehicle';
 export * from './sourceImportError';

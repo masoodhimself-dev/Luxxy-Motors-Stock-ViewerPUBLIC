@@ -312,3 +312,134 @@ export const GetVehicleResponse = zod.object({
 })
 
 
+/**
+ * Returns customer enquiries for the configured dealer, newest first.
+ * @summary List customer enquiries
+ */
+export const GetEnquiriesQueryParams = zod.object({
+  "status": zod.enum(['new', 'contacted', 'closed']).optional()
+})
+
+
+
+export const getEnquiriesResponseVehiclePriceMultipleOf = 1;
+
+
+
+
+export const GetEnquiriesResponseItem = zod.object({
+  "id": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(getEnquiriesResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetEnquiriesResponse = zod.array(GetEnquiriesResponseItem)
+
+
+/**
+ * Stores a website enquiry and snapshots the selected visible vehicle when provided.
+ * @summary Create a customer enquiry
+ */
+export const createEnquiryBodyCustomerNameMin = 2;
+export const createEnquiryBodyCustomerNameMax = 120;
+
+export const createEnquiryBodyPhoneMin = 5;
+export const createEnquiryBodyPhoneMax = 40;
+
+export const createEnquiryBodyMessageMax = 2000;
+
+
+
+export const CreateEnquiryBody = zod.object({
+  "vehicleId": zod.string().nullable(),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "customerName": zod.string().min(createEnquiryBodyCustomerNameMin).max(createEnquiryBodyCustomerNameMax),
+  "email": zod.string().nullable(),
+  "phone": zod.string().min(createEnquiryBodyPhoneMin).max(createEnquiryBodyPhoneMax).nullable(),
+  "preferredContact": zod.enum(['phone', 'email', 'whatsapp']).nullable(),
+  "message": zod.string().min(1).max(createEnquiryBodyMessageMax)
+})
+
+
+
+export const createEnquiryResponseVehiclePriceMultipleOf = 1;
+
+
+
+
+export const CreateEnquiryResponse = zod.object({
+  "id": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(createEnquiryResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update enquiry status
+ */
+
+
+
+export const UpdateEnquiryStatusParams = zod.object({
+  "id": zod.coerce.string().min(1)
+})
+
+export const UpdateEnquiryStatusBody = zod.object({
+  "status": zod.enum(['new', 'contacted', 'closed'])
+})
+
+
+
+export const updateEnquiryStatusResponseVehiclePriceMultipleOf = 1;
+
+
+
+
+export const UpdateEnquiryStatusResponse = zod.object({
+  "id": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(updateEnquiryStatusResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+

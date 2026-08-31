@@ -21,3 +21,4 @@ export * from "./stock-import-runs";
 export * from "./vehicles";
 export * from "./vehicle-images";
 export * from "./vehicle-changes";
+export * from "./enquiries";
