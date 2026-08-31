@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './actionResult';
 export * from './apiError';
+export * from './demoSignatureInput';
 export * from './enquiry';
 export * from './enquiryAvailability';
 export * from './enquiryAvailabilitySlot';
@@ -17,11 +19,24 @@ export * from './enquiryStatus';
 export * from './enquiryStatusUpdate';
 export * from './enquiryStatusUpdateStatus';
 export * from './enquiryType';
+export * from './finalCheckFailure';
+export * from './finalChecks';
 export * from './getEnquiriesParams';
 export * from './getEnquiriesStatus';
 export * from './getEnquiryAvailabilityParams';
 export * from './healthStatus';
 export * from './importedVehicle';
+export * from './sale';
+export * from './saleCompletion';
+export * from './saleInput';
+export * from './saleInputAdjustmentsItem';
+export * from './saleInputCustomer';
+export * from './saleInputFulfilment';
+export * from './saleInputPartExchange';
+export * from './saleInputWarranty';
+export * from './salePreparation';
+export * from './signingSession';
+export * from './signingSessionCompletion';
 export * from './sourceImportError';
 export * from './stock';
 export * from './stockImportEnvelope';

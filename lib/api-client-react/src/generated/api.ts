@@ -20,14 +20,24 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ActionResult,
   ApiError,
+  DemoSignatureInput,
   Enquiry,
   EnquiryAvailability,
   EnquiryInput,
   EnquiryStatusUpdate,
+  FinalCheckFailure,
+  FinalChecks,
   GetEnquiriesParams,
   GetEnquiryAvailabilityParams,
   HealthStatus,
+  Sale,
+  SaleCompletion,
+  SaleInput,
+  SalePreparation,
+  SigningSession,
+  SigningSessionCompletion,
   Stock,
   StockImportEnvelope,
   StockImportErrorResponse,
@@ -679,5 +689,674 @@ export const useUpdateEnquiryStatus = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getUpdateEnquiryStatusMutationOptions(options));
+    }
+
+export const getGetSalesUrl = () => {
+
+
+
+
+  return `/api/sales`
+}
+
+/**
+ * Development-only sales list. Staff authentication is required before production use.
+ * @summary List development sales
+ */
+export const getSales = async ( options?: Parameters<typeof customFetch>[1]): Promise<Sale[]> => {
+
+  return customFetch<Sale[]>(getGetSalesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSalesQueryKey = () => {
+    return [
+    `/api/sales`
+    ] as const;
+    }
+
+
+export const getGetSalesQueryOptions = <TData = Awaited<ReturnType<typeof getSales>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSales>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSalesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSales>>> = ({ signal }) => getSales({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSales>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSalesQueryResult = NonNullable<Awaited<ReturnType<typeof getSales>>>
+export type GetSalesQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary List development sales
+ */
+
+export function useGetSales<TData = Awaited<ReturnType<typeof getSales>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSales>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSalesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSaleUrl = () => {
+
+
+
+
+  return `/api/sales`
+}
+
+/**
+ * Creates a draft sale against one existing vehicle and customer.
+ * @summary Create a development sale
+ */
+export const createSale = async (saleInput: SaleInput, options?: Parameters<typeof customFetch>[1]): Promise<Sale> => {
+
+  return customFetch<Sale>(getCreateSaleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saleInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSaleMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSale>>, TError,{data: BodyType<SaleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSale>>, TError,{data: BodyType<SaleInput>}, TContext> => {
+
+const mutationKey = ['createSale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSale>>, {data: BodyType<SaleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSale(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSaleMutationResult = NonNullable<Awaited<ReturnType<typeof createSale>>>
+    export type CreateSaleMutationBody = BodyType<SaleInput>
+    export type CreateSaleMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Create a development sale
+ */
+export const useCreateSale = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSale>>, TError,{data: BodyType<SaleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSale>>,
+        TError,
+        {data: BodyType<SaleInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSaleMutationOptions(options));
+    }
+
+export const getGetSaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/sales/${id}`
+}
+
+/**
+ * @summary Get a development sale
+ */
+export const getSale = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Sale> => {
+
+  return customFetch<Sale>(getGetSaleUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSaleQueryKey = (id: string,) => {
+    return [
+    `/api/sales/${id}`
+    ] as const;
+    }
+
+
+export const getGetSaleQueryOptions = <TData = Awaited<ReturnType<typeof getSale>>, TError = ErrorType<ApiError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSaleQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSale>>> = ({ signal }) => getSale(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSaleQueryResult = NonNullable<Awaited<ReturnType<typeof getSale>>>
+export type GetSaleQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get a development sale
+ */
+
+export function useGetSale<TData = Awaited<ReturnType<typeof getSale>>, TError = ErrorType<ApiError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSale>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSaleQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPrepareSaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/sales/${id}/prepare`
+}
+
+/**
+ * Creates an immutable revision and development-only signing session.
+ * @summary Prepare and create a QR signing session
+ */
+export const prepareSale = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SalePreparation> => {
+
+  return customFetch<SalePreparation>(getPrepareSaleUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPrepareSaleMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof prepareSale>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['prepareSale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof prepareSale>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  prepareSale(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrepareSaleMutationResult = NonNullable<Awaited<ReturnType<typeof prepareSale>>>
+
+    export type PrepareSaleMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Prepare and create a QR signing session
+ */
+export const usePrepareSale = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof prepareSale>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPrepareSaleMutationOptions(options));
+    }
+
+export const getGetSaleFinalChecksUrl = (id: string,) => {
+
+
+
+
+  return `/api/sales/${id}/final-checks`
+}
+
+/**
+ * @summary Run deterministic development final-sale checks
+ */
+export const getSaleFinalChecks = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<FinalChecks> => {
+
+  return customFetch<FinalChecks>(getGetSaleFinalChecksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSaleFinalChecksQueryKey = (id: string,) => {
+    return [
+    `/api/sales/${id}/final-checks`
+    ] as const;
+    }
+
+
+export const getGetSaleFinalChecksQueryOptions = <TData = Awaited<ReturnType<typeof getSaleFinalChecks>>, TError = ErrorType<ApiError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSaleFinalChecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSaleFinalChecksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSaleFinalChecks>>> = ({ signal }) => getSaleFinalChecks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSaleFinalChecks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSaleFinalChecksQueryResult = NonNullable<Awaited<ReturnType<typeof getSaleFinalChecks>>>
+export type GetSaleFinalChecksQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Run deterministic development final-sale checks
+ */
+
+export function useGetSaleFinalChecks<TData = Awaited<ReturnType<typeof getSaleFinalChecks>>, TError = ErrorType<ApiError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSaleFinalChecks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSaleFinalChecksQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCompleteSaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/sales/${id}/complete`
+}
+
+/**
+ * Rechecks all rules transactionally, marks the vehicle sold, and creates metadata-only invoice/Deal Vault records.
+ * @summary Complete a development sale
+ */
+export const completeSale = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SaleCompletion> => {
+
+  return customFetch<SaleCompletion>(getCompleteSaleUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteSaleMutationOptions = <TError = ErrorType<ApiError | FinalCheckFailure>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeSale>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['completeSale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeSale>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  completeSale(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteSaleMutationResult = NonNullable<Awaited<ReturnType<typeof completeSale>>>
+
+    export type CompleteSaleMutationError = ErrorType<ApiError | FinalCheckFailure>
+
+    /**
+ * @summary Complete a development sale
+ */
+export const useCompleteSale = <TError = ErrorType<ApiError | FinalCheckFailure>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeSale>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCompleteSaleMutationOptions(options));
+    }
+
+export const getRevokeSaleSigningUrl = (id: string,) => {
+
+
+
+
+  return `/api/sales/${id}/revoke-signing`
+}
+
+/**
+ * @summary Revoke a pending development signing session
+ */
+export const revokeSaleSigning = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ActionResult> => {
+
+  return customFetch<ActionResult>(getRevokeSaleSigningUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeSaleSigningMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeSaleSigning>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeSaleSigning>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['revokeSaleSigning'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeSaleSigning>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  revokeSaleSigning(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeSaleSigningMutationResult = NonNullable<Awaited<ReturnType<typeof revokeSaleSigning>>>
+
+    export type RevokeSaleSigningMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Revoke a pending development signing session
+ */
+export const useRevokeSaleSigning = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeSaleSigning>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeSaleSigning>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRevokeSaleSigningMutationOptions(options));
+    }
+
+export const getGetSigningSessionUrl = (token: string,) => {
+
+
+
+
+  return `/api/signing/${token}`
+}
+
+/**
+ * Tokenized customer-facing development signing view. No PII is placed in the URL.
+ * @summary Get a development signing session
+ */
+export const getSigningSession = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<SigningSession> => {
+
+  return customFetch<SigningSession>(getGetSigningSessionUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSigningSessionQueryKey = (token: string,) => {
+    return [
+    `/api/signing/${token}`
+    ] as const;
+    }
+
+
+export const getGetSigningSessionQueryOptions = <TData = Awaited<ReturnType<typeof getSigningSession>>, TError = ErrorType<ApiError>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSigningSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSigningSessionQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSigningSession>>> = ({ signal }) => getSigningSession(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSigningSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSigningSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getSigningSession>>>
+export type GetSigningSessionQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get a development signing session
+ */
+
+export function useGetSigningSession<TData = Awaited<ReturnType<typeof getSigningSession>>, TError = ErrorType<ApiError>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSigningSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSigningSessionQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCompleteSigningSessionUrl = (token: string,) => {
+
+
+
+
+  return `/api/signing/${token}/complete`
+}
+
+/**
+ * @summary Complete the development demo signature
+ */
+export const completeSigningSession = async (token: string,
+    demoSignatureInput: DemoSignatureInput, options?: Parameters<typeof customFetch>[1]): Promise<SigningSessionCompletion> => {
+
+  return customFetch<SigningSessionCompletion>(getCompleteSigningSessionUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(demoSignatureInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteSigningSessionMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSigningSession>>, TError,{token: string;data: BodyType<DemoSignatureInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeSigningSession>>, TError,{token: string;data: BodyType<DemoSignatureInput>}, TContext> => {
+
+const mutationKey = ['completeSigningSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeSigningSession>>, {token: string;data: BodyType<DemoSignatureInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  completeSigningSession(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteSigningSessionMutationResult = NonNullable<Awaited<ReturnType<typeof completeSigningSession>>>
+    export type CompleteSigningSessionMutationBody = BodyType<DemoSignatureInput>
+    export type CompleteSigningSessionMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Complete the development demo signature
+ */
+export const useCompleteSigningSession = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSigningSession>>, TError,{token: string;data: BodyType<DemoSignatureInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeSigningSession>>,
+        TError,
+        {token: string;data: BodyType<DemoSignatureInput>},
+        TContext
+      > => {
+      return useMutation(getCompleteSigningSessionMutationOptions(options));
     }
 

@@ -451,6 +451,99 @@ export interface EnquiryAvailability {
   slots: EnquiryAvailabilitySlot[];
 }
 
+export interface Sale {
+  developmentOnly: boolean;
+  warning: string;
+  id: string;
+  status: string;
+  currency: string;
+  agreedPricePence: number;
+  depositPence: number;
+  balancePence: number;
+  createdAt: string;
+  [key: string]: unknown;
+ }
+
+export type SaleInputCustomer = {
+  /** @minLength 2 */
+  name: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phone?: string | null;
+};
+
+export type SaleInputAdjustmentsItem = {
+  kind: string;
+  description: string;
+  amountPence: number;
+};
+
+/**
+ * @nullable
+ */
+export type SaleInputPartExchange = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type SaleInputWarranty = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type SaleInputFulfilment = { [key: string]: unknown } | null;
+
+export interface SaleInput {
+  vehicleId: string;
+  /** @nullable */
+  enquiryId?: string | null;
+  customerId?: string;
+  customer?: SaleInputCustomer;
+  /** @minimum 0 */
+  agreedPricePence: number;
+  /** @minimum 0 */
+  depositPence?: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  mileageAtSale?: number | null;
+  /** @nullable */
+  disclosureNotes?: string | null;
+  /** @nullable */
+  internalNotes?: string | null;
+  adjustments?: SaleInputAdjustmentsItem[];
+  /** @nullable */
+  partExchange?: SaleInputPartExchange;
+  /** @nullable */
+  warranty?: SaleInputWarranty;
+  /** @nullable */
+  fulfilment?: SaleInputFulfilment;
+}
+
+export interface SalePreparation { [key: string]: unknown }
+
+export interface FinalChecks { [key: string]: unknown }
+
+export interface FinalCheckFailure { [key: string]: unknown }
+
+export interface SigningSession { [key: string]: unknown }
+
+export interface DemoSignatureInput {
+  /** @minLength 2 */
+  signerName: string;
+  /** @nullable */
+  signerEmail?: string | null;
+  acceptedCodes: string[];
+}
+
+export interface SaleCompletion { [key: string]: unknown }
+
+export interface SigningSessionCompletion { [key: string]: unknown }
+
+export interface ActionResult { [key: string]: unknown }
+
 export type GetEnquiriesParams = {
 status?: GetEnquiriesStatus;
 };

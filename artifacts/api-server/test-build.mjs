@@ -13,7 +13,7 @@ await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
 
 await build({
-  entryPoints: [path.join(artifactDir, "src/stock.integration.test.ts")],
+  entryPoints: [path.join(artifactDir, process.argv[2] ?? "src/stock.integration.test.ts")],
   platform: "node",
   bundle: true,
   format: "esm",

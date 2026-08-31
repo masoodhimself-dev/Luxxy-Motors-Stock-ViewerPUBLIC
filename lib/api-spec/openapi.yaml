@@ -14,6 +14,10 @@ tags:
     description: Shared showroom stock
   - name: enquiries
     description: Customer enquiries and viewing requests
+  - name: sales
+    description: Development-only dealer sales foundation
+  - name: signing
+    description: Development-only customer signing sessions
 paths:
   /healthz:
     get:
@@ -265,6 +269,278 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "500":
           description: Unable to update enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sales:
+    get:
+      operationId: getSales
+      tags: [sales]
+      summary: List development sales
+      description: Development-only sales list. Staff authentication is required before production use.
+      responses:
+        "200":
+          description: Development sales
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sale"
+        "500":
+          description: Unable to load sales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createSale
+      tags: [sales]
+      summary: Create a development sale
+      description: Creates a draft sale against one existing vehicle and customer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleInput"
+      responses:
+        "201":
+          description: Development sale created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+        "400":
+          description: Sale failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Vehicle already has an active sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sales/{id}:
+    get:
+      operationId: getSale
+      tags: [sales]
+      summary: Get a development sale
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Development sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sales/{id}/prepare:
+    post:
+      operationId: prepareSale
+      tags: [sales]
+      summary: Prepare and create a QR signing session
+      description: Creates an immutable revision and development-only signing session.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Revision and session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalePreparation"
+        "400":
+          description: Sale cannot be prepared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sales/{id}/final-checks:
+    get:
+      operationId: getSaleFinalChecks
+      tags: [sales]
+      summary: Run deterministic development final-sale checks
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Final-sale checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinalChecks"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sales/{id}/complete:
+    post:
+      operationId: completeSale
+      tags: [sales]
+      summary: Complete a development sale
+      description: Rechecks all rules transactionally, marks the vehicle sold, and creates metadata-only invoice/Deal Vault records.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sale completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleCompletion"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Sale changed while completing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: Final checks failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinalCheckFailure"
+  /sales/{id}/revoke-signing:
+    post:
+      operationId: revokeSaleSigning
+      tags: [sales]
+      summary: Revoke a pending development signing session
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: No pending session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /signing/{token}:
+    get:
+      operationId: getSigningSession
+      tags: [signing]
+      summary: Get a development signing session
+      description: Tokenized customer-facing development signing view. No PII is placed in the URL.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      responses:
+        "200":
+          description: Signing session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SigningSession"
+        "404":
+          description: Signing session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "410":
+          description: Signing session expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /signing/{token}/complete:
+    post:
+      operationId: completeSigningSession
+      tags: [signing]
+      summary: Complete the development demo signature
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoSignatureInput"
+      responses:
+        "200":
+          description: Demo signature recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SigningSessionCompletion"
+        "400":
+          description: Signature failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Signing session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Signing session is no longer pending
           content:
             application/json:
               schema:
@@ -858,4 +1134,178 @@ components:
         - date
         - timezone
         - slots
+    Sale:
+      type: object
+      additionalProperties: true
+      properties:
+        developmentOnly:
+          type: boolean
+        warning:
+          type: string
+        id:
+          type: string
+        status:
+          type: string
+        currency:
+          type: string
+        agreedPricePence:
+          type: number
+        depositPence:
+          type: number
+        balancePence:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - developmentOnly
+        - warning
+        - id
+        - status
+        - currency
+        - agreedPricePence
+        - depositPence
+        - balancePence
+        - createdAt
+    SaleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleId:
+          type: string
+        enquiryId:
+          type: [string, "null"]
+        customerId:
+          type: string
+        customer:
+          type: object
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+              minLength: 2
+            email:
+              type: [string, "null"]
+            phone:
+              type: [string, "null"]
+          required:
+            - name
+        agreedPricePence:
+          type: number
+          minimum: 0
+        depositPence:
+          type: number
+          minimum: 0
+        mileageAtSale:
+          type: [number, "null"]
+          minimum: 0
+        disclosureNotes:
+          type: [string, "null"]
+        internalNotes:
+          type: [string, "null"]
+        adjustments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              kind:
+                type: string
+              description:
+                type: string
+              amountPence:
+                type: number
+            required:
+              - kind
+              - description
+              - amountPence
+        partExchange:
+          type: [object, "null"]
+          additionalProperties: false
+        warranty:
+          type: [object, "null"]
+          additionalProperties: false
+        fulfilment:
+          type: [object, "null"]
+          additionalProperties: false
+      required:
+        - vehicleId
+        - agreedPricePence
+    SalePreparation:
+      type: object
+      additionalProperties: true
+      required:
+        - developmentOnly
+        - warning
+        - sale
+        - revision
+        - signingSession
+        - signingUrl
+        - qrSvg
+    FinalChecks:
+      type: object
+      additionalProperties: true
+      required:
+        - developmentOnly
+        - warning
+        - saleId
+        - canComplete
+        - checks
+    FinalCheckFailure:
+      type: object
+      additionalProperties: true
+      required:
+        - error
+        - checks
+    SigningSession:
+      type: object
+      additionalProperties: true
+      required:
+        - developmentOnly
+        - warning
+        - session
+        - sale
+        - customer
+        - revision
+    DemoSignatureInput:
+      type: object
+      additionalProperties: false
+      properties:
+        signerName:
+          type: string
+          minLength: 2
+        signerEmail:
+          type: [string, "null"]
+        acceptedCodes:
+          type: array
+          items:
+            type: string
+      required:
+        - signerName
+        - acceptedCodes
+    SaleCompletion:
+      type: object
+      additionalProperties: true
+      required:
+        - developmentOnly
+        - warning
+        - completed
+        - idempotent
+        - sale
+        - checks
+    SigningSessionCompletion:
+      type: object
+      additionalProperties: true
+      required:
+        - developmentOnly
+        - warning
+        - signed
+        - sale
+    ActionResult:
+      type: object
+      additionalProperties: true
+      required:
+        - developmentOnly
+        - warning
+        - revoked
 

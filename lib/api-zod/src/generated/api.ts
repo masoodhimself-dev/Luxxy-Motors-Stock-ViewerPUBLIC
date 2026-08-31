@@ -501,3 +501,179 @@ export const UpdateEnquiryStatusResponse = zod.object({
 })
 
 
+/**
+ * Development-only sales list. Staff authentication is required before production use.
+ * @summary List development sales
+ */
+export const GetSalesResponseItem = zod.object({
+  "developmentOnly": zod.boolean(),
+  "warning": zod.string(),
+  "id": zod.string(),
+  "status": zod.string(),
+  "currency": zod.string(),
+  "agreedPricePence": zod.number(),
+  "depositPence": zod.number(),
+  "balancePence": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const GetSalesResponse = zod.array(GetSalesResponseItem)
+
+
+/**
+ * Creates a draft sale against one existing vehicle and customer.
+ * @summary Create a development sale
+ */
+export const createSaleBodyCustomerNameMin = 2;
+
+export const createSaleBodyAgreedPricePenceMin = 0;
+
+export const createSaleBodyDepositPenceMin = 0;
+
+export const createSaleBodyMileageAtSaleMin = 0;
+
+
+
+export const CreateSaleBody = zod.object({
+  "vehicleId": zod.string(),
+  "enquiryId": zod.string().nullish(),
+  "customerId": zod.string().optional(),
+  "customer": zod.object({
+  "name": zod.string().min(createSaleBodyCustomerNameMin),
+  "email": zod.string().nullish(),
+  "phone": zod.string().nullish()
+}).optional(),
+  "agreedPricePence": zod.number().min(createSaleBodyAgreedPricePenceMin),
+  "depositPence": zod.number().min(createSaleBodyDepositPenceMin).optional(),
+  "mileageAtSale": zod.number().min(createSaleBodyMileageAtSaleMin).nullish(),
+  "disclosureNotes": zod.string().nullish(),
+  "internalNotes": zod.string().nullish(),
+  "adjustments": zod.array(zod.object({
+  "kind": zod.string(),
+  "description": zod.string(),
+  "amountPence": zod.number()
+})).optional(),
+  "partExchange": zod.object({
+
+}).nullish(),
+  "warranty": zod.object({
+
+}).nullish(),
+  "fulfilment": zod.object({
+
+}).nullish()
+})
+
+export const CreateSaleResponse = zod.object({
+  "developmentOnly": zod.boolean(),
+  "warning": zod.string(),
+  "id": zod.string(),
+  "status": zod.string(),
+  "currency": zod.string(),
+  "agreedPricePence": zod.number(),
+  "depositPence": zod.number(),
+  "balancePence": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a development sale
+ */
+export const GetSaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSaleResponse = zod.object({
+  "developmentOnly": zod.boolean(),
+  "warning": zod.string(),
+  "id": zod.string(),
+  "status": zod.string(),
+  "currency": zod.string(),
+  "agreedPricePence": zod.number(),
+  "depositPence": zod.number(),
+  "balancePence": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Creates an immutable revision and development-only signing session.
+ * @summary Prepare and create a QR signing session
+ */
+export const PrepareSaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PrepareSaleResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Run deterministic development final-sale checks
+ */
+export const GetSaleFinalChecksParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSaleFinalChecksResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * Rechecks all rules transactionally, marks the vehicle sold, and creates metadata-only invoice/Deal Vault records.
+ * @summary Complete a development sale
+ */
+export const CompleteSaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CompleteSaleResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Revoke a pending development signing session
+ */
+export const RevokeSaleSigningParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokeSaleSigningResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * Tokenized customer-facing development signing view. No PII is placed in the URL.
+ * @summary Get a development signing session
+ */
+export const getSigningSessionPathTokenMin = 32;
+
+
+
+export const GetSigningSessionParams = zod.object({
+  "token": zod.coerce.string().min(getSigningSessionPathTokenMin)
+})
+
+export const GetSigningSessionResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Complete the development demo signature
+ */
+export const completeSigningSessionPathTokenMin = 32;
+
+
+
+export const CompleteSigningSessionParams = zod.object({
+  "token": zod.coerce.string().min(completeSigningSessionPathTokenMin)
+})
+
+export const completeSigningSessionBodySignerNameMin = 2;
+
+
+
+export const CompleteSigningSessionBody = zod.object({
+  "signerName": zod.string().min(completeSigningSessionBodySignerNameMin),
+  "signerEmail": zod.string().nullish(),
+  "acceptedCodes": zod.array(zod.string())
+})
+
+export const CompleteSigningSessionResponse = zod.record(zod.string(), zod.unknown())
+
+

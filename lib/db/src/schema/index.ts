@@ -22,3 +22,4 @@ export * from "./vehicles";
 export * from "./vehicle-images";
 export * from "./vehicle-changes";
 export * from "./enquiries";
+export * from "./sales";
