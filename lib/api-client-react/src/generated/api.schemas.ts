@@ -630,6 +630,61 @@ export interface EnquiryAvailability {
   slots: EnquiryAvailabilitySlot[];
 }
 
+export interface CustomerIntakeCustomer {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+}
+
+export type CustomerIntakeSessionStatus = typeof CustomerIntakeSessionStatus[keyof typeof CustomerIntakeSessionStatus];
+
+
+export const CustomerIntakeSessionStatus = {
+  pending: 'pending',
+  completed: 'completed',
+  expired: 'expired',
+} as const;
+
+export interface CustomerIntakeSession {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  vehicleId: string;
+  status: CustomerIntakeSessionStatus;
+  expiresAt: string;
+  /** @minLength 1 */
+  customerDetailsPath: string;
+  customer: CustomerIntakeCustomer | null;
+}
+
+export interface CustomerIntakeSessionInput {
+  /** @minLength 1 */
+  vehicleId: string;
+}
+
+export interface CustomerIntakeCompletionInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  email: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  phone: string | null;
+}
+
 export interface Sale {
   developmentOnly: boolean;
   warning: string;

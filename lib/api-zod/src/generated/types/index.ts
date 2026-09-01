@@ -8,6 +8,11 @@
 
 export * from './actionResult';
 export * from './apiError';
+export * from './customerIntakeCompletionInput';
+export * from './customerIntakeCustomer';
+export * from './customerIntakeSession';
+export * from './customerIntakeSessionInput';
+export * from './customerIntakeSessionStatus';
 export * from './dealerAddress';
 export * from './dealerBookViewing';
 export * from './dealerBrandColors';

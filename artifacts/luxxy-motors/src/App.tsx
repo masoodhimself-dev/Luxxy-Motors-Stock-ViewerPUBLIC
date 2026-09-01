@@ -17,6 +17,7 @@ import CarDetail from '@/pages/car-detail';
 import Portal from '@/pages/portal';
 import Enquire from '@/pages/enquire';
 import Signing from '@/pages/signing';
+import CustomerDetails from '@/pages/customer-details';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ function Router() {
           <Route path="/portal" component={Portal} />
           <Route path="/enquire" component={Enquire} />
           <Route path="/sign/:token" component={Signing} />
+          <Route path="/customer-details/:token" component={CustomerDetails} />
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>

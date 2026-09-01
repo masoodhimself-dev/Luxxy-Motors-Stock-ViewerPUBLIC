@@ -4,6 +4,7 @@ import stockRouter from "./stock";
 import enquiriesRouter from "./enquiries";
 import salesRouter from "./sales";
 import dealerSettingsRouter from "./dealer-settings";
+import customerIntakeRouter from "./customer-intake";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(stockRouter);
 router.use(enquiriesRouter);
 router.use(salesRouter);
 router.use(dealerSettingsRouter);
+router.use(customerIntakeRouter);
 
 export default router;

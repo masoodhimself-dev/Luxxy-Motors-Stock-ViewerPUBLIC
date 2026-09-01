@@ -22,6 +22,9 @@ import type {
 import type {
   ActionResult,
   ApiError,
+  CustomerIntakeCompletionInput,
+  CustomerIntakeSession,
+  CustomerIntakeSessionInput,
   DealerSettings,
   DealerSettingsInput,
   DemoSignatureInput,
@@ -691,6 +694,229 @@ export const useUpdateEnquiryStatus = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getUpdateEnquiryStatusMutationOptions(options));
+    }
+
+export const getCreateCustomerIntakeSessionUrl = () => {
+
+
+
+
+  return `/api/customer-intake-sessions`
+}
+
+/**
+ * Creates a short-lived link that lets a customer enter their own details before a development sale is created.
+ * @summary Create a customer self-entry session
+ */
+export const createCustomerIntakeSession = async (customerIntakeSessionInput: CustomerIntakeSessionInput, options?: Parameters<typeof customFetch>[1]): Promise<CustomerIntakeSession> => {
+
+  return customFetch<CustomerIntakeSession>(getCreateCustomerIntakeSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(customerIntakeSessionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCustomerIntakeSessionMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustomerIntakeSession>>, TError,{data: BodyType<CustomerIntakeSessionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCustomerIntakeSession>>, TError,{data: BodyType<CustomerIntakeSessionInput>}, TContext> => {
+
+const mutationKey = ['createCustomerIntakeSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCustomerIntakeSession>>, {data: BodyType<CustomerIntakeSessionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCustomerIntakeSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCustomerIntakeSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createCustomerIntakeSession>>>
+    export type CreateCustomerIntakeSessionMutationBody = BodyType<CustomerIntakeSessionInput>
+    export type CreateCustomerIntakeSessionMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Create a customer self-entry session
+ */
+export const useCreateCustomerIntakeSession = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustomerIntakeSession>>, TError,{data: BodyType<CustomerIntakeSessionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCustomerIntakeSession>>,
+        TError,
+        {data: BodyType<CustomerIntakeSessionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCustomerIntakeSessionMutationOptions(options));
+    }
+
+export const getGetCustomerIntakeSessionUrl = (token: string,) => {
+
+
+
+
+  return `/api/customer-intake-sessions/${token}`
+}
+
+/**
+ * Returns the current status of a short-lived customer details session.
+ * @summary Get a customer self-entry session
+ */
+export const getCustomerIntakeSession = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<CustomerIntakeSession> => {
+
+  return customFetch<CustomerIntakeSession>(getGetCustomerIntakeSessionUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerIntakeSessionQueryKey = (token: string,) => {
+    return [
+    `/api/customer-intake-sessions/${token}`
+    ] as const;
+    }
+
+
+export const getGetCustomerIntakeSessionQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerIntakeSession>>, TError = ErrorType<ApiError>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerIntakeSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerIntakeSessionQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerIntakeSession>>> = ({ signal }) => getCustomerIntakeSession(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerIntakeSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustomerIntakeSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerIntakeSession>>>
+export type GetCustomerIntakeSessionQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get a customer self-entry session
+ */
+
+export function useGetCustomerIntakeSession<TData = Awaited<ReturnType<typeof getCustomerIntakeSession>>, TError = ErrorType<ApiError>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerIntakeSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustomerIntakeSessionQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCompleteCustomerIntakeSessionUrl = (token: string,) => {
+
+
+
+
+  return `/api/customer-intake-sessions/${token}/complete`
+}
+
+/**
+ * Stores customer details against a self-entry session so the dealer can use them when creating a sale.
+ * @summary Save customer-entered details
+ */
+export const completeCustomerIntakeSession = async (token: string,
+    customerIntakeCompletionInput: CustomerIntakeCompletionInput, options?: Parameters<typeof customFetch>[1]): Promise<CustomerIntakeSession> => {
+
+  return customFetch<CustomerIntakeSession>(getCompleteCustomerIntakeSessionUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(customerIntakeCompletionInput)
+  }
+);}
+
+
+
+
+
+export const getCompleteCustomerIntakeSessionMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeCustomerIntakeSession>>, TError,{token: string;data: BodyType<CustomerIntakeCompletionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeCustomerIntakeSession>>, TError,{token: string;data: BodyType<CustomerIntakeCompletionInput>}, TContext> => {
+
+const mutationKey = ['completeCustomerIntakeSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeCustomerIntakeSession>>, {token: string;data: BodyType<CustomerIntakeCompletionInput>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  completeCustomerIntakeSession(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteCustomerIntakeSessionMutationResult = NonNullable<Awaited<ReturnType<typeof completeCustomerIntakeSession>>>
+    export type CompleteCustomerIntakeSessionMutationBody = BodyType<CustomerIntakeCompletionInput>
+    export type CompleteCustomerIntakeSessionMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Save customer-entered details
+ */
+export const useCompleteCustomerIntakeSession = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeCustomerIntakeSession>>, TError,{token: string;data: BodyType<CustomerIntakeCompletionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeCustomerIntakeSession>>,
+        TError,
+        {token: string;data: BodyType<CustomerIntakeCompletionInput>},
+        TContext
+      > => {
+      return useMutation(getCompleteCustomerIntakeSessionMutationOptions(options));
     }
 
 export const getGetSalesUrl = () => {

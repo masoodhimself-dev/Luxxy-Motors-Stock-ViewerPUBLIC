@@ -18,6 +18,8 @@ tags:
     description: Development-only dealer sales foundation
   - name: signing
     description: Development-only customer signing sessions
+  - name: customer-intake
+    description: Customer self-entry sessions for starting a dealer sale
 paths:
   /healthz:
     get:
@@ -269,6 +271,119 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "500":
           description: Unable to update enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /customer-intake-sessions:
+    post:
+      operationId: createCustomerIntakeSession
+      tags: [customer-intake]
+      summary: Create a customer self-entry session
+      description: Creates a short-lived link that lets a customer enter their own details before a development sale is created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerIntakeSessionInput"
+      responses:
+        "201":
+          description: Customer self-entry session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerIntakeSession"
+        "400":
+          description: Session request failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /customer-intake-sessions/{token}:
+    get:
+      operationId: getCustomerIntakeSession
+      tags: [customer-intake]
+      summary: Get a customer self-entry session
+      description: Returns the current status of a short-lived customer details session.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      responses:
+        "200":
+          description: Customer self-entry session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerIntakeSession"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "410":
+          description: Session expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /customer-intake-sessions/{token}/complete:
+    post:
+      operationId: completeCustomerIntakeSession
+      tags: [customer-intake]
+      summary: Save customer-entered details
+      description: Stores customer details against a self-entry session so the dealer can use them when creating a sale.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+            minLength: 32
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerIntakeCompletionInput"
+      responses:
+        "200":
+          description: Customer details saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerIntakeSession"
+        "400":
+          description: Customer details failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Session has already been completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "410":
+          description: Session expired
           content:
             application/json:
               schema:
@@ -1308,6 +1423,68 @@ components:
         - date
         - timezone
         - slots
+    CustomerIntakeCustomer:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: [string, "null"]
+        phone:
+          type: [string, "null"]
+      required: [id, name, email, phone]
+    CustomerIntakeSession:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+        vehicleId:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [pending, completed, expired]
+        expiresAt:
+          type: string
+          format: date-time
+        customerDetailsPath:
+          type: string
+          minLength: 1
+        customer:
+          oneOf:
+            - $ref: "#/components/schemas/CustomerIntakeCustomer"
+            - type: "null"
+      required: [id, vehicleId, status, expiresAt, customerDetailsPath, customer]
+    CustomerIntakeSessionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleId:
+          type: string
+          minLength: 1
+      required: [vehicleId]
+    CustomerIntakeCompletionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: [string, "null"]
+          maxLength: 320
+        phone:
+          type: [string, "null"]
+          maxLength: 40
+      required: [name, email, phone]
     Sale:
       type: object
       additionalProperties: true

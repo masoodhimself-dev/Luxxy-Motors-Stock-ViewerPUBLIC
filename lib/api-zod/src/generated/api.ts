@@ -502,6 +502,122 @@ export const UpdateEnquiryStatusResponse = zod.object({
 
 
 /**
+ * Creates a short-lived link that lets a customer enter their own details before a development sale is created.
+ * @summary Create a customer self-entry session
+ */
+
+
+
+export const CreateCustomerIntakeSessionBody = zod.object({
+  "vehicleId": zod.string().min(1)
+})
+
+
+
+
+
+
+
+
+export const CreateCustomerIntakeSessionResponse = zod.object({
+  "id": zod.string().min(1),
+  "vehicleId": zod.string().min(1),
+  "status": zod.enum(['pending', 'completed', 'expired']),
+  "expiresAt": zod.coerce.date(),
+  "customerDetailsPath": zod.string().min(1),
+  "customer": zod.union([zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * Returns the current status of a short-lived customer details session.
+ * @summary Get a customer self-entry session
+ */
+export const getCustomerIntakeSessionPathTokenMin = 32;
+
+
+
+export const GetCustomerIntakeSessionParams = zod.object({
+  "token": zod.coerce.string().min(getCustomerIntakeSessionPathTokenMin)
+})
+
+
+
+
+
+
+
+
+export const GetCustomerIntakeSessionResponse = zod.object({
+  "id": zod.string().min(1),
+  "vehicleId": zod.string().min(1),
+  "status": zod.enum(['pending', 'completed', 'expired']),
+  "expiresAt": zod.coerce.date(),
+  "customerDetailsPath": zod.string().min(1),
+  "customer": zod.union([zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * Stores customer details against a self-entry session so the dealer can use them when creating a sale.
+ * @summary Save customer-entered details
+ */
+export const completeCustomerIntakeSessionPathTokenMin = 32;
+
+
+
+export const CompleteCustomerIntakeSessionParams = zod.object({
+  "token": zod.coerce.string().min(completeCustomerIntakeSessionPathTokenMin)
+})
+
+export const completeCustomerIntakeSessionBodyNameMin = 2;
+export const completeCustomerIntakeSessionBodyNameMax = 120;
+
+export const completeCustomerIntakeSessionBodyEmailMax = 320;
+
+export const completeCustomerIntakeSessionBodyPhoneMax = 40;
+
+
+
+export const CompleteCustomerIntakeSessionBody = zod.object({
+  "name": zod.string().min(completeCustomerIntakeSessionBodyNameMin).max(completeCustomerIntakeSessionBodyNameMax),
+  "email": zod.string().max(completeCustomerIntakeSessionBodyEmailMax).nullable(),
+  "phone": zod.string().max(completeCustomerIntakeSessionBodyPhoneMax).nullable()
+})
+
+
+
+
+
+
+
+
+export const CompleteCustomerIntakeSessionResponse = zod.object({
+  "id": zod.string().min(1),
+  "vehicleId": zod.string().min(1),
+  "status": zod.enum(['pending', 'completed', 'expired']),
+  "expiresAt": zod.coerce.date(),
+  "customerDetailsPath": zod.string().min(1),
+  "customer": zod.union([zod.object({
+  "id": zod.string().min(1),
+  "name": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
  * Development-only sales list. Staff authentication is required before production use.
  * @summary List development sales
  */

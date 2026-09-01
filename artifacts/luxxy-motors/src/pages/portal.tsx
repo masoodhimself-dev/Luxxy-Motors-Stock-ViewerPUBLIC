@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getGetSalesQueryKey,
   getGetSaleFinalChecksQueryKey,
   getGetSaleQueryKey,
+  getGetCustomerIntakeSessionQueryKey,
   getGetEnquiriesQueryKey,
   type Sale,
   type SaleInput,
   useCompleteSale,
+  useCreateCustomerIntakeSession,
   useCreateSale,
+  useGetCustomerIntakeSession,
   useGetEnquiries,
   useGetSale,
   useGetSaleFinalChecks,
@@ -18,6 +21,7 @@ import {
   type Enquiry,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   CheckCircle2,
   ClipboardCheck,
@@ -33,7 +37,9 @@ import {
   MessageSquare,
   Phone,
   Plus,
+  QrCode,
   ShieldAlert,
+  UserRound,
   XCircle,
 } from 'lucide-react';
 import { Link } from 'wouter';
@@ -128,13 +134,20 @@ function formatPence(value: number | undefined) {
 
 function SaleCreateForm({
   onCreated,
+  recentEnquiries,
 }: {
   onCreated: (saleId: string) => void;
+  recentEnquiries: Enquiry[];
 }) {
   const { stock } = useStock();
   const createSale = useCreateSale();
+  const createIntake = useCreateCustomerIntakeSession();
   const cars = stock?.cars ?? [];
   const [vehicleId, setVehicleId] = useState(cars[0]?.id ?? '');
+  const [customerMode, setCustomerMode] = useState<'none' | 'enquiry' | 'qr'>('none');
+  const [enquiryId, setEnquiryId] = useState('');
+  const [intakeToken, setIntakeToken] = useState('');
+  const [intakePath, setIntakePath] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -142,12 +155,95 @@ function SaleCreateForm({
   const [deposit, setDeposit] = useState('0');
   const [disclosures, setDisclosures] = useState('Development disclosure placeholder — requires legal review before production use.');
   const selectedCar = cars.find((car) => car.id === vehicleId);
+  const selectedEnquiry = recentEnquiries.find((enquiry) => enquiry.id === enquiryId);
+  const intakeQuery = useGetCustomerIntakeSession(intakeToken, {
+    query: {
+      queryKey: getGetCustomerIntakeSessionQueryKey(intakeToken),
+      enabled: Boolean(intakeToken),
+      retry: false,
+      refetchInterval: 2500,
+    },
+  });
+  const intakeCustomer = intakeQuery.data?.customer;
+  const selectedCustomer = customerMode === 'enquiry' && selectedEnquiry
+    ? { id: null, name: selectedEnquiry.customerName, email: selectedEnquiry.email, phone: selectedEnquiry.phone }
+    : customerMode === 'qr' && intakeCustomer
+      ? intakeCustomer
+      : null;
+  const customerDetailsUrl = intakePath
+    ? `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}${intakePath}`
+    : '';
+
+  useEffect(() => {
+    if (!intakeCustomer || intakeQuery.data?.status !== 'completed') return;
+    setCustomerMode('qr');
+    setName(intakeCustomer.name);
+    setEmail(intakeCustomer.email ?? '');
+    setPhone(intakeCustomer.phone ?? '');
+  }, [intakeCustomer, intakeQuery.data?.status]);
+
+  const resetCustomer = () => {
+    setCustomerMode('none');
+    setEnquiryId('');
+    setIntakeToken('');
+    setIntakePath('');
+    setName('');
+    setEmail('');
+    setPhone('');
+  };
+
+  const chooseEnquiry = (value: string) => {
+    setIntakeToken('');
+    setIntakePath('');
+    setEnquiryId(value);
+    const enquiry = recentEnquiries.find((candidate) => candidate.id === value);
+    if (!enquiry) {
+      setCustomerMode('none');
+      setName('');
+      setEmail('');
+      setPhone('');
+      return;
+    }
+    setCustomerMode('enquiry');
+    setName(enquiry.customerName);
+    setEmail(enquiry.email ?? '');
+    setPhone(enquiry.phone ?? '');
+  };
+
+  const generateCustomerLink = () => {
+    if (!vehicleId) return;
+    createIntake.mutate(
+      { data: { vehicleId } },
+      {
+        onSuccess: (session) => {
+          const token = session.customerDetailsPath.split('/').filter(Boolean).pop() ?? '';
+          setCustomerMode('qr');
+          setEnquiryId('');
+          setIntakeToken(token);
+          setIntakePath(session.customerDetailsPath);
+          setName('');
+          setEmail('');
+          setPhone('');
+        },
+      },
+    );
+  };
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!selectedCustomer) return;
     const data: SaleInput = {
       vehicleId,
-      customer: { name: name.trim(), email: email.trim() || null, phone: phone.trim() || null },
+      ...(selectedCustomer.id
+        ? { customerId: selectedCustomer.id }
+        : {
+            customer: {
+              name: name.trim(),
+              email: email.trim() || null,
+              phone: phone.trim() || null,
+            },
+          }),
+      ...(customerMode === 'enquiry' && enquiryId ? { enquiryId } : {}),
       agreedPricePence: Math.round(Number(price) * 100),
       depositPence: Math.round(Number(deposit || 0) * 100),
       mileageAtSale: selectedCar?.mileage ?? null,
@@ -166,6 +262,10 @@ function SaleCreateForm({
           setName('');
           setEmail('');
           setPhone('');
+          setCustomerMode('none');
+          setEnquiryId('');
+          setIntakeToken('');
+          setIntakePath('');
           setPrice('');
           setDeposit('0');
         },
@@ -190,6 +290,7 @@ function SaleCreateForm({
             value={vehicleId}
             onChange={(event) => {
               setVehicleId(event.target.value);
+              resetCustomer();
               const car = cars.find((candidate) => candidate.id === event.target.value);
               if (car?.price != null) setPrice(String(car.price));
             }}
@@ -203,18 +304,70 @@ function SaleCreateForm({
             ))}
           </select>
         </label>
-        <label className="space-y-2 text-sm font-semibold">
-          <span>Customer name</span>
-          <Input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} placeholder="Jane Smith" />
-        </label>
-        <label className="space-y-2 text-sm font-semibold">
-          <span>Email</span>
-          <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="jane@example.com" />
-        </label>
-        <label className="space-y-2 text-sm font-semibold">
-          <span>Phone</span>
-          <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Optional" />
-        </label>
+        <div className="rounded-xl border bg-muted/20 p-4 sm:col-span-2">
+          <div className="flex items-start gap-3">
+            <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <p className="font-bold">Customer details</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                You do not need to type them here. Use a recent enquiry or let the customer enter their own details.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+            <label className="space-y-2 text-sm font-semibold">
+              <span>Use a recent enquiry</span>
+              <select
+                value={enquiryId}
+                onChange={(event) => chooseEnquiry(event.target.value)}
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Choose an enquiry…</option>
+                {recentEnquiries.slice(0, 10).map((enquiry) => (
+                  <option key={enquiry.id} value={enquiry.id}>
+                    {enquiry.customerName} · {typeLabels[enquiry.type]} · {formatDate(enquiry.createdAt)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-6 md:mt-0"
+              onClick={generateCustomerLink}
+              disabled={createIntake.isPending || !vehicleId}
+            >
+              <QrCode className="mr-2 h-4 w-4" />
+              {createIntake.isPending ? 'Generating…' : 'Generate customer QR'}
+            </Button>
+          </div>
+          {selectedCustomer && (
+            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950">
+              <p className="font-bold">Customer ready</p>
+              <p className="mt-1">{selectedCustomer.name}</p>
+              <p className="text-green-900/75">{selectedCustomer.email || selectedCustomer.phone || 'No contact method provided'}</p>
+              <button type="button" className="mt-2 text-xs font-bold text-green-900 underline" onClick={resetCustomer}>Choose a different customer</button>
+            </div>
+          )}
+          {customerMode === 'qr' && intakePath && !intakeCustomer && (
+            <div className="mt-5 flex flex-col items-center gap-4 rounded-xl border bg-background p-4 text-center sm:flex-row sm:text-left">
+              <div className="rounded-lg bg-white p-3 shadow-sm">
+                <QRCodeSVG value={customerDetailsUrl} size={180} includeMargin />
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold">Ask the customer to scan this code</p>
+                <p className="mt-1 text-sm text-muted-foreground">This screen will fill in automatically when they save their details.</p>
+                <Input readOnly value={customerDetailsUrl} className="mt-3 text-xs" />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => navigator.clipboard?.writeText(customerDetailsUrl)}><Copy className="mr-2 h-3.5 w-3.5" />Copy link</Button>
+                  <Button type="button" size="sm" variant="outline" asChild><a href={customerDetailsUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-3.5 w-3.5" />Open form</a></Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {intakeQuery.isError && <p className="mt-3 text-sm text-destructive">This customer link is unavailable. Generate a new one.</p>}
+          {createIntake.isError && <p className="mt-3 text-sm text-destructive">{apiMessage(createIntake.error, 'Could not generate a customer link.')}</p>}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="space-y-2 text-sm font-semibold">
             <span>Total (£)</span>
@@ -231,9 +384,10 @@ function SaleCreateForm({
         </label>
       </div>
       {createSale.isError && <p className="mt-4 text-sm text-destructive">{apiMessage(createSale.error, 'Could not create this sale.')}</p>}
-      <Button type="submit" className="mt-5 font-bold" disabled={createSale.isPending || !vehicleId}>
+      <Button type="submit" className="mt-5 font-bold" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
         <Plus className="mr-2 h-4 w-4" /> {createSale.isPending ? 'Creating deal…' : 'Create draft sale'}
       </Button>
+      {!selectedCustomer && <p className="mt-3 text-sm text-muted-foreground">Select a recent enquiry or wait for the customer to save their details before creating the draft.</p>}
     </form>
   );
 }
@@ -484,6 +638,7 @@ export default function Portal() {
   const [showSaleForm, setShowSaleForm] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   const enquiryQuery = useGetEnquiries(filter === 'all' ? undefined : { status: filter });
+  const recentEnquiriesQuery = useGetEnquiries();
   const salesQuery = useGetSales({ query: { queryKey: getGetSalesQueryKey(), refetchInterval: 5000 } });
   const enquiries = enquiryQuery.data ?? [];
   const sales = salesQuery.data ?? [];
@@ -528,7 +683,7 @@ export default function Portal() {
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
             <div><p className="font-bold">DEVELOPMENT ONLY</p><p className="mt-1 text-amber-900/80">Demo signatures, templates, invoice metadata, and the passwordless staff portal are not production-ready. Staff authentication and legal review are required before any real sale.</p></div>
           </div>
-          {showSaleForm && <div className="mb-5"><SaleCreateForm onCreated={(saleId) => { setShowSaleForm(false); setSelectedSaleId(saleId); salesQuery.refetch(); }} /></div>}
+          {showSaleForm && <div className="mb-5"><SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={(saleId) => { setShowSaleForm(false); setSelectedSaleId(saleId); salesQuery.refetch(); }} /></div>}
           {selectedSaleId ? (
             <SaleDetail id={selectedSaleId} onBack={() => setSelectedSaleId(null)} />
           ) : salesQuery.isLoading ? (
