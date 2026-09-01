@@ -416,28 +416,77 @@ export default function Home() {
 
       {/* Part Exchange Full Width */}
       {dealerConfig.partExchange?.enabled && (
-        <section id="part-exchange" data-home-section className="relative py-32 bg-primary overflow-hidden">
+        <section id="part-exchange" data-home-section className="relative overflow-hidden bg-primary py-24 text-primary-foreground md:py-32">
           {heroImage && (
-            <div className="absolute inset-0 opacity-10 mix-blend-luminosity">
-              <img src={heroImage} alt="" loading="lazy" aria-hidden="true" className="w-full h-full object-cover" />
+            <div className="absolute inset-y-0 right-0 hidden w-1/2 opacity-20 mix-blend-luminosity lg:block">
+              <img src={heroImage} alt="" loading="lazy" aria-hidden="true" className="h-full w-full object-cover" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/95 to-primary/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/95 to-primary/75"></div>
 
-          <div className="container relative mx-auto px-4 z-10">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/20 text-accent mb-6">
-                <RefreshCcw className="w-8 h-8" />
+          <div className="container relative z-10 mx-auto px-4">
+            <div className="grid gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(420px,0.78fr)] lg:items-center lg:gap-16">
+              <div className="max-w-xl">
+                <div className="mb-6 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-accent">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15">
+                    <RefreshCcw className="h-5 w-5" />
+                  </span>
+                  Part exchange
+                </div>
+                <h2 className="mb-6 text-4xl font-black leading-tight tracking-tight text-white md:text-5xl">
+                  {dealerConfig.partExchange.title}
+                </h2>
+                <p className="max-w-lg text-lg leading-relaxed text-primary-foreground/80 md:text-xl">
+                  {dealerConfig.partExchange.description}
+                </p>
+
+                <div className="mt-10 grid gap-5 sm:grid-cols-3 lg:grid-cols-1 lg:gap-4">
+                  {[
+                    ['01', 'Tell us your car', 'Registration and mileage are all we need to start.'],
+                    ['02', 'We review the details', 'Our team checks the car and your next-car options.'],
+                    ['03', 'Choose your next move', 'Get a clear guide and decide when you are ready.'],
+                  ].map(([number, title, description]) => (
+                    <div key={number} className="border-l border-accent/50 pl-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">{number}</p>
+                      <p className="mt-1 font-bold text-white">{title}</p>
+                      <p className="mt-1 text-sm leading-5 text-primary-foreground/65">{description}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6 text-white leading-tight">
-                {dealerConfig.partExchange.title}
-              </h2>
-              <p className="text-primary-foreground/80 text-xl mb-10 max-w-lg leading-relaxed">
-                {dealerConfig.partExchange.description}
-              </p>
-              <Button size="lg" asChild className="px-10 h-14 text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl shadow-accent/20">
-                <a href={getContactHref('Part Exchange Valuation')}>{dealerConfig.partExchange.ctaLabel} <ChevronRight className="w-5 h-5 ml-2" /></a>
-              </Button>
+
+              <div className="relative">
+                <div className="absolute -inset-4 rounded-[2.5rem] bg-accent/10 blur-2xl"></div>
+                <div className="relative overflow-hidden rounded-[2rem] bg-[#f7f3e8] p-5 text-primary shadow-2xl shadow-black/20 sm:p-7">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9a741d]">Start with your current car</p>
+                      <h3 className="mt-2 text-2xl font-black tracking-tight text-[#19383b]">See what it could unlock</h3>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-[#eadfbf] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8d6714]">2 minutes</span>
+                  </div>
+
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl bg-white/70 p-4">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#19383b]"><Car className="h-4 w-4 text-[#a97925]" /> Registration</div>
+                      <p className="mt-3 text-sm font-semibold text-[#6c7770]">Your number plate</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/70 p-4">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#19383b]"><Gauge className="h-4 w-4 text-[#a97925]" /> Mileage</div>
+                      <p className="mt-3 text-sm font-semibold text-[#6c7770]">Your current miles</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl bg-[#ece6d8] px-4 py-3 text-xs leading-5 text-[#65716b]">
+                    <span className="font-bold text-[#19383b]">A sensible starting point.</span> We’ll talk through the final figure with you — no pressure to proceed.
+                  </div>
+
+                  <Button size="lg" asChild className="mt-5 h-14 w-full bg-accent text-lg font-bold text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent/90">
+                    <a href={getContactHref('Part Exchange Valuation')}>{dealerConfig.partExchange.ctaLabel} <ChevronRight className="ml-2 h-5 w-5" /></a>
+                  </Button>
+                  <p className="mt-3 text-center text-xs text-[#7b8178]">Start online, then speak to a real Luxxy Motors team member.</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
