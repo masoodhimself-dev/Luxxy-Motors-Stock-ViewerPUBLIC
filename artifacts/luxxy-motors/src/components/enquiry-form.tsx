@@ -466,7 +466,7 @@ export function EnquiryForm({
       )}
 
       <label className="block space-y-2 text-sm font-semibold text-foreground">
-        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Your message <span className="font-normal text-muted-foreground">(optional for a viewing)</span></span>
+        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Anything else we should know?</span>
         <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={4} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`} data-testid="textarea-enquiry-message" />
       </label>
 
