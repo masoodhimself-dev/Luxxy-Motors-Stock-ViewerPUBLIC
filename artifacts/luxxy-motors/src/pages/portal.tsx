@@ -28,6 +28,7 @@ import {
   CircleAlert,
   Clock3,
   Copy,
+  ArrowLeft,
   CalendarDays,
   ExternalLink,
   Inbox,
@@ -636,6 +637,7 @@ export default function Portal() {
   const { stock, isLoading: stockLoading, error: stockError } = useStock();
   const [filter, setFilter] = useState<'all' | Enquiry['status']>('all');
   const [showSaleForm, setShowSaleForm] = useState(false);
+  const [saleFocusMode, setSaleFocusMode] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   const enquiryQuery = useGetEnquiries(filter === 'all' ? undefined : { status: filter });
   const recentEnquiriesQuery = useGetEnquiries();
@@ -643,6 +645,66 @@ export default function Portal() {
   const enquiries = enquiryQuery.data ?? [];
   const sales = salesQuery.data ?? [];
   const newCount = enquiries.filter((enquiry) => enquiry.status === 'new').length;
+
+  useEffect(() => {
+    if (!showSaleForm || !saleFocusMode) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [saleFocusMode, showSaleForm]);
+
+  const openNewSale = () => {
+    setSelectedSaleId(null);
+    setShowSaleForm(true);
+    setSaleFocusMode(true);
+  };
+
+  const closeNewSale = () => {
+    setShowSaleForm(false);
+    setSaleFocusMode(false);
+  };
+
+  const handleSaleCreated = (saleId: string) => {
+    setShowSaleForm(false);
+    setSaleFocusMode(false);
+    setSelectedSaleId(saleId);
+    void salesQuery.refetch();
+  };
+
+  if (showSaleForm && saleFocusMode) {
+    return (
+      <div className="fixed inset-0 z-[60] overflow-y-auto bg-background" role="dialog" aria-modal="true" aria-labelledby="focused-sale-title">
+        <div className="min-h-[100dvh] bg-[radial-gradient(circle_at_top_left,_hsl(var(--accent)/0.14),_transparent_38%),linear-gradient(135deg,_hsl(var(--background)),_hsl(var(--muted)/0.45))] px-4 py-6 sm:px-8 sm:py-10">
+          <div className="mx-auto flex max-w-4xl items-start justify-between gap-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">Focused sales workspace</p>
+              <h1 id="focused-sale-title" className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-5xl">
+                Build the deal, one step at a time.
+              </h1>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                The rest of the portal is tucked away while you prepare this sale. Customer details can be selected from an enquiry or collected by QR code.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 bg-background/80 font-bold shadow-sm"
+              onClick={() => setSaleFocusMode(false)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Show full portal</span>
+              <span className="sm:hidden">Portal</span>
+            </Button>
+          </div>
+          <div className="mx-auto mt-8 max-w-4xl pb-8">
+            <SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={handleSaleCreated} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[70vh] bg-muted/20 px-4 py-10 sm:py-14">
@@ -677,13 +739,13 @@ export default function Portal() {
               <h2 className="mt-2 text-3xl font-black tracking-tight">Deal workspace</h2>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
             </div>
-            <Button type="button" variant={showSaleForm ? 'outline' : 'default'} onClick={() => setShowSaleForm((value) => !value)}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
+            <Button type="button" variant={showSaleForm ? 'outline' : 'default'} onClick={showSaleForm ? closeNewSale : openNewSale}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
           </div>
           <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
             <div><p className="font-bold">DEVELOPMENT ONLY</p><p className="mt-1 text-amber-900/80">Demo signatures, templates, invoice metadata, and the passwordless staff portal are not production-ready. Staff authentication and legal review are required before any real sale.</p></div>
           </div>
-          {showSaleForm && <div className="mb-5"><SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={(saleId) => { setShowSaleForm(false); setSelectedSaleId(saleId); salesQuery.refetch(); }} /></div>}
+          {showSaleForm && <div className="mb-5"><SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={handleSaleCreated} /></div>}
           {selectedSaleId ? (
             <SaleDetail id={selectedSaleId} onBack={() => setSelectedSaleId(null)} />
           ) : salesQuery.isLoading ? (
