@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --background: 42 38% 96%;
+  --foreground: 218 35% 15%;
+  --border: 38 22% 84%;
+  --input: 38 22% 84%;
+  --ring: 42 82% 49%;
+  --card: 45 40% 99%;
+  --card-foreground: 218 35% 15%;
+  --primary: 218 39% 16%;
+  --primary-foreground: 42 38% 96%;
+  --secondary: 39 26% 90%;
+  --secondary-foreground: 218 35% 20%;
+  --muted: 40 24% 91%;
+  --muted-foreground: 217 14% 43%;
+  --accent: 42 82% 49%;
+  --accent-foreground: 218 39% 16%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --app-font-sans: 'Outfit', sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --radius: 0.8rem;
+}
+
+.stock-search-shell {
+  font-family: var(--app-font-sans);
+}
+
+.stock-search-shell .font-display {
+  font-family: var(--font-display);
+}
