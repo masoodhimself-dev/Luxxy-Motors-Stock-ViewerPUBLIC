@@ -151,6 +151,7 @@ beforeEach(() => {
 describe('showroom search filters', () => {
   it('filters by text and limits model choices to the selected make', () => {
     renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
 
     const make = screen.getByLabelText('Make') as HTMLSelectElement;
     const model = screen.getByLabelText('Model') as HTMLSelectElement;
@@ -174,6 +175,7 @@ describe('showroom search filters', () => {
 
   it('includes exact min and max budget boundaries and filters fuel and transmission', () => {
     renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
 
     fireEvent.change(screen.getByLabelText('Min budget'), {
       target: { value: '5000' },
@@ -197,19 +199,17 @@ describe('showroom search filters', () => {
     expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
   });
 
-  it('filters HPI-clear, CAT S, and CAT N condition history independently', () => {
+  it('keeps condition history filters hidden from the customer search', () => {
     renderHome();
 
-    fireEvent.click(screen.getByRole('switch', { name: 'HPI clear' }));
-    expect(resultTitles()).toEqual(['BMW 1 Series', 'Audi A3', 'VW Golf']);
+    expect(screen.queryByRole('switch', { name: 'HPI clear' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'CAT S' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'CAT N' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('switch', { name: 'HPI clear' }));
-    fireEvent.click(screen.getByRole('switch', { name: 'CAT S' }));
-    expect(resultTitles()).toEqual(['BMW 3 Series']);
-
-    fireEvent.click(screen.getByRole('switch', { name: 'CAT S' }));
-    fireEvent.click(screen.getByRole('switch', { name: 'CAT N' }));
-    expect(resultTitles()).toEqual(['Ford Fiesta']);
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.queryByRole('switch', { name: 'HPI clear' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'CAT S' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'CAT N' })).not.toBeInTheDocument();
   });
 
   it('sorts the live results and resets every shared filter value', () => {
@@ -230,15 +230,15 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByTestId('input-showroom-search'), {
       target: { value: 'BMW' },
     });
-    fireEvent.click(screen.getByRole('switch', { name: 'CAT S' }));
     fireEvent.click(screen.getByRole('button', { name: /Reset search/ }));
 
     expect(resultTitles()).toHaveLength(4);
     expect(resultsRegion().getByText('5 vehicles available')).toBeInTheDocument();
     expect((screen.getByTestId('input-showroom-search') as HTMLInputElement).value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     expect((screen.getByLabelText('Make') as HTMLSelectElement).value).toBe('');
     expect((screen.getByLabelText('Sort results') as HTMLSelectElement).value).toBe('');
-    expect(screen.getAllByRole('switch').every((toggle) => toggle.getAttribute('aria-checked') === 'false')).toBe(true);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('invokes the existing results-scroll callback when showing results', async () => {

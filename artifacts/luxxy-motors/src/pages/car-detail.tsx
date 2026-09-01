@@ -1,13 +1,45 @@
 import { useRoute } from 'wouter';
 import { ArrowLeft, Calendar, MapPin, Fuel, Settings, Activity, ShieldCheck, Info, MessageCircle, Phone } from 'lucide-react';
 import { Link } from 'wouter';
-import { useStock } from '@/lib/stock-context';
+import { CarCard } from '@/components/car-card';
+import { useStock, type Car } from '@/lib/stock-context';
 import { Gallery } from '@/components/gallery';
 import { formatPrice, formatMileage } from '@/lib/utils';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import NotFound from '@/pages/not-found';
+
+function getSimilarCars(currentCar: Car, cars: Car[]) {
+  const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
+
+  return cars
+    .filter((candidate) => candidate.id !== currentCar.id)
+    .map((candidate) => {
+      let score = 0;
+      const priceDistance =
+        currentCar.price != null && candidate.price != null
+          ? Math.abs(currentCar.price - candidate.price)
+          : Number.MAX_SAFE_INTEGER;
+
+      if (currentCar.make && candidate.make === currentCar.make) score += 5;
+      if (currentCar.model && candidate.model === currentCar.model) score += 5;
+      if (currentCar.bodyType && candidate.bodyType === currentCar.bodyType) score += 3;
+      if (currentCar.fuel && candidate.fuel === currentCar.fuel) score += 2;
+      if (currentCar.transmission && candidate.transmission === currentCar.transmission) score += 2;
+      if (currentCar.year != null && candidate.year != null && Math.abs(currentCar.year - candidate.year) <= 2) score += 1;
+      if (priceRange != null && candidate.price != null && priceDistance <= priceRange) score += 2;
+
+      return { candidate, score, priceDistance };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return left.priceDistance - right.priceDistance;
+    })
+    .slice(0, 4)
+    .map(({ candidate }) => candidate);
+}
 
 export default function CarDetail() {
   const [, params] = useRoute('/vehicle/:id');
@@ -26,6 +58,8 @@ export default function CarDetail() {
   const car = stock.cars.find(c => c.id === params?.id);
   
   if (!car) return <NotFound />;
+
+  const similarCars = getSimilarCars(car, stock.cars);
 
   const getWriteOffBadge = () => {
     if (!car.writeOffCategory) return null;
@@ -194,6 +228,30 @@ export default function CarDetail() {
         </div>
 
       </div>
+
+      {similarCars.length > 0 && (
+        <section className="mt-14 border-t border-border/70 pt-10" aria-labelledby="similar-cars-heading">
+          <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Keep exploring</p>
+              <h2 id="similar-cars-heading" className="mt-1 text-3xl font-black tracking-tight text-foreground">
+                Similar cars
+              </h2>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                A few other vehicles from our current stock that may suit what you&apos;re looking for.
+              </p>
+            </div>
+            <Link href="/#stock" className="text-sm font-bold text-primary transition-colors hover:text-accent">
+              View all stock <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {similarCars.map((similarCar) => (
+              <CarCard key={similarCar.id} car={similarCar} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

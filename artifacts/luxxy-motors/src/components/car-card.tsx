@@ -1,18 +1,51 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
-import { formatPrice, formatMileage, getThumbnailUrl } from '@/lib/utils';
+import { formatPrice, formatMileage, getSafeImageUrl, getThumbnailUrl } from '@/lib/utils';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Fuel, Settings, Calendar, AlertTriangle, ArrowRight, Camera, MessageCircle, Phone } from 'lucide-react';
 
 export function CarCard({ car }: { car: Car }) {
-  const thumb = getThumbnailUrl(car);
-  const [imgError, setImgError] = useState(false);
+  const imageUrls = useMemo(() => {
+    const urls: string[] = [];
+    const addImage = (image: string | { url: string; caption?: string | null } | null | undefined) => {
+      const url = image ? getSafeImageUrl(image) : '';
+      if (url && !urls.includes(url)) urls.push(url);
+    };
+
+    addImage(getThumbnailUrl(car));
+    car.images?.forEach(addImage);
+    addImage(car.heroImage);
+
+    return urls;
+  }, [car]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
+  const visibleImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url));
   const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
   const phoneHref = getPhoneHref();
   const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle');
   const bookingHref = getVehicleBookingHref(car);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setFailedImageUrls(new Set());
+  }, [car.id]);
+
+  useEffect(() => {
+    if (visibleImageUrls.length < 2) return;
+
+    const timer = window.setInterval(() => {
+      setActiveImageIndex((current) => (current + 1) % visibleImageUrls.length);
+    }, 3500);
+
+    return () => window.clearInterval(timer);
+  }, [visibleImageUrls.length]);
+
+  const activeImage = visibleImageUrls.length > 0
+    ? visibleImageUrls[activeImageIndex % visibleImageUrls.length]
+    : '';
 
   const getWriteOffBadge = () => {
     if (!car.writeOffCategory) return null;
@@ -32,15 +65,27 @@ export function CarCard({ car }: { car: Car }) {
         {/* Image Container */}
         <Link href={`/vehicle/${car.id}`} aria-label={`View details for ${vehicleLabel}`} className="relative block aspect-[3/2] bg-muted overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
           {getWriteOffBadge()}
-          {thumb && !imgError ? (
-            <img 
-              src={thumb} 
-              alt={car.title || `${car.make} ${car.model}`}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
-              className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-110"
-            />
+          {activeImage ? (
+            visibleImageUrls.map((imageUrl, index) => (
+              <img
+                key={imageUrl}
+                src={imageUrl}
+                alt={index === (activeImageIndex % visibleImageUrls.length) ? (car.title || `${car.make} ${car.model}`) : ''}
+                aria-hidden={index !== (activeImageIndex % visibleImageUrls.length)}
+                loading={index === 0 ? 'eager' : 'lazy'}
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  setFailedImageUrls((current) => {
+                    const next = new Set(current);
+                    next.add(imageUrl);
+                    return next;
+                  });
+                }}
+                className={`absolute inset-0 object-cover w-full h-full transition-opacity duration-700 ease-out group-hover:scale-110 ${
+                  index === (activeImageIndex % visibleImageUrls.length) ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
+            ))
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-secondary/50 text-sm">
               <Camera className="w-8 h-8 mb-2 opacity-50" />
