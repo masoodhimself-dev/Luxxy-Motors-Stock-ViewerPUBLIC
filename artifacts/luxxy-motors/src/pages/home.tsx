@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStock } from '@/lib/stock-context';
-import { ConciergeCarCard } from '@/components/concierge-car-card';
+import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
 import { dealerConfig } from '@/config/dealer';
 import { getThumbnailUrl } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
-import { ArrowRight, Banknote, Car, CheckCircle2, Clock, Gauge, Heart, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck, RefreshCcw, Calendar, ChevronRight } from 'lucide-react';
+import { ArrowRight, Banknote, Car, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck, RefreshCcw, Calendar, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useShortlist } from '@/lib/use-shortlist';
+import { Input } from '@/components/ui/input';
 
 const defaultFilters: FilterState = {
   make: '',
@@ -25,13 +25,11 @@ const defaultFilters: FilterState = {
 };
 
 export default function Home() {
-  const { stock, isLoading, error } = useStock();
+  const { stock, isLoading } = useStock();
   const [showAll, setShowAll] = useState(false);
+  const [heroMakeIndex, setHeroMakeIndex] = useState(0);
 
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
-  const [priority, setPriority] = useState<'automatic' | 'budget' | 'mileage' | null>(null);
-  const [showSaved, setShowSaved] = useState(false);
-  const { savedIds, savedCount, toggle } = useShortlist();
 
   const filteredCars = useMemo(() => {
     if (!stock) return [];
@@ -79,14 +77,6 @@ export default function Home() {
       });
     }
 
-    // This concierge-only predicate is intentionally separate from FilterState.
-    if (priority === 'mileage') {
-      result = result.filter(c => typeof c.mileage === 'number' && c.mileage <= 35000);
-    }
-    if (showSaved) {
-      result = result.filter(c => savedIds.includes(c.id));
-    }
-
     if (filters.sort) {
       result.sort((a, b) => {
         switch (filters.sort) {
@@ -100,7 +90,7 @@ export default function Home() {
     }
 
     return result;
-  }, [stock, filters, priority, savedIds, showSaved]);
+  }, [stock, filters]);
 
   useEffect(() => {
     setShowAll(false);
@@ -118,6 +108,20 @@ export default function Home() {
   const heroCar = stock?.cars?.find(c => Boolean(getThumbnailUrl(c)));
   const heroImage = heroCar ? getThumbnailUrl(heroCar) : null;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', ');
+  const makes = useMemo(
+    () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
+    [stock?.cars],
+  );
+  const heroMake = makes.length > 0 ? makes[heroMakeIndex % makes.length] : null;
+
+  useEffect(() => {
+    if (makes.length < 2) return;
+    const intervalId = window.setInterval(() => {
+      setHeroMakeIndex(current => current + 1);
+    }, 3200);
+    return () => window.clearInterval(intervalId);
+  }, [makes]);
+
   const revealResults = () => {
     setShowAll(true);
     requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
@@ -125,20 +129,7 @@ export default function Home() {
 
   const applyQuickFilter = (nextFilters: Partial<FilterState>) => {
     setFilters({ ...defaultFilters, ...nextFilters });
-    setPriority(null);
-    setShowSaved(false);
     revealResults();
-  };
-
-  const choosePriority = (next: 'automatic' | 'budget' | 'mileage') => {
-    setPriority(next);
-    setShowSaved(false);
-    setFilters({
-      ...defaultFilters,
-      ...(next === 'automatic' ? { transmission: 'Automatic' } : next === 'budget' ? { maxPrice: '20000' } : {}),
-    });
-    requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
-    setShowAll(true);
   };
 
   if (isLoading) {
@@ -154,29 +145,16 @@ export default function Home() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex min-h-[70vh] items-center justify-center bg-background px-4">
-        <div className="max-w-md rounded-3xl border border-destructive/30 bg-card p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-black text-primary">The showroom is unavailable</h1>
-          <p className="mt-3 text-muted-foreground">We could not load current stock. Please refresh or contact us directly.</p>
-          {dealerConfig.contact.phone && <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="mt-6 inline-block font-bold text-primary underline">Call {dealerConfig.contact.phone}</a>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative flex h-[85vh] min-h-[600px] w-full items-center overflow-hidden bg-primary">
+      <section className="relative flex min-h-[690px] w-full items-center overflow-hidden bg-primary py-16 md:h-[85vh] md:min-h-[600px] md:py-0">
         {heroImage ? (
           <img
             src={heroImage}
             alt={heroCar?.title || `${heroCar?.make || ''} ${heroCar?.model || ''}`.trim() || 'Luxxy Motors vehicle'}
             fetchPriority="high"
             loading="eager"
-            referrerPolicy="no-referrer"
             className="absolute inset-0 w-full h-full object-cover scale-105"
           />
         ) : (
@@ -184,34 +162,30 @@ export default function Home() {
         )}
 
         {/* Stronger overlay for better text contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/80 to-black/40 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/75 to-primary/25" />
+        <div className="absolute inset-0 bg-black/15 md:bg-black/25" />
 
         {/* subtle decorative pattern overlay */}
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none mix-blend-overlay"></div>
 
-        <div className="container relative z-10 mx-auto mt-16 px-4 text-white md:mt-0">
+        <div className="container relative z-10 mx-auto translate-y-8 px-4 text-white md:translate-y-0 md:mt-0">
           <div className="max-w-3xl">
-            {stock && (
-              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md">
-                <Car className="h-4 w-4 text-accent" />
-                {stock.count ?? stock.cars.length} vehicles available
-              </div>
-            )}
             {dealerConfig.hero.announcement && (
-              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md animate-in slide-in-from-bottom-4 duration-500">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold tracking-wide shadow-lg backdrop-blur-md animate-in slide-in-from-bottom-4 duration-500 sm:mb-8">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
                 {dealerConfig.hero.announcement}
               </div>
             )}
-            <h1 className="mb-6 text-5xl font-black leading-[1.1] tracking-tighter animate-in slide-in-from-bottom-8 duration-700 md:text-7xl lg:text-8xl">
-              {dealerConfig.hero.copy}
+            <h1 className="mb-5 text-5xl font-black leading-[1.02] tracking-tighter animate-in slide-in-from-bottom-8 duration-700 sm:text-6xl md:mb-6 md:text-7xl lg:text-8xl">
+              {heroMake ? (
+                <>Find Your Next <span key={heroMake} className="inline-block animate-in fade-in slide-in-from-bottom-2 duration-500">{heroMake}</span> Car</>
+              ) : dealerConfig.hero.copy}
             </h1>
-            <p className="mb-10 max-w-2xl text-lg font-medium leading-relaxed text-white/90 animate-in slide-in-from-bottom-10 duration-700 delay-100 md:text-2xl">
+            <p className="mb-7 max-w-2xl text-base font-medium leading-relaxed text-white/90 animate-in slide-in-from-bottom-10 duration-700 delay-100 sm:text-lg md:mb-10 md:text-2xl">
               {dealerConfig.hero.subcopy}
             </p>
             <div className="flex flex-col sm:flex-row flex-wrap gap-4 animate-in slide-in-from-bottom-12 duration-700 delay-200">
-              <Button size="lg" onClick={() => scrollToHomeTarget('stock')} className="h-14 px-10 text-lg font-bold bg-accent text-accent-foreground shadow-xl shadow-accent/20 hover:bg-accent/90">
+               <Button size="lg" onClick={revealResults} className="h-14 px-10 text-lg font-bold bg-accent text-accent-foreground shadow-xl shadow-accent/20 hover:bg-accent/90">
                 {dealerConfig.hero.primaryCta} <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
               {dealerConfig.partExchange?.enabled && (
@@ -219,6 +193,50 @@ export default function Home() {
                   <a href={getContactHref('Part Exchange Enquiry')}>{dealerConfig.hero.secondaryCta}</a>
                 </Button>
               )}
+            </div>
+
+            <div className="mt-7 max-w-4xl rounded-2xl border border-white/20 bg-white/95 p-3 text-primary shadow-2xl shadow-black/20 backdrop-blur-md sm:mt-8 sm:p-4" data-testid="hero-search">
+              <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Search the showroom</p>
+                {stock && (
+                  <span className="shrink-0 rounded-full bg-primary/5 px-3 py-1 text-[11px] font-bold text-muted-foreground" data-testid="text-hero-stock-count">
+                    {stock.count ?? stock.cars.length} vehicles available
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
+                  <Input
+                    aria-label="Search showroom stock"
+                    placeholder="Search make, model or registration"
+                    value={filters.search}
+                    onChange={(event) => setFilters(current => ({ ...current, search: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        revealResults();
+                      }
+                    }}
+                    className="h-12 border-primary/10 bg-background pl-12 text-sm font-semibold shadow-sm focus-visible:ring-primary sm:h-14 sm:text-base"
+                    data-testid="input-hero-search"
+                  />
+                </div>
+                <select
+                  aria-label="Filter by make"
+                  value={filters.make}
+                  onChange={(event) => setFilters(current => ({ ...current, make: event.target.value, model: '' }))}
+                  className="h-12 rounded-lg border border-primary/10 bg-background px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-14 sm:w-48"
+                  data-testid="select-hero-make"
+                >
+                  <option value="">Any make</option>
+                  {makes.map(make => <option key={make} value={make}>{make}</option>)}
+                </select>
+                <Button type="button" onClick={revealResults} size="lg" className="h-12 shrink-0 px-6 font-bold sm:h-14">
+                  Search stock <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-2 px-1 text-xs font-medium text-muted-foreground">Try “BMW”, “automatic” or a registration number.</p>
             </div>
           </div>
         </div>
@@ -250,13 +268,13 @@ export default function Home() {
               <h2 id="quick-search-heading" className="mt-1 text-lg font-black tracking-tight text-foreground">Quick searches</h2>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              <button type="button" onClick={() => choosePriority('automatic')} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-automatic">
+              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-automatic">
                 <Settings2 className="h-4 w-4 text-primary" /> Automatic
               </button>
-              <button type="button" onClick={() => choosePriority('budget')} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-under-20000">
-                <Banknote className="h-4 w-4 text-primary" /> Under £20,000
+              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-under-5000">
+                <Banknote className="h-4 w-4 text-primary" /> Under £5,000
               </button>
-              <button type="button" onClick={() => choosePriority('mileage')} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-low-mileage">
+              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-low-mileage">
                 <Gauge className="h-4 w-4 text-primary" /> Low mileage
               </button>
               <button type="button" onClick={() => applyQuickFilter({ noWriteOff: true })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-hpi-clear">
@@ -288,38 +306,29 @@ export default function Home() {
             <div>
               <p className="text-sm font-bold uppercase tracking-widest text-primary mb-2">Showroom</p>
               <h2 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">
-                 {showSaved ? 'Your Saved Vehicles' : showAll ? 'All Vehicles' : 'Considered Options'}
+                 {showAll ? 'All Vehicles' : 'Recently Added Cars'}
               </h2>
-              {!showAll && !showSaved && <p className="mt-2 max-w-xl text-sm text-muted-foreground">Real vehicles, selected around the priorities you set. Vehicle history categories are disclosed on each relevant listing.</p>}
+              {!showAll && <p className="mt-2 max-w-xl text-sm text-muted-foreground">Fresh arrivals, carefully selected and ready to view.</p>}
             </div>
             {stock && (
-              <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { setShowSaved(current => !current); setShowAll(true); }} data-testid="button-show-saved" className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${showSaved ? 'border-accent bg-accent/20 text-primary' : 'border-border bg-background text-foreground'}`}><Heart className={`mr-1.5 inline h-4 w-4 ${savedCount ? 'fill-current text-accent' : ''}`} />Saved {savedCount}</button>
               <div className="bg-background px-4 py-2 rounded-full border border-border shadow-sm flex items-center gap-2">
                 <CarCardIcon className="w-4 h-4 text-primary" />
                 <span className="font-bold text-sm">
                   {filteredCars.length} {filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available
                 </span>
               </div>
-              </div>
             )}
           </div>
 
           {filteredCars.length > 0 ? (
             <>
-              <div className="mx-auto grid max-w-6xl grid-cols-1 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {displayedCars.map(car => (
-                  <ConciergeCarCard key={car.id} car={car} saved={savedIds.includes(car.id)} onToggle={() => toggle(car.id)} />
+                  <CarCard key={car.id} car={car} />
                 ))}
               </div>
-              {savedCount > 0 && !showSaved && (
-                <div className="mx-auto mt-5 flex max-w-6xl flex-col items-start justify-between gap-3 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 sm:flex-row sm:items-center">
-                  <p className="text-sm font-bold text-primary"><Heart className="mr-1.5 inline h-4 w-4 fill-accent text-accent" />{savedCount} saved for your next visit.</p>
-                  <button type="button" onClick={() => { setShowSaved(true); setShowAll(true); }} data-testid="button-review-shortlist" className="text-sm font-extrabold text-primary hover:text-accent">Review saved vehicles <ArrowRight className="ml-1 inline h-4 w-4" /></button>
-                </div>
-              )}
 
-              {filteredCars.length > 6 && !showAll && (
+              {filteredCars.length > 4 && !showAll && (
                 <div className="mt-16 flex justify-center">
                   <Button
                     onClick={() => {
@@ -341,13 +350,11 @@ export default function Home() {
                 <Search className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="text-2xl font-bold mb-3">No vehicles match your search</h3>
-               <p className="text-muted-foreground mb-8 text-lg">{showSaved ? 'Saved vehicles stay only on this browser and device.' : 'Try adjusting your filters or clearing your search query.'}</p>
+              <p className="text-muted-foreground mb-8 text-lg">Try adjusting your filters or clearing your search query.</p>
               <Button
                 size="lg"
                 onClick={() => {
                    setFilters(defaultFilters);
-                  setPriority(null);
-                  setShowSaved(false);
                   setShowAll(false);
                 }}
                 className="font-bold"

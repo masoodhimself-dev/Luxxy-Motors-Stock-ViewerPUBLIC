@@ -102,11 +102,6 @@ const vehicles: Vehicle[] = [
 ];
 
 const filterOptions = ["Automatic", "Under £20k", "Low mileage", "HPI clear"];
-const heroPriorities = [
-  { label: "Easy automatic", filter: "Automatic", note: "Effortless daily driving" },
-  { label: "Under £20k", filter: "Under £20k", note: "A sharper starting budget" },
-  { label: "Low mileage", filter: "Low mileage", note: "More road still ahead" },
-];
 
 export default function LuxxyConcierge() {
   const [query, setQuery] = useState("");
@@ -118,7 +113,6 @@ export default function LuxxyConcierge() {
   const [mobileFilters, setMobileFilters] = useState(false);
   const [sent, setSent] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const [heroPriority, setHeroPriority] = useState("Automatic");
 
   const visibleVehicles = useMemo(() => {
     const needle = query.toLowerCase().trim();
@@ -144,12 +138,6 @@ export default function LuxxyConcierge() {
       setSaveNotice(`${vehicle?.name ?? "Vehicle"} ${isSaved ? "removed from" : "saved to"} your shortlist.`);
       return isSaved ? current.filter((item) => item !== id) : [...current, id];
     });
-  };
-
-  const chooseHeroPriority = (filter: string) => {
-    setHeroPriority(filter);
-    setActiveFilter(filter);
-    setQuery("");
   };
 
   useEffect(() => {
@@ -197,23 +185,7 @@ export default function LuxxyConcierge() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6ebe4] px-3 py-2"><Check className="h-3.5 w-3.5 text-[#b68729]" />Harrow, London</span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6ebe4] px-3 py-2"><Check className="h-3.5 w-3.5 text-[#b68729]" />View by appointment</span>
             </div>
-            <div className="mt-7 max-w-[600px] rounded-[22px] border border-[#d7dfd6] bg-[#fbfcf7]/80 p-3 shadow-[0_14px_30px_rgba(29,52,51,0.05)] backdrop-blur-sm">
-              <div className="flex items-center justify-between gap-3 px-1 pb-3">
-                <div><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#9a6d12]">Begin with a feeling</p><p className="mt-0.5 text-[13px] font-bold text-[#17353a]">What matters most to your next car?</p></div>
-                <span className="rounded-full bg-[#e7ede6] px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#63726e]">Step 1</span>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {heroPriorities.map((priority) => {
-                  const selected = heroPriority === priority.filter;
-                  return <button key={priority.filter} type="button" onClick={() => chooseHeroPriority(priority.filter)} className={`group rounded-[16px] border p-3 text-left transition-all duration-300 motion-reduce:transition-none ${selected ? "border-[#17353a] bg-[#17353a] text-white shadow-[0_8px_18px_rgba(23,53,58,0.16)]" : "border-[#dbe2da] bg-white/70 text-[#365052] hover:-translate-y-0.5 hover:border-[#b68729] hover:bg-[#fffdf5]"}`}><span className={`flex items-center justify-between text-[12px] font-extrabold ${selected ? "text-white" : "text-[#17353a]"}`}>{priority.label}{selected && <Check className="h-3.5 w-3.5 text-[#e6b34b]" />}</span><span className={`mt-1 block text-[10px] font-semibold leading-4 ${selected ? "text-white/65" : "text-[#75827e]"}`}>{priority.note}</span></button>;
-                })}
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-[14px] bg-[#edf1ea] px-3 py-2.5">
-                <p className="text-[11px] font-bold text-[#526460]"><span className="text-[#9a6d12]">{visibleVehicles.length} considered fits</span> are ready to explore.</p>
-                <button type="button" onClick={() => document.getElementById("browse")?.scrollIntoView({ behavior: "smooth" })} className="shrink-0 text-[11px] font-extrabold text-[#17353a] transition-colors hover:text-[#9a6d12]">See my matches <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button>
-              </div>
-            </div>
-            <div className="mt-4 flex max-w-[600px] flex-wrap items-center gap-x-4 gap-y-2 border-y border-[#d9ddd5] py-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71807b]">
+            <div className="mt-7 flex max-w-[600px] flex-wrap items-center gap-x-4 gap-y-2 border-y border-[#d9ddd5] py-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71807b]">
               <span className="flex items-center gap-2 text-[#17353a]"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#17353a] text-[9px] text-[#f4edd9]">1</span> Find a fit</span>
               <span className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full border border-[#b9c5bd] text-[9px]">2</span> Save your options</span>
               <button type="button" onClick={() => setAppointmentOpen(true)} className="flex items-center gap-2 text-[#9a6d12] transition-colors hover:text-[#17353a] motion-reduce:transition-none"><span className="grid h-5 w-5 place-items-center rounded-full border border-[#d5ba78] text-[9px]">3</span> Book a visit</button>
