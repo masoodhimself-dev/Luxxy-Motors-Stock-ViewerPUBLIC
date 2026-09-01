@@ -327,17 +327,15 @@ export function EnquiryForm({
                   </div>
                   <Check className="ml-auto h-5 w-5 shrink-0 text-[#47725a]" />
                 </div>
-                <div className="mt-3 border-t border-[#e8dfcb] pt-3">
-                  <div className="mb-1.5 flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Actual registration</span>
-                    <span className="text-[10px] font-semibold text-muted-foreground">From stock record</span>
-                  </div>
-                  {vehicleRegistration(selectedVehicle) ? (
+                {vehicleRegistration(selectedVehicle) && (
+                  <div className="mt-3 border-t border-[#e8dfcb] pt-3">
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Actual registration</span>
+                      <span className="text-[10px] font-semibold text-muted-foreground">From stock record</span>
+                    </div>
                     <UKNumberPlate value={vehicleRegistration(selectedVehicle)} testId="visual-target-uk-number-plate" />
-                  ) : (
-                    <p className="rounded-md border border-dashed border-[#cfc3aa] bg-[#fbf8f1] px-3 py-3 text-xs text-muted-foreground" data-testid="status-target-registration-unavailable">Actual registration not supplied for this vehicle.</p>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
             {stockCars.length === 0 && <p className="mt-3 text-xs leading-5 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
