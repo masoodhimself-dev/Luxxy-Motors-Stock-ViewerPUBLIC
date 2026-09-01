@@ -285,12 +285,12 @@ export function EnquiryForm({
       </label>
 
       {isPartExchange && (
-        <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-part-exchange-details">
+        <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-part-exchange-details">
           <div>
             <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CarFront className="h-5 w-5 text-primary" /> Let’s work out the difference</legend>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
           </div>
-          <div className="rounded-xl border border-[#d5c59e] bg-[#fbf6e8] p-4" data-testid="section-part-exchange-target-vehicle">
+          <div className="rounded-xl bg-[#fbf6e8] p-4" data-testid="section-part-exchange-target-vehicle">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Step 1 · Your next car</p>
@@ -314,7 +314,7 @@ export function EnquiryForm({
               })}
             </select>
             {selectedVehicle && (
-              <div className="mt-3 rounded-lg border border-[#e0d3b0] bg-background p-2.5" data-testid="card-part-exchange-target-vehicle">
+              <div className="mt-3 rounded-lg bg-background/70 p-2.5" data-testid="card-part-exchange-target-vehicle">
                 <div className="flex items-center gap-3">
                   {getThumbnailUrl(selectedVehicle) ? (
                     <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 rounded-md object-cover" />
@@ -328,7 +328,7 @@ export function EnquiryForm({
                   <Check className="ml-auto h-5 w-5 shrink-0 text-[#47725a]" />
                 </div>
                 {vehicleRegistration(selectedVehicle) && (
-                  <div className="mt-3 border-t border-[#e8dfcb] pt-3">
+                  <div className="mt-3 pt-1">
                     <div className="mb-1.5 flex items-center justify-between gap-3">
                       <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Actual registration</span>
                       <span className="text-[10px] font-semibold text-muted-foreground">From stock record</span>
@@ -340,7 +340,7 @@ export function EnquiryForm({
             )}
             {stockCars.length === 0 && <p className="mt-3 text-xs leading-5 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
           </div>
-          <div className="border-t border-[#e3ddcf] pt-5">
+          <div className="pt-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Step 2 · Your current car</p>
             <p className="mt-1 text-sm font-bold text-foreground">Tell us about the car you’d like to exchange</p>
           </div>
