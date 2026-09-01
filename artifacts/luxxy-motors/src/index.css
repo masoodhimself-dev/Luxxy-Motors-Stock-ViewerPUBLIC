@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Source+Sans+3:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -45,72 +45,72 @@
 
 :root {
   --site-header-height: 4.5rem;
-  /* Luxxy Motors — concierge editorial: ink navy, warm paper, brass and sea-glass */
-  --background: 42 38% 96%;
-  --foreground: 218 35% 15%;
+  /* Luxxy Motors — warm showroom paper, ink teal, sage and muted brass */
+  --background: 44 22% 95%;
+  --foreground: 183 31% 18%;
   
-  --border: 38 22% 84%;
-  --input: 38 22% 84%;
-  --ring: 42 82% 49%;
+  --border: 43 16% 82%;
+  --input: 43 16% 82%;
+  --ring: 38 54% 48%;
   
-  --card: 45 40% 99%;
-  --card-foreground: 218 35% 15%;
-  --card-border: 38 22% 84%;
+  --card: 45 30% 98%;
+  --card-foreground: 183 31% 18%;
+  --card-border: 43 16% 82%;
   
-  --popover: 45 40% 99%;
-  --popover-foreground: 218 35% 15%;
-  --popover-border: 38 22% 84%;
+  --popover: 45 30% 98%;
+  --popover-foreground: 183 31% 18%;
+  --popover-border: 43 16% 82%;
   
-  /* Primary: midnight dealership ink */
-  --primary: 218 39% 16%;
-  --primary-foreground: 42 38% 96%;
+  /* Primary: ink teal */
+  --primary: 183 31% 20%;
+  --primary-foreground: 44 22% 95%;
   
-  /* Secondary: warm limestone */
-  --secondary: 39 26% 90%;
-  --secondary-foreground: 218 35% 20%;
+  /* Secondary: soft sage */
+  --secondary: 90 16% 87%;
+  --secondary-foreground: 183 28% 22%;
   
-  --muted: 40 24% 91%;
-  --muted-foreground: 217 14% 43%;
+  --muted: 43 20% 90%;
+  --muted-foreground: 183 12% 42%;
   
-  /* Accent: brushed brass */
-  --accent: 42 82% 49%;
-  --accent-foreground: 218 39% 16%;
+  /* Accent: muted brass */
+  --accent: 38 54% 48%;
+  --accent-foreground: 183 31% 18%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  --app-font-sans: 'Outfit', sans-serif;
-  --font-display: 'Instrument Serif', Georgia, serif;
+  --app-font-sans: 'Source Sans 3', sans-serif;
+  --font-display: 'Bitter', Georgia, serif;
   --radius: 0.8rem;
 }
 
 .dark {
-  --background: 218 39% 11%;
-  --foreground: 42 38% 96%;
+  --background: 183 31% 12%;
+  --foreground: 44 22% 95%;
   
-  --border: 215 28% 17%;
-  --input: 215 28% 17%;
-  --ring: 213 27% 84%;
+  --border: 183 21% 25%;
+  --input: 183 21% 25%;
+  --ring: 38 54% 62%;
   
-  --card: 218 36% 15%;
-  --card-foreground: 42 38% 96%;
-  --card-border: 215 28% 17%;
+  --card: 183 26% 16%;
+  --card-foreground: 44 22% 95%;
+  --card-border: 183 21% 25%;
   
-  --popover: 224 71% 4%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 215 28% 17%;
+  --popover: 183 31% 10%;
+  --popover-foreground: 44 22% 95%;
+  --popover-border: 183 21% 25%;
   
-  --primary: 42 82% 49%;
-  --primary-foreground: 218 39% 11%;
+  --primary: 38 54% 62%;
+  --primary-foreground: 183 31% 12%;
   
-  --secondary: 218 30% 20%;
-  --secondary-foreground: 42 38% 96%;
+  --secondary: 183 24% 22%;
+  --secondary-foreground: 44 22% 95%;
   
-  --muted: 218 30% 20%;
-  --muted-foreground: 215 18% 70%;
+  --muted: 183 24% 22%;
+  --muted-foreground: 183 12% 72%;
   
-  --accent: 42 82% 49%;
-  --accent-foreground: 218 39% 11%;
+  --accent: 38 54% 62%;
+  --accent-foreground: 183 31% 12%;
   
   --destructive: 0 63% 31%;
   --destructive-foreground: 210 40% 98%;

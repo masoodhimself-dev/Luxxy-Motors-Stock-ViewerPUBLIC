@@ -422,18 +422,18 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <div className="bg-[#f5f0e4] p-6 text-primary shadow-2xl shadow-black/20 sm:p-8">
-              <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#9a741d]">Start with your current car</p>
-              <h3 className="mt-3 font-display text-4xl leading-none tracking-[-.03em] text-[#19383b]">See what it could unlock</h3>
+              <div className="bg-[#f1eee5] p-6 text-primary shadow-2xl shadow-black/15 sm:p-8">
+                <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#9a7945]">Start with your current car</p>
+                <h3 className="mt-3 font-display text-4xl leading-none tracking-[-.03em] text-[#234543]">See what it could unlock</h3>
               <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="bg-white/70 p-4"><div className="flex items-center gap-2 text-xs font-extrabold text-[#19383b]"><Car className="h-4 w-4 text-[#a97925]" /> Registration</div><p className="mt-3 text-sm font-semibold text-[#6c7770]">Your number plate</p></div>
-                <div className="bg-white/70 p-4"><div className="flex items-center gap-2 text-xs font-extrabold text-[#19383b]"><Gauge className="h-4 w-4 text-[#a97925]" /> Mileage</div><p className="mt-3 text-sm font-semibold text-[#6c7770]">Your current miles</p></div>
+                <div className="bg-white/70 p-4"><div className="flex items-center gap-2 text-xs font-extrabold text-[#234543]"><Car className="h-4 w-4 text-[#aa8245]" /> Registration</div><p className="mt-3 text-sm font-semibold text-[#66736d]">Your number plate</p></div>
+                <div className="bg-white/70 p-4"><div className="flex items-center gap-2 text-xs font-extrabold text-[#234543]"><Gauge className="h-4 w-4 text-[#aa8245]" /> Mileage</div><p className="mt-3 text-sm font-semibold text-[#66736d]">Your current miles</p></div>
               </div>
-              <p className="mt-4 bg-[#ece6d8] px-4 py-3 text-xs leading-5 text-[#65716b]"><span className="font-extrabold text-[#19383b]">A sensible starting point.</span> We will talk through the final figure with you — no pressure to proceed.</p>
+                <p className="mt-4 bg-[#e3e4d9] px-4 py-3 text-xs leading-5 text-[#66736d]"><span className="font-extrabold text-[#234543]">A sensible starting point.</span> We will talk through the final figure with you — no pressure to proceed.</p>
               <Button size="lg" asChild data-testid="link-part-exchange-valuation" className="mt-5 h-14 w-full rounded-none bg-accent text-base font-extrabold text-accent-foreground hover:bg-accent/90">
                 <a href={getContactHref('Part Exchange Valuation')}>{dealerConfig.partExchange.ctaLabel}<ChevronRight className="ml-auto h-5 w-5" /></a>
               </Button>
-              <p className="mt-3 text-center text-xs text-[#7b8178]">Start online, then speak to a real Luxxy Motors team member.</p>
+              <p className="mt-3 text-center text-xs text-[#748079]">Start online, then speak to a real Luxxy Motors team member.</p>
             </div>
           </div>
         </section>
