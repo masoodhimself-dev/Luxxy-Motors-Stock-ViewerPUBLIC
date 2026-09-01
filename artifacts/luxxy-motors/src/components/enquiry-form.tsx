@@ -81,6 +81,65 @@ function apiErrorMessage(error: unknown) {
   return 'We could not send your enquiry. Please try again or call us directly.';
 }
 
+function vehicleRegistration(vehicle?: Car | null) {
+  const actualRegistration = vehicle?.plate || vehicle?.vrm;
+  if (actualRegistration?.trim()) return actualRegistration.trim();
+  if (vehicle?.registration?.trim() && vehicle.registration !== vehicle.registrationBand) {
+    return vehicle.registration.trim();
+  }
+  return '';
+}
+
+function UKNumberPlate({
+  value,
+  editable = false,
+  onChange,
+  testId,
+  inputTestId,
+  helpId,
+}: {
+  value: string;
+  editable?: boolean;
+  onChange?: (value: string) => void;
+  testId: string;
+  inputTestId?: string;
+  helpId?: string;
+}) {
+  const registration = value.trim().toUpperCase();
+  const displayValue = registration || 'REG NOT AVAILABLE';
+
+  return (
+    <div className="relative aspect-[4.7/1] min-h-[58px] overflow-hidden rounded-[0.45rem] border-2 border-[#171717] bg-[#f5cc38] shadow-[inset_0_0_0_1px_rgba(255,255,255,.28),0_3px_0_#b3941e,0_6px_12px_rgba(27,27,27,.14)]" data-testid={testId}>
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex w-[11%] min-w-9 flex-col items-center justify-center bg-[#164f92] text-white">
+        <span className="text-[8px] font-black leading-none tracking-[0.08em]">GB</span>
+        <span className="mt-1 text-[7px] leading-none text-[#f5cc38]">✦</span>
+      </div>
+      {editable ? (
+        <Input
+          required
+          minLength={2}
+          maxLength={12}
+          pattern="[A-Za-z0-9 ]{2,12}"
+          value={value}
+          onChange={(event) => onChange?.(event.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''))}
+          placeholder="AB12 CDE"
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label="Your car’s UK registration number"
+          aria-describedby={helpId}
+          className="h-full min-h-[58px] rounded-none border-0 bg-transparent pl-[14%] font-mono text-xl font-black tracking-[0.16em] text-[#151515] shadow-none placeholder:text-[#625414]/60 focus-visible:ring-0 sm:text-2xl"
+          data-testid={inputTestId ?? `${testId}-input`}
+        />
+      ) : (
+        <span className="flex h-full min-h-[58px] items-center truncate pl-[14%] pr-3 font-mono text-xl font-black tracking-[0.16em] text-[#151515] sm:text-2xl" aria-label={`UK registration ${displayValue}`}>
+          {displayValue}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function EnquiryForm({
   initialType = 'general',
   vehicle,
@@ -255,17 +314,30 @@ export function EnquiryForm({
               })}
             </select>
             {selectedVehicle && (
-              <div className="mt-3 flex items-center gap-3 rounded-lg border border-[#e0d3b0] bg-background p-2.5" data-testid="card-part-exchange-target-vehicle">
-                {getThumbnailUrl(selectedVehicle) ? (
-                  <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 rounded-md object-cover" />
-                ) : (
-                  <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-secondary text-primary"><CarFront className="h-5 w-5" /></div>
-                )}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p>
+              <div className="mt-3 rounded-lg border border-[#e0d3b0] bg-background p-2.5" data-testid="card-part-exchange-target-vehicle">
+                <div className="flex items-center gap-3">
+                  {getThumbnailUrl(selectedVehicle) ? (
+                    <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 rounded-md object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-secondary text-primary"><CarFront className="h-5 w-5" /></div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p>
+                  </div>
+                  <Check className="ml-auto h-5 w-5 shrink-0 text-[#47725a]" />
                 </div>
-                <Check className="ml-auto h-5 w-5 shrink-0 text-[#47725a]" />
+                <div className="mt-3 border-t border-[#e8dfcb] pt-3">
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Actual registration</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground">From stock record</span>
+                  </div>
+                  {vehicleRegistration(selectedVehicle) ? (
+                    <UKNumberPlate value={vehicleRegistration(selectedVehicle)} testId="visual-target-uk-number-plate" />
+                  ) : (
+                    <p className="rounded-md border border-dashed border-[#cfc3aa] bg-[#fbf8f1] px-3 py-3 text-xs text-muted-foreground" data-testid="status-target-registration-unavailable">Actual registration not supplied for this vehicle.</p>
+                  )}
+                </div>
               </div>
             )}
             {stockCars.length === 0 && <p className="mt-3 text-xs leading-5 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
@@ -280,28 +352,14 @@ export function EnquiryForm({
                 <span>Your car’s registration</span>
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">UK plate</span>
               </span>
-              <div className="relative overflow-hidden rounded-md border-[3px] border-[#1b1b1b] bg-[#f6ce3d] shadow-[0_4px_0_#b79a22,0_8px_14px_rgba(27,27,27,.12)]" data-testid="visual-uk-number-plate">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex w-9 flex-col items-center justify-center bg-[#164f92] text-white">
-                  <span className="text-[8px] font-black tracking-[0.08em]">GB</span>
-                  <span className="mt-0.5 text-[8px] leading-none">★</span>
-                </div>
-                <Input
-                  required
-                  minLength={2}
-                  maxLength={12}
-                  pattern="[A-Za-z0-9 ]{2,12}"
-                  value={partExchangeRegistration}
-                  onChange={(event) => setPartExchangeRegistration(event.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''))}
-                  placeholder="AB12 CDE"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  aria-label="Your car’s UK registration number"
-                  aria-describedby="part-exchange-registration-help"
-                  className="h-14 rounded-none border-0 bg-transparent pl-12 font-mono text-xl font-black tracking-[0.16em] text-[#151515] shadow-none placeholder:text-[#625414]/60 focus-visible:ring-0 sm:text-2xl"
-                  data-testid="input-part-exchange-registration"
-                />
-              </div>
+              <UKNumberPlate
+                value={partExchangeRegistration}
+                editable
+                onChange={setPartExchangeRegistration}
+                testId="visual-uk-number-plate"
+                inputTestId="input-part-exchange-registration"
+                helpId="part-exchange-registration-help"
+              />
               <span id="part-exchange-registration-help" className="block text-xs font-normal leading-5 text-muted-foreground">Enter the registration exactly as it appears on the plate.</span>
             </label>
             <label className="space-y-2 text-sm font-semibold text-foreground">
