@@ -277,9 +277,6 @@ export default function Home() {
               <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-low-mileage">
                 <Gauge className="h-4 w-4 text-primary" /> Low mileage
               </button>
-              <button type="button" onClick={() => applyQuickFilter({ noWriteOff: true })} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/50 hover:text-primary" data-testid="button-quick-hpi-clear">
-                <ShieldCheck className="h-4 w-4 text-primary" /> HPI clear
-              </button>
             </div>
           </div>
         </div>
