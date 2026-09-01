@@ -156,6 +156,68 @@
   }
 }
 
+@layer components {
+  .luxxy-shell {
+    background:
+      radial-gradient(circle at 8% 0%, hsl(var(--accent) / .08), transparent 22rem),
+      hsl(var(--background));
+  }
+
+  .luxxy-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    color: hsl(var(--accent));
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .19em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .luxxy-kicker::before {
+    content: "";
+    display: block;
+    width: 2.25rem;
+    height: 1px;
+    background: currentColor;
+    opacity: .8;
+  }
+
+  .luxxy-rule {
+    background: linear-gradient(90deg, hsl(var(--accent)), hsl(var(--border)));
+    height: 1px;
+  }
+
+  .luxxy-surface {
+    box-shadow: 0 18px 50px hsl(var(--primary) / .08);
+  }
+
+  .luxxy-hero-image {
+    animation: luxxy-image-settle 1.2s cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .luxxy-reveal {
+    animation: luxxy-rise 700ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .luxxy-reveal-1 { animation-delay: 90ms; }
+  .luxxy-reveal-2 { animation-delay: 170ms; }
+  .luxxy-reveal-3 { animation-delay: 260ms; }
+  .luxxy-reveal-4 { animation-delay: 350ms; }
+
+  .luxxy-grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    opacity: .035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+}
+
 @keyframes luxxy-rise {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -164,6 +226,11 @@
 @keyframes luxxy-sheen {
   from { transform: translateX(-120%); }
   to { transform: translateX(120%); }
+}
+
+@keyframes luxxy-image-settle {
+  from { opacity: 0; transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1.02); }
 }
 
 .appointment-rise {
