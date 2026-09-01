@@ -2,20 +2,6 @@ uploads = []
 generated = []
 
 [[outputs]]
-id = "9ALDucS530SPoM72uSCT4"
-uri = "file://deliverables/luxxy-motors-logo-kit-preview.png"
-type = "image"
-title = "Luxxy Motors — The Harrow Mark"
-description = "Approved logo preview showing the primary lockup, reverse lockup, icon, and social artwork."
-logical_id = "d2d814ed-c715-4cb0-9eb7-78281cdbd4e8"
-content_hash = "sha256:26adcc881d18f7b42984a9b19d6e7854e9edd0cff212ff5cfe13c28abdb98413"
-size = 358822
-mtime_ms = 1788191607907
-storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:8dddf4bd-2e9b-4932-b5da-0d3816cf95ce/d2d814ed-c715-4cb0-9eb7-78281cdbd4e8/10255fbe-8ae3-419e-84a5-2691ea7293a0"
-storage_version_token = "1788191634450318"
-content_type = "image/png"
-
-[[outputs]]
 id = "ZXdn_qVUTM68UC7Kx2IFJ"
 uri = "file://deliverables/luxxy-motors-logo-kit.zip"
 type = "unspecified"
