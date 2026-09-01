@@ -276,18 +276,33 @@ export function EnquiryForm({
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-semibold text-foreground">
-              <span>Registration number</span>
-              <Input
-                required
-                minLength={2}
-                maxLength={12}
-                value={partExchangeRegistration}
-                onChange={(event) => setPartExchangeRegistration(event.target.value.toUpperCase())}
-                placeholder="AB12 CDE"
-                autoCapitalize="characters"
-                spellCheck={false}
-                data-testid="input-part-exchange-registration"
-              />
+              <span className="flex items-center justify-between gap-3">
+                <span>Your car’s registration</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">UK plate</span>
+              </span>
+              <div className="relative overflow-hidden rounded-md border-[3px] border-[#1b1b1b] bg-[#f6ce3d] shadow-[0_4px_0_#b79a22,0_8px_14px_rgba(27,27,27,.12)]" data-testid="visual-uk-number-plate">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex w-9 flex-col items-center justify-center bg-[#164f92] text-white">
+                  <span className="text-[8px] font-black tracking-[0.08em]">GB</span>
+                  <span className="mt-0.5 text-[8px] leading-none">★</span>
+                </div>
+                <Input
+                  required
+                  minLength={2}
+                  maxLength={12}
+                  pattern="[A-Za-z0-9 ]{2,12}"
+                  value={partExchangeRegistration}
+                  onChange={(event) => setPartExchangeRegistration(event.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''))}
+                  placeholder="AB12 CDE"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Your car’s UK registration number"
+                  aria-describedby="part-exchange-registration-help"
+                  className="h-14 rounded-none border-0 bg-transparent pl-12 font-mono text-xl font-black tracking-[0.16em] text-[#151515] shadow-none placeholder:text-[#625414]/60 focus-visible:ring-0 sm:text-2xl"
+                  data-testid="input-part-exchange-registration"
+                />
+              </div>
+              <span id="part-exchange-registration-help" className="block text-xs font-normal leading-5 text-muted-foreground">Enter the registration exactly as it appears on the plate.</span>
             </label>
             <label className="space-y-2 text-sm font-semibold text-foreground">
               <span className="flex items-center gap-2"><Gauge className="h-4 w-4 text-primary" />Current mileage</span>
