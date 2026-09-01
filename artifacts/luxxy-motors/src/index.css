@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -45,72 +45,72 @@
 
 :root {
   --site-header-height: 4.5rem;
-  /* Luxxy Motors — concierge editorial: deep ink teal, warm sage paper and brass */
-  --background: 80 20% 95%;
-  --foreground: 184 38% 16%;
+  /* Luxxy Motors - Deep Charcoal & Crisp White with Gold/Bronze Accent */
+  --background: 0 0% 100%;
+  --foreground: 224 71% 4%;
   
-  --border: 104 14% 83%;
-  --input: 104 14% 83%;
-  --ring: 42 67% 57%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 224 71% 4%;
   
-  --card: 60 30% 98%;
-  --card-foreground: 184 38% 16%;
-  --card-border: 104 14% 83%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71% 4%;
+  --card-border: 220 13% 91%;
   
-  --popover: 60 30% 98%;
-  --popover-foreground: 184 38% 16%;
-  --popover-border: 104 14% 83%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71% 4%;
+  --popover-border: 220 13% 91%;
   
-  /* Primary: midnight dealership ink */
-  --primary: 184 38% 16%;
-  --primary-foreground: 80 20% 95%;
+  /* Primary: Deep Charcoal / Slate */
+  --primary: 222 47% 11%;
+  --primary-foreground: 0 0% 100%;
   
-  /* Secondary: warm limestone */
-  --secondary: 100 17% 90%;
-  --secondary-foreground: 184 30% 20%;
+  /* Secondary: Subtle Grey/Silver */
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 40% 20%;
   
-  --muted: 100 15% 91%;
-  --muted-foreground: 164 10% 40%;
+  /* Muted: Off-white backgrounds */
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
   
-  /* Accent: brushed brass */
-  --accent: 42 67% 57%;
-  --accent-foreground: 184 38% 16%;
+  /* Accent: Luxxy Bronze/Gold */
+  --accent: 38 92% 50%;
+  --accent-foreground: 224 71% 4%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
   --app-font-sans: 'Outfit', sans-serif;
-  --font-display: 'Instrument Serif', Georgia, serif;
-  --radius: 0.8rem;
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: 218 39% 11%;
-  --foreground: 42 38% 96%;
+  --background: 224 71% 4%;
+  --foreground: 210 40% 98%;
   
   --border: 215 28% 17%;
   --input: 215 28% 17%;
   --ring: 213 27% 84%;
   
-  --card: 218 36% 15%;
-  --card-foreground: 42 38% 96%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
   --card-border: 215 28% 17%;
   
   --popover: 224 71% 4%;
   --popover-foreground: 210 40% 98%;
   --popover-border: 215 28% 17%;
   
-  --primary: 42 82% 49%;
-  --primary-foreground: 218 39% 11%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222 47% 11%;
   
-  --secondary: 218 30% 20%;
-  --secondary-foreground: 42 38% 96%;
+  --secondary: 215 28% 17%;
+  --secondary-foreground: 210 40% 98%;
   
-  --muted: 218 30% 20%;
-  --muted-foreground: 215 18% 70%;
+  --muted: 215 28% 17%;
+  --muted-foreground: 215 20% 65%;
   
-  --accent: 42 82% 49%;
-  --accent-foreground: 218 39% 11%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 224 71% 4%;
   
   --destructive: 0 63% 31%;
   --destructive-foreground: 210 40% 98%;
@@ -119,6 +119,7 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: var(--site-header-height);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -142,10 +143,6 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 
-  .font-display {
-    font-family: var(--font-display);
-  }
-  
   /* Custom Scrollbar for Gallery */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
