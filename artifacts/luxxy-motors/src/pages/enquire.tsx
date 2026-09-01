@@ -147,7 +147,7 @@ export default function Enquire() {
                   <p><strong>This vehicle has just left the showroom.</strong> You can still send a general enquiry below and we will help find a close alternative.</p>
                 </div>
               ) : null}
-              <EnquiryForm initialType={type} vehicle={vehicle} />
+              <EnquiryForm initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {[

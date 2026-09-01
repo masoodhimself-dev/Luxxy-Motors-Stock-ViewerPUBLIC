@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl } from '@/lib/utils';
 import type { EnquiryType } from '@/lib/cta-helpers';
 
 const typeLabels: Record<EnquiryType, string> = {
@@ -83,14 +83,17 @@ function apiErrorMessage(error: unknown) {
 export function EnquiryForm({
   initialType = 'general',
   vehicle,
+  stockCars = [],
 }: {
   initialType?: EnquiryType;
   vehicle?: Car;
+  stockCars?: Car[];
 }) {
   const [type, setType] = useState<EnquiryType>(initialType);
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState(vehicle?.id ?? '');
   const [partExchangeRegistration, setPartExchangeRegistration] = useState('');
   const [partExchangeMileage, setPartExchangeMileage] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
@@ -109,10 +112,16 @@ export function EnquiryForm({
     },
   );
 
-  const vehicleLabel = vehicle?.title || [vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
   const isPartExchange = type === 'part_exchange';
+  const selectedStockVehicle = stockCars.find((car) => car.id === selectedVehicleId);
+  const selectedVehicle = isPartExchange ? selectedStockVehicle ?? vehicle : vehicle;
+  const vehicleLabel = selectedVehicle?.title || [selectedVehicle?.make, selectedVehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
   const availableSlots = availabilityQuery.data?.slots.filter((slot) => slot.available) ?? [];
   const selectedSlotLabel = availabilityQuery.data?.slots.find((slot) => slot.startAt === selectedSlot)?.label;
+
+  useEffect(() => {
+    if (vehicle?.id) setSelectedVehicleId(vehicle.id);
+  }, [vehicle?.id]);
 
   useEffect(() => {
     setSelectedSlot(null);
@@ -127,15 +136,17 @@ export function EnquiryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isViewing && !selectedSlot) return;
+    if (isPartExchange && !selectedVehicleId) return;
     const partExchangeDetails = isPartExchange
       ? [
-          'Part exchange vehicle',
+          `Interested in: ${vehicleLabel}`,
+          'Customer part exchange vehicle',
           `Registration: ${partExchangeRegistration.trim().toUpperCase()}`,
           `Mileage: ${Number(partExchangeMileage).toLocaleString('en-GB')} miles`,
         ].join('\n')
       : '';
     const data: EnquiryInput = {
-      vehicleId: vehicle?.id ?? null,
+      vehicleId: isPartExchange ? selectedVehicleId || null : vehicle?.id ?? null,
       type,
       customerName: customerName.trim(),
       email: email.trim(),
@@ -162,7 +173,7 @@ export function EnquiryForm({
             ? `Thank you, ${customerName.trim()}. We have held your appointment for ${formatAppointment(selectedSlot!)}.`
             : `Thank you, ${customerName.trim()}. The Luxxy Motors team has your request and will reply by email.`}
         </p>
-        {vehicle && <p className="mt-5 text-sm font-bold text-[#173a2a]" data-testid="text-confirmed-vehicle">{vehicleLabel}</p>}
+        {selectedVehicle && <p className="mt-5 text-sm font-bold text-[#173a2a]" data-testid="text-confirmed-vehicle">{vehicleLabel}</p>}
         <div className="mx-auto mt-7 flex max-w-sm items-center justify-center gap-2 rounded-full border border-[#b5cbbd] bg-[#f6fbf7] px-4 py-3 text-xs font-semibold text-[#47725a]">
           <Mail className="h-4 w-4" /> A confirmation is on its way
         </div>
@@ -184,7 +195,7 @@ export function EnquiryForm({
         <div className="hidden rounded-full bg-[#f3e8c9] p-3 text-[#8d6714] sm:block"><Sparkles className="h-5 w-5" /></div>
       </div>
 
-      {vehicle && (
+      {vehicle && !isPartExchange && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-[#d5c59e] bg-[#fbf6e8] px-4 py-3" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Viewing</p>
@@ -215,8 +226,51 @@ export function EnquiryForm({
       {isPartExchange && (
         <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-part-exchange-details">
           <div>
-            <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CarFront className="h-5 w-5 text-primary" /> Tell us about your car</legend>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">We’ll use these details to prepare an accurate part-exchange valuation.</p>
+            <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CarFront className="h-5 w-5 text-primary" /> Let’s work out the difference</legend>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the Luxxy car you’re considering, then tell us about your current car.</p>
+          </div>
+          <div className="rounded-xl border border-[#d5c59e] bg-[#fbf6e8] p-4" data-testid="section-part-exchange-target-vehicle">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Step 1 · Your next car</p>
+                <p className="mt-1 text-sm font-bold text-foreground">Which car are you considering?</p>
+              </div>
+              <span className="rounded-full bg-[#f3e8c9] px-2.5 py-1 text-[10px] font-bold text-[#8d6714]">{stockCars.length} available</span>
+            </div>
+            <select
+              required
+              value={selectedVehicleId}
+              onChange={(event) => setSelectedVehicleId(event.target.value)}
+              disabled={stockCars.length === 0}
+              className="mt-4 flex h-12 w-full rounded-xl border border-[#d5c59e] bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+              data-testid="select-part-exchange-target-vehicle"
+            >
+              <option value="">Choose a car from our current stock</option>
+              {stockCars.map((car) => {
+                const label = car.title || [car.make, car.model].filter(Boolean).join(' ') || 'Selected vehicle';
+                const price = car.price != null ? ` · ${formatPrice(car.price, car.currency)}` : '';
+                return <option key={car.id} value={car.id}>{label}{price}</option>;
+              })}
+            </select>
+            {selectedVehicle && (
+              <div className="mt-3 flex items-center gap-3 rounded-lg border border-[#e0d3b0] bg-background p-2.5" data-testid="card-part-exchange-target-vehicle">
+                {getThumbnailUrl(selectedVehicle) ? (
+                  <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 rounded-md object-cover" />
+                ) : (
+                  <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-secondary text-primary"><CarFront className="h-5 w-5" /></div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p>
+                </div>
+                <Check className="ml-auto h-5 w-5 shrink-0 text-[#47725a]" />
+              </div>
+            )}
+            {stockCars.length === 0 && <p className="mt-3 text-xs leading-5 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
+          </div>
+          <div className="border-t border-[#e3ddcf] pt-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Step 2 · Your current car</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Tell us about the car you’d like to exchange</p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-semibold text-foreground">
