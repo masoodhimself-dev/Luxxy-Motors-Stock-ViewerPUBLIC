@@ -545,8 +545,182 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /dealer-settings:
+    get:
+      operationId: getDealerSettings
+      tags: [dealer-settings]
+      summary: Get the public dealer profile
+      description: Returns the configured dealer identity, contact details, showroom copy, services, and legal links.
+      responses:
+        "200":
+          description: Dealer settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DealerSettings"
+        "500":
+          description: Unable to load dealer settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateDealerSettings
+      tags: [dealer-settings]
+      summary: Replace the dealer profile
+      description: Saves the complete dealer profile used by the public showroom and dealer portal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DealerSettingsInput"
+      responses:
+        "200":
+          description: Updated dealer settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DealerSettings"
+        "400":
+          description: Dealer settings failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to update dealer settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
+    DealerBrandColors:
+      type: object
+      additionalProperties: false
+      properties:
+        primaryHsl: { type: string, minLength: 1 }
+        accentHsl: { type: string, minLength: 1 }
+      required: [primaryHsl, accentHsl]
+    DealerIdentity:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        logoText: { type: string, maxLength: 120 }
+        logoAsset: { type: string, maxLength: 500 }
+        brandColors:
+          $ref: "#/components/schemas/DealerBrandColors"
+      required: [name, logoText, logoAsset, brandColors]
+    DealerContact:
+      type: object
+      additionalProperties: false
+      properties:
+        phone: { type: string, maxLength: 40 }
+        whatsapp: { type: string, maxLength: 40 }
+        email: { type: string, maxLength: 160 }
+      required: [phone, whatsapp, email]
+    DealerAddress:
+      type: object
+      additionalProperties: false
+      properties:
+        street: { type: string, maxLength: 160 }
+        city: { type: string, maxLength: 80 }
+        region: { type: string, maxLength: 80 }
+        postcode: { type: string, maxLength: 20 }
+        mapsUrl: { type: string, maxLength: 500 }
+      required: [street, city, region, postcode, mapsUrl]
+    DealerHoursItem:
+      type: object
+      additionalProperties: false
+      properties:
+        days: { type: string, minLength: 1, maxLength: 80 }
+        times: { type: string, minLength: 1, maxLength: 80 }
+      required: [days, times]
+    DealerLegal:
+      type: object
+      additionalProperties: false
+      properties:
+        companyName: { type: string, maxLength: 160 }
+        companyNumber: { type: string, maxLength: 80 }
+        vatNumber: { type: string, maxLength: 80 }
+        termsUrl: { type: string, maxLength: 500 }
+        privacyUrl: { type: string, maxLength: 500 }
+        cookieUrl: { type: string, maxLength: 500 }
+      required: [companyName, companyNumber, vatNumber, termsUrl, privacyUrl, cookieUrl]
+    DealerSocial:
+      type: object
+      additionalProperties: false
+      properties:
+        instagram: { type: string, maxLength: 500 }
+        facebook: { type: string, maxLength: 500 }
+        twitter: { type: string, maxLength: 500 }
+      required: [instagram, facebook, twitter]
+    DealerHero:
+      type: object
+      additionalProperties: false
+      properties:
+        announcement: { type: string, maxLength: 160 }
+        copy: { type: string, minLength: 1, maxLength: 160 }
+        subcopy: { type: string, minLength: 1, maxLength: 300 }
+        primaryCta: { type: string, minLength: 1, maxLength: 80 }
+        secondaryCta: { type: string, minLength: 1, maxLength: 80 }
+      required: [announcement, copy, subcopy, primaryCta, secondaryCta]
+    DealerService:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, minLength: 1, maxLength: 300 }
+        ctaLabel: { type: string, minLength: 1, maxLength: 80 }
+      required: [enabled, title, description, ctaLabel]
+    DealerBookViewing:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, minLength: 1, maxLength: 300 }
+        ctaLabel: { type: string, minLength: 1, maxLength: 80 }
+      required: [title, description, ctaLabel]
+    DealerWhyBuyItem:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, minLength: 1, maxLength: 300 }
+      required: [title, description]
+    DealerSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        identity: { $ref: "#/components/schemas/DealerIdentity" }
+        contact: { $ref: "#/components/schemas/DealerContact" }
+        address: { $ref: "#/components/schemas/DealerAddress" }
+        hours:
+          type: array
+          maxItems: 14
+          items: { $ref: "#/components/schemas/DealerHoursItem" }
+        legal: { $ref: "#/components/schemas/DealerLegal" }
+        social: { $ref: "#/components/schemas/DealerSocial" }
+        hero: { $ref: "#/components/schemas/DealerHero" }
+        warranty: { $ref: "#/components/schemas/DealerService" }
+        delivery: { $ref: "#/components/schemas/DealerService" }
+        partExchange: { $ref: "#/components/schemas/DealerService" }
+        bookViewing: { $ref: "#/components/schemas/DealerBookViewing" }
+        trustItems:
+          type: array
+          maxItems: 8
+          items: { type: string, minLength: 1, maxLength: 120 }
+        whyBuy:
+          type: array
+          maxItems: 8
+          items: { $ref: "#/components/schemas/DealerWhyBuyItem" }
+      required: [identity, contact, address, hours, legal, social, hero, warranty, delivery, partExchange, bookViewing, trustItems, whyBuy]
+    DealerSettingsInput:
+      allOf:
+        - $ref: "#/components/schemas/DealerSettings"
     HealthStatus:
       type: object
       additionalProperties: false

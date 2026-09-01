@@ -5,11 +5,12 @@ import { EnquiryForm } from '@/components/enquiry-form';
 import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
 import { formatMileage, formatPrice, getThumbnailUrl } from '@/lib/utils';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
   viewing: { eyebrow: 'Private showroom visit', title: 'Come and meet the car properly.', description: 'Choose a time that suits you. We will have the vehicle ready, warmed up and waiting.' },
-  general: { eyebrow: 'Luxxy Motors concierge', title: 'Tell us what you need.', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
+  general: { eyebrow: 'Showroom concierge', title: 'Tell us what you need.', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Let’s get it to your door.', description: 'Share where you are and we will map out the simplest route to getting your next car home.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Ask us about cover.', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
   part_exchange: { eyebrow: 'Part exchange', title: 'See what your current car is worth.', description: 'Tell us a little about your car and we will help you understand your options.' },
@@ -21,12 +22,16 @@ function vehicleName(vehicle: { title: string | null; make: string | null; model
 
 export default function Enquire() {
   const { stock, isLoading, error } = useStock();
+  const { settings: dealerConfig } = useDealerSettings();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const requestedType = params.get('type') as EnquiryType | null;
   const type = requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general';
   const vehicleId = params.get('vehicleId');
   const vehicle = stock?.cars.find((car) => car.id === vehicleId);
-  const copy = headings[type];
+  const copy = {
+    ...headings[type],
+    eyebrow: type === 'general' ? `${dealerConfig.identity.name} concierge` : headings[type].eyebrow,
+  };
   const selectedVehicleName = vehicle ? vehicleName(vehicle) : 'your next car';
   const vehicleImage = vehicle ? getThumbnailUrl(vehicle) : '';
   const vehicleHighlights = vehicle
@@ -54,7 +59,7 @@ export default function Enquire() {
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] text-accent">
                   <CarIcon className="h-5 w-5" />
                 </div>
-                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary-foreground/55"><span className="h-1.5 w-1.5 rounded-full bg-[#78bd8c]" /> Luxxy concierge</span>
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-primary-foreground/55"><span className="h-1.5 w-1.5 rounded-full bg-[#78bd8c]" /> {dealerConfig.identity.name} concierge</span>
               </div>
               <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-accent">{copy.eyebrow}</p>
                <h1 className="font-display mt-3 text-[2.35rem] leading-[.98] tracking-tight sm:text-6xl lg:text-[3.8rem]">{copy.title}</h1>
@@ -112,7 +117,7 @@ export default function Enquire() {
                 <div className="mt-5 flex items-start gap-3">
                   <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
                   <div>
-                    <p className="text-sm font-bold text-white">At the Luxxy showroom</p>
+                    <p className="text-sm font-bold text-white">At the {dealerConfig.identity.name} showroom</p>
                     <p className="mt-1 text-xs leading-5 text-primary-foreground/60">Your confirmation will include everything you need for the journey.</p>
                   </div>
                 </div>

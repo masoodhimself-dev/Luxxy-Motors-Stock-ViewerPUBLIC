@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
 import { Menu, X, Car as CarIcon, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin } from 'lucide-react';
-import { dealerConfig } from '@/config/dealer';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
+  const { settings: dealerConfig } = useDealerSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
@@ -95,7 +96,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
                <Button onClick={() => setLocation(getEnquiryHref('viewing'))} className="font-bold rounded-full px-6">
-                 Book a Viewing
+                 {dealerConfig.bookViewing.ctaLabel}
               </Button>
             </div>
           </nav>
@@ -184,7 +185,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <nav className="flex flex-col items-start gap-3 text-sm text-primary-foreground/70">
                 <button onClick={() => handleNav('stock')} className="hover:text-accent transition-colors">View All Stock</button>
                 <button onClick={() => handleNav('part-exchange')} className="hover:text-accent transition-colors">Part Exchange</button>
-                 <button onClick={() => setLocation(getEnquiryHref('viewing'))} className="hover:text-accent transition-colors">Book a Viewing</button>
+                  <button onClick={() => setLocation(getEnquiryHref('viewing'))} className="hover:text-accent transition-colors">{dealerConfig.bookViewing.ctaLabel}</button>
                 <button onClick={() => handleNav('warranty')} className="hover:text-accent transition-colors">Warranty Information</button>
               </nav>
             </div>

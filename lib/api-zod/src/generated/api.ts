@@ -677,3 +677,523 @@ export const CompleteSigningSessionBody = zod.object({
 export const CompleteSigningSessionResponse = zod.record(zod.string(), zod.unknown())
 
 
+/**
+ * Returns the configured dealer identity, contact details, showroom copy, services, and legal links.
+ * @summary Get the public dealer profile
+ */
+export const getDealerSettingsResponseIdentityNameMax = 120;
+
+export const getDealerSettingsResponseIdentityLogoTextMax = 120;
+
+export const getDealerSettingsResponseIdentityLogoAssetMax = 500;
+
+
+
+export const getDealerSettingsResponseContactPhoneMax = 40;
+
+export const getDealerSettingsResponseContactWhatsappMax = 40;
+
+export const getDealerSettingsResponseContactEmailMax = 160;
+
+export const getDealerSettingsResponseAddressStreetMax = 160;
+
+export const getDealerSettingsResponseAddressCityMax = 80;
+
+export const getDealerSettingsResponseAddressRegionMax = 80;
+
+export const getDealerSettingsResponseAddressPostcodeMax = 20;
+
+export const getDealerSettingsResponseAddressMapsUrlMax = 500;
+
+export const getDealerSettingsResponseHoursItemDaysMax = 80;
+
+export const getDealerSettingsResponseHoursItemTimesMax = 80;
+
+export const getDealerSettingsResponseHoursMax = 14;
+
+export const getDealerSettingsResponseLegalCompanyNameMax = 160;
+
+export const getDealerSettingsResponseLegalCompanyNumberMax = 80;
+
+export const getDealerSettingsResponseLegalVatNumberMax = 80;
+
+export const getDealerSettingsResponseLegalTermsUrlMax = 500;
+
+export const getDealerSettingsResponseLegalPrivacyUrlMax = 500;
+
+export const getDealerSettingsResponseLegalCookieUrlMax = 500;
+
+export const getDealerSettingsResponseSocialInstagramMax = 500;
+
+export const getDealerSettingsResponseSocialFacebookMax = 500;
+
+export const getDealerSettingsResponseSocialTwitterMax = 500;
+
+export const getDealerSettingsResponseHeroAnnouncementMax = 160;
+
+export const getDealerSettingsResponseHeroCopyMax = 160;
+
+export const getDealerSettingsResponseHeroSubcopyMax = 300;
+
+export const getDealerSettingsResponseHeroPrimaryCtaMax = 80;
+
+export const getDealerSettingsResponseHeroSecondaryCtaMax = 80;
+
+export const getDealerSettingsResponseWarrantyTitleMax = 120;
+
+export const getDealerSettingsResponseWarrantyDescriptionMax = 300;
+
+export const getDealerSettingsResponseWarrantyCtaLabelMax = 80;
+
+export const getDealerSettingsResponseDeliveryTitleMax = 120;
+
+export const getDealerSettingsResponseDeliveryDescriptionMax = 300;
+
+export const getDealerSettingsResponseDeliveryCtaLabelMax = 80;
+
+export const getDealerSettingsResponsePartExchangeTitleMax = 120;
+
+export const getDealerSettingsResponsePartExchangeDescriptionMax = 300;
+
+export const getDealerSettingsResponsePartExchangeCtaLabelMax = 80;
+
+export const getDealerSettingsResponseBookViewingTitleMax = 160;
+
+export const getDealerSettingsResponseBookViewingDescriptionMax = 300;
+
+export const getDealerSettingsResponseBookViewingCtaLabelMax = 80;
+
+export const getDealerSettingsResponseTrustItemsItemMax = 120;
+
+export const getDealerSettingsResponseTrustItemsMax = 8;
+
+export const getDealerSettingsResponseWhyBuyItemTitleMax = 120;
+
+export const getDealerSettingsResponseWhyBuyItemDescriptionMax = 300;
+
+export const getDealerSettingsResponseWhyBuyMax = 8;
+
+
+
+export const GetDealerSettingsResponse = zod.object({
+  "identity": zod.object({
+  "name": zod.string().min(1).max(getDealerSettingsResponseIdentityNameMax),
+  "logoText": zod.string().max(getDealerSettingsResponseIdentityLogoTextMax),
+  "logoAsset": zod.string().max(getDealerSettingsResponseIdentityLogoAssetMax),
+  "brandColors": zod.object({
+  "primaryHsl": zod.string().min(1),
+  "accentHsl": zod.string().min(1)
+})
+}),
+  "contact": zod.object({
+  "phone": zod.string().max(getDealerSettingsResponseContactPhoneMax),
+  "whatsapp": zod.string().max(getDealerSettingsResponseContactWhatsappMax),
+  "email": zod.string().max(getDealerSettingsResponseContactEmailMax)
+}),
+  "address": zod.object({
+  "street": zod.string().max(getDealerSettingsResponseAddressStreetMax),
+  "city": zod.string().max(getDealerSettingsResponseAddressCityMax),
+  "region": zod.string().max(getDealerSettingsResponseAddressRegionMax),
+  "postcode": zod.string().max(getDealerSettingsResponseAddressPostcodeMax),
+  "mapsUrl": zod.string().max(getDealerSettingsResponseAddressMapsUrlMax)
+}),
+  "hours": zod.array(zod.object({
+  "days": zod.string().min(1).max(getDealerSettingsResponseHoursItemDaysMax),
+  "times": zod.string().min(1).max(getDealerSettingsResponseHoursItemTimesMax)
+})).max(getDealerSettingsResponseHoursMax),
+  "legal": zod.object({
+  "companyName": zod.string().max(getDealerSettingsResponseLegalCompanyNameMax),
+  "companyNumber": zod.string().max(getDealerSettingsResponseLegalCompanyNumberMax),
+  "vatNumber": zod.string().max(getDealerSettingsResponseLegalVatNumberMax),
+  "termsUrl": zod.string().max(getDealerSettingsResponseLegalTermsUrlMax),
+  "privacyUrl": zod.string().max(getDealerSettingsResponseLegalPrivacyUrlMax),
+  "cookieUrl": zod.string().max(getDealerSettingsResponseLegalCookieUrlMax)
+}),
+  "social": zod.object({
+  "instagram": zod.string().max(getDealerSettingsResponseSocialInstagramMax),
+  "facebook": zod.string().max(getDealerSettingsResponseSocialFacebookMax),
+  "twitter": zod.string().max(getDealerSettingsResponseSocialTwitterMax)
+}),
+  "hero": zod.object({
+  "announcement": zod.string().max(getDealerSettingsResponseHeroAnnouncementMax),
+  "copy": zod.string().min(1).max(getDealerSettingsResponseHeroCopyMax),
+  "subcopy": zod.string().min(1).max(getDealerSettingsResponseHeroSubcopyMax),
+  "primaryCta": zod.string().min(1).max(getDealerSettingsResponseHeroPrimaryCtaMax),
+  "secondaryCta": zod.string().min(1).max(getDealerSettingsResponseHeroSecondaryCtaMax)
+}),
+  "warranty": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(getDealerSettingsResponseWarrantyTitleMax),
+  "description": zod.string().min(1).max(getDealerSettingsResponseWarrantyDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(getDealerSettingsResponseWarrantyCtaLabelMax)
+}),
+  "delivery": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(getDealerSettingsResponseDeliveryTitleMax),
+  "description": zod.string().min(1).max(getDealerSettingsResponseDeliveryDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(getDealerSettingsResponseDeliveryCtaLabelMax)
+}),
+  "partExchange": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(getDealerSettingsResponsePartExchangeTitleMax),
+  "description": zod.string().min(1).max(getDealerSettingsResponsePartExchangeDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(getDealerSettingsResponsePartExchangeCtaLabelMax)
+}),
+  "bookViewing": zod.object({
+  "title": zod.string().min(1).max(getDealerSettingsResponseBookViewingTitleMax),
+  "description": zod.string().min(1).max(getDealerSettingsResponseBookViewingDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(getDealerSettingsResponseBookViewingCtaLabelMax)
+}),
+  "trustItems": zod.array(zod.string().min(1).max(getDealerSettingsResponseTrustItemsItemMax)).max(getDealerSettingsResponseTrustItemsMax),
+  "whyBuy": zod.array(zod.object({
+  "title": zod.string().min(1).max(getDealerSettingsResponseWhyBuyItemTitleMax),
+  "description": zod.string().min(1).max(getDealerSettingsResponseWhyBuyItemDescriptionMax)
+})).max(getDealerSettingsResponseWhyBuyMax)
+})
+
+
+/**
+ * Saves the complete dealer profile used by the public showroom and dealer portal.
+ * @summary Replace the dealer profile
+ */
+export const updateDealerSettingsBodyOneIdentityNameMax = 120;
+
+export const updateDealerSettingsBodyOneIdentityLogoTextMax = 120;
+
+export const updateDealerSettingsBodyOneIdentityLogoAssetMax = 500;
+
+
+
+export const updateDealerSettingsBodyOneContactPhoneMax = 40;
+
+export const updateDealerSettingsBodyOneContactWhatsappMax = 40;
+
+export const updateDealerSettingsBodyOneContactEmailMax = 160;
+
+export const updateDealerSettingsBodyOneAddressStreetMax = 160;
+
+export const updateDealerSettingsBodyOneAddressCityMax = 80;
+
+export const updateDealerSettingsBodyOneAddressRegionMax = 80;
+
+export const updateDealerSettingsBodyOneAddressPostcodeMax = 20;
+
+export const updateDealerSettingsBodyOneAddressMapsUrlMax = 500;
+
+export const updateDealerSettingsBodyOneHoursItemDaysMax = 80;
+
+export const updateDealerSettingsBodyOneHoursItemTimesMax = 80;
+
+export const updateDealerSettingsBodyOneHoursMax = 14;
+
+export const updateDealerSettingsBodyOneLegalCompanyNameMax = 160;
+
+export const updateDealerSettingsBodyOneLegalCompanyNumberMax = 80;
+
+export const updateDealerSettingsBodyOneLegalVatNumberMax = 80;
+
+export const updateDealerSettingsBodyOneLegalTermsUrlMax = 500;
+
+export const updateDealerSettingsBodyOneLegalPrivacyUrlMax = 500;
+
+export const updateDealerSettingsBodyOneLegalCookieUrlMax = 500;
+
+export const updateDealerSettingsBodyOneSocialInstagramMax = 500;
+
+export const updateDealerSettingsBodyOneSocialFacebookMax = 500;
+
+export const updateDealerSettingsBodyOneSocialTwitterMax = 500;
+
+export const updateDealerSettingsBodyOneHeroAnnouncementMax = 160;
+
+export const updateDealerSettingsBodyOneHeroCopyMax = 160;
+
+export const updateDealerSettingsBodyOneHeroSubcopyMax = 300;
+
+export const updateDealerSettingsBodyOneHeroPrimaryCtaMax = 80;
+
+export const updateDealerSettingsBodyOneHeroSecondaryCtaMax = 80;
+
+export const updateDealerSettingsBodyOneWarrantyTitleMax = 120;
+
+export const updateDealerSettingsBodyOneWarrantyDescriptionMax = 300;
+
+export const updateDealerSettingsBodyOneWarrantyCtaLabelMax = 80;
+
+export const updateDealerSettingsBodyOneDeliveryTitleMax = 120;
+
+export const updateDealerSettingsBodyOneDeliveryDescriptionMax = 300;
+
+export const updateDealerSettingsBodyOneDeliveryCtaLabelMax = 80;
+
+export const updateDealerSettingsBodyOnePartExchangeTitleMax = 120;
+
+export const updateDealerSettingsBodyOnePartExchangeDescriptionMax = 300;
+
+export const updateDealerSettingsBodyOnePartExchangeCtaLabelMax = 80;
+
+export const updateDealerSettingsBodyOneBookViewingTitleMax = 160;
+
+export const updateDealerSettingsBodyOneBookViewingDescriptionMax = 300;
+
+export const updateDealerSettingsBodyOneBookViewingCtaLabelMax = 80;
+
+export const updateDealerSettingsBodyOneTrustItemsItemMax = 120;
+
+export const updateDealerSettingsBodyOneTrustItemsMax = 8;
+
+export const updateDealerSettingsBodyOneWhyBuyItemTitleMax = 120;
+
+export const updateDealerSettingsBodyOneWhyBuyItemDescriptionMax = 300;
+
+export const updateDealerSettingsBodyOneWhyBuyMax = 8;
+
+
+
+export const UpdateDealerSettingsBody = zod.object({
+  "identity": zod.object({
+  "name": zod.string().min(1).max(updateDealerSettingsBodyOneIdentityNameMax),
+  "logoText": zod.string().max(updateDealerSettingsBodyOneIdentityLogoTextMax),
+  "logoAsset": zod.string().max(updateDealerSettingsBodyOneIdentityLogoAssetMax),
+  "brandColors": zod.object({
+  "primaryHsl": zod.string().min(1),
+  "accentHsl": zod.string().min(1)
+})
+}),
+  "contact": zod.object({
+  "phone": zod.string().max(updateDealerSettingsBodyOneContactPhoneMax),
+  "whatsapp": zod.string().max(updateDealerSettingsBodyOneContactWhatsappMax),
+  "email": zod.string().max(updateDealerSettingsBodyOneContactEmailMax)
+}),
+  "address": zod.object({
+  "street": zod.string().max(updateDealerSettingsBodyOneAddressStreetMax),
+  "city": zod.string().max(updateDealerSettingsBodyOneAddressCityMax),
+  "region": zod.string().max(updateDealerSettingsBodyOneAddressRegionMax),
+  "postcode": zod.string().max(updateDealerSettingsBodyOneAddressPostcodeMax),
+  "mapsUrl": zod.string().max(updateDealerSettingsBodyOneAddressMapsUrlMax)
+}),
+  "hours": zod.array(zod.object({
+  "days": zod.string().min(1).max(updateDealerSettingsBodyOneHoursItemDaysMax),
+  "times": zod.string().min(1).max(updateDealerSettingsBodyOneHoursItemTimesMax)
+})).max(updateDealerSettingsBodyOneHoursMax),
+  "legal": zod.object({
+  "companyName": zod.string().max(updateDealerSettingsBodyOneLegalCompanyNameMax),
+  "companyNumber": zod.string().max(updateDealerSettingsBodyOneLegalCompanyNumberMax),
+  "vatNumber": zod.string().max(updateDealerSettingsBodyOneLegalVatNumberMax),
+  "termsUrl": zod.string().max(updateDealerSettingsBodyOneLegalTermsUrlMax),
+  "privacyUrl": zod.string().max(updateDealerSettingsBodyOneLegalPrivacyUrlMax),
+  "cookieUrl": zod.string().max(updateDealerSettingsBodyOneLegalCookieUrlMax)
+}),
+  "social": zod.object({
+  "instagram": zod.string().max(updateDealerSettingsBodyOneSocialInstagramMax),
+  "facebook": zod.string().max(updateDealerSettingsBodyOneSocialFacebookMax),
+  "twitter": zod.string().max(updateDealerSettingsBodyOneSocialTwitterMax)
+}),
+  "hero": zod.object({
+  "announcement": zod.string().max(updateDealerSettingsBodyOneHeroAnnouncementMax),
+  "copy": zod.string().min(1).max(updateDealerSettingsBodyOneHeroCopyMax),
+  "subcopy": zod.string().min(1).max(updateDealerSettingsBodyOneHeroSubcopyMax),
+  "primaryCta": zod.string().min(1).max(updateDealerSettingsBodyOneHeroPrimaryCtaMax),
+  "secondaryCta": zod.string().min(1).max(updateDealerSettingsBodyOneHeroSecondaryCtaMax)
+}),
+  "warranty": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(updateDealerSettingsBodyOneWarrantyTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsBodyOneWarrantyDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOneWarrantyCtaLabelMax)
+}),
+  "delivery": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(updateDealerSettingsBodyOneDeliveryTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsBodyOneDeliveryDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOneDeliveryCtaLabelMax)
+}),
+  "partExchange": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(updateDealerSettingsBodyOnePartExchangeTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsBodyOnePartExchangeDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOnePartExchangeCtaLabelMax)
+}),
+  "bookViewing": zod.object({
+  "title": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingCtaLabelMax)
+}),
+  "trustItems": zod.array(zod.string().min(1).max(updateDealerSettingsBodyOneTrustItemsItemMax)).max(updateDealerSettingsBodyOneTrustItemsMax),
+  "whyBuy": zod.array(zod.object({
+  "title": zod.string().min(1).max(updateDealerSettingsBodyOneWhyBuyItemTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsBodyOneWhyBuyItemDescriptionMax)
+})).max(updateDealerSettingsBodyOneWhyBuyMax)
+})
+
+export const updateDealerSettingsResponseIdentityNameMax = 120;
+
+export const updateDealerSettingsResponseIdentityLogoTextMax = 120;
+
+export const updateDealerSettingsResponseIdentityLogoAssetMax = 500;
+
+
+
+export const updateDealerSettingsResponseContactPhoneMax = 40;
+
+export const updateDealerSettingsResponseContactWhatsappMax = 40;
+
+export const updateDealerSettingsResponseContactEmailMax = 160;
+
+export const updateDealerSettingsResponseAddressStreetMax = 160;
+
+export const updateDealerSettingsResponseAddressCityMax = 80;
+
+export const updateDealerSettingsResponseAddressRegionMax = 80;
+
+export const updateDealerSettingsResponseAddressPostcodeMax = 20;
+
+export const updateDealerSettingsResponseAddressMapsUrlMax = 500;
+
+export const updateDealerSettingsResponseHoursItemDaysMax = 80;
+
+export const updateDealerSettingsResponseHoursItemTimesMax = 80;
+
+export const updateDealerSettingsResponseHoursMax = 14;
+
+export const updateDealerSettingsResponseLegalCompanyNameMax = 160;
+
+export const updateDealerSettingsResponseLegalCompanyNumberMax = 80;
+
+export const updateDealerSettingsResponseLegalVatNumberMax = 80;
+
+export const updateDealerSettingsResponseLegalTermsUrlMax = 500;
+
+export const updateDealerSettingsResponseLegalPrivacyUrlMax = 500;
+
+export const updateDealerSettingsResponseLegalCookieUrlMax = 500;
+
+export const updateDealerSettingsResponseSocialInstagramMax = 500;
+
+export const updateDealerSettingsResponseSocialFacebookMax = 500;
+
+export const updateDealerSettingsResponseSocialTwitterMax = 500;
+
+export const updateDealerSettingsResponseHeroAnnouncementMax = 160;
+
+export const updateDealerSettingsResponseHeroCopyMax = 160;
+
+export const updateDealerSettingsResponseHeroSubcopyMax = 300;
+
+export const updateDealerSettingsResponseHeroPrimaryCtaMax = 80;
+
+export const updateDealerSettingsResponseHeroSecondaryCtaMax = 80;
+
+export const updateDealerSettingsResponseWarrantyTitleMax = 120;
+
+export const updateDealerSettingsResponseWarrantyDescriptionMax = 300;
+
+export const updateDealerSettingsResponseWarrantyCtaLabelMax = 80;
+
+export const updateDealerSettingsResponseDeliveryTitleMax = 120;
+
+export const updateDealerSettingsResponseDeliveryDescriptionMax = 300;
+
+export const updateDealerSettingsResponseDeliveryCtaLabelMax = 80;
+
+export const updateDealerSettingsResponsePartExchangeTitleMax = 120;
+
+export const updateDealerSettingsResponsePartExchangeDescriptionMax = 300;
+
+export const updateDealerSettingsResponsePartExchangeCtaLabelMax = 80;
+
+export const updateDealerSettingsResponseBookViewingTitleMax = 160;
+
+export const updateDealerSettingsResponseBookViewingDescriptionMax = 300;
+
+export const updateDealerSettingsResponseBookViewingCtaLabelMax = 80;
+
+export const updateDealerSettingsResponseTrustItemsItemMax = 120;
+
+export const updateDealerSettingsResponseTrustItemsMax = 8;
+
+export const updateDealerSettingsResponseWhyBuyItemTitleMax = 120;
+
+export const updateDealerSettingsResponseWhyBuyItemDescriptionMax = 300;
+
+export const updateDealerSettingsResponseWhyBuyMax = 8;
+
+
+
+export const UpdateDealerSettingsResponse = zod.object({
+  "identity": zod.object({
+  "name": zod.string().min(1).max(updateDealerSettingsResponseIdentityNameMax),
+  "logoText": zod.string().max(updateDealerSettingsResponseIdentityLogoTextMax),
+  "logoAsset": zod.string().max(updateDealerSettingsResponseIdentityLogoAssetMax),
+  "brandColors": zod.object({
+  "primaryHsl": zod.string().min(1),
+  "accentHsl": zod.string().min(1)
+})
+}),
+  "contact": zod.object({
+  "phone": zod.string().max(updateDealerSettingsResponseContactPhoneMax),
+  "whatsapp": zod.string().max(updateDealerSettingsResponseContactWhatsappMax),
+  "email": zod.string().max(updateDealerSettingsResponseContactEmailMax)
+}),
+  "address": zod.object({
+  "street": zod.string().max(updateDealerSettingsResponseAddressStreetMax),
+  "city": zod.string().max(updateDealerSettingsResponseAddressCityMax),
+  "region": zod.string().max(updateDealerSettingsResponseAddressRegionMax),
+  "postcode": zod.string().max(updateDealerSettingsResponseAddressPostcodeMax),
+  "mapsUrl": zod.string().max(updateDealerSettingsResponseAddressMapsUrlMax)
+}),
+  "hours": zod.array(zod.object({
+  "days": zod.string().min(1).max(updateDealerSettingsResponseHoursItemDaysMax),
+  "times": zod.string().min(1).max(updateDealerSettingsResponseHoursItemTimesMax)
+})).max(updateDealerSettingsResponseHoursMax),
+  "legal": zod.object({
+  "companyName": zod.string().max(updateDealerSettingsResponseLegalCompanyNameMax),
+  "companyNumber": zod.string().max(updateDealerSettingsResponseLegalCompanyNumberMax),
+  "vatNumber": zod.string().max(updateDealerSettingsResponseLegalVatNumberMax),
+  "termsUrl": zod.string().max(updateDealerSettingsResponseLegalTermsUrlMax),
+  "privacyUrl": zod.string().max(updateDealerSettingsResponseLegalPrivacyUrlMax),
+  "cookieUrl": zod.string().max(updateDealerSettingsResponseLegalCookieUrlMax)
+}),
+  "social": zod.object({
+  "instagram": zod.string().max(updateDealerSettingsResponseSocialInstagramMax),
+  "facebook": zod.string().max(updateDealerSettingsResponseSocialFacebookMax),
+  "twitter": zod.string().max(updateDealerSettingsResponseSocialTwitterMax)
+}),
+  "hero": zod.object({
+  "announcement": zod.string().max(updateDealerSettingsResponseHeroAnnouncementMax),
+  "copy": zod.string().min(1).max(updateDealerSettingsResponseHeroCopyMax),
+  "subcopy": zod.string().min(1).max(updateDealerSettingsResponseHeroSubcopyMax),
+  "primaryCta": zod.string().min(1).max(updateDealerSettingsResponseHeroPrimaryCtaMax),
+  "secondaryCta": zod.string().min(1).max(updateDealerSettingsResponseHeroSecondaryCtaMax)
+}),
+  "warranty": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(updateDealerSettingsResponseWarrantyTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsResponseWarrantyDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponseWarrantyCtaLabelMax)
+}),
+  "delivery": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(updateDealerSettingsResponseDeliveryTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsResponseDeliveryDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponseDeliveryCtaLabelMax)
+}),
+  "partExchange": zod.object({
+  "enabled": zod.boolean(),
+  "title": zod.string().min(1).max(updateDealerSettingsResponsePartExchangeTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsResponsePartExchangeDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponsePartExchangeCtaLabelMax)
+}),
+  "bookViewing": zod.object({
+  "title": zod.string().min(1).max(updateDealerSettingsResponseBookViewingTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsResponseBookViewingDescriptionMax),
+  "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponseBookViewingCtaLabelMax)
+}),
+  "trustItems": zod.array(zod.string().min(1).max(updateDealerSettingsResponseTrustItemsItemMax)).max(updateDealerSettingsResponseTrustItemsMax),
+  "whyBuy": zod.array(zod.object({
+  "title": zod.string().min(1).max(updateDealerSettingsResponseWhyBuyItemTitleMax),
+  "description": zod.string().min(1).max(updateDealerSettingsResponseWhyBuyItemDescriptionMax)
+})).max(updateDealerSettingsResponseWhyBuyMax)
+})
+
+

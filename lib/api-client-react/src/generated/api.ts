@@ -22,6 +22,8 @@ import type {
 import type {
   ActionResult,
   ApiError,
+  DealerSettings,
+  DealerSettingsInput,
   DemoSignatureInput,
   Enquiry,
   EnquiryAvailability,
@@ -1358,5 +1360,155 @@ export const useCompleteSigningSession = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getCompleteSigningSessionMutationOptions(options));
+    }
+
+export const getGetDealerSettingsUrl = () => {
+
+
+
+
+  return `/api/dealer-settings`
+}
+
+/**
+ * Returns the configured dealer identity, contact details, showroom copy, services, and legal links.
+ * @summary Get the public dealer profile
+ */
+export const getDealerSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<DealerSettings> => {
+
+  return customFetch<DealerSettings>(getGetDealerSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDealerSettingsQueryKey = () => {
+    return [
+    `/api/dealer-settings`
+    ] as const;
+    }
+
+
+export const getGetDealerSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getDealerSettings>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDealerSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDealerSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDealerSettings>>> = ({ signal }) => getDealerSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDealerSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDealerSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getDealerSettings>>>
+export type GetDealerSettingsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get the public dealer profile
+ */
+
+export function useGetDealerSettings<TData = Awaited<ReturnType<typeof getDealerSettings>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDealerSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDealerSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateDealerSettingsUrl = () => {
+
+
+
+
+  return `/api/dealer-settings`
+}
+
+/**
+ * Saves the complete dealer profile used by the public showroom and dealer portal.
+ * @summary Replace the dealer profile
+ */
+export const updateDealerSettings = async (dealerSettingsInput: DealerSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<DealerSettings> => {
+
+  return customFetch<DealerSettings>(getUpdateDealerSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dealerSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateDealerSettingsMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDealerSettings>>, TError,{data: BodyType<DealerSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDealerSettings>>, TError,{data: BodyType<DealerSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateDealerSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDealerSettings>>, {data: BodyType<DealerSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateDealerSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDealerSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateDealerSettings>>>
+    export type UpdateDealerSettingsMutationBody = BodyType<DealerSettingsInput>
+    export type UpdateDealerSettingsMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Replace the dealer profile
+ */
+export const useUpdateDealerSettings = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDealerSettings>>, TError,{data: BodyType<DealerSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDealerSettings>>,
+        TError,
+        {data: BodyType<DealerSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateDealerSettingsMutationOptions(options));
     }
 

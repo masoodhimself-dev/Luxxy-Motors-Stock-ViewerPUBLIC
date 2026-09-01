@@ -1,21 +1,31 @@
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 
-function getWhatsAppNumber() {
-  return dealerConfig.contact.whatsapp?.replace(/\D/g, '');
+type DealerContactDetails = {
+  contact: {
+    phone?: string;
+    whatsapp?: string;
+  };
+  identity: {
+    name: string;
+  };
+};
+
+function getWhatsAppNumber(config: DealerContactDetails = dealerConfig) {
+  return config.contact.whatsapp?.replace(/\D/g, '');
 }
 
-function getPhoneNumber() {
-  return dealerConfig.contact.phone?.replace(/[^0-9+]/g, '');
+function getPhoneNumber(config: DealerContactDetails = dealerConfig) {
+  return config.contact.phone?.replace(/[^0-9+]/g, '');
 }
 
-export function getPhoneHref() {
-  const phone = getPhoneNumber();
+export function getPhoneHref(config: DealerContactDetails = dealerConfig) {
+  const phone = getPhoneNumber(config);
   return phone ? `tel:${phone}` : undefined;
 }
 
-export function getWhatsAppHref(message?: string) {
-  const whatsapp = getWhatsAppNumber();
+export function getWhatsAppHref(message?: string, config: DealerContactDetails = dealerConfig) {
+  const whatsapp = getWhatsAppNumber(config);
   if (!whatsapp) return undefined;
   return `https://wa.me/${whatsapp}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
 }
@@ -33,7 +43,7 @@ function getVehicleLabel(car: Car) {
   return car.title || [car.make, car.model].filter(Boolean).join(' ') || 'this vehicle';
 }
 
-export function getVehicleContactMessage(car: Car, request: string) {
+export function getVehicleContactMessage(car: Car, request: string, config: DealerContactDetails = dealerConfig) {
   const details = [
     getVehicleLabel(car),
     car.registration || car.plate ? `Registration: ${car.registration || car.plate}` : null,
@@ -43,11 +53,11 @@ export function getVehicleContactMessage(car: Car, request: string) {
     ? `${window.location.origin}/vehicle/${encodeURIComponent(car.id)}`
     : `/vehicle/${encodeURIComponent(car.id)}`;
 
-  return `Hello ${dealerConfig.identity.name}, I would like to ${request}:\n${details.join('\n')}\nVehicle link: ${vehicleUrl}`;
+  return `Hello ${config.identity.name}, I would like to ${request}:\n${details.join('\n')}\nVehicle link: ${vehicleUrl}`;
 }
 
-export function getVehicleWhatsAppHref(car: Car, request: string) {
-  return getWhatsAppHref(getVehicleContactMessage(car, request));
+export function getVehicleWhatsAppHref(car: Car, request: string, config: DealerContactDetails = dealerConfig) {
+  return getWhatsAppHref(getVehicleContactMessage(car, request, config), config);
 }
 
 export function getVehicleBookingHref(car: Car) {

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
-import { dealerConfig } from '@/config/dealer';
 import { getThumbnailUrl } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { ArrowRight, Banknote, Car, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck, RefreshCcw, Calendar, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,8 +26,8 @@ const defaultFilters: FilterState = {
 
 export default function Home() {
   const { stock, isLoading } = useStock();
+  const { settings: dealerConfig } = useDealerSettings();
   const [showAll, setShowAll] = useState(false);
-  const [heroMakeIndex, setHeroMakeIndex] = useState(0);
 
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
@@ -112,16 +112,6 @@ export default function Home() {
     () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
     [stock?.cars],
   );
-  const heroMake = makes.length > 0 ? makes[heroMakeIndex % makes.length] : null;
-
-  useEffect(() => {
-    if (makes.length < 2) return;
-    const intervalId = window.setInterval(() => {
-      setHeroMakeIndex(current => current + 1);
-    }, 3200);
-    return () => window.clearInterval(intervalId);
-  }, [makes]);
-
   const revealResults = () => {
     setShowAll(true);
     requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
@@ -152,7 +142,7 @@ export default function Home() {
         {heroImage ? (
           <img
             src={heroImage}
-            alt={heroCar?.title || `${heroCar?.make || ''} ${heroCar?.model || ''}`.trim() || 'Luxxy Motors vehicle'}
+            alt={heroCar?.title || `${heroCar?.make || ''} ${heroCar?.model || ''}`.trim() || `${dealerConfig.identity.name} vehicle`}
             fetchPriority="high"
             loading="eager"
             className="absolute inset-0 w-full h-full object-cover scale-105"
@@ -177,9 +167,7 @@ export default function Home() {
               </div>
             )}
             <h1 className="mb-5 text-5xl font-black leading-[1.02] tracking-tighter animate-in slide-in-from-bottom-8 duration-700 sm:text-6xl md:mb-6 md:text-7xl lg:text-8xl">
-              {heroMake ? (
-                <>Find Your Next <span key={heroMake} className="inline-block animate-in fade-in slide-in-from-bottom-2 duration-500">{heroMake}</span> Car</>
-              ) : dealerConfig.hero.copy}
+              {dealerConfig.hero.copy}
             </h1>
             <p className="mb-7 max-w-2xl text-base font-medium leading-relaxed text-white/90 animate-in slide-in-from-bottom-10 duration-700 delay-100 sm:text-lg md:mb-10 md:text-2xl">
               {dealerConfig.hero.subcopy}
@@ -246,7 +234,7 @@ export default function Home() {
       </section>
 
       {/* Trust Strip */}
-      <div className="relative z-20 border-b border-border/50 bg-background" aria-label="Luxxy Motors benefits">
+      <div className="relative z-20 border-b border-border/50 bg-background" aria-label={`${dealerConfig.identity.name} benefits`}>
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 items-center gap-x-5 gap-y-4 py-5 text-xs font-bold uppercase tracking-wide text-muted-foreground sm:flex sm:justify-center sm:gap-x-8 md:justify-between md:py-6 md:text-sm">
             {dealerConfig.trustItems.map(item => (
@@ -368,7 +356,7 @@ export default function Home() {
         <section id="about" data-home-section className="bg-background py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-16 max-w-2xl mx-auto">
-              <p className="text-sm font-bold uppercase tracking-widest text-primary mb-3">The Luxxy Difference</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-primary mb-3">The {dealerConfig.identity.name} Difference</p>
               <h2 className="text-3xl md:text-5xl font-black tracking-tight">Why Buy From {dealerConfig.identity.name}</h2>
             </div>
 

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
 
 const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
@@ -129,7 +130,14 @@ vi.mock('@/lib/home-navigation', () => ({
 }));
 
 function renderHome() {
-  render(<Home />);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <Home />
+    </QueryClientProvider>,
+  );
 }
 
 function resultsRegion() {

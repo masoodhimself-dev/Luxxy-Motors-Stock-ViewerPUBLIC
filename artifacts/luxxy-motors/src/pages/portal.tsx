@@ -43,6 +43,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useStock } from '@/lib/stock-context';
 import { formatPrice } from '@/lib/utils';
+import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
 
 const statusLabels: Record<Enquiry['status'], string> = {
   new: 'New',
@@ -558,6 +559,8 @@ export default function Portal() {
             </div>
           )}
         </section>
+
+         <DealerSettingsPanel />
 
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">

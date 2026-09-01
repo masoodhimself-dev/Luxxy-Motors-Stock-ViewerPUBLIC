@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
 import { formatPrice, getThumbnailUrl } from '@/lib/utils';
 import type { EnquiryType } from '@/lib/cta-helpers';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 
 const typeLabels: Record<EnquiryType, string> = {
   viewing: 'Book a viewing',
@@ -89,6 +90,7 @@ export function EnquiryForm({
   vehicle?: Car;
   stockCars?: Car[];
 }) {
+  const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
@@ -171,7 +173,7 @@ export function EnquiryForm({
         <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#47725a]">
           {isViewing
             ? `Thank you, ${customerName.trim()}. We have held your appointment for ${formatAppointment(selectedSlot!)}.`
-            : `Thank you, ${customerName.trim()}. The Luxxy Motors team has your request and will reply by email.`}
+            : `Thank you, ${customerName.trim()}. The ${dealerConfig.identity.name} team has your request and will reply by email.`}
         </p>
         {selectedVehicle && <p className="mt-5 text-sm font-bold text-[#173a2a]" data-testid="text-confirmed-vehicle">{vehicleLabel}</p>}
         <div className="mx-auto mt-7 flex max-w-sm items-center justify-center gap-2 rounded-full border border-[#b5cbbd] bg-[#f6fbf7] px-4 py-3 text-xs font-semibold text-[#47725a]">
@@ -227,7 +229,7 @@ export function EnquiryForm({
         <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-part-exchange-details">
           <div>
             <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CarFront className="h-5 w-5 text-primary" /> Let’s work out the difference</legend>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the Luxxy car you’re considering, then tell us about your current car.</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
           </div>
           <div className="rounded-xl border border-[#d5c59e] bg-[#fbf6e8] p-4" data-testid="section-part-exchange-target-vehicle">
             <div className="flex items-start justify-between gap-3">
@@ -394,7 +396,7 @@ export function EnquiryForm({
 
       <label className="block space-y-2 text-sm font-semibold text-foreground">
         <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Your message <span className="font-normal text-muted-foreground">(optional for a viewing)</span></span>
-        <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={4} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={isViewing ? 'Anything you would like us to prepare?' : 'How can the Luxxy Motors team help?'} data-testid="textarea-enquiry-message" />
+        <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={4} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`} data-testid="textarea-enquiry-message" />
       </label>
 
       {mutation.isError && (
@@ -410,7 +412,7 @@ export function EnquiryForm({
         </Button>
         <div className="flex items-start gap-3 rounded-lg bg-[#f5f1e8] px-3 py-3 text-xs leading-5 text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#47725a]" />
-          <span>{isViewing ? `Your details are only used to confirm this appointment. We will email your confirmation and a reminder 24 hours before (${bookingTimezone}).` : 'Your details are sent securely to the Luxxy Motors enquiry inbox. We will email a confirmation to this address.'}</span>
+          <span>{isViewing ? `Your details are only used to confirm this appointment. We will email your confirmation and a reminder 24 hours before (${bookingTimezone}).` : `Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will email a confirmation to this address.`}</span>
         </div>
       </div>
     </form>

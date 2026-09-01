@@ -9,6 +9,7 @@ import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/l
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import NotFound from '@/pages/not-found';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 
 function getSimilarCars(currentCar: Car, cars: Car[]) {
   const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
@@ -44,6 +45,7 @@ function getSimilarCars(currentCar: Car, cars: Car[]) {
 export default function CarDetail() {
   const [, params] = useRoute('/vehicle/:id');
   const { stock, isLoading } = useStock();
+  const { settings: dealerConfig } = useDealerSettings();
 
   if (isLoading) {
     return (
@@ -187,27 +189,27 @@ export default function CarDetail() {
             <div className="grid grid-cols-2 gap-3">
               <Button asChild size="lg" className="col-span-2 text-base h-12 shadow-md">
                 <a
-                  href={getVehicleBookingHref(car)}
-                  target={getVehicleBookingHref(car).startsWith('https://') ? '_blank' : undefined}
-                  rel={getVehicleBookingHref(car).startsWith('https://') ? 'noopener noreferrer' : undefined}
+                   href={getVehicleBookingHref(car)}
+                   target={getVehicleBookingHref(car).startsWith('https://') ? '_blank' : undefined}
+                   rel={getVehicleBookingHref(car).startsWith('https://') ? 'noopener noreferrer' : undefined}
                   data-vehicle-contact="booking"
                 >
                   <Calendar className="w-4 h-4 mr-2" />
-                  Book a Viewing
+                  {dealerConfig.bookViewing.ctaLabel}
                 </a>
               </Button>
-              {getPhoneHref() && (
+              {getPhoneHref(dealerConfig) && (
                 <Button asChild variant="outline" size="lg" className="text-base h-12">
-                  <a href={getPhoneHref()!} aria-label={`Call about ${car.title || `${car.make || ''} ${car.model || ''}`.trim()}`}>
+                  <a href={getPhoneHref(dealerConfig)!} aria-label={`Call about ${car.title || `${car.make || ''} ${car.model || ''}`.trim()}`}>
                     <Phone className="w-4 h-4 mr-2 text-primary" />
                     Call
                   </a>
                 </Button>
               )}
-              {getVehicleWhatsAppHref(car, 'get more information about this vehicle') && (
+              {getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig) && (
                 <Button asChild variant="outline" size="lg" className="text-base h-12 border-green-200 text-green-700 hover:bg-green-50">
                   <a
-                    href={getVehicleWhatsAppHref(car, 'get more information about this vehicle')!}
+                    href={getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`WhatsApp about ${car.title || `${car.make || ''} ${car.model || ''}`.trim()}`}
@@ -222,7 +224,7 @@ export default function CarDetail() {
             
             <div className="mt-6 p-4 bg-muted/40 rounded-lg border flex gap-3 text-sm text-muted-foreground">
               <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
-              <p>Sold by {stock.dealerName || 'Independent Dealer'}. Viewings by appointment only.</p>
+              <p>Sold by {dealerConfig.identity.name || stock.dealerName || 'Independent Dealer'}. Viewings by appointment only.</p>
             </div>
           </div>
         </div>

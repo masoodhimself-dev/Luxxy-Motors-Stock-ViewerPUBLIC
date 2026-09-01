@@ -3,10 +3,12 @@ import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import { formatPrice, formatMileage, getSafeImageUrl, getThumbnailUrl } from '@/lib/utils';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Fuel, Settings, Calendar, AlertTriangle, ArrowRight, Camera, MessageCircle, Phone } from 'lucide-react';
 
 export function CarCard({ car }: { car: Car }) {
+  const { settings: dealerConfig } = useDealerSettings();
   const imageUrls = useMemo(() => {
     const urls: string[] = [];
     const addImage = (image: string | { url: string; caption?: string | null } | null | undefined) => {
@@ -24,8 +26,8 @@ export function CarCard({ car }: { car: Car }) {
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
   const visibleImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url));
   const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
-  const phoneHref = getPhoneHref();
-  const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle');
+  const phoneHref = getPhoneHref(dealerConfig);
+  const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig);
   const bookingHref = getVehicleBookingHref(car);
 
   useEffect(() => {
@@ -194,12 +196,12 @@ export function CarCard({ car }: { car: Car }) {
             href={bookingHref}
             target={bookingHref.startsWith('https://') ? '_blank' : undefined}
             rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
-            aria-label={`Book a viewing for ${vehicleLabel}`}
+            aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
             data-vehicle-contact="booking"
             className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <Calendar className="w-4 h-4" />
-            Book a Viewing
+            {dealerConfig.bookViewing.ctaLabel}
           </a>
         </div>
     </div>

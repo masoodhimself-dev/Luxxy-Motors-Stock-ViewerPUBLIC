@@ -5,6 +5,185 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface DealerBrandColors {
+  /** @minLength 1 */
+  primaryHsl: string;
+  /** @minLength 1 */
+  accentHsl: string;
+}
+
+export interface DealerIdentity {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /** @maxLength 120 */
+  logoText: string;
+  /** @maxLength 500 */
+  logoAsset: string;
+  brandColors: DealerBrandColors;
+}
+
+export interface DealerContact {
+  /** @maxLength 40 */
+  phone: string;
+  /** @maxLength 40 */
+  whatsapp: string;
+  /** @maxLength 160 */
+  email: string;
+}
+
+export interface DealerAddress {
+  /** @maxLength 160 */
+  street: string;
+  /** @maxLength 80 */
+  city: string;
+  /** @maxLength 80 */
+  region: string;
+  /** @maxLength 20 */
+  postcode: string;
+  /** @maxLength 500 */
+  mapsUrl: string;
+}
+
+export interface DealerHoursItem {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  days: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  times: string;
+}
+
+export interface DealerLegal {
+  /** @maxLength 160 */
+  companyName: string;
+  /** @maxLength 80 */
+  companyNumber: string;
+  /** @maxLength 80 */
+  vatNumber: string;
+  /** @maxLength 500 */
+  termsUrl: string;
+  /** @maxLength 500 */
+  privacyUrl: string;
+  /** @maxLength 500 */
+  cookieUrl: string;
+}
+
+export interface DealerSocial {
+  /** @maxLength 500 */
+  instagram: string;
+  /** @maxLength 500 */
+  facebook: string;
+  /** @maxLength 500 */
+  twitter: string;
+}
+
+export interface DealerHero {
+  /** @maxLength 160 */
+  announcement: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  copy: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  subcopy: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  primaryCta: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  secondaryCta: string;
+}
+
+export interface DealerService {
+  enabled: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  description: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  ctaLabel: string;
+}
+
+export interface DealerBookViewing {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  description: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  ctaLabel: string;
+}
+
+export interface DealerWhyBuyItem {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  description: string;
+}
+
+export interface DealerSettings {
+  identity: DealerIdentity;
+  contact: DealerContact;
+  address: DealerAddress;
+  /** @maxItems 14 */
+  hours: DealerHoursItem[];
+  legal: DealerLegal;
+  social: DealerSocial;
+  hero: DealerHero;
+  warranty: DealerService;
+  delivery: DealerService;
+  partExchange: DealerService;
+  bookViewing: DealerBookViewing;
+  /**
+     * @maxItems 8
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  trustItems: string[];
+  /** @maxItems 8 */
+  whyBuy: DealerWhyBuyItem[];
+}
+
+export type DealerSettingsInput = DealerSettings;
+
 export interface HealthStatus {
   status: string;
 }
