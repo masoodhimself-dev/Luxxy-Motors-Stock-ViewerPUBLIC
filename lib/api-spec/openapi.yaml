@@ -463,6 +463,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /sales/{id}/checklist:
+    get:
+      operationId: getSaleChecklist
+      tags: [sales]
+      summary: Get the deal readiness checklist
+      description: Returns the auditable readiness items for a development sale and whether it can be prepared for signing.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deal readiness checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleChecklist"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sales/{id}/checklist/{code}:
+    post:
+      operationId: updateSaleChecklistItem
+      tags: [sales]
+      summary: Confirm or reset a deal readiness item
+      description: Records an auditable staff confirmation against the current sale data. Confirmations are invalidated when the underlying deal data changes.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: code
+          required: true
+          schema:
+            $ref: "#/components/schemas/SaleChecklistCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleChecklistUpdateInput"
+      responses:
+        "200":
+          description: Updated deal readiness checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleChecklist"
+        "400":
+          description: Checklist update failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: The item is not ready to be confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /sales/{id}/prepare:
     post:
       operationId: prepareSale
@@ -1592,6 +1665,104 @@ components:
         - revision
         - signingSession
         - signingUrl
+    SaleChecklistCode:
+      type: string
+      enum:
+        - customer_confirmed
+        - vehicle_confirmed
+        - price_confirmed
+        - disclosure_confirmed
+        - mileage_confirmed
+        - warranty_confirmed
+        - fulfilment_confirmed
+        - part_exchange_confirmed
+        - deposit_confirmed
+        - documents_generated
+    SaleChecklistStatus:
+      type: string
+      enum: [pending, complete, not_applicable, invalidated]
+    SaleChecklistItem:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          $ref: "#/components/schemas/SaleChecklistCode"
+        label:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/SaleChecklistStatus"
+        required:
+          type: boolean
+        eligible:
+          type: boolean
+        canMarkNotApplicable:
+          type: boolean
+        message:
+          type: string
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+        completedBy:
+          type: [string, "null"]
+      required:
+        - code
+        - label
+        - description
+        - status
+        - required
+        - eligible
+        - canMarkNotApplicable
+        - message
+        - completedAt
+        - completedBy
+    SaleChecklist:
+      type: object
+      additionalProperties: false
+      properties:
+        developmentOnly:
+          type: boolean
+        warning:
+          type: string
+        saleId:
+          type: string
+        completedCount:
+          type: number
+        totalCount:
+          type: number
+        readyForPreparation:
+          type: boolean
+        readyForCompletion:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleChecklistItem"
+      required:
+        - developmentOnly
+        - warning
+        - saleId
+        - completedCount
+        - totalCount
+        - readyForPreparation
+        - readyForCompletion
+        - items
+    SaleChecklistUpdateInput:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [complete, not_applicable, pending]
+        method:
+          type: [string, "null"]
+          maxLength: 80
+        notes:
+          type: [string, "null"]
+          maxLength: 1000
+      required:
+        - status
     FinalChecks:
       type: object
       additionalProperties: true

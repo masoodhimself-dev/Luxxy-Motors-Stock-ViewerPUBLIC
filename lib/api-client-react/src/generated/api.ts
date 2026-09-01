@@ -38,6 +38,9 @@ import type {
   GetEnquiryAvailabilityParams,
   HealthStatus,
   Sale,
+  SaleChecklist,
+  SaleChecklistCode,
+  SaleChecklistUpdateInput,
   SaleCompletion,
   SaleInput,
   SalePreparation,
@@ -1145,6 +1148,159 @@ export function useGetSale<TData = Awaited<ReturnType<typeof getSale>>, TError =
 
 
 
+
+export const getGetSaleChecklistUrl = (id: string,) => {
+
+
+
+
+  return `/api/sales/${id}/checklist`
+}
+
+/**
+ * Returns the auditable readiness items for a development sale and whether it can be prepared for signing.
+ * @summary Get the deal readiness checklist
+ */
+export const getSaleChecklist = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SaleChecklist> => {
+
+  return customFetch<SaleChecklist>(getGetSaleChecklistUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSaleChecklistQueryKey = (id: string,) => {
+    return [
+    `/api/sales/${id}/checklist`
+    ] as const;
+    }
+
+
+export const getGetSaleChecklistQueryOptions = <TData = Awaited<ReturnType<typeof getSaleChecklist>>, TError = ErrorType<ApiError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSaleChecklist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSaleChecklistQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSaleChecklist>>> = ({ signal }) => getSaleChecklist(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSaleChecklist>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSaleChecklistQueryResult = NonNullable<Awaited<ReturnType<typeof getSaleChecklist>>>
+export type GetSaleChecklistQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get the deal readiness checklist
+ */
+
+export function useGetSaleChecklist<TData = Awaited<ReturnType<typeof getSaleChecklist>>, TError = ErrorType<ApiError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSaleChecklist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSaleChecklistQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSaleChecklistItemUrl = (id: string,
+    code: SaleChecklistCode,) => {
+
+
+
+
+  return `/api/sales/${id}/checklist/${code}`
+}
+
+/**
+ * Records an auditable staff confirmation against the current sale data. Confirmations are invalidated when the underlying deal data changes.
+ * @summary Confirm or reset a deal readiness item
+ */
+export const updateSaleChecklistItem = async (id: string,
+    code: SaleChecklistCode,
+    saleChecklistUpdateInput: SaleChecklistUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<SaleChecklist> => {
+
+  return customFetch<SaleChecklist>(getUpdateSaleChecklistItemUrl(id,code),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saleChecklistUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSaleChecklistItemMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSaleChecklistItem>>, TError,{id: string;code: SaleChecklistCode;data: BodyType<SaleChecklistUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSaleChecklistItem>>, TError,{id: string;code: SaleChecklistCode;data: BodyType<SaleChecklistUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateSaleChecklistItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSaleChecklistItem>>, {id: string;code: SaleChecklistCode;data: BodyType<SaleChecklistUpdateInput>}> = (props) => {
+          const {id,code,data} = props ?? {};
+
+          return  updateSaleChecklistItem(id,code,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSaleChecklistItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateSaleChecklistItem>>>
+    export type UpdateSaleChecklistItemMutationBody = BodyType<SaleChecklistUpdateInput>
+    export type UpdateSaleChecklistItemMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Confirm or reset a deal readiness item
+ */
+export const useUpdateSaleChecklistItem = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSaleChecklistItem>>, TError,{id: string;code: SaleChecklistCode;data: BodyType<SaleChecklistUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSaleChecklistItem>>,
+        TError,
+        {id: string;code: SaleChecklistCode;data: BodyType<SaleChecklistUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSaleChecklistItemMutationOptions(options));
+    }
 
 export const getPrepareSaleUrl = (id: string,) => {
 

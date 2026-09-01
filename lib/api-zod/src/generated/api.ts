@@ -713,6 +713,81 @@ export const GetSaleResponse = zod.object({
 
 
 /**
+ * Returns the auditable readiness items for a development sale and whether it can be prepared for signing.
+ * @summary Get the deal readiness checklist
+ */
+export const GetSaleChecklistParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSaleChecklistResponse = zod.object({
+  "developmentOnly": zod.boolean(),
+  "warning": zod.string(),
+  "saleId": zod.string(),
+  "completedCount": zod.number(),
+  "totalCount": zod.number(),
+  "readyForPreparation": zod.boolean(),
+  "readyForCompletion": zod.boolean(),
+  "items": zod.array(zod.object({
+  "code": zod.enum(['customer_confirmed', 'vehicle_confirmed', 'price_confirmed', 'disclosure_confirmed', 'mileage_confirmed', 'warranty_confirmed', 'fulfilment_confirmed', 'part_exchange_confirmed', 'deposit_confirmed', 'documents_generated']),
+  "label": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['pending', 'complete', 'not_applicable', 'invalidated']),
+  "required": zod.boolean(),
+  "eligible": zod.boolean(),
+  "canMarkNotApplicable": zod.boolean(),
+  "message": zod.string(),
+  "completedAt": zod.coerce.date().nullable(),
+  "completedBy": zod.string().nullable()
+}))
+})
+
+
+/**
+ * Records an auditable staff confirmation against the current sale data. Confirmations are invalidated when the underlying deal data changes.
+ * @summary Confirm or reset a deal readiness item
+ */
+export const UpdateSaleChecklistItemParams = zod.object({
+  "id": zod.coerce.string(),
+  "code": zod.enum(['customer_confirmed', 'vehicle_confirmed', 'price_confirmed', 'disclosure_confirmed', 'mileage_confirmed', 'warranty_confirmed', 'fulfilment_confirmed', 'part_exchange_confirmed', 'deposit_confirmed', 'documents_generated'])
+})
+
+export const updateSaleChecklistItemBodyMethodMax = 80;
+
+export const updateSaleChecklistItemBodyNotesMax = 1000;
+
+
+
+export const UpdateSaleChecklistItemBody = zod.object({
+  "status": zod.enum(['complete', 'not_applicable', 'pending']),
+  "method": zod.string().max(updateSaleChecklistItemBodyMethodMax).nullish(),
+  "notes": zod.string().max(updateSaleChecklistItemBodyNotesMax).nullish()
+})
+
+export const UpdateSaleChecklistItemResponse = zod.object({
+  "developmentOnly": zod.boolean(),
+  "warning": zod.string(),
+  "saleId": zod.string(),
+  "completedCount": zod.number(),
+  "totalCount": zod.number(),
+  "readyForPreparation": zod.boolean(),
+  "readyForCompletion": zod.boolean(),
+  "items": zod.array(zod.object({
+  "code": zod.enum(['customer_confirmed', 'vehicle_confirmed', 'price_confirmed', 'disclosure_confirmed', 'mileage_confirmed', 'warranty_confirmed', 'fulfilment_confirmed', 'part_exchange_confirmed', 'deposit_confirmed', 'documents_generated']),
+  "label": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['pending', 'complete', 'not_applicable', 'invalidated']),
+  "required": zod.boolean(),
+  "eligible": zod.boolean(),
+  "canMarkNotApplicable": zod.boolean(),
+  "message": zod.string(),
+  "completedAt": zod.coerce.date().nullable(),
+  "completedBy": zod.string().nullable()
+}))
+})
+
+
+/**
  * Creates an immutable revision and development-only signing session.
  * @summary Prepare and create a secure signing link
  */

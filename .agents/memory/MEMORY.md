@@ -4,3 +4,4 @@
 - [OpenAPI/Zod compatibility](openapi-zod-compatibility.md) — keep generated constraints compatible with the workspace’s Zod runtime and typecheck after codegen.
 - [Workspace dependency removal](workspace-dependency-removal.md) — verify nested package manifests and the lockfile after generic package-tool removals.
 - [Approved Luxxy visual direction](luxxy-visual-direction.md) — use the editorial concierge identity with sage, ink teal, brass, and the L/X road monogram.
+- [Sales readiness evidence](sales-readiness-evidence.md) — checklist confirmations hash the current deal evidence and invalidate when source records change.

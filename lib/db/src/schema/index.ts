@@ -25,3 +25,4 @@ export * from "./enquiries";
 export * from "./sales";
 export * from "./dealer-settings";
 export * from "./customer-intake";
+export * from "./sale-checklist";

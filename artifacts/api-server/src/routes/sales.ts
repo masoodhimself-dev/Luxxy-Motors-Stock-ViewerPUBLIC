@@ -12,6 +12,7 @@ import {
   saleEventsTable,
   saleFulfilmentsTable,
   salePartExchangesTable,
+  saleChecklistItemsTable,
   salePaymentsTable,
   saleRevisionsTable,
   saleWarrantiesTable,
@@ -23,6 +24,13 @@ import {
 } from "@workspace/db";
 import { db } from "@workspace/db";
 import { demoESignProvider } from "../lib/esign-provider";
+import {
+  GetSaleChecklistParams,
+  GetSaleChecklistResponse,
+  UpdateSaleChecklistItemBody,
+  UpdateSaleChecklistItemParams,
+  UpdateSaleChecklistItemResponse,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
 const ACTIVE_SALE_STATUSES = ["draft", "ready", "signing", "signed"] as const;
@@ -88,6 +96,20 @@ const demoSignatureInput = z.object({
   signerEmail: z.string().trim().email().max(320).nullable().optional(),
   acceptedCodes: z.array(z.string().trim().min(1).max(80)).max(30),
 });
+
+const checklistCodes = [
+  "customer_confirmed",
+  "vehicle_confirmed",
+  "price_confirmed",
+  "disclosure_confirmed",
+  "mileage_confirmed",
+  "warranty_confirmed",
+  "fulfilment_confirmed",
+  "part_exchange_confirmed",
+  "deposit_confirmed",
+  "documents_generated",
+] as const;
+type ChecklistCode = (typeof checklistCodes)[number];
 
 type SaleInput = z.infer<typeof saleInput>;
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -266,6 +288,10 @@ async function loadSale(tx: QueryDb, saleId: string) {
     .select()
     .from(saleFulfilmentsTable)
     .where(eq(saleFulfilmentsTable.saleId, saleId));
+  const checklistItems = await tx
+    .select()
+    .from(saleChecklistItemsTable)
+    .where(eq(saleChecklistItemsTable.saleId, saleId));
   const events = await tx
     .select()
     .from(saleEventsTable)
@@ -287,6 +313,7 @@ async function loadSale(tx: QueryDb, saleId: string) {
     partExchanges,
     warranties,
     fulfilments,
+    checklistItems,
     events,
   };
 }
@@ -392,6 +419,325 @@ function saleSummary(context: Awaited<ReturnType<typeof loadSale>>) {
       payload: event.payload,
     })),
   };
+}
+
+const checklistDefinitions: Record<
+  ChecklistCode,
+  {
+    label: string;
+    description: string;
+    canMarkNotApplicable: boolean;
+  }
+> = {
+  customer_confirmed: {
+    label: "Customer details confirmed",
+    description: "Review the customer name and at least one contact method.",
+    canMarkNotApplicable: false,
+  },
+  vehicle_confirmed: {
+    label: "Vehicle details confirmed",
+    description: "Review the vehicle identity, registration and live stock status.",
+    canMarkNotApplicable: false,
+  },
+  price_confirmed: {
+    label: "Price confirmed",
+    description: "Confirm the GBP total, deposit and remaining balance.",
+    canMarkNotApplicable: false,
+  },
+  disclosure_confirmed: {
+    label: "CAT S/N disclosure acknowledged",
+    description: "Confirm the category disclosure and the recorded vehicle disclosure note.",
+    canMarkNotApplicable: true,
+  },
+  mileage_confirmed: {
+    label: "Mileage acknowledged",
+    description: "Confirm the mileage captured at the point of sale.",
+    canMarkNotApplicable: false,
+  },
+  warranty_confirmed: {
+    label: "Warranty selected or declined",
+    description: "Confirm warranty terms or explicitly record that no additional warranty was selected.",
+    canMarkNotApplicable: true,
+  },
+  fulfilment_confirmed: {
+    label: "Delivery or collection selected",
+    description: "Confirm how and when the customer will receive the vehicle.",
+    canMarkNotApplicable: false,
+  },
+  part_exchange_confirmed: {
+    label: "Part-exchange details confirmed",
+    description: "Confirm the part-exchange declaration or explicitly record that there is no part exchange.",
+    canMarkNotApplicable: true,
+  },
+  deposit_confirmed: {
+    label: "Deposit recorded",
+    description: "Confirm the deposit payment or explicitly record that no deposit is required.",
+    canMarkNotApplicable: true,
+  },
+  documents_generated: {
+    label: "Required documents generated",
+    description: "The current revision must contain the complete hashed document pack.",
+    canMarkNotApplicable: false,
+  },
+};
+
+type ChecklistEvaluation = {
+  code: ChecklistCode;
+  label: string;
+  description: string;
+  status: "pending" | "complete" | "not_applicable" | "invalidated";
+  required: boolean;
+  eligible: boolean;
+  canMarkNotApplicable: boolean;
+  message: string;
+  completedAt: Date | null;
+  completedBy: string | null;
+  evidenceHash: string;
+  evidence: Record<string, unknown>;
+};
+
+function evaluateChecklistItem(
+  context: NonNullable<Awaited<ReturnType<typeof loadSale>>>,
+  code: ChecklistCode,
+): ChecklistEvaluation {
+  const { sale, customer, vehicle, revisions, documents, payments, warranties, fulfilments, partExchanges } =
+    context;
+  const revision = revisions[0];
+  const revisionDocuments = revision
+    ? documents.filter((document) => document.revisionId === revision.id)
+    : [];
+  const category = vehicle?.writeOffCategory?.toUpperCase() ?? null;
+  const depositRecorded = payments
+    .filter(
+      (payment) =>
+        payment.kind === "deposit" &&
+        ["recorded", "received", "paid"].includes(payment.status),
+    )
+    .reduce((total, payment) => total + payment.amountPence, 0);
+  let eligible = false;
+  let canMarkNotApplicable = checklistDefinitions[code].canMarkNotApplicable;
+  let message = "";
+  let evidence: Record<string, unknown> = {};
+
+  switch (code) {
+    case "customer_confirmed":
+      eligible = Boolean(customer?.name && (customer.email || customer.phone));
+      message = eligible
+        ? "A usable customer contact is ready to confirm."
+        : "Add a customer name and email or phone number.";
+      evidence = {
+        customerId: customer?.id ?? null,
+        name: customer?.name ?? null,
+        email: customer?.email ?? null,
+        phone: customer?.phone ?? null,
+      };
+      break;
+    case "vehicle_confirmed":
+      eligible = Boolean(
+        vehicle &&
+          vehicle.sourceStatus === "live" &&
+          !["sold", "archived"].includes(vehicle.inventoryStatus) &&
+          (vehicle.registration || vehicle.vrm) &&
+          (vehicle.title || vehicle.make || vehicle.model),
+      );
+      message = eligible
+        ? "The live vehicle identity and registration are available to confirm."
+        : "The vehicle needs a live stock record, identity and registration.";
+      evidence = {
+        vehicleId: vehicle?.id ?? null,
+        title: vehicle?.title ?? null,
+        registration: vehicle?.registration ?? vehicle?.vrm ?? null,
+        mileage: vehicle?.mileage ?? null,
+        sourceStatus: vehicle?.sourceStatus ?? null,
+        inventoryStatus: vehicle?.inventoryStatus ?? null,
+      };
+      break;
+    case "price_confirmed":
+      eligible = Boolean(
+        sale.currency === "GBP" &&
+          sale.agreedPricePence >= 0 &&
+          sale.depositPence >= 0 &&
+          sale.depositPence <= sale.agreedPricePence &&
+          sale.balancePence === sale.agreedPricePence - sale.depositPence,
+      );
+      message = eligible
+        ? "GBP totals and the remaining balance are consistent."
+        : "The price, deposit and balance need to be corrected.";
+      evidence = {
+        currency: sale.currency,
+        agreedPricePence: sale.agreedPricePence,
+        depositPence: sale.depositPence,
+        balancePence: sale.balancePence,
+      };
+      break;
+    case "disclosure_confirmed":
+      eligible = category === "S" || category === "N"
+        ? Boolean(sale.disclosureNotes?.trim())
+        : true;
+      message =
+        category === "S" || category === "N"
+          ? eligible
+            ? `CAT ${category} disclosure note is recorded and ready for acknowledgement.`
+            : `Record the CAT ${category} disclosure note before confirming it.`
+          : "No CAT S or CAT N category is recorded; mark this item not applicable.";
+      evidence = {
+        category,
+        disclosureNotes: sale.disclosureNotes?.trim() ?? null,
+      };
+      break;
+    case "mileage_confirmed":
+      eligible = sale.mileageAtSale !== null && sale.mileageAtSale >= 0;
+      message = eligible
+        ? `${sale.mileageAtSale?.toLocaleString("en-GB")} miles are recorded at sale.`
+        : "Record the mileage at sale before confirming it.";
+      evidence = { mileageAtSale: sale.mileageAtSale ?? null };
+      break;
+    case "warranty_confirmed": {
+      const warranty = warranties[0];
+      eligible = !warranty || Boolean(warranty.name.trim() && warranty.terms?.trim());
+      message = warranty
+        ? eligible
+          ? "Warranty product and terms are recorded."
+          : "Add the warranty terms before confirming the selection."
+        : "No additional warranty is recorded; mark this item not applicable.";
+      evidence = warranty
+        ? {
+            id: warranty.id,
+            name: warranty.name,
+            durationMonths: warranty.durationMonths,
+            pricePence: warranty.pricePence,
+            terms: warranty.terms,
+          }
+        : { warranty: null };
+      break;
+    }
+    case "fulfilment_confirmed": {
+      const fulfilment = fulfilments[0];
+      eligible = Boolean(fulfilment?.method);
+      message = eligible
+        ? `${fulfilment?.method} is selected for fulfilment.`
+        : "Select delivery or collection before continuing.";
+      evidence = fulfilment
+        ? {
+            id: fulfilment.id,
+            method: fulfilment.method,
+            targetDate: fulfilment.targetDate,
+            address: fulfilment.address,
+            notes: fulfilment.notes,
+          }
+        : { fulfilment: null };
+      break;
+    }
+    case "part_exchange_confirmed": {
+      const partExchange = partExchanges[0];
+      eligible = !partExchange || Boolean(partExchange.customerDeclaration?.trim());
+      message = partExchange
+        ? eligible
+          ? "The part-exchange declaration is recorded."
+          : "Add the customer part-exchange declaration before confirming it."
+        : "No part exchange is recorded; mark this item not applicable.";
+      evidence = partExchange
+        ? {
+            id: partExchange.id,
+            description: partExchange.description,
+            registration: partExchange.registration,
+            agreedValuePence: partExchange.agreedValuePence,
+            customerDeclaration: partExchange.customerDeclaration,
+          }
+        : { partExchange: null };
+      break;
+    }
+    case "deposit_confirmed":
+      eligible = sale.depositPence === 0 || depositRecorded >= sale.depositPence;
+      message =
+        sale.depositPence === 0
+          ? "No deposit is required; mark this item not applicable."
+          : eligible
+          ? `Deposit of £${(depositRecorded / 100).toFixed(2)} is recorded.`
+          : `Record the £${(sale.depositPence / 100).toFixed(2)} deposit before confirming it.`;
+      evidence = {
+        expectedDepositPence: sale.depositPence,
+        recordedDepositPence: depositRecorded,
+      };
+      break;
+    case "documents_generated":
+      eligible = Boolean(
+        revision &&
+          revisionDocuments.length > 0 &&
+          revisionDocuments.every((document) => document.required && document.contentHash),
+      );
+      message = eligible
+        ? `${revisionDocuments.length} hashed document(s) are attached to the current revision.`
+        : "Prepare the current revision and generate all required documents.";
+      evidence = {
+        revisionId: revision?.id ?? null,
+        documentHashes: revision?.documentHashes ?? null,
+        documentIds: revisionDocuments.map((document) => document.id),
+      };
+      canMarkNotApplicable = false;
+      break;
+  }
+
+  const row = context.checklistItems.find((item) => item.code === code);
+  const evidenceHash = hashValue(evidence);
+  const storedStatus = row?.status ?? "pending";
+  const status =
+    ["complete", "not_applicable"].includes(storedStatus) &&
+    row?.evidenceHash !== evidenceHash
+      ? "invalidated"
+      : storedStatus;
+  return {
+    code,
+    label: checklistDefinitions[code].label,
+    description: checklistDefinitions[code].description,
+    status,
+    required: true,
+    eligible,
+    canMarkNotApplicable,
+    message:
+      status === "invalidated"
+        ? "The deal data changed after this confirmation; review and confirm it again."
+        : message,
+    completedAt: status === "complete" || status === "not_applicable" ? row?.completedAt ?? null : null,
+    completedBy: status === "complete" || status === "not_applicable" ? row?.completedBy ?? null : null,
+    evidenceHash,
+    evidence,
+  };
+}
+
+function checklistState(context: NonNullable<Awaited<ReturnType<typeof loadSale>>>) {
+  const items = checklistCodes.map((code) => evaluateChecklistItem(context, code));
+  const completed = items.filter(
+    (item) =>
+      (item.status === "complete" || item.status === "not_applicable") &&
+      item.eligible,
+  );
+  const preSignItems = items.filter((item) => item.code !== "documents_generated");
+  return {
+    ...developmentOnly(),
+    saleId: context.sale.id,
+    completedCount: completed.length,
+    totalCount: items.length,
+    readyForPreparation: preSignItems.every(
+      (item) =>
+        (item.status === "complete" || item.status === "not_applicable") &&
+        item.eligible,
+    ),
+    readyForCompletion: items.every(
+      (item) =>
+        (item.status === "complete" || item.status === "not_applicable") &&
+        item.eligible,
+    ),
+    items: items.map(({ evidenceHash: _evidenceHash, evidence: _evidence, ...item }) => item),
+    internalItems: items,
+  };
+}
+
+async function initializeChecklist(tx: QueryDb, saleId: string) {
+  await tx
+    .insert(saleChecklistItemsTable)
+    .values(checklistCodes.map((code) => ({ saleId, code, status: "pending" as const })))
+    .onConflictDoNothing();
 }
 
 function requiredAcknowledgements(snapshot: Record<string, unknown> | undefined) {
@@ -591,6 +937,15 @@ async function finalChecks(tx: QueryDb, context: NonNullable<Awaited<ReturnType<
     passed: !fulfilment || Boolean(fulfilment.method),
     message: !fulfilment ? "No separate fulfilment plan is recorded." : "Fulfilment method is recorded.",
   });
+  const readiness = checklistState(context);
+  checks.push({
+    code: "deal_readiness",
+    label: "Deal readiness checklist",
+    passed: readiness.readyForCompletion,
+    message: readiness.readyForCompletion
+      ? "All deal readiness confirmations are current."
+      : `${readiness.totalCount - readiness.completedCount} readiness item(s) still need attention.`,
+  });
   return {
     ...developmentOnly(),
     saleId: sale.id,
@@ -645,8 +1000,24 @@ function publicSigningPayload(
 }
 
 async function createRevisionAndSession(tx: Tx, saleId: string, req: Request) {
+  await initializeChecklist(tx, saleId);
   const context = await loadSale(tx, saleId);
   if (!context) throw new Error("Sale not found");
+  const readiness = checklistState(context);
+  if (!readiness.readyForPreparation) {
+    const outstanding = readiness.items
+      .filter(
+        (item) =>
+          item.code !== "documents_generated" &&
+          !(
+            (item.status === "complete" || item.status === "not_applicable") &&
+            item.eligible
+          ),
+      )
+      .map((item) => item.label)
+      .join(", ");
+    throw new Error(`Complete the deal readiness checklist first: ${outstanding}`);
+  }
   if (["completed", "cancelled"].includes(context.sale.status)) {
     throw new Error("This sale cannot be prepared");
   }
@@ -786,6 +1157,27 @@ async function createRevisionAndSession(tx: Tx, saleId: string, req: Request) {
       ...document,
     })),
   );
+  const afterDocuments = await loadSale(tx, saleId);
+  if (!afterDocuments) throw new Error("Sale disappeared while preparing");
+  const documentChecklist = checklistState(afterDocuments).internalItems.find(
+    (item) => item.code === "documents_generated",
+  );
+  await tx
+    .update(saleChecklistItemsTable)
+    .set({
+      status: "complete",
+      revisionId: revision.id,
+      completedBy: "system",
+      completedAt: new Date(),
+      evidenceHash: documentChecklist?.evidenceHash ?? null,
+      evidence: documentChecklist?.evidence ?? null,
+    })
+    .where(
+      and(
+        eq(saleChecklistItemsTable.saleId, saleId),
+        eq(saleChecklistItemsTable.code, "documents_generated"),
+      ),
+    );
   const rawToken = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS);
   const [session] = await tx
@@ -960,6 +1352,7 @@ router.post("/sales", async (req, res) => {
           notes: input.fulfilment.notes ?? null,
         });
       }
+      await initializeChecklist(tx, sale.id);
       await recordEvent(tx, sale.id, "sale.created", "staff", {
         vehicleId: input.vehicleId,
         customerId,
@@ -971,6 +1364,133 @@ router.post("/sales", async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create sale";
     res.status(message.includes("already has") ? 409 : 400).json({ error: message });
+  }
+});
+
+router.get("/sales/:id/checklist", async (req, res): Promise<void> => {
+  const parsed = GetSaleChecklistParams.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  try {
+    const context = await loadSale(db, parsed.data.id);
+    if (!context) {
+      res.status(404).json({ error: "Sale not found" });
+      return;
+    }
+    await initializeChecklist(db, parsed.data.id);
+    const current = await loadSale(db, parsed.data.id);
+    if (!current) {
+      res.status(404).json({ error: "Sale not found" });
+      return;
+    }
+    res.json(GetSaleChecklistResponse.parse(checklistState(current)));
+  } catch (error) {
+    res.status(500).json({ error: "Unable to load sale checklist", detail: String(error) });
+  }
+});
+
+router.post("/sales/:id/checklist/:code", async (req, res): Promise<void> => {
+  const parsedParams = UpdateSaleChecklistItemParams.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: parsedParams.error.message });
+    return;
+  }
+  const parsedBody = UpdateSaleChecklistItemBody.safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ error: parsedBody.error.message });
+    return;
+  }
+  try {
+    const result = await db.transaction(async (tx) => {
+      await lockSale(tx, parsedParams.data.id);
+      await initializeChecklist(tx, parsedParams.data.id);
+      const context = await loadSale(tx, parsedParams.data.id);
+      if (!context) throw new Error("Sale not found");
+      const current = checklistState(context);
+      const item = current.internalItems.find(
+        (candidate) => candidate.code === parsedParams.data.code,
+      );
+      if (!item) throw new Error("Checklist item not found");
+      if (parsedBody.data.status === "complete" && !item.eligible) {
+        throw new Error(item.message);
+      }
+      if (
+        parsedBody.data.status === "not_applicable" &&
+        (!item.canMarkNotApplicable || !item.eligible)
+      ) {
+        throw new Error(item.message);
+      }
+
+      if (
+        parsedParams.data.code === "deposit_confirmed" &&
+        parsedBody.data.status === "complete" &&
+        context.sale.depositPence > 0
+      ) {
+        const depositRecorded = context.payments
+          .filter(
+            (payment) =>
+              payment.kind === "deposit" &&
+              ["recorded", "received", "paid"].includes(payment.status),
+          )
+          .reduce((total, payment) => total + payment.amountPence, 0);
+        if (depositRecorded < context.sale.depositPence) {
+          await tx.insert(salePaymentsTable).values({
+            saleId: context.sale.id,
+            kind: "deposit",
+            amountPence: context.sale.depositPence,
+            method: parsedBody.data.method?.trim() || "manual",
+            reference: null,
+            status: "recorded",
+          });
+        }
+      }
+
+      const updatedContext = await loadSale(tx, parsedParams.data.id);
+      if (!updatedContext) throw new Error("Sale disappeared while updating checklist");
+      const updatedItem = checklistState(updatedContext).internalItems.find(
+        (candidate) => candidate.code === parsedParams.data.code,
+      );
+      const now = new Date();
+      await tx
+        .update(saleChecklistItemsTable)
+        .set({
+          status: parsedBody.data.status,
+          revisionId: updatedContext.revisions[0]?.id ?? null,
+          completedBy: parsedBody.data.status === "pending" ? null : "staff",
+          completedAt: parsedBody.data.status === "pending" ? null : now,
+          evidenceHash:
+            parsedBody.data.status === "pending"
+              ? null
+              : updatedItem?.evidenceHash ?? null,
+          evidence: parsedBody.data.status === "pending" ? null : updatedItem?.evidence ?? null,
+          notes: parsedBody.data.notes?.trim() || null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(saleChecklistItemsTable.saleId, parsedParams.data.id),
+            eq(saleChecklistItemsTable.code, parsedParams.data.code),
+          ),
+        );
+      await recordEvent(tx, parsedParams.data.id, "sale.checklist.updated", "staff", {
+        code: parsedParams.data.code,
+        status: parsedBody.data.status,
+        notes: parsedBody.data.notes?.trim() || null,
+      });
+      const finalContext = await loadSale(tx, parsedParams.data.id);
+      if (!finalContext) throw new Error("Sale disappeared while updating checklist");
+      return checklistState(finalContext);
+    });
+    res.json(UpdateSaleChecklistItemResponse.parse(result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update checklist item";
+    if (message === "Sale not found" || message === "Checklist item not found") {
+      res.status(404).json({ error: message });
+      return;
+    }
+    res.status(422).json({ error: message });
   }
 });
 

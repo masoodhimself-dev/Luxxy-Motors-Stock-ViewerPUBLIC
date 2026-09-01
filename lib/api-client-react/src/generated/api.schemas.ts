@@ -758,6 +758,81 @@ export interface SaleInput {
 
 export interface SalePreparation { [key: string]: unknown }
 
+export type SaleChecklistCode = typeof SaleChecklistCode[keyof typeof SaleChecklistCode];
+
+
+export const SaleChecklistCode = {
+  customer_confirmed: 'customer_confirmed',
+  vehicle_confirmed: 'vehicle_confirmed',
+  price_confirmed: 'price_confirmed',
+  disclosure_confirmed: 'disclosure_confirmed',
+  mileage_confirmed: 'mileage_confirmed',
+  warranty_confirmed: 'warranty_confirmed',
+  fulfilment_confirmed: 'fulfilment_confirmed',
+  part_exchange_confirmed: 'part_exchange_confirmed',
+  deposit_confirmed: 'deposit_confirmed',
+  documents_generated: 'documents_generated',
+} as const;
+
+export type SaleChecklistStatus = typeof SaleChecklistStatus[keyof typeof SaleChecklistStatus];
+
+
+export const SaleChecklistStatus = {
+  pending: 'pending',
+  complete: 'complete',
+  not_applicable: 'not_applicable',
+  invalidated: 'invalidated',
+} as const;
+
+export interface SaleChecklistItem {
+  code: SaleChecklistCode;
+  label: string;
+  description: string;
+  status: SaleChecklistStatus;
+  required: boolean;
+  eligible: boolean;
+  canMarkNotApplicable: boolean;
+  message: string;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  completedBy: string | null;
+}
+
+export interface SaleChecklist {
+  developmentOnly: boolean;
+  warning: string;
+  saleId: string;
+  completedCount: number;
+  totalCount: number;
+  readyForPreparation: boolean;
+  readyForCompletion: boolean;
+  items: SaleChecklistItem[];
+}
+
+export type SaleChecklistUpdateInputStatus = typeof SaleChecklistUpdateInputStatus[keyof typeof SaleChecklistUpdateInputStatus];
+
+
+export const SaleChecklistUpdateInputStatus = {
+  complete: 'complete',
+  not_applicable: 'not_applicable',
+  pending: 'pending',
+} as const;
+
+export interface SaleChecklistUpdateInput {
+  status: SaleChecklistUpdateInputStatus;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  method?: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
 export interface FinalChecks { [key: string]: unknown }
 
 export interface FinalCheckFailure { [key: string]: unknown }

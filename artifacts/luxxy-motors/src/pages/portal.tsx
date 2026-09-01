@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   getGetSalesQueryKey,
   getGetSaleFinalChecksQueryKey,
+  getGetSaleChecklistQueryKey,
   getGetSaleQueryKey,
   getGetCustomerIntakeSessionQueryKey,
   getGetEnquiriesQueryKey,
@@ -14,10 +15,12 @@ import {
   useGetEnquiries,
   useGetSale,
   useGetSaleFinalChecks,
+  useGetSaleChecklist,
   useGetSales,
   usePrepareSale,
   useRevokeSaleSigning,
   useUpdateEnquiryStatus,
+  useUpdateSaleChecklistItem,
   type Enquiry,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -116,6 +119,26 @@ type SaleView = Sale & {
 };
 
 type SaleCheck = { code: string; label: string; passed: boolean; message: string };
+type ChecklistItem = {
+  code: string;
+  label: string;
+  description: string;
+  status: 'pending' | 'complete' | 'not_applicable' | 'invalidated';
+  required: boolean;
+  eligible: boolean;
+  canMarkNotApplicable: boolean;
+  message: string;
+  completedAt: string | null;
+  completedBy: string | null;
+};
+type SaleChecklistView = {
+  saleId: string;
+  completedCount: number;
+  totalCount: number;
+  readyForPreparation: boolean;
+  readyForCompletion: boolean;
+  items: ChecklistItem[];
+};
 
 function saleView(value: Sale | undefined): SaleView | undefined {
   return value as SaleView | undefined;
@@ -127,6 +150,105 @@ function apiMessage(error: unknown, fallback: string) {
     if (data?.error) return data.error;
   }
   return fallback;
+}
+
+function DealChecklist({ id }: { id: string }) {
+  const queryClient = useQueryClient();
+  const checklistQuery = useGetSaleChecklist(id, {
+    query: {
+      queryKey: getGetSaleChecklistQueryKey(id),
+      refetchInterval: 5000,
+    },
+  });
+  const updateItem = useUpdateSaleChecklistItem({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetSaleChecklistQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetSaleQueryKey(id) });
+        queryClient.invalidateQueries({ queryKey: getGetSaleFinalChecksQueryKey(id) });
+      },
+    },
+  });
+  const checklist = checklistQuery.data as unknown as SaleChecklistView | undefined;
+  const completedCount = checklist?.completedCount ?? 0;
+  const totalCount = checklist?.totalCount ?? 10;
+  const progress = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const update = (code: string, status: 'complete' | 'not_applicable' | 'pending') => {
+    updateItem.mutate({ id, code: code as never, data: { status } });
+  };
+
+  return (
+    <div className="mt-7 rounded-2xl border border-primary/20 bg-primary/[0.03] p-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">Auditable workflow</p>
+          <h3 className="mt-2 flex items-center gap-2 text-xl font-black"><ClipboardCheck className="h-5 w-5 text-primary" /> Sales readiness checklist</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Confirm each deal fact against the current records. If a price, customer, vehicle or document revision changes, the relevant confirmation returns to review.
+          </p>
+        </div>
+        <div className="shrink-0 sm:text-right">
+          <p className="text-2xl font-black text-primary">{completedCount}/{totalCount}</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Current items</p>
+        </div>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-primary/10">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+      </div>
+      {checklistQuery.isLoading ? (
+        <p className="mt-5 flex items-center text-sm text-muted-foreground"><LoaderCircle className="mr-2 h-4 w-4 animate-spin text-primary" /> Loading checklist…</p>
+      ) : checklistQuery.isError ? (
+        <p className="mt-5 text-sm text-destructive">The checklist could not be loaded. Refresh and try again.</p>
+      ) : (
+        <div className="mt-5 space-y-2">
+          {(checklist?.items ?? []).map((item) => {
+            const confirmed = item.status === 'complete' || item.status === 'not_applicable';
+            const invalidated = item.status === 'invalidated';
+            return (
+              <div key={item.code} className={`rounded-xl border p-4 ${confirmed ? 'border-green-200 bg-green-50/70' : invalidated ? 'border-amber-300 bg-amber-50' : 'bg-card'}`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className={`flex items-center gap-2 text-sm font-bold ${confirmed ? 'text-green-900' : invalidated ? 'text-amber-950' : 'text-foreground'}`}>
+                      {confirmed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700" /> : invalidated ? <CircleAlert className="h-4 w-4 shrink-0 text-amber-700" /> : <span className="h-4 w-4 shrink-0 rounded-full border-2 border-muted-foreground/40" />}
+                      {item.label}
+                      {item.status === 'not_applicable' && <Badge variant="outline" className="ml-1 text-[10px]">Not applicable</Badge>}
+                    </p>
+                    <p className={`mt-1 text-xs ${confirmed ? 'text-green-900/75' : invalidated ? 'text-amber-900/80' : 'text-muted-foreground'}`}>{item.message}</p>
+                    {confirmed && item.completedAt && <p className="mt-1 text-[11px] text-muted-foreground">Confirmed {formatDate(item.completedAt)} · {item.completedBy || 'staff'}</p>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {!confirmed && item.eligible && (
+                      <Button type="button" size="sm" onClick={() => update(item.code, 'complete')} disabled={updateItem.isPending}>
+                        Confirm
+                      </Button>
+                    )}
+                    {!confirmed && item.canMarkNotApplicable && item.eligible && (
+                      <Button type="button" size="sm" variant="outline" onClick={() => update(item.code, 'not_applicable')} disabled={updateItem.isPending}>
+                        Not applicable
+                      </Button>
+                    )}
+                    {confirmed && item.code !== 'documents_generated' && (
+                      <Button type="button" size="sm" variant="ghost" onClick={() => update(item.code, 'pending')} disabled={updateItem.isPending}>
+                        Reopen
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {updateItem.isError && <p className="mt-4 text-sm text-destructive">{apiMessage(updateItem.error, 'That checklist item could not be updated.')}</p>}
+      {checklist && !checklist.readyForPreparation && (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">Complete the pre-signature items above before preparing the document pack.</p>
+      )}
+      {checklist?.readyForPreparation && !checklist.readyForCompletion && (
+        <p className="mt-4 rounded-lg bg-primary/5 px-3 py-2 text-xs font-semibold text-primary">Pre-signature checks are complete. Prepare the document pack to create the final document item.</p>
+      )}
+    </div>
+  );
 }
 
 function formatPence(value: number | undefined) {
@@ -155,6 +277,7 @@ function SaleCreateForm({
   const [price, setPrice] = useState('');
   const [deposit, setDeposit] = useState('0');
   const [disclosures, setDisclosures] = useState('Development disclosure placeholder — requires legal review before production use.');
+  const [fulfilmentMethod, setFulfilmentMethod] = useState<'collection' | 'delivery'>('collection');
   const selectedCar = cars.find((car) => car.id === vehicleId);
   const selectedEnquiry = recentEnquiries.find((enquiry) => enquiry.id === enquiryId);
   const intakeQuery = useGetCustomerIntakeSession(intakeToken, {
@@ -253,7 +376,12 @@ function SaleCreateForm({
       adjustments: [],
       partExchange: null,
       warranty: null,
-      fulfilment: null,
+      fulfilment: {
+        method: fulfilmentMethod,
+        targetDate: null,
+        address: null,
+        notes: null,
+      },
     };
     createSale.mutate(
       { data },
@@ -383,6 +511,19 @@ function SaleCreateForm({
           <span>Vehicle disclosures</span>
           <Textarea required rows={3} value={disclosures} onChange={(event) => setDisclosures(event.target.value)} />
         </label>
+        <label className="space-y-2 text-sm font-semibold sm:col-span-2">
+          <span>Fulfilment</span>
+          <select
+            required
+            value={fulfilmentMethod}
+            onChange={(event) => setFulfilmentMethod(event.target.value as 'collection' | 'delivery')}
+            className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="collection">Customer collection</option>
+            <option value="delivery">Dealer delivery</option>
+          </select>
+          <span className="block text-xs font-normal text-muted-foreground">The date and address can be added to the fulfilment record before signing.</span>
+        </label>
       </div>
       {createSale.isError && <p className="mt-4 text-sm text-destructive">{apiMessage(createSale.error, 'Could not create this sale.')}</p>}
       <Button type="submit" className="mt-5 font-bold" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
@@ -397,6 +538,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const queryClient = useQueryClient();
   const saleQuery = useGetSale(id, { query: { queryKey: getGetSaleQueryKey(id), refetchInterval: 4000 } });
   const checksQuery = useGetSaleFinalChecks(id, { query: { queryKey: getGetSaleFinalChecksQueryKey(id), refetchInterval: 5000 } });
+  const checklistQuery = useGetSaleChecklist(id, { query: { queryKey: getGetSaleChecklistQueryKey(id), refetchInterval: 5000 } });
   const prepare = usePrepareSale({
     mutation: {
       onSuccess: () => {
@@ -426,6 +568,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const sale = saleView(saleQuery.data);
   const checks = (checksQuery.data as unknown as { canComplete?: boolean; checks?: SaleCheck[] } | undefined);
   const prepared = prepare.data as unknown as { signingUrl?: string; revision?: { revisionNumber: number; packHash: string } } | undefined;
+  const checklist = checklistQuery.data as unknown as SaleChecklistView | undefined;
 
   if (saleQuery.isLoading || !sale) {
     return <div className="flex min-h-32 items-center justify-center rounded-2xl border bg-card text-muted-foreground"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-primary" /> Loading sale…</div>;
@@ -433,6 +576,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
   const sessionStatus = sale.signingSession?.status;
   const canPrepare = !['completed', 'cancelled'].includes(sale.status) && sessionStatus !== 'pending';
+  const readyForPreparation = checklist?.readyForPreparation ?? false;
 
   return (
     <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
@@ -489,11 +633,13 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
       )}
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {canPrepare && <Button type="button" onClick={() => prepare.mutate({ id })} disabled={prepare.isPending}><Link2 className="mr-2 h-4 w-4" /> {prepare.isPending ? 'Preparing pack…' : sale.latestRevision ? 'Create new revision & link' : 'Prepare pack & create link'}</Button>}
+        {canPrepare && <Button type="button" onClick={() => prepare.mutate({ id })} disabled={prepare.isPending || !readyForPreparation}><Link2 className="mr-2 h-4 w-4" /> {prepare.isPending ? 'Preparing pack…' : !readyForPreparation ? 'Complete checklist to prepare' : sale.latestRevision ? 'Create new revision & link' : 'Prepare pack & create link'}</Button>}
         {sessionStatus === 'pending' && <Button type="button" variant="outline" onClick={() => revoke.mutate({ id })} disabled={revoke.isPending}><XCircle className="mr-2 h-4 w-4" /> Revoke signing link</Button>}
         {checks?.canComplete && sale.status === 'signed' && <Button type="button" variant="secondary" onClick={() => complete.mutate({ id })} disabled={complete.isPending}><CheckCircle2 className="mr-2 h-4 w-4" /> {complete.isPending ? 'Completing…' : 'Complete sale'}</Button>}
       </div>
       {(prepare.isError || revoke.isError || complete.isError) && <p className="mt-3 text-sm text-destructive">{apiMessage(prepare.error || revoke.error || complete.error, 'The sale action could not be completed.')}</p>}
+
+      <DealChecklist id={id} />
 
       <div className="mt-7 border-t pt-6">
         <div className="flex items-center justify-between gap-3">
