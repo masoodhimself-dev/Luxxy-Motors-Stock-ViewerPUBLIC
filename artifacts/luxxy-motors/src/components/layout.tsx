@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
-import { Menu, X, Car as CarIcon, Phone, MessageCircle, Calendar, Search, ArrowRight, Instagram, Facebook, Twitter, MapPin } from 'lucide-react';
+import { Menu, X, Car as CarIcon, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin } from 'lucide-react';
 import { dealerConfig } from '@/config/dealer';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
@@ -141,11 +141,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
-      <main className={`flex-1 w-full pb-20 xl:pb-0 ${location === '/' ? '' : 'pt-[var(--site-header-height)]'}`}>
+      <main className={`flex-1 w-full ${location === '/' ? '' : 'pt-[var(--site-header-height)]'}`}>
         {children}
       </main>
 
-      <footer id="contact" data-home-section className="bg-primary text-primary-foreground pt-20 pb-28 xl:pb-10 mt-auto border-t-4 border-accent">
+      <footer id="contact" data-home-section className="bg-primary text-primary-foreground pt-20 pb-10 mt-auto border-t-4 border-accent">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 mb-16">
             <div className="lg:col-span-4">
@@ -248,33 +248,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </footer>
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
-      {/* Mobile Bottom Bar */}
-      <div className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t shadow-[0_-5px_15px_rgba(0,0,0,0.05)] pb-safe">
-        <div className="flex items-center justify-between px-2 py-1">
-          {dealerConfig.contact.phone && (
-            <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
-              <Phone className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Call</span>
-            </a>
-          )}
-          {dealerConfig.contact.whatsapp && (
-            <a href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
-              <MessageCircle className="w-5 h-5 mb-1 text-green-600" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">WhatsApp</span>
-            </a>
-          )}
-          <button onClick={() => handleNav('stock')} className="flex flex-col items-center justify-center w-full py-2 text-primary hover:text-primary/80 transition-colors relative -top-3">
-            <div className="bg-primary text-primary-foreground p-3 rounded-full shadow-lg mb-1">
-              <Search className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider">Browse</span>
-          </button>
-           <button type="button" onClick={() => setLocation(getEnquiryHref('viewing'))} className="flex flex-col items-center justify-center w-full py-2 text-muted-foreground hover:text-primary transition-colors">
-            <Calendar className="w-5 h-5 mb-1" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Book</span>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
