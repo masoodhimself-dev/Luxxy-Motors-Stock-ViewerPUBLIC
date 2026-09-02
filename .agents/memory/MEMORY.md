@@ -5,3 +5,5 @@
 - [Workspace dependency removal](workspace-dependency-removal.md) — verify nested package manifests and the lockfile after generic package-tool removals.
 - [Approved Luxxy visual direction](luxxy-visual-direction.md) — use the editorial concierge identity with sage, ink teal, brass, and the L/X road monogram.
 - [Sales readiness evidence](sales-readiness-evidence.md) — checklist confirmations hash the current deal evidence and invalidate when source records change.
+- [Vehicle registration display](vehicle-registration-display.md) — most stock has no real VRM; never render a registration band as a number plate.
+- [Customer-side state](customer-side-state.md) — no customer accounts exist, so shopper shortlists and comparisons live in localStorage, not the database.

@@ -17,6 +17,52 @@ export function formatMileage(mileage: number) {
   return new Intl.NumberFormat('en-GB').format(mileage) + ' miles';
 }
 
+/**
+ * The registration we are allowed to print on a number plate.
+ * Registration bands (e.g. "2019 (69)") are not real plates, so they are never returned.
+ */
+// UK number plate formats, compared without spaces:
+// current "AB12CDE", prefix "A123BCD", suffix "ABC123A", dateless "ABC123" / "123ABC".
+const UK_PLATE_PATTERNS = [
+  /^[A-Z]{2}[0-9]{2}[A-Z]{3}$/,
+  /^[A-Z][0-9]{1,3}[A-Z]{3}$/,
+  /^[A-Z]{3}[0-9]{1,3}[A-Z]$/,
+  /^[A-Z]{1,3}[0-9]{1,4}$/,
+  /^[0-9]{1,4}[A-Z]{1,3}$/,
+];
+
+// Registration bands read like "2009 (59 reg)" or "59 reg" — never a plate.
+const REGISTRATION_BAND_MARKERS = /\breg\b|[()]/i;
+
+export function isUKNumberPlate(value?: string | null) {
+  const raw = (value || '').trim();
+  if (!raw || REGISTRATION_BAND_MARKERS.test(raw)) return false;
+  const compact = raw.toUpperCase().replace(/[\s-]/g, '');
+  if (!compact) return false;
+  return UK_PLATE_PATTERNS.some((pattern) => pattern.test(compact));
+}
+
+/**
+ * Returns a vehicle's real number plate, or '' when we only hold a registration
+ * band such as "2009 (59 reg)". Never render a band as if it were a plate.
+ */
+export function vehicleRegistration(
+  vehicle?: {
+    plate?: string | null;
+    vrm?: string | null;
+    registration?: string | null;
+    registrationBand?: string | null;
+  } | null,
+) {
+  const actualRegistration = vehicle?.plate?.trim() || vehicle?.vrm?.trim();
+  if (actualRegistration) return actualRegistration.toUpperCase();
+
+  const registration = vehicle?.registration?.trim();
+  if (registration && isUKNumberPlate(registration)) return registration.toUpperCase();
+
+  return '';
+}
+
 // Ensure remote images don't fail due to referrers
 export function getSafeImageUrl(img: string | { url: string; caption?: string | null }) {
   if (!img) return '';

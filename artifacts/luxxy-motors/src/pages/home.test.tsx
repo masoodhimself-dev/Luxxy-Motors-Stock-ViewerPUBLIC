@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
+import { SavedCarsProvider } from '@/lib/saved-cars-context';
 
 const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
   const baseCar = {
@@ -135,7 +136,9 @@ function renderHome() {
   });
   render(
     <QueryClientProvider client={queryClient}>
-      <Home />
+      <SavedCarsProvider>
+        <Home />
+      </SavedCarsProvider>
     </QueryClientProvider>,
   );
 }

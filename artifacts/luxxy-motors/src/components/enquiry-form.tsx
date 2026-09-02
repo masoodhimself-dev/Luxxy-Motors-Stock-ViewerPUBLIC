@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
-import { formatPrice, getThumbnailUrl } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
 import type { EnquiryType } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { UKNumberPlate } from '@/components/uk-number-plate';
 
 const typeLabels: Record<EnquiryType, string> = {
   viewing: 'Book a viewing',
@@ -79,65 +80,6 @@ function apiErrorMessage(error: unknown) {
     if (data?.error) return data.error;
   }
   return 'We could not send your enquiry. Please try again or call us directly.';
-}
-
-function vehicleRegistration(vehicle?: Car | null) {
-  const actualRegistration = vehicle?.plate || vehicle?.vrm;
-  if (actualRegistration?.trim()) return actualRegistration.trim();
-  if (vehicle?.registration?.trim() && vehicle.registration !== vehicle.registrationBand) {
-    return vehicle.registration.trim();
-  }
-  return '';
-}
-
-function UKNumberPlate({
-  value,
-  editable = false,
-  onChange,
-  testId,
-  inputTestId,
-  helpId,
-}: {
-  value: string;
-  editable?: boolean;
-  onChange?: (value: string) => void;
-  testId: string;
-  inputTestId?: string;
-  helpId?: string;
-}) {
-  const registration = value.trim().toUpperCase();
-  const displayValue = registration || 'REG NOT AVAILABLE';
-
-  return (
-    <div className="relative aspect-[4.7/1] min-h-[58px] overflow-hidden rounded-[0.45rem] border-2 border-[#171717] bg-[#f5cc38] shadow-[inset_0_0_0_1px_rgba(255,255,255,.28),0_3px_0_#b3941e,0_6px_12px_rgba(27,27,27,.14)]" data-testid={testId}>
-      <div className="pointer-events-none absolute inset-y-0 left-0 flex w-[11%] min-w-9 flex-col items-center justify-center bg-[#164f92] text-white">
-        <span className="text-[8px] font-black leading-none tracking-[0.08em]">GB</span>
-        <span className="mt-1 text-[7px] leading-none text-[#f5cc38]">✦</span>
-      </div>
-      {editable ? (
-        <Input
-          required
-          minLength={2}
-          maxLength={12}
-          pattern="[A-Za-z0-9 ]{2,12}"
-          value={value}
-          onChange={(event) => onChange?.(event.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''))}
-          placeholder="AB12 CDE"
-          autoCapitalize="characters"
-          autoComplete="off"
-          spellCheck={false}
-          aria-label="Your car’s UK registration number"
-          aria-describedby={helpId}
-          className="h-full min-h-[58px] rounded-none border-0 bg-transparent pl-[14%] font-mono text-xl font-black tracking-[0.16em] text-[#151515] shadow-none placeholder:text-[#625414]/60 focus-visible:ring-0 sm:text-2xl"
-          data-testid={inputTestId ?? `${testId}-input`}
-        />
-      ) : (
-        <span className="flex h-full min-h-[58px] items-center truncate pl-[14%] pr-3 font-mono text-xl font-black tracking-[0.16em] text-[#151515] sm:text-2xl" aria-label={`UK registration ${displayValue}`}>
-          {displayValue}
-        </span>
-      )}
-    </div>
-  );
 }
 
 export function EnquiryForm({

@@ -184,6 +184,21 @@
     opacity: .8;
   }
 
+  .luxxy-label {
+    font-size: .625rem;
+    font-weight: 800;
+    letter-spacing: .18em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .luxxy-leader {
+    flex: 1 1 auto;
+    min-width: .75rem;
+    border-bottom: 1px dotted hsl(var(--border));
+    transform: translateY(-.25rem);
+  }
+
   .luxxy-rule {
     background: linear-gradient(90deg, hsl(var(--accent)), hsl(var(--border)));
     height: 1px;

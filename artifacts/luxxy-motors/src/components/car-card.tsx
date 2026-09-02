@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
-import { formatPrice, formatMileage, getSafeImageUrl, getThumbnailUrl } from '@/lib/utils';
+import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Fuel, Settings, Calendar, AlertTriangle, ArrowRight, Camera, MessageCircle, Phone } from 'lucide-react';
+import { UKNumberPlate } from '@/components/uk-number-plate';
+import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
+import { AlertTriangle, ArrowRight, Calendar, Camera, MessageCircle, Phone } from 'lucide-react';
 
-export function CarCard({ car }: { car: Car }) {
+type SpecEntry = { label: string; value: string };
+
+const actionBase =
+  'inline-flex h-11 items-center justify-center gap-2 px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card';
+
+const MAX_PREVIEW_IMAGES = 6;
+
+export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | 'card' }) {
   const { settings: dealerConfig } = useDealerSettings();
+  const isRow = layout === 'row';
+
   const imageUrls = useMemo(() => {
     const urls: string[] = [];
     const addImage = (image: string | { url: string; caption?: string | null } | null | undefined) => {
@@ -22,188 +32,301 @@ export function CarCard({ car }: { car: Car }) {
 
     return urls;
   }, [car]);
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
+  const [isPreviewing, setIsPreviewing] = useState(false);
+
   const visibleImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url));
+  // Every gallery image gets its own indicator, so keep the previewable set small enough to control.
+  const galleryUrls = visibleImageUrls.slice(0, MAX_PREVIEW_IMAGES);
+  const activeIndex = galleryUrls.length > 0 ? activeImageIndex % galleryUrls.length : 0;
+  const photoCount = car.imageCount || car.images?.length || visibleImageUrls.length;
+
   const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
+  const registration = vehicleRegistration(car);
+  const detailHref = `/vehicle/${car.id}`;
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig);
   const bookingHref = getVehicleBookingHref(car);
 
+  // Reset on the image set itself, so a stock refresh that swaps photos on the same
+  // vehicle clears stale failures and selection too.
+  const imageSignature = imageUrls.join('|');
   useEffect(() => {
     setActiveImageIndex(0);
     setFailedImageUrls(new Set());
-  }, [car.id]);
+    setIsPreviewing(false);
+  }, [car.id, imageSignature]);
 
   useEffect(() => {
-    if (visibleImageUrls.length < 2) return;
+    if (!isPreviewing || galleryUrls.length < 2) return;
 
     const timer = window.setInterval(() => {
-      setActiveImageIndex((current) => (current + 1) % visibleImageUrls.length);
-    }, 3500);
+      setActiveImageIndex((current) => (current + 1) % galleryUrls.length);
+    }, 2200);
 
     return () => window.clearInterval(timer);
-  }, [visibleImageUrls.length]);
+  }, [isPreviewing, galleryUrls.length]);
 
-  const activeImage = visibleImageUrls.length > 0
-    ? visibleImageUrls[activeImageIndex % visibleImageUrls.length]
-    : '';
-
-  const getWriteOffBadge = () => {
-    if (!car.writeOffCategory) return null;
-    const cat = car.writeOffCategory.toUpperCase();
-    if (cat.includes('S') || cat === 'CAT S') {
-      return <Badge variant="destructive" className="absolute top-3 left-3 shadow-md z-10 font-bold tracking-wide"><AlertTriangle className="w-3.5 h-3.5 mr-1.5"/>CAT S</Badge>;
-    }
-    if (cat.includes('N') || cat === 'CAT N') {
-      return <Badge variant="warning" className="absolute top-3 left-3 shadow-md z-10 font-bold tracking-wide bg-amber-500 hover:bg-amber-600 text-black border-none"><AlertTriangle className="w-3.5 h-3.5 mr-1.5"/>CAT N</Badge>;
-    }
+  const writeOff = (() => {
+    const category = (car.writeOffCategory || '').toUpperCase();
+    if (!category) return null;
+    if (category.includes('S')) return { label: 'CAT S', className: 'bg-destructive text-destructive-foreground' };
+    if (category.includes('N')) return { label: 'CAT N', className: 'bg-[#c8811f] text-[#191919]' };
     return null;
-  };
+  })();
+
+  const specs = [
+    car.year ? { label: 'Year', value: String(car.year) } : null,
+    car.mileage
+      ? { label: 'Mileage', value: formatMileage(car.mileage) }
+      : car.mileageText
+        ? { label: 'Mileage', value: car.mileageText }
+        : null,
+    car.fuel ? { label: 'Fuel', value: car.fuel } : null,
+    car.transmission ? { label: 'Gearbox', value: car.transmission } : null,
+    car.bodyType ? { label: 'Body', value: car.bodyType } : null,
+    car.engineSize ? { label: 'Engine', value: car.engineSize } : null,
+    car.colour ? { label: 'Colour', value: car.colour } : null,
+    car.owners ? { label: 'Owners', value: String(car.owners) } : null,
+  ].filter((entry): entry is SpecEntry => Boolean(entry));
+
+  const visibleSpecs = specs.slice(0, isRow ? 6 : 4);
+
+  const imageBlock = (
+    <div
+      className={cn('relative overflow-hidden bg-secondary/60', isRow ? 'aspect-[4/3] md:aspect-auto md:min-h-[16rem]' : 'aspect-[4/3]')}
+      onMouseEnter={() => setIsPreviewing(true)}
+      onMouseLeave={() => setIsPreviewing(false)}
+    >
+      <Link
+        href={detailHref}
+        aria-label={`View details for ${vehicleLabel}`}
+        className="absolute inset-0 block outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+      >
+        {galleryUrls.length > 0 ? (
+          galleryUrls.map((imageUrl, index) => (
+            <img
+              key={imageUrl}
+              src={imageUrl}
+              alt={index === activeIndex ? vehicleLabel : ''}
+              aria-hidden={index !== activeIndex}
+              loading={index === 0 ? 'eager' : 'lazy'}
+              referrerPolicy="no-referrer"
+              onError={() => {
+                setFailedImageUrls((current) => {
+                  const next = new Set(current);
+                  next.add(imageUrl);
+                  return next;
+                });
+              }}
+              className={cn(
+                'absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out',
+                index === activeIndex ? 'opacity-100' : 'opacity-0',
+              )}
+            />
+          ))
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Camera className="h-7 w-7 opacity-40" />
+            <span className="luxxy-label">Photographs to follow</span>
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/5 to-transparent" />
+      </Link>
+
+      {writeOff && (
+        <span
+          className={cn(
+            'pointer-events-none absolute left-0 top-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em]',
+            writeOff.className,
+          )}
+        >
+          <AlertTriangle className="h-3.5 w-3.5" />
+          {writeOff.label}
+        </span>
+      )}
+
+      <SaveCarButton car={car} className="absolute right-3 top-3 z-10" />
+
+      {photoCount > 0 && (
+        <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1.5 bg-primary/80 px-2.5 py-1 font-mono text-[10px] font-bold text-primary-foreground backdrop-blur-sm">
+          <Camera className="h-3 w-3" />
+          {photoCount}
+        </span>
+      )}
+
+      {galleryUrls.length > 1 && (
+        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5">
+          {galleryUrls.map((imageUrl, index) => (
+            <button
+              key={imageUrl}
+              type="button"
+              onClick={() => {
+                setActiveImageIndex(index);
+                setIsPreviewing(false);
+              }}
+              aria-label={`Show photograph ${index + 1} of ${vehicleLabel}`}
+              aria-current={index === activeIndex}
+              className={cn(
+                'h-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                index === activeIndex ? 'w-6 bg-accent' : 'w-1.5 bg-primary-foreground/60 hover:bg-primary-foreground',
+              )}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const ledger = visibleSpecs.length > 0 && (
+    <dl className={cn('grid gap-x-9 gap-y-2.5', isRow ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1')}>
+      {visibleSpecs.map((spec) => (
+        <div key={spec.label} className="flex items-baseline gap-2">
+          <dt className="luxxy-label shrink-0 text-muted-foreground">{spec.label}</dt>
+          <span className="luxxy-leader" aria-hidden="true" />
+          <dd className="shrink-0 font-mono text-[13px] font-bold text-foreground">{spec.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+
+  const priceBlock = (
+    <div>
+      <p className="luxxy-label text-muted-foreground">{car.price ? 'Price' : 'Price'}</p>
+      <p className={cn('mt-1.5 font-display font-semibold leading-none tracking-[-.02em] text-primary', isRow ? 'text-[2.35rem]' : 'text-3xl')}>
+        {car.price ? formatPrice(car.price, car.currency) : 'POA'}
+      </p>
+    </div>
+  );
+
+  const bookingAction = (
+    <a
+      href={bookingHref}
+      target={bookingHref.startsWith('https://') ? '_blank' : undefined}
+      rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
+      aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
+      data-vehicle-contact="booking"
+      className={cn(actionBase, 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary', !isRow && 'col-span-2')}
+    >
+      <Calendar className="h-4 w-4" />
+      {dealerConfig.bookViewing.ctaLabel}
+    </a>
+  );
+
+  const callAction = phoneHref && (
+    <a
+      href={phoneHref}
+      title={`Call about ${vehicleLabel}`}
+      aria-label={`Call about ${vehicleLabel}`}
+      data-vehicle-contact="call"
+      className={cn(actionBase, 'border border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary focus-visible:ring-primary')}
+    >
+      <Phone className="h-4 w-4 text-accent" />
+      Call
+    </a>
+  );
+
+  const whatsappAction = whatsappHref && (
+    <a
+      href={whatsappHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`WhatsApp about ${vehicleLabel}`}
+      aria-label={`WhatsApp about ${vehicleLabel}`}
+      data-vehicle-contact="whatsapp"
+      className={cn(actionBase, 'border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 text-[#1b6543] hover:bg-[#1f7a4d]/18 focus-visible:ring-[#1f7a4d]')}
+    >
+      <MessageCircle className="h-4 w-4" />
+      WhatsApp
+    </a>
+  );
+
+  const title = (
+    <h3
+      className={cn(
+        'font-display font-semibold leading-tight tracking-[-.02em] text-primary',
+        isRow ? 'text-2xl sm:text-[1.7rem]' : 'text-xl',
+      )}
+    >
+      <Link href={detailHref} className="outline-none transition-colors hover:text-accent focus-visible:underline">
+        {car.title || `${car.make} ${car.model}`}
+      </Link>
+    </h3>
+  );
+
+  const subtitle = (car.variant || car.trim) && (
+    <p className="mt-1.5 line-clamp-1 text-sm leading-6 text-muted-foreground">{car.variant || car.trim}</p>
+  );
+
+  if (isRow) {
+    return (
+      <article
+        className="group grid border border-border/70 bg-card transition-colors hover:border-primary/35 md:grid-cols-[minmax(0,38%)_minmax(0,1fr)]"
+        data-testid={`row-vehicle-${car.id}`}
+      >
+        {imageBlock}
+        <div className="flex min-w-0 flex-col gap-5 p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
+            <div className="min-w-0 flex-1">
+              {title}
+              {subtitle}
+            </div>
+            {registration && (
+              <UKNumberPlate size="sm" value={registration} testId={`plate-vehicle-${car.id}`} className="w-[122px] shrink-0" />
+            )}
+          </div>
+
+          {ledger && <div className="border-y border-border/70 py-4">{ledger}</div>}
+
+          <div className="mt-auto flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            {priceBlock}
+            <div className="flex flex-wrap items-center gap-2">
+              {bookingAction}
+              {callAction}
+              {whatsappAction}
+              <CompareCarButton car={car} />
+            </div>
+          </div>
+
+          <Link
+            href={detailHref}
+            className="inline-flex items-center gap-2 text-[13px] font-bold text-primary underline-offset-4 transition-colors hover:text-accent hover:underline"
+          >
+            Full vehicle details
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </div>
+      </article>
+    );
+  }
 
   return (
-    <div className="group bg-card rounded-xl border border-border/60 overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transform hover:-translate-y-1">
-        
-        {/* Image Container */}
-        <Link href={`/vehicle/${car.id}`} aria-label={`View details for ${vehicleLabel}`} className="relative block aspect-[3/2] bg-muted overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
-          {getWriteOffBadge()}
-          {activeImage ? (
-            visibleImageUrls.map((imageUrl, index) => (
-              <img
-                key={imageUrl}
-                src={imageUrl}
-                alt={index === (activeImageIndex % visibleImageUrls.length) ? (car.title || `${car.make} ${car.model}`) : ''}
-                aria-hidden={index !== (activeImageIndex % visibleImageUrls.length)}
-                loading={index === 0 ? 'eager' : 'lazy'}
-                referrerPolicy="no-referrer"
-                onError={() => {
-                  setFailedImageUrls((current) => {
-                    const next = new Set(current);
-                    next.add(imageUrl);
-                    return next;
-                  });
-                }}
-                className={`absolute inset-0 object-cover w-full h-full transition-opacity duration-700 ease-out group-hover:scale-110 ${
-                  index === (activeImageIndex % visibleImageUrls.length) ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-            ))
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-secondary/50 text-sm">
-              <Camera className="w-8 h-8 mb-2 opacity-50" />
-              <span>Image Unavailable</span>
-            </div>
-          )}
-          
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-          <div className="absolute bottom-3 right-3 flex gap-2 z-10">
-            {(car.imageCount || (car.images?.length)) ? (
-              <Badge variant="secondary" className="bg-black/70 text-white border-white/20 backdrop-blur-md font-medium text-xs px-2 py-1 flex items-center gap-1.5">
-                <Camera className="w-3 h-3" />
-                {car.imageCount || car.images?.length}
-              </Badge>
-            ) : null}
-          </div>
-        </Link>
-
-        {/* Content */}
-        <Link href={`/vehicle/${car.id}`} className="p-5 flex flex-col flex-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
-          <div className="mb-4">
-            <h3 className="font-bold text-lg lg:text-xl leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-              {car.title || `${car.make} ${car.model}`}
-            </h3>
-            {car.variant || car.trim ? (
-              <p className="text-sm text-muted-foreground line-clamp-1 mt-1 font-medium">
-                {car.variant || car.trim}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm mb-6 text-muted-foreground/90 flex-1 content-start font-medium">
-            {car.year && (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded bg-secondary flex items-center justify-center shrink-0">
-                  <Calendar className="w-3.5 h-3.5 text-primary" />
-                </div>
-                <span className="truncate">{car.year}</span>
-              </div>
-            )}
-            {(car.mileage || car.mileageText) && (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded bg-secondary flex items-center justify-center shrink-0">
-                  <MapPin className="w-3.5 h-3.5 text-primary" />
-                </div>
-                <span className="truncate">{car.mileage ? formatMileage(car.mileage) : car.mileageText}</span>
-              </div>
-            )}
-            {car.fuel && (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded bg-secondary flex items-center justify-center shrink-0">
-                  <Fuel className="w-3.5 h-3.5 text-primary" />
-                </div>
-                <span className="truncate">{car.fuel}</span>
-              </div>
-            )}
-            {car.transmission && (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded bg-secondary flex items-center justify-center shrink-0">
-                  <Settings className="w-3.5 h-3.5 text-primary" />
-                </div>
-                <span className="truncate">{car.transmission}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 mt-auto border-t border-border/50">
-            <div className="font-bold text-2xl text-foreground tracking-tight">
-              {car.price ? formatPrice(car.price, car.currency) : 'POA'}
-            </div>
-            <div className="w-10 h-10 rounded-full bg-primary/5 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </Link>
-
-        <div className="px-5 pb-5 grid grid-cols-2 gap-2">
-          {phoneHref && (
-            <a
-              href={phoneHref}
-              title={`Call about ${vehicleLabel}`}
-              aria-label={`Call about ${vehicleLabel}`}
-              data-vehicle-contact="call"
-              className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <Phone className="w-4 h-4 text-primary" />
-              Call
-            </a>
-          )}
-          {whatsappHref && (
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`WhatsApp about ${vehicleLabel}`}
-              aria-label={`WhatsApp about ${vehicleLabel}`}
-              data-vehicle-contact="whatsapp"
-              className="flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-sm font-bold text-green-700 transition-colors hover:border-green-300 hover:bg-green-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600"
-            >
-              <MessageCircle className="w-4 h-4" />
-              WhatsApp
-            </a>
-          )}
-          <a
-            href={bookingHref}
-            target={bookingHref.startsWith('https://') ? '_blank' : undefined}
-            rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
-            aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
-            data-vehicle-contact="booking"
-            className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <Calendar className="w-4 h-4" />
-            {dealerConfig.bookViewing.ctaLabel}
-          </a>
+    <article className="group flex h-full flex-col border border-border/70 bg-card transition-colors hover:border-primary/35" data-testid={`card-vehicle-${car.id}`}>
+      {imageBlock}
+      <div className="flex flex-1 flex-col gap-4 p-5">
+        <div>
+          {title}
+          {subtitle}
         </div>
-    </div>
+
+        {ledger && <div className="border-y border-border/70 py-4">{ledger}</div>}
+
+        <div className="mt-auto flex items-end justify-between gap-3">
+          {priceBlock}
+          {registration && (
+            <UKNumberPlate size="sm" value={registration} testId={`plate-vehicle-${car.id}`} className="w-[104px] shrink-0" />
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {callAction}
+          {whatsappAction}
+          {bookingAction}
+          <CompareCarButton car={car} className="col-span-2" />
+        </div>
+      </div>
+    </article>
   );
 }

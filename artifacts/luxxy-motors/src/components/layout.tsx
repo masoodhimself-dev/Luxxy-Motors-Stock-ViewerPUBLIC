@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
-import { Menu, X, Car as CarIcon, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin } from 'lucide-react';
+import { Menu, X, Car as CarIcon, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { useSavedCars } from '@/lib/saved-cars-context';
+import { CompareTray } from '@/components/compare-tray';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { settings: dealerConfig } = useDealerSettings();
+  const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
@@ -95,6 +98,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </a>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() => setLocation('/saved')}
+                aria-label={savedCount > 0 ? `Saved cars, ${savedCount} saved` : 'Saved cars'}
+                data-testid="link-saved-cars"
+                className="relative flex items-center gap-2 text-foreground/80 transition-colors hover:text-primary"
+              >
+                <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
+                  <Heart className={`h-4 w-4 text-primary ${savedCount > 0 ? 'fill-current' : ''}`} />
+                  {savedCount > 0 && (
+                    <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 font-mono text-[10px] font-bold text-accent-foreground">
+                      {savedCount}
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold">Saved</span>
+              </button>
                <Button onClick={() => setLocation(getEnquiryHref('viewing'))} className="font-bold rounded-full px-6">
                  {dealerConfig.bookViewing.ctaLabel}
               </Button>
@@ -123,6 +143,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Part Exchange</button>}
             {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Warranty</button>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Delivery</button>}
+            <button
+              onClick={() => { setMobileMenuOpen(false); setLocation('/saved'); }}
+              data-testid="link-saved-cars-mobile"
+              className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors flex justify-between items-center"
+            >
+              <span className="flex items-center gap-2">
+                <Heart className={`w-4 h-4 text-primary ${savedCount > 0 ? 'fill-current' : ''}`} />
+                Saved Cars
+              </span>
+              {savedCount > 0 && (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 font-mono text-[11px] font-bold text-accent-foreground">
+                  {savedCount}
+                </span>
+              )}
+            </button>
             <button onClick={() => handleNav('about')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Why Buy From Us</button>
             <button onClick={() => handleNav('visit')} className="text-left font-semibold p-3 hover:bg-secondary rounded-lg transition-colors">Contact & Location</button>
 
@@ -249,6 +284,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </footer>
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
+      <CompareTray />
     </div>
   );
 }

@@ -9,7 +9,6 @@ import {
   Search,
   Settings2,
   SlidersHorizontal,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -51,24 +50,21 @@ const emptyFilters: FilterState = {
   sort: '',
 };
 
+const controlClass =
+  'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
+
 function Field({
   label,
   icon: Icon,
   children,
-  dark = false,
 }: {
   label: string;
   icon: typeof Car;
   children: React.ReactNode;
-  dark?: boolean;
 }) {
   return (
     <label className="block">
-      <span
-        className={`mb-2 flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] ${
-          dark ? 'text-white/65' : 'text-muted-foreground'
-        }`}
-      >
+      <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
         <Icon className="h-3.5 w-3.5 text-accent" />
         {label}
       </span>
@@ -81,13 +77,11 @@ function Select({
   value,
   onChange,
   children,
-  dark = false,
   disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   children: React.ReactNode;
-  dark?: boolean;
   disabled?: boolean;
 }) {
   return (
@@ -95,11 +89,7 @@ function Select({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={disabled}
-      className={`h-11 w-full rounded-xl border px-3 text-sm font-bold outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-45 ${
-        dark
-          ? 'border-white/15 bg-white/10 text-white focus:border-accent focus:ring-accent/25'
-          : 'border-border bg-background text-foreground focus:border-accent focus:ring-accent/25'
-      }`}
+      className={controlClass}
     >
       {children}
     </select>
@@ -108,6 +98,7 @@ function Select({
 
 export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: FiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+
   const makes = useMemo(() => {
     const makeSet = new Set<string>();
     cars.forEach((car) => {
@@ -159,45 +150,28 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="relative z-20 mx-4 max-w-7xl overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[0_20px_60px_hsl(var(--primary)/0.1)] lg:mx-auto">
-      <div className="h-1.5 bg-gradient-to-r from-primary via-accent to-primary" />
-
-      <div className="p-5 sm:p-8">
-        <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="luxxy-surface border border-border bg-card">
+        <div className="flex flex-col justify-between gap-4 border-b border-border px-5 py-6 sm:flex-row sm:items-end sm:px-8">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-accent">
-              <Sparkles className="h-4 w-4" />
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Browse our stock</p>
-            </div>
-            <h2 className="font-display text-[clamp(1.8rem,4vw,2.7rem)] leading-none tracking-[-0.04em] text-primary">
+            <p className="luxxy-kicker">Browse our stock</p>
+            <h2 className="mt-4 font-display text-3xl font-semibold leading-none tracking-[-.03em] text-primary md:text-4xl">
               Find a car you&apos;ll love
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
               Start with a simple search, then fine-tune the details that matter to you.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-accent">
-              <Car className="h-4 w-4" />
-            </span>
-            <span className="text-xs font-extrabold text-muted-foreground">{vehicleCount} vehicles in stock</span>
-          </div>
+          <p className="font-mono text-[13px] font-bold text-primary">{vehicleCount} vehicles in stock</p>
         </div>
 
-        <div className="grid gap-4">
-          <section className="rounded-2xl border border-border/70 bg-secondary/55 p-4 sm:p-5" aria-labelledby="showroom-search-heading">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-accent">01 · Search the showroom</p>
-                <h3 id="showroom-search-heading" className="mt-1 text-xl font-black tracking-[-0.04em] text-primary">
-                  What are you looking for?
-                </h3>
-              </div>
-              <span className="rounded-full bg-background px-2.5 py-1 text-[10px] font-black text-muted-foreground">Start here</span>
-            </div>
-
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-accent" />
+        <div className="px-5 py-6 sm:px-8">
+          <label className="block">
+            <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
+              <Search className="h-3.5 w-3.5 text-accent" />
+              What are you looking for?
+            </span>
+            <span className="relative block">
               <Input
                 aria-label="Search the showroom"
                 placeholder="Try “BMW”, “Golf” or a registration"
@@ -209,7 +183,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     handleSearchClick();
                   }
                 }}
-                className="h-14 rounded-xl border-border bg-background pl-12 pr-11 text-sm font-semibold text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25"
+                className="h-12 rounded-none border-border bg-background pr-11 text-sm font-semibold text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25"
                 data-testid="input-showroom-search"
               />
               {filters.search && (
@@ -217,152 +191,102 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   type="button"
                   aria-label="Clear showroom search"
                   onClick={() => setFilters((current) => ({ ...current, search: '' }))}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground transition hover:text-primary"
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
-            </div>
+            </span>
+          </label>
 
-            <div className="mt-5">
-              <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.15em] text-muted-foreground">Quick picks</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFilters((current) => ({ ...current, transmission: current.transmission === 'Automatic' ? '' : 'Automatic' }))}
-                  className={`rounded-full border px-3 py-2 text-[11px] font-extrabold transition ${
-                    filters.transmission === 'Automatic'
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background text-foreground hover:border-accent'
-                  }`}
-                >
-                  Automatic
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilters((current) => ({ ...current, maxPrice: current.maxPrice === '5000' ? '' : '5000' }))}
-                  className={`rounded-full border px-3 py-2 text-[11px] font-extrabold transition ${
-                    filters.maxPrice === '5000'
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background text-foreground hover:border-accent'
-                  }`}
-                >
-                  Under £5,000
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilters((current) => ({ ...current, sort: current.sort === 'mileage-asc' ? '' : 'mileage-asc' }))}
-                  className={`rounded-full border px-3 py-2 text-[11px] font-extrabold transition ${
-                    filters.sort === 'mileage-asc'
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background text-foreground hover:border-accent'
-                  }`}
-                >
-                  Low mileage
-                </button>
-              </div>
-            </div>
+          <div className="mt-5 border-t border-border/70 pt-5">
+            <button
+              type="button"
+              aria-expanded={showAdvanced}
+              onClick={() => setShowAdvanced((current) => !current)}
+              className="flex w-full items-center justify-between gap-3 border border-border bg-secondary/40 px-4 py-3 text-left text-sm font-bold text-primary transition hover:border-accent"
+            >
+              <span className="flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-accent" />
+                Advanced search
+              </span>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            </button>
 
-            <div className="mt-7 border-t border-border/70 pt-5">
-              <button
-                type="button"
-                aria-expanded={showAdvanced}
-                onClick={() => setShowAdvanced((current) => !current)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm font-black text-primary transition hover:border-accent"
+            {showAdvanced && (
+              <section
+                className="mt-4 border border-border bg-secondary/25 p-4 sm:p-5"
+                aria-labelledby="advanced-search-heading"
               >
-                <span className="flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4 text-accent" />
-                  Advanced search
-                </span>
-                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-          </section>
-
-          {showAdvanced && (
-            <section className="rounded-2xl border border-primary bg-primary p-4 text-primary-foreground shadow-[0_14px_35px_hsl(var(--primary)/0.18)] sm:p-5" aria-labelledby="advanced-search-heading">
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-accent">Advanced search</p>
-                  <h3 id="advanced-search-heading" className="mt-1 text-xl font-black tracking-[-0.04em]">Refine the details</h3>
+                <h3 id="advanced-search-heading" className="luxxy-label mb-5 text-muted-foreground">
+                  Refine the details
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Make" icon={Car}>
+                    <Select
+                      value={filters.make}
+                      onChange={(make) => setFilters((current) => ({ ...current, make, model: '' }))}
+                    >
+                      <option value="">Any make</option>
+                      {makes.map((make) => <option key={make} value={make}>{make}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Model" icon={Car}>
+                    <Select
+                      value={filters.model}
+                      onChange={(model) => setFilters((current) => ({ ...current, model }))}
+                      disabled={!filters.make || models.length === 0}
+                    >
+                      <option value="">Any model</option>
+                      {models.map((model) => <option key={model} value={model}>{model}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Min budget" icon={Banknote}>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="£ Min"
+                      value={filters.minPrice}
+                      onChange={(event) => setFilters((current) => ({ ...current, minPrice: event.target.value }))}
+                      className="h-11 rounded-none border-border bg-background font-semibold shadow-none focus-visible:border-accent focus-visible:ring-accent/25"
+                    />
+                  </Field>
+                  <Field label="Max budget" icon={Banknote}>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="£ Max"
+                      value={filters.maxPrice}
+                      onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
+                      className="h-11 rounded-none border-border bg-background font-semibold shadow-none focus-visible:border-accent focus-visible:ring-accent/25"
+                    />
+                  </Field>
+                  <Field label="Fuel" icon={Fuel}>
+                    <Select value={filters.fuel} onChange={(fuel) => setFilters((current) => ({ ...current, fuel }))}>
+                      <option value="">Any fuel</option>
+                      {fuels.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Transmission" icon={Settings2}>
+                    <Select
+                      value={filters.transmission}
+                      onChange={(transmission) => setFilters((current) => ({ ...current, transmission }))}
+                    >
+                      <option value="">Any transmission</option>
+                      {transmissions.map((transmission) => <option key={transmission} value={transmission}>{transmission}</option>)}
+                    </Select>
+                  </Field>
                 </div>
-                <span className="grid h-8 w-8 place-items-center rounded-full border border-white/15 text-accent">
-                  <Settings2 className="h-4 w-4" />
-                </span>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Make" icon={Car} dark>
-                  <Select
-                    value={filters.make}
-                    onChange={(make) => setFilters((current) => ({ ...current, make, model: '' }))}
-                    dark
-                  >
-                    <option value="">Any make</option>
-                    {makes.map((make) => <option key={make} value={make}>{make}</option>)}
-                  </Select>
-                </Field>
-                <Field label="Model" icon={Car} dark>
-                  <Select
-                    value={filters.model}
-                    onChange={(model) => setFilters((current) => ({ ...current, model }))}
-                    dark
-                    disabled={!filters.make || models.length === 0}
-                  >
-                    <option value="">Any model</option>
-                    {models.map((model) => <option key={model} value={model}>{model}</option>)}
-                  </Select>
-                </Field>
-                <Field label="Min budget" icon={Banknote} dark>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="£ Min"
-                    value={filters.minPrice}
-                    onChange={(event) => setFilters((current) => ({ ...current, minPrice: event.target.value }))}
-                    className="h-11 rounded-xl border-white/15 bg-white/10 font-bold text-white placeholder:text-white/45 focus-visible:border-accent focus-visible:ring-accent/25"
-                  />
-                </Field>
-                <Field label="Max budget" icon={Banknote} dark>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="£ Max"
-                    value={filters.maxPrice}
-                    onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
-                    className="h-11 rounded-xl border-white/15 bg-white/10 font-bold text-white placeholder:text-white/45 focus-visible:border-accent focus-visible:ring-accent/25"
-                  />
-                </Field>
-                <Field label="Fuel" icon={Fuel} dark>
-                  <Select
-                    value={filters.fuel}
-                    onChange={(fuel) => setFilters((current) => ({ ...current, fuel }))}
-                    dark
-                  >
-                    <option value="">Any fuel</option>
-                    {fuels.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
-                  </Select>
-                </Field>
-                <Field label="Transmission" icon={Settings2} dark>
-                  <Select
-                    value={filters.transmission}
-                    onChange={(transmission) => setFilters((current) => ({ ...current, transmission }))}
-                    dark
-                  >
-                    <option value="">Any transmission</option>
-                    {transmissions.map((transmission) => <option key={transmission} value={transmission}>{transmission}</option>)}
-                  </Select>
-                </Field>
-              </div>
-            </section>
-          )}
+              </section>
+            )}
+          </div>
         </div>
 
-        <div className="mt-5 flex flex-col justify-between gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center">
+        <div className="flex flex-col justify-between gap-4 border-t border-border bg-secondary/25 px-5 py-4 sm:flex-row sm:items-center sm:px-8">
           <button
             type="button"
             onClick={resetFilters}
-            className="text-left text-xs font-extrabold text-muted-foreground transition hover:text-primary"
+            className="text-left text-xs font-bold uppercase tracking-[.12em] text-muted-foreground transition hover:text-primary"
           >
             <RotateCcw className="mr-1.5 inline h-3.5 w-3.5" />
             Reset search
@@ -371,12 +295,12 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-muted-foreground">Sort by</span>
+              <span className="luxxy-label text-muted-foreground">Sort by</span>
               <select
                 aria-label="Sort results"
                 value={filters.sort}
                 onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-                className="h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm font-bold text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/25 sm:w-52"
+                className={`${controlClass} sm:w-52`}
               >
                 <option value="">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
@@ -388,7 +312,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             <button
               type="button"
               onClick={handleSearchClick}
-              className="h-11 rounded-xl bg-accent px-6 text-sm font-black text-accent-foreground shadow-md shadow-accent/20 transition hover:-translate-y-0.5"
+              className="h-11 rounded-none bg-accent px-6 text-sm font-bold text-accent-foreground transition hover:bg-accent/90"
             >
               Show results
               <ArrowRight className="ml-2 inline h-4 w-4" />
