@@ -13,4 +13,4 @@ Shared UI primitives carry the identity themselves: squared corners and no drop 
 
 **Why:** Screens were each undoing the starter kit's rounded, shadowed defaults by hand, so a single missed override let the old look creep back in.
 
-**How to apply:** When a Luxxy primitive still ships starter-kit rounding or shadow, fix the primitive rather than adding another per-call-site override.
+**How to apply:** When a Luxxy primitive still ships starter-kit rounding or shadow, fix the primitive rather than adding another per-call-site override. The squared, flat default is held in place by a shared rule in the showroom app's test helpers: as further primitives are squared, extend that rule to cover them instead of hand-writing a fresh radius/shadow assertion, and keep it reading the rendered class list so a regression hidden behind a `hover:`/breakpoint prefix or a cva variant still fails.
