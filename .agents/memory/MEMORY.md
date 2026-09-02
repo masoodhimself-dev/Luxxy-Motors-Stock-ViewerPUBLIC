@@ -10,3 +10,4 @@
 - [shadcn chart & OTP primitives](shadcn-broken-ui-primitives.md) — stock chart.tsx/input-otp.tsx fail typecheck here; patch the types on arrival or leave them out.
 - [Promoting styles into shared UI](promoting-styles-into-shared-ui.md) — diff merged classes per call site; a base `placeholder:*` survives twMerge and restyles element-level overrides.
 - [Workspace typecheck order](workspace-typecheck-project-references.md) — run install then the root typecheck; an unbuilt shared lib fakes a cascade of type errors.
+- [Radix surface tests in jsdom](radix-surface-tests-jsdom.md) — overlays need ResizeObserver/pointer stubs, and an open panel aria-hides its own trigger.

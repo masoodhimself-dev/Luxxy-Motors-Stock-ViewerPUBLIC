@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+// Showroom badges are squared and flat by default — the Luxxy identity uses hard
+// edges and printed-paper flatness throughout, so no call site should have to undo
+// a pill radius or a drop shadow. A badge that genuinely wants a soft edge opts in
+// with its own `rounded-*` class, which tailwind-merge applies on top.
 export function Badge({
   className,
   variant = 'default',
@@ -9,7 +13,7 @@ export function Badge({
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+        'inline-flex items-center rounded-none border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
         {
           'border-transparent bg-primary text-primary-foreground': variant === 'default',
           'border-transparent bg-secondary text-secondary-foreground': variant === 'secondary',

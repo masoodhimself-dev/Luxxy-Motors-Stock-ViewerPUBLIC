@@ -1,6 +1,11 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
+// Showroom cards are squared and flat by default — the Luxxy identity uses hard
+// edges and printed-paper flatness throughout, so no call site should have to undo
+// a radius or a drop shadow. A surface that genuinely wants a soft edge or lift
+// opts in with its own `rounded-*` / `shadow-*` class, which tailwind-merge applies
+// on top.
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -8,7 +13,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border bg-card text-card-foreground shadow-sm",
+      "rounded-none border bg-card text-card-foreground",
       className
     )}
     {...props}
