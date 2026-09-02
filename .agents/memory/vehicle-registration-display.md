@@ -19,5 +19,6 @@ dealer site whose whole premise is honest disclosure.
 
 **How to apply:** any new surface that shows a plate (cards, detail pages, part-exchange,
 enquiry summaries, documents) must go through the shared registration helper and must have a
-graceful no-plate layout. Design work must not treat the plate as a required identity anchor
-for a vehicle — most cars will not have one.
+graceful no-plate layout. A band is year metadata: show it as ordinary text (e.g. the
+registration-year row) rather than in plate styling. Design work must not treat the plate as
+a required identity anchor for a vehicle — most cars will not have one.

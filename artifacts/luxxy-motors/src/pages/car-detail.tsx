@@ -4,7 +4,8 @@ import { Link } from 'wouter';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
 import { Gallery } from '@/components/gallery';
-import { formatPrice, formatMileage } from '@/lib/utils';
+import { UKNumberPlate } from '@/components/uk-number-plate';
+import { formatPrice, formatMileage, isUKNumberPlate, vehicleRegistration } from '@/lib/utils';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +76,15 @@ export default function CarDetail() {
     return null;
   };
 
+  const writeOffBadge = getWriteOffBadge();
+  // Only an authoritative plate earns plate styling; a registration band such as
+  // "2009 (59 reg)" is year metadata, so it reads as ordinary text.
+  const plate = vehicleRegistration(car);
+  const registrationBand = [car.registrationBand, car.registration]
+    .map((value) => value?.trim() || '')
+    .find((value) => value && !isUKNumberPlate(value));
+  const registrationYear = registrationBand || (car.year ? String(car.year) : 'Unknown');
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-6 transition-colors">
@@ -138,14 +148,19 @@ export default function CarDetail() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-6">
-              {car.plate || car.registration ? (
-                <div className="bg-[#F8CA1C] text-black font-bold px-3 py-1 rounded uppercase tracking-widest text-sm border border-black/10 shadow-inner">
-                  {car.plate || car.registration}
-                </div>
-              ) : null}
-              {getWriteOffBadge()}
-            </div>
+            {(plate || writeOffBadge) && (
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                {plate && (
+                  <UKNumberPlate
+                    value={plate}
+                    size="sm"
+                    testId={`plate-vehicle-${car.id}`}
+                    className="w-[136px] shrink-0"
+                  />
+                )}
+                {writeOffBadge}
+              </div>
+            )}
 
             <div className="space-y-4 py-6 border-y mb-6">
               <div className="flex items-center gap-3">
@@ -154,7 +169,7 @@ export default function CarDetail() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Registration Year</p>
-                  <p className="font-semibold">{car.year || 'Unknown'}</p>
+                  <p className="font-semibold" data-testid="text-registration-year">{registrationYear}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
