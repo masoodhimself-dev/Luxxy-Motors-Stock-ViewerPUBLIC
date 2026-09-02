@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getSafeImageUrl } from '@/lib/utils';
 import { type CarImage } from '@/lib/stock-context';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,10 @@ import { cn } from '@/lib/utils';
 interface GalleryProps {
   images: CarImage[];
   heroImage?: string | null;
+}
+
+function imageCaption(image: CarImage | string | undefined) {
+  return image && typeof image === 'object' ? image.caption || '' : '';
 }
 
 export function Gallery({ images, heroImage }: GalleryProps) {
@@ -58,25 +62,29 @@ export function Gallery({ images, heroImage }: GalleryProps) {
 
   if (allImages.length === 0) {
     return (
-      <div className="w-full aspect-video bg-muted rounded-xl flex items-center justify-center text-muted-foreground border">
-        No images available
+      <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 border border-border/70 bg-secondary/60 text-muted-foreground">
+        <Camera className="h-7 w-7 opacity-40" />
+        <span className="luxxy-label">No images available</span>
       </div>
     );
   }
 
   const currentImg = allImages[activeIndex];
   const url = getSafeImageUrl(currentImg);
-  const caption = typeof currentImg === 'object' ? currentImg.caption : '';
+  const caption = imageCaption(currentImg);
+
+  const arrowButton =
+    'absolute top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center bg-primary/85 text-primary-foreground opacity-0 backdrop-blur-sm transition-all hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100';
 
   const renderImage = (imgUrl: string, idx: number, className: string = '') => (
     failedImages.has(idx) ? (
-      <div className={cn("w-full h-full flex items-center justify-center bg-secondary text-muted-foreground", className)}>
-        Image not available
+      <div className={cn('flex h-full w-full items-center justify-center bg-secondary text-muted-foreground', className)}>
+        <span className="luxxy-label">Image not available</span>
       </div>
     ) : (
       <img
         src={imgUrl}
-        alt={caption || `Vehicle image ${idx + 1}`}
+        alt={imageCaption(allImages[idx]) || `Vehicle image ${idx + 1}`}
         className={className}
         loading="lazy"
         referrerPolicy="no-referrer"
@@ -86,55 +94,66 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* Main Image */}
       <div 
-        className="relative aspect-video sm:aspect-[16/9] w-full rounded-xl overflow-hidden bg-black cursor-pointer group"
+        className="group relative aspect-video w-full cursor-zoom-in overflow-hidden border border-border/70 bg-secondary/60 sm:aspect-[16/9]"
         onClick={() => setIsFullscreen(true)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {renderImage(url, activeIndex, "w-full h-full object-cover transition-opacity duration-300")}
-        
+        {renderImage(url, activeIndex, 'h-full w-full object-cover transition-opacity duration-300')}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/55 via-primary/5 to-transparent" />
+
         {allImages.length > 1 && (
           <>
             <button 
+              type="button"
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 backdrop-blur-sm"
+              aria-label="Previous photograph"
+              className={cn(arrowButton, 'left-0')}
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             <button 
+              type="button"
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 backdrop-blur-sm"
+              aria-label="Next photograph"
+              className={cn(arrowButton, 'right-0')}
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="h-5 w-5" />
             </button>
-            <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-black/60 text-white text-xs backdrop-blur-sm">
+            <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 bg-primary/85 px-2.5 py-1 font-mono text-[10px] font-bold text-primary-foreground backdrop-blur-sm">
+              <Camera className="h-3 w-3" />
               {activeIndex + 1} / {allImages.length}
-            </div>
+            </span>
           </>
         )}
         {caption && (
-          <div className="absolute bottom-4 left-4 px-3 py-1 rounded bg-black/60 text-white text-sm backdrop-blur-sm max-w-[80%] truncate">
+          <span className="pointer-events-none absolute bottom-3 left-3 max-w-[80%] truncate bg-primary/85 px-3 py-1.5 text-[11px] font-semibold tracking-[.04em] text-primary-foreground backdrop-blur-sm">
             {caption}
-          </div>
+          </span>
         )}
       </div>
 
       {/* Thumbnails */}
       {allImages.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar snap-x">
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar snap-x">
           {allImages.map((img, idx) => (
             <button
               key={idx}
+              type="button"
               onClick={() => setActiveIndex(idx)}
+              aria-label={`Show photograph ${idx + 1} of ${allImages.length}`}
+              aria-current={activeIndex === idx}
               className={cn(
-                "relative h-20 w-32 shrink-0 rounded-lg overflow-hidden snap-start transition-all",
-                activeIndex === idx ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "opacity-60 hover:opacity-100"
+                'relative h-[4.5rem] w-28 shrink-0 snap-start overflow-hidden border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                activeIndex === idx
+                  ? 'border-accent'
+                  : 'border-border/70 opacity-55 hover:opacity-100',
               )}
             >
-              {renderImage(getSafeImageUrl(img), idx, "w-full h-full object-cover")}
+              {renderImage(getSafeImageUrl(img), idx, 'h-full w-full object-cover')}
             </button>
           ))}
         </div>
@@ -142,36 +161,45 @@ export function Gallery({ images, heroImage }: GalleryProps) {
 
       {/* Fullscreen Lightbox */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-primary/97 backdrop-blur-md animate-in fade-in duration-200">
           <button 
+            type="button"
             onClick={() => setIsFullscreen(false)}
-            className="absolute top-6 right-6 text-white/70 hover:text-white z-50 p-2"
+            aria-label="Close photograph viewer"
+            className="absolute right-5 top-5 z-50 grid h-11 w-11 place-items-center border border-primary-foreground/20 text-primary-foreground/70 transition-colors hover:border-accent hover:text-accent"
           >
-            <X className="w-8 h-8" />
+            <X className="h-6 w-6" />
           </button>
           
-          <div className="w-full max-w-7xl px-4 flex items-center justify-between">
+          <div className="flex w-full max-w-7xl items-center justify-between px-4">
             <button 
+              type="button"
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-              className="p-4 text-white/50 hover:text-white hidden sm:block"
+              aria-label="Previous photograph"
+              className="hidden p-4 text-primary-foreground/50 transition-colors hover:text-accent sm:block"
             >
-              <ChevronLeft className="w-12 h-12" />
+              <ChevronLeft className="h-10 w-10" />
             </button>
             
             <div 
-              className="relative w-full max-h-[90vh] flex justify-center flex-col items-center"
+              className="relative flex max-h-[90vh] w-full flex-col items-center justify-center"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              {renderImage(url, activeIndex, "max-w-full max-h-[85vh] object-contain select-none")}
-              {caption && <p className="text-white/80 mt-4 text-lg">{caption}</p>}
+              {renderImage(url, activeIndex, 'max-h-[82vh] max-w-full select-none object-contain')}
+              <p className="mt-5 flex items-center gap-3 font-mono text-[11px] font-bold text-primary-foreground/60">
+                <span>{activeIndex + 1} / {allImages.length}</span>
+                {caption && <span className="font-sans text-sm font-semibold text-primary-foreground/85">{caption}</span>}
+              </p>
             </div>
 
             <button 
+              type="button"
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
-              className="p-4 text-white/50 hover:text-white hidden sm:block"
+              aria-label="Next photograph"
+              className="hidden p-4 text-primary-foreground/50 transition-colors hover:text-accent sm:block"
             >
-              <ChevronRight className="w-12 h-12" />
+              <ChevronRight className="h-10 w-10" />
             </button>
           </div>
         </div>
