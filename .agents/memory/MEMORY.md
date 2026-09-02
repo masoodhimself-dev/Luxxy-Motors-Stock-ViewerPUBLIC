@@ -9,5 +9,6 @@
 - [Customer-side state](customer-side-state.md) — no customer accounts exist, so shopper shortlists and comparisons live in localStorage, not the database.
 - [shadcn chart & OTP primitives](shadcn-broken-ui-primitives.md) — stock chart.tsx/input-otp.tsx fail typecheck here; patch the types on arrival or leave them out.
 - [Promoting styles into shared UI](promoting-styles-into-shared-ui.md) — diff merged classes per call site; a base `placeholder:*` survives twMerge and restyles element-level overrides.
+- [Previewing token-gated buyer screens](previewing-token-gated-buyer-screens.md) — intake links are cheap to mint; a signing link needs a whole seeded sale.
 - [Workspace typecheck order](workspace-typecheck-project-references.md) — run install then the root typecheck; an unbuilt shared lib fakes a cascade of type errors.
 - [Radix surface tests in jsdom](radix-surface-tests-jsdom.md) — overlays need ResizeObserver/pointer stubs, and an open panel aria-hides its own trigger.

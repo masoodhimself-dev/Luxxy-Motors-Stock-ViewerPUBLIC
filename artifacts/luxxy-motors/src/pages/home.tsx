@@ -375,9 +375,9 @@ export default function Home() {
             </>
           ) : (
             <div className="mx-auto max-w-2xl border border-dashed border-border bg-card px-6 py-20 text-center">
-              <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-secondary">
-                <Search className="h-6 w-6 text-primary" />
-              </div>
+              <span className="mx-auto mb-6 grid h-14 w-14 place-items-center border border-border bg-secondary text-accent">
+                <Search className="h-6 w-6" />
+              </span>
               <p className="font-display text-3xl font-semibold tracking-[-.02em] text-primary">Nothing matches that search</p>
               <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
                 Try widening your budget or clearing the filters to see the full stock list.
