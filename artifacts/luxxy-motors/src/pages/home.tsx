@@ -172,7 +172,7 @@ export default function Home() {
                   size="lg"
                   onClick={revealResults}
                   data-testid="button-hero-primary"
-                  className="h-[3.25rem] rounded-none bg-primary px-6 text-[.95rem] font-bold text-primary-foreground shadow-none hover:bg-primary/90"
+                  className="h-[3.25rem] bg-primary px-6 text-[.95rem] font-bold text-primary-foreground hover:bg-primary/90"
                 >
                   {dealerConfig.hero.primaryCta}
                   <ArrowRight className="ml-4 h-4 w-4" />
@@ -183,7 +183,7 @@ export default function Home() {
                     variant="outline"
                     asChild
                     data-testid="link-hero-part-exchange"
-                    className="h-[3.25rem] rounded-none border-primary/25 bg-transparent px-6 text-[.95rem] font-bold text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground"
+                    className="h-[3.25rem] border-primary/25 bg-transparent px-6 text-[.95rem] font-bold text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground"
                   >
                     <a href={getContactHref('Part Exchange Enquiry')}>
                       {dealerConfig.hero.secondaryCta}
@@ -282,7 +282,7 @@ export default function Home() {
                 onClick={revealResults}
                 size="lg"
                 data-testid="button-hero-search"
-                className="h-12 rounded-none bg-accent px-6 font-bold text-accent-foreground hover:bg-accent/90"
+                className="h-12 bg-accent px-6 font-bold text-accent-foreground hover:bg-accent/90"
               >
                 Search
                 <ArrowRight className="ml-3 h-4 w-4" />
@@ -365,7 +365,7 @@ export default function Home() {
                     onClick={() => { setShowAll(true); requestAnimationFrame(() => scrollToHomeTarget('vehicle-results')); }}
                     size="lg"
                     data-testid="button-view-all-vehicles"
-                    className="group h-[3.25rem] rounded-none bg-primary px-8 font-bold hover:bg-primary/90"
+                    className="group h-[3.25rem] bg-primary px-8 font-bold hover:bg-primary/90"
                   >
                     View all {filteredCars.length} vehicles
                     <ArrowRight className="ml-5 h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -382,7 +382,7 @@ export default function Home() {
               <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
                 Try widening your budget or clearing the filters to see the full stock list.
               </p>
-              <Button size="lg" onClick={() => { setFilters(defaultFilters); setShowAll(false); }} data-testid="button-clear-filters" className="h-12 rounded-none px-7 font-bold">
+              <Button size="lg" onClick={() => { setFilters(defaultFilters); setShowAll(false); }} data-testid="button-clear-filters" className="h-12 px-7 font-bold">
                 Clear all filters
               </Button>
             </div>
@@ -440,7 +440,7 @@ export default function Home() {
                 <ShieldCheck className="h-8 w-8 text-accent" />
                 <h3 className="mt-10 font-display text-3xl font-semibold tracking-[-.02em] text-primary">{dealerConfig.warranty.title}</h3>
                 <p className="mt-4 max-w-md flex-1 text-base leading-7 text-muted-foreground">{dealerConfig.warranty.description}</p>
-                <Button asChild variant="outline" size="lg" data-testid="link-warranty-enquiry" className="mt-8 h-12 w-fit rounded-none border-primary/30 px-5 font-bold text-primary hover:bg-primary hover:text-primary-foreground">
+                <Button asChild variant="outline" size="lg" data-testid="link-warranty-enquiry" className="mt-8 h-12 w-fit border-primary/30 px-5 font-bold text-primary hover:bg-primary hover:text-primary-foreground">
                   <a href={getContactHref('Warranty Enquiry')}>{dealerConfig.warranty.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
                 </Button>
               </article>
@@ -450,7 +450,7 @@ export default function Home() {
                 <Truck className="h-8 w-8 text-accent" />
                 <h3 className="mt-10 font-display text-3xl font-semibold tracking-[-.02em]">{dealerConfig.delivery.title}</h3>
                 <p className="mt-4 max-w-md flex-1 text-base leading-7 text-primary-foreground/70">{dealerConfig.delivery.description}</p>
-                <Button asChild size="lg" data-testid="link-delivery-enquiry" className="mt-8 h-12 w-fit rounded-none bg-accent px-5 font-bold text-accent-foreground hover:bg-accent/90">
+                <Button asChild size="lg" data-testid="link-delivery-enquiry" className="mt-8 h-12 w-fit bg-accent px-5 font-bold text-accent-foreground hover:bg-accent/90">
                   <a href={getContactHref('Delivery Enquiry')}>{dealerConfig.delivery.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
                 </Button>
               </article>
@@ -498,7 +498,7 @@ export default function Home() {
               <p className="mt-4 bg-secondary/60 px-4 py-3 text-xs leading-6 text-muted-foreground">
                 <span className="font-bold text-primary">A sensible starting point.</span> We will talk through the final figure with you — no pressure to proceed.
               </p>
-              <Button size="lg" asChild data-testid="link-part-exchange-valuation" className="mt-5 h-14 w-full rounded-none bg-accent text-base font-bold text-accent-foreground hover:bg-accent/90">
+              <Button size="lg" asChild data-testid="link-part-exchange-valuation" className="mt-5 h-14 w-full bg-accent text-base font-bold text-accent-foreground hover:bg-accent/90">
                 <a href={getContactHref('Part Exchange Valuation')}>{dealerConfig.partExchange.ctaLabel}<ArrowRight className="ml-auto h-5 w-5" /></a>
               </Button>
               <p className="mt-3 text-center text-xs text-muted-foreground">Start online, then speak to a real {dealerConfig.identity.name} team member.</p>
@@ -519,7 +519,7 @@ export default function Home() {
           </div>
           <div className="flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
             <h2 className="max-w-xl font-display text-4xl font-semibold leading-[1] tracking-[-.035em] text-primary md:text-5xl">{dealerConfig.bookViewing.title}</h2>
-            <Button size="lg" asChild data-testid="link-book-viewing" className="h-[3.25rem] shrink-0 rounded-none bg-primary px-6 font-bold text-primary-foreground hover:bg-primary/90">
+            <Button size="lg" asChild data-testid="link-book-viewing" className="h-[3.25rem] shrink-0 bg-primary px-6 font-bold text-primary-foreground hover:bg-primary/90">
               <a href={getContactHref('Book a Viewing')}>{dealerConfig.bookViewing.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
             </Button>
           </div>
@@ -539,7 +539,7 @@ export default function Home() {
                 {dealerConfig.address.postcode && <p>{dealerConfig.address.postcode}</p>}
               </address>
               {dealerConfig.address.mapsUrl && (
-                <Button asChild size="lg" data-testid="link-get-directions" className="mt-8 h-12 rounded-none px-6 font-bold">
+                <Button asChild size="lg" data-testid="link-get-directions" className="mt-8 h-12 px-6 font-bold">
                   <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer">Get directions<ArrowRight className="ml-4 h-4 w-4" /></a>
                 </Button>
               )}

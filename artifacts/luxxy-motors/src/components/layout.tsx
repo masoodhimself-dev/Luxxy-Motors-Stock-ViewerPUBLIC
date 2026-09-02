@@ -134,7 +134,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button>
                <Button
                  onClick={() => setLocation(getEnquiryHref('viewing'))}
-                 className="h-11 rounded-none px-4 text-[12px] font-bold uppercase tracking-[.08em] shadow-none 2xl:px-5"
+                 className="h-11 px-4 text-[12px] font-bold uppercase tracking-[.08em] 2xl:px-5"
                >
                  {dealerConfig.bookViewing.ctaLabel}
               </Button>

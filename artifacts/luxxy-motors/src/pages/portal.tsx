@@ -836,7 +836,7 @@ export default function Portal() {
             <Button
               type="button"
               variant="outline"
-              className="shrink-0 bg-background/80 font-bold shadow-sm"
+              className="shrink-0 bg-background/80 font-bold"
               onClick={() => setSaleFocusMode(false)}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />

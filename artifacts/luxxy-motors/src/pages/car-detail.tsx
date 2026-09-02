@@ -213,7 +213,7 @@ export default function CarDetail() {
               </dl>
 
               <div className="grid grid-cols-2 gap-2 p-6">
-                <Button asChild size="lg" className="col-span-2 h-12 rounded-none text-sm font-bold shadow-none">
+                <Button asChild size="lg" className="col-span-2 h-12 text-sm font-bold">
                   <a
                      href={bookingHref}
                      target={bookingHref.startsWith('https://') ? '_blank' : undefined}
@@ -229,7 +229,7 @@ export default function CarDetail() {
                     asChild
                     variant="outline"
                     size="lg"
-                    className="h-12 rounded-none border-border bg-background px-4 text-[13px] font-bold text-foreground hover:border-primary/45 hover:bg-secondary hover:text-foreground"
+                    className="h-12 border-border bg-background px-4 text-[13px] font-bold text-foreground hover:border-primary/45 hover:bg-secondary hover:text-foreground"
                   >
                     <a href={phoneHref} aria-label={`Call about ${vehicleLabel}`}>
                       <Phone className="mr-2 h-4 w-4 text-accent" />
@@ -242,7 +242,7 @@ export default function CarDetail() {
                     asChild
                     variant="outline"
                     size="lg"
-                    className="h-12 rounded-none border-[#1f7a4d]/30 bg-[#1f7a4d]/10 px-4 text-[13px] font-bold text-[#1b6543] hover:bg-[#1f7a4d]/20 hover:text-[#1b6543]"
+                    className="h-12 border-[#1f7a4d]/30 bg-[#1f7a4d]/10 px-4 text-[13px] font-bold text-[#1b6543] hover:bg-[#1f7a4d]/20 hover:text-[#1b6543]"
                   >
                     <a
                       href={whatsappHref}
