@@ -253,9 +253,9 @@ export default function Compare() {
 
         {cars.length === 0 ? (
           <div className="mx-auto mt-10 max-w-2xl border border-dashed border-border bg-card px-6 py-20 text-center">
-            <div className="mx-auto mb-6 grid h-14 w-14 place-items-center rounded-full bg-secondary">
-              <Scale className="h-6 w-6 text-primary" />
-            </div>
+            <span className="mx-auto mb-6 grid h-14 w-14 place-items-center border border-border bg-secondary text-accent">
+              <Scale className="h-6 w-6" />
+            </span>
             <p className="font-display text-3xl font-semibold tracking-[-.02em] text-primary">No cars picked yet</p>
             <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
               Choose Compare on any {MAX_COMPARE} cars in the showroom and their details will line up here.
@@ -263,7 +263,7 @@ export default function Compare() {
             <Link
               href="/"
               data-testid="link-compare-browse"
-              className="inline-flex h-12 items-center justify-center gap-3 bg-primary px-7 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="inline-flex h-12 items-center justify-center gap-3 bg-primary px-7 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Browse the stock list
               <ArrowRight className="h-4 w-4" />
@@ -285,7 +285,7 @@ export default function Compare() {
             <div
               className={cn(
                 gridTemplate,
-                'sticky top-[var(--site-header-height,4.5rem)] z-20 items-center border-y border-border bg-background py-3',
+                'sticky top-[var(--site-header-height,4.5rem)] z-20 items-center border-t border-border border-b-2 border-b-accent bg-background/95 py-3 backdrop-blur-md',
               )}
             >
               <p className="luxxy-label hidden text-muted-foreground md:block">The cars</p>
