@@ -263,7 +263,7 @@ export default function Home() {
                       revealResults();
                     }
                   }}
-                  className="h-12 border-primary-foreground/20 bg-primary-foreground/10 pl-10 text-sm font-semibold text-primary-foreground placeholder:text-primary-foreground/45 focus-visible:border-accent focus-visible:ring-accent/30"
+                  className="h-12 border-primary-foreground/20 bg-primary-foreground/10 pl-10 text-primary-foreground placeholder:font-semibold placeholder:text-primary-foreground/45 focus-visible:ring-accent/30"
                   data-testid="input-hero-search"
                 />
               </div>

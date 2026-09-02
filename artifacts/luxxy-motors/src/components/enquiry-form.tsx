@@ -20,9 +20,8 @@ const typeLabels: Record<EnquiryType, string> = {
 
 const bookingTimezone = 'Europe/London';
 
-// Showroom form language: squared surfaces, brass focus, no soft shadows.
-const fieldClass =
-  'h-11 border-border bg-background text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
+// Native selects cannot reuse the shared Input, so they restate the showroom field
+// language by hand: squared surfaces, brass focus, no soft shadows.
 const controlClass =
   'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
 const labelClass = 'luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground';
@@ -234,11 +233,11 @@ export function EnquiryForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="block">
           <span className={labelClass}>Your name</span>
-          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" className={fieldClass} data-testid="input-customer-name" />
+          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
         </label>
         <label className="block">
           <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
-          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={fieldClass} data-testid="input-customer-email" />
+          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
         </label>
       </div>
 
@@ -339,7 +338,7 @@ export function EnquiryForm({
                 value={partExchangeMileage}
                 onChange={(event) => setPartExchangeMileage(event.target.value)}
                 placeholder="45,000"
-                className={fieldClass}
+                className="h-11"
                 data-testid="input-part-exchange-mileage"
               />
             </label>
@@ -447,7 +446,6 @@ export function EnquiryForm({
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`}
-          className="border-border bg-background text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25 md:text-sm"
           data-testid="textarea-enquiry-message"
         />
       </label>

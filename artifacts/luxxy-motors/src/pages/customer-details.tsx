@@ -9,8 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-const fieldClass =
-  'h-11 border-border bg-background text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
 const labelClass = 'luxxy-label mb-2 block text-muted-foreground';
 
 function apiMessage(error: unknown) {
@@ -123,7 +121,7 @@ export default function CustomerDetails() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Your full name"
                 autoComplete="name"
-                className={fieldClass}
+                className="h-11"
               />
             </label>
             <label className="block">
@@ -135,7 +133,7 @@ export default function CustomerDetails() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
-                className={fieldClass}
+                className="h-11"
               />
             </label>
             <label className="block">
@@ -146,7 +144,7 @@ export default function CustomerDetails() {
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="Optional"
                 autoComplete="tel"
-                className={fieldClass}
+                className="h-11"
               />
             </label>
             {complete.isError && (

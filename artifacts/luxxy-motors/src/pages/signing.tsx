@@ -18,8 +18,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
 
-const fieldClass =
-  'h-11 border-border bg-background text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
 const labelClass = 'luxxy-label mb-2 block text-muted-foreground';
 
 type SigningView = {
@@ -218,11 +216,11 @@ export default function Signing() {
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
                 <label className="block">
                   <span className={labelClass}>Your full name</span>
-                  <Input required minLength={2} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder={view.customer?.name || 'Jane Smith'} className={fieldClass} />
+                  <Input required minLength={2} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder={view.customer?.name || 'Jane Smith'} className="h-11" />
                 </label>
                 <label className="block">
                   <span className={labelClass}>Email (optional)</span>
-                  <Input type="email" value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} placeholder={view.customer?.email || 'jane@example.com'} className={fieldClass} />
+                  <Input type="email" value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} placeholder={view.customer?.email || 'jane@example.com'} className="h-11" />
                 </label>
               </div>
               {complete.isError && (
