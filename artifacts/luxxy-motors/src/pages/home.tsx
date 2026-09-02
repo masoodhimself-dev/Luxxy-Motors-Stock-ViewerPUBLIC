@@ -8,7 +8,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Banknote, Calendar, CarFront, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -459,54 +459,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Part exchange */}
-      {dealerConfig.partExchange?.enabled && (
-        <section id="part-exchange" data-home-section className="relative overflow-hidden bg-primary py-20 text-primary-foreground md:py-28">
-          {heroImage && <img src={heroImage} alt="" loading="lazy" aria-hidden="true" className="absolute inset-y-0 right-0 hidden w-1/2 object-cover opacity-15 mix-blend-luminosity lg:block" />}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/98 to-primary/80" />
-          <div className="container relative z-10 mx-auto grid gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_.8fr] lg:items-center lg:gap-20 lg:px-8">
-            <div className="max-w-xl">
-              <p className="luxxy-kicker text-accent"><RefreshCcw className="h-4 w-4" /> Part exchange</p>
-              <h2 className="mt-6 font-display text-4xl font-semibold leading-[1] tracking-[-.035em] md:text-6xl">{dealerConfig.partExchange.title}</h2>
-              <p className="mt-6 text-lg leading-8 text-primary-foreground/70">{dealerConfig.partExchange.description}</p>
-              <div className="mt-10 grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
-                {[
-                  ['Tell us your car', 'Registration and mileage are all we need to start.'],
-                  ['We review the details', 'Our team checks the car and your next-car options.'],
-                  ['Choose your next move', 'Get a clear guide and decide when you are ready.'],
-                ].map(([title, description]) => (
-                  <div key={title} className="border-l border-accent/50 pl-4">
-                    <p className="font-bold">{title}</p>
-                    <p className="mt-1 text-sm leading-6 text-primary-foreground/55">{description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="border border-primary-foreground/10 bg-background p-6 text-foreground shadow-2xl shadow-black/20 sm:p-8">
-              <p className="luxxy-label text-accent">Start with your current car</p>
-              <h3 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-[-.02em] text-primary">See what it could unlock</h3>
-              <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="border border-border bg-card p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.08em] text-primary"><CarFront className="h-4 w-4 text-accent" /> Registration</div>
-                  <p className="mt-2.5 text-sm font-semibold text-muted-foreground">Your number plate</p>
-                </div>
-                <div className="border border-border bg-card p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.08em] text-primary"><Gauge className="h-4 w-4 text-accent" /> Mileage</div>
-                  <p className="mt-2.5 text-sm font-semibold text-muted-foreground">Your current miles</p>
-                </div>
-              </div>
-              <p className="mt-4 bg-secondary/60 px-4 py-3 text-xs leading-6 text-muted-foreground">
-                <span className="font-bold text-primary">A sensible starting point.</span> We will talk through the final figure with you — no pressure to proceed.
-              </p>
-              <Button size="lg" asChild data-testid="link-part-exchange-valuation" className="mt-5 h-14 w-full bg-accent text-base font-bold text-accent-foreground hover:bg-accent/90">
-                <a href={getContactHref('Part Exchange Valuation')}>{dealerConfig.partExchange.ctaLabel}<ArrowRight className="ml-auto h-5 w-5" /></a>
-              </Button>
-              <p className="mt-3 text-center text-xs text-muted-foreground">Start online, then speak to a real {dealerConfig.identity.name} team member.</p>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Book a viewing */}
       <section id="book-viewing" data-home-section className="bg-background py-20 md:py-28">
