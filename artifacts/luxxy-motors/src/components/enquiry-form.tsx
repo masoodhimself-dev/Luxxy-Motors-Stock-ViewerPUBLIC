@@ -22,7 +22,7 @@ const bookingTimezone = 'Europe/London';
 
 // Showroom form language: squared surfaces, brass focus, no soft shadows.
 const fieldClass =
-  'h-11 rounded-none border-border bg-background text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
+  'h-11 border-border bg-background text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
 const controlClass =
   'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
 const labelClass = 'luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground';
@@ -447,7 +447,7 @@ export function EnquiryForm({
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`}
-          className="rounded-none border-border bg-background text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25 md:text-sm"
+          className="border-border bg-background text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25 md:text-sm"
           data-testid="textarea-enquiry-message"
         />
       </label>

@@ -183,7 +183,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     handleSearchClick();
                   }
                 }}
-                className="h-12 rounded-none border-border bg-background pr-11 text-sm font-semibold text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25"
+                className="h-12 border-border bg-background pr-11 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25"
                 data-testid="input-showroom-search"
               />
               {filters.search && (
@@ -248,7 +248,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       placeholder="£ Min"
                       value={filters.minPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, minPrice: event.target.value }))}
-                      className="h-11 rounded-none border-border bg-background font-semibold shadow-none focus-visible:border-accent focus-visible:ring-accent/25"
+                      className="h-11 border-border bg-background font-semibold focus-visible:border-accent focus-visible:ring-accent/25"
                     />
                   </Field>
                   <Field label="Max budget" icon={Banknote}>
@@ -258,7 +258,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       placeholder="£ Max"
                       value={filters.maxPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
-                      className="h-11 rounded-none border-border bg-background font-semibold shadow-none focus-visible:border-accent focus-visible:ring-accent/25"
+                      className="h-11 border-border bg-background font-semibold focus-visible:border-accent focus-visible:ring-accent/25"
                     />
                   </Field>
                   <Field label="Fuel" icon={Fuel}>

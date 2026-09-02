@@ -58,7 +58,7 @@ export function UKNumberPlate({
           spellCheck={false}
           aria-label="Your car’s UK registration number"
           aria-describedby={helpId}
-          className="h-full min-h-[58px] rounded-none border-0 bg-transparent pl-[14%] font-mono text-xl font-black tracking-[0.16em] text-[#151515] shadow-none placeholder:text-[#625414]/60 focus-visible:ring-0 sm:text-2xl"
+          className="h-full min-h-[58px] border-0 bg-transparent pl-[14%] font-mono text-xl font-black tracking-[0.16em] text-[#151515] placeholder:text-[#625414]/60 focus-visible:ring-0 sm:text-2xl"
           data-testid={inputTestId ?? `${testId}-input`}
         />
       ) : (
