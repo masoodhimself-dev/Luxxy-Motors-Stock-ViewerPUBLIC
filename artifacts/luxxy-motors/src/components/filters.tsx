@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Car as CarType } from '@/lib/stock-context';
 
 export interface FilterState {
@@ -50,9 +51,6 @@ const emptyFilters: FilterState = {
   sort: '',
 };
 
-const controlClass =
-  'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
-
 function Field({
   label,
   icon: Icon,
@@ -85,14 +83,9 @@ function Select({
   disabled?: boolean;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      disabled={disabled}
-      className={controlClass}
-    >
+    <NativeSelect value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
       {children}
-    </select>
+    </NativeSelect>
   );
 }
 
@@ -296,18 +289,18 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <span className="luxxy-label text-muted-foreground">Sort by</span>
-              <select
+              <NativeSelect
                 aria-label="Sort results"
                 value={filters.sort}
                 onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-                className={`${controlClass} sm:w-52`}
+                className="sm:w-52"
               >
                 <option value="">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
                 <option value="price-desc">Price: high to low</option>
                 <option value="mileage-asc">Mileage: low to high</option>
                 <option value="mileage-desc">Mileage: high to low</option>
-              </select>
+              </NativeSelect>
             </div>
             <button
               type="button"

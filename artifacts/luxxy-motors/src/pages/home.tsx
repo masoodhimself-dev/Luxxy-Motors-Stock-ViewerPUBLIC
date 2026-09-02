@@ -11,6 +11,7 @@ import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Banknote, Calendar, CarFront, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 
 const defaultFilters: FilterState = {
   make: '',
@@ -267,16 +268,16 @@ export default function Home() {
                   data-testid="input-hero-search"
                 />
               </div>
-              <select
+              <NativeSelect
                 aria-label="Filter by make"
                 value={filters.make}
                 onChange={(event) => setFilters(current => ({ ...current, make: event.target.value, model: '' }))}
-                className="h-12 rounded-none border border-primary-foreground/20 bg-primary-foreground/10 px-3 text-sm font-bold text-primary-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 sm:w-40"
+                className="h-12 border-primary-foreground/20 bg-primary-foreground/10 font-bold text-primary-foreground focus:ring-accent/30 sm:w-40"
                 data-testid="select-hero-make"
               >
                 <option value="" className="text-foreground">Any make</option>
                 {makes.map(make => <option key={make} value={make} className="text-foreground">{make}</option>)}
-              </select>
+              </NativeSelect>
               <Button
                 type="button"
                 onClick={revealResults}

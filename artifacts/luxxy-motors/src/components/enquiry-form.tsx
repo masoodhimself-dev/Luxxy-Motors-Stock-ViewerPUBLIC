@@ -3,6 +3,7 @@ import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvail
 import { ArrowRight, CalendarDays, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
 import { formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
@@ -20,10 +21,6 @@ const typeLabels: Record<EnquiryType, string> = {
 
 const bookingTimezone = 'Europe/London';
 
-// Native selects cannot reuse the shared Input, so they restate the showroom field
-// language by hand: squared surfaces, brass focus, no soft shadows.
-const controlClass =
-  'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
 const labelClass = 'luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground';
 
 function dateString(date: Date) {
@@ -243,9 +240,9 @@ export function EnquiryForm({
 
       <label className="block">
         <span className={labelClass}>What can we help with?</span>
-        <select value={type} onChange={(event) => setType(event.target.value as EnquiryType)} className={controlClass} data-testid="select-enquiry-type">
+        <NativeSelect value={type} onChange={(event) => setType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
           {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        </NativeSelect>
       </label>
 
       {isPartExchange && (
@@ -264,12 +261,12 @@ export function EnquiryForm({
               </div>
               <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground">{stockCars.length} available</span>
             </div>
-            <select
+            <NativeSelect
               required
               value={selectedVehicleId}
               onChange={(event) => setSelectedVehicleId(event.target.value)}
               disabled={stockCars.length === 0}
-              className={`${controlClass} h-12`}
+              className="h-12"
               data-testid="select-part-exchange-target-vehicle"
             >
               <option value="">Choose a car from our current stock</option>
@@ -278,7 +275,7 @@ export function EnquiryForm({
                 const price = car.price != null ? ` · ${formatPrice(car.price, car.currency)}` : '';
                 return <option key={car.id} value={car.id}>{label}{price}</option>;
               })}
-            </select>
+            </NativeSelect>
             {selectedVehicle && (
               <div className="border border-border/70 bg-background p-4" data-testid="card-part-exchange-target-vehicle">
                 <div className="flex items-center gap-4">
@@ -361,15 +358,15 @@ export function EnquiryForm({
           </div>
           <label className="block sm:hidden" data-testid="label-viewing-date-mobile">
             <span className="sr-only">Choose a viewing date</span>
-            <select
+            <NativeSelect
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
               aria-label="Choose a viewing date"
-              className={`${controlClass} h-12`}
+              className="h-12"
               data-testid="select-viewing-date"
             >
               {dates.map((date) => <option key={date} value={date}>{formatDateLabel(date)}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <div role="group" aria-label="Choose a viewing date" className="no-scrollbar hidden gap-2 overflow-x-auto pb-1 sm:flex" data-testid="group-viewing-dates">
             {dates.map((date) => {
