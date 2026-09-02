@@ -6,6 +6,8 @@ import { formatPrice, getThumbnailUrl } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
+import { usePageMeta } from '@/hooks/use-page-meta';
+import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Banknote, Calendar, CarFront, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +30,8 @@ export default function Home() {
   const { stock, isLoading } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const [showAll, setShowAll] = useState(false);
+
+  usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
 

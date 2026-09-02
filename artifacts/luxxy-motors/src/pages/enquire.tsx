@@ -6,6 +6,8 @@ import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
 import { formatMileage, formatPrice, getThumbnailUrl } from '@/lib/utils';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { usePageMeta } from '@/hooks/use-page-meta';
+import { enquiryPageMeta } from '@/lib/page-meta';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
@@ -14,6 +16,15 @@ const headings: Record<EnquiryType, { eyebrow: string; title: string; descriptio
   delivery: { eyebrow: 'Nationwide delivery', title: 'Let’s get it to your door.', description: 'Share where you are and we will map out the simplest route to getting your next car home.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Ask us about cover.', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
   part_exchange: { eyebrow: 'Part exchange', title: 'See what your current car is worth.', description: 'Tell us a little about your car and we will help you understand your options.' },
+};
+
+/** Short, scannable document titles — the on-page headings are full sentences. */
+const metaHeadings: Record<EnquiryType, string> = {
+  viewing: 'Book a viewing',
+  general: 'Contact the showroom',
+  delivery: 'Ask about delivery',
+  warranty: 'Ask about warranty',
+  part_exchange: 'Part-exchange valuation',
 };
 
 function vehicleName(vehicle: { title: string | null; make: string | null; model: string | null }) {
@@ -33,6 +44,14 @@ export default function Enquire() {
     eyebrow: type === 'general' ? `${dealerConfig.identity.name} concierge` : headings[type].eyebrow,
   };
   const selectedVehicleName = vehicle ? vehicleName(vehicle) : 'your next car';
+
+  usePageMeta(
+    enquiryPageMeta(dealerConfig, {
+      heading: metaHeadings[type],
+      vehicleName: vehicle ? vehicleName(vehicle) : null,
+    }),
+  );
+
   const vehicleImage = vehicle ? getThumbnailUrl(vehicle) : '';
   const vehicleHighlights = vehicle
     ? [

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
 import CarDetail from '@/pages/car-detail';
+import { DEFAULT_PAGE_META } from '@/lib/page-meta';
 
 const { stockFixture } = vi.hoisted(() => {
   const baseCar = {
@@ -76,6 +77,7 @@ const { stockFixture } = vi.hoisted(() => {
           plate: 'NV24 LNZ',
           registration: '2024 (24 REG)',
           registrationBand: '2024 (24 REG)',
+          heroImage: 'https://cdn.example.com/bmw-front.jpg',
         }),
       ],
     },
@@ -93,7 +95,7 @@ vi.mock('@/components/car-card', () => ({
 function renderVehicle(id: string) {
   window.history.pushState({}, '', `/vehicle/${id}`);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  return render(
     <QueryClientProvider client={queryClient}>
       <CarDetail />
     </QueryClientProvider>,
@@ -115,5 +117,26 @@ describe('vehicle detail registration', () => {
     const plate = screen.getByTestId('plate-vehicle-with-plate');
     expect(plate).toHaveTextContent('NV24 LNZ');
     expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 REG)');
+  });
+});
+
+describe('vehicle detail link preview', () => {
+  const tag = (selector: string) => document.head.querySelector(selector)?.getAttribute('content') ?? null;
+
+  it('titles the page after the vehicle and previews its photograph', () => {
+    renderVehicle('with-plate');
+
+    expect(document.title).toBe('2024 BMW 3 Series — £4,995 | Luxxy Motors');
+    expect(tag('meta[property="og:title"]')).toBe('2024 BMW 3 Series — £4,995 | Luxxy Motors');
+    expect(tag('meta[property="og:image"]')).toBe('https://cdn.example.com/bmw-front.jpg');
+    expect(tag('meta[name="description"]')).toContain('90,000 miles');
+  });
+
+  it('restores the showroom title and drops the car photo on leaving the page', () => {
+    const view = renderVehicle('with-plate');
+    view.unmount();
+
+    expect(document.title).toBe(DEFAULT_PAGE_META.title);
+    expect(tag('meta[property="og:image"]')).toBeNull();
   });
 });

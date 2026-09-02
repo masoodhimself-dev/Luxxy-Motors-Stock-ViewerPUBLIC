@@ -10,6 +10,8 @@ import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/l
 import { Button } from '@/components/ui/button';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { usePageMeta } from '@/hooks/use-page-meta';
+import { vehiclePageMeta } from '@/lib/page-meta';
 
 function getSimilarCars(currentCar: Car, cars: Car[]) {
   const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
@@ -58,6 +60,11 @@ export default function CarDetail() {
   const [, params] = useRoute('/vehicle/:id');
   const { stock, isLoading } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
+  const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
+
+  // Title, description and link-preview tags for this vehicle; the showroom
+  // defaults come back when the page unmounts.
+  usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : null);
 
   if (isLoading) {
     return (
@@ -77,11 +84,7 @@ export default function CarDetail() {
     );
   }
 
-  if (!stock || !stock.cars) return <NotFound />;
-
-  const car = stock.cars.find(c => c.id === params?.id);
-  
-  if (!car) return <NotFound />;
+  if (!stock || !stock.cars || !car) return <NotFound />;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);

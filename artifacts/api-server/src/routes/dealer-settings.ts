@@ -54,6 +54,26 @@ async function getOrCreateSettings() {
   return defaultSettings;
 }
 
+function readText(source: unknown, key: string): string {
+  if (!source || typeof source !== "object") return "";
+  const value = (source as Record<string, unknown>)[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * The dealer's name and town for page titles and link previews, taken from the
+ * settings the dealer edits rather than from imported advert data.
+ */
+export async function getDealerIdentity(): Promise<{ name: string; location: string }> {
+  const config = await getOrCreateSettings();
+  const identity = (config as Record<string, unknown>).identity;
+  const address = (config as Record<string, unknown>).address;
+  return {
+    name: readText(identity, "name") || defaultSettings.identity.name,
+    location: readText(address, "city") || readText(address, "region"),
+  };
+}
+
 router.get("/dealer-settings", async (_req, res): Promise<void> => {
   const config = await getOrCreateSettings();
   res.json(GetDealerSettingsResponse.parse(config));

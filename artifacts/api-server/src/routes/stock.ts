@@ -307,15 +307,32 @@ router.get("/stock", async (req, res): Promise<void> => {
   const snapshot = latest?.rawSnapshot as { dealerName?: unknown } | undefined;
   res.json(GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof snapshot?.dealerName === "string" ? snapshot.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
 });
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type PublicVehicle = Awaited<ReturnType<typeof projectVehicles>>[number];
+
+/**
+ * A single vehicle exactly as the website is allowed to show it, or null when
+ * the id is unknown, malformed or the vehicle is no longer on sale. Shared with
+ * the share-preview route so crawlers never see hidden or sold stock.
+ */
+export async function findPublicVehicle(id: string): Promise<PublicVehicle | null> {
+  if (!UUID_PATTERN.test(id)) return null;
+  const settings = config();
+  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, "autotrader")));
+  if (!vehicle || !visible(vehicle, settings)) return null;
+  const [projected] = await projectVehicles([vehicle]);
+  return projected ?? null;
+}
+
 router.get("/vehicles/:id", async (req, res): Promise<void> => {
   const parsed = GetVehicleParams.safeParse(req.params);
   if (!parsed.success) { res.status(400).json({ error: "Invalid vehicle id" }); return; }
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.data.id)) {
+  if (!UUID_PATTERN.test(parsed.data.id)) {
     res.status(400).json({ error: "Invalid vehicle id" }); return;
   }
-  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, parsed.data.id), eq(vehiclesTable.dealerId, config().dealerId), eq(vehiclesTable.source, "autotrader")));
-  if (!vehicle || !visible(vehicle, config())) { res.status(404).json({ error: "Vehicle not found" }); return; }
-  const [projected] = await projectVehicles([vehicle]);
+  const projected = await findPublicVehicle(parsed.data.id);
+  if (!projected) { res.status(404).json({ error: "Vehicle not found" }); return; }
   res.json(GetVehicleResponse.parse(projected));
 });
 router.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {

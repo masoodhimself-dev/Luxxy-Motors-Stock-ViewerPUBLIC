@@ -43,17 +43,28 @@ function getVehicleLabel(car: Car) {
   return car.title || [car.make, car.model].filter(Boolean).join(' ') || 'this vehicle';
 }
 
+/**
+ * The link to hand to someone outside the app.
+ *
+ * It points at the API server's `/share/vehicle/:id` page rather than the SPA
+ * route, because WhatsApp and the other messaging previewers do not run
+ * JavaScript and would otherwise show the generic site card. That page carries
+ * the vehicle's own Open Graph tags and forwards real visitors to
+ * `/vehicle/:id`, which stays the canonical URL.
+ */
+export function getVehicleShareUrl(car: Car) {
+  const path = `/share/vehicle/${encodeURIComponent(car.id)}`;
+  return typeof window !== 'undefined' ? `${window.location.origin}${path}` : path;
+}
+
 export function getVehicleContactMessage(car: Car, request: string, config: DealerContactDetails = dealerConfig) {
   const details = [
     getVehicleLabel(car),
     car.registration || car.plate ? `Registration: ${car.registration || car.plate}` : null,
     car.price ? `Price: ${car.currency || 'GBP'} ${car.price.toLocaleString('en-GB')}` : null,
   ].filter(Boolean);
-  const vehicleUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/vehicle/${encodeURIComponent(car.id)}`
-    : `/vehicle/${encodeURIComponent(car.id)}`;
 
-  return `Hello ${config.identity.name}, I would like to ${request}:\n${details.join('\n')}\nVehicle link: ${vehicleUrl}`;
+  return `Hello ${config.identity.name}, I would like to ${request}:\n${details.join('\n')}\nVehicle link: ${getVehicleShareUrl(car)}`;
 }
 
 export function getVehicleWhatsAppHref(car: Car, request: string, config: DealerContactDetails = dealerConfig) {

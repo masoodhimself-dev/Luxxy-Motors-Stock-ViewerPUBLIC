@@ -28,6 +28,25 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 
 _Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
 
+- **Link previews for shared vehicles.** The showroom is a client-rendered Vite
+  SPA served as static files in production, so nothing can inject per-vehicle
+  tags into `/vehicle/:id` before JavaScript runs. Two paths cover the two kinds
+  of visitor:
+  - **In the browser** (and for crawlers that render JS, e.g. Googlebot), each
+    page writes its own title, description, canonical, Open Graph and Twitter
+    tags via `usePageMeta` / `src/lib/page-meta.ts`, restoring the shell
+    defaults in `index.html` on unmount.
+  - **For crawlers that do not run JS** (WhatsApp, Facebook, Slack, iMessage,
+    Twitter), the API server serves `/share/vehicle/:id` — a server-rendered
+    page carrying the vehicle's tags, `rel=canonical` to `/vehicle/:id`,
+    `noindex, follow`, and a meta-refresh plus `location.replace` so people who
+    tap the link land on the real page. `getVehicleShareUrl()` builds the links
+    the WhatsApp CTAs hand out; `/vehicle/:id` stays the canonical, shareable
+    address everywhere else. `/share` is registered as a path on the API service
+    in its `artifact.toml`.
+  - Title and description copy lives once in `@workspace/vehicle-meta` so the
+    preview card and the page it opens never drift apart.
+
 ## Product
 
 _Describe the high-level user-facing capabilities of this app once they exist._
