@@ -7,3 +7,4 @@
 - [Sales readiness evidence](sales-readiness-evidence.md) — checklist confirmations hash the current deal evidence and invalidate when source records change.
 - [Vehicle registration display](vehicle-registration-display.md) — most stock has no real VRM; never render a registration band as a number plate.
 - [Customer-side state](customer-side-state.md) — no customer accounts exist, so shopper shortlists and comparisons live in localStorage, not the database.
+- [shadcn chart & OTP primitives](shadcn-broken-ui-primitives.md) — stock chart.tsx/input-otp.tsx fail typecheck here; patch the types on arrival or leave them out.
