@@ -1,27 +1,26 @@
-import { AlertCircle, FileQuestion } from "lucide-react";
-import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
+import { FileQuestion } from 'lucide-react';
+import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
 
 export default function NotFound() {
   return (
-    <div className="min-h-[70vh] flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
-          <FileQuestion className="w-10 h-10 text-muted-foreground" />
+    <div className="luxxy-shell flex min-h-[70vh] items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
+      <div className="w-full max-w-lg border border-border/70 bg-card">
+        <div className="flex items-center gap-3 border-b border-border/70 px-6 py-4">
+          <FileQuestion className="h-4 w-4 shrink-0 text-accent" />
+          <p className="luxxy-label text-muted-foreground">Error 404</p>
         </div>
-        
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="px-6 py-10 text-center sm:px-10 sm:py-12">
+          <h1 className="font-display text-[2.25rem] font-semibold leading-[1.04] tracking-[-.03em] text-primary">
             Page not found
           </h1>
-          <p className="text-muted-foreground">
-            We couldn't find the vehicle or page you were looking for. It may have been sold or removed.
+          <p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
+            We couldn&apos;t find the vehicle or page you were looking for. It may have been sold or removed.
           </p>
+          <Button asChild size="lg" className="mt-9 h-12 w-full rounded-none text-sm font-bold shadow-none">
+            <Link href="/">Back to Showroom</Link>
+          </Button>
         </div>
-
-        <Button asChild size="lg" className="w-full">
-          <Link href="/">Back to Showroom</Link>
-        </Button>
       </div>
     </div>
   );

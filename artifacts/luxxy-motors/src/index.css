@@ -248,26 +248,3 @@
   to { opacity: 1; transform: scale(1.02); }
 }
 
-.appointment-rise {
-  animation: luxxy-rise 600ms cubic-bezier(.22, 1, .36, 1) both;
-}
-
-.appointment-rise-delay-1 { animation-delay: 80ms; }
-.appointment-rise-delay-2 { animation-delay: 160ms; }
-.appointment-rise-delay-3 { animation-delay: 240ms; }
-
-.appointment-sheen {
-  position: relative;
-  overflow: hidden;
-}
-
-.appointment-sheen::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 38%;
-  background: linear-gradient(100deg, transparent, hsl(var(--accent) / .14), transparent);
-  transform: translateX(-120%);
-  animation: luxxy-sheen 1.8s ease-in-out infinite;
-  pointer-events: none;
-}

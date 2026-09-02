@@ -14,10 +14,13 @@ import {
   useCompleteSigningSession,
   useGetSigningSession,
 } from '@workspace/api-client-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
+
+const fieldClass =
+  'h-11 rounded-none border-border bg-background text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
+const labelClass = 'luxxy-label mb-2 block text-muted-foreground';
 
 type SigningView = {
   developmentOnly: boolean;
@@ -79,29 +82,48 @@ export default function Signing() {
 
   if (complete.isSuccess) {
     return (
-      <div className="min-h-[70vh] bg-muted/20 px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-2xl rounded-3xl border bg-card p-8 text-center shadow-sm sm:p-12">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100"><CheckCircle2 className="h-8 w-8 text-green-700" /></div>
-          <Badge className="mt-6">Development signature recorded</Badge>
-          <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Thank you, {signerName || view?.customer?.name}</h1>
-          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">The demo signature and acknowledgements are now bound to this exact document-pack revision. The dealer can run the final checks from the portal.</p>
-          <p className="mt-6 text-xs font-bold uppercase tracking-widest text-amber-700">DEVELOPMENT ONLY · NOT A LEGAL SIGNATURE</p>
+      <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto max-w-2xl border border-border/70 bg-card">
+          <div className="flex items-center gap-3 border-b border-border/70 px-6 py-4">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
+            <p className="luxxy-label text-muted-foreground">Development signature recorded</p>
+          </div>
+          <div className="px-6 py-10 text-center sm:px-10 sm:py-12">
+            <h1 className="font-display text-[2rem] font-semibold leading-[1.04] tracking-[-.03em] text-primary sm:text-[2.4rem]">
+              Thank you, {signerName || view?.customer?.name}
+            </h1>
+            <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-muted-foreground">
+              The demo signature and acknowledgements are now bound to this exact document-pack revision. The dealer can run the final checks from the portal.
+            </p>
+            <p className="luxxy-label mt-8 inline-block border border-[#d4bd83] bg-[#f7f0dd] px-3 py-2 text-[#80611f]">
+              Development only · Not a legal signature
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   if (query.isLoading) {
-    return <div className="flex min-h-[70vh] items-center justify-center bg-muted/20 text-muted-foreground"><LoaderCircle className="mr-3 h-6 w-6 animate-spin text-primary" /> Loading secure signing session…</div>;
+    return (
+      <div className="luxxy-shell flex min-h-[70vh] items-center justify-center px-4">
+        <p className="luxxy-label flex items-center gap-3 text-muted-foreground">
+          <LoaderCircle className="h-4 w-4 animate-spin text-accent" />
+          Loading secure signing session…
+        </p>
+      </div>
+    );
   }
 
   if (query.isError || !view) {
     return (
-      <div className="min-h-[70vh] bg-muted/20 px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center text-amber-950 sm:p-12">
-          <CircleAlert className="mx-auto h-10 w-10 text-amber-700" />
-          <h1 className="mt-5 text-2xl font-black">Signing link unavailable</h1>
-          <p className="mt-3 text-sm text-amber-900/80">This link may have expired, been revoked, or already been used. Ask the dealer to prepare a new development session.</p>
+      <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto max-w-xl border border-[#d4bd83] bg-[#f7f0dd] px-6 py-10 text-center text-[#80611f] sm:px-10 sm:py-12">
+          <CircleAlert className="mx-auto h-8 w-8" />
+          <h1 className="mt-6 font-display text-[1.75rem] font-semibold leading-[1.06] tracking-[-.03em]">Signing link unavailable</h1>
+          <p className="mx-auto mt-4 max-w-sm text-sm leading-7">
+            This link may have expired, been revoked, or already been used. Ask the dealer to prepare a new development session.
+          </p>
         </div>
       </div>
     );
@@ -113,65 +135,109 @@ export default function Signing() {
   const allAccepted = view.revision.acknowledgements.every((item) => accepted.includes(item.code));
 
   return (
-    <div className="min-h-[70vh] bg-muted/20 px-4 py-8 sm:py-14">
+    <div className="luxxy-shell min-h-[70vh] px-4 py-8 sm:px-6 sm:py-14 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
-          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-          <div><p className="font-black uppercase tracking-wide">Development-only signing flow</p><p className="mt-1 text-amber-900/80">{view.warning}</p></div>
+        <div className="mb-5 flex items-start gap-3 border border-[#d4bd83] bg-[#f7f0dd] px-4 py-4 text-[#80611f]">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="luxxy-label">Development-only signing flow</p>
+            <p className="mt-2 text-[13px] leading-6">{view.warning}</p>
+          </div>
         </div>
 
-        <div className="rounded-3xl border bg-card p-6 shadow-sm sm:p-9">
-          <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="border border-border/70 bg-card">
+          <div className="flex flex-col gap-5 border-b border-border/70 px-6 py-6 sm:flex-row sm:items-start sm:justify-between sm:px-8">
             <div>
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary"><LockKeyhole className="h-4 w-4" /> Secure review link</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Review your vehicle sale</h1>
-              <p className="mt-2 text-muted-foreground">Revision {view.revision.revisionNumber} · Expires {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' }).format(new Date(view.session.expiresAt))}</p>
+              <p className="luxxy-label flex items-center gap-2 text-accent">
+                <LockKeyhole className="h-3.5 w-3.5" /> Secure review link
+              </p>
+              <h1 className="mt-4 font-display text-[2rem] font-semibold leading-[1.04] tracking-[-.03em] text-primary sm:text-[2.4rem]">
+                Review your vehicle sale
+              </h1>
+              <p className="mt-3 font-mono text-[13px] font-bold text-muted-foreground">
+                Revision {view.revision.revisionNumber} · Expires {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' }).format(new Date(view.session.expiresAt))}
+              </p>
             </div>
-            <Badge variant={isSigned ? 'default' : 'outline'}>{isSigned ? 'Signed' : 'Awaiting review'}</Badge>
+            <span className={`luxxy-label shrink-0 border px-3 py-2 ${isSigned ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground'}`}>
+              {isSigned ? 'Signed' : 'Awaiting review'}
+            </span>
           </div>
 
-          <div className="mt-7 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border bg-muted/30 p-4 sm:col-span-2">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Vehicle</p>
-              <p className="mt-2 text-xl font-black">{displayValue(vehicle.title, 'Vehicle sale')}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{displayValue(vehicle.registration)}{vehicle.year ? ` · ${vehicle.year}` : ''}{vehicle.mileage ? ` · ${vehicle.mileage.toLocaleString()} miles` : ''}</p>
+          <div className="grid gap-4 px-6 py-7 sm:grid-cols-3 sm:px-8">
+            <div className="border border-border/70 bg-background p-5 sm:col-span-2">
+              <p className="luxxy-label text-muted-foreground">Vehicle</p>
+              <p className="mt-3 font-display text-xl font-semibold leading-tight tracking-[-.02em] text-primary">{displayValue(vehicle.title, 'Vehicle sale')}</p>
+              <p className="mt-2 font-mono text-[13px] font-bold text-muted-foreground">
+                {displayValue(vehicle.registration)}{vehicle.year ? ` · ${vehicle.year}` : ''}{vehicle.mileage ? ` · ${vehicle.mileage.toLocaleString()} miles` : ''}
+              </p>
             </div>
-            <div className="rounded-2xl border bg-primary/5 p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Agreed total</p>
-              <p className="mt-2 text-2xl font-black text-primary">{formatPrice((Number(terms.agreedPricePence) || view.sale.agreedPricePence) / 100, view.sale.currency)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Balance {formatPrice(view.sale.balancePence / 100, view.sale.currency)}</p>
+            <div className="border border-border/70 bg-secondary/40 p-5">
+              <p className="luxxy-label text-muted-foreground">Agreed total</p>
+              <p className="mt-3 font-display text-[1.75rem] font-semibold leading-none tracking-[-.03em] text-primary">
+                {formatPrice((Number(terms.agreedPricePence) || view.sale.agreedPricePence) / 100, view.sale.currency)}
+              </p>
+              <p className="mt-2 font-mono text-[13px] font-bold text-muted-foreground">Balance {formatPrice(view.sale.balancePence / 100, view.sale.currency)}</p>
             </div>
           </div>
 
-          <div className="mt-7 space-y-4">
-            <div className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /><h2 className="text-xl font-black">Document pack</h2></div>
-            {view.revision.documents.map((document) => (
-              <details key={document.id} className="rounded-xl border bg-background p-4">
-                <summary className="cursor-pointer list-none font-bold">{document.title}<span className="float-right text-xs font-normal text-muted-foreground">Hash {document.contentHash.slice(0, 12)}…</span></summary>
-                <pre className="mt-4 whitespace-pre-wrap border-t pt-4 font-sans text-sm leading-relaxed text-muted-foreground">{document.content}</pre>
-              </details>
-            ))}
+          <div className="border-t border-border/70 px-6 py-7 sm:px-8">
+            <div className="flex items-center gap-3">
+              <FileText className="h-4 w-4 shrink-0 text-accent" />
+              <h2 className="luxxy-label text-primary">Document pack</h2>
+            </div>
+            <div className="mt-5 space-y-3">
+              {view.revision.documents.map((document) => (
+                <details key={document.id} className="border border-border/70 bg-background p-4">
+                  <summary className="flex cursor-pointer list-none items-baseline justify-between gap-4 text-sm font-bold text-primary">
+                    {document.title}
+                    <span className="shrink-0 font-mono text-[11px] font-bold text-muted-foreground">Hash {document.contentHash.slice(0, 12)}…</span>
+                  </summary>
+                  <pre className="mt-4 whitespace-pre-wrap border-t border-border/70 pt-4 font-sans text-sm leading-7 text-muted-foreground">{document.content}</pre>
+                </details>
+              ))}
+            </div>
           </div>
 
           {!isSigned && (
-            <form onSubmit={submit} className="mt-8 border-t pt-7">
-              <div className="flex items-center gap-2"><Signature className="h-5 w-5 text-primary" /><h2 className="text-xl font-black">Development acknowledgement</h2></div>
-              <p className="mt-2 text-sm text-muted-foreground">Read the complete pack, tick every statement, then enter the name used for this development demonstration.</p>
+            <form onSubmit={submit} className="border-t border-border/70 px-6 py-7 sm:px-8">
+              <div className="flex items-center gap-3">
+                <Signature className="h-4 w-4 shrink-0 text-accent" />
+                <h2 className="luxxy-label text-primary">Development acknowledgement</h2>
+              </div>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                Read the complete pack, tick every statement, then enter the name used for this development demonstration.
+              </p>
               <div className="mt-5 space-y-3">
                 {view.revision.acknowledgements.map((item) => (
-                  <label key={item.code} className="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition hover:border-primary/40">
-                    <input type="checkbox" checked={accepted.includes(item.code)} onChange={() => toggleAcknowledgement(item.code)} className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" />
-                    <span className="text-sm font-semibold leading-relaxed">{item.statement}</span>
+                  <label key={item.code} className="flex cursor-pointer items-start gap-3 border border-border/70 bg-background p-4 transition-colors hover:border-accent">
+                    <input type="checkbox" checked={accepted.includes(item.code)} onChange={() => toggleAcknowledgement(item.code)} className="mt-1 h-4 w-4 shrink-0 rounded-none accent-[hsl(var(--primary))]" />
+                    <span className="text-[13px] font-semibold leading-6 text-foreground">{item.statement}</span>
                   </label>
                 ))}
               </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-semibold"><span>Your full name</span><Input required minLength={2} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder={view.customer?.name || 'Jane Smith'} /></label>
-                <label className="space-y-2 text-sm font-semibold"><span>Email (optional)</span><Input type="email" value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} placeholder={view.customer?.email || 'jane@example.com'} /></label>
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <label className="block">
+                  <span className={labelClass}>Your full name</span>
+                  <Input required minLength={2} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder={view.customer?.name || 'Jane Smith'} className={fieldClass} />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Email (optional)</span>
+                  <Input type="email" value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} placeholder={view.customer?.email || 'jane@example.com'} className={fieldClass} />
+                </label>
               </div>
-              {complete.isError && <p className="mt-4 flex items-center gap-2 text-sm text-destructive"><CircleAlert className="h-4 w-4" />{apiMessage(complete.error)}</p>}
-              <Button type="submit" size="lg" className="mt-6 w-full font-bold sm:w-auto" disabled={complete.isPending || !allAccepted}><Signature className="mr-2 h-4 w-4" />{complete.isPending ? 'Recording demo signature…' : 'Sign development pack'}</Button>
-               <p className="mt-4 text-xs text-muted-foreground">Your signature is bound to pack hash <span className="font-mono">{view.revision.packHash.slice(0, 18)}…</span>. The raw signing token is never stored in the database.</p>
+              {complete.isError && (
+                <p role="alert" className="mt-5 flex items-start gap-2.5 border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]">
+                  <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                  {apiMessage(complete.error)}
+                </p>
+              )}
+              <Button type="submit" size="lg" className="mt-7 h-12 w-full rounded-none text-sm font-bold shadow-none sm:w-auto sm:px-8" disabled={complete.isPending || !allAccepted}>
+                <Signature className="mr-2 h-4 w-4" />
+                {complete.isPending ? 'Recording demo signature…' : 'Sign development pack'}
+              </Button>
+              <p className="mt-5 text-[13px] leading-6 text-muted-foreground">
+                Your signature is bound to pack hash <span className="font-mono font-bold text-primary">{view.revision.packHash.slice(0, 18)}…</span>. The raw signing token is never stored in the database.
+              </p>
             </form>
           )}
         </div>

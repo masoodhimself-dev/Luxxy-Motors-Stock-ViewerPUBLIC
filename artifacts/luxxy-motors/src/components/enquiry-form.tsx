@@ -20,6 +20,13 @@ const typeLabels: Record<EnquiryType, string> = {
 
 const bookingTimezone = 'Europe/London';
 
+// Showroom form language: squared surfaces, brass focus, no soft shadows.
+const fieldClass =
+  'h-11 rounded-none border-border bg-background text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
+const controlClass =
+  'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
+const labelClass = 'luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground';
+
 function dateString(date: Date) {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: bookingTimezone,
@@ -165,22 +172,36 @@ export function EnquiryForm({
 
   if (mutation.isSuccess) {
     return (
-      <div className="appointment-rise overflow-hidden rounded-[1.5rem] border border-[#b5cbbd] bg-[#edf5ef] p-7 text-center sm:p-12" data-testid="status-enquiry-success">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#d3e8d9] text-[#2e6245]">
-          <CheckCircle2 className="h-8 w-8" />
-        </div>
-        <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#47725a]">{isViewing ? 'Your visit is reserved' : 'Message received'}</p>
-        <h2 className="font-display mt-2 text-4xl text-[#173a2a] sm:text-5xl">{isViewing ? 'See you at the showroom.' : 'We will be in touch.'}</h2>
-        <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#47725a]">
+      <div className="luxxy-reveal py-4 text-center" data-testid="status-enquiry-success">
+        <span className="mx-auto grid h-14 w-14 place-items-center border border-border bg-secondary/50 text-accent">
+          <CheckCircle2 className="h-6 w-6" />
+        </span>
+        <p className="luxxy-label mt-7 text-accent">{isViewing ? 'Your visit is reserved' : 'Message received'}</p>
+        <h2 className="mt-4 font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-.035em] text-primary sm:text-[2.5rem]">
+          {isViewing ? 'See you at the showroom.' : 'We will be in touch.'}
+        </h2>
+        <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-muted-foreground">
           {isViewing
             ? `Thank you, ${customerName.trim()}. We have held your appointment for ${formatAppointment(selectedSlot!)}.`
             : `Thank you, ${customerName.trim()}. The ${dealerConfig.identity.name} team has your request and will reply by email.`}
         </p>
-        {selectedVehicle && <p className="mt-5 text-sm font-bold text-[#173a2a]" data-testid="text-confirmed-vehicle">{vehicleLabel}</p>}
-        <div className="mx-auto mt-7 flex max-w-sm items-center justify-center gap-2 rounded-full border border-[#b5cbbd] bg-[#f6fbf7] px-4 py-3 text-xs font-semibold text-[#47725a]">
-          <Mail className="h-4 w-4" /> A confirmation is on its way
+        {selectedVehicle && (
+          <p className="mx-auto mt-6 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
+            {vehicleLabel}
+          </p>
+        )}
+        <div className="mx-auto mt-7 flex max-w-sm items-center justify-center gap-2.5 border border-border/70 bg-background px-4 py-3.5">
+          <Mail className="h-4 w-4 shrink-0 text-accent" />
+          <span className="luxxy-label text-muted-foreground">A confirmation is on its way</span>
         </div>
-        <Button type="button" variant="outline" className="mt-8 border-[#9fbea9] bg-transparent text-[#2e6245] hover:bg-[#dcecdf]" onClick={() => mutation.reset()} data-testid="button-send-another-enquiry">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="mt-8 h-12 rounded-none border-border bg-background px-6 text-sm font-bold text-foreground shadow-none hover:border-primary/45 hover:bg-secondary hover:text-foreground"
+          onClick={() => mutation.reset()}
+          data-testid="button-send-another-enquiry"
+        >
           Send another enquiry <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
@@ -189,63 +210,67 @@ export function EnquiryForm({
 
   return (
     <form onSubmit={submit} className="space-y-8" data-testid="form-enquiry">
-      <div className="flex items-start justify-between gap-5 border-b border-[#e6dfd2] pb-6">
+      <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-6">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Your details</p>
-          <h2 className="font-display mt-1 text-3xl text-foreground sm:text-4xl">{isViewing ? 'Let’s make it easy.' : 'How can we help?'}</h2>
-          <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">A few details is all we need. No pressure, no sales script.</p>
+          <p className="luxxy-label text-accent">Your details</p>
+          <h2 className="mt-4 font-display text-[1.85rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2.1rem]">
+            {isViewing ? 'Let’s make it easy.' : 'How can we help?'}
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">A few details is all we need. No pressure, no sales script.</p>
         </div>
-        <div className="hidden rounded-full bg-[#f3e8c9] p-3 text-[#8d6714] sm:block"><Sparkles className="h-5 w-5" /></div>
+        <span className="hidden h-10 w-10 shrink-0 place-items-center border border-border bg-secondary/50 text-accent sm:grid"><Sparkles className="h-4 w-4" /></span>
       </div>
 
       {vehicle && !isPartExchange && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-[#d5c59e] bg-[#fbf6e8] px-4 py-3" data-testid="card-enquiry-vehicle">
+        <div className="flex items-center justify-between gap-4 border border-border/70 bg-secondary/35 px-4 py-3.5" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Viewing</p>
-            <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
+            <p className="luxxy-label text-muted-foreground">Viewing</p>
+            <p className="mt-1.5 truncate text-sm font-bold text-primary">{vehicleLabel}</p>
           </div>
-          {vehicle.price != null && <p className="shrink-0 text-sm font-bold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
+          {vehicle.price != null && <p className="shrink-0 font-mono text-[13px] font-bold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
         </div>
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <label className="space-y-2 text-sm font-semibold text-foreground">
-          <span>Your name</span>
-          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" data-testid="input-customer-name" />
+        <label className="block">
+          <span className={labelClass}>Your name</span>
+          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" className={fieldClass} data-testid="input-customer-name" />
         </label>
-        <label className="space-y-2 text-sm font-semibold text-foreground">
-          <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" />Email address</span>
-          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" data-testid="input-customer-email" />
+        <label className="block">
+          <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
+          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={fieldClass} data-testid="input-customer-email" />
         </label>
       </div>
 
-      <label className="block space-y-2 text-sm font-semibold text-foreground">
-        <span>What can we help with?</span>
-        <select value={type} onChange={(event) => setType(event.target.value as EnquiryType)} className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="select-enquiry-type">
+      <label className="block">
+        <span className={labelClass}>What can we help with?</span>
+        <select value={type} onChange={(event) => setType(event.target.value as EnquiryType)} className={controlClass} data-testid="select-enquiry-type">
           {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
 
       {isPartExchange && (
-        <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-part-exchange-details">
-          <div>
-            <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CarFront className="h-5 w-5 text-primary" /> Let’s work out the difference</legend>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
+        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-6 border border-border/70 bg-secondary/25 p-5 sm:p-6" data-testid="section-part-exchange-details">
+          <div className="border-b border-border/70 pb-5">
+            <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
+              <CarFront className="h-5 w-5 text-accent" /> Let’s work out the difference
+            </legend>
+            <p className="mt-3 text-[13px] leading-6 text-muted-foreground">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
           </div>
           <div className="space-y-4" data-testid="section-part-exchange-target-vehicle">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Step 1 · Your next car</p>
-                <p className="mt-1 text-sm font-bold text-foreground">Which car are you considering?</p>
+                <p className="luxxy-label text-accent">Step 1 · Your next car</p>
+                <p className="mt-2 text-sm font-bold text-primary">Which car are you considering?</p>
               </div>
-              <span className="rounded-full bg-[#f3e8c9] px-2.5 py-1 text-[10px] font-bold text-[#8d6714]">{stockCars.length} available</span>
+              <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground">{stockCars.length} available</span>
             </div>
             <select
               required
               value={selectedVehicleId}
               onChange={(event) => setSelectedVehicleId(event.target.value)}
               disabled={stockCars.length === 0}
-              className="mt-4 flex h-12 w-full rounded-xl border border-[#d5c59e] bg-background px-4 py-2 text-sm font-bold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+              className={`${controlClass} h-12`}
               data-testid="select-part-exchange-target-vehicle"
             >
               <option value="">Choose a car from our current stock</option>
@@ -256,41 +281,41 @@ export function EnquiryForm({
               })}
             </select>
             {selectedVehicle && (
-              <div className="mt-3" data-testid="card-part-exchange-target-vehicle">
-                <div className="flex items-center gap-3">
+              <div className="border border-border/70 bg-background p-4" data-testid="card-part-exchange-target-vehicle">
+                <div className="flex items-center gap-4">
                   {getThumbnailUrl(selectedVehicle) ? (
-                    <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 rounded-md object-cover" />
+                    <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 object-cover" />
                   ) : (
-                    <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-md bg-secondary text-primary"><CarFront className="h-5 w-5" /></div>
+                    <div className="grid h-14 w-20 shrink-0 place-items-center bg-secondary text-primary"><CarFront className="h-5 w-5" /></div>
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-foreground">{vehicleLabel}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p>
+                    <p className="truncate text-sm font-bold text-primary">{vehicleLabel}</p>
+                    <p className="mt-1 font-mono text-[12px] font-bold text-muted-foreground">{selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p>
                   </div>
-                  <Check className="ml-auto h-5 w-5 shrink-0 text-[#47725a]" />
+                  <Check className="ml-auto h-5 w-5 shrink-0 text-accent" />
                 </div>
                 {vehicleRegistration(selectedVehicle) && (
-                  <div className="mt-3 pt-1">
-                    <div className="mb-1.5 flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Actual registration</span>
-                      <span className="text-[10px] font-semibold text-muted-foreground">From stock record</span>
+                  <div className="mt-4 border-t border-border/70 pt-4">
+                    <div className="mb-2.5 flex items-center justify-between gap-3">
+                      <span className="luxxy-label text-accent">Actual registration</span>
+                      <span className="luxxy-label text-muted-foreground">From stock record</span>
                     </div>
                     <UKNumberPlate value={vehicleRegistration(selectedVehicle)} testId="visual-target-uk-number-plate" />
                   </div>
                 )}
               </div>
             )}
-            {stockCars.length === 0 && <p className="mt-3 text-xs leading-5 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
+            {stockCars.length === 0 && <p className="border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
           </div>
-          <div className="border-t border-[#d8c48c]/60 pt-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#97721d]">Step 2 · Your current car</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Tell us about the car you’d like to exchange</p>
+          <div className="border-t border-border/70 pt-5">
+            <p className="luxxy-label text-accent">Step 2 · Your current car</p>
+            <p className="mt-2 text-sm font-bold text-primary">Tell us about the car you’d like to exchange</p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className="space-y-2 text-sm font-semibold text-foreground">
-              <span className="flex items-center justify-between gap-3">
+            <label className="block">
+              <span className={`${labelClass} justify-between`}>
                 <span>Your car’s registration</span>
-                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">UK plate</span>
+                <span className="text-muted-foreground">UK plate</span>
               </span>
               <UKNumberPlate
                 value={partExchangeRegistration}
@@ -300,10 +325,10 @@ export function EnquiryForm({
                 inputTestId="input-part-exchange-registration"
                 helpId="part-exchange-registration-help"
               />
-              <span id="part-exchange-registration-help" className="block text-xs font-normal leading-5 text-muted-foreground">Enter the registration exactly as it appears on the plate.</span>
+              <span id="part-exchange-registration-help" className="mt-2 block text-[13px] leading-6 text-muted-foreground">Enter the registration exactly as it appears on the plate.</span>
             </label>
-            <label className="space-y-2 text-sm font-semibold text-foreground">
-              <span className="flex items-center gap-2"><Gauge className="h-4 w-4 text-primary" />Current mileage</span>
+            <label className="block">
+              <span className={labelClass}><Gauge className="h-3.5 w-3.5 text-accent" />Current mileage</span>
               <Input
                 required
                 type="number"
@@ -314,6 +339,7 @@ export function EnquiryForm({
                 value={partExchangeMileage}
                 onChange={(event) => setPartExchangeMileage(event.target.value)}
                 placeholder="45,000"
+                className={fieldClass}
                 data-testid="input-part-exchange-mileage"
               />
             </label>
@@ -321,14 +347,18 @@ export function EnquiryForm({
         </fieldset>
       )}
 
+      {/* min-w-0 stops the browser's default fieldset min-content sizing from letting the
+          scrollable date strip push the whole panel wider than the card. */}
       {isViewing && (
-        <fieldset className="appointment-rise appointment-rise-delay-1 space-y-5 rounded-2xl border border-[#d8cfbe] bg-[#f8f5ee] p-4 sm:p-6" data-testid="section-viewing-availability">
-          <div className="flex items-start justify-between gap-4">
+        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-6 border border-border/70 bg-secondary/25 p-5 sm:p-6" data-testid="section-viewing-availability">
+          <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
             <div>
-              <legend className="flex items-center gap-2 text-base font-bold text-foreground"><CalendarDays className="h-5 w-5 text-primary" /> Choose a time to visit</legend>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">30 minutes · Monday to Saturday · 10:00–18:00</p>
+              <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
+                <CalendarDays className="h-5 w-5 text-accent" /> Choose a time to visit
+              </legend>
+              <p className="mt-3 text-[13px] leading-6 text-muted-foreground">30 minutes · Monday to Saturday · 10:00–18:00</p>
             </div>
-            <span className="hidden rounded-full border border-[#d8cfbe] bg-background px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:block">London time</span>
+            <span className="luxxy-label hidden shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground sm:block">London time</span>
           </div>
           <label className="block sm:hidden" data-testid="label-viewing-date-mobile">
             <span className="sr-only">Choose a viewing date</span>
@@ -336,13 +366,13 @@ export function EnquiryForm({
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
               aria-label="Choose a viewing date"
-              className="h-12 w-full rounded-xl border border-[#d9d0c1] bg-background px-4 text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={`${controlClass} h-12`}
               data-testid="select-viewing-date"
             >
               {dates.map((date) => <option key={date} value={date}>{formatDateLabel(date)}</option>)}
             </select>
           </label>
-          <div role="group" aria-label="Choose a viewing date" className="no-scrollbar hidden gap-2 overflow-x-auto px-1 pb-1 sm:flex" data-testid="group-viewing-dates">
+          <div role="group" aria-label="Choose a viewing date" className="no-scrollbar hidden gap-2 overflow-x-auto pb-1 sm:flex" data-testid="group-viewing-dates">
             {dates.map((date) => {
               const parts = dateParts(date);
               const weekday = parts.find((part) => part.type === 'weekday')?.value ?? '';
@@ -355,27 +385,27 @@ export function EnquiryForm({
                   onClick={() => setSelectedDate(date)}
                   aria-label={`Select ${formatDateLabel(date)}`}
                   aria-pressed={selectedDate === date}
-                  className={`min-w-[76px] rounded-xl border px-3 py-3 text-center transition-all duration-200 ${selectedDate === date ? 'border-primary bg-primary text-primary-foreground shadow-[0_8px_16px_hsl(var(--primary)/.18)]' : 'border-[#ddd4c4] bg-background text-muted-foreground hover:-translate-y-0.5 hover:border-primary/50'}`}
+                  className={`min-w-[76px] border px-3 py-3 text-center transition-colors ${selectedDate === date ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:border-accent hover:text-primary'}`}
                   data-testid={`button-viewing-date-${date}`}
                 >
-                  <span className="block text-[10px] font-bold uppercase tracking-wider opacity-75">{weekday}</span>
-                  <span className="mt-1 block text-2xl font-bold leading-none">{day}</span>
-                  <span className="mt-1 block text-[10px] font-semibold">{month}</span>
+                  <span className="luxxy-label block opacity-75">{weekday}</span>
+                  <span className="mt-1.5 block font-display text-2xl font-semibold leading-none tracking-[-.03em]">{day}</span>
+                  <span className="luxxy-label mt-1.5 block opacity-75">{month}</span>
                 </button>
               );
             })}
           </div>
-          <div className="border-t border-[#e3ddcf] pt-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Available times</p>
-              {availableSlots.length > 0 && <p className="text-xs font-semibold text-[#47725a]">{availableSlots.length} times open</p>}
+          <div className="border-t border-border/70 pt-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="luxxy-label text-muted-foreground">Available times</p>
+              {availableSlots.length > 0 && <p className="font-mono text-[12px] font-bold text-primary">{availableSlots.length} times open</p>}
             </div>
             {availabilityQuery.isLoading ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="loading-availability">
-                {[1, 2, 3, 4].map((item) => <div key={item} className="h-11 animate-pulse rounded-lg bg-[#e7e1d6]" />)}
+                {[1, 2, 3, 4].map((item) => <div key={item} className="h-11 animate-pulse bg-secondary" />)}
               </div>
             ) : availabilityQuery.isError ? (
-              <div role="alert" className="flex items-start gap-2 rounded-lg border border-[#e8c6c0] bg-[#fff2ef] p-3 text-sm text-[#8d3e34]" data-testid="status-availability-error">
+              <div role="alert" className="flex items-start gap-2.5 border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]" data-testid="status-availability-error">
                 <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> Could not load available times. Please choose another date.
               </div>
             ) : availableSlots.length > 0 ? (
@@ -388,7 +418,7 @@ export function EnquiryForm({
                     onClick={() => setSelectedSlot(slot.startAt)}
                     aria-label={`${slot.label}${slot.available ? '' : ' unavailable'}`}
                     aria-pressed={selectedSlot === slot.startAt}
-                    className={`flex h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-bold transition-all duration-200 ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground shadow-[0_6px_14px_hsl(var(--primary)/.2)]' : slot.available ? 'border-[#d9d0c1] bg-background hover:-translate-y-0.5 hover:border-primary/60 hover:bg-[#fffdf7]' : 'cursor-not-allowed border-transparent bg-[#e9e5dc] text-muted-foreground/40 line-through'}`}
+                    className={`flex h-11 items-center justify-center gap-2 border px-3 font-mono text-[13px] font-bold transition-colors ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground' : slot.available ? 'border-border bg-background text-foreground hover:border-accent hover:text-primary' : 'cursor-not-allowed border-border/50 bg-secondary/40 text-muted-foreground/45 line-through'}`}
                     data-testid={`button-viewing-slot-${slot.startAt}`}
                   >
                     {selectedSlot === slot.startAt && <Check className="h-4 w-4" />}
@@ -397,34 +427,44 @@ export function EnquiryForm({
                 ))}
               </div>
             ) : (
-              <p className="rounded-lg border border-[#e2cf9d] bg-[#fff8e6] p-3 text-sm text-[#80611f]" data-testid="status-availability-empty">There are no remaining times on this date. Please choose another day.</p>
+              <p className="border border-[#d4bd83] bg-[#f7f0dd] p-3 text-[13px] leading-6 text-[#80611f]" data-testid="status-availability-empty">There are no remaining times on this date. Please choose another day.</p>
             )}
           </div>
-          <div className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
-            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            {selectedSlotLabel ? <span><strong className="text-foreground">Your time:</strong> {selectedSlotLabel} · {formatDateLabel(selectedDate)}</span> : <span>Select any open time to reserve your visit.</span>}
+          <div className="flex items-start gap-2.5 text-[13px] leading-6 text-muted-foreground">
+            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            {selectedSlotLabel ? <span><strong className="font-bold text-primary">Your time:</strong> {selectedSlotLabel} · {formatDateLabel(selectedDate)}</span> : <span>Select any open time to reserve your visit.</span>}
           </div>
         </fieldset>
       )}
 
-      <label className="block space-y-2 text-sm font-semibold text-foreground">
-        <span className="flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" />Anything else we should know?</span>
-        <Textarea required={!isViewing} minLength={isViewing ? undefined : 1} maxLength={2000} rows={4} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`} data-testid="textarea-enquiry-message" />
+      <label className="block">
+        <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
+        <Textarea
+          required={!isViewing}
+          minLength={isViewing ? undefined : 1}
+          maxLength={2000}
+          rows={4}
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`}
+          className="rounded-none border-border bg-background text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25 md:text-sm"
+          data-testid="textarea-enquiry-message"
+        />
       </label>
 
       {mutation.isError && (
-        <div role="alert" className="flex items-start gap-3 rounded-lg border border-[#e8c6c0] bg-[#fff2ef] p-4 text-sm text-[#8d3e34]" data-testid="status-enquiry-error">
-          <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+        <div role="alert" className="flex items-start gap-3 border border-[#c9a49c] bg-[#f7ece9] p-4 text-sm leading-6 text-[#8d3e34]" data-testid="status-enquiry-error">
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
       )}
       <div className="space-y-4">
-        <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="group h-13 w-full rounded-xl bg-primary font-bold shadow-[0_10px_24px_hsl(var(--primary)/.18)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_28px_hsl(var(--primary)/.24)] sm:w-full" data-testid="button-submit-enquiry">
+        <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="group h-12 w-full rounded-none text-sm font-bold shadow-none" data-testid="button-submit-enquiry">
           {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve this viewing' : `Send ${typeLabels[type].toLowerCase()}`}
-          {!mutation.isPending && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+          {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
-        <div className="flex items-start gap-3 rounded-lg bg-[#f5f1e8] px-3 py-3 text-xs leading-5 text-muted-foreground">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#47725a]" />
+        <div className="flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-3.5 text-[13px] leading-6 text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
           <span>{isViewing ? `Your details are only used to confirm this appointment. We will email your confirmation and a reminder 24 hours before (${bookingTimezone}).` : `Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will email a confirmation to this address.`}</span>
         </div>
       </div>

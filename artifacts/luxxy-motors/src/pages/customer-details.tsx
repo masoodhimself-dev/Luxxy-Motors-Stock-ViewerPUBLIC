@@ -6,9 +6,12 @@ import {
   useCompleteCustomerIntakeSession,
   useGetCustomerIntakeSession,
 } from '@workspace/api-client-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
+const fieldClass =
+  'h-11 rounded-none border-border bg-background text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent/25 focus-visible:ring-offset-0';
+const labelClass = 'luxxy-label mb-2 block text-muted-foreground';
 
 function apiMessage(error: unknown) {
   if (error && typeof error === 'object' && 'data' in error) {
@@ -49,18 +52,20 @@ export default function CustomerDetails() {
 
   if (complete.isSuccess || session?.status === 'completed') {
     return (
-      <div className="min-h-[70vh] bg-muted/20 px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-xl rounded-3xl border bg-card p-8 text-center shadow-sm sm:p-12">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle2 className="h-8 w-8 text-green-700" />
+      <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto max-w-xl border border-border/70 bg-card">
+          <div className="flex items-center gap-3 border-b border-border/70 px-6 py-4">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
+            <p className="luxxy-label text-muted-foreground">Details saved</p>
           </div>
-          <Badge className="mt-6">Details saved</Badge>
-          <h1 className="mt-4 text-3xl font-black tracking-tight">
-            Thank you{savedCustomer?.name ? `, ${savedCustomer.name}` : ''}
-          </h1>
-          <p className="mt-4 text-muted-foreground">
-            Your details have been sent securely to the dealership. You can now hand the device back to the sales team.
-          </p>
+          <div className="px-6 py-10 text-center sm:px-10 sm:py-12">
+            <h1 className="font-display text-[2rem] font-semibold leading-[1.04] tracking-[-.03em] text-primary sm:text-[2.35rem]">
+              Thank you{savedCustomer?.name ? `, ${savedCustomer.name}` : ''}
+            </h1>
+            <p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
+              Your details have been sent securely to the dealership. You can now hand the device back to the sales team.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -68,44 +73,48 @@ export default function CustomerDetails() {
 
   if (query.isLoading) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center bg-muted/20 text-muted-foreground">
-        <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-primary" />
-        Loading customer details form…
+      <div className="luxxy-shell flex min-h-[70vh] items-center justify-center px-4">
+        <p className="luxxy-label flex items-center gap-3 text-muted-foreground">
+          <LoaderCircle className="h-4 w-4 animate-spin text-accent" />
+          Loading customer details form…
+        </p>
       </div>
     );
   }
 
   if (query.isError || !session || session.status === 'expired') {
     return (
-      <div className="min-h-[70vh] bg-muted/20 px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center text-amber-950 sm:p-12">
-          <CircleAlert className="mx-auto h-10 w-10 text-amber-700" />
-          <h1 className="mt-5 text-2xl font-black">Details link unavailable</h1>
-          <p className="mt-3 text-sm text-amber-900/80">{apiMessage(query.error)}</p>
+      <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto max-w-xl border border-[#d4bd83] bg-[#f7f0dd] px-6 py-10 text-center text-[#80611f] sm:px-10 sm:py-12">
+          <CircleAlert className="mx-auto h-8 w-8" />
+          <h1 className="mt-6 font-display text-[1.75rem] font-semibold leading-[1.06] tracking-[-.03em]">Details link unavailable</h1>
+          <p className="mx-auto mt-4 max-w-sm text-sm leading-7">{apiMessage(query.error)}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[70vh] bg-muted/20 px-4 py-10 sm:py-16">
+    <div className="luxxy-shell min-h-[70vh] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-xl">
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5 text-sm">
-          <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <div className="mb-5 flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-4">
+          <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
           <div>
-            <p className="font-black">Customer details</p>
-            <p className="mt-1 text-muted-foreground">
+            <p className="luxxy-label text-primary">Customer details</p>
+            <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
               Enter your details below so the sales team can prepare your paperwork.
             </p>
           </div>
         </div>
 
-        <form onSubmit={submit} className="rounded-3xl border bg-card p-6 shadow-sm sm:p-9">
-          <h1 className="text-3xl font-black tracking-tight">Your details</h1>
-          <p className="mt-2 text-muted-foreground">This should only take a moment.</p>
-          <div className="mt-7 space-y-5">
-            <label className="block space-y-2 text-sm font-semibold">
-              <span>Full name</span>
+        <form onSubmit={submit} className="border border-border/70 bg-card">
+          <div className="border-b border-border/70 px-6 py-6 sm:px-8">
+            <h1 className="font-display text-[1.85rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2.1rem]">Your details</h1>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground">This should only take a moment.</p>
+          </div>
+          <div className="space-y-5 px-6 py-7 sm:px-8">
+            <label className="block">
+              <span className={labelClass}>Full name</span>
               <Input
                 required
                 minLength={2}
@@ -114,10 +123,11 @@ export default function CustomerDetails() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Your full name"
                 autoComplete="name"
+                className={fieldClass}
               />
             </label>
-            <label className="block space-y-2 text-sm font-semibold">
-              <span>Email address</span>
+            <label className="block">
+              <span className={labelClass}>Email address</span>
               <Input
                 type="email"
                 maxLength={320}
@@ -125,25 +135,27 @@ export default function CustomerDetails() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
+                className={fieldClass}
               />
             </label>
-            <label className="block space-y-2 text-sm font-semibold">
-              <span>Phone number</span>
+            <label className="block">
+              <span className={labelClass}>Phone number</span>
               <Input
                 maxLength={40}
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="Optional"
                 autoComplete="tel"
+                className={fieldClass}
               />
             </label>
+            {complete.isError && (
+              <p role="alert" className="border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]">{apiMessage(complete.error)}</p>
+            )}
+            <Button type="submit" size="lg" className="h-12 w-full rounded-none text-sm font-bold shadow-none" disabled={complete.isPending}>
+              {complete.isPending ? 'Saving details…' : 'Save my details'}
+            </Button>
           </div>
-          {complete.isError && (
-            <p className="mt-5 text-sm text-destructive">{apiMessage(complete.error)}</p>
-          )}
-          <Button type="submit" className="mt-7 w-full font-bold" disabled={complete.isPending}>
-            {complete.isPending ? 'Saving details…' : 'Save my details'}
-          </Button>
         </form>
       </div>
     </div>
