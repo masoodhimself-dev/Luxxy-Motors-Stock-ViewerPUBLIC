@@ -174,7 +174,7 @@ function PortalDesk() {
                         : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
                     }`}
                   >
-                    <Icon className="h-3.5 w-3.5" />
+                    <Icon className="h-4 w-4" />
                     {label}
                   </button>
                 );

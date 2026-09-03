@@ -505,13 +505,16 @@ export const UpdateEnquiryStatusResponse = zod.object({
  * Returns leads for the configured dealer, newest first, whatever channel they arrived on.
  * @summary List leads
  */
+export const getLeadsQuerySearchMax = 200;
+
 export const getLeadsQueryOwnerMax = 120;
 
 
 
 export const GetLeadsQueryParams = zod.object({
-  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']).optional(),
-  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']).optional(),
+  "search": zod.coerce.string().min(1).max(getLeadsQuerySearchMax).optional(),
+  "stage": zod.enum(['open', 'all', 'new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']).optional(),
+  "source": zod.enum(['all', 'website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']).optional(),
   "owner": zod.coerce.string().min(1).max(getLeadsQueryOwnerMax).optional(),
   "state": zod.enum(['open', 'closed']).optional().describe('Limit to leads that are still live or already closed.')
 })
@@ -534,6 +537,7 @@ export const GetLeadsResponseItem = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(getLeadsResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -638,6 +642,7 @@ export const CreateLeadResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(createLeadResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -746,6 +751,7 @@ export const GetLeadResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(getLeadResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -894,6 +900,7 @@ export const UpdateLeadResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(updateLeadResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -1016,6 +1023,7 @@ export const LogLeadTouchResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(logLeadTouchResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -1148,6 +1156,7 @@ export const UpdateLeadStageResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(updateLeadStageResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -1267,6 +1276,7 @@ export const AssignLeadOwnerResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(assignLeadOwnerResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -1387,6 +1397,7 @@ export const SetLeadNextActionResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(setLeadNextActionResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -1509,6 +1520,7 @@ export const CloseLeadResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(closeLeadResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -2515,6 +2527,7 @@ export const GetPortalWorklistResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(getPortalWorklistResponseViewingsTodayItemVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -2548,6 +2561,7 @@ export const GetPortalWorklistResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(getPortalWorklistResponseOverdueFollowUpsItemVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -2581,6 +2595,7 @@ export const GetPortalWorklistResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(getPortalWorklistResponseUnansweredEnquiriesItemVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -2614,6 +2629,7 @@ export const GetPortalWorklistResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(getPortalWorklistResponseDepositsWithoutDealItemVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),
@@ -2724,6 +2740,7 @@ export const CreateLeadActivityResponse = zod.object({
   "vehicleRegistration": zod.string().nullable(),
   "vehiclePrice": zod.number().multipleOf(createLeadActivityResponseLeadVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "owner": zod.string().nullable(),

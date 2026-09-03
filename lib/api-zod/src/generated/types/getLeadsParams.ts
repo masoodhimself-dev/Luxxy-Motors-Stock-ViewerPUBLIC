@@ -10,6 +10,11 @@ import type { GetLeadsStage } from './getLeadsStage';
 import type { GetLeadsState } from './getLeadsState';
 
 export type GetLeadsParams = {
+/**
+ * @minLength 1
+ * @maxLength 200
+ */
+search?: string;
 stage?: GetLeadsStage;
 source?: GetLeadsSource;
 /**

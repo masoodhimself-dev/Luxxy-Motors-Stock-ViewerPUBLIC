@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Source+Sans+3:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
 @layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
 @import '@clerk/themes/shadcn.css';
@@ -39,80 +39,81 @@
 
   --font-sans: var(--app-font-sans);
   
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
 }
 
 :root {
-  --site-header-height: 4.5rem;
-  /* Luxxy Motors — warm showroom paper, ink teal, sage and muted brass */
-  --background: 44 22% 95%;
-  --foreground: 183 31% 18%;
+  --site-header-height: 5rem;
+  /* Luxxy Motors — Warm showroom paper, ink teal, sage, muted brass */
+  --background: 42 33% 96%;
+  --foreground: 188 50% 12%;
   
-  --border: 43 16% 82%;
-  --input: 43 16% 82%;
-  --ring: 38 54% 48%;
+  --border: 188 20% 85%;
+  --input: 188 20% 85%;
+  --ring: 35 62% 58%;
   
-  --card: 45 30% 98%;
-  --card-foreground: 183 31% 18%;
-  --card-border: 43 16% 82%;
+  --card: 42 33% 98%;
+  --card-foreground: 188 50% 12%;
+  --card-border: 188 20% 85%;
   
-  --popover: 45 30% 98%;
-  --popover-foreground: 183 31% 18%;
-  --popover-border: 43 16% 82%;
+  --popover: 42 33% 98%;
+  --popover-foreground: 188 50% 12%;
+  --popover-border: 188 20% 85%;
   
-  /* Primary: ink teal */
-  --primary: 183 31% 20%;
-  --primary-foreground: 44 22% 95%;
+  /* Primary: Ink Teal */
+  --primary: 188 50% 14%;
+  --primary-foreground: 42 33% 96%;
   
-  /* Secondary: soft sage */
-  --secondary: 90 16% 87%;
-  --secondary-foreground: 183 28% 22%;
+  /* Secondary: Soft Sage */
+  --secondary: 129 18% 85%;
+  --secondary-foreground: 188 50% 14%;
   
-  --muted: 43 20% 90%;
-  --muted-foreground: 183 12% 42%;
+  /* Muted */
+  --muted: 42 20% 90%;
+  --muted-foreground: 188 12% 42%;
   
-  /* Accent: muted brass */
-  --accent: 38 54% 48%;
-  --accent-foreground: 183 31% 18%;
+  /* Accent: Muted Brass */
+  --accent: 35 62% 54%;
+  --accent-foreground: 188 50% 10%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  --app-font-sans: 'Source Sans 3', sans-serif;
-  --font-display: 'Bitter', Georgia, serif;
-  --radius: 0.8rem;
+  --app-font-sans: 'DM Sans', sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --radius: 0;
 }
 
 .dark {
-  --background: 183 31% 12%;
-  --foreground: 44 22% 95%;
+  --background: 188 50% 10%;
+  --foreground: 42 33% 96%;
   
-  --border: 183 21% 25%;
-  --input: 183 21% 25%;
-  --ring: 38 54% 62%;
+  --border: 188 30% 20%;
+  --input: 188 30% 20%;
+  --ring: 35 62% 58%;
   
-  --card: 183 26% 16%;
-  --card-foreground: 44 22% 95%;
-  --card-border: 183 21% 25%;
+  --card: 188 50% 12%;
+  --card-foreground: 42 33% 96%;
+  --card-border: 188 30% 20%;
   
-  --popover: 183 31% 10%;
-  --popover-foreground: 44 22% 95%;
-  --popover-border: 183 21% 25%;
+  --popover: 188 50% 10%;
+  --popover-foreground: 42 33% 96%;
+  --popover-border: 188 30% 20%;
   
-  --primary: 38 54% 62%;
-  --primary-foreground: 183 31% 12%;
+  --primary: 35 62% 58%;
+  --primary-foreground: 188 50% 10%;
   
-  --secondary: 183 24% 22%;
-  --secondary-foreground: 44 22% 95%;
+  --secondary: 188 40% 18%;
+  --secondary-foreground: 42 33% 96%;
   
-  --muted: 183 24% 22%;
-  --muted-foreground: 183 12% 72%;
+  --muted: 188 40% 18%;
+  --muted-foreground: 188 20% 75%;
   
-  --accent: 38 54% 62%;
-  --accent-foreground: 183 31% 12%;
+  --accent: 35 62% 58%;
+  --accent-foreground: 188 50% 10%;
   
   --destructive: 0 63% 31%;
   --destructive-foreground: 210 40% 98%;

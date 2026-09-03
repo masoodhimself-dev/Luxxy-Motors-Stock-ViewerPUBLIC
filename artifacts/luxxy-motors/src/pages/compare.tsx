@@ -110,7 +110,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
 
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div>
-          <h3 className="font-display text-lg font-semibold leading-tight tracking-[-.02em] text-primary sm:text-xl">
+          <h3 className="font-display text-lg font-semibold leading-tight tracking-tight text-primary sm:text-xl">
             <Link href={`/vehicle/${car.id}`} className="outline-none transition-colors hover:text-accent focus-visible:underline">
               {label}
             </Link>
@@ -256,14 +256,14 @@ export default function Compare() {
             <span className="mx-auto mb-6 grid h-14 w-14 place-items-center border border-border bg-secondary text-accent">
               <Scale className="h-6 w-6" />
             </span>
-            <p className="font-display text-3xl font-semibold tracking-[-.02em] text-primary">No cars picked yet</p>
+            <p className="font-display text-3xl font-semibold tracking-tight text-primary">No cars picked yet</p>
             <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
               Choose Compare on any {MAX_COMPARE} cars in the showroom and their details will line up here.
             </p>
             <Link
               href="/"
               data-testid="link-compare-browse"
-              className="inline-flex h-12 items-center justify-center gap-3 bg-primary px-7 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex h-14 items-center justify-center gap-3 bg-primary px-8 text-base font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Browse the stock list
               <ArrowRight className="h-4 w-4" />

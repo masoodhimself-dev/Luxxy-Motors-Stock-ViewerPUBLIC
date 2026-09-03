@@ -27,6 +27,8 @@ export interface Lead {
   vehiclePrice: number | null;
   /** @nullable */
   vehicleUrl: string | null;
+  /** @nullable */
+  appointmentAt: Date | null;
   stage: LeadStage;
   source: LeadSource;
   /** @nullable */

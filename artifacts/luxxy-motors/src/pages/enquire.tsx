@@ -151,7 +151,7 @@ export default function Enquire() {
               </div>
             )}
 
-            <div className="grid gap-5 border-t border-white/12 px-6 py-6 sm:px-8">
+            <div className="grid gap-5 border-t border-white/12 px-6 py-6 sm:px-8 bg-black/15">
               <div className="flex items-start gap-3">
                 <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                 <div>
@@ -209,9 +209,9 @@ export default function Enquire() {
                 { icon: Phone, title: 'Real people', text: 'Questions? We are happy to talk.' },
               ].map(({ icon: Icon, title, text }) => (
                 <div key={title} className="border border-border/70 bg-card p-5" data-testid={`info-enquiry-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-                  <Icon className="h-4 w-4 text-accent" />
-                  <p className="luxxy-label mt-5 text-primary">{title}</p>
-                  <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{text}</p>
+                  <Icon className="h-5 w-5 text-accent" />
+                  <p className="mt-4 font-bold text-primary">{title}</p>
+                  <p className="mt-1 text-[13px] leading-6 text-muted-foreground">{text}</p>
                 </div>
               ))}
             </div>

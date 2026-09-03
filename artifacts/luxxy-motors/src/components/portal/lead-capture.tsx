@@ -102,7 +102,7 @@ export function LeadCapture({
         cache.invalidateQueries({ queryKey: getGetPortalWorklistQueryKey() }),
         cache.invalidateQueries({ queryKey: getGetLeadChannelSummaryQueryKey() }),
       ]);
-      onCreated(lead.id);
+      onCreated(lead.lead.id);
     } catch {
       setError('The lead could not be saved. Check the details and try again.');
     }

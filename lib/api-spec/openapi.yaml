@@ -285,17 +285,24 @@ paths:
       description: Returns leads for the configured dealer, newest first, whatever channel they arrived on.
       parameters:
         - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - in: query
           name: stage
           required: false
           schema:
             type: string
-            enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+            enum: [open, all, new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
         - in: query
           name: source
           required: false
           schema:
             type: string
-            enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+            enum: [all, website_form, phone, whatsapp, walk_in, marketplace, social]
         - in: query
           name: owner
           required: false
@@ -2044,6 +2051,9 @@ components:
           multipleOf: 1
         vehicleUrl:
           type: [string, "null"]
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
         stage:
           type: string
           enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]

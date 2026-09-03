@@ -95,7 +95,7 @@ export default function CustomerDetails() {
   return (
     <div className="luxxy-shell min-h-[70vh] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-xl">
-        <div className="mb-5 flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-4">
+        <div className="mb-5 flex items-start gap-3 border border-border/70 bg-card px-5 py-5">
           <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
           <div>
             <p className="luxxy-label text-primary">Customer details</p>

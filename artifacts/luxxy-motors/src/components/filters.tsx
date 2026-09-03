@@ -145,20 +145,20 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8">
       <div className="luxxy-surface border border-border bg-card">
-        <div className="flex flex-col justify-between gap-4 border-b border-border px-5 py-6 sm:flex-row sm:items-end sm:px-8">
+        <div className="flex flex-col justify-between gap-4 border-b border-border bg-primary text-primary-foreground px-5 py-8 sm:flex-row sm:items-end sm:px-8">
           <div>
-            <p className="luxxy-kicker">Browse our stock</p>
-            <h2 className="mt-4 font-display text-3xl font-semibold leading-none tracking-[-.03em] text-primary md:text-4xl">
+            <p className="luxxy-label text-accent">Browse our stock</p>
+            <h2 className="mt-4 font-display text-4xl font-semibold leading-none tracking-tight md:text-5xl">
               Find a car you&apos;ll love
             </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/70">
               Start with a simple search, then fine-tune the details that matter to you.
             </p>
           </div>
-          <p className="font-mono text-[13px] font-bold text-primary">{vehicleCount} vehicles in stock</p>
+          <p className="font-mono text-[13px] font-bold text-accent">{vehicleCount} vehicles in stock</p>
         </div>
 
-        <div className="px-5 py-6 sm:px-8">
+        <div className="px-5 py-6 sm:px-8 bg-card">
           <label className="block">
             <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
               <Search className="h-3.5 w-3.5 text-accent" />
@@ -176,7 +176,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     handleSearchClick();
                   }
                 }}
-                className="h-12 pr-11 placeholder:font-semibold"
+                className="h-14 pr-11 text-base placeholder:font-normal focus-visible:border-accent"
                 data-testid="input-showroom-search"
               />
               {filters.search && (

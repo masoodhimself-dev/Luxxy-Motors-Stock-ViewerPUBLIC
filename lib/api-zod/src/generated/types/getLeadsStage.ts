@@ -10,6 +10,8 @@ export type GetLeadsStage = typeof GetLeadsStage[keyof typeof GetLeadsStage];
 
 
 export const GetLeadsStage = {
+  open: 'open',
+  all: 'all',
   new: 'new',
   qualifying: 'qualifying',
   viewing_booked: 'viewing_booked',

@@ -104,6 +104,8 @@ export default function CarDetail() {
     { label: 'Doors', value: car.doors ? String(car.doors) : '-' },
     { label: 'Seats', value: car.seats ? String(car.seats) : '-' },
     { label: 'Colour', value: car.colour || '-' },
+    { label: 'Drivetrain', value: car.drivetrain || '-' },
+    { label: 'Emissions', value: car.emissionClass || '-' },
   ];
 
   const keyFacts: { label: string; value: string; testId?: string }[] = [
@@ -157,17 +159,17 @@ export default function CarDetail() {
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         {/* Explicit placement keeps the purchase panel ahead of the spec ledger on
             narrow screens, while both stay beside the gallery on desktop. */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-10">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:gap-10 xl:grid-cols-[1fr_420px]">
 
-          <div className="lg:col-span-2 lg:col-start-1 lg:row-start-1">
+          <div className="lg:col-start-1 lg:row-start-1">
             <Gallery images={car.images || []} heroImage={car.heroImage} />
           </div>
 
           {/* Right Column: Key Details & CTA */}
-          <div className="lg:col-start-3 lg:row-span-2 lg:row-start-1">
-            <div className="sticky top-[calc(var(--site-header-height,4.5rem)+1.5rem)] border border-border/70 bg-card">
-              <div className="border-b border-border/70 p-6">
-                <h1 className="font-display text-[1.9rem] font-semibold leading-[1.08] tracking-[-.03em] text-primary">
+          <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <div className="sticky top-[calc(var(--site-header-height,5rem)+1.5rem)] border border-border bg-card">
+              <div className="border-b border-border/70 p-6 sm:p-8">
+                <h1 className="font-display text-[1.9rem] font-semibold leading-[1.08] tracking-tight text-primary">
                   {car.title || `${car.make} ${car.model}`}
                 </h1>
 
@@ -192,28 +194,28 @@ export default function CarDetail() {
                 )}
               </div>
 
-              <div className="flex items-end justify-between gap-4 border-b border-border/70 p-6">
+              <div className="flex items-end justify-between gap-4 border-b border-border/70 p-6 sm:p-8">
                 <div>
                   <p className="luxxy-label text-muted-foreground">Price</p>
-                  <p className="mt-2 font-display text-[2.5rem] font-semibold leading-none tracking-[-.03em] text-primary">
+                  <p className="mt-2 font-display text-[2.5rem] font-semibold leading-none tracking-tight text-primary">
                     {car.price ? formatPrice(car.price, car.currency) : 'POA'}
                   </p>
                 </div>
                 {car.priceType && (
-                  <span className="luxxy-label shrink-0 border border-border px-2.5 py-1.5 text-muted-foreground">
+                  <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground">
                     {car.priceType}
                   </span>
                 )}
               </div>
 
-              <dl className="grid gap-3.5 border-b border-border/70 p-6">
+              <dl className="grid gap-3.5 border-b border-border/70 p-6 sm:p-8 bg-background">
                 {keyFacts.map((fact) => (
                   <LedgerRow key={fact.label} label={fact.label} value={fact.value} testId={fact.testId} />
                 ))}
               </dl>
 
-              <div className="grid grid-cols-2 gap-2 p-6">
-                <Button asChild size="lg" className="col-span-2 h-12 text-sm font-bold">
+              <div className="grid grid-cols-2 gap-2 p-6 sm:p-8">
+                <Button asChild size="lg" className="col-span-2 h-12 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground">
                   <a
                      href={bookingHref}
                      target={bookingHref.startsWith('https://') ? '_blank' : undefined}
@@ -258,7 +260,7 @@ export default function CarDetail() {
                 )}
               </div>
 
-              <div className="flex gap-3 border-t border-border/70 bg-secondary/45 px-6 py-5">
+              <div className="flex gap-3 border-t border-border/70 bg-secondary/25 px-6 sm:px-8 py-5">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                 <p className="text-[13px] leading-6 text-muted-foreground">
                   Sold by {dealerConfig.identity.name || stock.dealerName || 'Independent Dealer'}. Viewings by appointment only.
@@ -268,16 +270,16 @@ export default function CarDetail() {
           </div>
 
           <section
-            className="border border-border/70 bg-card lg:col-span-2 lg:col-start-1 lg:row-start-2"
+            className="border border-border bg-card lg:col-start-1 lg:row-start-2"
             aria-labelledby="vehicle-overview-heading"
           >
-            <div className="flex items-center gap-3 border-b border-border/70 px-6 py-4">
+            <div className="flex items-center gap-3 border-b border-border/70 px-6 py-4 sm:px-8 bg-secondary/15">
               <Activity className="h-4 w-4 shrink-0 text-accent" />
               <h2 id="vehicle-overview-heading" className="luxxy-label text-primary">
                 Vehicle Overview
               </h2>
             </div>
-            <dl className="grid gap-x-12 gap-y-3.5 px-6 py-6 sm:grid-cols-2">
+            <dl className="grid gap-x-12 gap-y-3.5 px-6 sm:px-8 py-6 sm:grid-cols-2 bg-background">
               {overviewSpecs.map((spec) => (
                 <LedgerRow key={spec.label} label={spec.label} value={spec.value} />
               ))}

@@ -98,14 +98,14 @@ export default function Saved() {
             <span className="mx-auto mb-6 grid h-14 w-14 place-items-center border border-border bg-secondary text-accent">
               <Heart className="h-6 w-6" />
             </span>
-            <p className="font-display text-3xl font-semibold tracking-[-.02em] text-primary">Nothing saved yet</p>
+            <p className="font-display text-3xl font-semibold tracking-tight text-primary">Nothing saved yet</p>
             <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
               Tap the heart on any car in the showroom and it will be waiting for you here.
             </p>
             <Link
               href="/"
               data-testid="link-saved-browse"
-              className="inline-flex h-12 items-center justify-center gap-3 bg-primary px-7 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex h-14 items-center justify-center gap-3 bg-primary px-8 text-base font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Browse the stock list
               <ArrowRight className="h-4 w-4" />

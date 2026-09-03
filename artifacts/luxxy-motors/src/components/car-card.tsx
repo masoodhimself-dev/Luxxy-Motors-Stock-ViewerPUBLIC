@@ -181,12 +181,16 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
   );
 
   const ledger = visibleSpecs.length > 0 && (
-    <dl className={cn('grid gap-x-9 gap-y-2.5', isRow ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1')}>
-      {visibleSpecs.map((spec) => (
-        <div key={spec.label} className="flex items-baseline gap-2">
-          <dt className="luxxy-label shrink-0 text-muted-foreground">{spec.label}</dt>
-          <span className="luxxy-leader" aria-hidden="true" />
-          <dd className="shrink-0 font-mono text-[13px] font-bold text-foreground">{spec.value}</dd>
+    <dl className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]')}>
+      {visibleSpecs.map((spec, index) => (
+        <div key={spec.label} className="flex items-center gap-3">
+          <div className="flex items-baseline gap-1.5">
+            <dt className="text-muted-foreground">{spec.label}</dt>
+            <dd className="font-bold text-foreground">{spec.value}</dd>
+          </div>
+          {index < visibleSpecs.length - 1 && (
+            <span className="h-1 w-1 bg-border" aria-hidden="true" />
+          )}
         </div>
       ))}
     </dl>
@@ -194,8 +198,8 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
 
   const priceBlock = (
     <div>
-      <p className="luxxy-label text-muted-foreground">{car.price ? 'Price' : 'Price'}</p>
-      <p className={cn('mt-1.5 font-display font-semibold leading-none tracking-[-.02em] text-primary', isRow ? 'text-[2.35rem]' : 'text-3xl')}>
+      <p className="luxxy-label text-muted-foreground">{car.price ? 'Cash Price' : 'Price'}</p>
+      <p className={cn('mt-1 font-display font-semibold leading-none tracking-tight text-primary', isRow ? 'text-3xl' : 'text-3xl')}>
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </p>
     </div>
@@ -246,7 +250,7 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
   const title = (
     <h3
       className={cn(
-        'font-display font-semibold leading-tight tracking-[-.02em] text-primary',
+        'font-display font-semibold leading-tight tracking-tight text-primary',
         isRow ? 'text-2xl sm:text-[1.7rem]' : 'text-xl',
       )}
     >
@@ -257,7 +261,7 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
   );
 
   const subtitle = (car.variant || car.trim) && (
-    <p className="mt-1.5 line-clamp-1 text-sm leading-6 text-muted-foreground">{car.variant || car.trim}</p>
+    <p className="mt-1 line-clamp-1 text-sm leading-6 text-muted-foreground">{car.variant || car.trim}</p>
   );
 
   if (isRow) {

@@ -10,6 +10,7 @@ export type GetLeadsSource = typeof GetLeadsSource[keyof typeof GetLeadsSource];
 
 
 export const GetLeadsSource = {
+  all: 'all',
   website_form: 'website_form',
   phone: 'phone',
   whatsapp: 'whatsapp',

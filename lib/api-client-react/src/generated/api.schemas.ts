@@ -698,6 +698,8 @@ export interface Lead {
   vehiclePrice: number | null;
   /** @nullable */
   vehicleUrl: string | null;
+  /** @nullable */
+  appointmentAt: string | null;
   stage: LeadStage;
   source: LeadSource;
   /** @nullable */
@@ -1471,6 +1473,11 @@ date: string;
 };
 
 export type GetLeadsParams = {
+/**
+ * @minLength 1
+ * @maxLength 200
+ */
+search?: string;
 stage?: GetLeadsStage;
 source?: GetLeadsSource;
 /**
@@ -1488,6 +1495,8 @@ export type GetLeadsStage = typeof GetLeadsStage[keyof typeof GetLeadsStage];
 
 
 export const GetLeadsStage = {
+  open: 'open',
+  all: 'all',
   new: 'new',
   qualifying: 'qualifying',
   viewing_booked: 'viewing_booked',
@@ -1503,6 +1512,7 @@ export type GetLeadsSource = typeof GetLeadsSource[keyof typeof GetLeadsSource];
 
 
 export const GetLeadsSource = {
+  all: 'all',
   website_form: 'website_form',
   phone: 'phone',
   whatsapp: 'whatsapp',

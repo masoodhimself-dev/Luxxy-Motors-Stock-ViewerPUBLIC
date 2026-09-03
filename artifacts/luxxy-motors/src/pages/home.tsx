@@ -8,7 +8,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, RotateCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -165,7 +165,7 @@ export default function Home() {
                     src={secondaryHeroImage}
                     alt={secondaryHeroCar?.title || `${secondaryHeroCar?.make || ''} ${secondaryHeroCar?.model || ''}`.trim() || `${dealerConfig.identity.name} vehicle`}
                     loading="eager"
-                    className="h-full w-full object-cover object-center"
+                    className="h-full w-full object-cover object-center grayscale-[20%] contrast-125"
                   />
                 ) : (
                   <div className="h-full w-full bg-secondary" aria-label={`${dealerConfig.identity.name} vehicle`} />
@@ -177,10 +177,10 @@ export default function Home() {
                   size="lg"
                   onClick={revealResults}
                   data-testid="button-hero-primary"
-                  className="h-[3.25rem] bg-primary px-6 text-[.95rem] font-bold text-primary-foreground hover:bg-primary/90"
+                  className="h-14 bg-primary px-8 text-base font-bold text-primary-foreground hover:bg-primary/90"
                 >
                   {dealerConfig.hero.primaryCta}
-                  <ArrowRight className="ml-4 h-4 w-4" />
+                  <ArrowRight className="ml-4 h-5 w-5" />
                 </Button>
                 {dealerConfig.partExchange?.enabled && (
                   <Button
@@ -188,25 +188,25 @@ export default function Home() {
                     variant="outline"
                     asChild
                     data-testid="link-hero-part-exchange"
-                    className="h-[3.25rem] border-primary/25 bg-transparent px-6 text-[.95rem] font-bold text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground"
+                    className="h-14 border-border bg-card px-8 text-base font-bold text-primary hover:border-primary hover:bg-secondary hover:text-primary"
                   >
                     <a href={getContactHref('Part Exchange Enquiry')}>
                       {dealerConfig.hero.secondaryCta}
-                      <RefreshCcw className="ml-4 h-4 w-4" />
+                      <RotateCcw className="ml-4 h-5 w-5" />
                     </a>
                   </Button>
                 )}
               </div>
             </div>
 
-            <div className="relative -mx-4 h-[300px] overflow-hidden sm:-mx-6 sm:h-[400px] lg:absolute lg:inset-y-10 lg:left-[52%] lg:right-[calc(50%-50vw)] lg:mx-0 lg:h-auto">
+            <div className="relative -mx-4 h-[300px] overflow-hidden sm:-mx-6 sm:h-[400px] lg:absolute lg:inset-y-10 lg:left-[52%] lg:right-[calc(50%-50vw)] lg:mx-0 lg:h-auto border-l border-y border-border">
               {heroImage ? (
                 <img
                   src={heroImage}
                   alt={heroCar?.title || `${heroCar?.make || ''} ${heroCar?.model || ''}`.trim() || `${dealerConfig.identity.name} vehicle`}
                   fetchPriority="high"
                   loading="eager"
-                  className="luxxy-hero-image absolute inset-0 h-full w-full object-cover object-center"
+                  className="luxxy-hero-image absolute inset-0 h-full w-full object-cover object-center grayscale-[20%] contrast-125"
                 />
               ) : (
                 <div className="absolute inset-0 bg-secondary" />
@@ -218,11 +218,11 @@ export default function Home() {
       </section>
 
       {/* Search board */}
-      <section className="border-b border-border bg-primary text-primary-foreground" aria-label="Search the showroom" data-testid="hero-search">
+      <section className="border-b border-border bg-card text-foreground" aria-label="Search the showroom" data-testid="hero-search">
         <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-9">
             <div className="flex items-baseline justify-between gap-4 lg:w-48 lg:shrink-0 lg:flex-col lg:items-start lg:gap-2">
-              <p className="luxxy-label text-primary-foreground/65">Search the showroom</p>
+              <p className="luxxy-label text-muted-foreground">Search the showroom</p>
               {stock && (
                 <span className="font-mono text-[11px] font-bold text-accent" data-testid="text-hero-stock-count">
                   {stockCount} vehicles available
@@ -243,7 +243,7 @@ export default function Home() {
                       revealResults();
                     }
                   }}
-                  className="h-12 border-primary-foreground/20 bg-primary-foreground/10 pl-10 text-primary-foreground placeholder:font-semibold placeholder:text-primary-foreground/45 focus-visible:ring-accent/30"
+                  className="h-12 border-border bg-background pl-10 text-foreground placeholder:font-normal focus-visible:border-accent"
                   data-testid="input-hero-search"
                 />
               </div>
@@ -251,7 +251,7 @@ export default function Home() {
                 aria-label="Filter by make"
                 value={filters.make}
                 onChange={(event) => setFilters(current => ({ ...current, make: event.target.value, model: '' }))}
-                className="h-12 border-primary-foreground/20 bg-primary-foreground/10 font-bold text-primary-foreground focus:ring-accent/30 sm:w-40"
+                className="h-12 border-border bg-background font-bold text-foreground focus:ring-accent/30 sm:w-40"
                 data-testid="select-hero-make"
               >
                 <option value="" className="text-foreground">Any make</option>
@@ -264,15 +264,15 @@ export default function Home() {
 
       {/* What you can expect */}
       {dealerConfig.trustItems?.length > 0 && (
-        <section className="border-b border-border bg-secondary/35" aria-label={`${dealerConfig.identity.name} promises`}>
+        <section className="border-b border-border bg-card" aria-label={`${dealerConfig.identity.name} promises`}>
           <div className="container mx-auto grid px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
             {dealerConfig.trustItems.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-3 border-b border-border/70 py-5 last:border-b-0 sm:border-b-0 sm:border-r sm:pr-6 sm:last:border-r-0 lg:py-6"
+                className="flex items-center gap-3 border-b border-border/70 py-6 last:border-b-0 sm:border-b-0 sm:border-r sm:pr-6 sm:last:border-r-0"
               >
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
-                <p className="text-[12px] font-bold uppercase leading-5 tracking-[.09em] text-foreground/85">{item}</p>
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" />
+                <p className="text-xs font-bold uppercase leading-5 tracking-widest text-primary">{item}</p>
               </div>
             ))}
           </div>
@@ -391,12 +391,12 @@ export default function Home() {
       )}
 
       {/* Services */}
-      <section className="border-y border-border bg-secondary/35 py-20 md:py-24">
+      <section className="border-y border-border bg-card py-20 md:py-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div>
               <p className="luxxy-kicker text-accent">Once you have found it</p>
-              <h2 className="mt-4 max-w-xl font-display text-4xl font-semibold leading-[1] tracking-[-.035em] text-primary md:text-5xl">
+              <h2 className="mt-4 max-w-xl font-display text-4xl font-semibold leading-[1] tracking-tight text-primary md:text-5xl">
                 The useful bits,<br />handled properly.
               </h2>
             </div>
@@ -406,19 +406,19 @@ export default function Home() {
           </div>
           <div className="grid gap-5 md:grid-cols-2">
             {dealerConfig.warranty?.enabled && (
-              <article id="warranty" data-home-section className="flex flex-col border border-border bg-card p-7 sm:p-9">
+              <article id="warranty" data-home-section className="flex flex-col border border-border bg-background p-7 sm:p-9">
                 <ShieldCheck className="h-8 w-8 text-accent" />
-                <h3 className="mt-10 font-display text-3xl font-semibold tracking-[-.02em] text-primary">{dealerConfig.warranty.title}</h3>
+                <h3 className="mt-10 font-display text-3xl font-semibold tracking-tight text-primary">{dealerConfig.warranty.title}</h3>
                 <p className="mt-4 max-w-md flex-1 text-base leading-7 text-muted-foreground">{dealerConfig.warranty.description}</p>
-                <Button asChild variant="outline" size="lg" data-testid="link-warranty-enquiry" className="mt-8 h-12 w-fit border-primary/30 px-5 font-bold text-primary hover:bg-primary hover:text-primary-foreground">
+                <Button asChild variant="outline" size="lg" data-testid="link-warranty-enquiry" className="mt-8 h-12 w-fit border-border bg-card px-5 font-bold text-primary hover:border-primary hover:bg-secondary">
                   <a href={getContactHref('Warranty Enquiry')}>{dealerConfig.warranty.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
                 </Button>
               </article>
             )}
             {dealerConfig.delivery?.enabled && (
-              <article id="delivery" data-home-section className="flex flex-col bg-primary p-7 text-primary-foreground sm:p-9">
+              <article id="delivery" data-home-section className="flex flex-col border border-border bg-primary p-7 text-primary-foreground sm:p-9">
                 <Truck className="h-8 w-8 text-accent" />
-                <h3 className="mt-10 font-display text-3xl font-semibold tracking-[-.02em]">{dealerConfig.delivery.title}</h3>
+                <h3 className="mt-10 font-display text-3xl font-semibold tracking-tight">{dealerConfig.delivery.title}</h3>
                 <p className="mt-4 max-w-md flex-1 text-base leading-7 text-primary-foreground/70">{dealerConfig.delivery.description}</p>
                 <Button asChild size="lg" data-testid="link-delivery-enquiry" className="mt-8 h-12 w-fit bg-accent px-5 font-bold text-accent-foreground hover:bg-accent/90">
                   <a href={getContactHref('Delivery Enquiry')}>{dealerConfig.delivery.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
@@ -430,66 +430,66 @@ export default function Home() {
       </section>
 
       {/* Book a viewing */}
-      <section id="book-viewing" data-home-section className="bg-background py-20 md:py-28">
+      <section id="book-viewing" data-home-section className="bg-primary text-primary-foreground py-20 md:py-28">
         <div className="container mx-auto grid gap-8 px-4 sm:px-6 md:grid-cols-[.75fr_1.25fr] md:items-center lg:px-8">
           <div className="flex items-center gap-5">
             <span className="grid h-14 w-14 shrink-0 place-items-center bg-accent text-accent-foreground"><Calendar className="h-6 w-6" /></span>
             <div>
-              <p className="luxxy-kicker text-accent">Come and see it</p>
-              <p className="mt-2 text-sm font-semibold text-muted-foreground">Viewings at a time that suits you.</p>
+              <p className="luxxy-label text-accent">Come and see it</p>
+              <p className="mt-2 text-sm font-semibold text-primary-foreground/70">Viewings at a time that suits you.</p>
             </div>
           </div>
           <div className="flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
-            <h2 className="max-w-xl font-display text-4xl font-semibold leading-[1] tracking-[-.035em] text-primary md:text-5xl">{dealerConfig.bookViewing.title}</h2>
-            <Button size="lg" asChild data-testid="link-book-viewing" className="h-[3.25rem] shrink-0 bg-primary px-6 font-bold text-primary-foreground hover:bg-primary/90">
+            <h2 className="max-w-xl font-display text-4xl font-semibold leading-[1] tracking-tight md:text-5xl">{dealerConfig.bookViewing.title}</h2>
+            <Button size="lg" asChild data-testid="link-book-viewing" className="h-[3.25rem] shrink-0 bg-accent px-6 font-bold text-accent-foreground hover:bg-accent/90">
               <a href={getContactHref('Book a Viewing')}>{dealerConfig.bookViewing.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
             </Button>
           </div>
-          <p className="text-base leading-7 text-muted-foreground md:col-start-2 md:max-w-xl">{dealerConfig.bookViewing.description}</p>
+          <p className="text-base leading-7 text-primary-foreground/70 md:col-start-2 md:max-w-xl">{dealerConfig.bookViewing.description}</p>
         </div>
       </section>
 
       {/* Visit us */}
       {dealerConfig.address && locationLabel && (
-        <section id="visit" data-home-section className="border-t border-border bg-card py-20 md:py-24">
+        <section id="visit" data-home-section className="border-t border-border bg-background py-20 md:py-24">
           <div className="container mx-auto grid gap-12 px-4 sm:px-6 lg:grid-cols-[.8fr_1.2fr] lg:gap-20 lg:px-8">
             <div>
-              <p className="luxxy-kicker text-accent"><MapPin className="h-4 w-4" /> Visit the showroom</p>
-              <h2 className="mt-6 font-display text-5xl font-semibold leading-[.95] tracking-[-.04em] text-primary">{locationLabel}</h2>
+              <p className="luxxy-label text-accent"><MapPin className="mr-2 inline h-4 w-4 -translate-y-0.5" /> Visit the showroom</p>
+              <h2 className="mt-6 font-display text-5xl font-semibold leading-[.95] tracking-tight text-primary">{locationLabel}</h2>
               <address className="mt-8 border-l-2 border-accent pl-5 text-base not-italic leading-7 text-muted-foreground">
                 {dealerConfig.address.street && <p className="font-bold text-foreground">{dealerConfig.address.street}</p>}
                 {dealerConfig.address.postcode && <p>{dealerConfig.address.postcode}</p>}
               </address>
               {dealerConfig.address.mapsUrl && (
-                <Button asChild size="lg" data-testid="link-get-directions" className="mt-8 h-12 px-6 font-bold">
+                <Button asChild size="lg" variant="outline" data-testid="link-get-directions" className="mt-8 h-12 px-6 font-bold border-primary text-primary hover:bg-primary hover:text-primary-foreground">
                   <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer">Get directions<ArrowRight className="ml-4 h-4 w-4" /></a>
                 </Button>
               )}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {dealerConfig.contact.phone && (
-                <a data-testid="link-contact-phone" className="group border border-border bg-background p-6 transition-colors hover:border-primary/40" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>
+                <a data-testid="link-contact-phone" className="group border border-border bg-card p-6 transition-colors hover:border-accent" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>
                   <Phone className="h-5 w-5 text-accent" />
                   <span className="luxxy-label mt-8 block text-muted-foreground">Call us</span>
-                  <span className="mt-1.5 block text-lg font-bold text-primary">{dealerConfig.contact.phone}</span>
+                  <span className="mt-1.5 block text-lg font-bold text-primary group-hover:text-accent">{dealerConfig.contact.phone}</span>
                 </a>
               )}
               {dealerConfig.contact.whatsapp && (
-                <a data-testid="link-contact-whatsapp" className="group border border-border bg-background p-6 transition-colors hover:border-primary/40" href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="h-5 w-5 text-accent" />
-                  <span className="luxxy-label mt-8 block text-muted-foreground">Message us</span>
-                  <span className="mt-1.5 block text-lg font-bold text-primary">WhatsApp</span>
+                <a data-testid="link-contact-whatsapp" className="group border border-[#1f7a4d]/30 bg-[#1f7a4d]/5 p-6 transition-colors hover:border-[#1f7a4d]" href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="h-5 w-5 text-[#1f7a4d]" />
+                  <span className="luxxy-label mt-8 block text-[#1b6543]/70">Message us</span>
+                  <span className="mt-1.5 block text-lg font-bold text-[#1b6543]">WhatsApp</span>
                 </a>
               )}
               {dealerConfig.contact.email && (
-                <a data-testid="link-contact-email" className="group border border-border bg-background p-6 transition-colors hover:border-primary/40 sm:col-span-2" href={`mailto:${dealerConfig.contact.email}`}>
+                <a data-testid="link-contact-email" className="group border border-border bg-card p-6 transition-colors hover:border-accent sm:col-span-2" href={`mailto:${dealerConfig.contact.email}`}>
                   <Mail className="h-5 w-5 text-accent" />
                   <span className="luxxy-label mt-8 block text-muted-foreground">Email us</span>
-                  <span className="mt-1.5 block text-lg font-bold text-primary">{dealerConfig.contact.email}</span>
+                  <span className="mt-1.5 block text-lg font-bold text-primary group-hover:text-accent">{dealerConfig.contact.email}</span>
                 </a>
               )}
               {dealerConfig.hours && dealerConfig.hours.length > 0 && (
-                <div className="border border-border bg-secondary/45 p-6 sm:col-span-2">
+                <div className="border border-border bg-secondary/15 p-6 sm:col-span-2">
                   <div className="flex items-center gap-3 border-b border-border pb-4">
                     <Clock className="h-4 w-4 text-accent" />
                     <h3 className="luxxy-label text-primary">Opening hours</h3>
