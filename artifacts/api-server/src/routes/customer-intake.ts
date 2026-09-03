@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type Response } from "express";
+import { requireStaff } from "../middlewares/staff-auth";
 import { and, eq, sql } from "drizzle-orm";
 import {
   CompleteCustomerIntakeSessionBody,
@@ -132,7 +133,7 @@ async function sessionResponse(session: typeof customerIntakeSessionsTable.$infe
   return { current, customer };
 }
 
-router.post("/customer-intake-sessions", async (req, res): Promise<void> => {
+router.post("/customer-intake-sessions", requireStaff, async (req, res): Promise<void> => {
   const createLimit = checkRateLimit(
     `create:${dealerId()}:${req.ip}`,
     30,

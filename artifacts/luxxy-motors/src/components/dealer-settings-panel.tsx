@@ -140,12 +140,12 @@ function Field({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="flex items-baseline justify-between gap-3 text-sm font-bold">
+      <span className="flex items-baseline justify-between gap-3 text-[13px] font-bold">
         <span>{label}</span>
-        {hint && <span className="text-[11px] font-medium text-muted-foreground">{hint}</span>}
+        {hint && <span className="text-[12px] font-normal text-muted-foreground">{hint}</span>}
       </span>
       {children}
-      {error && <span className="block text-xs font-semibold text-destructive">{error}</span>}
+      {error && <span className="block text-[12px] font-semibold text-destructive">{error}</span>}
     </label>
   );
 }
@@ -166,13 +166,13 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section id={`settings-${id}`} className="scroll-mt-28 rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
-      <div className="mb-6 flex items-start gap-4 border-b pb-5">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">{icon}</div>
+    <section id={`settings-${id}`} className="scroll-mt-28 rounded-none border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
+      <div className="mb-8 flex flex-col items-start gap-4 border-b border-border/70 pb-6 sm:flex-row">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-secondary/20 text-primary">{icon}</div>
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight">{title}</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <p className="luxxy-kicker text-primary">{eyebrow}</p>
+          <h2 className="mt-2 font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-.02em] text-primary">{title}</h2>
+          <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">{description}</p>
         </div>
       </div>
       {children}
@@ -192,16 +192,16 @@ function ServiceEditor({
   onChange: (service: DealerService) => void;
 }) {
   return (
-    <div className={`rounded-2xl border p-5 transition-colors ${service.enabled ? 'border-primary/30 bg-primary/[0.03]' : 'bg-muted/20'}`}>
+    <div className={`rounded-none border p-6 transition-colors ${service.enabled ? 'border-primary/30 bg-primary/5' : 'bg-muted/10'}`}>
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background text-primary shadow-sm">{icon}</div>
+        <div className="flex items-center gap-4">
+          <div className="flex h-11 w-11 items-center justify-center border border-border bg-background text-primary shadow-none">{icon}</div>
           <div>
-            <p className="font-black">{label}</p>
-            <p className="text-xs text-muted-foreground">{service.enabled ? 'Visible on your showroom' : 'Hidden from your showroom'}</p>
+            <p className="text-[13px] font-bold text-primary">{label}</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{service.enabled ? 'Visible on your showroom' : 'Hidden from your showroom'}</p>
           </div>
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-xs font-bold">
+        <label className="flex cursor-pointer items-center gap-2.5 text-[12px] font-bold uppercase tracking-[.08em] text-muted-foreground">
           <input
             type="checkbox"
             checked={service.enabled}
@@ -209,13 +209,13 @@ function ServiceEditor({
             className="peer sr-only"
             data-testid={`checkbox-service-${label.toLowerCase().replace(/\s+/g, '-')}`}
           />
-          <span className="flex h-6 w-10 items-center rounded-full bg-muted p-1 transition-colors peer-checked:bg-primary">
-            <span className="h-4 w-4 rounded-full bg-background shadow-sm transition-transform peer-checked:translate-x-4" />
+          <span className="flex h-6 w-11 items-center rounded-full bg-muted/60 p-1 transition-colors peer-checked:bg-primary">
+            <span className="h-4 w-4 rounded-full bg-background shadow-sm transition-transform peer-checked:translate-x-5" />
           </span>
           {service.enabled ? 'On' : 'Off'}
         </label>
       </div>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid gap-5 sm:grid-cols-2">
         <Field label="Section title">
           <Input value={service.title} onChange={(event) => onChange({ ...service, title: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-title`} />
         </Field>
@@ -333,42 +333,42 @@ export function DealerSettingsPanel() {
 
   if (settingsQuery.isLoading && !initialized) {
     return (
-      <section className="mb-10 rounded-2xl border bg-card p-6 shadow-sm" data-testid="settings-loading">
-        <div className="animate-pulse space-y-4">
-          <div className="h-5 w-44 rounded bg-muted" />
-          <div className="h-9 w-72 rounded bg-muted" />
-          <div className="h-24 rounded-xl bg-muted" />
-          <div className="grid gap-3 sm:grid-cols-2"><div className="h-12 rounded bg-muted" /><div className="h-12 rounded bg-muted" /></div>
+      <section className="mb-12 rounded-none border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8" data-testid="settings-loading">
+        <div className="animate-pulse space-y-5">
+          <div className="h-5 w-44 bg-muted/40" />
+          <div className="h-10 w-72 bg-muted/40" />
+          <div className="h-28 bg-muted/40" />
+          <div className="grid gap-4 sm:grid-cols-2"><div className="h-12 bg-muted/40" /><div className="h-12 bg-muted/40" /></div>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="mb-10" aria-labelledby="settings-heading">
-      <div className="mb-5 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+    <section className="mb-12" aria-labelledby="settings-heading">
+      <div className="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary"><Store className="h-4 w-4" /> Showroom settings</p>
-          <h2 id="settings-heading" className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Set the shop window</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Control what customers see across the public showroom. Save once, and the live site reflects it without touching code.</p>
+          <p className="luxxy-kicker text-primary"><Store className="h-3.5 w-3.5" /> Showroom settings</p>
+          <h2 id="settings-heading" className="mt-3 font-display text-[2.25rem] font-semibold leading-none tracking-[-.03em] text-primary sm:text-[2.75rem]">Set the shop window</h2>
+          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">Control what customers see across the public showroom. Save once, and the live site reflects it without touching code.</p>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm">
-          <div className="relative h-10 w-10">
-            <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90"><path d="M18 2.5a15.5 15.5 0 1 1 0 31a15.5 15.5 0 1 1 0-31" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" /><path d="M18 2.5a15.5 15.5 0 1 1 0 31a15.5 15.5 0 1 1 0-31" fill="none" stroke="hsl(var(--accent))" strokeWidth="3" strokeDasharray={`${completeness} 100`} /></svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black">{completeness}%</span>
+        <div className="flex items-center gap-4 border border-border bg-card px-5 py-4 shadow-none luxxy-surface">
+          <div className="relative h-12 w-12 shrink-0">
+            <svg viewBox="0 0 36 36" className="h-12 w-12 -rotate-90"><path d="M18 2.5a15.5 15.5 0 1 1 0 31a15.5 15.5 0 1 1 0-31" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" /><path d="M18 2.5a15.5 15.5 0 1 1 0 31a15.5 15.5 0 1 1 0-31" fill="none" stroke="hsl(var(--accent))" strokeWidth="3" strokeDasharray={`${completeness} 100`} /></svg>
+            <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold text-primary">{completeness}%</span>
           </div>
-          <div><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Profile ready</p><p className="text-sm font-black">A stronger first impression</p></div>
+          <div><p className="luxxy-label text-muted-foreground">Profile ready</p><p className="mt-0.5 text-[13px] font-bold text-primary">A stronger first impression</p></div>
         </div>
       </div>
 
       {settingsQuery.isError && (
-        <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" data-testid="status-settings-load-error">
-          <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><p className="font-bold">Using the current showroom defaults</p><p className="mt-1 text-amber-900/80">We could not load saved settings. You can still edit this profile and try publishing it.</p></div>
+        <div className="mb-8 flex items-start gap-4 border border-amber-500/30 bg-amber-50/50 p-5 text-[13px] text-amber-900" data-testid="status-settings-load-error">
+          <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><div><p className="font-bold">Using the current showroom defaults</p><p className="mt-1.5 leading-relaxed text-amber-900/80">We could not load saved settings. You can still edit this profile and try publishing it.</p></div>
         </div>
       )}
 
-      <div className="sticky top-[var(--site-header-height)] z-20 mb-5 overflow-x-auto rounded-xl border bg-background/95 p-1.5 shadow-sm backdrop-blur">
-        <nav className="flex min-w-max gap-1" aria-label="Settings sections">
+      <div className="sticky top-[var(--site-header-height)] z-20 mb-8 overflow-x-auto border-b border-border/70 bg-background/95 shadow-sm backdrop-blur">
+        <nav className="flex min-w-max gap-6 px-1" aria-label="Settings sections">
           {([
             ['identity', 'Identity'],
             ['contact', 'Contact & hours'],
@@ -377,80 +377,80 @@ export function DealerSettingsPanel() {
             ['proof', 'Trust & why buy'],
             ['legal', 'Social & legal'],
           ] as Array<[FormSection, string]>).map(([section, label]) => (
-            <button key={section} type="button" onClick={() => scrollToSection(section)} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${activeSection === section ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`} data-testid={`button-settings-nav-${section}`}>{label}</button>
+            <button key={section} type="button" onClick={() => scrollToSection(section)} className={`border-b-2 px-1 pb-4 pt-5 text-[12px] font-bold uppercase tracking-[.08em] transition-colors ${activeSection === section ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}`} data-testid={`button-settings-nav-${section}`}>{label}</button>
           ))}
         </nav>
       </div>
 
-      <form onSubmit={save} className="space-y-5">
+      <form onSubmit={save} className="space-y-6">
         <SectionCard id="identity" eyebrow="01 / Brand" title="Make it unmistakably yours" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Dealership name" error={validationErrors['identity.name']}><Input required value={form.identity.name} onChange={(event) => updateNested('identity', 'name', event.target.value)} data-testid="input-identity-name" /></Field>
-            <Field label="Logo text" hint="Shown when no image is set"><Input value={form.identity.logoText} onChange={(event) => updateNested('identity', 'logoText', event.target.value)} data-testid="input-identity-logo-text" /></Field>
-            <Field label="Logo image URL" hint="Optional"><div className="relative"><Image className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-10" type="url" value={form.identity.logoAsset} onChange={(event) => updateNested('identity', 'logoAsset', event.target.value)} placeholder="https://…" data-testid="input-identity-logo-asset" /></div></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Primary HSL"><Input value={form.identity.brandColors.primaryHsl} onChange={(event) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl: event.target.value })} placeholder="218 39% 16%" data-testid="input-brand-primary" /></Field>
-              <Field label="Accent HSL"><Input value={form.identity.brandColors.accentHsl} onChange={(event) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl: event.target.value })} placeholder="42 82% 49%" data-testid="input-brand-accent" /></Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Dealership name" error={validationErrors['identity.name']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.identity.name} onChange={(event) => updateNested('identity', 'name', event.target.value)} data-testid="input-identity-name" /></Field>
+            <Field label="Logo text" hint="Shown when no image is set"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.identity.logoText} onChange={(event) => updateNested('identity', 'logoText', event.target.value)} data-testid="input-identity-logo-text" /></Field>
+            <Field label="Logo image URL" hint="Optional"><div className="relative"><Image className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 rounded-none pl-10 text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.identity.logoAsset} onChange={(event) => updateNested('identity', 'logoAsset', event.target.value)} placeholder="https://…" data-testid="input-identity-logo-asset" /></div></Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Primary HSL"><Input className="h-11 rounded-none font-mono text-[12px] focus-visible:ring-0 focus-visible:border-accent" value={form.identity.brandColors.primaryHsl} onChange={(event) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl: event.target.value })} placeholder="218 39% 16%" data-testid="input-brand-primary" /></Field>
+              <Field label="Accent HSL"><Input className="h-11 rounded-none font-mono text-[12px] focus-visible:ring-0 focus-visible:border-accent" value={form.identity.brandColors.accentHsl} onChange={(event) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl: event.target.value })} placeholder="42 82% 49%" data-testid="input-brand-accent" /></Field>
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border bg-muted/25 p-4">
-            <div className="h-9 w-9 rounded-lg" style={{ backgroundColor: `hsl(${form.identity.brandColors.primaryHsl})` }} />
-            <div className="h-9 w-9 rounded-lg" style={{ backgroundColor: `hsl(${form.identity.brandColors.accentHsl})` }} />
-            <p className="text-xs text-muted-foreground">Colour preview. Use space-separated HSL values, for example <span className="font-mono">218 39% 16%</span>.</p>
+          <div className="mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
+            <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.primaryHsl})` }} />
+            <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.accentHsl})` }} />
+            <p className="text-[12px] text-muted-foreground">Colour preview. Use space-separated HSL values, for example <span className="font-mono font-bold text-foreground">218 39% 16%</span>.</p>
           </div>
         </SectionCard>
 
         <SectionCard id="contact" eyebrow="02 / Visit" title="Be easy to reach" description="Give shoppers the details they need to call, message or find the forecourt with confidence." icon={<MapPin className="h-5 w-5" />}>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Phone"><Input type="tel" value={form.contact.phone} onChange={(event) => updateNested('contact', 'phone', event.target.value)} data-testid="input-contact-phone" /></Field>
-            <Field label="WhatsApp"><Input type="tel" value={form.contact.whatsapp} onChange={(event) => updateNested('contact', 'whatsapp', event.target.value)} data-testid="input-contact-whatsapp" /></Field>
-            <Field label="Email"><Input type="email" value={form.contact.email} onChange={(event) => updateNested('contact', 'email', event.target.value)} data-testid="input-contact-email" /></Field>
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field label="Phone"><Input type="tel" className="h-11 rounded-none font-mono text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.contact.phone} onChange={(event) => updateNested('contact', 'phone', event.target.value)} data-testid="input-contact-phone" /></Field>
+            <Field label="WhatsApp"><Input type="tel" className="h-11 rounded-none font-mono text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.contact.whatsapp} onChange={(event) => updateNested('contact', 'whatsapp', event.target.value)} data-testid="input-contact-whatsapp" /></Field>
+            <Field label="Email"><Input type="email" className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.contact.email} onChange={(event) => updateNested('contact', 'email', event.target.value)} data-testid="input-contact-email" /></Field>
           </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Field label="Street address"><Input value={form.address.street} onChange={(event) => updateNested('address', 'street', event.target.value)} data-testid="input-address-street" /></Field>
-            <Field label="Town / city"><Input value={form.address.city} onChange={(event) => updateNested('address', 'city', event.target.value)} data-testid="input-address-city" /></Field>
-            <Field label="Region"><Input value={form.address.region} onChange={(event) => updateNested('address', 'region', event.target.value)} data-testid="input-address-region" /></Field>
-            <Field label="Postcode"><Input value={form.address.postcode} onChange={(event) => updateNested('address', 'postcode', event.target.value)} data-testid="input-address-postcode" /></Field>
-            <Field label="Google Maps link" hint="Optional"><div className="relative"><Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-10" type="url" value={form.address.mapsUrl} onChange={(event) => updateNested('address', 'mapsUrl', event.target.value)} placeholder="https://maps.google.com/…" data-testid="input-address-maps" /></div></Field>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2">
+            <Field label="Street address"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.address.street} onChange={(event) => updateNested('address', 'street', event.target.value)} data-testid="input-address-street" /></Field>
+            <Field label="Town / city"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.address.city} onChange={(event) => updateNested('address', 'city', event.target.value)} data-testid="input-address-city" /></Field>
+            <Field label="Region"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.address.region} onChange={(event) => updateNested('address', 'region', event.target.value)} data-testid="input-address-region" /></Field>
+            <Field label="Postcode"><Input className="h-11 rounded-none font-mono text-[13px] uppercase focus-visible:ring-0 focus-visible:border-accent" value={form.address.postcode} onChange={(event) => updateNested('address', 'postcode', event.target.value)} data-testid="input-address-postcode" /></Field>
+            <Field label="Google Maps link" hint="Optional"><div className="relative"><Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 rounded-none pl-10 text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.address.mapsUrl} onChange={(event) => updateNested('address', 'mapsUrl', event.target.value)} placeholder="https://maps.google.com/…" data-testid="input-address-maps" /></div></Field>
           </div>
-          <div className="mt-6 rounded-xl border bg-muted/20 p-4">
-            <div className="mb-4 flex items-center justify-between gap-3"><div><p className="flex items-center gap-2 font-black"><Clock3 className="h-4 w-4 text-primary" /> Opening hours</p><p className="mt-1 text-xs text-muted-foreground">Add the hours exactly as you want them shown publicly.</p></div><Button type="button" size="sm" variant="outline" onClick={addHour} disabled={form.hours.length >= 14} data-testid="button-add-hours"><Plus className="mr-1.5 h-4 w-4" /> Add row</Button></div>
-            <div className="space-y-3">
+          <div className="mt-8 border border-border bg-secondary/10 p-5 sm:p-6">
+            <div className="mb-5 flex items-center justify-between gap-4"><div><p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary"><Clock3 className="h-4 w-4 text-accent" /> Opening hours</p><p className="mt-1 text-[13px] text-muted-foreground">Add the hours exactly as you want them shown publicly.</p></div><Button type="button" size="sm" variant="outline" className="rounded-none text-[12px] font-bold uppercase tracking-[.08em] shadow-none" onClick={addHour} disabled={form.hours.length >= 14} data-testid="button-add-hours"><Plus className="mr-2 h-4 w-4" /> Add row</Button></div>
+            <div className="space-y-4">
               {form.hours.map((item, index) => (
-                <div key={`hour-${index}`} className="flex flex-col gap-2 sm:flex-row">
-                  <Input value={item.days} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, days: event.target.value }; updateGroup('hours', hours); }} placeholder="Monday – Friday" data-testid={`input-hours-days-${index}`} />
-                  <Input value={item.times} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, times: event.target.value }; updateGroup('hours', hours); }} placeholder="09:00 – 18:00" data-testid={`input-hours-times-${index}`} />
-                  <Button type="button" size="icon" variant="ghost" onClick={() => updateGroup('hours', form.hours.filter((_, rowIndex) => rowIndex !== index))} aria-label={`Remove hours row ${index + 1}`} data-testid={`button-remove-hours-${index}`}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                <div key={`hour-${index}`} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={item.days} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, days: event.target.value }; updateGroup('hours', hours); }} placeholder="Monday – Friday" data-testid={`input-hours-days-${index}`} />
+                  <Input className="h-11 rounded-none font-mono text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={item.times} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, times: event.target.value }; updateGroup('hours', hours); }} placeholder="09:00 – 18:00" data-testid={`input-hours-times-${index}`} />
+                  <Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-none hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('hours', form.hours.filter((_, rowIndex) => rowIndex !== index))} aria-label={`Remove hours row ${index + 1}`} data-testid={`button-remove-hours-${index}`}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               ))}
-              {form.hours.length === 0 && <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No opening hours added yet.</p>}
+              {form.hours.length === 0 && <p className="border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">No opening hours added yet.</p>}
             </div>
-            {validationErrors.hours && <p className="mt-2 text-xs font-semibold text-destructive">{validationErrors.hours}</p>}
+            {validationErrors.hours && <p className="mt-3 text-[12px] font-semibold text-destructive">{validationErrors.hours}</p>}
           </div>
         </SectionCard>
 
         <SectionCard id="homepage" eyebrow="03 / First impression" title="Write the welcome" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
-          <div className="grid gap-4">
-            <Field label="Announcement strip" hint="Optional"><Input value={form.hero.announcement} onChange={(event) => updateNested('hero', 'announcement', event.target.value)} placeholder="New stock added this week" data-testid="input-hero-announcement" /></Field>
-            <Field label="Homepage headline" error={validationErrors['hero.copy']}><Input required value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" /></Field>
-            <Field label="Supporting copy" error={validationErrors['hero.subcopy']}><Textarea required rows={3} value={form.hero.subcopy} onChange={(event) => updateNested('hero', 'subcopy', event.target.value)} data-testid="textarea-hero-subcopy" /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Primary button" error={validationErrors['hero.primaryCta']}><Input required value={form.hero.primaryCta} onChange={(event) => updateNested('hero', 'primaryCta', event.target.value)} data-testid="input-hero-primary-cta" /></Field>
-              <Field label="Secondary button" error={validationErrors['hero.secondaryCta']}><Input required value={form.hero.secondaryCta} onChange={(event) => updateNested('hero', 'secondaryCta', event.target.value)} data-testid="input-hero-secondary-cta" /></Field>
+          <div className="grid gap-5">
+            <Field label="Announcement strip" hint="Optional"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.hero.announcement} onChange={(event) => updateNested('hero', 'announcement', event.target.value)} placeholder="New stock added this week" data-testid="input-hero-announcement" /></Field>
+            <Field label="Homepage headline" error={validationErrors['hero.copy']}><Input required className="h-11 rounded-none font-display text-[15px] font-semibold focus-visible:ring-0 focus-visible:border-accent" value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" /></Field>
+            <Field label="Supporting copy" error={validationErrors['hero.subcopy']}><Textarea required rows={3} className="rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.hero.subcopy} onChange={(event) => updateNested('hero', 'subcopy', event.target.value)} data-testid="textarea-hero-subcopy" /></Field>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Primary button" error={validationErrors['hero.primaryCta']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.hero.primaryCta} onChange={(event) => updateNested('hero', 'primaryCta', event.target.value)} data-testid="input-hero-primary-cta" /></Field>
+              <Field label="Secondary button" error={validationErrors['hero.secondaryCta']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.hero.secondaryCta} onChange={(event) => updateNested('hero', 'secondaryCta', event.target.value)} data-testid="input-hero-secondary-cta" /></Field>
             </div>
           </div>
-          <div className="mt-6 border-t pt-6">
-            <p className="mb-4 text-sm font-black">Viewing invitation</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Title" error={validationErrors['bookViewing.title']}><Input required value={form.bookViewing.title} onChange={(event) => updateNested('bookViewing', 'title', event.target.value)} data-testid="input-viewing-title" /></Field>
-              <Field label="Button label" error={validationErrors['bookViewing.ctaLabel']}><Input required value={form.bookViewing.ctaLabel} onChange={(event) => updateNested('bookViewing', 'ctaLabel', event.target.value)} data-testid="input-viewing-cta" /></Field>
-              <Field label="Description" error={validationErrors['bookViewing.description']}><Textarea required rows={3} value={form.bookViewing.description} onChange={(event) => updateNested('bookViewing', 'description', event.target.value)} data-testid="textarea-viewing-description" /></Field>
+          <div className="mt-8 border-t border-border/70 pt-8">
+            <p className="mb-5 text-[14px] font-bold text-primary">Viewing invitation</p>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Title" error={validationErrors['bookViewing.title']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.bookViewing.title} onChange={(event) => updateNested('bookViewing', 'title', event.target.value)} data-testid="input-viewing-title" /></Field>
+              <Field label="Button label" error={validationErrors['bookViewing.ctaLabel']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.bookViewing.ctaLabel} onChange={(event) => updateNested('bookViewing', 'ctaLabel', event.target.value)} data-testid="input-viewing-cta" /></Field>
+              <Field label="Description" error={validationErrors['bookViewing.description']}><Textarea required rows={3} className="rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.bookViewing.description} onChange={(event) => updateNested('bookViewing', 'description', event.target.value)} data-testid="textarea-viewing-description" /></Field>
             </div>
           </div>
         </SectionCard>
 
         <SectionCard id="services" eyebrow="04 / Offer" title="Choose what you promise" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
-          <div className="grid gap-4">
+          <div className="grid gap-5">
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
             <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
             <ServiceEditor label="Part exchange" service={form.partExchange} icon={<Store className="h-5 w-5" />} onChange={(service) => updateGroup('partExchange', service)} />
@@ -458,53 +458,53 @@ export function DealerSettingsPanel() {
         </SectionCard>
 
         <SectionCard id="proof" eyebrow="05 / Confidence" title="Add the reasons to choose you" description="Short, specific proof points help customers decide to make the call or book the viewing." icon={<Check className="h-5 w-5" />}>
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid gap-10 lg:grid-cols-2">
             <div>
-              <div className="mb-3 flex items-end justify-between gap-3"><div><p className="font-black">Trust points</p><p className="mt-1 text-xs text-muted-foreground">A compact strip of promises near the stock.</p></div><Button type="button" size="sm" variant="outline" onClick={addTrustItem} disabled={form.trustItems.length >= 8} data-testid="button-add-trust-item"><Plus className="mr-1.5 h-4 w-4" /> Add</Button></div>
-              <div className="space-y-2">
-                {form.trustItems.map((item, index) => <div key={`trust-${index}`} className="flex gap-2"><Input value={item} onChange={(event) => { const items = [...form.trustItems]; items[index] = event.target.value; updateGroup('trustItems', items); }} placeholder="Carefully selected vehicles" data-testid={`input-trust-item-${index}`} /><Button type="button" size="icon" variant="ghost" onClick={() => updateGroup('trustItems', form.trustItems.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove trust point ${index + 1}`} data-testid={`button-remove-trust-item-${index}`}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button></div>)}
+              <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[14px] font-bold text-primary">Trust points</p><p className="mt-1 text-[13px] text-muted-foreground">A compact strip of promises near the stock.</p></div><Button type="button" size="sm" variant="outline" className="rounded-none text-[12px] font-bold uppercase tracking-[.08em] shadow-none" onClick={addTrustItem} disabled={form.trustItems.length >= 8} data-testid="button-add-trust-item"><Plus className="mr-2 h-4 w-4" /> Add</Button></div>
+              <div className="space-y-3">
+                {form.trustItems.map((item, index) => <div key={`trust-${index}`} className="flex gap-3"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={item} onChange={(event) => { const items = [...form.trustItems]; items[index] = event.target.value; updateGroup('trustItems', items); }} placeholder="Carefully selected vehicles" data-testid={`input-trust-item-${index}`} /><Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-none hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('trustItems', form.trustItems.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove trust point ${index + 1}`} data-testid={`button-remove-trust-item-${index}`}><Trash2 className="h-4 w-4" /></Button></div>)}
               </div>
-              {validationErrors.trustItems && <p className="mt-2 text-xs font-semibold text-destructive">{validationErrors.trustItems}</p>}
+              {validationErrors.trustItems && <p className="mt-3 text-[12px] font-semibold text-destructive">{validationErrors.trustItems}</p>}
             </div>
             <div>
-              <div className="mb-3 flex items-end justify-between gap-3"><div><p className="font-black">Why buy from us</p><p className="mt-1 text-xs text-muted-foreground">Up to eight fuller reasons for the about section.</p></div><Button type="button" size="sm" variant="outline" onClick={addWhyBuy} disabled={form.whyBuy.length >= 8} data-testid="button-add-why-buy"><Plus className="mr-1.5 h-4 w-4" /> Add</Button></div>
-              <div className="space-y-3">
-                {form.whyBuy.map((item, index) => <div key={`why-${index}`} className="rounded-xl border bg-muted/20 p-3"><div className="flex gap-2"><Input value={item.title} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, title: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Straightforward buying" data-testid={`input-why-buy-title-${index}`} /><Button type="button" size="icon" variant="ghost" onClick={() => updateGroup('whyBuy', form.whyBuy.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove why buy point ${index + 1}`} data-testid={`button-remove-why-buy-${index}`}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button></div><Textarea className="mt-2" rows={2} value={item.description} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, description: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Clear information and no surprises." data-testid={`textarea-why-buy-description-${index}`} /></div>)}
+              <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[14px] font-bold text-primary">Why buy from us</p><p className="mt-1 text-[13px] text-muted-foreground">Up to eight fuller reasons for the about section.</p></div><Button type="button" size="sm" variant="outline" className="rounded-none text-[12px] font-bold uppercase tracking-[.08em] shadow-none" onClick={addWhyBuy} disabled={form.whyBuy.length >= 8} data-testid="button-add-why-buy"><Plus className="mr-2 h-4 w-4" /> Add</Button></div>
+              <div className="space-y-4">
+                {form.whyBuy.map((item, index) => <div key={`why-${index}`} className="border border-border bg-secondary/10 p-4"><div className="flex gap-3"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={item.title} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, title: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Straightforward buying" data-testid={`input-why-buy-title-${index}`} /><Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-none hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('whyBuy', form.whyBuy.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove why buy point ${index + 1}`} data-testid={`button-remove-why-buy-${index}`}><Trash2 className="h-4 w-4" /></Button></div><Textarea className="mt-3 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" rows={2} value={item.description} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, description: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Clear information and no surprises." data-testid={`textarea-why-buy-description-${index}`} /></div>)}
               </div>
-              {validationErrors.whyBuy && <p className="mt-2 text-xs font-semibold text-destructive">{validationErrors.whyBuy}</p>}
+              {validationErrors.whyBuy && <p className="mt-3 text-[12px] font-semibold text-destructive">{validationErrors.whyBuy}</p>}
             </div>
           </div>
         </SectionCard>
 
         <SectionCard id="legal" eyebrow="06 / Details" title="Finish the public footprint" description="Keep social profiles and company details in one place so the footer stays current." icon={<ExternalLink className="h-5 w-5" />}>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Instagram"><Input type="url" value={form.social.instagram} onChange={(event) => updateNested('social', 'instagram', event.target.value)} placeholder="https://instagram.com/…" data-testid="input-social-instagram" /></Field>
-            <Field label="Facebook"><Input type="url" value={form.social.facebook} onChange={(event) => updateNested('social', 'facebook', event.target.value)} placeholder="https://facebook.com/…" data-testid="input-social-facebook" /></Field>
-            <Field label="X / Twitter"><Input type="url" value={form.social.twitter} onChange={(event) => updateNested('social', 'twitter', event.target.value)} placeholder="https://x.com/…" data-testid="input-social-twitter" /></Field>
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field label="Instagram"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.social.instagram} onChange={(event) => updateNested('social', 'instagram', event.target.value)} placeholder="https://instagram.com/…" data-testid="input-social-instagram" /></Field>
+            <Field label="Facebook"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.social.facebook} onChange={(event) => updateNested('social', 'facebook', event.target.value)} placeholder="https://facebook.com/…" data-testid="input-social-facebook" /></Field>
+            <Field label="X / Twitter"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.social.twitter} onChange={(event) => updateNested('social', 'twitter', event.target.value)} placeholder="https://x.com/…" data-testid="input-social-twitter" /></Field>
           </div>
-          <div className="mt-6 border-t pt-6">
-            <p className="mb-4 text-sm font-black">Company and policy links</p>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Registered company name"><Input value={form.legal.companyName} onChange={(event) => updateNested('legal', 'companyName', event.target.value)} data-testid="input-legal-company-name" /></Field>
-              <Field label="Company number"><Input value={form.legal.companyNumber} onChange={(event) => updateNested('legal', 'companyNumber', event.target.value)} data-testid="input-legal-company-number" /></Field>
-              <Field label="VAT number"><Input value={form.legal.vatNumber} onChange={(event) => updateNested('legal', 'vatNumber', event.target.value)} data-testid="input-legal-vat-number" /></Field>
-              <Field label="Terms link"><Input type="url" value={form.legal.termsUrl} onChange={(event) => updateNested('legal', 'termsUrl', event.target.value)} data-testid="input-legal-terms" /></Field>
-              <Field label="Privacy link"><Input type="url" value={form.legal.privacyUrl} onChange={(event) => updateNested('legal', 'privacyUrl', event.target.value)} data-testid="input-legal-privacy" /></Field>
-              <Field label="Cookie link"><Input type="url" value={form.legal.cookieUrl} onChange={(event) => updateNested('legal', 'cookieUrl', event.target.value)} data-testid="input-legal-cookie" /></Field>
+          <div className="mt-8 border-t border-border/70 pt-8">
+            <p className="mb-5 text-[14px] font-bold text-primary">Company and policy links</p>
+            <div className="grid gap-5 sm:grid-cols-3">
+              <Field label="Registered company name"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.legal.companyName} onChange={(event) => updateNested('legal', 'companyName', event.target.value)} data-testid="input-legal-company-name" /></Field>
+              <Field label="Company number"><Input className="h-11 rounded-none font-mono text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.legal.companyNumber} onChange={(event) => updateNested('legal', 'companyNumber', event.target.value)} data-testid="input-legal-company-number" /></Field>
+              <Field label="VAT number"><Input className="h-11 rounded-none font-mono text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.legal.vatNumber} onChange={(event) => updateNested('legal', 'vatNumber', event.target.value)} data-testid="input-legal-vat-number" /></Field>
+              <Field label="Terms link"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.legal.termsUrl} onChange={(event) => updateNested('legal', 'termsUrl', event.target.value)} data-testid="input-legal-terms" /></Field>
+              <Field label="Privacy link"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.legal.privacyUrl} onChange={(event) => updateNested('legal', 'privacyUrl', event.target.value)} data-testid="input-legal-privacy" /></Field>
+              <Field label="Cookie link"><Input className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" type="url" value={form.legal.cookieUrl} onChange={(event) => updateNested('legal', 'cookieUrl', event.target.value)} data-testid="input-legal-cookie" /></Field>
             </div>
           </div>
         </SectionCard>
 
-        <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border bg-card/95 p-4 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-h-10 text-sm">
-            {saveMessage && <p className="flex items-center gap-2 font-bold text-green-700" data-testid="status-settings-success"><Check className="h-4 w-4" />{saveMessage}</p>}
+        <div className="sticky bottom-4 z-20 flex flex-col gap-4 border border-border bg-card/95 p-5 shadow-none luxxy-surface backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-h-[40px] text-[13px]">
+            {saveMessage && <p className="flex items-center gap-2 font-bold text-[#1b6543]" data-testid="status-settings-success"><Check className="h-4 w-4" />{saveMessage}</p>}
             {updateSettings.isError && <p className="flex items-center gap-2 font-bold text-destructive" data-testid="status-settings-error"><CircleAlert className="h-4 w-4" />{apiErrorMessage(updateSettings.error)}</p>}
             {Object.keys(validationErrors).length > 0 && !saveMessage && !updateSettings.isError && <p className="flex items-center gap-2 font-bold text-destructive" data-testid="status-settings-validation"><CircleAlert className="h-4 w-4" />A few fields need your attention.</p>}
             {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && <p className="text-muted-foreground">Changes stay here until you publish them.</p>}
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 text-sm font-semibold transition-colors hover:bg-accent hover:text-accent-foreground" data-testid="link-preview-showroom"><ExternalLink className="h-4 w-4" /> Preview showroom</Link>
-            <Button type="submit" disabled={updateSettings.isPending} className="font-bold" data-testid="button-save-settings"><Save className="mr-2 h-4 w-4" />{updateSettings.isPending ? 'Publishing…' : 'Publish showroom'}</Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link href="/" className="luxxy-label inline-flex h-11 items-center justify-center gap-2 border border-border bg-background px-4 transition-colors hover:text-accent" data-testid="link-preview-showroom"><ExternalLink className="h-3.5 w-3.5" /> Preview showroom</Link>
+            <Button type="submit" disabled={updateSettings.isPending} className="h-11 rounded-none text-[12px] font-bold uppercase tracking-[.08em]" data-testid="button-save-settings"><Save className="mr-2 h-4 w-4" />{updateSettings.isPending ? 'Publishing…' : 'Publish showroom'}</Button>
           </div>
         </div>
       </form>

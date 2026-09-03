@@ -26,3 +26,5 @@ export * from "./sales";
 export * from "./dealer-settings";
 export * from "./customer-intake";
 export * from "./sale-checklist";
+export * from "./leads";
+export * from "./portal-users";

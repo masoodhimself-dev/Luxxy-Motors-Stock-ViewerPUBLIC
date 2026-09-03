@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { requireStaff } from "../middlewares/staff-auth";
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 import {
   CreateEnquiryBody,
@@ -165,7 +166,7 @@ function isUniqueViolation(error: unknown) {
   return false;
 }
 
-router.get("/enquiries", async (req, res): Promise<void> => {
+router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
   const parsedQuery = GetEnquiriesQueryParams.safeParse(req.query);
   if (!parsedQuery.success) {
     res.status(400).json(errorResponse("Invalid enquiry status filter."));
@@ -352,7 +353,7 @@ router.post("/enquiries", async (req, res): Promise<void> => {
   }
 });
 
-router.patch("/enquiries/:id/status", async (req, res): Promise<void> => {
+router.patch("/enquiries/:id/status", requireStaff, async (req, res): Promise<void> => {
   const parsedParams = UpdateEnquiryStatusParams.safeParse(req.params);
   if (!parsedParams.success || !uuidPattern.test(parsedParams.data.id)) {
     res.status(400).json(errorResponse("Invalid enquiry id."));

@@ -36,7 +36,16 @@ import type {
   FinalChecks,
   GetEnquiriesParams,
   GetEnquiryAvailabilityParams,
+  GetLeadsParams,
   HealthStatus,
+  Lead,
+  LeadActivityInput,
+  LeadChannelSummary,
+  LeadDetail,
+  LeadInput,
+  LeadUpdate,
+  PortalSession,
+  PortalWorklist,
   Sale,
   SaleChecklist,
   SaleChecklistCode,
@@ -1892,5 +1901,615 @@ export const useUpdateDealerSettings = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getUpdateDealerSettingsMutationOptions(options));
+    }
+
+export const getGetPortalSessionUrl = () => {
+
+
+
+
+  return `/api/portal/session`
+}
+
+/**
+ * Returns the authorisation state for the current Clerk session so the portal can distinguish "signed out" from "signed in but not staff".
+ * @summary Report the signed-in staff member's portal access
+ */
+export const getPortalSession = async ( options?: Parameters<typeof customFetch>[1]): Promise<PortalSession> => {
+
+  return customFetch<PortalSession>(getGetPortalSessionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPortalSessionQueryKey = () => {
+    return [
+    `/api/portal/session`
+    ] as const;
+    }
+
+
+export const getGetPortalSessionQueryOptions = <TData = Awaited<ReturnType<typeof getPortalSession>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortalSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPortalSessionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPortalSession>>> = ({ signal }) => getPortalSession({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPortalSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPortalSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getPortalSession>>>
+export type GetPortalSessionQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Report the signed-in staff member's portal access
+ */
+
+export function useGetPortalSession<TData = Awaited<ReturnType<typeof getPortalSession>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortalSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPortalSessionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPortalWorklistUrl = () => {
+
+
+
+
+  return `/api/portal/worklist`
+}
+
+/**
+ * Returns the day view work queue ordered by urgency rather than by arrival time.
+ * @summary What needs chasing today
+ */
+export const getPortalWorklist = async ( options?: Parameters<typeof customFetch>[1]): Promise<PortalWorklist> => {
+
+  return customFetch<PortalWorklist>(getGetPortalWorklistUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPortalWorklistQueryKey = () => {
+    return [
+    `/api/portal/worklist`
+    ] as const;
+    }
+
+
+export const getGetPortalWorklistQueryOptions = <TData = Awaited<ReturnType<typeof getPortalWorklist>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortalWorklist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPortalWorklistQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPortalWorklist>>> = ({ signal }) => getPortalWorklist({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPortalWorklist>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPortalWorklistQueryResult = NonNullable<Awaited<ReturnType<typeof getPortalWorklist>>>
+export type GetPortalWorklistQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary What needs chasing today
+ */
+
+export function useGetPortalWorklist<TData = Awaited<ReturnType<typeof getPortalWorklist>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortalWorklist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPortalWorklistQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLeadsUrl = (params?: GetLeadsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/leads?${stringifiedParams}` : `/api/leads`
+}
+
+/**
+ * @summary Search and filter leads
+ */
+export const getLeads = async (params?: GetLeadsParams, options?: Parameters<typeof customFetch>[1]): Promise<Lead[]> => {
+
+  return customFetch<Lead[]>(getGetLeadsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLeadsQueryKey = (params?: GetLeadsParams,) => {
+    return [
+    `/api/leads`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLeadsQueryOptions = <TData = Awaited<ReturnType<typeof getLeads>>, TError = ErrorType<ApiError>>(params?: GetLeadsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLeadsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeads>>> = ({ signal }) => getLeads(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLeads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof getLeads>>>
+export type GetLeadsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Search and filter leads
+ */
+
+export function useGetLeads<TData = Awaited<ReturnType<typeof getLeads>>, TError = ErrorType<ApiError>>(
+ params?: GetLeadsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLeadsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateLeadUrl = () => {
+
+
+
+
+  return `/api/leads`
+}
+
+/**
+ * Records a walk-in, phone call or marketplace enquiry, including the channel it arrived on.
+ * @summary Capture a lead by hand
+ */
+export const createLead = async (leadInput: LeadInput, options?: Parameters<typeof customFetch>[1]): Promise<Lead> => {
+
+  return customFetch<Lead>(getCreateLeadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(leadInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLeadMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLead>>, TError,{data: BodyType<LeadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLead>>, TError,{data: BodyType<LeadInput>}, TContext> => {
+
+const mutationKey = ['createLead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLead>>, {data: BodyType<LeadInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLead(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLeadMutationResult = NonNullable<Awaited<ReturnType<typeof createLead>>>
+    export type CreateLeadMutationBody = BodyType<LeadInput>
+    export type CreateLeadMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Capture a lead by hand
+ */
+export const useCreateLead = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLead>>, TError,{data: BodyType<LeadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLead>>,
+        TError,
+        {data: BodyType<LeadInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLeadMutationOptions(options));
+    }
+
+export const getGetLeadChannelSummaryUrl = () => {
+
+
+
+
+  return `/api/leads/summary`
+}
+
+/**
+ * @summary What each channel produced
+ */
+export const getLeadChannelSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<LeadChannelSummary[]> => {
+
+  return customFetch<LeadChannelSummary[]>(getGetLeadChannelSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLeadChannelSummaryQueryKey = () => {
+    return [
+    `/api/leads/summary`
+    ] as const;
+    }
+
+
+export const getGetLeadChannelSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getLeadChannelSummary>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeadChannelSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLeadChannelSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeadChannelSummary>>> = ({ signal }) => getLeadChannelSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLeadChannelSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLeadChannelSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getLeadChannelSummary>>>
+export type GetLeadChannelSummaryQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary What each channel produced
+ */
+
+export function useGetLeadChannelSummary<TData = Awaited<ReturnType<typeof getLeadChannelSummary>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLeadChannelSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLeadChannelSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLeadUrl = (id: string,) => {
+
+
+
+
+  return `/api/leads/${id}`
+}
+
+/**
+ * @summary The whole story for one lead
+ */
+export const getLead = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<LeadDetail> => {
+
+  return customFetch<LeadDetail>(getGetLeadUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLeadQueryKey = (id: string,) => {
+    return [
+    `/api/leads/${id}`
+    ] as const;
+    }
+
+
+export const getGetLeadQueryOptions = <TData = Awaited<ReturnType<typeof getLead>>, TError = ErrorType<ApiError>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLead>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLeadQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLead>>> = ({ signal }) => getLead(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLead>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLeadQueryResult = NonNullable<Awaited<ReturnType<typeof getLead>>>
+export type GetLeadQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary The whole story for one lead
+ */
+
+export function useGetLead<TData = Awaited<ReturnType<typeof getLead>>, TError = ErrorType<ApiError>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLead>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLeadQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLeadUrl = (id: string,) => {
+
+
+
+
+  return `/api/leads/${id}`
+}
+
+/**
+ * @summary Update stage, ownership, next action or outcome
+ */
+export const updateLead = async (id: string,
+    leadUpdate: LeadUpdate, options?: Parameters<typeof customFetch>[1]): Promise<LeadDetail> => {
+
+  return customFetch<LeadDetail>(getUpdateLeadUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(leadUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateLeadMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLead>>, TError,{id: string;data: BodyType<LeadUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLead>>, TError,{id: string;data: BodyType<LeadUpdate>}, TContext> => {
+
+const mutationKey = ['updateLead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLead>>, {id: string;data: BodyType<LeadUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateLead(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLeadMutationResult = NonNullable<Awaited<ReturnType<typeof updateLead>>>
+    export type UpdateLeadMutationBody = BodyType<LeadUpdate>
+    export type UpdateLeadMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Update stage, ownership, next action or outcome
+ */
+export const useUpdateLead = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLead>>, TError,{id: string;data: BodyType<LeadUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLead>>,
+        TError,
+        {id: string;data: BodyType<LeadUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateLeadMutationOptions(options));
+    }
+
+export const getCreateLeadActivityUrl = (id: string,) => {
+
+
+
+
+  return `/api/leads/${id}/activities`
+}
+
+/**
+ * @summary Log a call, message or note and set the next action
+ */
+export const createLeadActivity = async (id: string,
+    leadActivityInput: LeadActivityInput, options?: Parameters<typeof customFetch>[1]): Promise<LeadDetail> => {
+
+  return customFetch<LeadDetail>(getCreateLeadActivityUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(leadActivityInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLeadActivityMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLeadActivity>>, TError,{id: string;data: BodyType<LeadActivityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLeadActivity>>, TError,{id: string;data: BodyType<LeadActivityInput>}, TContext> => {
+
+const mutationKey = ['createLeadActivity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLeadActivity>>, {id: string;data: BodyType<LeadActivityInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createLeadActivity(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLeadActivityMutationResult = NonNullable<Awaited<ReturnType<typeof createLeadActivity>>>
+    export type CreateLeadActivityMutationBody = BodyType<LeadActivityInput>
+    export type CreateLeadActivityMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Log a call, message or note and set the next action
+ */
+export const useCreateLeadActivity = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLeadActivity>>, TError,{id: string;data: BodyType<LeadActivityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLeadActivity>>,
+        TError,
+        {id: string;data: BodyType<LeadActivityInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLeadActivityMutationOptions(options));
     }
 

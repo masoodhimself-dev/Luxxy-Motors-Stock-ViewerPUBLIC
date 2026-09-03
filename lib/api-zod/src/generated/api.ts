@@ -1388,3 +1388,532 @@ export const UpdateDealerSettingsResponse = zod.object({
 })
 
 
+/**
+ * Returns the authorisation state for the current Clerk session so the portal can distinguish "signed out" from "signed in but not staff".
+ * @summary Report the signed-in staff member's portal access
+ */
+export const GetPortalSessionResponse = zod.object({
+  "state": zod.enum(['allowed', 'forbidden']),
+  "name": zod.string().nullable(),
+  "email": zod.string().nullable()
+})
+
+
+/**
+ * Returns the day view work queue ordered by urgency rather than by arrival time.
+ * @summary What needs chasing today
+ */
+export const getPortalWorklistResponseViewingsTodayItemDepositPenceMultipleOf = 1;
+
+export const getPortalWorklistResponseOverdueFollowUpsItemDepositPenceMultipleOf = 1;
+
+export const getPortalWorklistResponseUnansweredEnquiriesItemDepositPenceMultipleOf = 1;
+
+export const getPortalWorklistResponseDepositsWithoutDealItemDepositPenceMultipleOf = 1;
+
+
+
+export const GetPortalWorklistResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "viewingsToday": zod.array(zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(getPortalWorklistResponseViewingsTodayItemDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "overdueFollowUps": zod.array(zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(getPortalWorklistResponseOverdueFollowUpsItemDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "unansweredEnquiries": zod.array(zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(getPortalWorklistResponseUnansweredEnquiriesItemDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "depositsWithoutDeal": zod.array(zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(getPortalWorklistResponseDepositsWithoutDealItemDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Search and filter leads
+ */
+export const GetLeadsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost', 'open', 'all']).optional(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social', 'all']).optional(),
+  "owner": zod.coerce.string().optional()
+})
+
+export const getLeadsResponseDepositPenceMultipleOf = 1;
+
+
+
+export const GetLeadsResponseItem = zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(getLeadsResponseDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetLeadsResponse = zod.array(GetLeadsResponseItem)
+
+
+/**
+ * Records a walk-in, phone call or marketplace enquiry, including the channel it arrived on.
+ * @summary Capture a lead by hand
+ */
+export const createLeadBodyCustomerNameMax = 160;
+
+export const createLeadBodyEmailMax = 200;
+
+export const createLeadBodyPhoneMax = 40;
+
+export const createLeadBodyVehicleTitleMax = 200;
+
+export const createLeadBodyOwnerMax = 120;
+
+export const createLeadBodySummaryMax = 2000;
+
+export const createLeadBodyNextActionMax = 300;
+
+export const createLeadBodyDepositPenceMultipleOf = 1;
+
+
+
+export const CreateLeadBody = zod.object({
+  "customerName": zod.string().min(1).max(createLeadBodyCustomerNameMax),
+  "email": zod.string().max(createLeadBodyEmailMax).nullish(),
+  "phone": zod.string().max(createLeadBodyPhoneMax).nullish(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']).optional(),
+  "vehicleId": zod.string().nullish(),
+  "vehicleTitle": zod.string().max(createLeadBodyVehicleTitleMax).nullish(),
+  "owner": zod.string().max(createLeadBodyOwnerMax).nullish(),
+  "summary": zod.string().max(createLeadBodySummaryMax).nullish(),
+  "appointmentAt": zod.coerce.date().nullish(),
+  "nextAction": zod.string().max(createLeadBodyNextActionMax).nullish(),
+  "nextActionDueAt": zod.coerce.date().nullish(),
+  "depositPence": zod.number().multipleOf(createLeadBodyDepositPenceMultipleOf).nullish()
+})
+
+export const createLeadResponseDepositPenceMultipleOf = 1;
+
+
+
+export const CreateLeadResponse = zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(createLeadResponseDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary What each channel produced
+ */
+export const getLeadChannelSummaryResponseTotalMultipleOf = 1;
+
+export const getLeadChannelSummaryResponseOpenMultipleOf = 1;
+
+export const getLeadChannelSummaryResponseWonMultipleOf = 1;
+
+export const getLeadChannelSummaryResponseLostMultipleOf = 1;
+
+
+
+export const GetLeadChannelSummaryResponseItem = zod.object({
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "total": zod.number().multipleOf(getLeadChannelSummaryResponseTotalMultipleOf),
+  "open": zod.number().multipleOf(getLeadChannelSummaryResponseOpenMultipleOf),
+  "won": zod.number().multipleOf(getLeadChannelSummaryResponseWonMultipleOf),
+  "lost": zod.number().multipleOf(getLeadChannelSummaryResponseLostMultipleOf)
+})
+export const GetLeadChannelSummaryResponse = zod.array(GetLeadChannelSummaryResponseItem)
+
+
+/**
+ * @summary The whole story for one lead
+ */
+
+
+
+export const GetLeadParams = zod.object({
+  "id": zod.coerce.string().min(1)
+})
+
+export const getLeadResponseLeadDepositPenceMultipleOf = 1;
+
+export const getLeadResponseDealOneAgreedPricePenceMultipleOf = 1;
+
+export const getLeadResponseDealOneDepositPenceMultipleOf = 1;
+
+export const getLeadResponseDealOneBalancePenceMultipleOf = 1;
+
+
+
+export const GetLeadResponse = zod.object({
+  "lead": zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(getLeadResponseLeadDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['call', 'whatsapp', 'email', 'note', 'visit', 'stage_change', 'system']),
+  "body": zod.string(),
+  "actor": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "deal": zod.union([zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "agreedPricePence": zod.number().multipleOf(getLeadResponseDealOneAgreedPricePenceMultipleOf),
+  "depositPence": zod.number().multipleOf(getLeadResponseDealOneDepositPenceMultipleOf),
+  "balancePence": zod.number().multipleOf(getLeadResponseDealOneBalancePenceMultipleOf),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "enquiryMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update stage, ownership, next action or outcome
+ */
+
+
+
+export const UpdateLeadParams = zod.object({
+  "id": zod.coerce.string().min(1)
+})
+
+export const updateLeadBodyCustomerNameMax = 160;
+
+export const updateLeadBodyEmailMax = 200;
+
+export const updateLeadBodyPhoneMax = 40;
+
+export const updateLeadBodyVehicleTitleMax = 200;
+
+export const updateLeadBodyOwnerMax = 120;
+
+export const updateLeadBodySummaryMax = 2000;
+
+export const updateLeadBodyNextActionMax = 300;
+
+export const updateLeadBodyDepositPenceMultipleOf = 1;
+
+export const updateLeadBodyOutcomeReasonMax = 300;
+
+
+
+export const UpdateLeadBody = zod.object({
+  "customerName": zod.string().min(1).max(updateLeadBodyCustomerNameMax).optional(),
+  "email": zod.string().max(updateLeadBodyEmailMax).nullish(),
+  "phone": zod.string().max(updateLeadBodyPhoneMax).nullish(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']).optional(),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']).optional(),
+  "vehicleId": zod.string().nullish(),
+  "vehicleTitle": zod.string().max(updateLeadBodyVehicleTitleMax).nullish(),
+  "owner": zod.string().max(updateLeadBodyOwnerMax).nullish(),
+  "summary": zod.string().max(updateLeadBodySummaryMax).nullish(),
+  "appointmentAt": zod.coerce.date().nullish(),
+  "nextAction": zod.string().max(updateLeadBodyNextActionMax).nullish(),
+  "nextActionDueAt": zod.coerce.date().nullish(),
+  "depositPence": zod.number().multipleOf(updateLeadBodyDepositPenceMultipleOf).nullish(),
+  "outcomeReason": zod.string().max(updateLeadBodyOutcomeReasonMax).nullish()
+})
+
+export const updateLeadResponseLeadDepositPenceMultipleOf = 1;
+
+export const updateLeadResponseDealOneAgreedPricePenceMultipleOf = 1;
+
+export const updateLeadResponseDealOneDepositPenceMultipleOf = 1;
+
+export const updateLeadResponseDealOneBalancePenceMultipleOf = 1;
+
+
+
+export const UpdateLeadResponse = zod.object({
+  "lead": zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(updateLeadResponseLeadDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['call', 'whatsapp', 'email', 'note', 'visit', 'stage_change', 'system']),
+  "body": zod.string(),
+  "actor": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "deal": zod.union([zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "agreedPricePence": zod.number().multipleOf(updateLeadResponseDealOneAgreedPricePenceMultipleOf),
+  "depositPence": zod.number().multipleOf(updateLeadResponseDealOneDepositPenceMultipleOf),
+  "balancePence": zod.number().multipleOf(updateLeadResponseDealOneBalancePenceMultipleOf),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "enquiryMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary Log a call, message or note and set the next action
+ */
+
+
+
+export const CreateLeadActivityParams = zod.object({
+  "id": zod.coerce.string().min(1)
+})
+
+export const createLeadActivityBodyBodyMax = 4000;
+
+export const createLeadActivityBodyNextActionMax = 300;
+
+
+
+export const CreateLeadActivityBody = zod.object({
+  "kind": zod.enum(['call', 'whatsapp', 'email', 'note', 'visit']),
+  "body": zod.string().min(1).max(createLeadActivityBodyBodyMax),
+  "occurredAt": zod.coerce.date().nullish(),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']).optional(),
+  "nextAction": zod.string().max(createLeadActivityBodyNextActionMax).nullish(),
+  "nextActionDueAt": zod.coerce.date().nullish()
+})
+
+export const createLeadActivityResponseLeadDepositPenceMultipleOf = 1;
+
+export const createLeadActivityResponseDealOneAgreedPricePenceMultipleOf = 1;
+
+export const createLeadActivityResponseDealOneDepositPenceMultipleOf = 1;
+
+export const createLeadActivityResponseDealOneBalancePenceMultipleOf = 1;
+
+
+
+export const CreateLeadActivityResponse = zod.object({
+  "lead": zod.object({
+  "id": zod.string(),
+  "customerName": zod.string(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
+  "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected', 'won', 'lost']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "owner": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "nextAction": zod.string().nullable(),
+  "nextActionDueAt": zod.coerce.date().nullable(),
+  "depositPence": zod.number().multipleOf(createLeadActivityResponseLeadDepositPenceMultipleOf),
+  "depositTakenAt": zod.coerce.date().nullable(),
+  "firstContactedAt": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date(),
+  "outcomeReason": zod.string().nullable(),
+  "closedAt": zod.coerce.date().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "saleId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['call', 'whatsapp', 'email', 'note', 'visit', 'stage_change', 'system']),
+  "body": zod.string(),
+  "actor": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "deal": zod.union([zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "agreedPricePence": zod.number().multipleOf(createLeadActivityResponseDealOneAgreedPricePenceMultipleOf),
+  "depositPence": zod.number().multipleOf(createLeadActivityResponseDealOneDepositPenceMultipleOf),
+  "balancePence": zod.number().multipleOf(createLeadActivityResponseDealOneBalancePenceMultipleOf),
+  "createdAt": zod.coerce.date()
+}),zod.null()]),
+  "enquiryMessage": zod.string().nullable()
+})
+
+

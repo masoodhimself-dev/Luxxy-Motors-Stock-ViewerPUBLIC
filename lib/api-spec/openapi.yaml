@@ -782,6 +782,288 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /portal/session:
+    get:
+      operationId: getPortalSession
+      tags: [portal]
+      summary: Report the signed-in staff member's portal access
+      description: Returns the authorisation state for the current Clerk session so the portal can distinguish "signed out" from "signed in but not staff".
+      responses:
+        "200":
+          description: Portal access state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalSession"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /portal/worklist:
+    get:
+      operationId: getPortalWorklist
+      tags: [portal]
+      summary: What needs chasing today
+      description: Returns the day view work queue ordered by urgency rather than by arrival time.
+      responses:
+        "200":
+          description: Today's work queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalWorklist"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads:
+    get:
+      operationId: getLeads
+      tags: [leads]
+      summary: Search and filter leads
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema: { type: string }
+        - in: query
+          name: stage
+          required: false
+          schema:
+            type: string
+            enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost, open, all]
+        - in: query
+          name: source
+          required: false
+          schema:
+            type: string
+            enum: [website_form, phone, whatsapp, walk_in, marketplace, social, all]
+        - in: query
+          name: owner
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching leads, most urgent first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lead"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Capture a lead by hand
+      description: Records a walk-in, phone call or marketplace enquiry, including the channel it arrived on.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInput"
+      responses:
+        "201":
+          description: Lead captured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "400":
+          description: Lead failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/summary:
+    get:
+      operationId: getLeadChannelSummary
+      tags: [leads]
+      summary: What each channel produced
+      responses:
+        "200":
+          description: Per-channel lead outcomes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeadChannelSummary"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}:
+    get:
+      operationId: getLead
+      tags: [leads]
+      summary: The whole story for one lead
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Lead with timeline, vehicle and linked deal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateLead
+      tags: [leads]
+      summary: Update stage, ownership, next action or outcome
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadUpdate"
+      responses:
+        "200":
+          description: Updated lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Update failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}/activities:
+    post:
+      operationId: createLeadActivity
+      tags: [leads]
+      summary: Log a call, message or note and set the next action
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadActivityInput"
+      responses:
+        "201":
+          description: Activity logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Activity failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 components:
   schemas:
     DealerBrandColors:
@@ -1829,4 +2111,211 @@ components:
         - developmentOnly
         - warning
         - revoked
-
+    PortalSession:
+      type: object
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+          enum: [allowed, forbidden]
+        name:
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+      required: [state, name, email]
+    Lead:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        customerName: { type: string }
+        email: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        source:
+          type: string
+          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+        vehicleId: { type: [string, "null"] }
+        vehicleTitle: { type: [string, "null"] }
+        vehicleRegistration: { type: [string, "null"] }
+        owner: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        appointmentAt: { type: [string, "null"], format: date-time }
+        nextAction: { type: [string, "null"] }
+        nextActionDueAt: { type: [string, "null"], format: date-time }
+        depositPence: { type: number, multipleOf: 1 }
+        depositTakenAt: { type: [string, "null"], format: date-time }
+        firstContactedAt: { type: [string, "null"], format: date-time }
+        lastContactedAt: { type: [string, "null"], format: date-time }
+        lastActivityAt: { type: string, format: date-time }
+        outcomeReason: { type: [string, "null"] }
+        closedAt: { type: [string, "null"], format: date-time }
+        enquiryId: { type: [string, "null"] }
+        saleId: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required:
+        - id
+        - customerName
+        - email
+        - phone
+        - source
+        - stage
+        - vehicleId
+        - vehicleTitle
+        - vehicleRegistration
+        - owner
+        - summary
+        - appointmentAt
+        - nextAction
+        - nextActionDueAt
+        - depositPence
+        - depositTakenAt
+        - firstContactedAt
+        - lastContactedAt
+        - lastActivityAt
+        - outcomeReason
+        - closedAt
+        - enquiryId
+        - saleId
+        - createdAt
+        - updatedAt
+    LeadActivity:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [call, whatsapp, email, note, visit, stage_change, system]
+        body: { type: string }
+        actor: { type: [string, "null"] }
+        occurredAt: { type: string, format: date-time }
+      required: [id, kind, body, actor, occurredAt]
+    LeadDeal:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        status: { type: string }
+        agreedPricePence: { type: number, multipleOf: 1 }
+        depositPence: { type: number, multipleOf: 1 }
+        balancePence: { type: number, multipleOf: 1 }
+        createdAt: { type: string, format: date-time }
+      required: [id, status, agreedPricePence, depositPence, balancePence, createdAt]
+    LeadDetail:
+      type: object
+      additionalProperties: false
+      properties:
+        lead:
+          $ref: "#/components/schemas/Lead"
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadActivity"
+        deal:
+          oneOf:
+            - $ref: "#/components/schemas/LeadDeal"
+            - type: "null"
+        enquiryMessage: { type: [string, "null"] }
+      required: [lead, activities, deal, enquiryMessage]
+    LeadInput:
+      type: object
+      additionalProperties: false
+      properties:
+        customerName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: [string, "null"], maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 40 }
+        source:
+          type: string
+          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+        vehicleId: { type: [string, "null"] }
+        vehicleTitle: { type: [string, "null"], maxLength: 200 }
+        owner: { type: [string, "null"], maxLength: 120 }
+        summary: { type: [string, "null"], maxLength: 2000 }
+        appointmentAt: { type: [string, "null"], format: date-time }
+        nextAction: { type: [string, "null"], maxLength: 300 }
+        nextActionDueAt: { type: [string, "null"], format: date-time }
+        depositPence: { type: [number, "null"], multipleOf: 1 }
+      required: [customerName, source]
+    LeadUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        customerName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: [string, "null"], maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 40 }
+        source:
+          type: string
+          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+        vehicleId: { type: [string, "null"] }
+        vehicleTitle: { type: [string, "null"], maxLength: 200 }
+        owner: { type: [string, "null"], maxLength: 120 }
+        summary: { type: [string, "null"], maxLength: 2000 }
+        appointmentAt: { type: [string, "null"], format: date-time }
+        nextAction: { type: [string, "null"], maxLength: 300 }
+        nextActionDueAt: { type: [string, "null"], format: date-time }
+        depositPence: { type: [number, "null"], multipleOf: 1 }
+        outcomeReason: { type: [string, "null"], maxLength: 300 }
+    LeadActivityInput:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [call, whatsapp, email, note, visit]
+        body: { type: string, minLength: 1, maxLength: 4000 }
+        occurredAt: { type: [string, "null"], format: date-time }
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+        nextAction: { type: [string, "null"], maxLength: 300 }
+        nextActionDueAt: { type: [string, "null"], format: date-time }
+      required: [kind, body]
+    LeadChannelSummary:
+      type: object
+      additionalProperties: false
+      properties:
+        source:
+          type: string
+          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+        total: { type: number, multipleOf: 1 }
+        open: { type: number, multipleOf: 1 }
+        won: { type: number, multipleOf: 1 }
+        lost: { type: number, multipleOf: 1 }
+      required: [source, total, open, won, lost]
+    PortalWorklist:
+      type: object
+      additionalProperties: false
+      properties:
+        generatedAt: { type: string, format: date-time }
+        viewingsToday:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        overdueFollowUps:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        unansweredEnquiries:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        depositsWithoutDeal:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+      required:
+        - generatedAt
+        - viewingsToday
+        - overdueFollowUps
+        - unansweredEnquiries
+        - depositsWithoutDeal

@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type Request } from "express";
+import { requireStaff } from "../middlewares/staff-auth";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -1218,7 +1219,7 @@ async function createRevisionAndSession(tx: Tx, saleId: string, req: Request) {
   };
 }
 
-router.get("/sales", async (_req, res) => {
+router.get("/sales", requireStaff, async (_req, res) => {
   try {
     const contexts = await Promise.all(
       (
@@ -1235,7 +1236,7 @@ router.get("/sales", async (_req, res) => {
   }
 });
 
-router.post("/sales", async (req, res) => {
+router.post("/sales", requireStaff, async (req, res) => {
   const parsed = saleInput.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid sale", issues: parsed.error.issues });
@@ -1367,7 +1368,7 @@ router.post("/sales", async (req, res) => {
   }
 });
 
-router.get("/sales/:id/checklist", async (req, res): Promise<void> => {
+router.get("/sales/:id/checklist", requireStaff, async (req, res): Promise<void> => {
   const parsed = GetSaleChecklistParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -1391,7 +1392,7 @@ router.get("/sales/:id/checklist", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/sales/:id/checklist/:code", async (req, res): Promise<void> => {
+router.post("/sales/:id/checklist/:code", requireStaff, async (req, res): Promise<void> => {
   const parsedParams = UpdateSaleChecklistItemParams.safeParse(req.params);
   if (!parsedParams.success) {
     res.status(400).json({ error: parsedParams.error.message });
@@ -1494,7 +1495,7 @@ router.post("/sales/:id/checklist/:code", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/sales/:id", async (req, res) => {
+router.get("/sales/:id", requireStaff, async (req, res) => {
   try {
     const context = await loadSale(db, req.params.id);
     if (!context) {
@@ -1507,7 +1508,7 @@ router.get("/sales/:id", async (req, res) => {
   }
 });
 
-router.post("/sales/:id/prepare", async (req, res) => {
+router.post("/sales/:id/prepare", requireStaff, async (req, res) => {
   try {
     const result = await db.transaction(async (tx) => {
       await lockSale(tx, req.params.id);
@@ -1538,7 +1539,7 @@ router.post("/sales/:id/prepare", async (req, res) => {
   }
 });
 
-router.get("/sales/:id/final-checks", async (req, res) => {
+router.get("/sales/:id/final-checks", requireStaff, async (req, res) => {
   try {
     const context = await loadSale(db, req.params.id);
     if (!context) {
@@ -1551,7 +1552,7 @@ router.get("/sales/:id/final-checks", async (req, res) => {
   }
 });
 
-router.post("/sales/:id/complete", async (req, res) => {
+router.post("/sales/:id/complete", requireStaff, async (req, res) => {
   try {
     const result = await db.transaction(async (tx) => {
       await lockSale(tx, req.params.id);
@@ -1791,7 +1792,7 @@ router.post("/signing/:token/complete", async (req, res) => {
   }
 });
 
-router.post("/sales/:id/revoke-signing", async (req, res) => {
+router.post("/sales/:id/revoke-signing", requireStaff, async (req, res) => {
   try {
     const context = await loadSale(db, req.params.id);
     if (!context) {

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { requireStaff } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
 import { db, dealerSettingsTable } from "@workspace/db";
 import {
@@ -79,7 +80,7 @@ router.get("/dealer-settings", async (_req, res): Promise<void> => {
   res.json(GetDealerSettingsResponse.parse(config));
 });
 
-router.patch("/dealer-settings", async (req, res): Promise<void> => {
+router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> => {
   const parsed = UpdateDealerSettingsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
