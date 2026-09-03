@@ -257,16 +257,6 @@ export default function Home() {
                 <option value="" className="text-foreground">Any make</option>
                 {makes.map(make => <option key={make} value={make} className="text-foreground">{make}</option>)}
               </NativeSelect>
-              <Button
-                type="button"
-                onClick={revealResults}
-                size="lg"
-                data-testid="button-hero-search"
-                className="h-12 bg-accent px-6 font-bold text-accent-foreground hover:bg-accent/90"
-              >
-                Search
-                <ArrowRight className="ml-3 h-4 w-4" />
-              </Button>
             </div>
           </div>
         </div>
