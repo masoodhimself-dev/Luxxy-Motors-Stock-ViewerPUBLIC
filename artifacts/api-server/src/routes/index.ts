@@ -12,6 +12,7 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(stockRouter);
 router.use(enquiriesRouter);
+router.use(leadsRouter);
 router.use(salesRouter);
 router.use(dealerSettingsRouter);
 router.use(customerIntakeRouter);

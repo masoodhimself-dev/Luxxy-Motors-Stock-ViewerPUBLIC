@@ -8,9 +8,13 @@
 import type { Lead } from './lead';
 import type { LeadActivity } from './leadActivity';
 import type { LeadDeal } from './leadDeal';
+import type { LeadEvent } from './leadEvent';
+import type { LeadSaleLink } from './leadSaleLink';
 
 export interface LeadDetail {
   lead: Lead;
+  events: LeadEvent[];
+  sales: LeadSaleLink[];
   activities: LeadActivity[];
   deal: LeadDeal | null;
   /** @nullable */

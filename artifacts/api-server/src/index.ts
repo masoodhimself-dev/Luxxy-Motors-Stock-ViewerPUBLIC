@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startReminderWorker } from "./lib/enquiry-notifications";
+import { backfillLeadsFromEnquiries } from "./lib/leads";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,12 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startReminderWorker(logger);
+  // Enquiries taken before leads existed are carried across on boot. This is
+  // idempotent, so it is safe on every restart.
+  backfillLeadsFromEnquiries(logger).catch((err: unknown) => {
+    logger.error(
+      { err },
+      "Unable to carry existing enquiries across into leads",
+    );
+  });
 });

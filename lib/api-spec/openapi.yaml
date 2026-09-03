@@ -14,6 +14,8 @@ tags:
     description: Shared showroom stock
   - name: enquiries
     description: Customer enquiries and viewing requests
+  - name: leads
+    description: Buyer leads and their timeline, whatever channel they arrived on
   - name: sales
     description: Development-only dealer sales foundation
   - name: signing
@@ -271,6 +273,411 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "500":
           description: Unable to update enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads:
+    get:
+      operationId: getLeads
+      tags: [leads]
+      summary: List leads
+      description: Returns leads for the configured dealer, newest first, whatever channel they arrived on.
+      parameters:
+        - in: query
+          name: stage
+          required: false
+          schema:
+            type: string
+            enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+        - in: query
+          name: source
+          required: false
+          schema:
+            type: string
+            enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+        - in: query
+          name: owner
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - in: query
+          name: state
+          required: false
+          description: Limit to leads that are still live or already closed.
+          schema:
+            type: string
+            enum: [open, closed]
+      responses:
+        "200":
+          description: Leads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lead"
+        "400":
+          description: Invalid lead filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to load leads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Create a lead by hand
+      description: Records a lead that arrived by phone, WhatsApp, walk-in, marketplace or social, rather than through the website form.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInput"
+      responses:
+        "201":
+          description: Lead created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Lead failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Selected vehicle was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to create lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}:
+    get:
+      operationId: getLead
+      tags: [leads]
+      summary: Get a lead with its timeline
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Lead with its timeline and any sales it produced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Invalid lead id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to load lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateLead
+      tags: [leads]
+      summary: Update lead details from the dealer portal
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadUpdate"
+      responses:
+        "200":
+          description: Updated lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Update failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Not authorised for the portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}/touches:
+    post:
+      operationId: logLeadTouch
+      tags: [leads]
+      summary: Log a touch against a lead
+      description: Appends a call, message, email, visit or note to the lead timeline. Contact touches also move the last contacted time on.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadTouchInput"
+      responses:
+        "201":
+          description: Lead with the touch appended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Touch failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to log the touch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}/stage:
+    post:
+      operationId: updateLeadStage
+      tags: [leads]
+      summary: Move a lead to another stage
+      description: Moves a live lead between stages. Closing a lead is done by recording an outcome, not by setting a stage.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadStageUpdate"
+      responses:
+        "200":
+          description: Lead at its new stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Stage change failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: The lead cannot move to that stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to change the stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}/owner:
+    post:
+      operationId: assignLeadOwner
+      tags: [leads]
+      summary: Assign the person who owns a lead
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadOwnerUpdate"
+      responses:
+        "200":
+          description: Lead with its owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Owner failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to assign the owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}/next-action:
+    post:
+      operationId: setLeadNextAction
+      tags: [leads]
+      summary: Set what happens next on a lead and when
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadNextActionUpdate"
+      responses:
+        "200":
+          description: Lead with its next action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Next action failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to set the next action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /leads/{id}/outcome:
+    post:
+      operationId: closeLead
+      tags: [leads]
+      summary: Close a lead with an outcome
+      description: Closes a lead as won or lost. Both an outcome and a reason are required.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadOutcomeInput"
+      responses:
+        "200":
+          description: Closed lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          description: Outcome failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: The lead is already closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to close the lead
           content:
             application/json:
               schema:
@@ -826,89 +1233,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-  /leads:
-    get:
-      operationId: getLeads
-      tags: [leads]
-      summary: Search and filter leads
-      parameters:
-        - in: query
-          name: search
-          required: false
-          schema: { type: string }
-        - in: query
-          name: stage
-          required: false
-          schema:
-            type: string
-            enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost, open, all]
-        - in: query
-          name: source
-          required: false
-          schema:
-            type: string
-            enum: [website_form, phone, whatsapp, walk_in, marketplace, social, all]
-        - in: query
-          name: owner
-          required: false
-          schema: { type: string }
-      responses:
-        "200":
-          description: Matching leads, most urgent first
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Lead"
-        "401":
-          description: Not signed in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "403":
-          description: Not authorised for the portal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-    post:
-      operationId: createLead
-      tags: [leads]
-      summary: Capture a lead by hand
-      description: Records a walk-in, phone call or marketplace enquiry, including the channel it arrived on.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LeadInput"
-      responses:
-        "201":
-          description: Lead captured
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Lead"
-        "400":
-          description: Lead failed validation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "401":
-          description: Not signed in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "403":
-          description: Not authorised for the portal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
   /leads/summary:
     get:
       operationId: getLeadChannelSummary
@@ -931,87 +1255,6 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "403":
           description: Not authorised for the portal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-  /leads/{id}:
-    get:
-      operationId: getLead
-      tags: [leads]
-      summary: The whole story for one lead
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string, minLength: 1 }
-      responses:
-        "200":
-          description: Lead with timeline, vehicle and linked deal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeadDetail"
-        "401":
-          description: Not signed in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "403":
-          description: Not authorised for the portal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "404":
-          description: Lead not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-    patch:
-      operationId: updateLead
-      tags: [leads]
-      summary: Update stage, ownership, next action or outcome
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string, minLength: 1 }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LeadUpdate"
-      responses:
-        "200":
-          description: Updated lead
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LeadDetail"
-        "400":
-          description: Update failed validation
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "401":
-          description: Not signed in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "403":
-          description: Not authorised for the portal
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "404":
-          description: Lead not found
           content:
             application/json:
               schema:
@@ -1621,6 +1864,9 @@ components:
           multipleOf: 1
         vehicleUrl:
           type: [string, "null"]
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
         type:
           type: string
           enum: [viewing, general, delivery, warranty, part_exchange]
@@ -1657,9 +1903,6 @@ components:
         reminderError:
           type: [string, "null"]
         reminderSentAt:
-          type: [string, "null"]
-          format: date-time
-        appointmentAt:
           type: [string, "null"]
           format: date-time
         source:
@@ -1778,6 +2021,394 @@ components:
         - date
         - timezone
         - slots
+    Lead:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+        dealerId:
+          type: string
+          minLength: 1
+        enquiryId:
+          type: [string, "null"]
+        vehicleId:
+          type: [string, "null"]
+        vehicleTitle:
+          type: [string, "null"]
+        vehicleRegistration:
+          type: [string, "null"]
+        vehiclePrice:
+          type: [number, "null"]
+          multipleOf: 1
+        vehicleUrl:
+          type: [string, "null"]
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
+        source:
+          type: string
+          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
+        owner:
+          type: [string, "null"]
+        customerName:
+          type: string
+          minLength: 1
+        email:
+          type: [string, "null"]
+        phone:
+          type: [string, "null"]
+        preferredContact:
+          type: [string, "null"]
+        summary:
+          type: [string, "null"]
+        nextAction:
+          type: [string, "null"]
+        nextActionDueAt:
+          type: [string, "null"]
+          format: date-time
+        lastContactedAt:
+          type: [string, "null"]
+          format: date-time
+        firstContactedAt:
+          type: [string, "null"]
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+        outcome:
+          type: [string, "null"]
+          enum: [won, lost]
+        outcomeReason:
+          type: [string, "null"]
+        closedAt:
+          type: [string, "null"]
+          format: date-time
+        depositPence:
+          type: number
+          multipleOf: 1
+        depositMethod:
+          type: [string, "null"]
+          enum: [cash, card_machine, bank_transfer, other]
+        depositReference:
+          type: [string, "null"]
+        depositTakenAt:
+          type: [string, "null"]
+          format: date-time
+        saleId:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - dealerId
+        - enquiryId
+        - vehicleId
+        - vehicleTitle
+        - vehicleRegistration
+        - vehiclePrice
+        - vehicleUrl
+        - appointmentAt
+        - stage
+        - source
+        - owner
+        - customerName
+        - email
+        - phone
+        - preferredContact
+        - summary
+        - nextAction
+        - nextActionDueAt
+        - lastContactedAt
+        - firstContactedAt
+        - lastActivityAt
+        - outcome
+        - outcomeReason
+        - closedAt
+        - depositPence
+        - depositMethod
+        - depositReference
+        - depositTakenAt
+        - saleId
+        - createdAt
+        - updatedAt
+    LeadEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+        leadId:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum:
+            - lead_created
+            - enquiry_received
+            - call_logged
+            - message_logged
+            - email_logged
+            - visit_logged
+            - note_added
+            - viewing_booked
+            - stage_changed
+            - owner_assigned
+            - next_action_set
+            - deposit_recorded
+            - outcome_recorded
+            - sale_created
+        actorType:
+          type: string
+          enum: [staff, customer, system]
+        actor:
+          type: [string, "null"]
+        body:
+          type: [string, "null"]
+        payload:
+          type: object
+          additionalProperties: true
+        occurredAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - leadId
+        - type
+        - actorType
+        - actor
+        - body
+        - payload
+        - occurredAt
+        - createdAt
+    LeadSaleLink:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          minLength: 1
+        agreedPricePence:
+          type: number
+          multipleOf: 1
+        depositPence:
+          type: number
+          multipleOf: 1
+        balancePence:
+          type: number
+          multipleOf: 1
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - id
+        - status
+        - agreedPricePence
+        - depositPence
+        - balancePence
+        - createdAt
+        - completedAt
+    LeadDetail:
+      type: object
+      additionalProperties: false
+      properties:
+        lead:
+          $ref: "#/components/schemas/Lead"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadEvent"
+        sales:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadSaleLink"
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadActivity"
+        deal:
+          oneOf:
+            - $ref: "#/components/schemas/LeadDeal"
+            - type: "null"
+        enquiryMessage:
+          type: [string, "null"]
+      required:
+        - lead
+        - events
+        - sales
+        - activities
+        - deal
+        - enquiryMessage
+    LeadInput:
+      type: object
+      additionalProperties: false
+      properties:
+        source:
+          type: string
+          enum: [phone, whatsapp, walk_in, marketplace, social]
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected]
+        customerName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: [string, "null"]
+          maxLength: 320
+        phone:
+          type: [string, "null"]
+          maxLength: 40
+        vehicleId:
+          type: [string, "null"]
+        vehicleTitle:
+          type: [string, "null"]
+          maxLength: 200
+        summary:
+          type: [string, "null"]
+          maxLength: 2000
+        owner:
+          type: [string, "null"]
+          maxLength: 120
+        nextAction:
+          type: [string, "null"]
+          maxLength: 240
+        nextActionDueAt:
+          type: [string, "null"]
+          format: date-time
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
+        depositPence:
+          type: [number, "null"]
+          multipleOf: 1
+        actor:
+          type: [string, "null"]
+          maxLength: 120
+      required:
+        - source
+        - customerName
+    LeadTouchInput:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [call, whatsapp, sms, email, visit, note]
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        actor:
+          type: [string, "null"]
+          maxLength: 120
+        occurredAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - type
+        - body
+    LeadDepositInput:
+      type: object
+      additionalProperties: false
+      description: A deposit taken in person or over the phone. Online payments are not supported.
+      properties:
+        amountPence:
+          type: number
+          multipleOf: 1
+          minimum: 1
+          maximum: 10000000
+        method:
+          type: string
+          enum: [cash, card_machine, bank_transfer, other]
+        reference:
+          type: [string, "null"]
+          maxLength: 120
+        takenAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - amountPence
+        - method
+    LeadStageUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        stage:
+          type: string
+          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected]
+        note:
+          type: [string, "null"]
+          maxLength: 2000
+        actor:
+          type: [string, "null"]
+          maxLength: 120
+        deposit:
+          oneOf:
+            - $ref: "#/components/schemas/LeadDepositInput"
+            - type: "null"
+      required:
+        - stage
+    LeadOwnerUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        owner:
+          type: [string, "null"]
+          maxLength: 120
+        actor:
+          type: [string, "null"]
+          maxLength: 120
+      required:
+        - owner
+    LeadNextActionUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        nextAction:
+          type: [string, "null"]
+          maxLength: 240
+        dueAt:
+          type: [string, "null"]
+          format: date-time
+        actor:
+          type: [string, "null"]
+          maxLength: 120
+      required:
+        - nextAction
+        - dueAt
+    LeadOutcomeInput:
+      type: object
+      additionalProperties: false
+      properties:
+        outcome:
+          type: string
+          enum: [won, lost]
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 2000
+        actor:
+          type: [string, "null"]
+          maxLength: 120
+      required:
+        - outcome
+        - reason
     CustomerIntakeCustomer:
       type: object
       additionalProperties: false
@@ -2123,65 +2754,6 @@ components:
         email:
           type: [string, "null"]
       required: [state, name, email]
-    Lead:
-      type: object
-      additionalProperties: false
-      properties:
-        id: { type: string }
-        customerName: { type: string }
-        email: { type: [string, "null"] }
-        phone: { type: [string, "null"] }
-        source:
-          type: string
-          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
-        stage:
-          type: string
-          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
-        vehicleId: { type: [string, "null"] }
-        vehicleTitle: { type: [string, "null"] }
-        vehicleRegistration: { type: [string, "null"] }
-        owner: { type: [string, "null"] }
-        summary: { type: [string, "null"] }
-        appointmentAt: { type: [string, "null"], format: date-time }
-        nextAction: { type: [string, "null"] }
-        nextActionDueAt: { type: [string, "null"], format: date-time }
-        depositPence: { type: number, multipleOf: 1 }
-        depositTakenAt: { type: [string, "null"], format: date-time }
-        firstContactedAt: { type: [string, "null"], format: date-time }
-        lastContactedAt: { type: [string, "null"], format: date-time }
-        lastActivityAt: { type: string, format: date-time }
-        outcomeReason: { type: [string, "null"] }
-        closedAt: { type: [string, "null"], format: date-time }
-        enquiryId: { type: [string, "null"] }
-        saleId: { type: [string, "null"] }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-      required:
-        - id
-        - customerName
-        - email
-        - phone
-        - source
-        - stage
-        - vehicleId
-        - vehicleTitle
-        - vehicleRegistration
-        - owner
-        - summary
-        - appointmentAt
-        - nextAction
-        - nextActionDueAt
-        - depositPence
-        - depositTakenAt
-        - firstContactedAt
-        - lastContactedAt
-        - lastActivityAt
-        - outcomeReason
-        - closedAt
-        - enquiryId
-        - saleId
-        - createdAt
-        - updatedAt
     LeadActivity:
       type: object
       additionalProperties: false
@@ -2205,44 +2777,6 @@ components:
         balancePence: { type: number, multipleOf: 1 }
         createdAt: { type: string, format: date-time }
       required: [id, status, agreedPricePence, depositPence, balancePence, createdAt]
-    LeadDetail:
-      type: object
-      additionalProperties: false
-      properties:
-        lead:
-          $ref: "#/components/schemas/Lead"
-        activities:
-          type: array
-          items:
-            $ref: "#/components/schemas/LeadActivity"
-        deal:
-          oneOf:
-            - $ref: "#/components/schemas/LeadDeal"
-            - type: "null"
-        enquiryMessage: { type: [string, "null"] }
-      required: [lead, activities, deal, enquiryMessage]
-    LeadInput:
-      type: object
-      additionalProperties: false
-      properties:
-        customerName: { type: string, minLength: 1, maxLength: 160 }
-        email: { type: [string, "null"], maxLength: 200 }
-        phone: { type: [string, "null"], maxLength: 40 }
-        source:
-          type: string
-          enum: [website_form, phone, whatsapp, walk_in, marketplace, social]
-        stage:
-          type: string
-          enum: [new, qualifying, viewing_booked, offer, reserved, sale_agreed, collected, won, lost]
-        vehicleId: { type: [string, "null"] }
-        vehicleTitle: { type: [string, "null"], maxLength: 200 }
-        owner: { type: [string, "null"], maxLength: 120 }
-        summary: { type: [string, "null"], maxLength: 2000 }
-        appointmentAt: { type: [string, "null"], format: date-time }
-        nextAction: { type: [string, "null"], maxLength: 300 }
-        nextActionDueAt: { type: [string, "null"], format: date-time }
-        depositPence: { type: [number, "null"], multipleOf: 1 }
-      required: [customerName, source]
     LeadUpdate:
       type: object
       additionalProperties: false
@@ -2265,6 +2799,7 @@ components:
         nextActionDueAt: { type: [string, "null"], format: date-time }
         depositPence: { type: [number, "null"], multipleOf: 1 }
         outcomeReason: { type: [string, "null"], maxLength: 300 }
+        actor: { type: [string, "null"], maxLength: 120 }
     LeadActivityInput:
       type: object
       additionalProperties: false

@@ -522,6 +522,8 @@ export interface Enquiry {
   vehiclePrice: number | null;
   /** @nullable */
   vehicleUrl: string | null;
+  /** @nullable */
+  appointmentAt: string | null;
   type: EnquiryType;
   status: EnquiryStatus;
   /** @minLength 1 */
@@ -548,8 +550,6 @@ export interface Enquiry {
   reminderError: string | null;
   /** @nullable */
   reminderSentAt: string | null;
-  /** @nullable */
-  appointmentAt: string | null;
   source: string;
   createdAt: string;
   updatedAt: string;
@@ -628,6 +628,429 @@ export interface EnquiryAvailability {
   date: string;
   timezone: string;
   slots: EnquiryAvailabilitySlot[];
+}
+
+export type LeadStage = typeof LeadStage[keyof typeof LeadStage];
+
+
+export const LeadStage = {
+  new: 'new',
+  qualifying: 'qualifying',
+  viewing_booked: 'viewing_booked',
+  offer: 'offer',
+  reserved: 'reserved',
+  sale_agreed: 'sale_agreed',
+  collected: 'collected',
+  won: 'won',
+  lost: 'lost',
+} as const;
+
+export type LeadSource = typeof LeadSource[keyof typeof LeadSource];
+
+
+export const LeadSource = {
+  website_form: 'website_form',
+  phone: 'phone',
+  whatsapp: 'whatsapp',
+  walk_in: 'walk_in',
+  marketplace: 'marketplace',
+  social: 'social',
+} as const;
+
+/**
+ * @nullable
+ */
+export type LeadOutcome = typeof LeadOutcome[keyof typeof LeadOutcome] | null;
+
+
+export const LeadOutcome = {
+  won: 'won',
+  lost: 'lost',
+} as const;
+
+/**
+ * @nullable
+ */
+export type LeadDepositMethod = typeof LeadDepositMethod[keyof typeof LeadDepositMethod] | null;
+
+
+export const LeadDepositMethod = {
+  cash: 'cash',
+  card_machine: 'card_machine',
+  bank_transfer: 'bank_transfer',
+  other: 'other',
+} as const;
+
+export interface Lead {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  dealerId: string;
+  /** @nullable */
+  enquiryId: string | null;
+  /** @nullable */
+  vehicleId: string | null;
+  /** @nullable */
+  vehicleTitle: string | null;
+  /** @nullable */
+  vehicleRegistration: string | null;
+  /** @nullable */
+  vehiclePrice: number | null;
+  /** @nullable */
+  vehicleUrl: string | null;
+  stage: LeadStage;
+  source: LeadSource;
+  /** @nullable */
+  owner: string | null;
+  /** @minLength 1 */
+  customerName: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  preferredContact: string | null;
+  /** @nullable */
+  summary: string | null;
+  /** @nullable */
+  nextAction: string | null;
+  /** @nullable */
+  nextActionDueAt: string | null;
+  /** @nullable */
+  lastContactedAt: string | null;
+  /** @nullable */
+  firstContactedAt: string | null;
+  lastActivityAt: string;
+  /** @nullable */
+  outcome: LeadOutcome;
+  /** @nullable */
+  outcomeReason: string | null;
+  /** @nullable */
+  closedAt: string | null;
+  depositPence: number;
+  /** @nullable */
+  depositMethod: LeadDepositMethod;
+  /** @nullable */
+  depositReference: string | null;
+  /** @nullable */
+  depositTakenAt: string | null;
+  /** @nullable */
+  saleId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LeadEventType = typeof LeadEventType[keyof typeof LeadEventType];
+
+
+export const LeadEventType = {
+  lead_created: 'lead_created',
+  enquiry_received: 'enquiry_received',
+  call_logged: 'call_logged',
+  message_logged: 'message_logged',
+  email_logged: 'email_logged',
+  visit_logged: 'visit_logged',
+  note_added: 'note_added',
+  viewing_booked: 'viewing_booked',
+  stage_changed: 'stage_changed',
+  owner_assigned: 'owner_assigned',
+  next_action_set: 'next_action_set',
+  deposit_recorded: 'deposit_recorded',
+  outcome_recorded: 'outcome_recorded',
+  sale_created: 'sale_created',
+} as const;
+
+export type LeadEventActorType = typeof LeadEventActorType[keyof typeof LeadEventActorType];
+
+
+export const LeadEventActorType = {
+  staff: 'staff',
+  customer: 'customer',
+  system: 'system',
+} as const;
+
+export type LeadEventPayload = { [key: string]: unknown };
+
+export interface LeadEvent {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  leadId: string;
+  type: LeadEventType;
+  actorType: LeadEventActorType;
+  /** @nullable */
+  actor: string | null;
+  /** @nullable */
+  body: string | null;
+  payload: LeadEventPayload;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface LeadSaleLink {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  status: string;
+  agreedPricePence: number;
+  depositPence: number;
+  balancePence: number;
+  createdAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export type LeadActivityKind = typeof LeadActivityKind[keyof typeof LeadActivityKind];
+
+
+export const LeadActivityKind = {
+  call: 'call',
+  whatsapp: 'whatsapp',
+  email: 'email',
+  note: 'note',
+  visit: 'visit',
+  stage_change: 'stage_change',
+  system: 'system',
+} as const;
+
+export interface LeadActivity {
+  id: string;
+  kind: LeadActivityKind;
+  body: string;
+  /** @nullable */
+  actor: string | null;
+  occurredAt: string;
+}
+
+export interface LeadDeal {
+  id: string;
+  status: string;
+  agreedPricePence: number;
+  depositPence: number;
+  balancePence: number;
+  createdAt: string;
+}
+
+export interface LeadDetail {
+  lead: Lead;
+  events: LeadEvent[];
+  sales: LeadSaleLink[];
+  activities: LeadActivity[];
+  deal: LeadDeal | null;
+  /** @nullable */
+  enquiryMessage: string | null;
+}
+
+export type LeadInputSource = typeof LeadInputSource[keyof typeof LeadInputSource];
+
+
+export const LeadInputSource = {
+  phone: 'phone',
+  whatsapp: 'whatsapp',
+  walk_in: 'walk_in',
+  marketplace: 'marketplace',
+  social: 'social',
+} as const;
+
+export type LeadInputStage = typeof LeadInputStage[keyof typeof LeadInputStage];
+
+
+export const LeadInputStage = {
+  new: 'new',
+  qualifying: 'qualifying',
+  viewing_booked: 'viewing_booked',
+  offer: 'offer',
+  reserved: 'reserved',
+  sale_agreed: 'sale_agreed',
+  collected: 'collected',
+} as const;
+
+export interface LeadInput {
+  source: LeadInputSource;
+  stage?: LeadInputStage;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  customerName: string;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  phone?: string | null;
+  /** @nullable */
+  vehicleId?: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  vehicleTitle?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  summary?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  owner?: string | null;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  nextAction?: string | null;
+  /** @nullable */
+  nextActionDueAt?: string | null;
+  /** @nullable */
+  appointmentAt?: string | null;
+  /** @nullable */
+  depositPence?: number | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
+}
+
+export type LeadTouchInputType = typeof LeadTouchInputType[keyof typeof LeadTouchInputType];
+
+
+export const LeadTouchInputType = {
+  call: 'call',
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+  email: 'email',
+  visit: 'visit',
+  note: 'note',
+} as const;
+
+export interface LeadTouchInput {
+  type: LeadTouchInputType;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  body: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
+  /** @nullable */
+  occurredAt?: string | null;
+}
+
+export type LeadDepositInputMethod = typeof LeadDepositInputMethod[keyof typeof LeadDepositInputMethod];
+
+
+export const LeadDepositInputMethod = {
+  cash: 'cash',
+  card_machine: 'card_machine',
+  bank_transfer: 'bank_transfer',
+  other: 'other',
+} as const;
+
+/**
+ * A deposit taken in person or over the phone. Online payments are not supported.
+ */
+export interface LeadDepositInput {
+  /**
+     * @minimum 1
+     * @maximum 10000000
+     */
+  amountPence: number;
+  method: LeadDepositInputMethod;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  reference?: string | null;
+  /** @nullable */
+  takenAt?: string | null;
+}
+
+export type LeadStageUpdateStage = typeof LeadStageUpdateStage[keyof typeof LeadStageUpdateStage];
+
+
+export const LeadStageUpdateStage = {
+  new: 'new',
+  qualifying: 'qualifying',
+  viewing_booked: 'viewing_booked',
+  offer: 'offer',
+  reserved: 'reserved',
+  sale_agreed: 'sale_agreed',
+  collected: 'collected',
+} as const;
+
+export interface LeadStageUpdate {
+  stage: LeadStageUpdateStage;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  note?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
+  deposit?: LeadDepositInput | null;
+}
+
+export interface LeadOwnerUpdate {
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  owner: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
+}
+
+export interface LeadNextActionUpdate {
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  nextAction: string | null;
+  /** @nullable */
+  dueAt: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
+}
+
+export type LeadOutcomeInputOutcome = typeof LeadOutcomeInputOutcome[keyof typeof LeadOutcomeInputOutcome];
+
+
+export const LeadOutcomeInputOutcome = {
+  won: 'won',
+  lost: 'lost',
+} as const;
+
+export interface LeadOutcomeInput {
+  outcome: LeadOutcomeInputOutcome;
+  /**
+     * @minLength 3
+     * @maxLength 2000
+     */
+  reason: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
 }
 
 export interface CustomerIntakeCustomer {
@@ -869,192 +1292,6 @@ export interface PortalSession {
   email: string | null;
 }
 
-export type LeadSource = typeof LeadSource[keyof typeof LeadSource];
-
-
-export const LeadSource = {
-  website_form: 'website_form',
-  phone: 'phone',
-  whatsapp: 'whatsapp',
-  walk_in: 'walk_in',
-  marketplace: 'marketplace',
-  social: 'social',
-} as const;
-
-export type LeadStage = typeof LeadStage[keyof typeof LeadStage];
-
-
-export const LeadStage = {
-  new: 'new',
-  qualifying: 'qualifying',
-  viewing_booked: 'viewing_booked',
-  offer: 'offer',
-  reserved: 'reserved',
-  sale_agreed: 'sale_agreed',
-  collected: 'collected',
-  won: 'won',
-  lost: 'lost',
-} as const;
-
-export interface Lead {
-  id: string;
-  customerName: string;
-  /** @nullable */
-  email: string | null;
-  /** @nullable */
-  phone: string | null;
-  source: LeadSource;
-  stage: LeadStage;
-  /** @nullable */
-  vehicleId: string | null;
-  /** @nullable */
-  vehicleTitle: string | null;
-  /** @nullable */
-  vehicleRegistration: string | null;
-  /** @nullable */
-  owner: string | null;
-  /** @nullable */
-  summary: string | null;
-  /** @nullable */
-  appointmentAt: string | null;
-  /** @nullable */
-  nextAction: string | null;
-  /** @nullable */
-  nextActionDueAt: string | null;
-  depositPence: number;
-  /** @nullable */
-  depositTakenAt: string | null;
-  /** @nullable */
-  firstContactedAt: string | null;
-  /** @nullable */
-  lastContactedAt: string | null;
-  lastActivityAt: string;
-  /** @nullable */
-  outcomeReason: string | null;
-  /** @nullable */
-  closedAt: string | null;
-  /** @nullable */
-  enquiryId: string | null;
-  /** @nullable */
-  saleId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type LeadActivityKind = typeof LeadActivityKind[keyof typeof LeadActivityKind];
-
-
-export const LeadActivityKind = {
-  call: 'call',
-  whatsapp: 'whatsapp',
-  email: 'email',
-  note: 'note',
-  visit: 'visit',
-  stage_change: 'stage_change',
-  system: 'system',
-} as const;
-
-export interface LeadActivity {
-  id: string;
-  kind: LeadActivityKind;
-  body: string;
-  /** @nullable */
-  actor: string | null;
-  occurredAt: string;
-}
-
-export interface LeadDeal {
-  id: string;
-  status: string;
-  agreedPricePence: number;
-  depositPence: number;
-  balancePence: number;
-  createdAt: string;
-}
-
-export interface LeadDetail {
-  lead: Lead;
-  activities: LeadActivity[];
-  deal: LeadDeal | null;
-  /** @nullable */
-  enquiryMessage: string | null;
-}
-
-export type LeadInputSource = typeof LeadInputSource[keyof typeof LeadInputSource];
-
-
-export const LeadInputSource = {
-  website_form: 'website_form',
-  phone: 'phone',
-  whatsapp: 'whatsapp',
-  walk_in: 'walk_in',
-  marketplace: 'marketplace',
-  social: 'social',
-} as const;
-
-export type LeadInputStage = typeof LeadInputStage[keyof typeof LeadInputStage];
-
-
-export const LeadInputStage = {
-  new: 'new',
-  qualifying: 'qualifying',
-  viewing_booked: 'viewing_booked',
-  offer: 'offer',
-  reserved: 'reserved',
-  sale_agreed: 'sale_agreed',
-  collected: 'collected',
-  won: 'won',
-  lost: 'lost',
-} as const;
-
-export interface LeadInput {
-  /**
-     * @minLength 1
-     * @maxLength 160
-     */
-  customerName: string;
-  /**
-     * @maxLength 200
-     * @nullable
-     */
-  email?: string | null;
-  /**
-     * @maxLength 40
-     * @nullable
-     */
-  phone?: string | null;
-  source: LeadInputSource;
-  stage?: LeadInputStage;
-  /** @nullable */
-  vehicleId?: string | null;
-  /**
-     * @maxLength 200
-     * @nullable
-     */
-  vehicleTitle?: string | null;
-  /**
-     * @maxLength 120
-     * @nullable
-     */
-  owner?: string | null;
-  /**
-     * @maxLength 2000
-     * @nullable
-     */
-  summary?: string | null;
-  /** @nullable */
-  appointmentAt?: string | null;
-  /**
-     * @maxLength 300
-     * @nullable
-     */
-  nextAction?: string | null;
-  /** @nullable */
-  nextActionDueAt?: string | null;
-  /** @nullable */
-  depositPence?: number | null;
-}
-
 export type LeadUpdateSource = typeof LeadUpdateSource[keyof typeof LeadUpdateSource];
 
 
@@ -1133,6 +1370,11 @@ export interface LeadUpdate {
      * @nullable
      */
   outcomeReason?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
 }
 
 export type LeadActivityInputKind = typeof LeadActivityInputKind[keyof typeof LeadActivityInputKind];
@@ -1229,10 +1471,17 @@ date: string;
 };
 
 export type GetLeadsParams = {
-search?: string;
 stage?: GetLeadsStage;
 source?: GetLeadsSource;
+/**
+ * @minLength 1
+ * @maxLength 120
+ */
 owner?: string;
+/**
+ * Limit to leads that are still live or already closed.
+ */
+state?: GetLeadsState;
 };
 
 export type GetLeadsStage = typeof GetLeadsStage[keyof typeof GetLeadsStage];
@@ -1248,8 +1497,6 @@ export const GetLeadsStage = {
   collected: 'collected',
   won: 'won',
   lost: 'lost',
-  open: 'open',
-  all: 'all',
 } as const;
 
 export type GetLeadsSource = typeof GetLeadsSource[keyof typeof GetLeadsSource];
@@ -1262,6 +1509,13 @@ export const GetLeadsSource = {
   walk_in: 'walk_in',
   marketplace: 'marketplace',
   social: 'social',
-  all: 'all',
+} as const;
+
+export type GetLeadsState = typeof GetLeadsState[keyof typeof GetLeadsState];
+
+
+export const GetLeadsState = {
+  open: 'open',
+  closed: 'closed',
 } as const;
 

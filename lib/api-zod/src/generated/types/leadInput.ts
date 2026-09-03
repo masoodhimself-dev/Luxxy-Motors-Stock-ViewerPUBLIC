@@ -9,13 +9,15 @@ import type { LeadInputSource } from './leadInputSource';
 import type { LeadInputStage } from './leadInputStage';
 
 export interface LeadInput {
+  source: LeadInputSource;
+  stage?: LeadInputStage;
   /**
-     * @minLength 1
-     * @maxLength 160
+     * @minLength 2
+     * @maxLength 120
      */
   customerName: string;
   /**
-     * @maxLength 200
+     * @maxLength 320
      * @nullable
      */
   email?: string | null;
@@ -24,8 +26,6 @@ export interface LeadInput {
      * @nullable
      */
   phone?: string | null;
-  source: LeadInputSource;
-  stage?: LeadInputStage;
   /** @nullable */
   vehicleId?: string | null;
   /**
@@ -34,24 +34,29 @@ export interface LeadInput {
      */
   vehicleTitle?: string | null;
   /**
+     * @maxLength 2000
+     * @nullable
+     */
+  summary?: string | null;
+  /**
      * @maxLength 120
      * @nullable
      */
   owner?: string | null;
   /**
-     * @maxLength 2000
-     * @nullable
-     */
-  summary?: string | null;
-  /** @nullable */
-  appointmentAt?: Date | null;
-  /**
-     * @maxLength 300
+     * @maxLength 240
      * @nullable
      */
   nextAction?: string | null;
   /** @nullable */
   nextActionDueAt?: Date | null;
   /** @nullable */
+  appointmentAt?: Date | null;
+  /** @nullable */
   depositPence?: number | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
 }

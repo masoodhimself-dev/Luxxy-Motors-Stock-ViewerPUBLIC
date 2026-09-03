@@ -23,6 +23,8 @@ export interface Enquiry {
   vehiclePrice: number | null;
   /** @nullable */
   vehicleUrl: string | null;
+  /** @nullable */
+  appointmentAt: Date | null;
   type: EnquiryType;
   status: EnquiryStatus;
   /** @minLength 1 */
@@ -49,8 +51,6 @@ export interface Enquiry {
   reminderError: string | null;
   /** @nullable */
   reminderSentAt: Date | null;
-  /** @nullable */
-  appointmentAt: Date | null;
   source: string;
   createdAt: Date;
   updatedAt: Date;

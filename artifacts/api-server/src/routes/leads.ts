@@ -9,19 +9,49 @@ import {
   vehiclesTable,
 } from "@workspace/db";
 import {
+  AssignLeadOwnerBody,
+  AssignLeadOwnerParams,
+  AssignLeadOwnerResponse,
+  CloseLeadBody,
+  CloseLeadParams,
+  CloseLeadResponse,
   CreateLeadActivityBody,
   CreateLeadBody,
   GetLeadChannelSummaryResponse,
+  GetLeadParams,
   GetLeadsResponse,
   GetLeadResponse,
+  LogLeadTouchBody,
+  LogLeadTouchParams,
+  LogLeadTouchResponse,
   GetPortalSessionResponse,
   GetPortalWorklistResponse,
+  SetLeadNextActionBody,
+  SetLeadNextActionParams,
+  SetLeadNextActionResponse,
+  UpdateLeadStageBody,
+  UpdateLeadStageParams,
+  UpdateLeadStageResponse,
   UpdateLeadBody,
 } from "@workspace/api-zod";
 import { portalAccess, requireStaff, staffLabel } from "../middlewares/staff-auth";
+import {
+  appendLeadEvent,
+  changeLeadStage,
+  closeLead,
+  isClosedStage,
+  LEAD_TOUCH_KINDS,
+  LeadError,
+  leadDealerId,
+  leadDetailPayload,
+  loadLead as loadCoreLead,
+  loadLeadDetail,
+} from "../lib/leads";
 
 const router: IRouter = Router();
 const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Stage ordering used when the work queue has to break a tie: a lead that is
@@ -61,7 +91,8 @@ const appointmentAtSql = sql<Date | null>`coalesce(
  */
 const saleIdSql = sql<string | null>`(
   select s.id from sales s
-   where s.enquiry_id = ${leadsTable.enquiryId}
+   where s.lead_id = ${leadsTable.id}
+      or (s.lead_id is null and s.enquiry_id = ${leadsTable.enquiryId})
    order by s.created_at asc limit 1
 )`;
 
@@ -79,19 +110,25 @@ const lastActivityAtSql = sql<Date>`greatest(${leadsTable.updatedAt}, ${leadsTab
  */
 const leadSelect = {
   id: leadsTable.id,
+  dealerId: leadsTable.dealerId,
   customerName: leadsTable.customerName,
   email: leadsTable.email,
   phone: leadsTable.phone,
+  preferredContact: leadsTable.preferredContact,
   source: leadsTable.source,
   stage: leadsTable.stage,
   vehicleId: leadsTable.vehicleId,
   vehicleTitle: leadsTable.vehicleTitle,
   vehicleRegistration: leadsTable.vehicleRegistration,
+  vehiclePrice: leadsTable.vehiclePrice,
+  vehicleUrl: leadsTable.vehicleUrl,
   owner: leadsTable.owner,
   summary: leadsTable.summary,
   nextAction: leadsTable.nextAction,
   nextActionDueAt: leadsTable.nextActionDueAt,
   depositPence: leadsTable.depositPence,
+  depositMethod: leadsTable.depositMethod,
+  depositReference: leadsTable.depositReference,
   depositTakenAt: leadsTable.depositTakenAt,
   lastContactedAt: leadsTable.lastContactedAt,
   outcome: leadsTable.outcome,
@@ -311,6 +348,7 @@ async function leadDetail(row: LeadView) {
         depositPence: salesTable.depositPence,
         balancePence: salesTable.balancePence,
         createdAt: salesTable.createdAt,
+        completedAt: salesTable.completedAt,
       })
       .from(salesTable)
       .where(eq(salesTable.id, row.saleId));
@@ -331,6 +369,8 @@ async function leadDetail(row: LeadView) {
     activities: events.map(serialiseEvent),
     deal,
     enquiryMessage,
+    events,
+    sales: deal ? [deal] : [],
   };
 }
 
@@ -621,7 +661,6 @@ router.post("/leads", requireStaff, async (req: Request, res): Promise<void> => 
 
   const now = new Date();
   const stage = data.stage ?? (data.appointmentAt ? "viewing_booked" : "new");
-  const closing = stage === "won" || stage === "lost";
   const deposit = data.depositPence ?? 0;
   const actor = staffLabel(req);
 
@@ -640,12 +679,13 @@ router.post("/leads", requireStaff, async (req: Request, res): Promise<void> => 
       nextAction: data.nextAction ?? null,
       nextActionDueAt: data.nextActionDueAt ?? null,
       depositPence: deposit,
+      depositMethod: deposit > 0 ? "other" : null,
       depositTakenAt: deposit > 0 ? now : null,
       // A lead the dealer typed in has by definition already been spoken to,
       // unless they explicitly logged it as untouched.
       lastContactedAt: stage === "new" ? null : now,
-      outcome: closing ? (stage as "won" | "lost") : null,
-      closedAt: closing ? now : null,
+      outcome: null,
+      closedAt: null,
     })
     .returning({ id: leadsTable.id });
 
@@ -683,7 +723,11 @@ router.post("/leads", requireStaff, async (req: Request, res): Promise<void> => 
   await db.insert(leadEventsTable).values(events);
 
   const row = await loadLead(created.id);
-  res.status(201).json(GetLeadsResponse.element.parse(row));
+  if (!row) {
+    res.status(500).json({ error: "Unable to load the newly created lead." });
+    return;
+  }
+  res.status(201).json(GetLeadResponse.parse(await leadDetail(row)));
 });
 
 router.patch("/leads/:id", requireStaff, async (req, res): Promise<void> => {
@@ -699,7 +743,7 @@ router.patch("/leads/:id", requireStaff, async (req, res): Promise<void> => {
   }
   const data = parsed.data;
   const now = new Date();
-  const actor = staffLabel(req);
+  const actor = data.actor?.trim() || staffLabel(req);
 
   const patch: Record<string, unknown> = { updatedAt: now };
   if (data.customerName !== undefined) patch.customerName = data.customerName;
@@ -853,5 +897,229 @@ router.post(
     res.status(201).json(GetLeadResponse.parse(await leadDetail(updated!)));
   },
 );
+
+/**
+ * The original lead API exposes explicit operations for the append-only
+ * timeline and the individual pipeline fields. Keep these alongside the
+ * portal's broader PATCH/activity endpoints so existing API clients continue
+ * to have a small, predictable surface.
+ */
+router.post("/leads/:id/touches", requireStaff, async (req, res): Promise<void> => {
+  const params = LogLeadTouchParams.safeParse(req.params);
+  if (!params.success || !uuidPattern.test(params.data.id)) {
+    res.status(400).json({ error: "Invalid lead id." });
+    return;
+  }
+  const parsed = LogLeadTouchBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const input = parsed.data;
+  const occurredAt = input.occurredAt ?? new Date();
+  if (occurredAt.getTime() > Date.now() + 60_000) {
+    res.status(400).json({ error: "A touch cannot be logged in the future." });
+    return;
+  }
+  try {
+    const detail = await db.transaction(async (tx) => {
+      const lead = await loadCoreLead(tx, params.data.id);
+      if (!lead) return null;
+      const kind = LEAD_TOUCH_KINDS[input.type];
+      await appendLeadEvent(tx, {
+        leadId: lead.id,
+        type: kind.type,
+        actorType: "staff",
+        actor: input.actor?.trim() || staffLabel(req),
+        body: input.body.trim(),
+        payload: { channel: input.type },
+        occurredAt,
+      });
+      if (kind.contact && (!lead.lastContactedAt || lead.lastContactedAt < occurredAt)) {
+        await tx.update(leadsTable).set({ lastContactedAt: occurredAt }).where(eq(leadsTable.id, lead.id));
+      }
+      return loadLeadDetail(tx, lead.id);
+    });
+    if (!detail) {
+      res.status(404).json({ error: "Lead not found." });
+      return;
+    }
+    res.status(201).json(LogLeadTouchResponse.parse(leadDetailPayload(detail)));
+  } catch (error) {
+    if (error instanceof LeadError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error }, "Unable to log lead touch");
+    res.status(500).json({ error: "Unable to log that touch." });
+  }
+});
+
+router.post("/leads/:id/stage", requireStaff, async (req, res): Promise<void> => {
+  const params = UpdateLeadStageParams.safeParse(req.params);
+  if (!params.success || !uuidPattern.test(params.data.id)) {
+    res.status(400).json({ error: "Invalid lead id." });
+    return;
+  }
+  const parsed = UpdateLeadStageBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  try {
+    const detail = await db.transaction(async (tx) => {
+      const lead = await loadCoreLead(tx, params.data.id);
+      if (!lead) return null;
+      await changeLeadStage(tx, lead, {
+        stage: parsed.data.stage,
+        note: parsed.data.note?.trim() || null,
+        actor: parsed.data.actor?.trim() || staffLabel(req),
+        deposit: parsed.data.deposit ?? null,
+      });
+      return loadLeadDetail(tx, lead.id);
+    });
+    if (!detail) {
+      res.status(404).json({ error: "Lead not found." });
+      return;
+    }
+    res.json(UpdateLeadStageResponse.parse(leadDetailPayload(detail)));
+  } catch (error) {
+    if (error instanceof LeadError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error }, "Unable to change lead stage");
+    res.status(500).json({ error: "Unable to change the lead stage." });
+  }
+});
+
+router.post("/leads/:id/owner", requireStaff, async (req, res): Promise<void> => {
+  const params = AssignLeadOwnerParams.safeParse(req.params);
+  if (!params.success || !uuidPattern.test(params.data.id)) {
+    res.status(400).json({ error: "Invalid lead id." });
+    return;
+  }
+  const parsed = AssignLeadOwnerBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  try {
+    const detail = await db.transaction(async (tx) => {
+      const lead = await loadCoreLead(tx, params.data.id);
+      if (!lead) return null;
+      const owner = parsed.data.owner?.trim() || null;
+      await tx.update(leadsTable).set({ owner }).where(eq(leadsTable.id, lead.id));
+      await appendLeadEvent(tx, {
+        leadId: lead.id,
+        type: "owner_assigned",
+        actorType: "staff",
+        actor: parsed.data.actor?.trim() || staffLabel(req),
+        body: owner ? `Owner assigned to ${owner}.` : "Owner cleared.",
+        payload: { owner },
+      });
+      return loadLeadDetail(tx, lead.id);
+    });
+    if (!detail) {
+      res.status(404).json({ error: "Lead not found." });
+      return;
+    }
+    res.json(AssignLeadOwnerResponse.parse(leadDetailPayload(detail)));
+  } catch (error) {
+    req.log.error({ err: error }, "Unable to assign lead owner");
+    res.status(500).json({ error: "Unable to assign the owner." });
+  }
+});
+
+router.post("/leads/:id/next-action", requireStaff, async (req, res): Promise<void> => {
+  const params = SetLeadNextActionParams.safeParse(req.params);
+  if (!params.success || !uuidPattern.test(params.data.id)) {
+    res.status(400).json({ error: "Invalid lead id." });
+    return;
+  }
+  const parsed = SetLeadNextActionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const nextAction = parsed.data.nextAction?.trim() || null;
+  const dueAt = parsed.data.dueAt ?? null;
+  if (nextAction && !dueAt) {
+    res.status(400).json({ error: "Give the next action a due date." });
+    return;
+  }
+  if (!nextAction && dueAt) {
+    res.status(400).json({ error: "Say what the next action is." });
+    return;
+  }
+  try {
+    const detail = await db.transaction(async (tx) => {
+      const lead = await loadCoreLead(tx, params.data.id);
+      if (!lead) return null;
+      if (isClosedStage(lead.stage)) {
+        throw new LeadError(`This lead was closed as ${lead.stage}; there is nothing left to chase.`, 409);
+      }
+      await tx.update(leadsTable).set({ nextAction, nextActionDueAt: dueAt }).where(eq(leadsTable.id, lead.id));
+      await appendLeadEvent(tx, {
+        leadId: lead.id,
+        type: "next_action_set",
+        actorType: "staff",
+        actor: parsed.data.actor?.trim() || staffLabel(req),
+        body: nextAction ?? "Next action cleared.",
+        payload: { nextAction, dueAt: dueAt?.toISOString() ?? null },
+      });
+      return loadLeadDetail(tx, lead.id);
+    });
+    if (!detail) {
+      res.status(404).json({ error: "Lead not found." });
+      return;
+    }
+    res.json(SetLeadNextActionResponse.parse(leadDetailPayload(detail)));
+  } catch (error) {
+    if (error instanceof LeadError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error }, "Unable to set lead next action");
+    res.status(500).json({ error: "Unable to set the next action." });
+  }
+});
+
+router.post("/leads/:id/outcome", requireStaff, async (req, res): Promise<void> => {
+  const params = CloseLeadParams.safeParse(req.params);
+  if (!params.success || !uuidPattern.test(params.data.id)) {
+    res.status(400).json({ error: "Invalid lead id." });
+    return;
+  }
+  const parsed = CloseLeadBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Closing a lead needs an outcome of won or lost and a reason." });
+    return;
+  }
+  try {
+    const detail = await db.transaction(async (tx) => {
+      const lead = await loadCoreLead(tx, params.data.id);
+      if (!lead) return null;
+      await closeLead(tx, lead, {
+        outcome: parsed.data.outcome,
+        reason: parsed.data.reason,
+        actor: parsed.data.actor?.trim() || staffLabel(req),
+      });
+      return loadLeadDetail(tx, lead.id);
+    });
+    if (!detail) {
+      res.status(404).json({ error: "Lead not found." });
+      return;
+    }
+    res.json(CloseLeadResponse.parse(leadDetailPayload(detail)));
+  } catch (error) {
+    if (error instanceof LeadError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error }, "Unable to close lead");
+    res.status(500).json({ error: "Unable to close the lead." });
+  }
+});
 
 export default router;

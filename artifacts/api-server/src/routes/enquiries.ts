@@ -22,6 +22,7 @@ import {
   deliverEnquiryNotifications,
   bookingTimezone,
 } from "../lib/enquiry-notifications";
+import { openLeadForEnquiry } from "../lib/leads";
 
 const router: IRouter = Router();
 const uuidPattern =
@@ -167,7 +168,7 @@ function isUniqueViolation(error: unknown) {
 }
 
 router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
-  const parsedQuery = GetEnquiriesQueryParams.safeParse(req.query);
+  const parsedQuery = GetEnquiryAvailabilityQueryParams.safeParse(req.query);
   if (!parsedQuery.success) {
     res.status(400).json(errorResponse("Invalid enquiry status filter."));
     return;
@@ -304,35 +305,40 @@ router.post("/enquiries", async (req, res): Promise<void> => {
       }
     }
 
-    const [created] = await db
-      .insert(enquiriesTable)
-      .values({
-        dealerId: settings().dealerId,
-        vehicleId: vehicle?.id ?? null,
-        vehicleTitle: vehicle
-          ? vehicle.websiteTitleOverride ?? vehicle.title
-          : null,
-        vehicleRegistration: vehicle
-          ? vehicle.registration ?? vehicle.plate ?? vehicle.vrm
-          : null,
-        vehiclePrice: vehicle
-          ? vehicle.websitePriceOverride ?? vehicle.sourcePrice
-          : null,
-        vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null,
-        type: input.type,
-        customerName: input.customerName.trim(),
-        email: input.email?.trim().toLowerCase() ?? null,
-        phone: input.phone?.trim() ?? null,
-        preferredContact: input.preferredContact ?? null,
-        message: input.message.trim(),
-        appointmentAt: input.appointmentAt ?? null,
-        customerNotificationStatus: "pending",
-        dealerNotificationStatus: "pending",
-        reminderStatus: input.type === "viewing" ? "pending" : "not_scheduled",
-        source: "website",
-      })
-      .returning();
-
+    const created = await db.transaction(async (tx) => {
+      const [enquiry] = await tx
+        .insert(enquiriesTable)
+        .values({
+          dealerId: settings().dealerId,
+          vehicleId: vehicle?.id ?? null,
+          vehicleTitle: vehicle
+            ? vehicle.websiteTitleOverride ?? vehicle.title
+            : null,
+          vehicleRegistration: vehicle
+            ? vehicle.registration ?? vehicle.plate ?? vehicle.vrm
+            : null,
+          vehiclePrice: vehicle
+            ? vehicle.websitePriceOverride ?? vehicle.sourcePrice
+            : null,
+          vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null,
+          type: input.type,
+          customerName: input.customerName.trim(),
+          email: input.email?.trim().toLowerCase() ?? null,
+          phone: input.phone?.trim() ?? null,
+          preferredContact: input.preferredContact ?? null,
+          message: input.message.trim(),
+          appointmentAt: input.appointmentAt ?? null,
+          customerNotificationStatus: "pending",
+          dealerNotificationStatus: "pending",
+          reminderStatus: input.type === "viewing" ? "pending" : "not_scheduled",
+          source: "website",
+        })
+        .returning();
+      // The enquiry is the opening event of a lead, so the dealer sees this
+      // conversation alongside the ones that arrive by phone or in person.
+      await openLeadForEnquiry(tx, enquiry);
+      return enquiry;
+    });
     try {
       const updated = await deliverEnquiryNotifications(created, req.log);
       res.status(201).json(CreateEnquiryResponse.parse(updated));

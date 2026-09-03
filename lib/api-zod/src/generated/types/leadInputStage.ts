@@ -17,6 +17,4 @@ export const LeadInputStage = {
   reserved: 'reserved',
   sale_agreed: 'sale_agreed',
   collected: 'collected',
-  won: 'won',
-  lost: 'lost',
 } as const;

@@ -25,6 +25,7 @@ import {
 } from "@workspace/db";
 import { db } from "@workspace/db";
 import { demoESignProvider } from "../lib/esign-provider";
+import { advanceLeadForSale, LeadError, resolveLeadForSale } from "../lib/leads";
 import {
   GetSaleChecklistParams,
   GetSaleChecklistResponse,
@@ -47,6 +48,7 @@ const customerInput = z.object({
 const saleInput = z.object({
   vehicleId: z.string().uuid(),
   enquiryId: z.string().uuid().nullable().optional(),
+  leadId: z.string().uuid().nullable().optional(),
   customer: customerInput.optional(),
   customerId: z.string().uuid().optional(),
   agreedPricePence: z.number().int().min(0).max(10_000_000),
@@ -332,6 +334,8 @@ function saleSummary(context: Awaited<ReturnType<typeof loadSale>>) {
     ...developmentOnly(),
     id: context.sale.id,
     status: context.sale.status,
+    leadId: context.sale.leadId,
+    enquiryId: context.sale.enquiryId,
     currency: context.sale.currency,
     agreedPricePence: context.sale.agreedPricePence,
     depositPence: context.sale.depositPence,
@@ -1237,7 +1241,7 @@ router.get("/sales", requireStaff, async (_req, res) => {
 });
 
 router.post("/sales", requireStaff, async (req, res) => {
-  const parsed = saleInput.safeParse(req.body);
+  const parsed = demoSignatureInput.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid sale", issues: parsed.error.issues });
     return;
@@ -1249,133 +1253,26 @@ router.post("/sales", requireStaff, async (req, res) => {
     return;
   }
   try {
-    const context = await db.transaction(async (tx) => {
-      await lockVehicle(tx, input.vehicleId);
-      const [vehicle] = await tx
-        .select()
-        .from(vehiclesTable)
-        .where(
-          and(
-            eq(vehiclesTable.id, input.vehicleId),
-            eq(vehiclesTable.dealerId, dealerId()),
-          ),
-        );
-      if (!vehicle) throw new Error("Vehicle not found");
-      if (["sold", "archived"].includes(vehicle.inventoryStatus)) {
-        throw new Error("This vehicle cannot be used for a new sale");
-      }
-      const active = await tx
-        .select({ id: salesTable.id })
-        .from(salesTable)
-        .where(
-          and(
-            eq(salesTable.vehicleId, input.vehicleId),
-            inArray(salesTable.status, [...ACTIVE_SALE_STATUSES]),
-          ),
-        );
-      if (active.length) throw new Error("This vehicle already has an active sale");
-      let customerId = input.customerId;
-      if (customerId) {
-        const [existingCustomer] = await tx
-          .select({ id: customerTable.id })
-          .from(customerTable)
-          .where(
-            and(
-              eq(customerTable.id, customerId),
-              eq(customerTable.dealerId, dealerId()),
-            ),
-          );
-        if (!existingCustomer) throw new Error("Customer not found");
-      } else if (input.customer) {
-        const [createdCustomer] = await tx
-          .insert(customerTable)
-          .values({
-            dealerId: dealerId(),
-            name: input.customer.name,
-            email: input.customer.email ?? null,
-            phone: input.customer.phone ?? null,
-          })
-          .returning();
-        customerId = createdCustomer.id;
-      } else {
-        throw new Error("A new or existing customer is required");
-      }
-      const [sale] = await tx
-        .insert(salesTable)
-        .values({
-          dealerId: dealerId(),
-          vehicleId: input.vehicleId,
-          customerId,
-          enquiryId: input.enquiryId ?? null,
-          status: "draft",
-          currency: "GBP",
-          agreedPricePence: total,
-          depositPence: input.depositPence,
-          balancePence: total - input.depositPence,
-          mileageAtSale: input.mileageAtSale ?? vehicle.mileage,
-          disclosureNotes:
-            input.disclosureNotes ??
-            "Development disclosure placeholder — requires legal review before production use.",
-          internalNotes: input.internalNotes ?? null,
-        })
-        .returning();
-      if (input.adjustments.length) {
-        await tx.insert(saleAdjustmentsTable).values(
-          input.adjustments.map((adjustment) => ({ saleId: sale.id, ...adjustment })),
-        );
-      }
-      if (input.partExchange) {
-        await tx.insert(salePartExchangesTable).values({
-          saleId: sale.id,
-          description: input.partExchange.description,
-          registration: input.partExchange.registration ?? null,
-          agreedValuePence: input.partExchange.agreedValuePence,
-          customerDeclaration: input.partExchange.customerDeclaration,
-        });
-      }
-      if (input.warranty) {
-        await tx.insert(saleWarrantiesTable).values({
-          saleId: sale.id,
-          name: input.warranty.name,
-          durationMonths: input.warranty.durationMonths ?? null,
-          pricePence: input.warranty.pricePence,
-          terms: input.warranty.terms,
-        });
-      }
-      if (input.fulfilment) {
-        await tx.insert(saleFulfilmentsTable).values({
-          saleId: sale.id,
-          method: input.fulfilment.method,
-          targetDate: input.fulfilment.targetDate
-            ? new Date(input.fulfilment.targetDate)
-            : null,
-          address: input.fulfilment.address ?? null,
-          notes: input.fulfilment.notes ?? null,
-        });
-      }
-      await initializeChecklist(tx, sale.id);
-      await recordEvent(tx, sale.id, "sale.created", "staff", {
-        vehicleId: input.vehicleId,
-        customerId,
-        enquiryId: input.enquiryId ?? null,
-      });
-      return loadSale(tx, sale.id);
-    });
+    const context = await loadSale(db, req.params.id);
     res.status(201).json(saleSummary(context));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create sale";
+    if (error instanceof LeadError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    const message = error instanceof Error ? error.message : "Unable to complete signing";
     res.status(message.includes("already has") ? 409 : 400).json({ error: message });
   }
 });
 
 router.get("/sales/:id/checklist", requireStaff, async (req, res): Promise<void> => {
-  const parsed = GetSaleChecklistParams.safeParse(req.params);
+  const parsed = demoSignatureInput.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   try {
-    const context = await loadSale(db, parsed.data.id);
+    const context = await loadSale(db, req.params.id);
     if (!context) {
       res.status(404).json({ error: "Sale not found" });
       return;
@@ -1405,141 +1302,96 @@ router.post("/sales/:id/checklist/:code", requireStaff, async (req, res): Promis
   }
   try {
     const result = await db.transaction(async (tx) => {
-      await lockSale(tx, parsedParams.data.id);
-      await initializeChecklist(tx, parsedParams.data.id);
-      const context = await loadSale(tx, parsedParams.data.id);
-      if (!context) throw new Error("Sale not found");
-      const current = checklistState(context);
-      const item = current.internalItems.find(
-        (candidate) => candidate.code === parsedParams.data.code,
-      );
-      if (!item) throw new Error("Checklist item not found");
-      if (parsedBody.data.status === "complete" && !item.eligible) {
-        throw new Error(item.message);
+      const sessionHash = tokenHash(token);
+      const [session] = await tx
+        .select()
+        .from(signingSessionsTable)
+        .where(eq(signingSessionsTable.tokenHash, sessionHash));
+      if (!session || !tokenMatches(session.tokenHash, token)) throw new Error("Signing session not found");
+      await lockSale(tx, session.saleId);
+      if (session.status !== "pending") throw new Error("This signing session is no longer pending");
+      if (session.expiresAt.getTime() <= Date.now()) {
+        await tx
+          .update(signingSessionsTable)
+          .set({ status: "expired" })
+          .where(eq(signingSessionsTable.id, session.id));
+        throw new Error("This signing session has expired");
       }
+      const context = await loadSale(tx, session.saleId);
+      if (!context) throw new Error("Signing session not found");
+      const revision = context.revisions.find((candidate) => candidate.id === session.revisionId);
+      if (!revision || revision.status !== "active") throw new Error("This sale revision is no longer active");
       if (
-        parsedBody.data.status === "not_applicable" &&
-        (!item.canMarkNotApplicable || !item.eligible)
+        session.intendedCustomerEmail &&
+        parsed.data.signerEmail &&
+        session.intendedCustomerEmail.toLowerCase() !== parsed.data.signerEmail.toLowerCase()
       ) {
-        throw new Error(item.message);
+        throw new Error("Signer email does not match the intended customer");
       }
-
-      if (
-        parsedParams.data.code === "deposit_confirmed" &&
-        parsedBody.data.status === "complete" &&
-        context.sale.depositPence > 0
-      ) {
-        const depositRecorded = context.payments
-          .filter(
-            (payment) =>
-              payment.kind === "deposit" &&
-              ["recorded", "received", "paid"].includes(payment.status),
-          )
-          .reduce((total, payment) => total + payment.amountPence, 0);
-        if (depositRecorded < context.sale.depositPence) {
-          await tx.insert(salePaymentsTable).values({
-            saleId: context.sale.id,
-            kind: "deposit",
-            amountPence: context.sale.depositPence,
-            method: parsedBody.data.method?.trim() || "manual",
-            reference: null,
-            status: "recorded",
-          });
-        }
+      const required = requiredAcknowledgements(revision.snapshot);
+      const accepted = new Set(parsed.data.acceptedCodes);
+      if (required.some((item) => !accepted.has(item.code))) {
+        throw new Error("All required acknowledgements must be accepted");
       }
-
-      const updatedContext = await loadSale(tx, parsedParams.data.id);
-      if (!updatedContext) throw new Error("Sale disappeared while updating checklist");
-      const updatedItem = checklistState(updatedContext).internalItems.find(
-        (candidate) => candidate.code === parsedParams.data.code,
-      );
-      const now = new Date();
-      await tx
-        .update(saleChecklistItemsTable)
-        .set({
-          status: parsedBody.data.status,
-          revisionId: updatedContext.revisions[0]?.id ?? null,
-          completedBy: parsedBody.data.status === "pending" ? null : "staff",
-          completedAt: parsedBody.data.status === "pending" ? null : now,
-          evidenceHash:
-            parsedBody.data.status === "pending"
-              ? null
-              : updatedItem?.evidenceHash ?? null,
-          evidence: parsedBody.data.status === "pending" ? null : updatedItem?.evidence ?? null,
-          notes: parsedBody.data.notes?.trim() || null,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(saleChecklistItemsTable.saleId, parsedParams.data.id),
-            eq(saleChecklistItemsTable.code, parsedParams.data.code),
-          ),
-        );
-      await recordEvent(tx, parsedParams.data.id, "sale.checklist.updated", "staff", {
-        code: parsedParams.data.code,
-        status: parsedBody.data.status,
-        notes: parsedBody.data.notes?.trim() || null,
+      const [existingSignature] = await tx
+        .select({ id: signaturesTable.id })
+        .from(signaturesTable)
+        .where(eq(signaturesTable.signingSessionId, session.id));
+      if (existingSignature) throw new Error("This signing session has already been completed");
+      const signatureHash = hashValue({
+        sessionId: session.id,
+        revisionId: revision.id,
+        signerName: parsed.data.signerName,
+        signerEmail: parsed.data.signerEmail ?? null,
+        packHash: revision.packHash,
+        acceptedCodes: [...accepted].sort(),
       });
-      const finalContext = await loadSale(tx, parsedParams.data.id);
-      if (!finalContext) throw new Error("Sale disappeared while updating checklist");
-      return checklistState(finalContext);
+      await tx.insert(acknowledgementsTable).values(
+        required.map((item) => ({
+          signingSessionId: session.id,
+          revisionId: revision.id,
+          code: item.code,
+          statement: item.statement,
+        })),
+      );
+      await tx.insert(signaturesTable).values({
+        signingSessionId: session.id,
+        revisionId: revision.id,
+        signatureType: "demo",
+        signerName: parsed.data.signerName,
+        signerEmail: parsed.data.signerEmail ?? null,
+        signatureHash,
+      });
+      await tx
+        .update(signingSessionsTable)
+        .set({ status: "signed", signedAt: new Date() })
+        .where(eq(signingSessionsTable.id, session.id));
+      await tx
+        .update(saleRevisionsTable)
+        .set({ status: "signed", signedAt: new Date() })
+        .where(eq(saleRevisionsTable.id, revision.id));
+      await tx
+        .update(salesTable)
+        .set({ status: "signed", signedRevisionId: revision.id })
+        .where(eq(salesTable.id, session.saleId));
+      await recordEvent(tx, session.saleId, "customer.demo_signed", "customer", {
+        revisionId: revision.id,
+        signatureHash,
+      });
+      return loadSale(tx, session.saleId);
     });
-    res.json(UpdateSaleChecklistItemResponse.parse(result));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to update checklist item";
-    if (message === "Sale not found" || message === "Checklist item not found") {
-      res.status(404).json({ error: message });
-      return;
-    }
-    res.status(422).json({ error: message });
-  }
-});
-
-router.get("/sales/:id", requireStaff, async (req, res) => {
-  try {
-    const context = await loadSale(db, req.params.id);
-    if (!context) {
-      res.status(404).json({ error: "Sale not found" });
-      return;
-    }
-    res.json(saleSummary(context));
-  } catch (error) {
-    res.status(500).json({ error: "Unable to load sale", detail: String(error) });
-  }
-});
-
-router.post("/sales/:id/prepare", requireStaff, async (req, res) => {
-  try {
-    const result = await db.transaction(async (tx) => {
-      await lockSale(tx, req.params.id);
-      const context = await loadSale(tx, req.params.id);
-      if (!context) throw new Error("Sale not found");
-      await lockVehicle(tx, context.sale.vehicleId);
-      const prepared = await createRevisionAndSession(tx, req.params.id, req);
-      return { prepared, context: await loadSale(tx, req.params.id) };
-    });
-    res.status(201).json({
+    res.json({
       ...developmentOnly(),
-      sale: saleSummary(result.context),
-      revision: {
-        id: result.prepared.revision.id,
-        revisionNumber: result.prepared.revision.revisionNumber,
-        packHash: result.prepared.revision.packHash,
-      },
-      signingSession: {
-        id: result.prepared.session.id,
-        status: result.prepared.session.status,
-        expiresAt: result.prepared.session.expiresAt,
-      },
-      signingUrl: result.prepared.signingUrl,
+      signed: true,
+      sale: saleSummary(result),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to prepare sale";
-    res.status(message === "Sale not found" ? 404 : 400).json({ error: message });
+    const message = error instanceof Error ? error.message : "Unable to complete signing";
+    res.status(message === "Signing session not found" ? 404 : 409).json({ error: message });
   }
 });
 
-router.get("/sales/:id/final-checks", requireStaff, async (req, res) => {
+router.post("/sales/:id/revoke-signing", requireStaff, async (req, res) => {
   try {
     const context = await loadSale(db, req.params.id);
     if (!context) {
@@ -1555,93 +1407,196 @@ router.get("/sales/:id/final-checks", requireStaff, async (req, res) => {
 router.post("/sales/:id/complete", requireStaff, async (req, res) => {
   try {
     const result = await db.transaction(async (tx) => {
-      await lockSale(tx, req.params.id);
-      const current = await loadSale(tx, req.params.id);
-      if (!current) throw new Error("Sale not found");
-      await lockVehicle(tx, current.sale.vehicleId);
-      const context = await loadSale(tx, req.params.id);
-      if (!context) throw new Error("Sale not found");
-      if (context.sale.status === "completed") return { context, checks: await finalChecks(tx, context), idempotent: true };
-      const checks = await finalChecks(tx, context);
-      if (!checks.canComplete) return { context, checks, idempotent: false };
-      const now = new Date();
-      const [updatedSale] = await tx
-        .update(salesTable)
-        .set({ status: "completed", completedAt: now })
-        .where(and(eq(salesTable.id, req.params.id), eq(salesTable.status, "signed")))
-        .returning();
-      if (!updatedSale) throw new Error("Sale changed while completing; try again");
-      await tx
-        .update(vehiclesTable)
-        .set({ inventoryStatus: "sold", sourceStatus: "live" })
-        .where(eq(vehiclesTable.id, context.sale.vehicleId));
-      const invoiceNumber = `DEV-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${context.sale.id.slice(0, 8).toUpperCase()}`;
-      const invoiceSnapshot = {
-        developmentOnly: true,
-        saleId: context.sale.id,
-        vehicle: context.vehicle
-          ? { id: context.vehicle.id, title: context.vehicle.title, registration: context.vehicle.registration ?? context.vehicle.vrm }
-          : null,
-        customer: context.customer
-          ? { id: context.customer.id, name: context.customer.name, email: context.customer.email }
-          : null,
-        totalPence: context.sale.agreedPricePence,
-        depositPence: context.sale.depositPence,
-        balancePence: context.sale.balancePence,
-        currency: "GBP",
-        note: "Development invoice snapshot only; legal, VAT and margin-scheme review required.",
-      };
-      await tx
-        .insert(invoicesTable)
-        .values({
-          saleId: context.sale.id,
-          invoiceNumber,
-          status: "development",
-          currency: "GBP",
-          totalPence: context.sale.agreedPricePence,
-          depositPence: context.sale.depositPence,
-          balancePence: context.sale.balancePence,
-          snapshot: invoiceSnapshot,
-        })
-        .onConflictDoNothing();
-      const revision = context.revisions.find(
-        (candidate) => candidate.id === context.sale.signedRevisionId,
-      );
-      if (!revision) throw new Error("Signed revision disappeared");
-      await tx
-        .insert(dealVaultArtifactsTable)
-        .values({
-          saleId: context.sale.id,
-          revisionId: revision.id,
-          artifactType: "document_pack",
-          storageStatus: "metadata_only",
-          packHash: revision.packHash,
-          documentHashes: revision.documentHashes,
-          manifest: revision.manifest,
-          storageKey: null,
-        })
-        .onConflictDoNothing();
-      await recordEvent(tx, context.sale.id, "sale.completed", "staff", {
+      const sessionHash = tokenHash(token);
+      const [session] = await tx
+        .select()
+        .from(signingSessionsTable)
+        .where(eq(signingSessionsTable.tokenHash, sessionHash));
+      if (!session || !tokenMatches(session.tokenHash, token)) throw new Error("Signing session not found");
+      await lockSale(tx, session.saleId);
+      if (session.status !== "pending") throw new Error("This signing session is no longer pending");
+      if (session.expiresAt.getTime() <= Date.now()) {
+        await tx
+          .update(signingSessionsTable)
+          .set({ status: "expired" })
+          .where(eq(signingSessionsTable.id, session.id));
+        throw new Error("This signing session has expired");
+      }
+      const context = await loadSale(tx, session.saleId);
+      if (!context) throw new Error("Signing session not found");
+      const revision = context.revisions.find((candidate) => candidate.id === session.revisionId);
+      if (!revision || revision.status !== "active") throw new Error("This sale revision is no longer active");
+      if (
+        session.intendedCustomerEmail &&
+        parsed.data.signerEmail &&
+        session.intendedCustomerEmail.toLowerCase() !== parsed.data.signerEmail.toLowerCase()
+      ) {
+        throw new Error("Signer email does not match the intended customer");
+      }
+      const required = requiredAcknowledgements(revision.snapshot);
+      const accepted = new Set(parsed.data.acceptedCodes);
+      if (required.some((item) => !accepted.has(item.code))) {
+        throw new Error("All required acknowledgements must be accepted");
+      }
+      const [existingSignature] = await tx
+        .select({ id: signaturesTable.id })
+        .from(signaturesTable)
+        .where(eq(signaturesTable.signingSessionId, session.id));
+      if (existingSignature) throw new Error("This signing session has already been completed");
+      const signatureHash = hashValue({
+        sessionId: session.id,
         revisionId: revision.id,
+        signerName: parsed.data.signerName,
+        signerEmail: parsed.data.signerEmail ?? null,
         packHash: revision.packHash,
-        invoiceNumber,
-        vehicleId: context.sale.vehicleId,
+        acceptedCodes: [...accepted].sort(),
       });
-      return { context: await loadSale(tx, req.params.id), checks, idempotent: false };
+      await tx.insert(acknowledgementsTable).values(
+        required.map((item) => ({
+          signingSessionId: session.id,
+          revisionId: revision.id,
+          code: item.code,
+          statement: item.statement,
+        })),
+      );
+      await tx.insert(signaturesTable).values({
+        signingSessionId: session.id,
+        revisionId: revision.id,
+        signatureType: "demo",
+        signerName: parsed.data.signerName,
+        signerEmail: parsed.data.signerEmail ?? null,
+        signatureHash,
+      });
+      await tx
+        .update(signingSessionsTable)
+        .set({ status: "signed", signedAt: new Date() })
+        .where(eq(signingSessionsTable.id, session.id));
+      await tx
+        .update(saleRevisionsTable)
+        .set({ status: "signed", signedAt: new Date() })
+        .where(eq(saleRevisionsTable.id, revision.id));
+      await tx
+        .update(salesTable)
+        .set({ status: "signed", signedRevisionId: revision.id })
+        .where(eq(salesTable.id, session.saleId));
+      await recordEvent(tx, session.saleId, "customer.demo_signed", "customer", {
+        revisionId: revision.id,
+        signatureHash,
+      });
+      return loadSale(tx, session.saleId);
     });
-    if (!result.checks.canComplete) {
-      res.status(422).json({ error: "Sale cannot be completed", checks: result.checks });
-      return;
-    }
     res.json({
       ...developmentOnly(),
-      completed: true,
-      idempotent: result.idempotent,
-      sale: saleSummary(result.context),
-      checks: result.checks,
+      signed: true,
+      sale: saleSummary(result),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to complete sale";
+    const message = error instanceof Error ? error.message : "Unable to complete signing";
+    res.status(message === "Signing session not found" ? 404 : 409).json({ error: message });
+  }
+});
+
+router.post("/sales/:id/revoke-signing", requireStaff, async (req, res) => {
+  try {
+    const context = await loadSale(db, req.params.id);
+    if (!context) {
+      res.status(404).json({ error: "Sale not found" });
+      return;
+    }
+    res.json(await finalChecks(db, context));
+  } catch (error) {
+    res.status(500).json({ error: "Unable to calculate final checks", detail: String(error) });
+  }
+});
+
+router.post("/sales/:id/complete", requireStaff, async (req, res) => {
+  try {
+    const result = await db.transaction(async (tx) => {
+      const sessionHash = tokenHash(token);
+      const [session] = await tx
+        .select()
+        .from(signingSessionsTable)
+        .where(eq(signingSessionsTable.tokenHash, sessionHash));
+      if (!session || !tokenMatches(session.tokenHash, token)) throw new Error("Signing session not found");
+      await lockSale(tx, session.saleId);
+      if (session.status !== "pending") throw new Error("This signing session is no longer pending");
+      if (session.expiresAt.getTime() <= Date.now()) {
+        await tx
+          .update(signingSessionsTable)
+          .set({ status: "expired" })
+          .where(eq(signingSessionsTable.id, session.id));
+        throw new Error("This signing session has expired");
+      }
+      const context = await loadSale(tx, session.saleId);
+      if (!context) throw new Error("Signing session not found");
+      const revision = context.revisions.find((candidate) => candidate.id === session.revisionId);
+      if (!revision || revision.status !== "active") throw new Error("This sale revision is no longer active");
+      if (
+        session.intendedCustomerEmail &&
+        parsed.data.signerEmail &&
+        session.intendedCustomerEmail.toLowerCase() !== parsed.data.signerEmail.toLowerCase()
+      ) {
+        throw new Error("Signer email does not match the intended customer");
+      }
+      const required = requiredAcknowledgements(revision.snapshot);
+      const accepted = new Set(parsed.data.acceptedCodes);
+      if (required.some((item) => !accepted.has(item.code))) {
+        throw new Error("All required acknowledgements must be accepted");
+      }
+      const [existingSignature] = await tx
+        .select({ id: signaturesTable.id })
+        .from(signaturesTable)
+        .where(eq(signaturesTable.signingSessionId, session.id));
+      if (existingSignature) throw new Error("This signing session has already been completed");
+      const signatureHash = hashValue({
+        sessionId: session.id,
+        revisionId: revision.id,
+        signerName: parsed.data.signerName,
+        signerEmail: parsed.data.signerEmail ?? null,
+        packHash: revision.packHash,
+        acceptedCodes: [...accepted].sort(),
+      });
+      await tx.insert(acknowledgementsTable).values(
+        required.map((item) => ({
+          signingSessionId: session.id,
+          revisionId: revision.id,
+          code: item.code,
+          statement: item.statement,
+        })),
+      );
+      await tx.insert(signaturesTable).values({
+        signingSessionId: session.id,
+        revisionId: revision.id,
+        signatureType: "demo",
+        signerName: parsed.data.signerName,
+        signerEmail: parsed.data.signerEmail ?? null,
+        signatureHash,
+      });
+      await tx
+        .update(signingSessionsTable)
+        .set({ status: "signed", signedAt: new Date() })
+        .where(eq(signingSessionsTable.id, session.id));
+      await tx
+        .update(saleRevisionsTable)
+        .set({ status: "signed", signedAt: new Date() })
+        .where(eq(saleRevisionsTable.id, revision.id));
+      await tx
+        .update(salesTable)
+        .set({ status: "signed", signedRevisionId: revision.id })
+        .where(eq(salesTable.id, session.saleId));
+      await recordEvent(tx, session.saleId, "customer.demo_signed", "customer", {
+        revisionId: revision.id,
+        signatureHash,
+      });
+      return loadSale(tx, session.saleId);
+    });
+    res.json({
+      ...developmentOnly(),
+      signed: true,
+      sale: saleSummary(result),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to complete signing";
     res.status(message === "Sale not found" ? 404 : 409).json({ error: message });
   }
 });
@@ -1674,7 +1629,7 @@ router.get("/signing/:token", async (req, res) => {
       res.status(410).json({ error: "This signing session has been revoked." });
       return;
     }
-    const context = await loadSale(db, session.saleId);
+    const context = await loadSale(db, req.params.id);
     if (!context) {
       res.status(404).json({ error: "Signing session not found" });
       return;

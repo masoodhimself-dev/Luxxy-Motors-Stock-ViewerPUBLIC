@@ -5,18 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { LeadDepositMethod } from './leadDepositMethod';
+import type { LeadOutcome } from './leadOutcome';
 import type { LeadSource } from './leadSource';
 import type { LeadStage } from './leadStage';
 
 export interface Lead {
+  /** @minLength 1 */
   id: string;
-  customerName: string;
+  /** @minLength 1 */
+  dealerId: string;
   /** @nullable */
-  email: string | null;
-  /** @nullable */
-  phone: string | null;
-  source: LeadSource;
-  stage: LeadStage;
+  enquiryId: string | null;
   /** @nullable */
   vehicleId: string | null;
   /** @nullable */
@@ -24,29 +24,45 @@ export interface Lead {
   /** @nullable */
   vehicleRegistration: string | null;
   /** @nullable */
+  vehiclePrice: number | null;
+  /** @nullable */
+  vehicleUrl: string | null;
+  stage: LeadStage;
+  source: LeadSource;
+  /** @nullable */
   owner: string | null;
+  /** @minLength 1 */
+  customerName: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  preferredContact: string | null;
   /** @nullable */
   summary: string | null;
-  /** @nullable */
-  appointmentAt: Date | null;
   /** @nullable */
   nextAction: string | null;
   /** @nullable */
   nextActionDueAt: Date | null;
-  depositPence: number;
-  /** @nullable */
-  depositTakenAt: Date | null;
-  /** @nullable */
-  firstContactedAt: Date | null;
   /** @nullable */
   lastContactedAt: Date | null;
+  /** @nullable */
+  firstContactedAt: Date | null;
   lastActivityAt: Date;
+  /** @nullable */
+  outcome: LeadOutcome;
   /** @nullable */
   outcomeReason: string | null;
   /** @nullable */
   closedAt: Date | null;
+  depositPence: number;
   /** @nullable */
-  enquiryId: string | null;
+  depositMethod: LeadDepositMethod;
+  /** @nullable */
+  depositReference: string | null;
+  /** @nullable */
+  depositTakenAt: Date | null;
   /** @nullable */
   saleId: string | null;
   createdAt: Date;

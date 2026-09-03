@@ -14,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { enquiriesTable } from "./enquiries";
+import { leadsTable } from "./leads";
 import { vehiclesTable } from "./vehicles";
 
 export const saleStatusEnum = pgEnum("sale_status", [
@@ -84,6 +85,11 @@ export const salesTable = pgTable(
     enquiryId: uuid("enquiry_id").references(() => enquiriesTable.id, {
       onDelete: "set null",
     }),
+    // The lead this sale came out of, so the deal is reachable from the lead
+    // that produced it.
+    leadId: uuid("lead_id").references(() => leadsTable.id, {
+      onDelete: "set null",
+    }),
     status: saleStatusEnum("status").notNull().default("draft"),
     currency: text("currency").notNull().default("GBP"),
     agreedPricePence: integer("agreed_price_pence").notNull(),
@@ -113,6 +119,7 @@ export const salesTable = pgTable(
     ),
     index("sales_vehicle_idx").on(table.vehicleId),
     index("sales_customer_idx").on(table.customerId),
+    index("sales_lead_idx").on(table.leadId),
     check(
       "sales_nonnegative_money_check",
       sql`${table.agreedPricePence} >= 0 and ${table.depositPence} >= 0 and ${table.balancePence} >= 0`,

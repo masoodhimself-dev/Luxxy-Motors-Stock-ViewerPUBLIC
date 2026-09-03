@@ -16,5 +16,4 @@ export const GetLeadsSource = {
   walk_in: 'walk_in',
   marketplace: 'marketplace',
   social: 'social',
-  all: 'all',
 } as const;

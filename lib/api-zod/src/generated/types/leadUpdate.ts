@@ -59,4 +59,9 @@ export interface LeadUpdate {
      * @nullable
      */
   outcomeReason?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  actor?: string | null;
 }

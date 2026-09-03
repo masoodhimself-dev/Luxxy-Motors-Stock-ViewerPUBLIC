@@ -10,7 +10,6 @@ export type LeadInputSource = typeof LeadInputSource[keyof typeof LeadInputSourc
 
 
 export const LeadInputSource = {
-  website_form: 'website_form',
   phone: 'phone',
   whatsapp: 'whatsapp',
   walk_in: 'walk_in',

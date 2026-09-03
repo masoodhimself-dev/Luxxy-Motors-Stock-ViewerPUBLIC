@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetLeadsStage = typeof GetLeadsStage[keyof typeof GetLeadsStage];
+export type LeadStageUpdateStage = typeof LeadStageUpdateStage[keyof typeof LeadStageUpdateStage];
 
 
-export const GetLeadsStage = {
+export const LeadStageUpdateStage = {
   new: 'new',
   qualifying: 'qualifying',
   viewing_booked: 'viewing_booked',
@@ -17,6 +17,4 @@ export const GetLeadsStage = {
   reserved: 'reserved',
   sale_agreed: 'sale_agreed',
   collected: 'collected',
-  won: 'won',
-  lost: 'lost',
 } as const;

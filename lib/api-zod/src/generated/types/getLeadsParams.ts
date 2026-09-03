@@ -7,10 +7,18 @@
  */
 import type { GetLeadsSource } from './getLeadsSource';
 import type { GetLeadsStage } from './getLeadsStage';
+import type { GetLeadsState } from './getLeadsState';
 
 export type GetLeadsParams = {
-search?: string;
 stage?: GetLeadsStage;
 source?: GetLeadsSource;
+/**
+ * @minLength 1
+ * @maxLength 120
+ */
 owner?: string;
+/**
+ * Limit to leads that are still live or already closed.
+ */
+state?: GetLeadsState;
 };
