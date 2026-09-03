@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run test:stock && pnpm run test:sales && pnpm run test:leads",
+    "test:portal": "node ./test-build.mjs src/portal.integration.test.ts && node --enable-source-maps --test ./dist-test/portal.integration.test.mjs",
     "test:stock": "node ./test-build.mjs src/stock.integration.test.ts && node --enable-source-maps --test ./dist-test/stock.integration.test.mjs",
     "test:sales": "node ./test-build.mjs src/sales.integration.test.ts && node --enable-source-maps --test ./dist-test/sales.integration.test.mjs",
     "test:leads": "node ./test-build.mjs src/leads.integration.test.ts && node --enable-source-maps --test ./dist-test/leads.integration.test.mjs"
