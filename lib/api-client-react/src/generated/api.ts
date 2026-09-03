@@ -22,6 +22,8 @@ import type {
 import type {
   ActionResult,
   ApiError,
+  ContactIntent,
+  ContactIntentInput,
   CustomerIntakeCompletionInput,
   CustomerIntakeSession,
   CustomerIntakeSessionInput,
@@ -34,6 +36,7 @@ import type {
   EnquiryStatusUpdate,
   FinalCheckFailure,
   FinalChecks,
+  GetContactIntentsParams,
   GetEnquiriesParams,
   GetEnquiryAvailabilityParams,
   GetLeadsParams,
@@ -64,7 +67,10 @@ import type {
   StockImportEnvelope,
   StockImportErrorResponse,
   StockImportResult,
-  Vehicle
+  Vehicle,
+  ViewingBooking,
+  ViewingCancellation,
+  ViewingReschedule
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -711,6 +717,384 @@ export const useUpdateEnquiryStatus = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getUpdateEnquiryStatusMutationOptions(options));
+    }
+
+export const getGetViewingBookingUrl = (token: string,) => {
+
+
+
+
+  return `/api/viewings/${token}`
+}
+
+/**
+ * Resolves the secure one-off link sent to the customer so they can manage their own viewing.
+ * @summary Get a booked viewing from its customer link
+ */
+export const getViewingBooking = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<ViewingBooking> => {
+
+  return customFetch<ViewingBooking>(getGetViewingBookingUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetViewingBookingQueryKey = (token: string,) => {
+    return [
+    `/api/viewings/${token}`
+    ] as const;
+    }
+
+
+export const getGetViewingBookingQueryOptions = <TData = Awaited<ReturnType<typeof getViewingBooking>>, TError = ErrorType<ApiError>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getViewingBooking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetViewingBookingQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getViewingBooking>>> = ({ signal }) => getViewingBooking(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getViewingBooking>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetViewingBookingQueryResult = NonNullable<Awaited<ReturnType<typeof getViewingBooking>>>
+export type GetViewingBookingQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get a booked viewing from its customer link
+ */
+
+export function useGetViewingBooking<TData = Awaited<ReturnType<typeof getViewingBooking>>, TError = ErrorType<ApiError>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getViewingBooking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetViewingBookingQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRescheduleViewingUrl = (token: string,) => {
+
+
+
+
+  return `/api/viewings/${token}/reschedule`
+}
+
+/**
+ * @summary Move a booked viewing to another slot
+ */
+export const rescheduleViewing = async (token: string,
+    viewingReschedule: ViewingReschedule, options?: Parameters<typeof customFetch>[1]): Promise<ViewingBooking> => {
+
+  return customFetch<ViewingBooking>(getRescheduleViewingUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(viewingReschedule)
+  }
+);}
+
+
+
+
+
+export const getRescheduleViewingMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rescheduleViewing>>, TError,{token: string;data: BodyType<ViewingReschedule>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rescheduleViewing>>, TError,{token: string;data: BodyType<ViewingReschedule>}, TContext> => {
+
+const mutationKey = ['rescheduleViewing'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rescheduleViewing>>, {token: string;data: BodyType<ViewingReschedule>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  rescheduleViewing(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RescheduleViewingMutationResult = NonNullable<Awaited<ReturnType<typeof rescheduleViewing>>>
+    export type RescheduleViewingMutationBody = BodyType<ViewingReschedule>
+    export type RescheduleViewingMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Move a booked viewing to another slot
+ */
+export const useRescheduleViewing = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rescheduleViewing>>, TError,{token: string;data: BodyType<ViewingReschedule>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rescheduleViewing>>,
+        TError,
+        {token: string;data: BodyType<ViewingReschedule>},
+        TContext
+      > => {
+      return useMutation(getRescheduleViewingMutationOptions(options));
+    }
+
+export const getCancelViewingUrl = (token: string,) => {
+
+
+
+
+  return `/api/viewings/${token}/cancel`
+}
+
+/**
+ * @summary Cancel a booked viewing
+ */
+export const cancelViewing = async (token: string,
+    viewingCancellation: ViewingCancellation, options?: Parameters<typeof customFetch>[1]): Promise<ViewingBooking> => {
+
+  return customFetch<ViewingBooking>(getCancelViewingUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(viewingCancellation)
+  }
+);}
+
+
+
+
+
+export const getCancelViewingMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelViewing>>, TError,{token: string;data: BodyType<ViewingCancellation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelViewing>>, TError,{token: string;data: BodyType<ViewingCancellation>}, TContext> => {
+
+const mutationKey = ['cancelViewing'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelViewing>>, {token: string;data: BodyType<ViewingCancellation>}> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  cancelViewing(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelViewingMutationResult = NonNullable<Awaited<ReturnType<typeof cancelViewing>>>
+    export type CancelViewingMutationBody = BodyType<ViewingCancellation>
+    export type CancelViewingMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Cancel a booked viewing
+ */
+export const useCancelViewing = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelViewing>>, TError,{token: string;data: BodyType<ViewingCancellation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelViewing>>,
+        TError,
+        {token: string;data: BodyType<ViewingCancellation>},
+        TContext
+      > => {
+      return useMutation(getCancelViewingMutationOptions(options));
+    }
+
+export const getGetContactIntentsUrl = (params?: GetContactIntentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/contact-intents?${stringifiedParams}` : `/api/contact-intents`
+}
+
+/**
+ * Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
+ * @summary List recent call and WhatsApp taps
+ */
+export const getContactIntents = async (params?: GetContactIntentsParams, options?: Parameters<typeof customFetch>[1]): Promise<ContactIntent[]> => {
+
+  return customFetch<ContactIntent[]>(getGetContactIntentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContactIntentsQueryKey = (params?: GetContactIntentsParams,) => {
+    return [
+    `/api/contact-intents`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetContactIntentsQueryOptions = <TData = Awaited<ReturnType<typeof getContactIntents>>, TError = ErrorType<ApiError>>(params?: GetContactIntentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContactIntents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContactIntentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContactIntents>>> = ({ signal }) => getContactIntents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContactIntents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetContactIntentsQueryResult = NonNullable<Awaited<ReturnType<typeof getContactIntents>>>
+export type GetContactIntentsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary List recent call and WhatsApp taps
+ */
+
+export function useGetContactIntents<TData = Awaited<ReturnType<typeof getContactIntents>>, TError = ErrorType<ApiError>>(
+ params?: GetContactIntentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContactIntents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetContactIntentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordContactIntentUrl = () => {
+
+
+
+
+  return `/api/contact-intents`
+}
+
+/**
+ * @summary Record a call or WhatsApp tap against a car
+ */
+export const recordContactIntent = async (contactIntentInput: ContactIntentInput, options?: Parameters<typeof customFetch>[1]): Promise<ContactIntent> => {
+
+  return customFetch<ContactIntent>(getRecordContactIntentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(contactIntentInput)
+  }
+);}
+
+
+
+
+
+export const getRecordContactIntentMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordContactIntent>>, TError,{data: BodyType<ContactIntentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordContactIntent>>, TError,{data: BodyType<ContactIntentInput>}, TContext> => {
+
+const mutationKey = ['recordContactIntent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordContactIntent>>, {data: BodyType<ContactIntentInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordContactIntent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordContactIntentMutationResult = NonNullable<Awaited<ReturnType<typeof recordContactIntent>>>
+    export type RecordContactIntentMutationBody = BodyType<ContactIntentInput>
+    export type RecordContactIntentMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Record a call or WhatsApp tap against a car
+ */
+export const useRecordContactIntent = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordContactIntent>>, TError,{data: BodyType<ContactIntentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordContactIntent>>,
+        TError,
+        {data: BodyType<ContactIntentInput>},
+        TContext
+      > => {
+      return useMutation(getRecordContactIntentMutationOptions(options));
     }
 
 export const getGetLeadsUrl = (params?: GetLeadsParams,) => {

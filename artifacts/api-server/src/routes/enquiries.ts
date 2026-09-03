@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import {
   CreateEnquiryBody,
   CreateEnquiryResponse,
@@ -16,22 +16,44 @@ import {
   db,
   enquiriesTable,
   vehiclesTable,
+  type Enquiry,
   type Vehicle,
 } from "@workspace/db";
 import {
   deliverEnquiryNotifications,
-  bookingTimezone,
+  dealerProfile,
 } from "../lib/enquiry-notifications";
+import {
+  addDays,
+  bookingDateIsInWindow,
+  bookingTimezone,
+  constraintName,
+  formatAppointmentLabel,
+  getSlotsForDate,
+  isUniqueViolation,
+  isValidDateString,
+  localDateTimeToUtc,
+  validBookingDateTime,
+} from "../lib/booking-slots";
+import {
+  attachVisitorEventsToEnquiry,
+  eventsForEnquiries,
+  eventsForEnquiry,
+  recordEnquiryEvent,
+  serializeEnquiryEvent,
+} from "../lib/enquiry-events";
+import {
+  generateEnquiryReference,
+  viewingCalendarIcs,
+  viewingManagePath,
+  viewingToken,
+  viewingTokenHash,
+} from "../lib/enquiry-links";
 import { openLeadForEnquiry } from "../lib/leads";
 
 const router: IRouter = Router();
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const bookingStartHour = 10;
-const bookingEndHour = 18;
-const slotMinutes = 30;
-const bookingWindowDays = 30;
-
 const settings = () => ({
   dealerId: process.env.STOCK_DEALER_ID ?? "luxxy-motors",
   missingHideThreshold: Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD))
@@ -63,112 +85,79 @@ function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function datePartsInTimezone(value: Date) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: bookingTimezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(value);
-  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+/** Returns the digits-only form of a usable phone number, or null. */
+function normalisePhone(value: string) {
+  const compact = value.trim().replace(/[\s().\-/]/g, "");
+  if (!/^\+?\d{7,15}$/.test(compact)) return null;
+  return compact;
+}
+
+function normaliseRegistration(value: string) {
+  return value.trim().toUpperCase().replace(/\s+/g, " ").slice(0, 16);
+}
+
+const enquiryTypeLabels: Record<string, string> = {
+  viewing: "Viewing",
+  general: "General",
+  delivery: "Delivery",
+  warranty: "Warranty",
+  part_exchange: "Part exchange",
+};
+
+function enquiryTypeLabel(type: string) {
+  return enquiryTypeLabels[type] ?? "General";
+}
+
+/**
+ * Inserts an enquiry with a unique customer-facing reference, retrying if the
+ * generated reference happens to collide.
+ */
+async function insertEnquiryWithReference(
+  values: Omit<typeof enquiriesTable.$inferInsert, "reference">,
+): Promise<Enquiry> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const reference = generateEnquiryReference();
+    try {
+      const [created] = await db
+        .insert(enquiriesTable)
+        .values({ ...values, reference })
+        .returning();
+      return created;
+    } catch (error) {
+      if (!isReferenceConflict(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("Unable to allocate an enquiry reference");
+}
+
+function isReferenceConflict(error: unknown) {
+  if (!isUniqueViolation(error)) return false;
+  const constraint = constraintName(error);
+  return constraint === "enquiries_dealer_reference_uidx";
+}
+
+type EnquiryEventView = ReturnType<typeof serializeEnquiryEvent>;
+
+function toEnquiryResponse(
+  enquiry: Enquiry,
+  options: {
+    events?: EnquiryEventView[];
+    managePath?: string | null;
+    calendarIcs?: string | null;
+  } = {},
+) {
   return {
-    year: get("year"),
-    month: get("month"),
-    day: get("day"),
-    hour: get("hour"),
-    minute: get("minute"),
-    second: get("second"),
+    ...enquiry,
+    events: options.events ?? [],
+    managePath: options.managePath ?? null,
+    calendarIcs: options.calendarIcs ?? null,
   };
 }
 
-function dateStringInTimezone(value: Date) {
-  const parts = datePartsInTimezone(value);
-  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-}
-
-function addDays(dateValue: string, days: number) {
-  const date = new Date(`${dateValue}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function isValidDateString(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function bookingDateIsInWindow(dateValue: string) {
-  const today = dateStringInTimezone(new Date());
-  return dateValue >= today && dateValue <= addDays(today, bookingWindowDays);
-}
-
-function localDateTimeToUtc(dateValue: string, hour: number, minute: number) {
-  const rough = new Date(
-    `${dateValue}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00.000Z`,
-  );
-  const parts = datePartsInTimezone(rough);
-  const localAsUtc = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second,
-  );
-  const offsetMinutes = (localAsUtc - rough.getTime()) / 60000;
-  return new Date(rough.getTime() - offsetMinutes * 60000);
-}
-
-function formatSlotLabel(value: Date) {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: bookingTimezone,
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(value);
-}
-
-function getSlotsForDate(dateValue: string) {
-  const weekday = new Date(`${dateValue}T00:00:00.000Z`).getUTCDay();
-  if (weekday === 0) return [];
-  const slots: Array<{ startAt: Date; label: string }> = [];
-  for (let minutes = bookingStartHour * 60; minutes < bookingEndHour * 60; minutes += slotMinutes) {
-    const startAt = localDateTimeToUtc(dateValue, Math.floor(minutes / 60), minutes % 60);
-    slots.push({ startAt, label: formatSlotLabel(startAt) });
-  }
-  return slots;
-}
-
-function validBookingDateTime(appointmentAt: Date) {
-  if (Number.isNaN(appointmentAt.getTime()) || appointmentAt.getTime() <= Date.now()) {
-    return false;
-  }
-  const parts = datePartsInTimezone(appointmentAt);
-  const dateValue = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-  if (!bookingDateIsInWindow(dateValue) || parts.second !== 0) return false;
-  return getSlotsForDate(dateValue).some(
-    (slot) => slot.startAt.getTime() === appointmentAt.getTime(),
-  );
-}
-
-function isUniqueViolation(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  if ("code" in error && (error as { code?: string }).code === "23505") {
-    return true;
-  }
-  if ("cause" in error) {
-    return isUniqueViolation((error as { cause?: unknown }).cause);
-  }
-  return false;
-}
-
 router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
-  const parsedQuery = GetEnquiryAvailabilityQueryParams.safeParse(req.query);
+  const parsedQuery = GetEnquiriesQueryParams.safeParse(req.query);
   if (!parsedQuery.success) {
     res.status(400).json(errorResponse("Invalid enquiry status filter."));
     return;
@@ -184,7 +173,14 @@ router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
       .from(enquiriesTable)
       .where(and(...conditions))
       .orderBy(desc(enquiriesTable.createdAt));
-    res.json(GetEnquiriesResponse.parse(enquiries));
+    const events = await eventsForEnquiries(enquiries.map((entry) => entry.id));
+    res.json(
+      GetEnquiriesResponse.parse(
+        enquiries.map((enquiry) =>
+          toEnquiryResponse(enquiry, { events: events.get(enquiry.id) ?? [] }),
+        ),
+      ),
+    );
   } catch (error) {
     req.log.error({ err: error }, "Unable to list enquiries");
     res.status(500).json(errorResponse("Unable to load enquiries."));
@@ -216,6 +212,7 @@ router.get("/enquiries/availability", async (req, res): Promise<void> => {
         and(
           eq(enquiriesTable.dealerId, settings().dealerId),
           eq(enquiriesTable.type, "viewing"),
+          isNull(enquiriesTable.appointmentCancelledAt),
           gte(enquiriesTable.appointmentAt, dayStart),
           lt(enquiriesTable.appointmentAt, dayEnd),
         ),
@@ -251,22 +248,41 @@ router.post("/enquiries", async (req, res): Promise<void> => {
   }
 
   const input = parsed.data;
-  if (!input.email && !input.phone) {
-    res.status(400).json(errorResponse("Please provide an email address."));
-    return;
-  }
   if (!input.email) {
     res.status(400).json(errorResponse("Please provide an email address for confirmation."));
     return;
   }
-  if (input.preferredContact !== "email") {
-    res.status(400).json(errorResponse("Email is the only available contact method."));
-    return;
-  }
-  if (input.email && !validEmail(input.email)) {
+  if (!validEmail(input.email)) {
     res.status(400).json(errorResponse("Please provide a valid email address."));
     return;
   }
+
+  const preferredContact = input.preferredContact ?? "email";
+  const phone = input.phone?.trim() ? normalisePhone(input.phone) : null;
+  if (input.phone?.trim() && !phone) {
+    res.status(400).json(errorResponse("Please provide a valid phone number."));
+    return;
+  }
+  if (!phone && (preferredContact === "phone" || preferredContact === "whatsapp")) {
+    res
+      .status(400)
+      .json(errorResponse("Please provide a phone number we can reach you on."));
+    return;
+  }
+  if (!phone && input.type === "viewing") {
+    res
+      .status(400)
+      .json(errorResponse("Please provide a phone number for your viewing."));
+    return;
+  }
+
+  const partExchange = input.partExchange ?? null;
+  const partExchangeMileage = partExchange?.mileage ?? null;
+  if (partExchangeMileage != null && !Number.isInteger(partExchangeMileage)) {
+    res.status(400).json(errorResponse("Please provide the mileage in whole miles."));
+    return;
+  }
+
   if (input.type === "viewing" && !input.appointmentAt) {
     res.status(400).json(errorResponse("Please choose a viewing date and time."));
     return;
@@ -305,49 +321,109 @@ router.post("/enquiries", async (req, res): Promise<void> => {
       }
     }
 
-    const created = await db.transaction(async (tx) => {
-      const [enquiry] = await tx
-        .insert(enquiriesTable)
-        .values({
-          dealerId: settings().dealerId,
-          vehicleId: vehicle?.id ?? null,
-          vehicleTitle: vehicle
-            ? vehicle.websiteTitleOverride ?? vehicle.title
-            : null,
-          vehicleRegistration: vehicle
-            ? vehicle.registration ?? vehicle.plate ?? vehicle.vrm
-            : null,
-          vehiclePrice: vehicle
-            ? vehicle.websitePriceOverride ?? vehicle.sourcePrice
-            : null,
-          vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null,
-          type: input.type,
-          customerName: input.customerName.trim(),
-          email: input.email?.trim().toLowerCase() ?? null,
-          phone: input.phone?.trim() ?? null,
-          preferredContact: input.preferredContact ?? null,
-          message: input.message.trim(),
-          appointmentAt: input.appointmentAt ?? null,
-          customerNotificationStatus: "pending",
-          dealerNotificationStatus: "pending",
-          reminderStatus: input.type === "viewing" ? "pending" : "not_scheduled",
-          source: "website",
-        })
-        .returning();
-      // The enquiry is the opening event of a lead, so the dealer sees this
-      // conversation alongside the ones that arrive by phone or in person.
-      await openLeadForEnquiry(tx, enquiry);
-      return enquiry;
+    const vehicleTitle = vehicle
+      ? vehicle.websiteTitleOverride ?? vehicle.title
+      : null;
+    const vehicleUrl = vehicle ? `/vehicle/${vehicle.id}` : null;
+    const isViewing = input.type === "viewing";
+
+    const created = await insertEnquiryWithReference({
+      dealerId: settings().dealerId,
+      vehicleId: vehicle?.id ?? null,
+      vehicleTitle,
+      vehicleRegistration: vehicle
+        ? vehicle.registration ?? vehicle.plate ?? vehicle.vrm
+        : null,
+      vehiclePrice: vehicle
+        ? vehicle.websitePriceOverride ?? vehicle.sourcePrice
+        : null,
+      vehicleUrl,
+      type: input.type,
+      customerName: input.customerName.trim(),
+      email: input.email.trim().toLowerCase(),
+      phone,
+      preferredContact,
+      message: input.message.trim(),
+      partExchangeRegistration: partExchange?.registration?.trim()
+        ? normaliseRegistration(partExchange.registration)
+        : null,
+      partExchangeMileage,
+      partExchangeCondition: partExchange?.condition ?? null,
+      appointmentAt: input.appointmentAt ?? null,
+      visitorId: input.visitorId?.trim() || null,
+      customerNotificationStatus: "pending",
+      dealerNotificationStatus: "pending",
+      reminderStatus: isViewing ? "pending" : "not_scheduled",
+      source: "website",
     });
+
+    // Website enquiries belong in the shared lead pipeline immediately.
+    await openLeadForEnquiry(db, created);
+
+    // A booked viewing gets a capability link so the customer can move or drop
+    // it themselves; the token is derived from the id, so only its hash is kept.
+    if (isViewing) {
+      await db
+        .update(enquiriesTable)
+        .set({ manageTokenHash: viewingTokenHash(viewingToken(created.id)) })
+        .where(eq(enquiriesTable.id, created.id));
+    }
+
+    await recordEnquiryEvent({
+      dealerId: created.dealerId,
+      enquiryId: created.id,
+      vehicleId: created.vehicleId,
+      vehicleTitle: created.vehicleTitle,
+      vehicleUrl: created.vehicleUrl,
+      kind: isViewing ? "viewing_booked" : "enquiry_received",
+      actor: "customer",
+      summary: isViewing
+        ? `Viewing booked for ${formatAppointmentLabel(created.appointmentAt)}`
+        : `${enquiryTypeLabel(created.type)} enquiry received`,
+      detail: { reference: created.reference, preferredContact },
+      visitorId: created.visitorId,
+    });
+
+    if (created.visitorId) {
+      await attachVisitorEventsToEnquiry({
+        dealerId: created.dealerId,
+        visitorId: created.visitorId,
+        enquiryId: created.id,
+      });
+    }
+
+    const managePath = isViewing
+      ? viewingManagePath(viewingToken(created.id))
+      : null;
+
+    const respond = async (enquiry: Enquiry) => {
+      const dealer = await dealerProfile();
+      res.status(201).json(
+        CreateEnquiryResponse.parse(
+          toEnquiryResponse(enquiry, {
+            events: await eventsForEnquiry(enquiry.id),
+            managePath,
+            calendarIcs: isViewing
+              ? viewingCalendarIcs({
+                  enquiry,
+                  dealerName: dealer.identity.name,
+                  location: dealer.contact.address,
+                })
+              : null,
+          }),
+        ),
+      );
+    };
+
     try {
       const updated = await deliverEnquiryNotifications(created, req.log);
-      res.status(201).json(CreateEnquiryResponse.parse(updated));
+      await respond(updated);
     } catch (error) {
       req.log.error(
         { err: error, enquiryId: created.id },
         "Notification processing failed after enquiry was saved",
       );
-      res.status(201).json(CreateEnquiryResponse.parse(created));
+      await respond(created);
     }
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -386,7 +462,11 @@ router.patch("/enquiries/:id/status", requireStaff, async (req, res): Promise<vo
       res.status(404).json(errorResponse("Enquiry not found."));
       return;
     }
-    res.json(UpdateEnquiryStatusResponse.parse(updated));
+    res.json(
+      UpdateEnquiryStatusResponse.parse(
+        toEnquiryResponse(updated, { events: await eventsForEnquiry(updated.id) }),
+      ),
+    );
   } catch (error) {
     req.log.error({ err: error }, "Unable to update enquiry status");
     res.status(500).json(errorResponse("Unable to update enquiry status."));

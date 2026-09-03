@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link } from 'wouter';
 import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CalendarDays, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarDays, CalendarPlus, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, Phone, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
 import { formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
-import type { EnquiryType } from '@/lib/cta-helpers';
+import { getPhoneHref, getWhatsAppHref, type EnquiryType } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { UKNumberPlate } from '@/components/uk-number-plate';
+import { getVisitorId } from '@/lib/visitor';
 
 const typeLabels: Record<EnquiryType, string> = {
   viewing: 'Book a viewing',
@@ -22,6 +24,26 @@ const typeLabels: Record<EnquiryType, string> = {
 const bookingTimezone = 'Europe/London';
 
 const labelClass = 'luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground';
+type PreferredContact = 'email' | 'phone' | 'whatsapp';
+type PartExchangeCondition = 'excellent' | 'good' | 'fair' | 'poor';
+
+const contactOptions: Array<{ value: PreferredContact; label: string; hint: string }> = [
+  { value: 'email', label: 'Email', hint: 'Written confirmation' },
+  { value: 'phone', label: 'Phone call', hint: 'Quickest answer' },
+  { value: 'whatsapp', label: 'WhatsApp', hint: 'Photos and questions' },
+];
+
+const conditionOptions: Array<{ value: PartExchangeCondition; label: string; hint: string }> = [
+  { value: 'excellent', label: 'Excellent', hint: 'Like new, no marks' },
+  { value: 'good', label: 'Good', hint: 'Light wear for its age' },
+  { value: 'fair', label: 'Fair', hint: 'Some marks or work needed' },
+  { value: 'poor', label: 'Poor', hint: 'Needs attention' },
+];
+
+function normalisePhone(value: string) {
+  const compact = value.trim().replace(/[\s().\-/]/g, '');
+  return /^\+?\d{7,15}$/.test(compact) ? compact : null;
+}
 
 function dateString(date: Date) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -98,10 +120,14 @@ export function EnquiryForm({
   const [type, setType] = useState<EnquiryType>(initialType);
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
   const [message, setMessage] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicle?.id ?? '');
   const [partExchangeRegistration, setPartExchangeRegistration] = useState('');
   const [partExchangeMileage, setPartExchangeMileage] = useState('');
+  const [partExchangeCondition, setPartExchangeCondition] = useState<PartExchangeCondition>('good');
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const mutation = useCreateEnquiry();
@@ -124,6 +150,9 @@ export function EnquiryForm({
   const vehicleLabel = selectedVehicle?.title || [selectedVehicle?.make, selectedVehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
   const availableSlots = availabilityQuery.data?.slots.filter((slot) => slot.available) ?? [];
   const selectedSlotLabel = availabilityQuery.data?.slots.find((slot) => slot.startAt === selectedSlot)?.label;
+  const phoneRequired = isViewing || preferredContact !== 'email';
+  const phoneHref = getPhoneHref(dealerConfig);
+  const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
 
   useEffect(() => {
     if (vehicle?.id) setSelectedVehicleId(vehicle.id);
@@ -143,25 +172,32 @@ export function EnquiryForm({
     event.preventDefault();
     if (isViewing && !selectedSlot) return;
     if (isPartExchange && !selectedVehicleId) return;
-    const partExchangeDetails = isPartExchange
-      ? [
-          `Interested in: ${vehicleLabel}`,
-          'Customer part exchange vehicle',
-          `Registration: ${partExchangeRegistration.trim().toUpperCase()}`,
-          `Mileage: ${Number(partExchangeMileage).toLocaleString('en-GB')} miles`,
-        ].join('\n')
-      : '';
+    const normalizedPhone = normalisePhone(phone);
+    if (phone.trim() && !normalizedPhone) {
+      setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
+      return;
+    }
+    if (!normalizedPhone && phoneRequired) {
+      setPhoneError(preferredContact === 'whatsapp' ? 'Enter a mobile number so we can WhatsApp you.' : 'Enter a phone number so we can reach you.');
+      return;
+    }
     const data: EnquiryInput = {
       vehicleId: isPartExchange ? selectedVehicleId || null : vehicle?.id ?? null,
       type,
       customerName: customerName.trim(),
       email: email.trim(),
-      phone: null,
-      preferredContact: 'email',
-      message: [partExchangeDetails, message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : '')]
-        .filter(Boolean)
-        .join('\n\n'),
+      phone: normalizedPhone,
+      preferredContact,
+      message: message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''),
       appointmentAt: isViewing ? selectedSlot : null,
+      partExchange: isPartExchange
+        ? {
+            registration: partExchangeRegistration.trim().toUpperCase() || null,
+            mileage: Number(partExchangeMileage),
+            condition: partExchangeCondition,
+          }
+        : null,
+      visitorId: getVisitorId(),
     };
     mutation.mutate({ data });
   };
@@ -179,17 +215,63 @@ export function EnquiryForm({
         <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-muted-foreground">
           {isViewing
             ? `Thank you, ${customerName.trim()}. We have held your appointment for ${formatAppointment(selectedSlot!)}.`
-            : `Thank you, ${customerName.trim()}. The ${dealerConfig.identity.name} team has your request and will reply by email.`}
+            : `Thank you, ${customerName.trim()}. The ${dealerConfig.identity.name} team has your request and will be in touch.`}
         </p>
+        <div className="mx-auto mt-6 max-w-sm border border-primary/20 bg-primary/5 px-5 py-4 text-left">
+          <p className="luxxy-label text-accent">Your reference</p>
+          <p className="mt-2 font-mono text-xl font-bold tracking-[.12em] text-primary" data-testid="text-enquiry-reference">{mutation.data.reference}</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">Keep this reference handy if you call the showroom.</p>
+        </div>
         {selectedVehicle && (
-          <p className="mx-auto mt-6 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
+          <p className="mx-auto mt-5 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
             {vehicleLabel}
           </p>
         )}
-        <div className="mx-auto mt-7 flex max-w-sm items-center justify-center gap-2.5 border border-border/70 bg-background px-4 py-3.5">
-          <Mail className="h-4 w-4 shrink-0 text-accent" />
-          <span className="luxxy-label text-muted-foreground">A confirmation is on its way</span>
+        <div className="mx-auto mt-7 max-w-sm border border-border/70 bg-background px-4 py-3.5 text-left">
+          <div className="flex items-start gap-2.5">
+            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <div>
+              <p className="luxxy-label text-muted-foreground">
+                {mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Confirmation email not sent'}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {mutation.data.customerNotificationStatus === 'sent'
+                  ? `We sent your reference and ${isViewing ? 'viewing details' : 'enquiry details'} to ${email.trim()}.`
+                  : `Please contact the showroom by phone or WhatsApp and quote ${mutation.data.reference}.`}
+              </p>
+              {mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
+                <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-accent">
+                  {phoneHref && <a href={phoneHref} className="underline underline-offset-4" data-testid="link-fallback-call">Call {dealerConfig.contact.phone}</a>}
+                  {whatsAppHref && <a href={whatsAppHref} className="underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp us</a>}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+        {isViewing && mutation.data.managePath && (
+          <div className="mx-auto mt-4 flex max-w-sm flex-col gap-3 border border-border/70 bg-secondary/35 p-4 text-left sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2.5">
+              <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <div>
+                <p className="text-sm font-bold text-primary">Manage your viewing</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Reschedule or cancel using your secure link.</p>
+              </div>
+            </div>
+            <Button asChild type="button" variant="outline" size="sm" className="h-9 shrink-0 rounded-none border-border bg-background text-xs font-bold shadow-none">
+              <Link href={mutation.data.managePath}>Manage viewing</Link>
+            </Button>
+          </div>
+        )}
+        {isViewing && mutation.data.calendarIcs && (
+          <a
+            href={`data:text/calendar;charset=utf-8,${encodeURIComponent(mutation.data.calendarIcs)}`}
+            download={`luxxy-viewing-${mutation.data.reference}.ics`}
+            className="mx-auto mt-4 inline-flex items-center gap-2 text-xs font-bold text-accent underline underline-offset-4"
+            data-testid="link-download-calendar"
+          >
+            <CalendarPlus className="h-4 w-4" /> Add to calendar
+          </a>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -235,6 +317,32 @@ export function EnquiryForm({
         <label className="block">
           <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
           <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+        </label>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="block">
+          <span className={labelClass}><Phone className="h-3.5 w-3.5 text-accent" />Phone number</span>
+          <Input
+            required={phoneRequired}
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
+            onInvalid={(event) => { event.preventDefault(); setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
+            placeholder="07700 900 123"
+            aria-invalid={Boolean(phoneError)}
+            aria-describedby={phoneError ? 'customer-phone-help' : undefined}
+            className="h-11"
+            data-testid="input-customer-phone"
+          />
+          {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
+        </label>
+        <label className="block">
+          <span className={labelClass}>Preferred contact</span>
+          <NativeSelect value={preferredContact} onChange={(event) => setPreferredContact(event.target.value as PreferredContact)} className="h-11" data-testid="select-preferred-contact">
+            {contactOptions.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.hint}</option>)}
+          </NativeSelect>
         </label>
       </div>
 
@@ -340,6 +448,12 @@ export function EnquiryForm({
               />
             </label>
           </div>
+          <label className="block border-t border-border/70 pt-5">
+            <span className={labelClass}>Condition</span>
+            <NativeSelect required value={partExchangeCondition} onChange={(event) => setPartExchangeCondition(event.target.value as PartExchangeCondition)} className="h-11" data-testid="select-part-exchange-condition">
+              {conditionOptions.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.hint}</option>)}
+            </NativeSelect>
+          </label>
         </fieldset>
       )}
 
@@ -460,7 +574,7 @@ export function EnquiryForm({
         </Button>
         <div className="flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-3.5 text-[13px] leading-6 text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-          <span>{isViewing ? `Your details are only used to confirm this appointment. We will email your confirmation and a reminder 24 hours before (${bookingTimezone}).` : `Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will email a confirmation to this address.`}</span>
+           <span>{isViewing ? `Your details are only used to confirm this appointment. We will send your confirmation and a reminder 24 hours before (${bookingTimezone}).` : `Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will confirm delivery on the next screen.`}</span>
         </div>
       </div>
     </form>

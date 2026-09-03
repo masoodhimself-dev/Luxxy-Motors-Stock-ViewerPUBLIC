@@ -1,5 +1,7 @@
+import { getRecordContactIntentUrl } from '@workspace/api-client-react';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
+import { getVisitorId } from '@/lib/visitor';
 
 type DealerContactDetails = {
   contact: {
@@ -75,6 +77,44 @@ export function getVehicleBookingHref(car: Car) {
   return getEnquiryHref('viewing', car);
 }
 
+/**
+ * Records that someone tapped Call or WhatsApp, so phone traffic stops being
+ * invisible to the dealer. It is fire-and-forget: the tap must never be blocked
+ * or delayed by the logging, and a failure is silently ignored.
+ */
+export function recordContactIntent({
+  channel,
+  car,
+  source,
+}: {
+  channel: 'call' | 'whatsapp';
+  car?: Car;
+  source?: string;
+}) {
+  if (typeof window === 'undefined') return;
+  const body = JSON.stringify({
+    channel,
+    vehicleId: car?.id ?? null,
+    visitorId: getVisitorId(),
+    source: source ?? null,
+  });
+  const url = getRecordContactIntentUrl();
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      // Survives the browser leaving the page for the dialler or WhatsApp.
+      const sent = navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+      if (sent) return;
+    }
+    void fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Never let analytics get in the way of a phone call.
+  }
+}
 export type EnquiryType = 'viewing' | 'general' | 'delivery' | 'warranty' | 'part_exchange';
 
 export function getEnquiryHref(type: EnquiryType, car?: Car) {

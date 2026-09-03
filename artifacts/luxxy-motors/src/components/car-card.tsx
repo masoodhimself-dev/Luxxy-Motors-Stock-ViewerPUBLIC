@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
-import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
@@ -224,6 +224,7 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
       href={phoneHref}
       title={`Call about ${vehicleLabel}`}
       aria-label={`Call about ${vehicleLabel}`}
+      onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-card' })}
       data-vehicle-contact="call"
       className={cn(actionBase, 'border border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary focus-visible:ring-primary')}
     >
@@ -239,6 +240,7 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
       rel="noopener noreferrer"
       title={`WhatsApp about ${vehicleLabel}`}
       aria-label={`WhatsApp about ${vehicleLabel}`}
+      onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-card' })}
       data-vehicle-contact="whatsapp"
       className={cn(actionBase, 'border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 text-[#1b6543] hover:bg-[#1f7a4d]/18 focus-visible:ring-[#1f7a4d]')}
     >

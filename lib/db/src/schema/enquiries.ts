@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -31,6 +32,14 @@ export const enquiriesTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     dealerId: text("dealer_id").notNull(),
+    // Customer-facing reference quoted on the phone. Written by the API on every
+    // new enquiry; the database default only exists to fill rows created before
+    // references were introduced.
+    reference: text("reference")
+      .notNull()
+      .default(
+        sql`upper(substr(md5(random()::text), 1, 4) || '-' || substr(md5(random()::text), 1, 4))`,
+      ),
     vehicleId: uuid("vehicle_id").references(() => vehiclesTable.id, {
       onDelete: "set null",
     }),
@@ -45,7 +54,20 @@ export const enquiriesTable = pgTable(
     phone: text("phone"),
     preferredContact: text("preferred_contact"),
     message: text("message").notNull(),
+    // Part exchange details are stored as real fields so they can be searched
+    // and carried into a deal, instead of being sentences inside the message.
+    partExchangeRegistration: text("part_exchange_registration"),
+    partExchangeMileage: integer("part_exchange_mileage"),
+    partExchangeCondition: text("part_exchange_condition"),
     appointmentAt: timestamp("appointment_at", { withTimezone: true }),
+    appointmentCancelledAt: timestamp("appointment_cancelled_at", {
+      withTimezone: true,
+    }),
+    // Lookup hash for the customer's self-service reschedule/cancel link.
+    manageTokenHash: text("manage_token_hash"),
+    // Anonymous browser identifier, used to attach earlier call/WhatsApp taps
+    // to the lead they turned into.
+    visitorId: text("visitor_id"),
     customerNotificationStatus: text("customer_notification_status")
       .notNull()
       .default("not_sent"),
@@ -94,10 +116,16 @@ export const enquiriesTable = pgTable(
     ),
     index("enquiries_dealer_created_idx").on(table.dealerId, table.createdAt),
     index("enquiries_vehicle_id_idx").on(table.vehicleId),
-    uniqueIndex("enquiries_dealer_appointment_uidx").on(
+    // A cancelled viewing must release its slot, so only live bookings are unique.
+    uniqueIndex("enquiries_dealer_appointment_uidx")
+      .on(table.dealerId, table.appointmentAt)
+      .where(sql`appointment_cancelled_at is null`),
+    uniqueIndex("enquiries_dealer_reference_uidx").on(
       table.dealerId,
-      table.appointmentAt,
+      table.reference,
     ),
+    uniqueIndex("enquiries_manage_token_hash_uidx").on(table.manageTokenHash),
+    index("enquiries_dealer_visitor_idx").on(table.dealerId, table.visitorId),
   ],
 );
 

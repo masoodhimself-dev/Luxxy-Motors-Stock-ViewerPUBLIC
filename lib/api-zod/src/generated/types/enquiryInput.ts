@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EnquiryInputPartExchange } from './enquiryInputPartExchange';
 import type { EnquiryInputPreferredContact } from './enquiryInputPreferredContact';
 import type { EnquiryInputType } from './enquiryInputType';
 
@@ -32,6 +33,17 @@ export interface EnquiryInput {
      * @maxLength 2000
      */
   message: string;
+  /**
+     * Details of the car the customer wants to trade in.
+     * @nullable
+     */
+  partExchange?: EnquiryInputPartExchange;
+  /**
+     * Anonymous browser identifier used to attach earlier call/WhatsApp taps to this lead.
+     * @maxLength 64
+     * @nullable
+     */
+  visitorId?: string | null;
   /** @nullable */
   appointmentAt: Date | null;
 }

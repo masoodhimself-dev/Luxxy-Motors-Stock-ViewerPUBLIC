@@ -507,9 +507,47 @@ export const EnquiryStatus = {
   closed: 'closed',
 } as const;
 
+export type EnquiryEventKind = typeof EnquiryEventKind[keyof typeof EnquiryEventKind];
+
+
+export const EnquiryEventKind = {
+  enquiry_received: 'enquiry_received',
+  viewing_booked: 'viewing_booked',
+  viewing_rescheduled: 'viewing_rescheduled',
+  viewing_cancelled: 'viewing_cancelled',
+  call_intent: 'call_intent',
+  whatsapp_intent: 'whatsapp_intent',
+} as const;
+
+export type EnquiryEventActor = typeof EnquiryEventActor[keyof typeof EnquiryEventActor];
+
+
+export const EnquiryEventActor = {
+  customer: 'customer',
+  dealer: 'dealer',
+  system: 'system',
+} as const;
+
+export interface EnquiryEvent {
+  /** @minLength 1 */
+  id: string;
+  kind: EnquiryEventKind;
+  actor: EnquiryEventActor;
+  summary: string;
+  /** @nullable */
+  vehicleId: string | null;
+  /** @nullable */
+  vehicleTitle: string | null;
+  /** @nullable */
+  vehicleUrl: string | null;
+  occurredAt: string;
+}
+
 export interface Enquiry {
   /** @minLength 1 */
   id: string;
+  /** @minLength 1 */
+  reference: string;
   /** @minLength 1 */
   dealerId: string;
   /** @nullable */
@@ -524,6 +562,19 @@ export interface Enquiry {
   vehicleUrl: string | null;
   /** @nullable */
   appointmentAt: string | null;
+  /** @nullable */
+  appointmentCancelledAt: string | null;
+  /**
+     * Customer self-service reschedule/cancel path. Only returned when the enquiry is created.
+     * @nullable
+     */
+  managePath: string | null;
+  /**
+     * iCalendar invite for a booked viewing. Only returned when the enquiry is created.
+     * @nullable
+     */
+  calendarIcs: string | null;
+  events: EnquiryEvent[];
   type: EnquiryType;
   status: EnquiryStatus;
   /** @minLength 1 */
@@ -535,6 +586,12 @@ export interface Enquiry {
   /** @nullable */
   preferredContact: string | null;
   message: string;
+  /** @nullable */
+  partExchangeRegistration: string | null;
+  /** @nullable */
+  partExchangeMileage: number | null;
+  /** @nullable */
+  partExchangeCondition: string | null;
   customerNotificationStatus: string;
   /** @nullable */
   customerNotificationError: string | null;
@@ -574,7 +631,42 @@ export type EnquiryInputPreferredContact = typeof EnquiryInputPreferredContact[k
 
 export const EnquiryInputPreferredContact = {
   email: 'email',
+  phone: 'phone',
+  whatsapp: 'whatsapp',
 } as const;
+
+/**
+ * @nullable
+ */
+export type EnquiryInputPartExchangeCondition = typeof EnquiryInputPartExchangeCondition[keyof typeof EnquiryInputPartExchangeCondition] | null;
+
+
+export const EnquiryInputPartExchangeCondition = {
+  excellent: 'excellent',
+  good: 'good',
+  fair: 'fair',
+  poor: 'poor',
+} as const;
+
+/**
+ * Details of the car the customer wants to trade in.
+ * @nullable
+ */
+export type EnquiryInputPartExchange = {
+  /**
+     * @maxLength 16
+     * @nullable
+     */
+  registration?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  mileage?: number | null;
+  /** @nullable */
+  condition?: EnquiryInputPartExchangeCondition;
+} | null;
 
 export interface EnquiryInput {
   /** @nullable */
@@ -600,6 +692,17 @@ export interface EnquiryInput {
      * @maxLength 2000
      */
   message: string;
+  /**
+     * Details of the car the customer wants to trade in.
+     * @nullable
+     */
+  partExchange?: EnquiryInputPartExchange;
+  /**
+     * Anonymous browser identifier used to attach earlier call/WhatsApp taps to this lead.
+     * @maxLength 64
+     * @nullable
+     */
+  visitorId?: string | null;
   /** @nullable */
   appointmentAt: string | null;
 }
@@ -628,6 +731,97 @@ export interface EnquiryAvailability {
   date: string;
   timezone: string;
   slots: EnquiryAvailabilitySlot[];
+}
+
+export type ViewingBookingStatus = typeof ViewingBookingStatus[keyof typeof ViewingBookingStatus];
+
+
+export const ViewingBookingStatus = {
+  booked: 'booked',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ViewingBooking {
+  /** @minLength 1 */
+  reference: string;
+  status: ViewingBookingStatus;
+  customerName: string;
+  /** @nullable */
+  appointmentAt: string | null;
+  /** @nullable */
+  cancelledAt: string | null;
+  timezone: string;
+  /** @nullable */
+  vehicleTitle: string | null;
+  /** @nullable */
+  vehicleUrl: string | null;
+  /** @nullable */
+  calendarIcs: string | null;
+  /** False once the viewing is cancelled or its start time has passed. */
+  canChange: boolean;
+}
+
+export interface ViewingReschedule {
+  appointmentAt: string;
+}
+
+export interface ViewingCancellation {
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  reason?: string | null;
+}
+
+export type ContactIntentInputChannel = typeof ContactIntentInputChannel[keyof typeof ContactIntentInputChannel];
+
+
+export const ContactIntentInputChannel = {
+  call: 'call',
+  whatsapp: 'whatsapp',
+} as const;
+
+export interface ContactIntentInput {
+  /** @nullable */
+  vehicleId?: string | null;
+  channel: ContactIntentInputChannel;
+  /**
+     * @maxLength 64
+     * @nullable
+     */
+  visitorId?: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  source?: string | null;
+}
+
+export type ContactIntentChannel = typeof ContactIntentChannel[keyof typeof ContactIntentChannel];
+
+
+export const ContactIntentChannel = {
+  call: 'call',
+  whatsapp: 'whatsapp',
+} as const;
+
+export interface ContactIntent {
+  /** @minLength 1 */
+  id: string;
+  channel: ContactIntentChannel;
+  /** @nullable */
+  vehicleId: string | null;
+  /** @nullable */
+  vehicleTitle: string | null;
+  /** @nullable */
+  vehicleUrl: string | null;
+  /** @nullable */
+  enquiryId: string | null;
+  /** @nullable */
+  enquiryReference: string | null;
+  /** @nullable */
+  customerName: string | null;
+  occurredAt: string;
 }
 
 export type LeadStage = typeof LeadStage[keyof typeof LeadStage];
@@ -1470,6 +1664,13 @@ export type GetEnquiryAvailabilityParams = {
  * @pattern ^\d{4}-\d{2}-\d{2}$
  */
 date: string;
+};
+
+export type GetContactIntentsParams = {
+/**
+ * When true, only taps that are not yet attached to an enquiry are returned.
+ */
+unattributed?: boolean;
 };
 
 export type GetLeadsParams = {

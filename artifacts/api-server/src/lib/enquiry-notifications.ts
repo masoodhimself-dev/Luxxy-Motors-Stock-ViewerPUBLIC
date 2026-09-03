@@ -16,6 +16,7 @@ import {
   type Enquiry,
 } from "@workspace/db";
 import type { Logger } from "pino";
+import { viewingCalendarIcs, viewingManageUrl } from "./enquiry-links";
 
 export const bookingTimezone = "Europe/London";
 const reminderLeadTimeMs = 24 * 60 * 60 * 1000;
@@ -48,13 +49,31 @@ function formatAppointment(value: Date | null) {
 
 type DealerProfile = {
   identity: { name: string };
-  contact: { email: string };
+  contact: { email: string; phone: string; whatsapp: string; address: string };
 };
 
 const defaultDealerProfile: DealerProfile = {
   identity: { name: "Used Car Showroom" },
-  contact: { email: "" },
+  contact: { email: "", phone: "", whatsapp: "", address: "" },
 };
+
+type DealerSettingsConfig = {
+  identity?: { name?: string };
+  contact?: { email?: string; phone?: string; whatsapp?: string };
+  address?: {
+    street?: string;
+    city?: string;
+    region?: string;
+    postcode?: string;
+  };
+};
+
+function formatAddress(address: DealerSettingsConfig["address"]) {
+  return [address?.street, address?.city, address?.region, address?.postcode]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(", ");
+}
 
 async function getDealerProfile(): Promise<DealerProfile> {
   const [settings] = await db
@@ -66,15 +85,24 @@ async function getDealerProfile(): Promise<DealerProfile> {
         process.env.STOCK_DEALER_ID ?? "luxxy-motors",
       ),
     );
-  const config = settings?.config as Partial<DealerProfile> | undefined;
+  const config = settings?.config as DealerSettingsConfig | undefined;
   return {
     identity: {
       name: config?.identity?.name?.trim() || defaultDealerProfile.identity.name,
     },
     contact: {
       email: config?.contact?.email?.trim() || defaultDealerProfile.contact.email,
+      phone: config?.contact?.phone?.trim() || defaultDealerProfile.contact.phone,
+      whatsapp:
+        config?.contact?.whatsapp?.trim() || defaultDealerProfile.contact.whatsapp,
+      address: formatAddress(config?.address),
     },
   };
+}
+
+/** The dealer's public identity and contact details, as used in emails. */
+export async function dealerProfile(): Promise<DealerProfile> {
+  return getDealerProfile();
 }
 
 function safeHeaderName(value: string) {
@@ -103,6 +131,7 @@ async function sendEmail(
   html: string,
   idempotencyKey: string,
   dealerName: string,
+  attachments?: Array<{ filename: string; content: string }>,
 ) {
   const response = await new ReplitConnectors().proxy("resend", "/emails", {
     method: "POST",
@@ -117,6 +146,7 @@ async function sendEmail(
       to: [to],
       subject,
       html,
+      ...(attachments?.length ? { attachments } : {}),
     }),
   });
 
@@ -142,6 +172,7 @@ async function attemptEmail({
   enquiryId,
   logMessage,
   dealerName,
+  attachments,
 }: {
   to: string | null;
   subject: string;
@@ -152,6 +183,7 @@ async function attemptEmail({
   enquiryId: string;
   logMessage: string;
   dealerName: string;
+  attachments?: Array<{ filename: string; content: string }>;
 }): Promise<DeliveryResult> {
   if (!to) {
     return {
@@ -163,7 +195,14 @@ async function attemptEmail({
   }
 
   try {
-    const providerId = await sendEmail(to, subject, html, idempotencyKey, dealerName);
+    const providerId = await sendEmail(
+      to,
+      subject,
+      html,
+      idempotencyKey,
+      dealerName,
+      attachments,
+    );
     return { status: "sent", error: null, sentAt: new Date(), providerId };
   } catch (error) {
     log.error({ err: error, enquiryId }, logMessage);
@@ -176,27 +215,81 @@ async function attemptEmail({
   }
 }
 
-function customerEmail(enquiry: Enquiry, reminder: boolean, dealerName: string) {
+const contactMethodLabels: Record<string, string> = {
+  email: "Email",
+  phone: "Phone call",
+  whatsapp: "WhatsApp",
+};
+
+const conditionLabels: Record<string, string> = {
+  excellent: "Excellent",
+  good: "Good",
+  fair: "Fair",
+  poor: "Poor",
+};
+
+function row(label: string, value: string | null | undefined) {
+  if (!value) return "";
+  return `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+}
+
+function partExchangeSection(enquiry: Enquiry) {
+  const details = [
+    enquiry.partExchangeRegistration
+      ? `Registration: ${enquiry.partExchangeRegistration}`
+      : null,
+    enquiry.partExchangeMileage != null
+      ? `Mileage: ${new Intl.NumberFormat("en-GB").format(enquiry.partExchangeMileage)} miles`
+      : null,
+    enquiry.partExchangeCondition
+      ? `Condition: ${conditionLabels[enquiry.partExchangeCondition] ?? enquiry.partExchangeCondition}`
+      : null,
+  ].filter((entry): entry is string => entry != null);
+  if (details.length === 0) return "";
+  return `<p><strong>Part exchange:</strong><br />${details
+    .map((entry) => escapeHtml(entry))
+    .join("<br />")}</p>`;
+}
+
+function customerEmail(
+  enquiry: Enquiry,
+  reminder: boolean,
+  dealer: DealerProfile,
+) {
+  const dealerName = dealer.identity.name;
   const appointment = formatAppointment(enquiry.appointmentAt);
   const greeting = escapeHtml(enquiry.customerName);
   const vehicle = escapeHtml(vehicleLabel(enquiry, dealerName));
+  const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
   const intro = reminder
     ? "This is a reminder for your upcoming viewing."
-    : enquiry.type === "viewing"
+    : isViewing
       ? "Your viewing has been booked."
       : "We have received your enquiry.";
   const appointmentRow = appointment
     ? `<p><strong>Viewing time:</strong> ${escapeHtml(appointment)} (${bookingTimezone})</p>`
     : "";
+  const manageUrl = isViewing ? viewingManageUrl(enquiry.id) : null;
+  const manageBlock = manageUrl
+    ? `<p>Need to move or cancel it? <a href="${escapeHtml(manageUrl)}">Change your viewing</a>. A calendar invite is attached to this email.</p>`
+    : "<p>If you need to make a change, please reply to this email or contact the showroom.</p>";
+  const contactLine = [
+    dealer.contact.phone ? `call ${dealer.contact.phone}` : null,
+    dealer.contact.whatsapp ? `WhatsApp ${dealer.contact.whatsapp}` : null,
+  ]
+    .filter((entry): entry is string => entry != null)
+    .join(" or ");
 
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
        <h1 style="color:#172033">${reminder ? "Viewing reminder" : `${escapeHtml(dealerName)} enquiry confirmation`}</h1>
       <p>Hi ${greeting},</p>
       <p>${intro}</p>
+      <p><strong>Your reference:</strong> ${escapeHtml(enquiry.reference)}</p>
       <p><strong>Vehicle:</strong> ${vehicle}</p>
       ${appointmentRow}
-      <p>If you need to make a change, please reply to this email or contact the showroom.</p>
+      ${manageBlock}
+      ${contactLine ? `<p>Quote your reference when you ${escapeHtml(contactLine)}.</p>` : ""}
        <p>Thanks,<br />${escapeHtml(dealerName)}</p>
     </div>
   `;
@@ -207,21 +300,43 @@ function dealerEmail(enquiry: Enquiry, dealerName: string) {
   const appointmentRow = appointment
     ? `<p><strong>Viewing time:</strong> ${escapeHtml(appointment)} (${bookingTimezone})</p>`
     : "";
-  const contactRow = enquiry.email
-    ? `<p><strong>Customer email:</strong> ${escapeHtml(enquiry.email)}</p>`
-    : "";
 
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
        <h1 style="color:#172033">New ${escapeHtml(dealerName)} enquiry</h1>
       <p>A customer has submitted a new enquiry.</p>
-      <p><strong>Customer:</strong> ${escapeHtml(enquiry.customerName)}</p>
-      ${contactRow}
+      ${row("Reference", enquiry.reference)}
+      ${row("Customer", enquiry.customerName)}
+      ${row("Phone", enquiry.phone)}
+      ${row("Email", enquiry.email)}
+      ${row(
+        "Prefers",
+        enquiry.preferredContact
+          ? contactMethodLabels[enquiry.preferredContact] ?? enquiry.preferredContact
+          : null,
+      )}
        <p><strong>Vehicle:</strong> ${escapeHtml(vehicleLabel(enquiry, dealerName))}</p>
       ${appointmentRow}
+      ${partExchangeSection(enquiry)}
       <p><strong>Message:</strong><br />${escapeHtml(enquiry.message)}</p>
     </div>
   `;
+}
+
+function calendarAttachment(enquiry: Enquiry, dealer: DealerProfile) {
+  if (enquiry.type !== "viewing" || !enquiry.appointmentAt) return undefined;
+  const ics = viewingCalendarIcs({
+    enquiry,
+    dealerName: dealer.identity.name,
+    location: dealer.contact.address,
+  });
+  if (!ics) return undefined;
+  return [
+    {
+      filename: "viewing.ics",
+      content: Buffer.from(ics, "utf8").toString("base64"),
+    },
+  ];
 }
 
 function claimable(
@@ -267,13 +382,14 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
       claimed.type === "viewing"
           ? `Your ${dealer.identity.name} viewing is booked`
           : `Your ${dealer.identity.name} enquiry`,
-    html: customerEmail(claimed, false, dealer.identity.name),
+    html: customerEmail(claimed, false, dealer),
     idempotencyKey: `enquiry-${claimed.id}-customer-confirmation`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Customer email address is missing.",
     log,
     enquiryId: claimed.id,
     logMessage: "Customer confirmation delivery failed",
+    attachments: calendarAttachment(claimed, dealer),
   });
   await db
     .update(enquiriesTable)
@@ -395,13 +511,15 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
   const result = await attemptEmail({
     to: claimed.email,
     subject: `Reminder: your upcoming ${dealer.identity.name} viewing`,
-    html: customerEmail(claimed, true, dealer.identity.name),
-    idempotencyKey: `enquiry-${claimed.id}-customer-reminder`,
+    html: customerEmail(claimed, true, dealer),
+    // A rescheduled viewing gets a fresh reminder, so the key follows the time.
+    idempotencyKey: `enquiry-${claimed.id}-customer-reminder-${claimed.appointmentAt?.getTime() ?? 0}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Customer email address is missing.",
     log,
     enquiryId: claimed.id,
     logMessage: "Viewing reminder delivery failed",
+    attachments: calendarAttachment(claimed, dealer),
   });
   await db
     .update(enquiriesTable)
@@ -455,6 +573,7 @@ export async function processDueNotifications(log: Logger) {
     .where(
       and(
         eq(enquiriesTable.type, "viewing"),
+        isNull(enquiriesTable.appointmentCancelledAt),
         claimable(
           enquiriesTable.reminderStatus,
           enquiriesTable.reminderAttemptedAt,
@@ -477,6 +596,7 @@ export async function processDueNotifications(log: Logger) {
     .where(
       and(
         eq(enquiriesTable.type, "viewing"),
+        isNull(enquiriesTable.appointmentCancelledAt),
         or(
           eq(enquiriesTable.reminderStatus, "pending"),
           and(

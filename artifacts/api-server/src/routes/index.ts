@@ -6,13 +6,16 @@ import salesRouter from "./sales";
 import dealerSettingsRouter from "./dealer-settings";
 import customerIntakeRouter from "./customer-intake";
 import leadsRouter from "./leads";
+import viewingsRouter from "./viewings";
+import contactIntentsRouter from "./contact-intents";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(stockRouter);
 router.use(enquiriesRouter);
-router.use(leadsRouter);
+router.use(viewingsRouter);
+router.use(contactIntentsRouter);
 router.use(salesRouter);
 router.use(dealerSettingsRouter);
 router.use(customerIntakeRouter);

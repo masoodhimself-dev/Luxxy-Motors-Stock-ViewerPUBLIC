@@ -40,9 +40,6 @@ export const getStockResponseCarsItemOwnersMultipleOf = 1;
 export const getStockResponseCarsItemImageCountMultipleOf = 1;
 
 
-
-
-
 export const GetStockResponse = zod.object({
   "schemaVersion": zod.literal(1),
   "dealerName": zod.string().nullable(),
@@ -101,12 +98,9 @@ export const GetStockResponse = zod.object({
  */
 
 
-
 export const ImportAutotraderStockHeader = zod.object({
   "x-stock-import-secret": zod.string().min(1).describe('Shared secret used to authenticate the stock importer.')
 })
-
-
 
 
 export const importAutotraderStockBodyExpectedAdvertCountMin = 0;
@@ -114,9 +108,6 @@ export const importAutotraderStockBodyExpectedAdvertCountMultipleOf = 1;
 
 export const importAutotraderStockBodyCountMin = 0;
 export const importAutotraderStockBodyCountMultipleOf = 1;
-
-
-
 
 
 export const importAutotraderStockBodyCarsItemYearMultipleOf = 1;
@@ -132,8 +123,6 @@ export const importAutotraderStockBodyCarsItemSeatsMultipleOf = 1;
 export const importAutotraderStockBodyCarsItemOwnersMultipleOf = 1;
 
 export const importAutotraderStockBodyCarsItemImageCountMultipleOf = 1;
-
-
 
 
 export const ImportAutotraderStockBody = zod.object({
@@ -198,7 +187,6 @@ export const ImportAutotraderStockBody = zod.object({
 })
 
 
-
 export const importAutotraderStockResponseReceivedMin = 0;
 export const importAutotraderStockResponseReceivedMultipleOf = 1;
 
@@ -213,9 +201,6 @@ export const importAutotraderStockResponseDeletedMultipleOf = 1;
 
 export const importAutotraderStockResponseUnchangedMin = 0;
 export const importAutotraderStockResponseUnchangedMultipleOf = 1;
-
-
-
 
 
 export const ImportAutotraderStockResponse = zod.object({
@@ -243,7 +228,6 @@ export const ImportAutotraderStockResponse = zod.object({
  */
 
 
-
 export const GetVehicleParams = zod.object({
   "id": zod.coerce.string().min(1).describe('Database identifier of the vehicle.')
 })
@@ -262,9 +246,6 @@ export const getVehicleResponseSeatsMultipleOf = 1;
 export const getVehicleResponseOwnersMultipleOf = 1;
 
 export const getVehicleResponseImageCountMultipleOf = 1;
-
-
-
 
 
 export const GetVehicleResponse = zod.object({
@@ -321,14 +302,15 @@ export const GetEnquiriesQueryParams = zod.object({
 })
 
 
-
 export const getEnquiriesResponseVehiclePriceMultipleOf = 1;
 
 
+export const getEnquiriesResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetEnquiriesResponseItem = zod.object({
   "id": zod.string().min(1),
+  "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
@@ -336,6 +318,19 @@ export const GetEnquiriesResponseItem = zod.object({
   "vehiclePrice": zod.number().multipleOf(getEnquiriesResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
   "status": zod.enum(['new', 'contacted', 'closed']),
   "customerName": zod.string().min(1),
@@ -343,6 +338,9 @@ export const GetEnquiriesResponseItem = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(getEnquiriesResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
   "customerNotificationStatus": zod.string(),
   "customerNotificationError": zod.string().nullable(),
   "customerNotificationSentAt": zod.coerce.date().nullable(),
@@ -373,6 +371,13 @@ export const createEnquiryBodyPhoneMax = 40;
 
 export const createEnquiryBodyMessageMax = 2000;
 
+export const createEnquiryBodyPartExchangeRegistrationMax = 16;
+
+export const createEnquiryBodyPartExchangeMileageMin = 0;
+export const createEnquiryBodyPartExchangeMileageMax = 1000000;
+export const createEnquiryBodyPartExchangeMileageMultipleOf = 1;
+
+export const createEnquiryBodyVisitorIdMax = 64;
 
 
 export const CreateEnquiryBody = zod.object({
@@ -381,20 +386,27 @@ export const CreateEnquiryBody = zod.object({
   "customerName": zod.string().min(createEnquiryBodyCustomerNameMin).max(createEnquiryBodyCustomerNameMax),
   "email": zod.string().min(createEnquiryBodyEmailMin),
   "phone": zod.string().min(createEnquiryBodyPhoneMin).max(createEnquiryBodyPhoneMax).nullable(),
-  "preferredContact": zod.enum(['email']).nullable(),
+  "preferredContact": zod.enum(['email', 'phone', 'whatsapp']).nullable(),
   "message": zod.string().min(1).max(createEnquiryBodyMessageMax),
+  "partExchange": zod.object({
+  "registration": zod.string().max(createEnquiryBodyPartExchangeRegistrationMax).nullish(),
+  "mileage": zod.number().min(0).max(1000000).multipleOf(1).nullish(),
+  "condition": zod.enum(['excellent', 'good', 'fair', 'poor']).nullish()
+}).nullish().describe('Details of the car the customer wants to trade in.'),
+  "visitorId": zod.string().max(64).nullish().describe('Anonymous browser identifier used to attach earlier call\/WhatsApp taps to this lead.'),
   "appointmentAt": zod.coerce.date().nullable()
 })
-
 
 
 export const createEnquiryResponseVehiclePriceMultipleOf = 1;
 
 
+export const createEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateEnquiryResponse = zod.object({
   "id": zod.string().min(1),
+  "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
@@ -402,6 +414,19 @@ export const CreateEnquiryResponse = zod.object({
   "vehiclePrice": zod.number().multipleOf(createEnquiryResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
   "status": zod.enum(['new', 'contacted', 'closed']),
   "customerName": zod.string().min(1),
@@ -409,6 +434,9 @@ export const CreateEnquiryResponse = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(createEnquiryResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
   "customerNotificationStatus": zod.string(),
   "customerNotificationError": zod.string().nullable(),
   "customerNotificationSentAt": zod.coerce.date().nullable(),
@@ -436,8 +464,6 @@ export const GetEnquiryAvailabilityQueryParams = zod.object({
 })
 
 
-
-
 export const GetEnquiryAvailabilityResponse = zod.object({
   "date": zod.string(),
   "timezone": zod.string(),
@@ -454,7 +480,6 @@ export const GetEnquiryAvailabilityResponse = zod.object({
  */
 
 
-
 export const UpdateEnquiryStatusParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -464,14 +489,15 @@ export const UpdateEnquiryStatusBody = zod.object({
 })
 
 
-
 export const updateEnquiryStatusResponseVehiclePriceMultipleOf = 1;
 
 
+export const updateEnquiryStatusResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const UpdateEnquiryStatusResponse = zod.object({
   "id": zod.string().min(1),
+  "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
@@ -479,6 +505,19 @@ export const UpdateEnquiryStatusResponse = zod.object({
   "vehiclePrice": zod.number().multipleOf(updateEnquiryStatusResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
   "status": zod.enum(['new', 'contacted', 'closed']),
   "customerName": zod.string().min(1),
@@ -486,6 +525,9 @@ export const UpdateEnquiryStatusResponse = zod.object({
   "phone": zod.string().nullable(),
   "preferredContact": zod.string().nullable(),
   "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(updateEnquiryStatusResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
   "customerNotificationStatus": zod.string(),
   "customerNotificationError": zod.string().nullable(),
   "customerNotificationSentAt": zod.coerce.date().nullable(),
@@ -502,13 +544,148 @@ export const UpdateEnquiryStatusResponse = zod.object({
 
 
 /**
+ * Resolves the secure one-off link sent to the customer so they can manage their own viewing.
+ * @summary Get a booked viewing from its customer link
+ */
+
+
+export const GetViewingBookingParams = zod.object({
+  "token": zod.coerce.string().min(1)
+})
+
+
+export const GetViewingBookingResponse = zod.object({
+  "reference": zod.string().min(1),
+  "status": zod.enum(['booked', 'cancelled']),
+  "customerName": zod.string(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "cancelledAt": zod.coerce.date().nullable(),
+  "timezone": zod.string(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "calendarIcs": zod.string().nullable(),
+  "canChange": zod.boolean().describe('False once the viewing is cancelled or its start time has passed.')
+})
+
+
+/**
+ * @summary Move a booked viewing to another slot
+ */
+
+
+export const RescheduleViewingParams = zod.object({
+  "token": zod.coerce.string().min(1)
+})
+
+export const RescheduleViewingBody = zod.object({
+  "appointmentAt": zod.coerce.date()
+})
+
+
+export const RescheduleViewingResponse = zod.object({
+  "reference": zod.string().min(1),
+  "status": zod.enum(['booked', 'cancelled']),
+  "customerName": zod.string(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "cancelledAt": zod.coerce.date().nullable(),
+  "timezone": zod.string(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "calendarIcs": zod.string().nullable(),
+  "canChange": zod.boolean().describe('False once the viewing is cancelled or its start time has passed.')
+})
+
+
+/**
+ * @summary Cancel a booked viewing
+ */
+
+
+export const CancelViewingParams = zod.object({
+  "token": zod.coerce.string().min(1)
+})
+
+export const cancelViewingBodyReasonMax = 500;
+
+
+export const CancelViewingBody = zod.object({
+  "reason": zod.string().max(500).nullish()
+})
+
+
+export const CancelViewingResponse = zod.object({
+  "reference": zod.string().min(1),
+  "status": zod.enum(['booked', 'cancelled']),
+  "customerName": zod.string(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "cancelledAt": zod.coerce.date().nullable(),
+  "timezone": zod.string(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "calendarIcs": zod.string().nullable(),
+  "canChange": zod.boolean().describe('False once the viewing is cancelled or its start time has passed.')
+})
+
+
+/**
+ * Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
+ * @summary List recent call and WhatsApp taps
+ */
+export const GetContactIntentsQueryParams = zod.object({
+  "unattributed": zod.coerce.boolean().optional().describe('When true, only taps that are not yet attached to an enquiry are returned.')
+})
+
+
+export const GetContactIntentsResponseItem = zod.object({
+  "id": zod.string().min(1),
+  "channel": zod.enum(['call', 'whatsapp']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "enquiryReference": zod.string().nullable(),
+  "customerName": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})
+export const GetContactIntentsResponse = zod.array(GetContactIntentsResponseItem)
+
+
+/**
+ * @summary Record a call or WhatsApp tap against a car
+ */
+export const recordContactIntentBodyVisitorIdMax = 64;
+
+export const recordContactIntentBodySourceMax = 200;
+
+
+export const RecordContactIntentBody = zod.object({
+  "vehicleId": zod.string().nullish(),
+  "channel": zod.enum(['call', 'whatsapp']),
+  "visitorId": zod.string().max(recordContactIntentBodyVisitorIdMax).nullish(),
+  "source": zod.string().max(recordContactIntentBodySourceMax).nullish()
+})
+
+
+export const RecordContactIntentResponse = zod.object({
+  "id": zod.string().min(1),
+  "channel": zod.enum(['call', 'whatsapp']),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "enquiryId": zod.string().nullable(),
+  "enquiryReference": zod.string().nullable(),
+  "customerName": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})
+
+
+/**
  * Returns leads for the configured dealer, newest first, whatever channel they arrived on.
  * @summary List leads
  */
 export const getLeadsQuerySearchMax = 200;
 
 export const getLeadsQueryOwnerMax = 120;
-
 
 
 export const GetLeadsQueryParams = zod.object({
@@ -520,12 +697,10 @@ export const GetLeadsQueryParams = zod.object({
 })
 
 
-
 export const getLeadsResponseVehiclePriceMultipleOf = 1;
 
 
 export const getLeadsResponseDepositPenceMultipleOf = 1;
-
 
 
 export const GetLeadsResponseItem = zod.object({
@@ -589,7 +764,6 @@ export const createLeadBodyDepositPenceMultipleOf = 1;
 export const createLeadBodyActorMax = 120;
 
 
-
 export const CreateLeadBody = zod.object({
   "source": zod.enum(['phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "stage": zod.enum(['new', 'qualifying', 'viewing_booked', 'offer', 'reserved', 'sale_agreed', 'collected']).optional(),
@@ -607,15 +781,13 @@ export const CreateLeadBody = zod.object({
   "actor": zod.string().max(createLeadBodyActorMax).nullish()
 })
 
+export const getLeadsResponseVehiclePriceMultipleOf = 1;
 
 
 export const createLeadResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const createLeadResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const createLeadResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -629,7 +801,6 @@ export const createLeadResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const createLeadResponseDealOneDepositPenceMultipleOf = 1;
 
 export const createLeadResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const CreateLeadResponse = zod.object({
@@ -711,20 +882,15 @@ export const CreateLeadResponse = zod.object({
  */
 
 
-
 export const GetLeadParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
-
 
 
 export const getLeadResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const getLeadResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const getLeadResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -738,7 +904,6 @@ export const getLeadResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const getLeadResponseDealOneDepositPenceMultipleOf = 1;
 
 export const getLeadResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const GetLeadResponse = zod.object({
@@ -820,7 +985,6 @@ export const GetLeadResponse = zod.object({
  */
 
 
-
 export const UpdateLeadParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -846,7 +1010,6 @@ export const updateLeadBodyOutcomeReasonMax = 300;
 export const updateLeadBodyActorMax = 120;
 
 
-
 export const UpdateLeadBody = zod.object({
   "customerName": zod.string().min(1).max(updateLeadBodyCustomerNameMax).optional(),
   "email": zod.string().max(updateLeadBodyEmailMax).nullish(),
@@ -866,14 +1029,10 @@ export const UpdateLeadBody = zod.object({
 })
 
 
-
 export const updateLeadResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const updateLeadResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const updateLeadResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -887,7 +1046,6 @@ export const updateLeadResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const updateLeadResponseDealOneDepositPenceMultipleOf = 1;
 
 export const updateLeadResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const UpdateLeadResponse = zod.object({
@@ -970,7 +1128,6 @@ export const UpdateLeadResponse = zod.object({
  */
 
 
-
 export const LogLeadTouchParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -978,7 +1135,6 @@ export const LogLeadTouchParams = zod.object({
 export const logLeadTouchBodyBodyMax = 2000;
 
 export const logLeadTouchBodyActorMax = 120;
-
 
 
 export const LogLeadTouchBody = zod.object({
@@ -989,14 +1145,10 @@ export const LogLeadTouchBody = zod.object({
 })
 
 
-
 export const logLeadTouchResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const logLeadTouchResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const logLeadTouchResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -1010,7 +1162,6 @@ export const logLeadTouchResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const logLeadTouchResponseDealOneDepositPenceMultipleOf = 1;
 
 export const logLeadTouchResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const LogLeadTouchResponse = zod.object({
@@ -1093,7 +1244,6 @@ export const LogLeadTouchResponse = zod.object({
  */
 
 
-
 export const UpdateLeadStageParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -1106,7 +1256,6 @@ export const updateLeadStageBodyDepositOneAmountPenceMax = 10000000;
 export const updateLeadStageBodyDepositOneAmountPenceMultipleOf = 1;
 
 export const updateLeadStageBodyDepositOneReferenceMax = 120;
-
 
 
 export const UpdateLeadStageBody = zod.object({
@@ -1122,14 +1271,10 @@ export const UpdateLeadStageBody = zod.object({
 })
 
 
-
 export const updateLeadStageResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const updateLeadStageResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const updateLeadStageResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -1143,7 +1288,6 @@ export const updateLeadStageResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const updateLeadStageResponseDealOneDepositPenceMultipleOf = 1;
 
 export const updateLeadStageResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const UpdateLeadStageResponse = zod.object({
@@ -1225,7 +1369,6 @@ export const UpdateLeadStageResponse = zod.object({
  */
 
 
-
 export const AssignLeadOwnerParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -1235,21 +1378,16 @@ export const assignLeadOwnerBodyOwnerMax = 120;
 export const assignLeadOwnerBodyActorMax = 120;
 
 
-
 export const AssignLeadOwnerBody = zod.object({
   "owner": zod.string().max(assignLeadOwnerBodyOwnerMax).nullable(),
   "actor": zod.string().max(assignLeadOwnerBodyActorMax).nullish()
 })
 
 
-
 export const assignLeadOwnerResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const assignLeadOwnerResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const assignLeadOwnerResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -1263,7 +1401,6 @@ export const assignLeadOwnerResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const assignLeadOwnerResponseDealOneDepositPenceMultipleOf = 1;
 
 export const assignLeadOwnerResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const AssignLeadOwnerResponse = zod.object({
@@ -1345,7 +1482,6 @@ export const AssignLeadOwnerResponse = zod.object({
  */
 
 
-
 export const SetLeadNextActionParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -1355,7 +1491,6 @@ export const setLeadNextActionBodyNextActionMax = 240;
 export const setLeadNextActionBodyActorMax = 120;
 
 
-
 export const SetLeadNextActionBody = zod.object({
   "nextAction": zod.string().max(setLeadNextActionBodyNextActionMax).nullable(),
   "dueAt": zod.coerce.date().nullable(),
@@ -1363,14 +1498,10 @@ export const SetLeadNextActionBody = zod.object({
 })
 
 
-
 export const setLeadNextActionResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const setLeadNextActionResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const setLeadNextActionResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -1384,7 +1515,6 @@ export const setLeadNextActionResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const setLeadNextActionResponseDealOneDepositPenceMultipleOf = 1;
 
 export const setLeadNextActionResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const SetLeadNextActionResponse = zod.object({
@@ -1467,7 +1597,6 @@ export const SetLeadNextActionResponse = zod.object({
  */
 
 
-
 export const CloseLeadParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -1478,7 +1607,6 @@ export const closeLeadBodyReasonMax = 2000;
 export const closeLeadBodyActorMax = 120;
 
 
-
 export const CloseLeadBody = zod.object({
   "outcome": zod.enum(['won', 'lost']),
   "reason": zod.string().min(closeLeadBodyReasonMin).max(closeLeadBodyReasonMax),
@@ -1486,14 +1614,10 @@ export const CloseLeadBody = zod.object({
 })
 
 
-
 export const closeLeadResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const closeLeadResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const closeLeadResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -1507,7 +1631,6 @@ export const closeLeadResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const closeLeadResponseDealOneDepositPenceMultipleOf = 1;
 
 export const closeLeadResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const CloseLeadResponse = zod.object({
@@ -1590,16 +1713,9 @@ export const CloseLeadResponse = zod.object({
  */
 
 
-
 export const CreateCustomerIntakeSessionBody = zod.object({
   "vehicleId": zod.string().min(1)
 })
-
-
-
-
-
-
 
 
 export const CreateCustomerIntakeSessionResponse = zod.object({
@@ -1624,16 +1740,9 @@ export const CreateCustomerIntakeSessionResponse = zod.object({
 export const getCustomerIntakeSessionPathTokenMin = 32;
 
 
-
 export const GetCustomerIntakeSessionParams = zod.object({
   "token": zod.coerce.string().min(getCustomerIntakeSessionPathTokenMin)
 })
-
-
-
-
-
-
 
 
 export const GetCustomerIntakeSessionResponse = zod.object({
@@ -1658,7 +1767,6 @@ export const GetCustomerIntakeSessionResponse = zod.object({
 export const completeCustomerIntakeSessionPathTokenMin = 32;
 
 
-
 export const CompleteCustomerIntakeSessionParams = zod.object({
   "token": zod.coerce.string().min(completeCustomerIntakeSessionPathTokenMin)
 })
@@ -1671,18 +1779,11 @@ export const completeCustomerIntakeSessionBodyEmailMax = 320;
 export const completeCustomerIntakeSessionBodyPhoneMax = 40;
 
 
-
 export const CompleteCustomerIntakeSessionBody = zod.object({
   "name": zod.string().min(completeCustomerIntakeSessionBodyNameMin).max(completeCustomerIntakeSessionBodyNameMax),
   "email": zod.string().max(completeCustomerIntakeSessionBodyEmailMax).nullable(),
   "phone": zod.string().max(completeCustomerIntakeSessionBodyPhoneMax).nullable()
 })
-
-
-
-
-
-
 
 
 export const CompleteCustomerIntakeSessionResponse = zod.object({
@@ -1729,7 +1830,6 @@ export const createSaleBodyAgreedPricePenceMin = 0;
 export const createSaleBodyDepositPenceMin = 0;
 
 export const createSaleBodyMileageAtSaleMin = 0;
-
 
 
 export const CreateSaleBody = zod.object({
@@ -1840,7 +1940,6 @@ export const updateSaleChecklistItemBodyMethodMax = 80;
 export const updateSaleChecklistItemBodyNotesMax = 1000;
 
 
-
 export const UpdateSaleChecklistItemBody = zod.object({
   "status": zod.enum(['complete', 'not_applicable', 'pending']),
   "method": zod.string().max(updateSaleChecklistItemBodyMethodMax).nullish(),
@@ -1919,7 +2018,6 @@ export const RevokeSaleSigningResponse = zod.record(zod.string(), zod.unknown())
 export const getSigningSessionPathTokenMin = 32;
 
 
-
 export const GetSigningSessionParams = zod.object({
   "token": zod.coerce.string().min(getSigningSessionPathTokenMin)
 })
@@ -1933,13 +2031,11 @@ export const GetSigningSessionResponse = zod.record(zod.string(), zod.unknown())
 export const completeSigningSessionPathTokenMin = 32;
 
 
-
 export const CompleteSigningSessionParams = zod.object({
   "token": zod.coerce.string().min(completeSigningSessionPathTokenMin)
 })
 
 export const completeSigningSessionBodySignerNameMin = 2;
-
 
 
 export const CompleteSigningSessionBody = zod.object({
@@ -1960,7 +2056,6 @@ export const getDealerSettingsResponseIdentityNameMax = 120;
 export const getDealerSettingsResponseIdentityLogoTextMax = 120;
 
 export const getDealerSettingsResponseIdentityLogoAssetMax = 500;
-
 
 
 export const getDealerSettingsResponseContactPhoneMax = 40;
@@ -2046,7 +2141,6 @@ export const getDealerSettingsResponseWhyBuyItemTitleMax = 120;
 export const getDealerSettingsResponseWhyBuyItemDescriptionMax = 300;
 
 export const getDealerSettingsResponseWhyBuyMax = 8;
-
 
 
 export const GetDealerSettingsResponse = zod.object({
@@ -2137,7 +2231,6 @@ export const updateDealerSettingsBodyOneIdentityLogoTextMax = 120;
 export const updateDealerSettingsBodyOneIdentityLogoAssetMax = 500;
 
 
-
 export const updateDealerSettingsBodyOneContactPhoneMax = 40;
 
 export const updateDealerSettingsBodyOneContactWhatsappMax = 40;
@@ -2223,7 +2316,6 @@ export const updateDealerSettingsBodyOneWhyBuyItemDescriptionMax = 300;
 export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 
-
 export const UpdateDealerSettingsBody = zod.object({
   "identity": zod.object({
   "name": zod.string().min(1).max(updateDealerSettingsBodyOneIdentityNameMax),
@@ -2305,7 +2397,6 @@ export const updateDealerSettingsResponseIdentityNameMax = 120;
 export const updateDealerSettingsResponseIdentityLogoTextMax = 120;
 
 export const updateDealerSettingsResponseIdentityLogoAssetMax = 500;
-
 
 
 export const updateDealerSettingsResponseContactPhoneMax = 40;
@@ -2391,7 +2482,6 @@ export const updateDealerSettingsResponseWhyBuyItemTitleMax = 120;
 export const updateDealerSettingsResponseWhyBuyItemDescriptionMax = 300;
 
 export const updateDealerSettingsResponseWhyBuyMax = 8;
-
 
 
 export const UpdateDealerSettingsResponse = zod.object({
@@ -2494,12 +2584,10 @@ export const getPortalWorklistResponseViewingsTodayItemVehiclePriceMultipleOf = 
 export const getPortalWorklistResponseViewingsTodayItemDepositPenceMultipleOf = 1;
 
 
-
 export const getPortalWorklistResponseOverdueFollowUpsItemVehiclePriceMultipleOf = 1;
 
 
 export const getPortalWorklistResponseOverdueFollowUpsItemDepositPenceMultipleOf = 1;
-
 
 
 export const getPortalWorklistResponseUnansweredEnquiriesItemVehiclePriceMultipleOf = 1;
@@ -2508,12 +2596,10 @@ export const getPortalWorklistResponseUnansweredEnquiriesItemVehiclePriceMultipl
 export const getPortalWorklistResponseUnansweredEnquiriesItemDepositPenceMultipleOf = 1;
 
 
-
 export const getPortalWorklistResponseDepositsWithoutDealItemVehiclePriceMultipleOf = 1;
 
 
 export const getPortalWorklistResponseDepositsWithoutDealItemDepositPenceMultipleOf = 1;
-
 
 
 export const GetPortalWorklistResponse = zod.object({
@@ -2669,7 +2755,6 @@ export const getLeadChannelSummaryResponseWonMultipleOf = 1;
 export const getLeadChannelSummaryResponseLostMultipleOf = 1;
 
 
-
 export const GetLeadChannelSummaryResponseItem = zod.object({
   "source": zod.enum(['website_form', 'phone', 'whatsapp', 'walk_in', 'marketplace', 'social']),
   "total": zod.number().multipleOf(getLeadChannelSummaryResponseTotalMultipleOf),
@@ -2685,7 +2770,6 @@ export const GetLeadChannelSummaryResponse = zod.array(GetLeadChannelSummaryResp
  */
 
 
-
 export const CreateLeadActivityParams = zod.object({
   "id": zod.coerce.string().min(1)
 })
@@ -2693,7 +2777,6 @@ export const CreateLeadActivityParams = zod.object({
 export const createLeadActivityBodyBodyMax = 4000;
 
 export const createLeadActivityBodyNextActionMax = 300;
-
 
 
 export const CreateLeadActivityBody = zod.object({
@@ -2706,14 +2789,10 @@ export const CreateLeadActivityBody = zod.object({
 })
 
 
-
 export const createLeadActivityResponseLeadVehiclePriceMultipleOf = 1;
 
 
 export const createLeadActivityResponseLeadDepositPenceMultipleOf = 1;
-
-
-
 
 
 export const createLeadActivityResponseSalesItemAgreedPricePenceMultipleOf = 1;
@@ -2727,7 +2806,6 @@ export const createLeadActivityResponseDealOneAgreedPricePenceMultipleOf = 1;
 export const createLeadActivityResponseDealOneDepositPenceMultipleOf = 1;
 
 export const createLeadActivityResponseDealOneBalancePenceMultipleOf = 1;
-
 
 
 export const CreateLeadActivityResponse = zod.object({
@@ -2802,5 +2880,4 @@ export const CreateLeadActivityResponse = zod.object({
 }),zod.null()]),
   "enquiryMessage": zod.string().nullable()
 })
-
 

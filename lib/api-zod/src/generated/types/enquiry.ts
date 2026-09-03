@@ -5,12 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EnquiryEvent } from './enquiryEvent';
 import type { EnquiryStatus } from './enquiryStatus';
 import type { EnquiryType } from './enquiryType';
 
 export interface Enquiry {
   /** @minLength 1 */
   id: string;
+  /** @minLength 1 */
+  reference: string;
   /** @minLength 1 */
   dealerId: string;
   /** @nullable */
@@ -25,6 +28,19 @@ export interface Enquiry {
   vehicleUrl: string | null;
   /** @nullable */
   appointmentAt: Date | null;
+  /** @nullable */
+  appointmentCancelledAt: Date | null;
+  /**
+     * Customer self-service reschedule/cancel path. Only returned when the enquiry is created.
+     * @nullable
+     */
+  managePath: string | null;
+  /**
+     * iCalendar invite for a booked viewing. Only returned when the enquiry is created.
+     * @nullable
+     */
+  calendarIcs: string | null;
+  events: EnquiryEvent[];
   type: EnquiryType;
   status: EnquiryStatus;
   /** @minLength 1 */
@@ -36,6 +52,12 @@ export interface Enquiry {
   /** @nullable */
   preferredContact: string | null;
   message: string;
+  /** @nullable */
+  partExchangeRegistration: string | null;
+  /** @nullable */
+  partExchangeMileage: number | null;
+  /** @nullable */
+  partExchangeCondition: string | null;
   customerNotificationStatus: string;
   /** @nullable */
   customerNotificationError: string | null;

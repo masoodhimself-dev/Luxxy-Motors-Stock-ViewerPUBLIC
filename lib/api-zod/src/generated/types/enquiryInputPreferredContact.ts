@@ -14,4 +14,6 @@ export type EnquiryInputPreferredContact = typeof EnquiryInputPreferredContact[k
 
 export const EnquiryInputPreferredContact = {
   email: 'email',
+  phone: 'phone',
+  whatsapp: 'whatsapp',
 } as const;

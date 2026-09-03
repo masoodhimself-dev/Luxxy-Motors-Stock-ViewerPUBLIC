@@ -24,6 +24,7 @@ import Portal from '@/pages/portal';
 import Enquire from '@/pages/enquire';
 import Signing from '@/pages/signing';
 import CustomerDetails from '@/pages/customer-details';
+import Viewing from '@/pages/viewing';
 import NotFound from '@/pages/not-found';
 import { StaffSignIn, StaffSignUp } from '@/pages/staff-access';
 
@@ -64,6 +65,7 @@ function Router() {
           <Route path="/portal" component={Portal} />
           <Route path="/portal/leads/:id" component={Portal} />
           <Route path="/enquire" component={Enquire} />
+          <Route path="/viewing/:token" component={Viewing} />
           <Route path="/sign/:token" component={Signing} />
           <Route path="/customer-details/:token" component={CustomerDetails} />
           {/* REQUIRED — the /*? optional wildcard is the only wouter syntax

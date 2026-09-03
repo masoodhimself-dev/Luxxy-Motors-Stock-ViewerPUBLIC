@@ -6,12 +6,12 @@ import { useStock, type Car } from '@/lib/stock-context';
 import { Gallery } from '@/components/gallery';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { formatPrice, formatMileage, isUKNumberPlate, vehicleRegistration } from '@/lib/utils';
-import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { vehiclePageMeta } from '@/lib/page-meta';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
 
 function getSimilarCars(currentCar: Car, cars: Car[]) {
   const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
@@ -233,7 +233,12 @@ export default function CarDetail() {
                     size="lg"
                     className="h-12 border-border bg-background px-4 text-[13px] font-bold text-foreground hover:border-primary/45 hover:bg-secondary hover:text-foreground"
                   >
-                    <a href={phoneHref} aria-label={`Call about ${vehicleLabel}`}>
+                    <a
+                      href={phoneHref}
+                      aria-label={`Call about ${vehicleLabel}`}
+                      onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail' })}
+                      data-vehicle-contact="call"
+                    >
                       <Phone className="mr-2 h-4 w-4 text-accent" />
                       Call
                     </a>
@@ -251,6 +256,7 @@ export default function CarDetail() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`WhatsApp about ${vehicleLabel}`}
+                      onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail' })}
                       data-vehicle-contact="whatsapp"
                     >
                       <MessageCircle className="mr-2 h-4 w-4" />
