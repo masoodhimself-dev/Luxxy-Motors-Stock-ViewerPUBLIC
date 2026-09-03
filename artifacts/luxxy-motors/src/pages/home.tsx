@@ -112,6 +112,8 @@ export default function Home() {
   // Pick a nice hero car with an image
   const heroCar = stock?.cars?.find(c => Boolean(getThumbnailUrl(c)));
   const heroImage = heroCar ? getThumbnailUrl(heroCar) : null;
+  const secondaryHeroCar = stock?.cars?.find(c => c.id !== heroCar?.id && Boolean(getThumbnailUrl(c))) ?? heroCar;
+  const secondaryHeroImage = secondaryHeroCar ? getThumbnailUrl(secondaryHeroCar) : null;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', ');
   const makes = useMemo(
     () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
@@ -157,12 +159,18 @@ export default function Home() {
               <p className="luxxy-reveal luxxy-kicker text-accent">
                 {dealerConfig.hero.announcement || 'Independent cars, carefully chosen'}
               </p>
-              <h1 className="luxxy-reveal luxxy-reveal-1 mt-7 font-display text-[clamp(2.75rem,6.6vw,4.75rem)] font-semibold leading-[1] tracking-[-.035em] text-primary">
-                {dealerConfig.hero.copy}
-              </h1>
-              <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-md text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-                {dealerConfig.hero.subcopy}
-              </p>
+              <div className="luxxy-reveal luxxy-reveal-1 mt-7 h-[220px] overflow-hidden border border-border sm:h-[280px]">
+                {secondaryHeroImage ? (
+                  <img
+                    src={secondaryHeroImage}
+                    alt={secondaryHeroCar?.title || `${secondaryHeroCar?.make || ''} ${secondaryHeroCar?.model || ''}`.trim() || `${dealerConfig.identity.name} vehicle`}
+                    loading="eager"
+                    className="h-full w-full object-cover object-center"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-secondary" aria-label={`${dealerConfig.identity.name} vehicle`} />
+                )}
+              </div>
               <div className="luxxy-reveal luxxy-reveal-3 mt-9 flex flex-col gap-3 sm:flex-row">
                 <Button
                   type="button"
@@ -189,7 +197,6 @@ export default function Home() {
                   </Button>
                 )}
               </div>
-
             </div>
 
             <div className="relative -mx-4 h-[300px] overflow-hidden sm:-mx-6 sm:h-[400px] lg:absolute lg:inset-y-10 lg:left-[52%] lg:right-[calc(50%-50vw)] lg:mx-0 lg:h-auto">
@@ -205,12 +212,6 @@ export default function Home() {
                 <div className="absolute inset-0 bg-secondary" />
               )}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/40 via-transparent to-transparent lg:bg-gradient-to-r lg:from-background lg:via-transparent lg:to-transparent" />
-              {locationLabel && (
-                <span className="absolute bottom-4 left-4 inline-flex items-center gap-2 bg-primary/85 px-3 py-2 text-[10px] font-extrabold uppercase tracking-[.16em] text-primary-foreground backdrop-blur-sm lg:bottom-7 lg:left-7">
-                  <MapPin className="h-3.5 w-3.5 text-accent" />
-                  {locationLabel}
-                </span>
-              )}
             </div>
           </div>
         </div>
