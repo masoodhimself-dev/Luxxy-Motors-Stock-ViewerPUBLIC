@@ -117,10 +117,6 @@ export default function Home() {
     () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
     [stock?.cars],
   );
-  const lowestPrice = useMemo(() => {
-    const prices = (stock?.cars || []).map(car => car.price).filter((price): price is number => typeof price === 'number' && price > 0);
-    return prices.length > 0 ? Math.min(...prices) : null;
-  }, [stock?.cars]);
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
 
   const revealResults = () => {
@@ -194,24 +190,6 @@ export default function Home() {
                 )}
               </div>
 
-              <dl className="luxxy-reveal luxxy-reveal-4 mt-11 flex flex-wrap items-end gap-x-10 gap-y-5 border-t border-border pt-6">
-                <div>
-                  <dt className="luxxy-label text-muted-foreground">Cars in stock</dt>
-                  <dd className="mt-2 font-display text-2xl font-semibold leading-none text-primary">{stockCount}</dd>
-                </div>
-                {lowestPrice !== null && (
-                  <div>
-                    <dt className="luxxy-label text-muted-foreground">Prices from</dt>
-                    <dd className="mt-2 font-display text-2xl font-semibold leading-none text-primary">{formatPrice(lowestPrice)}</dd>
-                  </div>
-                )}
-                {makes.length > 0 && (
-                  <div>
-                    <dt className="luxxy-label text-muted-foreground">Makes on site</dt>
-                    <dd className="mt-2 font-display text-2xl font-semibold leading-none text-primary">{makes.length}</dd>
-                  </div>
-                )}
-              </dl>
             </div>
 
             <div className="relative -mx-4 h-[300px] overflow-hidden sm:-mx-6 sm:h-[400px] lg:absolute lg:inset-y-10 lg:left-[52%] lg:right-[calc(50%-50vw)] lg:mx-0 lg:h-auto">
