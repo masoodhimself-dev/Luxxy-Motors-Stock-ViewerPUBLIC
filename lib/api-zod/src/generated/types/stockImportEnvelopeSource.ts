@@ -11,4 +11,5 @@ export type StockImportEnvelopeSource = typeof StockImportEnvelopeSource[keyof t
 
 export const StockImportEnvelopeSource = {
   autotrader: 'autotrader',
+  grok: 'grok',
 } as const;

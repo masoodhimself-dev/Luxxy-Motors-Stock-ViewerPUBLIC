@@ -7,6 +7,8 @@ import {
   GetVehicleResponse,
   ImportAutotraderStockBody,
   ImportAutotraderStockResponse,
+  ImportGrokStockBody,
+  ImportGrokStockResponse,
 } from "@workspace/api-zod";
 import {
   db,
@@ -20,6 +22,7 @@ import {
 const router: IRouter = Router();
 type Issue = { code: string; message: string; path: string | null; advertId: string | null };
 type Import = typeof ImportAutotraderStockBody._output;
+type ImportSource = "autotrader" | "grok";
 
 const envNumber = (name: string, fallback: number): number => {
   const value = Number(process.env[name]);
@@ -171,7 +174,7 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
   return { before, after };
 }
 
-router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
+async function importStock(req: Request, res: Response, source: ImportSource): Promise<void> {
   if (!validSecret(req.get("x-stock-import-secret"))) {
     req.log.warn("Rejected unauthorized stock import");
     res.status(401).json({ status: "rejected", errors: [issue("unauthorized", "Invalid import secret")] }); return;
@@ -181,14 +184,17 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
     req.log.error("STOCK_RETAILER_ID is not configured");
     res.status(500).json({ status: "rejected", errors: [issue("configuration_error", "Stock import is not configured")] }); return;
   }
-  const parsed = ImportAutotraderStockBody.safeParse(req.body);
+  const parsed = (source === "grok" ? ImportGrokStockBody : ImportAutotraderStockBody).safeParse(req.body);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((e) => issue("invalid_structure", e.message, e.path.join(".")));
     const recorded = await recordRejected(req.body, "failed", problems);
     if (recorded === "conflict") { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
     res.status(400).json({ status: "rejected", errors: problems }); return;
   }
-  const data = parsed.data;
+  // Grok is an ingestion adapter for the existing dealership stock feed. Keep
+  // the stored vehicle source stable so existing public stock and enquiries
+  // continue to see the imported cars without a second source configuration.
+  const data = { ...parsed.data, source: "autotrader" } as Import;
   const quarantineProblems: Issue[] = [];
   if (!data.complete) quarantineProblems.push(issue("incomplete_snapshot", "Snapshot must be complete"));
   if (data.count !== data.cars.length || data.expectedAdvertCount !== data.cars.length) quarantineProblems.push(issue("count_mismatch", "count and expectedAdvertCount must equal cars.length"));
@@ -275,12 +281,20 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
     if ("quarantined" in result) { res.status(422).json({ status: "quarantined", errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")] }); return; }
     const replayed = result.replay === true;
     const replayUnchanged = replayed ? Math.max(0, data.cars.length - result.prior!.addedCount - result.prior!.changedCount) : result.unchanged;
-    const reply = ImportAutotraderStockResponse.parse({ schemaVersion: 1, status: replayed ? "replayed" : "imported", runId: data.runId, source: "autotrader", retailerId: data.retailerId, received: data.cars.length, created: replayed ? result.prior!.addedCount : result.created, updated: replayed ? result.prior!.changedCount : result.updated, deleted: 0, unchanged: replayUnchanged, errors: [] });
+    const reply = (source === "grok" ? ImportGrokStockResponse : ImportAutotraderStockResponse).parse({ schemaVersion: 1, status: replayed ? "replayed" : "imported", runId: data.runId, source, retailerId: data.retailerId, received: data.cars.length, created: replayed ? result.prior!.addedCount : result.created, updated: replayed ? result.prior!.changedCount : result.updated, deleted: 0, unchanged: replayUnchanged, errors: [] });
     res.status(replayed ? 200 : 201).json(reply);
   } catch (error) {
     req.log.error({ err: error }, "Stock import failed");
     res.status(500).json({ status: "rejected", errors: [issue("unexpected_error", "Unable to import stock")] });
   }
+}
+
+router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
+  await importStock(req, res, "autotrader");
+});
+
+router.post("/stock/imports/grok", async (req, res): Promise<void> => {
+  await importStock(req, res, "grok");
 });
 
 async function projectVehicles(vehicles: Vehicle[]) {

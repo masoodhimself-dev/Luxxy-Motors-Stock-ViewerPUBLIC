@@ -17,3 +17,4 @@
 - [Lead model ownership](lead-model-ownership.md) — portal work must consume the shared lead model and use additive schema changes rather than replacing lead migrations.
 - [Sales suite prepare gate](sales-suite-prepare-gate.md) — the sales integration suite fails at /prepare on main; the deal readiness checklist is never confirmed in it.
 - [Shared development schema resets](shared-development-schema-resets.md) — restore only missing task tables and indexes after a shared schema re-sync; protect unrelated stock data.
+- [Grok stock ingestion](grok-stock-ingestion.md) — keep the Grok endpoint as an authenticated adapter over the existing normalized reconciliation feed.

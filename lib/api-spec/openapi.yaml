@@ -114,6 +114,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StockImportErrorResponse"
+  /stock/imports/grok:
+    post:
+      operationId: importGrokStock
+      tags: [stock]
+      summary: Import a full stock snapshot from Grok
+      description: Accepts the normalized stock snapshot produced by a Grok bot and applies it to the dealership's current stock feed.
+      parameters:
+        - in: header
+          name: x-stock-import-secret
+          required: true
+          description: Shared secret used to authenticate the stock importer.
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockImportEnvelope"
+      responses:
+        "201":
+          description: Full snapshot imported for the first time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportResult"
+        "200":
+          description: Idempotent replay of a previously imported run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportResult"
+        "400":
+          description: Import envelope failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "401":
+          description: Missing or invalid import secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "409":
+          description: The run ID conflicts with an existing non-replayable import run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "422":
+          description: Import was quarantined because its source records could not be safely applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
+        "500":
+          description: Unexpected processing or server configuration error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockImportErrorResponse"
   /vehicles/{id}:
     get:
       operationId: getVehicle
@@ -1845,7 +1908,7 @@ components:
           minLength: 1
         source:
           type: string
-          enum: [autotrader]
+          enum: [autotrader, grok]
         retailerId:
           type: string
           minLength: 1
@@ -1975,7 +2038,7 @@ components:
           minLength: 1
         source:
           type: string
-          enum: [autotrader]
+          enum: [autotrader, grok]
         retailerId:
           type: string
           minLength: 1
@@ -2435,7 +2498,6 @@ components:
           type: [string, "null"]
         vehiclePrice:
           type: [number, "null"]
-          multipleOf: 1
         vehicleUrl:
           type: [string, "null"]
         appointmentAt:

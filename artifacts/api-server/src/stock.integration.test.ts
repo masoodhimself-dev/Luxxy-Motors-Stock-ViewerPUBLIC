@@ -16,6 +16,7 @@ import {
   GetVehicleResponse,
   ImportAutotraderStockBody,
   ImportAutotraderStockResponse,
+  ImportGrokStockResponse,
   type StockImportErrorResponse,
 } from "@workspace/api-zod";
 
@@ -173,6 +174,16 @@ async function importStock(body: Record<string, unknown>, authorized = true) {
     body: JSON.stringify(body),
   });
 }
+async function importGrokStock(body: Record<string, unknown>, authorized = true) {
+  return request("/stock/imports/grok", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(authorized ? { "x-stock-import-secret": secret! } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+}
 async function runBaselineSeed(filePath: string) {
   await new Promise<void>((resolve, reject) => {
     let stderr = "";
@@ -244,6 +255,31 @@ test("rejects unauthenticated imports and serves an empty stock feed", async () 
   assert.equal(stock.status, 200);
   assert.equal(GetStockResponse.parse(await stock.json()).count, 0);
   assert.equal((await request("/vehicles/not-a-uuid")).status, 400);
+});
+
+test("imports Grok snapshots through the existing stock reconciliation feed", async () => {
+  const body = snapshot("grok-adapter", [car(1)], { source: "grok" });
+  const first = await importGrokStock(body);
+  assert.equal(first.status, 201);
+  assert.deepEqual(ImportGrokStockResponse.parse(await first.json()), {
+    schemaVersion: 1,
+    status: "imported",
+    runId: "grok-adapter",
+    source: "grok",
+    retailerId: "phase-1-test-retailer",
+    received: 1,
+    created: 1,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+    errors: [],
+  });
+  assert.equal((await vehicle(car(1).advertId)).source, "autotrader");
+  assert.equal(GetStockResponse.parse(await request("/stock").then((response) => response.json())).count, 1);
+
+  const replay = await importGrokStock(body);
+  assert.equal(replay.status, 200);
+  assert.equal(ImportGrokStockResponse.parse(await replay.json()).status, "replayed");
 });
 
 test("rejects malformed JSON with the stock import error contract", async () => {

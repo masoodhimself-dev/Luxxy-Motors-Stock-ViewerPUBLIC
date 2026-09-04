@@ -328,6 +328,78 @@ export const useImportAutotraderStock = <TError = ErrorType<StockImportErrorResp
       return useMutation(getImportAutotraderStockMutationOptions(options));
     }
 
+export const getImportGrokStockUrl = () => {
+
+
+
+
+  return `/api/stock/imports/grok`
+}
+
+/**
+ * Accepts the normalized stock snapshot produced by a Grok bot and applies it to the dealership's current stock feed.
+ * @summary Import a full stock snapshot from Grok
+ */
+export const importGrokStock = async (stockImportEnvelope: StockImportEnvelope, options?: Parameters<typeof customFetch>[1]): Promise<StockImportResult> => {
+
+  return customFetch<StockImportResult>(getImportGrokStockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(stockImportEnvelope)
+  }
+);}
+
+
+
+
+
+export const getImportGrokStockMutationOptions = <TError = ErrorType<StockImportErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importGrokStock>>, TError,{data: BodyType<StockImportEnvelope>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importGrokStock>>, TError,{data: BodyType<StockImportEnvelope>}, TContext> => {
+
+const mutationKey = ['importGrokStock'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importGrokStock>>, {data: BodyType<StockImportEnvelope>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importGrokStock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportGrokStockMutationResult = NonNullable<Awaited<ReturnType<typeof importGrokStock>>>
+    export type ImportGrokStockMutationBody = BodyType<StockImportEnvelope>
+    export type ImportGrokStockMutationError = ErrorType<StockImportErrorResponse>
+
+    /**
+ * @summary Import a full stock snapshot from Grok
+ */
+export const useImportGrokStock = <TError = ErrorType<StockImportErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importGrokStock>>, TError,{data: BodyType<StockImportEnvelope>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importGrokStock>>,
+        TError,
+        {data: BodyType<StockImportEnvelope>},
+        TContext
+      > => {
+      return useMutation(getImportGrokStockMutationOptions(options));
+    }
+
 export const getGetVehicleUrl = (id: string,) => {
 
 

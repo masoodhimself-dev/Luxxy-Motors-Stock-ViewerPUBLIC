@@ -361,6 +361,7 @@ export type StockImportEnvelopeSource = typeof StockImportEnvelopeSource[keyof t
 
 export const StockImportEnvelopeSource = {
   autotrader: 'autotrader',
+  grok: 'grok',
 } as const;
 
 export interface SourceImportError {
@@ -445,6 +446,7 @@ export type StockImportResultSource = typeof StockImportResultSource[keyof typeo
 
 export const StockImportResultSource = {
   autotrader: 'autotrader',
+  grok: 'grok',
 } as const;
 
 export interface StockImportResult {

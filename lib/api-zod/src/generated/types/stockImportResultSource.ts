@@ -11,4 +11,5 @@ export type StockImportResultSource = typeof StockImportResultSource[keyof typeo
 
 export const StockImportResultSource = {
   autotrader: 'autotrader',
+  grok: 'grok',
 } as const;
