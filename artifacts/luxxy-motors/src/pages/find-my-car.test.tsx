@@ -249,6 +249,57 @@ describe('Find My Car recommendation scoring', () => {
     expect(within(recommendation).queryByTestId('recommendation-match-near-budget-bodyType')).not.toBeInTheDocument();
   });
 
+  it('separates missed preferences from exact matches and flexible fallbacks', () => {
+    stockState.stock = makeStock([
+      makeCar({
+        id: 'mixed-fit',
+        advertId: 'mixed-fit',
+        title: 'Mixed fit',
+        price: 11000,
+        bodyType: 'Saloon',
+        fuel: 'Diesel',
+        transmission: 'Manual',
+        mileage: 90000,
+        seats: 4,
+      }),
+    ]);
+
+    renderFindMyCar();
+    completeQuiz({
+      budget: 'under-10000',
+      bodyType: 'coupe',
+      fuel: 'diesel',
+      transmission: 'automatic',
+      use: 'city',
+    });
+
+    const recommendation = screen.getByTestId('recommendation-mixed-fit');
+    expect(within(recommendation).getByTestId('recommendation-match-mixed-fit-budget')).toHaveTextContent('Flexible fallback');
+    expect(within(recommendation).getByTestId('recommendation-match-mixed-fit-fuel')).toHaveTextContent('Exact preference');
+    expect(within(recommendation).getByTestId('recommendation-miss-mixed-fit-bodyType')).toHaveTextContent('Coupe or convertible');
+    expect(within(recommendation).getByTestId('recommendation-miss-mixed-fit-bodyType')).toHaveTextContent('This car is listed as Saloon');
+    expect(within(recommendation).getByTestId('recommendation-miss-mixed-fit-transmission')).toHaveTextContent('Missed preference');
+    expect(within(recommendation).getByTestId('recommendation-miss-mixed-fit-use')).toHaveTextContent('City and short trips');
+  });
+
+  it('does not mark open fuel or gearbox answers as missed preferences', () => {
+    stockState.stock = makeStock([
+      makeCar({ id: 'open-fit', advertId: 'open-fit', title: 'Open fit', bodyType: 'SUV' }),
+    ]);
+
+    renderFindMyCar();
+    completeQuiz({
+      budget: 'under-10000',
+      bodyType: 'suv',
+      fuel: 'any',
+      transmission: 'any',
+      use: 'leisure',
+    });
+
+    expect(screen.queryByTestId('recommendation-miss-open-fit-fuel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('recommendation-miss-open-fit-transmission')).not.toBeInTheDocument();
+  });
+
   it.each([
     {
       use: 'city',
@@ -367,7 +418,11 @@ describe('Find My Car quiz state', () => {
 
     expect(screen.getByTestId('state-no-perfect-match')).toBeInTheDocument();
     expect(screen.getByTestId('text-results-announcement')).toHaveTextContent(/not a perfect match/i);
-    expect(screen.getByTestId('recommendation-closest')).toBeInTheDocument();
+    const recommendation = screen.getByTestId('recommendation-closest');
+    expect(recommendation).toBeInTheDocument();
+    expect(within(recommendation).getByTestId('recommendation-miss-closest-budget')).toHaveTextContent('Up to £10,000');
+    expect(within(recommendation).getByTestId('recommendation-miss-closest-budget')).toHaveTextContent('This car is listed at £25,000');
+    expect(within(recommendation).getByTestId('recommendation-miss-closest-budget')).toHaveTextContent('Missed preference');
   });
 
   it('updates recommendation explanations when answers and live stock change', () => {
@@ -420,11 +475,14 @@ describe('Find My Car quiz state', () => {
 
     expect(screen.queryByTestId('recommendation-match-first-car-budget')).not.toBeInTheDocument();
     expect(screen.queryByTestId('recommendation-match-first-car-bodyType')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recommendation-miss-first-car-bodyType')).toHaveTextContent('SUV or crossover');
+    expect(screen.getByTestId('recommendation-miss-first-car-bodyType')).toHaveTextContent('This car is listed as Hatchback');
 
     stockState.stock = makeStock([refreshedCar]);
     view.rerender(<FindMyCar />);
 
     expect(screen.queryByTestId('recommendation-first-car')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('recommendation-miss-first-car-bodyType')).not.toBeInTheDocument();
     expect(screen.getByTestId('recommendation-match-refreshed-car-budget')).toHaveTextContent('£15,000 – £22,000');
     expect(screen.getByTestId('recommendation-match-refreshed-car-budget')).toHaveTextContent('Exact preference');
     expect(screen.getByTestId('recommendation-match-refreshed-car-bodyType')).toHaveTextContent('SUV or crossover');

@@ -19,6 +19,11 @@ type RecommendationMatch = {
   points: number;
 };
 
+type RecommendationMiss = {
+  key: AnswerKey;
+  answer: string;
+  explanation: string;
+};
 type QuestionOption = {
   value: AnswerValue;
   label: string;
@@ -118,9 +123,23 @@ const transmissionMatches = (car: Car, answer: string) => {
 };
 
 const carPrice = (car: Car) => (typeof car.price === 'number' ? car.price : null);
+const formatPrice = (price: number) => `£${price.toLocaleString('en-GB')}`;
 
 const answerLabel = (key: AnswerKey, value: string) =>
   questions.find((question) => question.key === key)?.options.find((option) => option.value === value)?.label ?? value;
+
+const useCaseMatches = (car: Car, answer: string) => {
+  const body = normalise(car.bodyType);
+  const fuel = normalise(car.fuel);
+  const mileage = typeof car.mileage === 'number' ? car.mileage : null;
+
+  return (
+    (answer === 'city' && (body.includes('hatch') || body.includes('city') || (mileage !== null && mileage < 45000))) ||
+    (answer === 'family' && ((car.seats || 0) >= 5 || body.includes('suv') || body.includes('estate'))) ||
+    (answer === 'commute' && (body.includes('saloon') || body.includes('estate') || fuel.includes('diesel') || fuel.includes('hybrid'))) ||
+    (answer === 'leisure' && (body.includes('coupe') || body.includes('convertible') || body.includes('suv')))
+  );
+};
 
 const formatMileage = (mileage: number) => `${mileage.toLocaleString('en-GB')} miles`;
 
@@ -155,6 +174,7 @@ function useCaseEvidence(car: Car, use: string) {
 function scoreCar(car: Car, answers: Answers) {
   let score = 0;
   const matches: RecommendationMatch[] = [];
+  const misses: RecommendationMiss[] = [];
   const price = carPrice(car);
 
   if (answers.budget && price !== null) {
@@ -186,40 +206,70 @@ function scoreCar(car: Car, answers: Answers) {
         kind: 'flexible',
         points: 2,
       });
+    } else {
+      misses.push({
+        key: 'budget',
+        answer: answerLabel('budget', answers.budget),
+        explanation: `This car is listed at ${formatPrice(price)}, outside the flexible guide range`,
+      });
     }
   }
 
-  if (answers.bodyType && bodyTypeMatches(car, answers.bodyType)) {
-    score += 3;
-    matches.push({
-      key: 'bodyType',
-      answer: answerLabel('bodyType', answers.bodyType),
-      explanation: 'The shape you described',
-      kind: 'exact',
-      points: 3,
-    });
+  if (answers.bodyType) {
+    if (bodyTypeMatches(car, answers.bodyType)) {
+      score += 3;
+      matches.push({
+        key: 'bodyType',
+        answer: answerLabel('bodyType', answers.bodyType),
+        explanation: 'The shape you described',
+        kind: 'exact',
+        points: 3,
+      });
+    } else {
+      misses.push({
+        key: 'bodyType',
+        answer: answerLabel('bodyType', answers.bodyType),
+        explanation: car.bodyType ? `This car is listed as ${car.bodyType}` : 'Its listed body shape does not match',
+      });
+    }
   }
 
-  if (answers.fuel && answers.fuel !== 'any' && fuelMatches(car, answers.fuel)) {
-    score += 2;
-    matches.push({
-      key: 'fuel',
-      answer: answerLabel('fuel', answers.fuel),
-      explanation: `${answers.fuel === 'hybrid' ? 'Hybrid or electric' : answers.fuel} running`,
-      kind: 'exact',
-      points: 2,
-    });
+  if (answers.fuel && answers.fuel !== 'any') {
+    if (fuelMatches(car, answers.fuel)) {
+      score += 2;
+      matches.push({
+        key: 'fuel',
+        answer: answerLabel('fuel', answers.fuel),
+        explanation: `${answers.fuel === 'hybrid' ? 'Hybrid or electric' : answers.fuel} running`,
+        kind: 'exact',
+        points: 2,
+      });
+    } else {
+      misses.push({
+        key: 'fuel',
+        answer: answerLabel('fuel', answers.fuel),
+        explanation: car.fuel ? `This car uses ${car.fuel}` : 'Its listed fuel type does not match',
+      });
+    }
   }
 
-  if (answers.transmission && answers.transmission !== 'any' && transmissionMatches(car, answers.transmission)) {
-    score += 2;
-    matches.push({
-      key: 'transmission',
-      answer: answerLabel('transmission', answers.transmission),
-      explanation: `An ${answers.transmission} gearbox`,
-      kind: 'exact',
-      points: 2,
-    });
+  if (answers.transmission && answers.transmission !== 'any') {
+    if (transmissionMatches(car, answers.transmission)) {
+      score += 2;
+      matches.push({
+        key: 'transmission',
+        answer: answerLabel('transmission', answers.transmission),
+        explanation: `An ${answers.transmission} gearbox`,
+        kind: 'exact',
+        points: 2,
+      });
+    } else {
+      misses.push({
+        key: 'transmission',
+        answer: answerLabel('transmission', answers.transmission),
+        explanation: car.transmission ? `This car has a ${car.transmission} gearbox` : 'Its listed gearbox does not match',
+      });
+    }
   }
 
   if (answers.use) {
@@ -233,10 +283,16 @@ function scoreCar(car: Car, answers: Answers) {
         kind: 'exact',
         points: 2,
       });
+    } else {
+      misses.push({
+        key: 'use',
+        answer: answerLabel('use', answers.use),
+        explanation: 'Its current details do not support this intended use as strongly',
+      });
     }
   }
 
-  return { score, matches };
+  return { score, matches, misses };
 }
 
 function matchSummary(matches: RecommendationMatch[]) {
@@ -485,7 +541,7 @@ export default function FindMyCar() {
             )}
 
             <div className="mt-8 grid gap-6 lg:grid-cols-3" data-testid="list-recommendations">
-              {recommendations.map(({ car, matches, score }, index) => (
+              {recommendations.map(({ car, matches, misses, score }, index) => (
                 <div key={car.id} className="flex min-w-0 flex-col gap-3" data-testid={`recommendation-${car.id}`}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="luxxy-label text-accent">{index === 0 ? 'Best fit' : `Match ${index + 1}`}</span>
@@ -522,6 +578,24 @@ export default function FindMyCar() {
                       <p className="mt-3 text-sm leading-6 text-muted-foreground" data-testid={`recommendation-no-direct-match-${car.id}`}>
                         None of your answers match this car directly; it is one of the closest live options.
                       </p>
+                    )}
+                    {misses.length > 0 && (
+                      <div className="mt-5 border-t border-border/70 pt-4" data-testid={`recommendation-misses-${car.id}`}>
+                        <p className="luxxy-label text-muted-foreground">Where it differs</p>
+                        <ul className="mt-3 space-y-3" aria-label={`Missed preferences for ${car.title || 'this car'}`}>
+                          {misses.map((miss) => (
+                            <li key={miss.key} className="flex items-start justify-between gap-3 text-sm" data-testid={`recommendation-miss-${car.id}-${miss.key}`}>
+                              <span className="min-w-0">
+                                <span className="block font-semibold leading-5 text-primary">{miss.answer}</span>
+                                <span className="block text-xs leading-5 text-muted-foreground">{miss.explanation}</span>
+                              </span>
+                              <span className="shrink-0 border border-border bg-background px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                                Missed preference
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                   <p className="px-1 text-sm leading-6 text-muted-foreground">{matchSummary(matches)}</p>
