@@ -80,7 +80,6 @@ export function CarCard({
   const writeOff = (() => {
     const category = (car.writeOffCategory || '').toUpperCase();
     if (!category) return null;
-    if (category.includes('S')) return { label: 'CAT S', className: 'bg-destructive text-destructive-foreground' };
     if (category.includes('N')) return { label: 'CAT N', className: 'bg-[#c8811f] text-[#191919]' };
     return null;
   })();
