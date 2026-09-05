@@ -295,12 +295,16 @@ export function EnquiryForm({
     <form onSubmit={submit} className="space-y-8" data-testid="form-enquiry">
       <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-6">
         <div>
-          <p className="luxxy-label text-accent">{isViewing ? 'Your visit' : 'Your details'}</p>
+          <p className="luxxy-label text-accent">{isViewing ? `Step ${viewingStep} of 2` : 'Your details'}</p>
           <h2 className="mt-4 font-display text-[1.85rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2.1rem]">
-            {isViewing ? 'Let’s make it easy.' : 'How can we help?'}
+            {isViewing ? (viewingStep === 1 ? 'Choose a time that suits you.' : 'Tell us a little about you.') : 'How can we help?'}
           </h2>
           <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">
-            {isViewing ? 'Just a few details and we’ll have your car ready when you arrive.' : 'A few details is all we need. No pressure, no sales script.'}
+            {isViewing
+              ? viewingStep === 1
+                ? 'Pick your date and time first. You can add your details next.'
+                : 'Just a few details and we’ll have your car ready when you arrive.'
+              : 'A few details is all we need. No pressure, no sales script.'}
           </p>
         </div>
         <span className="hidden h-10 w-10 shrink-0 place-items-center border border-border bg-secondary/50 text-accent sm:grid"><Sparkles className="h-4 w-4" /></span>
@@ -316,50 +320,66 @@ export function EnquiryForm({
         </div>
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <label className="block">
-          <span className={labelClass}>Your name</span>
-          <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
-        </label>
-        <label className="block">
-          <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
-          <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
-        </label>
-      </div>
+      {isViewing && viewingStep === 2 && selectedSlotLabel && (
+        <div className="flex items-center justify-between gap-4 border border-primary/20 bg-primary/5 px-4 py-3.5" data-testid="card-selected-viewing">
+          <div>
+            <p className="luxxy-label text-accent">Your reserved time</p>
+            <p className="mt-1.5 text-sm font-bold text-primary">{selectedSlotLabel} · {formatDateLabel(selectedDate)}</p>
+          </div>
+          <button type="button" onClick={() => setViewingStep(1)} className="shrink-0 text-xs font-bold text-accent underline underline-offset-4">
+            Change
+          </button>
+        </div>
+      )}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <label className="block">
-          <span className={labelClass}><Phone className="h-3.5 w-3.5 text-accent" />Phone number</span>
-          <Input
-            required={phoneRequired}
-            type="tel"
-            inputMode="tel"
-            value={phone}
-            onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
-            onInvalid={(event) => { event.preventDefault(); setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
-            placeholder="07700 900 123"
-            aria-invalid={Boolean(phoneError)}
-            aria-describedby={phoneError ? 'customer-phone-help' : undefined}
-            className="h-11"
-            data-testid="input-customer-phone"
-          />
-          {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
-        </label>
-        <label className="block">
-          <span className={labelClass}>Preferred contact</span>
-          <NativeSelect value={preferredContact} onChange={(event) => setPreferredContact(event.target.value as PreferredContact)} className="h-11" data-testid="select-preferred-contact">
-            {contactOptions.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.hint}</option>)}
-          </NativeSelect>
-        </label>
-      </div>
+      {(!isViewing || viewingStep === 2) && (
+        <>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}>Your name</span>
+              <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
+            </label>
+            <label className="block">
+              <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
+              <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+            </label>
+          </div>
 
-      {!isViewing && (
-        <label className="block">
-          <span className={labelClass}>What can we help with?</span>
-          <NativeSelect value={type} onChange={(event) => setType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
-            {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </NativeSelect>
-        </label>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}><Phone className="h-3.5 w-3.5 text-accent" />Phone number</span>
+              <Input
+                required={phoneRequired}
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
+                onInvalid={(event) => { event.preventDefault(); setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
+                placeholder="07700 900 123"
+                aria-invalid={Boolean(phoneError)}
+                aria-describedby={phoneError ? 'customer-phone-help' : undefined}
+                className="h-11"
+                data-testid="input-customer-phone"
+              />
+              {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
+            </label>
+            <label className="block">
+              <span className={labelClass}>Preferred contact</span>
+              <NativeSelect value={preferredContact} onChange={(event) => setPreferredContact(event.target.value as PreferredContact)} className="h-11" data-testid="select-preferred-contact">
+                {contactOptions.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.hint}</option>)}
+              </NativeSelect>
+            </label>
+          </div>
+
+          {!isViewing && (
+            <label className="block">
+              <span className={labelClass}>What can we help with?</span>
+              <NativeSelect value={type} onChange={(event) => setType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
+                {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </NativeSelect>
+            </label>
+          )}
+        </>
       )}
 
       {isPartExchange && (
@@ -471,7 +491,7 @@ export function EnquiryForm({
 
       {/* min-w-0 stops the browser's default fieldset min-content sizing from letting the
           scrollable date strip push the whole panel wider than the card. */}
-      {isViewing && (
+      {isViewing && viewingStep === 1 && (
         <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-6 border border-border/70 bg-secondary/25 p-5 sm:p-6" data-testid="section-viewing-availability">
           <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
             <div>
@@ -559,19 +579,21 @@ export function EnquiryForm({
         </fieldset>
       )}
 
-      <label className="block">
-        <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
-        <Textarea
-          required={!isViewing}
-          minLength={isViewing ? undefined : 1}
-          maxLength={2000}
-          rows={4}
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`}
-          data-testid="textarea-enquiry-message"
-        />
-      </label>
+      {(!isViewing || viewingStep === 2) && (
+        <label className="block">
+          <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
+          <Textarea
+            required={!isViewing}
+            minLength={isViewing ? undefined : 1}
+            maxLength={2000}
+            rows={4}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`}
+            data-testid="textarea-enquiry-message"
+          />
+        </label>
+      )}
 
       {mutation.isError && (
         <div role="alert" className="flex items-start gap-3 border border-[#c9a49c] bg-[#f7ece9] p-4 text-sm leading-6 text-[#8d3e34]" data-testid="status-enquiry-error">
@@ -580,13 +602,38 @@ export function EnquiryForm({
         </div>
       )}
       <div className="space-y-4">
-        <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="group h-12 w-full rounded-none text-sm font-bold shadow-none" data-testid="button-submit-enquiry">
-          {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
-          {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
-        </Button>
+        {isViewing && viewingStep === 1 ? (
+          <Button
+            type="button"
+            size="lg"
+            disabled={!selectedSlot || availabilityQuery.isLoading}
+            onClick={() => setViewingStep(2)}
+            className="group h-12 w-full rounded-none text-sm font-bold shadow-none"
+            data-testid="button-continue-to-details"
+          >
+            Continue to your details
+            <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Button>
+        ) : (
+          <Button type="submit" size="lg" disabled={mutation.isPending} className="group h-12 w-full rounded-none text-sm font-bold shadow-none" data-testid="button-submit-enquiry">
+            {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
+            {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+          </Button>
+        )}
+        {isViewing && viewingStep === 2 && (
+          <button type="button" onClick={() => setViewingStep(1)} className="w-full text-center text-xs font-bold text-muted-foreground underline underline-offset-4 hover:text-primary">
+            Back to date and time
+          </button>
+        )}
         <div className="flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-3.5 text-[13px] leading-6 text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-           <span>{isViewing ? `Your details are only used to confirm this appointment. We will send your confirmation and a reminder 24 hours before (${bookingTimezone}).` : `Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will confirm delivery on the next screen.`}</span>
+           <span>
+             {isViewing && viewingStep === 1
+               ? 'Choose a time first. You can add your details on the next step.'
+               : isViewing
+                 ? `Your details are only used to confirm this appointment. We will send your confirmation and a reminder 24 hours before (${bookingTimezone}).`
+                 : `Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will confirm delivery on the next screen.`}
+           </span>
         </div>
       </div>
     </form>
