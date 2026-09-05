@@ -10,8 +10,6 @@ import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, RotateCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
 
 const defaultFilters: FilterState = {
   make: '',
@@ -212,51 +210,6 @@ export default function Home() {
                 <div className="absolute inset-0 bg-secondary" />
               )}
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/40 via-transparent to-transparent lg:bg-gradient-to-r lg:from-background lg:via-transparent lg:to-transparent" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Search board */}
-      <section className="border-b border-border bg-card text-foreground" aria-label="Search the showroom" data-testid="hero-search">
-        <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-9">
-            <div className="flex items-baseline justify-between gap-4 lg:w-48 lg:shrink-0 lg:flex-col lg:items-start lg:gap-2">
-              <p className="luxxy-label text-muted-foreground">Search the showroom</p>
-              {stock && (
-                <span className="font-mono text-[11px] font-bold text-accent" data-testid="text-hero-stock-count">
-                  {stockCount} vehicles available
-                </span>
-              )}
-            </div>
-            <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-accent" />
-                <Input
-                  aria-label="Search showroom stock"
-                  placeholder="Make, model or registration"
-                  value={filters.search}
-                  onChange={(event) => setFilters(current => ({ ...current, search: event.target.value }))}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      revealResults();
-                    }
-                  }}
-                  className="h-12 border-border bg-background pl-10 text-foreground placeholder:font-normal focus-visible:border-accent"
-                  data-testid="input-hero-search"
-                />
-              </div>
-              <NativeSelect
-                aria-label="Filter by make"
-                value={filters.make}
-                onChange={(event) => setFilters(current => ({ ...current, make: event.target.value, model: '' }))}
-                className="h-12 border-border bg-background font-bold text-foreground focus:ring-accent/30 sm:w-40"
-                data-testid="select-hero-make"
-              >
-                <option value="" className="text-foreground">Any make</option>
-                {makes.map(make => <option key={make} value={make} className="text-foreground">{make}</option>)}
-              </NativeSelect>
             </div>
           </div>
         </div>
