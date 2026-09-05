@@ -110,8 +110,6 @@ export default function Home() {
   // Pick a nice hero car with an image
   const heroCar = stock?.cars?.find(c => Boolean(getThumbnailUrl(c)));
   const heroImage = heroCar ? getThumbnailUrl(heroCar) : null;
-  const secondaryHeroCar = stock?.cars?.find(c => c.id !== heroCar?.id && Boolean(getThumbnailUrl(c))) ?? heroCar;
-  const secondaryHeroImage = secondaryHeroCar ? getThumbnailUrl(secondaryHeroCar) : null;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', ');
   const makes = useMemo(
     () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
@@ -150,32 +148,26 @@ export default function Home() {
   return (
     <div className="luxxy-shell luxxy-grain flex min-h-screen flex-col">
       {/* Forecourt hero */}
-      <section className="relative overflow-hidden border-b border-border bg-background">
+      <section className="relative overflow-hidden border-b border-primary bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative grid items-center gap-10 pb-12 pt-[calc(var(--site-header-height,4.5rem)+2rem)] lg:min-h-[34rem] lg:grid-cols-2 lg:gap-16 lg:py-24">
-            <div className="relative z-10 max-w-xl">
+          <div className="grid gap-10 pb-12 pt-[calc(var(--site-header-height,4.5rem)+2.5rem)] lg:min-h-[31rem] lg:grid-cols-[0.86fr_1.14fr] lg:items-center lg:gap-16 lg:pb-16 lg:pt-[calc(var(--site-header-height,4.5rem)+4rem)]">
+            <div className="relative z-10 max-w-2xl">
               <p className="luxxy-reveal luxxy-kicker text-accent">
                 {dealerConfig.hero.announcement || 'Independent cars, carefully chosen'}
               </p>
-              <div className="luxxy-reveal luxxy-reveal-1 mt-7 h-[220px] overflow-hidden border border-border sm:h-[280px]">
-                {secondaryHeroImage ? (
-                  <img
-                    src={secondaryHeroImage}
-                    alt={secondaryHeroCar?.title || `${secondaryHeroCar?.make || ''} ${secondaryHeroCar?.model || ''}`.trim() || `${dealerConfig.identity.name} vehicle`}
-                    loading="eager"
-                    className="h-full w-full object-cover object-center grayscale-[20%] contrast-125"
-                  />
-                ) : (
-                  <div className="h-full w-full bg-secondary" aria-label={`${dealerConfig.identity.name} vehicle`} />
-                )}
-              </div>
+              <h1 className="luxxy-reveal luxxy-reveal-1 mt-6 max-w-xl font-display text-5xl leading-[0.96] tracking-[-0.035em] text-white sm:text-6xl lg:text-7xl">
+                {dealerConfig.hero.copy}
+              </h1>
+              <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-lg text-base leading-7 text-white/70 sm:text-lg">
+                {dealerConfig.hero.subcopy}
+              </p>
               <div className="luxxy-reveal luxxy-reveal-3 mt-9 flex flex-col gap-3 sm:flex-row">
                 <Button
                   type="button"
                   size="lg"
                   onClick={revealResults}
                   data-testid="button-hero-primary"
-                  className="h-14 bg-primary px-8 text-base font-bold text-primary-foreground hover:bg-primary/90"
+                  className="h-14 border border-accent bg-accent px-8 text-base font-bold text-primary hover:bg-accent/90"
                 >
                   {dealerConfig.hero.primaryCta}
                   <ArrowRight className="ml-4 h-5 w-5" />
@@ -186,7 +178,7 @@ export default function Home() {
                     variant="outline"
                     asChild
                     data-testid="link-hero-part-exchange"
-                    className="h-14 border-border bg-card px-8 text-base font-bold text-primary hover:border-primary hover:bg-secondary hover:text-primary"
+                    className="h-14 border-white/30 bg-transparent px-8 text-base font-bold text-white hover:border-white hover:bg-white hover:text-primary"
                   >
                     <a href={getContactHref('Part Exchange Enquiry')}>
                       {dealerConfig.hero.secondaryCta}
@@ -197,19 +189,29 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative -mx-4 h-[300px] overflow-hidden sm:-mx-6 sm:h-[400px] lg:absolute lg:inset-y-10 lg:left-[52%] lg:right-[calc(50%-50vw)] lg:mx-0 lg:h-auto border-l border-y border-border">
+            <div className="luxxy-reveal luxxy-reveal-2 relative -mx-4 h-[290px] overflow-hidden border-y border-white/20 sm:mx-0 sm:h-[390px] sm:border lg:h-[430px]">
               {heroImage ? (
                 <img
                   src={heroImage}
                   alt={heroCar?.title || `${heroCar?.make || ''} ${heroCar?.model || ''}`.trim() || `${dealerConfig.identity.name} vehicle`}
                   fetchPriority="high"
                   loading="eager"
-                  className="luxxy-hero-image absolute inset-0 h-full w-full object-cover object-center grayscale-[20%] contrast-125"
+                  className="luxxy-hero-image absolute inset-0 h-full w-full object-cover object-center contrast-110"
                 />
               ) : (
-                <div className="absolute inset-0 bg-secondary" />
+                <div className="absolute inset-0 bg-white/10" />
               )}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/40 via-transparent to-transparent lg:bg-gradient-to-r lg:from-background lg:via-transparent lg:to-transparent" />
+              <div className="pointer-events-none absolute inset-0 border-[10px] border-primary/20 sm:border-[14px]" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-primary/70 to-transparent" />
+              <div className="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4 text-white">
+                <div>
+                  <p className="luxxy-label text-accent">Featured on the forecourt</p>
+                  <p className="mt-2 font-display text-xl leading-tight sm:text-2xl">{heroCar?.title || 'Quality used vehicles'}</p>
+                </div>
+                <span className="hidden border border-white/30 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] sm:block">
+                  {stockCount} in stock
+                </span>
+              </div>
             </div>
           </div>
         </div>
