@@ -11,11 +11,19 @@ import { AlertTriangle, ArrowRight, Calendar, Camera, MessageCircle, Phone } fro
 type SpecEntry = { label: string; value: string };
 
 const actionBase =
-  'inline-flex h-11 items-center justify-center gap-2 px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card';
+  'relative z-10 inline-flex h-11 items-center justify-center gap-2 px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card';
 
 const MAX_PREVIEW_IMAGES = 6;
 
-export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | 'card' }) {
+export function CarCard({
+  car,
+  layout = 'card',
+  stretchedLink = false,
+}: {
+  car: Car;
+  layout?: 'row' | 'card';
+  stretchedLink?: boolean;
+}) {
   const { settings: dealerConfig } = useDealerSettings();
   const isRow = layout === 'row';
 
@@ -256,7 +264,14 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
         isRow ? 'text-2xl sm:text-[1.7rem]' : 'text-xl',
       )}
     >
-      <Link href={detailHref} className="outline-none transition-colors hover:text-accent focus-visible:underline">
+      <Link
+        href={detailHref}
+        aria-label={stretchedLink ? `View full details for ${vehicleLabel}` : undefined}
+        className={cn(
+          'outline-none transition-colors hover:text-accent focus-visible:underline',
+          stretchedLink && "after:absolute after:inset-0 after:z-[1] after:content-['']",
+        )}
+      >
         {car.title || `${car.make} ${car.model}`}
       </Link>
     </h3>
@@ -309,7 +324,13 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
   }
 
   return (
-    <article className="group flex h-full flex-col border border-border/70 bg-card transition-colors hover:border-primary/35" data-testid={`card-vehicle-${car.id}`}>
+    <article
+      className={cn(
+        'group relative flex h-full flex-col border border-border/70 bg-card transition-colors hover:border-primary/35',
+        stretchedLink && 'cursor-pointer hover:bg-secondary/15 focus-within:border-primary/45',
+      )}
+      data-testid={`card-vehicle-${car.id}`}
+    >
       {imageBlock}
       <div className="flex flex-1 flex-col gap-4 p-5">
         <div>
@@ -330,7 +351,7 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
           {callAction}
           {whatsappAction}
           {bookingAction}
-          <CompareCarButton car={car} className="col-span-2" />
+          <CompareCarButton car={car} className="relative z-10 col-span-2" />
         </div>
       </div>
     </article>

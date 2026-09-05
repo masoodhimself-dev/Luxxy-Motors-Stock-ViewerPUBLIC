@@ -318,7 +318,7 @@ export default function CarDetail() {
             </div>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
               {similarCars.map((similarCar) => (
-                <CarCard key={similarCar.id} car={similarCar} />
+                <CarCard key={similarCar.id} car={similarCar} stretchedLink />
               ))}
             </div>
           </section>
