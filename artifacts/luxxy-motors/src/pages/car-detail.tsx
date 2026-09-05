@@ -118,29 +118,12 @@ export default function CarDetail() {
     { label: 'Transmission', value: car.transmission || '-' },
   ];
 
-  const getWriteOffBadge = () => {
-    if (!car.writeOffCategory) return null;
-    const cat = car.writeOffCategory.toUpperCase();
-    const badgeBase =
-      'inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-[.14em]';
-    if (cat.includes('S') || cat === 'CAT S') {
-      return (
-        <span className={`${badgeBase} bg-destructive text-destructive-foreground`}>
-          <Info className="h-3.5 w-3.5" />Cat S Damaged
-        </span>
-      );
-    }
-    if (cat.includes('N') || cat === 'CAT N') {
-      return (
-        <span className={`${badgeBase} bg-[#c8811f] text-[#191919]`}>
-          <Info className="h-3.5 w-3.5" />Cat N Damaged
-        </span>
-      );
-    }
+  const damageDisclosure = (() => {
+    const category = (car.writeOffCategory || '').toUpperCase();
+    if (category.includes('S')) return 'Category S — structural damage repaired';
+    if (category.includes('N')) return 'Category N — non-structural damage repaired';
     return null;
-  };
-
-  const writeOffBadge = getWriteOffBadge();
+  })();
 
   return (
     <div className="luxxy-shell luxxy-grain min-h-screen">
@@ -179,7 +162,7 @@ export default function CarDetail() {
                   </p>
                 )}
 
-                {(registration || writeOffBadge) && (
+                {(registration || damageDisclosure) && (
                   <div className="mt-5 flex flex-wrap items-center gap-3">
                     {registration && (
                       <UKNumberPlate
@@ -189,7 +172,15 @@ export default function CarDetail() {
                         className="w-[132px] shrink-0"
                       />
                     )}
-                    {writeOffBadge}
+                    {damageDisclosure && (
+                      <span className="inline-flex items-center gap-1.5 border border-border bg-background px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-muted-foreground">
+                        <Info className="h-3.5 w-3.5 shrink-0 text-accent" />
+                        <span>
+                          <span className="font-bold text-foreground">Insurance category:</span>{' '}
+                          {damageDisclosure}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
