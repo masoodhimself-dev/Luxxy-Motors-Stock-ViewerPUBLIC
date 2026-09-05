@@ -98,6 +98,7 @@ export default function CarDetail() {
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig);
   const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim();
+  const photoCount = car.imageCount || car.images?.length || (car.heroImage ? 1 : 0);
 
   const overviewSpecs = [
     { label: 'Body Type', value: car.bodyType || '-' },
@@ -174,26 +175,31 @@ export default function CarDetail() {
                   </p>
                 )}
 
-                {(registration || damageDisclosure) && (
+                {registration && (
                   <div className="mt-5 flex flex-wrap items-center gap-3">
-                    {registration && (
-                      <UKNumberPlate
-                        size="sm"
-                        value={registration}
-                        testId={`plate-vehicle-${car.id}`}
-                        className="w-[132px] shrink-0"
-                      />
-                    )}
-                    {damageDisclosure && (
-                      <div className="w-full border-l-2 border-accent bg-secondary/20 px-3 py-2.5 text-[12px] leading-5 text-muted-foreground">
-                        <p className="font-bold text-foreground">
-                          Insurance category: {damageDisclosure.label}
-                        </p>
-                        <p className="mt-0.5">{damageDisclosure.explanation}</p>
-                      </div>
-                    )}
+                    <UKNumberPlate
+                      size="sm"
+                      value={registration}
+                      testId={`plate-vehicle-${car.id}`}
+                      className="w-[132px] shrink-0"
+                    />
                   </div>
                 )}
+
+                <dl className="mt-5 grid grid-cols-2 border border-border/70 bg-background">
+                  <div className="border-r border-border/70 px-3 py-2.5">
+                    <dt className="luxxy-label text-muted-foreground">Photographs</dt>
+                    <dd className="mt-1 text-[13px] font-bold text-foreground">
+                      {photoCount > 0 ? `${photoCount} available` : 'To follow'}
+                    </dd>
+                  </div>
+                  <div className="px-3 py-2.5">
+                    <dt className="luxxy-label text-muted-foreground">Mileage</dt>
+                    <dd className="mt-1 text-[13px] font-bold text-foreground">
+                      {car.mileage ? formatMileage(car.mileage) : (car.mileageText || 'Unknown')}
+                    </dd>
+                  </div>
+                </dl>
               </div>
 
               <div className="flex items-end justify-between gap-4 border-b border-border/70 p-6 sm:p-8">
@@ -292,6 +298,14 @@ export default function CarDetail() {
                 <LedgerRow key={spec.label} label={spec.label} value={spec.value} />
               ))}
             </dl>
+            {damageDisclosure && (
+              <div className="border-t border-border/70 bg-secondary/20 px-6 py-5 text-[13px] leading-6 text-muted-foreground sm:px-8">
+                <p className="luxxy-label text-foreground">
+                  Insurance history · {damageDisclosure.label}
+                </p>
+                <p className="mt-2 max-w-3xl">{damageDisclosure.explanation}</p>
+              </div>
+            )}
           </section>
 
         </div>
