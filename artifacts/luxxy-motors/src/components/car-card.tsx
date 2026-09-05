@@ -206,7 +206,7 @@ export function CarCard({
 
   const priceBlock = (
     <div>
-      <p className="luxxy-label text-muted-foreground">{car.price ? 'Cash Price' : 'Price'}</p>
+      <p className="luxxy-label text-muted-foreground">Price</p>
       <p className={cn('luxxy-price mt-1 text-3xl leading-none text-primary', isRow ? 'sm:text-[2.1rem]' : '')}>
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </p>

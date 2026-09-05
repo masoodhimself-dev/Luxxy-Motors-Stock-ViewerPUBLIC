@@ -209,7 +209,7 @@ export default function CarDetail() {
                     {car.price ? formatPrice(car.price, car.currency) : 'POA'}
                   </p>
                 </div>
-                {car.priceType && (
+                {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
                   <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground">
                     {car.priceType}
                   </span>
