@@ -99,6 +99,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav */}
           <nav className="hidden xl:flex items-center gap-5 2xl:gap-7">
             <button onClick={() => handleNav('top')} className={navLinkClass}>Home</button>
+            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find My Car</button>
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Exchange</button>}
             {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={navLinkClass}>Warranty</button>}
@@ -157,6 +158,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {mobileMenuOpen && (
           <div className="xl:hidden absolute top-[4.5rem] left-0 w-full border-y border-border bg-background px-4 pb-6 pt-2 flex flex-col max-h-[calc(100vh-4.5rem)] overflow-y-auto lg:px-8">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home</button>
+            <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
+              Find My Car <ArrowRight className="w-4 h-4 text-accent" />
+            </button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
               Browse Stock <ArrowRight className="w-4 h-4 text-accent" />
             </button>
@@ -258,6 +262,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <h3 className={footerHeadingClass}>Vehicles</h3>
               <nav className="mt-5 flex flex-col items-start gap-3">
                 <button onClick={() => handleNav('stock')} className={footerLinkClass}>View All Stock</button>
+                <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find My Car</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part Exchange</button>
                   <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
                 <button onClick={() => handleNav('warranty')} className={footerLinkClass}>Warranty Information</button>

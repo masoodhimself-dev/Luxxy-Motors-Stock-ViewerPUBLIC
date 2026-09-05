@@ -4,6 +4,7 @@ import { CarCard } from '@/components/car-card';
 import { Button } from '@/components/ui/button';
 import { useStock, type Car } from '@/lib/stock-context';
 import { cn } from '@/lib/utils';
+import { usePageMeta } from '@/hooks/use-page-meta';
 
 type AnswerKey = 'budget' | 'bodyType' | 'fuel' | 'transmission' | 'use';
 type AnswerValue = string;
@@ -217,6 +218,11 @@ export default function FindMyCar() {
   const [step, setStep] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
+
+  usePageMeta({
+    title: 'Find My Car | Luxxy Motors',
+    description: 'Answer five quick questions and discover the strongest matches from Luxxy Motors live used-car stock.',
+  });
 
   const question = questions[step];
   const recommendations = useMemo(() => {
