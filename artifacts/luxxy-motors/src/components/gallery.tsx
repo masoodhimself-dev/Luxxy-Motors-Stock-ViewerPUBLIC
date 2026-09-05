@@ -94,10 +94,10 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden">
       {/* Main Image */}
       <div 
-        className="group relative aspect-video w-full cursor-zoom-in overflow-hidden border border-border/70 bg-secondary/60 sm:aspect-[16/9]"
+        className="group relative aspect-[4/3] w-full cursor-zoom-in overflow-hidden border border-border/70 bg-secondary/60 sm:aspect-[16/10] lg:aspect-[16/9]"
         onClick={() => setIsFullscreen(true)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -138,7 +138,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
 
       {/* Thumbnails */}
       {allImages.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar snap-x">
+        <div className="flex min-w-0 max-w-full snap-x gap-2 overflow-x-auto overscroll-x-contain pb-1 scroll-smooth no-scrollbar">
           {allImages.map((img, idx) => (
             <button
               key={idx}
@@ -147,7 +147,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
               aria-label={`Show photograph ${idx + 1} of ${allImages.length}`}
               aria-current={activeIndex === idx}
               className={cn(
-                'relative h-[4.5rem] w-28 shrink-0 snap-start overflow-hidden border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                'relative h-16 w-24 shrink-0 snap-start overflow-hidden border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:h-[4.25rem] sm:w-28',
                 activeIndex === idx
                   ? 'border-accent'
                   : 'border-border/70 opacity-55 hover:opacity-100',

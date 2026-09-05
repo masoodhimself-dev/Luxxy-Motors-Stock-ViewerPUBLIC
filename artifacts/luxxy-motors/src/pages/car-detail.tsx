@@ -159,14 +159,14 @@ export default function CarDetail() {
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         {/* Explicit placement keeps the purchase panel ahead of the spec ledger on
             narrow screens, while both stay beside the gallery on desktop. */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:gap-10 xl:grid-cols-[1fr_420px]">
+        <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
 
-          <div className="lg:col-start-1 lg:row-start-1">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <Gallery images={car.images || []} heroImage={car.heroImage} />
           </div>
 
           {/* Right Column: Key Details & CTA */}
-          <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <div className="sticky top-[calc(var(--site-header-height,5rem)+1.5rem)] border border-border bg-card">
               <div className="border-b border-border/70 p-6 sm:p-8">
                 <h1 className="font-display text-[1.9rem] font-semibold leading-[1.08] tracking-tight text-primary">
