@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CompareTray } from '@/components/compare-tray';
+import { isWritableFormControl } from '@/lib/form-draft';
 
 // Chrome shares the showroom type scale: compact uppercase for navigation,
 // monospaced figures for anything the customer might read back to us.
@@ -27,6 +28,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  const hasEditedFormRef = useRef(false);
   const brandStyle = {
     ...(dealerConfig.identity.brandColors?.primaryHsl
       ? { '--primary': dealerConfig.identity.brandColors.primaryHsl }
@@ -44,6 +46,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    hasEditedFormRef.current = false;
+  }, [location]);
+
+  useEffect(() => {
+    const markFormAsEdited = (event: Event) => {
+      if (isWritableFormControl(event.target)) {
+        hasEditedFormRef.current = true;
+      }
+    };
+
+    document.addEventListener('input', markFormAsEdited, true);
+    document.addEventListener('change', markFormAsEdited, true);
+    return () => {
+      document.removeEventListener('input', markFormAsEdited, true);
+      document.removeEventListener('change', markFormAsEdited, true);
+    };
   }, []);
 
   useEffect(() => {
@@ -72,11 +93,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
     navigateToHomeTarget(target, location, setLocation);
   };
 
+  const handleLogoClick = () => {
+    if (
+      location !== '/' &&
+      hasEditedFormRef.current &&
+      document.querySelector('form') &&
+      !window.confirm('You have unfinished details on this page. Leave them and return to the homepage?')
+    ) {
+      return;
+    }
+
+    handleNav('top');
+  };
+
   return (
     <div style={brandStyle} className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
       <header ref={headerRef} data-site-header className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-colors duration-300 ${scrolled ? 'border-border bg-background/95 backdrop-blur-md' : 'border-transparent bg-background/80 backdrop-blur-sm'}`}>
         <div className="container mx-auto px-4 lg:px-8 h-[4.5rem] flex items-center justify-between gap-4">
-          <button type="button" onClick={() => handleNav('top')} className="flex items-center gap-3 text-left group">
+          <button type="button" onClick={handleLogoClick} className="flex items-center gap-3 text-left group">
             {dealerConfig.identity.logoAsset ? (
               <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 object-contain" />
             ) : (
