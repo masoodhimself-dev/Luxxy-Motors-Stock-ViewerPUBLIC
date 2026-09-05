@@ -5,7 +5,7 @@ import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
 import { Gallery } from '@/components/gallery';
 import { UKNumberPlate } from '@/components/uk-number-plate';
-import { formatPrice, formatMileage, isUKNumberPlate, vehicleRegistration } from '@/lib/utils';
+import { formatPrice, formatMileage, isUKNumberPlate, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -97,7 +97,7 @@ export default function CarDetail() {
   const bookingHref = getVehicleBookingHref(car);
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig);
-  const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim();
+  const vehicleLabel = vehicleDisplayTitle(car);
   const photoCount = car.imageCount || car.images?.length || (car.heroImage ? 1 : 0);
 
   const overviewSpecs = [
@@ -166,7 +166,7 @@ export default function CarDetail() {
             <div className="sticky top-[calc(var(--site-header-height,5rem)+1.5rem)] border border-border bg-card">
               <div className="border-b border-border/70 p-6 sm:p-8">
                 <h1 className="font-display text-[1.9rem] font-semibold leading-[1.08] tracking-tight text-primary">
-                  {car.title || `${car.make} ${car.model}`}
+                  {vehicleLabel}
                 </h1>
 
                 {(car.variant || car.trim) && (

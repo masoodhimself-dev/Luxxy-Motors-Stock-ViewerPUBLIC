@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isUKNumberPlate, vehicleRegistration } from '@/lib/utils';
+import { isUKNumberPlate, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 
 describe('vehicleRegistration', () => {
   it('prefers the authoritative plate, then the vrm', () => {
@@ -41,5 +41,32 @@ describe('isUKNumberPlate', () => {
     ['2009 (59 reg)', '59 reg', '', '   ', 'Coming soon', '2009'].forEach((value) => {
       expect(isUKNumberPlate(value)).toBe(false);
     });
+  });
+});
+
+describe('vehicleDisplayTitle', () => {
+  it('removes the vehicle year from customer-facing titles', () => {
+    expect(vehicleDisplayTitle({
+      title: '2015 Hyundai i10',
+      make: 'Hyundai',
+      model: 'i10',
+      year: 2015,
+    })).toBe('Hyundai i10');
+
+    expect(vehicleDisplayTitle({
+      title: 'MG MG ZS 2023',
+      make: 'MG',
+      model: 'MG ZS',
+      year: 2023,
+    })).toBe('MG MG ZS');
+  });
+
+  it('does not mistake a numeric model name for the vehicle year', () => {
+    expect(vehicleDisplayTitle({
+      title: '2021 Peugeot 2008',
+      make: 'Peugeot',
+      model: '2008',
+      year: 2021,
+    })).toBe('Peugeot 2008');
   });
 });

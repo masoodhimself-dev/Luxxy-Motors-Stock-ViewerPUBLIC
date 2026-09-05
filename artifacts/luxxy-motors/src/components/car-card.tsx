@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
-import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
+import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { UKNumberPlate } from '@/components/uk-number-plate';
@@ -54,7 +54,7 @@ export function CarCard({
   const activeIndex = galleryUrls.length > 0 ? activeImageIndex % galleryUrls.length : 0;
   const photoCount = car.imageCount || car.images?.length || visibleImageUrls.length;
 
-  const vehicleLabel = car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
+  const vehicleLabel = vehicleDisplayTitle(car);
   const registration = vehicleRegistration(car);
   const detailHref = `/vehicle/${car.id}`;
   const phoneHref = getPhoneHref(dealerConfig);
@@ -276,7 +276,7 @@ export function CarCard({
           stretchedLink && "after:absolute after:inset-0 after:z-[1] after:content-['']",
         )}
       >
-        {car.title || `${car.make} ${car.model}`}
+        {vehicleLabel}
       </Link>
     </h3>
   );

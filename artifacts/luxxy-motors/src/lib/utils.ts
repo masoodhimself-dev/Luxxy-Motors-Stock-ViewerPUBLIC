@@ -20,6 +20,23 @@ export function formatMileage(mileage: number) {
   return new Intl.NumberFormat('en-GB').format(mileage) + ' miles';
 }
 
+export function vehicleDisplayTitle(vehicle?: {
+  title?: string | null;
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+} | null) {
+  const fallback = [vehicle?.make, vehicle?.model].filter(Boolean).join(' ').trim();
+  const title = vehicle?.title?.trim() || fallback;
+  if (!title) return 'Vehicle';
+
+  const displayTitle = vehicle?.year
+    ? title.replace(new RegExp(`(^|\\s)${vehicle.year}(?=\\s|$)`, 'g'), ' ')
+    : title;
+
+  return displayTitle.replace(/\s{2,}/g, ' ').trim() || fallback || 'Vehicle';
+}
+
 /**
  * The registration we are allowed to print on a number plate.
  * Registration bands (e.g. "2019 (69)") are not real plates, so they are never returned.
