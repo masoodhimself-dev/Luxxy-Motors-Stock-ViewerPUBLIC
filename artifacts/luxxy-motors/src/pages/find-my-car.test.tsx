@@ -116,7 +116,7 @@ function completeQuiz(answers: {
 function recommendationIds() {
   return screen
     .getByTestId('list-recommendations')
-    .querySelectorAll('[data-testid^="recommendation-"]');
+    .querySelectorAll(':scope > div[data-testid^="recommendation-"]');
 }
 
 beforeEach(() => {
@@ -207,9 +207,45 @@ describe('Find My Car recommendation scoring', () => {
 
     const exactRecommendation = screen.getByTestId('recommendation-exact-fit');
     expect(exactRecommendation).toHaveTextContent('13 points from your brief');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-budget')).toHaveTextContent('£15,000 – £22,000');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-budget')).toHaveTextContent('Exact preference');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-bodyType')).toHaveTextContent('SUV or crossover');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-fuel')).toHaveTextContent('Hybrid or electric');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-transmission')).toHaveTextContent('Automatic');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-use')).toHaveTextContent('Family life');
     expect(recommendationIds()).toHaveLength(2);
     expect(screen.queryByTestId('recommendation-invented-car')).not.toBeInTheDocument();
     expect(within(exactRecommendation).getByRole('link', { name: 'Exact fit' })).toHaveAttribute('href', '/vehicle/exact-fit');
+  });
+
+  it('labels a forgiving budget match separately from exact preferences', () => {
+    stockState.stock = makeStock([
+      makeCar({
+        id: 'near-budget',
+        advertId: 'near-budget',
+        title: 'Near budget',
+        price: 11000,
+        bodyType: 'Saloon',
+        fuel: 'Diesel',
+        transmission: 'Manual',
+        mileage: 90000,
+        seats: 4,
+      }),
+    ]);
+
+    renderFindMyCar();
+    completeQuiz({
+      budget: 'under-10000',
+      bodyType: 'coupe',
+      fuel: 'hybrid',
+      transmission: 'automatic',
+      use: 'city',
+    });
+
+    const recommendation = screen.getByTestId('recommendation-near-budget');
+    expect(within(recommendation).getByTestId('recommendation-match-near-budget-budget')).toHaveTextContent('Close to your guide price');
+    expect(within(recommendation).getByTestId('recommendation-match-near-budget-budget')).toHaveTextContent('Flexible fallback');
+    expect(within(recommendation).queryByTestId('recommendation-match-near-budget-bodyType')).not.toBeInTheDocument();
   });
 });
 
@@ -293,5 +329,65 @@ describe('Find My Car quiz state', () => {
     expect(screen.getByTestId('state-no-perfect-match')).toBeInTheDocument();
     expect(screen.getByTestId('text-results-announcement')).toHaveTextContent(/not a perfect match/i);
     expect(screen.getByTestId('recommendation-closest')).toBeInTheDocument();
+  });
+
+  it('updates recommendation explanations when answers and live stock change', () => {
+    const firstCar = makeCar({
+      id: 'first-car',
+      advertId: 'first-car',
+      title: 'First car',
+      price: 9000,
+      bodyType: 'Hatchback',
+      fuel: 'Petrol',
+      transmission: 'Manual',
+      mileage: 30000,
+    });
+    const refreshedCar = makeCar({
+      id: 'refreshed-car',
+      advertId: 'refreshed-car',
+      title: 'Refreshed car',
+      price: 18000,
+      bodyType: 'SUV',
+      fuel: 'Hybrid',
+      transmission: 'Automatic',
+      seats: 5,
+      mileage: 32000,
+    });
+    stockState.stock = makeStock([firstCar]);
+    const view = renderFindMyCar();
+
+    completeQuiz({
+      budget: 'under-10000',
+      bodyType: 'hatchback',
+      fuel: 'petrol',
+      transmission: 'manual',
+      use: 'city',
+    });
+
+    expect(screen.getByTestId('recommendation-match-first-car-budget')).toHaveTextContent('Up to £10,000');
+    expect(screen.getByTestId('recommendation-match-first-car-fuel')).toHaveTextContent('Petrol');
+
+    fireEvent.click(screen.getByTestId('button-change-answers'));
+    choose('15000-22000');
+    clickNext();
+    choose('suv');
+    clickNext();
+    choose('hybrid');
+    clickNext();
+    choose('automatic');
+    clickNext();
+    choose('family');
+    fireEvent.click(screen.getByTestId('button-see-matches'));
+
+    expect(screen.queryByTestId('recommendation-match-first-car-budget')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('recommendation-match-first-car-bodyType')).not.toBeInTheDocument();
+
+    stockState.stock = makeStock([refreshedCar]);
+    view.rerender(<FindMyCar />);
+
+    expect(screen.queryByTestId('recommendation-first-car')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recommendation-match-refreshed-car-budget')).toHaveTextContent('£15,000 – £22,000');
+    expect(screen.getByTestId('recommendation-match-refreshed-car-budget')).toHaveTextContent('Exact preference');
+    expect(screen.getByTestId('recommendation-match-refreshed-car-bodyType')).toHaveTextContent('SUV or crossover');
   });
 });

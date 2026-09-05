@@ -9,6 +9,15 @@ import { usePageMeta } from '@/hooks/use-page-meta';
 type AnswerKey = 'budget' | 'bodyType' | 'fuel' | 'transmission' | 'use';
 type AnswerValue = string;
 type Answers = Partial<Record<AnswerKey, AnswerValue>>;
+type MatchKind = 'exact' | 'flexible';
+
+type RecommendationMatch = {
+  key: AnswerKey;
+  answer: string;
+  explanation: string;
+  kind: MatchKind;
+  points: number;
+};
 
 type QuestionOption = {
   value: AnswerValue;
@@ -110,9 +119,12 @@ const transmissionMatches = (car: Car, answer: string) => {
 
 const carPrice = (car: Car) => (typeof car.price === 'number' ? car.price : null);
 
+const answerLabel = (key: AnswerKey, value: string) =>
+  questions.find((question) => question.key === key)?.options.find((option) => option.value === value)?.label ?? value;
+
 function scoreCar(car: Car, answers: Answers) {
   let score = 0;
-  const matched: string[] = [];
+  const matches: RecommendationMatch[] = [];
   const price = carPrice(car);
 
   if (answers.budget && price !== null) {
@@ -123,7 +135,13 @@ function scoreCar(car: Car, answers: Answers) {
       (answers.budget === 'over-22000' && price >= 22000);
     if (inBudget) {
       score += 4;
-      matched.push('within your guide price');
+      matches.push({
+        key: 'budget',
+        answer: answerLabel('budget', answers.budget),
+        explanation: 'Within your guide price',
+        kind: 'exact',
+        points: 4,
+      });
     } else if (
       (answers.budget === 'under-10000' && price <= 11500) ||
       (answers.budget === '10000-15000' && price >= 8500 && price <= 16500) ||
@@ -131,23 +149,47 @@ function scoreCar(car: Car, answers: Answers) {
       (answers.budget === 'over-22000' && price >= 20000)
     ) {
       score += 2;
-      matched.push('close to your guide price');
+      matches.push({
+        key: 'budget',
+        answer: answerLabel('budget', answers.budget),
+        explanation: 'Close to your guide price',
+        kind: 'flexible',
+        points: 2,
+      });
     }
   }
 
   if (answers.bodyType && bodyTypeMatches(car, answers.bodyType)) {
     score += 3;
-    matched.push('the shape you described');
+    matches.push({
+      key: 'bodyType',
+      answer: answerLabel('bodyType', answers.bodyType),
+      explanation: 'The shape you described',
+      kind: 'exact',
+      points: 3,
+    });
   }
 
   if (answers.fuel && answers.fuel !== 'any' && fuelMatches(car, answers.fuel)) {
     score += 2;
-    matched.push(`${answers.fuel === 'hybrid' ? 'hybrid or electric' : answers.fuel} running`);
+    matches.push({
+      key: 'fuel',
+      answer: answerLabel('fuel', answers.fuel),
+      explanation: `${answers.fuel === 'hybrid' ? 'Hybrid or electric' : answers.fuel} running`,
+      kind: 'exact',
+      points: 2,
+    });
   }
 
   if (answers.transmission && answers.transmission !== 'any' && transmissionMatches(car, answers.transmission)) {
     score += 2;
-    matched.push(`an ${answers.transmission} gearbox`);
+    matches.push({
+      key: 'transmission',
+      answer: answerLabel('transmission', answers.transmission),
+      explanation: `An ${answers.transmission} gearbox`,
+      kind: 'exact',
+      points: 2,
+    });
   }
 
   if (answers.use) {
@@ -161,18 +203,25 @@ function scoreCar(car: Car, answers: Answers) {
       (answers.use === 'leisure' && (body.includes('coupe') || body.includes('convertible') || body.includes('suv')));
     if (useMatches) {
       score += 2;
-      matched.push('a good fit for how you will use it');
+      matches.push({
+        key: 'use',
+        answer: answerLabel('use', answers.use),
+        explanation: 'A good fit for how you will use it',
+        kind: 'exact',
+        points: 2,
+      });
     }
   }
 
-  return { score, matched };
+  return { score, matches };
 }
 
-function matchSummary(matched: string[]) {
-  if (matched.length === 0) return 'A sensible starting point from the cars currently on the forecourt.';
-  if (matched.length === 1) return `A sensible fit for you, especially for ${matched[0]}.`;
-  if (matched.length === 2) return `A strong fit for ${matched[0]} and ${matched[1]}.`;
-  return `A strong all-round fit: ${matched.slice(0, 3).join(', ')}.`;
+function matchSummary(matches: RecommendationMatch[]) {
+  if (matches.length === 0) return 'A sensible starting point from the cars currently on the forecourt.';
+  const explanations = matches.map((match) => match.explanation.toLowerCase());
+  if (matches.length === 1) return `A sensible fit for you, especially for ${explanations[0]}.`;
+  if (matches.length === 2) return `A strong fit for ${explanations[0]} and ${explanations[1]}.`;
+  return `A strong all-round fit: ${explanations.slice(0, 3).join(', ')}.`;
 }
 
 function OptionButton({
@@ -413,14 +462,39 @@ export default function FindMyCar() {
             )}
 
             <div className="mt-8 grid gap-6 lg:grid-cols-3" data-testid="list-recommendations">
-              {recommendations.map(({ car, matched, score }, index) => (
+              {recommendations.map(({ car, matches, score }, index) => (
                 <div key={car.id} className="flex min-w-0 flex-col gap-3" data-testid={`recommendation-${car.id}`}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="luxxy-label text-accent">{index === 0 ? 'Best fit' : `Match ${index + 1}`}</span>
                     <span className="text-xs font-semibold text-muted-foreground">{score > 0 ? `${score} points from your brief` : 'Worth a closer look'}</span>
                   </div>
                   <CarCard car={car} />
-                  <p className="px-1 text-sm leading-6 text-muted-foreground">{matchSummary(matched)}</p>
+                  <div className="border-t border-border/70 px-1 pt-4" data-testid={`recommendation-explanation-${car.id}`}>
+                    <p className="luxxy-label text-accent">{matches.length > 0 ? 'Why it fits' : 'Why it is here'}</p>
+                    {matches.length > 0 ? (
+                      <ul className="mt-3 space-y-3" aria-label={`Matching answers for ${car.title || 'this car'}`}>
+                        {matches.map((match) => (
+                          <li key={match.key} className="flex items-start justify-between gap-3 text-sm" data-testid={`recommendation-match-${car.id}-${match.key}`}>
+                            <span className="min-w-0">
+                              <span className="block font-semibold leading-5 text-primary">{match.answer}</span>
+                              <span className="block text-xs leading-5 text-muted-foreground">{match.explanation}</span>
+                            </span>
+                            <span className={cn(
+                              'shrink-0 border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em]',
+                              match.kind === 'flexible' ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border bg-secondary text-muted-foreground',
+                            )}>
+                              {match.kind === 'flexible' ? 'Flexible fallback' : match.key === 'use' ? 'Good fit' : 'Exact preference'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground" data-testid={`recommendation-no-direct-match-${car.id}`}>
+                        None of your answers match this car directly; it is one of the closest live options.
+                      </p>
+                    )}
+                  </div>
+                  <p className="px-1 text-sm leading-6 text-muted-foreground">{matchSummary(matches)}</p>
                 </div>
               ))}
             </div>
