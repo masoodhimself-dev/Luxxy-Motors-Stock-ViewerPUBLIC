@@ -6,7 +6,7 @@ import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordCont
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
-import { AlertTriangle, ArrowRight, Calendar, Camera, MessageCircle, Phone } from 'lucide-react';
+import { ArrowRight, Calendar, Camera, MessageCircle, Phone } from 'lucide-react';
 
 type SpecEntry = { label: string; value: string };
 
@@ -77,13 +77,6 @@ export function CarCard({
     return () => window.clearInterval(timer);
   }, [isPreviewing, galleryUrls.length]);
 
-  const writeOff = (() => {
-    const category = (car.writeOffCategory || '').toUpperCase();
-    if (!category) return null;
-    if (category.includes('N')) return { label: 'CAT N', className: 'bg-[#c8811f] text-[#191919]' };
-    return null;
-  })();
-
   const specs = [
     car.year ? { label: 'Year', value: String(car.year) } : null,
     car.mileage
@@ -142,18 +135,6 @@ export function CarCard({
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/5 to-transparent" />
       </Link>
-
-      {writeOff && (
-        <span
-          className={cn(
-            'pointer-events-none absolute left-0 top-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em]',
-            writeOff.className,
-          )}
-        >
-          <AlertTriangle className="h-3.5 w-3.5" />
-          {writeOff.label}
-        </span>
-      )}
 
       <SaveCarButton car={car} className="absolute right-3 top-3 z-10" />
 
