@@ -213,6 +213,7 @@ describe('Find My Car recommendation scoring', () => {
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-fuel')).toHaveTextContent('Hybrid or electric');
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-transmission')).toHaveTextContent('Automatic');
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-use')).toHaveTextContent('Family life');
+    expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-use')).toHaveTextContent('Supported by 5 seats and SUV body shape');
     expect(recommendationIds()).toHaveLength(2);
     expect(screen.queryByTestId('recommendation-invented-car')).not.toBeInTheDocument();
     expect(within(exactRecommendation).getByRole('link', { name: 'View full details for Exact fit' })).toHaveAttribute('href', '/vehicle/exact-fit');
@@ -246,6 +247,44 @@ describe('Find My Car recommendation scoring', () => {
     expect(within(recommendation).getByTestId('recommendation-match-near-budget-budget')).toHaveTextContent('Close to your guide price');
     expect(within(recommendation).getByTestId('recommendation-match-near-budget-budget')).toHaveTextContent('Flexible fallback');
     expect(within(recommendation).queryByTestId('recommendation-match-near-budget-bodyType')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      use: 'city',
+      car: { bodyType: 'Hatchback', mileage: 32000 },
+      evidence: 'Supported by Hatchback body shape and 32,000 miles',
+    },
+    {
+      use: 'family',
+      car: { bodyType: 'Estate', seats: 7 },
+      evidence: 'Supported by 7 seats and Estate body shape',
+    },
+    {
+      use: 'commute',
+      car: { bodyType: 'Saloon', fuel: 'Hybrid' },
+      evidence: 'Supported by Saloon body shape and Hybrid fuel',
+    },
+    {
+      use: 'leisure',
+      car: { bodyType: 'Convertible' },
+      evidence: 'Supported by Convertible body shape',
+    },
+  ])('shows the live vehicle facts supporting a $use use-case match', ({ use, car, evidence }) => {
+    stockState.stock = makeStock([
+      makeCar({ id: `${use}-car`, advertId: `${use}-car`, title: `${use} car`, ...car }),
+    ]);
+
+    renderFindMyCar();
+    completeQuiz({
+      budget: 'under-10000',
+      bodyType: 'suv',
+      fuel: 'petrol',
+      transmission: 'automatic',
+      use,
+    });
+
+    expect(screen.getByTestId(`recommendation-match-${use}-car-use`)).toHaveTextContent(evidence);
   });
 });
 
@@ -389,5 +428,6 @@ describe('Find My Car quiz state', () => {
     expect(screen.getByTestId('recommendation-match-refreshed-car-budget')).toHaveTextContent('£15,000 – £22,000');
     expect(screen.getByTestId('recommendation-match-refreshed-car-budget')).toHaveTextContent('Exact preference');
     expect(screen.getByTestId('recommendation-match-refreshed-car-bodyType')).toHaveTextContent('SUV or crossover');
+    expect(screen.getByTestId('recommendation-match-refreshed-car-use')).toHaveTextContent('Supported by 5 seats and SUV body shape');
   });
 });

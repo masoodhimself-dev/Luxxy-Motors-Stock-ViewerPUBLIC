@@ -122,6 +122,36 @@ const carPrice = (car: Car) => (typeof car.price === 'number' ? car.price : null
 const answerLabel = (key: AnswerKey, value: string) =>
   questions.find((question) => question.key === key)?.options.find((option) => option.value === value)?.label ?? value;
 
+const formatMileage = (mileage: number) => `${mileage.toLocaleString('en-GB')} miles`;
+
+function useCaseEvidence(car: Car, use: string) {
+  const body = normalise(car.bodyType);
+  const fuel = normalise(car.fuel);
+  const mileage = typeof car.mileage === 'number' ? car.mileage : null;
+  const evidence: string[] = [];
+
+  if (use === 'city') {
+    if (body.includes('hatch') || body.includes('city')) evidence.push(`${car.bodyType} body shape`);
+    if (mileage !== null && mileage < 45000) evidence.push(formatMileage(mileage));
+  }
+
+  if (use === 'family') {
+    if ((car.seats || 0) >= 5) evidence.push(`${car.seats} seats`);
+    if (body.includes('suv') || body.includes('estate')) evidence.push(`${car.bodyType} body shape`);
+  }
+
+  if (use === 'commute') {
+    if (body.includes('saloon') || body.includes('estate')) evidence.push(`${car.bodyType} body shape`);
+    if (fuel.includes('diesel') || fuel.includes('hybrid')) evidence.push(`${car.fuel} fuel`);
+  }
+
+  if (use === 'leisure' && (body.includes('coupe') || body.includes('convertible') || body.includes('suv'))) {
+    evidence.push(`${car.bodyType} body shape`);
+  }
+
+  return evidence;
+}
+
 function scoreCar(car: Car, answers: Answers) {
   let score = 0;
   const matches: RecommendationMatch[] = [];
@@ -193,20 +223,13 @@ function scoreCar(car: Car, answers: Answers) {
   }
 
   if (answers.use) {
-    const body = normalise(car.bodyType);
-    const fuel = normalise(car.fuel);
-    const mileage = typeof car.mileage === 'number' ? car.mileage : null;
-    const useMatches =
-      (answers.use === 'city' && (body.includes('hatch') || body.includes('city') || (mileage !== null && mileage < 45000))) ||
-      (answers.use === 'family' && ((car.seats || 0) >= 5 || body.includes('suv') || body.includes('estate'))) ||
-      (answers.use === 'commute' && (body.includes('saloon') || body.includes('estate') || fuel.includes('diesel') || fuel.includes('hybrid'))) ||
-      (answers.use === 'leisure' && (body.includes('coupe') || body.includes('convertible') || body.includes('suv')));
-    if (useMatches) {
+    const evidence = useCaseEvidence(car, answers.use);
+    if (evidence.length > 0) {
       score += 2;
       matches.push({
         key: 'use',
         answer: answerLabel('use', answers.use),
-        explanation: 'A good fit for how you will use it',
+        explanation: `Supported by ${evidence.join(' and ')}`,
         kind: 'exact',
         points: 2,
       });
