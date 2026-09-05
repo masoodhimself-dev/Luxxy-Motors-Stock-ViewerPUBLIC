@@ -290,11 +290,13 @@ export function EnquiryForm({
     <form onSubmit={submit} className="space-y-8" data-testid="form-enquiry">
       <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-6">
         <div>
-          <p className="luxxy-label text-accent">Your details</p>
+          <p className="luxxy-label text-accent">{isViewing ? 'Your visit' : 'Your details'}</p>
           <h2 className="mt-4 font-display text-[1.85rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2.1rem]">
             {isViewing ? 'Let’s make it easy.' : 'How can we help?'}
           </h2>
-          <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">A few details is all we need. No pressure, no sales script.</p>
+          <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">
+            {isViewing ? 'Just a few details and we’ll have your car ready when you arrive.' : 'A few details is all we need. No pressure, no sales script.'}
+          </p>
         </div>
         <span className="hidden h-10 w-10 shrink-0 place-items-center border border-border bg-secondary/50 text-accent sm:grid"><Sparkles className="h-4 w-4" /></span>
       </div>
@@ -302,7 +304,7 @@ export function EnquiryForm({
       {vehicle && !isPartExchange && (
         <div className="flex items-center justify-between gap-4 border border-border/70 bg-secondary/35 px-4 py-3.5" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
-            <p className="luxxy-label text-muted-foreground">Viewing</p>
+            <p className="luxxy-label text-muted-foreground">{isViewing ? 'Your chosen car' : 'Enquiry about'}</p>
             <p className="mt-1.5 truncate text-sm font-bold text-primary">{vehicleLabel}</p>
           </div>
           {vehicle.price != null && <p className="luxxy-price-inline shrink-0 text-[13px] text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
@@ -346,12 +348,14 @@ export function EnquiryForm({
         </label>
       </div>
 
-      <label className="block">
-        <span className={labelClass}>What can we help with?</span>
-        <NativeSelect value={type} onChange={(event) => setType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
-          {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </NativeSelect>
-      </label>
+      {!isViewing && (
+        <label className="block">
+          <span className={labelClass}>What can we help with?</span>
+          <NativeSelect value={type} onChange={(event) => setType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
+            {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </NativeSelect>
+        </label>
+      )}
 
       {isPartExchange && (
         <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-6 border border-border/70 bg-secondary/25 p-5 sm:p-6" data-testid="section-part-exchange-details">
@@ -469,7 +473,7 @@ export function EnquiryForm({
               <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
                 <CalendarDays className="h-5 w-5 text-accent" /> Choose a time to visit
               </legend>
-              <p className="mt-3 text-[13px] leading-6 text-muted-foreground">30 minutes · Monday to Saturday · 10:00–18:00</p>
+               <p className="mt-3 text-[13px] leading-6 text-muted-foreground">A relaxed 30-minute visit · Monday to Saturday · 10:00–18:00</p>
             </div>
             <span className="luxxy-label hidden shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground sm:block">London time</span>
           </div>
@@ -519,7 +523,7 @@ export function EnquiryForm({
               </div>
             ) : availabilityQuery.isError ? (
               <div role="alert" className="flex items-start gap-2.5 border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]" data-testid="status-availability-error">
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> Could not load available times. Please choose another date.
+                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /> We couldn’t load the times for this day. Please choose another date.
               </div>
             ) : availableSlots.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="group-viewing-slots">
@@ -540,12 +544,12 @@ export function EnquiryForm({
                 ))}
               </div>
             ) : (
-              <p className="border border-[#d4bd83] bg-[#f7f0dd] p-3 text-[13px] leading-6 text-[#80611f]" data-testid="status-availability-empty">There are no remaining times on this date. Please choose another day.</p>
+               <p className="border border-[#d4bd83] bg-[#f7f0dd] p-3 text-[13px] leading-6 text-[#80611f]" data-testid="status-availability-empty">That day is now full. Please choose another date and we’ll find a good time for you.</p>
             )}
           </div>
           <div className="flex items-start gap-2.5 text-[13px] leading-6 text-muted-foreground">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            {selectedSlotLabel ? <span><strong className="font-bold text-primary">Your time:</strong> {selectedSlotLabel} · {formatDateLabel(selectedDate)}</span> : <span>Select any open time to reserve your visit.</span>}
+             {selectedSlotLabel ? <span><strong className="font-bold text-primary">Your visit:</strong> {selectedSlotLabel} · {formatDateLabel(selectedDate)}</span> : <span>Choose any open time that suits you.</span>}
           </div>
         </fieldset>
       )}
@@ -572,7 +576,7 @@ export function EnquiryForm({
       )}
       <div className="space-y-4">
         <Button type="submit" size="lg" disabled={mutation.isPending || (isViewing && !selectedSlot)} className="group h-12 w-full rounded-none text-sm font-bold shadow-none" data-testid="button-submit-enquiry">
-          {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve this viewing' : `Send ${typeLabels[type].toLowerCase()}`}
+          {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
           {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
         <div className="flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-3.5 text-[13px] leading-6 text-muted-foreground">
