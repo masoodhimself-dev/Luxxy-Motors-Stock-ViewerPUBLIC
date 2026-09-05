@@ -16,6 +16,7 @@ import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import { clerkAppearance } from '@/lib/clerk-appearance';
 import { Layout } from '@/components/layout';
+import { RouteScrollReset } from '@/components/route-scroll-reset';
 import Home from '@/pages/home';
 import FindMyCar from '@/pages/find-my-car';
 import CarDetail from '@/pages/car-detail';
@@ -154,6 +155,7 @@ function ClerkProviderWithRoutes() {
 function App() {
   return (
     <WouterRouter base={basePath}>
+      <RouteScrollReset />
       <ClerkProviderWithRoutes />
     </WouterRouter>
   );
