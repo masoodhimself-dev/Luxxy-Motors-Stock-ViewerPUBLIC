@@ -1,0 +1,73 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8ecbff"></stop>
+      <stop offset="1" stop-color="#dff0ff"></stop>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5f6d"></stop>
+      <stop offset="1" stop-color="#d0263c"></stop>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfeeff"></stop>
+      <stop offset="1" stop-color="#7fb8dd"></stop>
+    </linearGradient>
+    <radialGradient id="tire" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.55" stop-color="#2b2b2b"></stop>
+      <stop offset="1" stop-color="#111"></stop>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#sky)"></rect>
+  <rect y="720" width="1024" height="304" fill="#5a6b4a"></rect>
+  <rect y="720" width="1024" height="70" fill="#6f8258"></rect>
+
+  
+  <rect y="760" width="1024" height="160" fill="#4a4a52"></rect>
+  <rect y="833" width="1024" height="12" fill="#ffd54a"></rect>
+
+  
+  <ellipse cx="512" cy="760" rx="360" ry="34" fill="#000" opacity="0.22"></ellipse>
+
+  
+  <path d="M180 640
+           Q180 560 250 545
+           L360 545
+           Q420 450 500 445
+           L660 445
+           Q740 450 800 545
+           L860 555
+           Q900 565 900 620
+           L900 660
+           Q900 685 870 685
+           L200 685
+           Q180 685 180 660 Z" fill="url(#body)" stroke="#a01e2f" stroke-width="4"></path>
+
+  
+  <path d="M400 540 Q450 470 505 466 L590 466 L590 540 Z" fill="url(#glass)" stroke="#5a8fb0" stroke-width="3"></path>
+  <path d="M615 466 L650 466 Q715 470 760 540 L615 540 Z" fill="url(#glass)" stroke="#5a8fb0" stroke-width="3"></path>
+
+  
+  <line x1="595" y1="470" x2="595" y2="675" stroke="#a01e2f" stroke-width="3"></line>
+  <rect x="560" y="600" width="28" height="8" rx="4" fill="#eee"></rect>
+
+  
+  <ellipse cx="875" cy="600" rx="20" ry="14" fill="#fff4c0"></ellipse>
+  
+  <rect x="185" y="590" width="16" height="26" rx="6" fill="#ffb0b0"></rect>
+
+  
+  <g>
+    <circle cx="340" cy="685" r="78" fill="url(#tire)"></circle>
+    <circle cx="340" cy="685" r="38" fill="#d9d9df"></circle>
+    <circle cx="340" cy="685" r="14" fill="#8a8a92"></circle>
+  </g>
+  <g>
+    <circle cx="720" cy="685" r="78" fill="url(#tire)"></circle>
+    <circle cx="720" cy="685" r="38" fill="#d9d9df"></circle>
+    <circle cx="720" cy="685" r="14" fill="#8a8a92"></circle>
+  </g>
+
+  
+  <path d="M260 560 Q420 470 620 470 Q740 475 800 555" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.4" stroke-linecap="round"></path>
+</svg>

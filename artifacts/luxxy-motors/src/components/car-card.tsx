@@ -200,7 +200,11 @@ export function CarCard({
       rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
       aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
       data-vehicle-contact="booking"
-      className={cn(actionBase, 'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary', !isRow && 'col-span-2')}
+      className={cn(
+        actionBase,
+        'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary',
+        !isRow && 'min-w-0 px-2 sm:px-4',
+      )}
     >
       <Calendar className="h-4 w-4" />
       {dealerConfig.bookViewing.ctaLabel}
@@ -331,7 +335,7 @@ export function CarCard({
           {callAction}
           {whatsappAction}
           {bookingAction}
-          <CompareCarButton car={car} className="relative z-10 col-span-2" />
+          <CompareCarButton car={car} className="relative z-10 min-w-0 px-2 sm:px-4" />
         </div>
       </div>
     </article>
