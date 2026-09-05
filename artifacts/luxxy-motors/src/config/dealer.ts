@@ -94,10 +94,10 @@ export const dealerConfig: DealerConfig = {
   },
   social: {},
   hero: {
-    copy: "Find Your Next Car",
+    copy: "Carefully chosen cars.",
     subcopy: "Quality used vehicles. Straightforward buying. Exceptional service.",
-    primaryCta: "See All Cars",
-    secondaryCta: "Get a Part-Exchange Valuation",
+    primaryCta: "Browse cars",
+    secondaryCta: "Find my car",
   },
   warranty: {
     enabled: true,

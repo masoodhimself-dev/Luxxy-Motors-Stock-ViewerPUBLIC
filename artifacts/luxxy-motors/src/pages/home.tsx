@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Phone, RefreshCcw, RotateCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const defaultFilters: FilterState = {
@@ -114,6 +115,18 @@ export default function Home() {
     [stock?.cars],
   );
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
+  const featuredCar = stock?.cars.find((car) => Boolean(getThumbnailUrl(car)));
+  const featuredImage = featuredCar ? getThumbnailUrl(featuredCar) : '';
+  const heroHeadline = dealerConfig.hero.copy.trim().toLowerCase() === 'find your next car'
+    ? 'Carefully chosen cars.'
+    : dealerConfig.hero.copy;
+  const heroPrimaryLabel = dealerConfig.hero.primaryCta.trim().toLowerCase() === 'see all cars'
+    ? 'Browse cars'
+    : dealerConfig.hero.primaryCta;
+  const oldSecondaryLabels = ['get a part-exchange valuation', 'part exchange'];
+  const heroSecondaryLabel = oldSecondaryLabels.includes(dealerConfig.hero.secondaryCta.trim().toLowerCase())
+    ? 'Find my car'
+    : dealerConfig.hero.secondaryCta;
 
   const revealResults = () => {
     setShowAll(true);
@@ -147,74 +160,98 @@ export default function Home() {
     <div className="luxxy-shell luxxy-grain flex min-h-screen flex-col">
       {/* Forecourt hero */}
       <section className="relative overflow-hidden border-b border-border bg-background text-foreground">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-10 pb-14 pt-[calc(var(--site-header-height,4.5rem)+3rem)] lg:min-h-[27rem] lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-24 lg:pb-20 lg:pt-[calc(var(--site-header-height,4.5rem)+5rem)]">
-            <div className="relative z-10">
+        <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1.5rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+2rem)]">
+          <div className="grid border-x border-t border-border lg:min-h-[32rem] lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="relative z-10 flex flex-col justify-center px-6 py-10 sm:px-10 sm:py-14 lg:px-14 lg:py-16">
               <p className="luxxy-reveal luxxy-kicker text-accent">
                 {dealerConfig.hero.announcement || 'Independent cars, carefully chosen'}
               </p>
-              <h1 className="luxxy-reveal luxxy-reveal-1 mt-7 max-w-3xl font-display text-5xl leading-[0.94] tracking-[-0.045em] text-primary sm:text-7xl lg:text-[5.5rem]">
-                {dealerConfig.hero.copy}
+              <h1 className="luxxy-reveal luxxy-reveal-1 mt-6 max-w-2xl font-display text-[3.25rem] leading-[0.94] tracking-[-0.045em] text-primary sm:text-6xl lg:text-[4.75rem]">
+                {heroHeadline}
               </h1>
-            </div>
-
-            <div className="luxxy-reveal luxxy-reveal-2 border-t border-border pt-7 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
-              <p className="max-w-md text-base leading-7 text-muted-foreground sm:text-lg">
+              <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-lg text-base leading-7 text-muted-foreground">
                 {dealerConfig.hero.subcopy}
               </p>
-              <p className="luxxy-label mt-6 text-muted-foreground">
-                {stockCount} vehicles available · {locationLabel || 'Harrow, London'}
+              <p className="luxxy-label mt-6 text-primary">
+                {stockCount} cars available · {locationLabel || 'Harrow, London'}
               </p>
-              <div className="luxxy-reveal luxxy-reveal-3 mt-8 flex flex-col gap-3">
+              <div className="luxxy-reveal luxxy-reveal-3 mt-8 grid gap-3 sm:grid-cols-2">
                 <Button
                   type="button"
                   size="lg"
                   onClick={revealResults}
                   data-testid="button-hero-primary"
-                  className="h-14 justify-between bg-primary px-7 text-base font-bold text-primary-foreground hover:bg-primary/90"
+                  className="h-14 justify-between bg-primary px-6 text-[14px] font-bold text-primary-foreground hover:bg-primary/90"
                 >
-                  {dealerConfig.hero.primaryCta}
+                  {heroPrimaryLabel}
                   <ArrowRight className="h-5 w-5" />
                 </Button>
-                {dealerConfig.partExchange?.enabled && (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    asChild
-                    data-testid="link-hero-part-exchange"
-                    className="h-14 justify-between border-border bg-transparent px-7 text-base font-bold text-primary hover:border-primary hover:bg-secondary"
-                  >
-                    <a href={getContactHref('Part Exchange Enquiry')}>
-                      {dealerConfig.hero.secondaryCta}
-                      <RotateCcw className="h-5 w-5" />
-                    </a>
-                  </Button>
-                )}
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
+                  data-testid="link-hero-find-my-car"
+                  className="h-14 justify-between border-primary/35 bg-transparent px-6 text-[14px] font-bold text-primary hover:border-primary hover:bg-secondary"
+                >
+                  <Link href="/find-my-car">
+                    {heroSecondaryLabel}
+                    <ArrowRight className="h-5 w-5" />
+                  </Link>
+                </Button>
               </div>
+            </div>
+
+            <div className="relative min-h-[20rem] overflow-hidden border-t border-border bg-primary lg:min-h-full lg:border-l lg:border-t-0">
+              {featuredCar && featuredImage ? (
+                <Link
+                  href={`/vehicle/${featuredCar.id}`}
+                  aria-label={`View ${vehicleDisplayTitle(featuredCar)}`}
+                  className="group absolute inset-0 block"
+                >
+                  <img
+                    src={featuredImage}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]"
+                  />
+                  <span className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" aria-hidden="true" />
+                  <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
+                    <span>
+                      <span className="luxxy-label block text-primary-foreground/70">Featured on the forecourt</span>
+                      <span className="mt-2 block font-display text-2xl font-semibold">{vehicleDisplayTitle(featuredCar)}</span>
+                    </span>
+                    <span className="luxxy-price text-2xl">
+                      {featuredCar.price ? formatPrice(featuredCar.price, featuredCar.currency) : 'POA'}
+                    </span>
+                  </span>
+                </Link>
+              ) : (
+                <div className="absolute inset-0 grid place-items-center px-8 text-center">
+                  <p className="font-display text-3xl text-primary-foreground">Fresh stock arriving regularly.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </section>
 
-      {/* What you can expect */}
-      {dealerConfig.trustItems?.length > 0 && (
-        <section className="border-b border-border bg-card" aria-label={`${dealerConfig.identity.name} promises`}>
-          <div className="container mx-auto grid px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-            {dealerConfig.trustItems.map((item) => (
+        {dealerConfig.trustItems?.length > 0 && (
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8" aria-label={`${dealerConfig.identity.name} promises`}>
+            <div className="grid border-x border-t border-border bg-card sm:grid-cols-2 lg:grid-cols-4">
+              {dealerConfig.trustItems.slice(0, 4).map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-3 border-b border-border/70 py-6 last:border-b-0 sm:border-b-0 sm:border-r sm:pr-6 sm:last:border-r-0"
+                className="flex items-center gap-3 border-b border-border/70 px-5 py-4 last:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b-0"
               >
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" />
-                <p className="text-xs font-bold uppercase leading-5 tracking-widest text-primary">{item}</p>
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
+                <p className="text-[10px] font-bold uppercase leading-4 tracking-[.12em] text-primary">{item}</p>
               </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Stock */}
-      <div id="stock" data-home-section className="bg-muted/30 px-0 pb-2 pt-12 md:pt-16">
+      <div id="stock" data-home-section className="bg-muted/30 px-0 pb-2 pt-10 md:pt-12">
         <Filters
           cars={stock?.cars || []}
           filters={filters}
