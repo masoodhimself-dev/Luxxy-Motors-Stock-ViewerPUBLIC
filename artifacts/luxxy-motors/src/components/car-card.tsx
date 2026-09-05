@@ -199,7 +199,7 @@ export function CarCard({ car, layout = 'card' }: { car: Car; layout?: 'row' | '
   const priceBlock = (
     <div>
       <p className="luxxy-label text-muted-foreground">{car.price ? 'Cash Price' : 'Price'}</p>
-      <p className={cn('mt-1 font-display font-semibold leading-none tracking-tight text-primary', isRow ? 'text-3xl' : 'text-3xl')}>
+      <p className={cn('luxxy-price mt-1 text-3xl leading-none text-primary', isRow ? 'sm:text-[2.1rem]' : '')}>
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </p>
     </div>

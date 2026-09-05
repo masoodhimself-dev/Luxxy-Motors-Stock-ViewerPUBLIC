@@ -326,8 +326,8 @@ export default function Home() {
 
           {filteredCars.length > 0 ? (
             <>
-              <div className="flex flex-col gap-5">
-                {displayedCars.map(car => <CarCard key={car.id} car={car} layout="row" />)}
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {displayedCars.map(car => <CarCard key={car.id} car={car} layout="card" />)}
               </div>
               {filteredCars.length > 4 && !showAll && (
                 <div className="mt-12 flex justify-center">

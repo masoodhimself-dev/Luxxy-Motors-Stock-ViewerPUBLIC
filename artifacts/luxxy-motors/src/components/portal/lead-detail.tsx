@@ -297,7 +297,7 @@ function DealPanel({ deal }: { deal: LeadDeal | null }) {
         ].map(([label, value]) => (
           <div key={label as string} className="flex items-center justify-between py-3">
             <dt className="luxxy-label text-muted-foreground">{label}</dt>
-            <dd className="font-mono text-[15px] font-semibold text-primary">
+            <dd className="luxxy-price-inline text-[15px] text-primary">
               {formatPence(value as number)}
             </dd>
           </div>

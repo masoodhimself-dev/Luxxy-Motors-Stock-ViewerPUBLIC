@@ -310,7 +310,8 @@ export default function Compare() {
                       <dd
                         key={car.id}
                         className={cn(
-                          'flex items-center gap-1.5 font-mono text-[13px] font-bold leading-6 text-foreground',
+                          'flex items-center gap-1.5 text-[13px] font-semibold leading-6 text-foreground',
+                          row.label === 'Price' && 'luxxy-price-inline',
                           best === index && 'text-primary',
                         )}
                       >

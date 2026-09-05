@@ -93,6 +93,8 @@ export function formatPence(value: number | null | undefined) {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'GBP',
+    currencyDisplay: 'narrowSymbol',
+    useGrouping: true,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value / 100);

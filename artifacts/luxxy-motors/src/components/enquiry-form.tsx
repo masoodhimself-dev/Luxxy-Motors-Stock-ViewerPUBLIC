@@ -305,7 +305,7 @@ export function EnquiryForm({
             <p className="luxxy-label text-muted-foreground">Viewing</p>
             <p className="mt-1.5 truncate text-sm font-bold text-primary">{vehicleLabel}</p>
           </div>
-          {vehicle.price != null && <p className="shrink-0 font-mono text-[13px] font-bold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
+          {vehicle.price != null && <p className="luxxy-price-inline shrink-0 text-[13px] text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
         </div>
       )}
 
@@ -394,7 +394,10 @@ export function EnquiryForm({
                   )}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-primary">{vehicleLabel}</p>
-                    <p className="mt-1 font-mono text-[12px] font-bold text-muted-foreground">{selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p>
+                    <p className="mt-1 text-[12px] font-semibold text-muted-foreground">
+                      {selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}
+                      {selectedVehicle.price != null ? <span className="luxxy-price-inline text-foreground">{formatPrice(selectedVehicle.price, selectedVehicle.currency)}</span> : 'Price on request'}
+                    </p>
                   </div>
                   <Check className="ml-auto h-5 w-5 shrink-0 text-accent" />
                 </div>

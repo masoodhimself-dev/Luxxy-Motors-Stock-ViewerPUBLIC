@@ -171,10 +171,10 @@ export default function Signing() {
             </div>
             <div className="border border-border/70 bg-secondary/40 p-5">
               <p className="luxxy-label text-muted-foreground">Agreed total</p>
-              <p className="mt-3 font-display text-[1.75rem] font-semibold leading-none tracking-[-.03em] text-primary">
+              <p className="luxxy-price mt-3 text-[1.75rem] leading-none text-primary">
                 {formatPrice((Number(terms.agreedPricePence) || view.sale.agreedPricePence) / 100, view.sale.currency)}
               </p>
-              <p className="mt-2 font-mono text-[13px] font-bold text-muted-foreground">Balance {formatPrice(view.sale.balancePence / 100, view.sale.currency)}</p>
+              <p className="mt-2 text-[13px] font-semibold text-muted-foreground">Balance <span className="luxxy-price-inline text-foreground">{formatPrice(view.sale.balancePence / 100, view.sale.currency)}</span></p>
             </div>
           </div>
 

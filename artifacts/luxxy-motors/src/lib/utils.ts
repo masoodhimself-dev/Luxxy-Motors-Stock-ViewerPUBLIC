@@ -8,7 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 export function formatPrice(price: number, currency: string | null = 'GBP') {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
-    currency: currency || 'GBP',
+    currency: (currency || 'GBP').toUpperCase(),
+    currencyDisplay: 'narrowSymbol',
+    useGrouping: true,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(price);
 }

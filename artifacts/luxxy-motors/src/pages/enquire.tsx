@@ -126,7 +126,7 @@ export default function Enquire() {
                     <div className="mt-5 flex items-end justify-between gap-4 border-t border-white/12 pt-5">
                       <p className="luxxy-label text-primary-foreground/55">Price</p>
                       <p
-                        className="font-display text-[1.7rem] font-semibold leading-none tracking-[-.03em] text-accent"
+                        className="luxxy-price text-[1.7rem] leading-none text-accent"
                         data-testid={`text-selected-vehicle-price-${vehicle.id}`}
                       >
                         {formatPrice(vehicle.price, vehicle.currency)}

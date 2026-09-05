@@ -569,8 +569,8 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="text-left sm:text-right">
           <p className="luxxy-label text-muted-foreground">Total</p>
-          <p className="mt-2 font-display text-[2.25rem] font-semibold leading-none tracking-[-.03em] text-primary">{formatPence(sale.agreedPricePence)}</p>
-          <p className="mt-2 text-[13px] text-muted-foreground">Balance <span className="font-mono font-bold text-foreground">{formatPence(sale.balancePence)}</span></p>
+          <p className="luxxy-price mt-2 text-[2.25rem] leading-none text-primary">{formatPence(sale.agreedPricePence)}</p>
+          <p className="mt-2 text-[13px] text-muted-foreground">Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></p>
         </div>
       </div>
 
@@ -753,12 +753,12 @@ export function DealsPanel() {
                     <h3 className="mt-4 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary transition-colors group-hover:text-accent">{sale.customer?.name || 'Unnamed customer'}</h3>
                     <p className="mt-1.5 text-[13px] text-muted-foreground">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
                   </div>
-                  <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-.02em] text-primary">{formatPence(sale.agreedPricePence)}</p>
+                  <p className="luxxy-price text-[1.5rem] leading-none text-primary">{formatPence(sale.agreedPricePence)}</p>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                  <span>Deposit <span className="font-mono font-bold text-foreground">{formatPence(sale.depositPence)}</span></span>
+                  <span>Deposit <span className="luxxy-price-inline text-foreground">{formatPence(sale.depositPence)}</span></span>
                   <span className="luxxy-leader opacity-30" />
-                  <span>Balance <span className="font-mono font-bold text-foreground">{formatPence(sale.balancePence)}</span></span>
+                  <span>Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></span>
                   <span className="luxxy-leader opacity-30" />
                   <span>{sale.latestRevision ? `Revision ${sale.latestRevision.revisionNumber}` : 'Pack not prepared'}</span>
                 </div>

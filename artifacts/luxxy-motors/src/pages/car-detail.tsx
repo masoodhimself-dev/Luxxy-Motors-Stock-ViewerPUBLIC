@@ -197,7 +197,7 @@ export default function CarDetail() {
               <div className="flex items-end justify-between gap-4 border-b border-border/70 p-6 sm:p-8">
                 <div>
                   <p className="luxxy-label text-muted-foreground">Price</p>
-                  <p className="mt-2 font-display text-[2.5rem] font-semibold leading-none tracking-tight text-primary">
+                  <p className="luxxy-price mt-2 text-[2.5rem] leading-none text-primary">
                     {car.price ? formatPrice(car.price, car.currency) : 'POA'}
                   </p>
                 </div>
