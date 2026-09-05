@@ -160,6 +160,19 @@ beforeEach(() => {
 });
 
 describe('showroom search filters', () => {
+  it('switches between full cards and the compact stock list', () => {
+    renderHome();
+
+    expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
+    expect(screen.getByTestId('button-stock-view-cards')).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByTestId('button-stock-view-compact'));
+
+    expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
+    expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('card-vehicle-bmw-1-series')).not.toBeInTheDocument();
+  });
+
   it('filters by text and limits model choices to the selected make', () => {
     renderHome();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));

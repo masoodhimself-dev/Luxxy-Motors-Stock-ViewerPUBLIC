@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
-import { formatPrice } from '@/lib/utils';
+import { cn, formatPrice } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Mail, MapPin, MessageCircle, Phone, RefreshCcw, RotateCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Phone, RefreshCcw, RotateCcw, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const defaultFilters: FilterState = {
@@ -29,6 +29,7 @@ export default function Home() {
   const { stock, isLoading } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const [showAll, setShowAll] = useState(false);
+  const [stockView, setStockView] = useState<'cards' | 'compact'>('cards');
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
@@ -243,24 +244,53 @@ export default function Home() {
               )}
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-2">
-              <span className="luxxy-label mr-1 text-muted-foreground">Shortcuts</span>
-              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className={quickFilterClass} data-testid="button-quick-automatic">
-                <Settings2 className="h-3.5 w-3.5 text-accent" /> Automatic
-              </button>
-              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className={quickFilterClass} data-testid="button-quick-under-5000">
-                <Banknote className="h-3.5 w-3.5 text-accent" /> Under £5,000
-              </button>
-              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className={quickFilterClass} data-testid="button-quick-low-mileage">
-                <Gauge className="h-3.5 w-3.5 text-accent" /> Low mileage
-              </button>
+            <div className="mt-7 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="luxxy-label mr-1 text-muted-foreground">Shortcuts</span>
+                <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className={quickFilterClass} data-testid="button-quick-automatic">
+                  <Settings2 className="h-3.5 w-3.5 text-accent" /> Automatic
+                </button>
+                <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className={quickFilterClass} data-testid="button-quick-under-5000">
+                  <Banknote className="h-3.5 w-3.5 text-accent" /> Under £5,000
+                </button>
+                <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className={quickFilterClass} data-testid="button-quick-low-mileage">
+                  <Gauge className="h-3.5 w-3.5 text-accent" /> Low mileage
+                </button>
+              </div>
+              <div className="grid grid-cols-2 border border-border bg-card p-1" aria-label="Vehicle display">
+                <button
+                  type="button"
+                  aria-pressed={stockView === 'cards'}
+                  onClick={() => setStockView('cards')}
+                  data-testid="button-stock-view-cards"
+                  className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
+                >
+                  <Grid2X2 className="h-3.5 w-3.5" /> Cards
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={stockView === 'compact'}
+                  onClick={() => setStockView('compact')}
+                  data-testid="button-stock-view-compact"
+                  className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
+                >
+                  <List className="h-4 w-4" /> Compact
+                </button>
+              </div>
             </div>
           </div>
 
           {filteredCars.length > 0 ? (
             <>
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {displayedCars.map(car => <CarCard key={car.id} car={car} layout="card" />)}
+              <div className={cn('grid', stockView === 'compact' ? 'gap-3 lg:grid-cols-2' : 'gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4')}>
+                {displayedCars.map(car => (
+                  <CarCard
+                    key={car.id}
+                    car={car}
+                    layout={stockView === 'compact' ? 'compact' : 'card'}
+                    stretchedLink
+                  />
+                ))}
               </div>
               {filteredCars.length > 4 && !showAll && (
                 <div className="mt-12 flex justify-center">

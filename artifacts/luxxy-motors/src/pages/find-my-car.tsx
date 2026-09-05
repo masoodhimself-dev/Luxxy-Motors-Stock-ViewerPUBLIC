@@ -468,7 +468,14 @@ export default function FindMyCar() {
                     <span className="luxxy-label text-accent">{index === 0 ? 'Best fit' : `Match ${index + 1}`}</span>
                     <span className="text-xs font-semibold text-muted-foreground">{score > 0 ? `${score} points from your brief` : 'Worth a closer look'}</span>
                   </div>
-                  <CarCard car={car} />
+                  <CarCard
+                    car={car}
+                    stretchedLink
+                    badges={[
+                      index === 0 ? 'Best match' : `Match ${index + 1}`,
+                      ...matches.slice(0, 2).map((match) => match.explanation),
+                    ]}
+                  />
                   <div className="border-t border-border/70 px-1 pt-4" data-testid={`recommendation-explanation-${car.id}`}>
                     <p className="luxxy-label text-accent">{matches.length > 0 ? 'Why it fits' : 'Why it is here'}</p>
                     {matches.length > 0 ? (

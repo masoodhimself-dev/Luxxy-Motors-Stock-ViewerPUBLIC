@@ -19,13 +19,16 @@ export function CarCard({
   car,
   layout = 'card',
   stretchedLink = false,
+  badges = [],
 }: {
   car: Car;
-  layout?: 'row' | 'card';
+  layout?: 'row' | 'card' | 'compact';
   stretchedLink?: boolean;
+  badges?: string[];
 }) {
   const { settings: dealerConfig } = useDealerSettings();
   const isRow = layout === 'row';
+  const isCompact = layout === 'compact';
 
   const imageUrls = useMemo(() => {
     const urls: string[] = [];
@@ -92,11 +95,18 @@ export function CarCard({
     car.owners ? { label: 'Owners', value: String(car.owners) } : null,
   ].filter((entry): entry is SpecEntry => Boolean(entry));
 
-  const visibleSpecs = specs.slice(0, isRow ? 6 : 4);
+  const visibleSpecs = specs.slice(0, isRow ? 6 : isCompact ? 3 : 4);
 
   const imageBlock = (
     <div
-      className={cn('relative overflow-hidden bg-secondary/60', isRow ? 'aspect-[4/3] md:aspect-auto md:min-h-[16rem]' : 'aspect-[4/3]')}
+      className={cn(
+        'relative overflow-hidden bg-secondary/60',
+        isRow
+          ? 'aspect-[4/3] md:aspect-auto md:min-h-[16rem]'
+          : isCompact
+            ? 'h-full min-h-36'
+            : 'aspect-[16/10] sm:aspect-[4/3]',
+      )}
       onMouseEnter={() => setIsPreviewing(true)}
       onMouseLeave={() => setIsPreviewing(false)}
     >
@@ -137,6 +147,16 @@ export function CarCard({
       </Link>
 
       <SaveCarButton car={car} className="absolute right-3 top-3 z-10" />
+
+      {badges.length > 0 && (
+        <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5">
+          {badges.slice(0, 3).map((badge) => (
+            <span key={badge} className="bg-primary/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-primary-foreground backdrop-blur-sm">
+              {badge}
+            </span>
+          ))}
+        </div>
+      )}
 
       {photoCount > 0 && (
         <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1.5 bg-primary/80 px-2.5 py-1 font-mono text-[10px] font-bold text-primary-foreground backdrop-blur-sm">
@@ -265,6 +285,34 @@ export function CarCard({
     <p className="mt-1 line-clamp-1 text-sm leading-6 text-muted-foreground">{car.variant || car.trim}</p>
   );
 
+  if (isCompact) {
+    return (
+      <article
+        className="group relative grid min-h-36 grid-cols-[7.5rem_minmax(0,1fr)] border border-border/70 bg-card transition-colors hover:border-primary/35 hover:bg-secondary/15 sm:grid-cols-[10rem_minmax(0,1fr)]"
+        data-testid={`compact-vehicle-${car.id}`}
+      >
+        {imageBlock}
+        <div className="flex min-w-0 flex-col p-4">
+          <div className="min-w-0">
+            {title}
+            {subtitle}
+          </div>
+          <p className="luxxy-price mt-2 text-2xl leading-none text-primary">
+            {car.price ? formatPrice(car.price, car.currency) : 'POA'}
+          </p>
+          {ledger && <div className="mt-3 overflow-hidden">{ledger}</div>}
+          <Link
+            href={detailHref}
+            className="relative z-10 mt-auto inline-flex items-center gap-2 pt-3 text-[12px] font-bold uppercase tracking-[.08em] text-primary transition-colors hover:text-accent"
+          >
+            View car
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </div>
+      </article>
+    );
+  }
+
   if (isRow) {
     return (
       <article
@@ -316,26 +364,27 @@ export function CarCard({
       data-testid={`card-vehicle-${car.id}`}
     >
       {imageBlock}
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <div className="flex flex-1 flex-col gap-3 p-4 sm:gap-4 sm:p-5">
         <div>
           {title}
           {subtitle}
+          <div className="mt-3">{priceBlock}</div>
         </div>
 
-        {ledger && <div className="border-y border-border/70 py-4">{ledger}</div>}
+        {ledger && <div className="border-y border-border/70 py-3 sm:py-4">{ledger}</div>}
 
-        <div className="mt-auto flex items-end justify-between gap-3">
-          {priceBlock}
-          {registration && (
-            <UKNumberPlate size="sm" value={registration} testId={`plate-vehicle-${car.id}`} className="w-[104px] shrink-0" />
-          )}
-        </div>
+        {registration && (
+          <UKNumberPlate size="sm" value={registration} testId={`plate-vehicle-${car.id}`} className="w-[104px] shrink-0" />
+        )}
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="mt-auto grid grid-cols-2 gap-2">
+          <div className="col-span-2 [&>a]:w-full">{bookingAction}</div>
           {callAction}
           {whatsappAction}
-          {bookingAction}
-          <CompareCarButton car={car} className="relative z-10 min-w-0 px-2 sm:px-4" />
+          <CompareCarButton
+            car={car}
+            className="relative z-10 col-span-2 h-9 min-w-0 border-0 bg-transparent px-2 text-muted-foreground hover:bg-secondary hover:text-primary"
+          />
         </div>
       </div>
     </article>

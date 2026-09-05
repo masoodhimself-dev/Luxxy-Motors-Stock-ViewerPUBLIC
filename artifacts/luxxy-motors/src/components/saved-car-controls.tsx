@@ -24,7 +24,10 @@ export function SaveCarButton({
   return (
     <button
       type="button"
-      onClick={() => toggleSaved(car.id)}
+      onClick={(e) => {
+        e.preventDefault();
+        toggleSaved(car.id);
+      }}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${label} from your saved cars` : `Save ${label} to your saved cars`}
       title={saved ? 'Saved — click to remove' : 'Save this car'}
@@ -48,13 +51,14 @@ export function SaveCarButton({
   );
 }
 
-export function CompareCarButton({ car, className }: { car: Car; className?: string }) {
+export function CompareCarButton({ car, className, variant = 'default' }: { car: Car; className?: string; variant?: 'default' | 'compact' }) {
   const { isComparing, toggleCompare } = useSavedCars();
   const { toast } = useToast();
   const comparing = isComparing(car.id);
   const label = vehicleLabelFor(car);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     const result = toggleCompare(car.id);
     if (result === 'full') {
       toast({
@@ -63,6 +67,26 @@ export function CompareCarButton({ car, className }: { car: Car; className?: str
       });
     }
   };
+
+  if (variant === 'compact') {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-pressed={comparing}
+        aria-label={comparing ? `Remove ${label} from your comparison` : `Add ${label} to your comparison`}
+        data-testid={`button-compare-${car.id}`}
+        className={cn(
+          'inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          comparing ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+          className
+        )}
+      >
+        {comparing ? <Check className="h-3.5 w-3.5" /> : <Scale className="h-3.5 w-3.5" />}
+        {comparing ? 'Comparing' : 'Compare'}
+      </button>
+    );
+  }
 
   return (
     <button

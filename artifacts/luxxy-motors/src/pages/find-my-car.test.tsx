@@ -215,7 +215,7 @@ describe('Find My Car recommendation scoring', () => {
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-use')).toHaveTextContent('Family life');
     expect(recommendationIds()).toHaveLength(2);
     expect(screen.queryByTestId('recommendation-invented-car')).not.toBeInTheDocument();
-    expect(within(exactRecommendation).getByRole('link', { name: 'Exact fit' })).toHaveAttribute('href', '/vehicle/exact-fit');
+    expect(within(exactRecommendation).getByRole('link', { name: 'View full details for Exact fit' })).toHaveAttribute('href', '/vehicle/exact-fit');
   });
 
   it('labels a forgiving budget match separately from exact preferences', () => {
