@@ -130,6 +130,7 @@ export function EnquiryForm({
   const [partExchangeCondition, setPartExchangeCondition] = useState<PartExchangeCondition>('good');
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [viewingStep, setViewingStep] = useState<1 | 2>(initialType === 'viewing' ? 1 : 2);
   const mutation = useCreateEnquiry();
   const isViewing = type === 'viewing';
   const dates = useMemo(() => bookingDates(), []);
@@ -161,6 +162,10 @@ export function EnquiryForm({
   useEffect(() => {
     setSelectedSlot(null);
   }, [selectedDate, type]);
+
+  useEffect(() => {
+    setViewingStep(type === 'viewing' ? 1 : 2);
+  }, [type]);
 
   useEffect(() => {
     if (selectedSlot && availabilityQuery.data && !availabilityQuery.data.slots.some((slot) => slot.startAt === selectedSlot && slot.available)) {
