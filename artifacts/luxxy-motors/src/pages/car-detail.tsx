@@ -1,5 +1,5 @@
 import { useRoute } from 'wouter';
-import { ArrowLeft, Activity, Info, MessageCircle, Phone, Calendar, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Activity, MessageCircle, Phone, Calendar, ShieldCheck } from 'lucide-react';
 import { Link } from 'wouter';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -120,8 +120,20 @@ export default function CarDetail() {
 
   const damageDisclosure = (() => {
     const category = (car.writeOffCategory || '').toUpperCase();
-    if (category.includes('S')) return 'Category S — structural damage repaired';
-    if (category.includes('N')) return 'Category N — non-structural damage repaired';
+    if (category.includes('S')) {
+      return {
+        label: 'Category S',
+        explanation:
+          'This vehicle previously had structural damage recorded by an insurer and has since been repaired. Ask us for the available repair and inspection details.',
+      };
+    }
+    if (category.includes('N')) {
+      return {
+        label: 'Category N',
+        explanation:
+          'This vehicle previously had non-structural damage recorded by an insurer and has since been repaired. Ask us for the available repair and inspection details.',
+      };
+    }
     return null;
   })();
 
@@ -173,13 +185,12 @@ export default function CarDetail() {
                       />
                     )}
                     {damageDisclosure && (
-                      <span className="inline-flex items-center gap-1.5 border border-border bg-background px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-muted-foreground">
-                        <Info className="h-3.5 w-3.5 shrink-0 text-accent" />
-                        <span>
-                          <span className="font-bold text-foreground">Insurance category:</span>{' '}
-                          {damageDisclosure}
-                        </span>
-                      </span>
+                      <div className="w-full border-l-2 border-accent bg-secondary/20 px-3 py-2.5 text-[12px] leading-5 text-muted-foreground">
+                        <p className="font-bold text-foreground">
+                          Insurance category: {damageDisclosure.label}
+                        </p>
+                        <p className="mt-0.5">{damageDisclosure.explanation}</p>
+                      </div>
                     )}
                   </div>
                 )}
