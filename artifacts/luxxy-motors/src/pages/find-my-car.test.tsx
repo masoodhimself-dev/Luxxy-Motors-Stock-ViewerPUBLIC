@@ -219,6 +219,54 @@ describe('Find My Car recommendation scoring', () => {
     expect(within(exactRecommendation).getByRole('link', { name: 'View full details for Exact fit' })).toHaveAttribute('href', '/vehicle/exact-fit');
   });
 
+  it('lets shoppers switch recommendations between cards, compact rows and an editorial shortlist', () => {
+    stockState.stock = makeStock([
+      makeCar({
+        id: 'exact-fit',
+        advertId: 'exact-fit',
+        title: 'Exact fit',
+        price: 18000,
+        bodyType: 'SUV',
+        fuel: 'Hybrid',
+        transmission: 'Automatic',
+        seats: 5,
+        mileage: 32000,
+      }),
+      makeCar({
+        id: 'near-fit',
+        advertId: 'near-fit',
+        title: 'Near fit',
+        price: 19000,
+        bodyType: 'Hatchback',
+        fuel: 'Petrol',
+        transmission: 'Manual',
+      }),
+    ]);
+
+    renderFindMyCar();
+    completeQuiz({
+      budget: '15000-22000',
+      bodyType: 'suv',
+      fuel: 'hybrid',
+      transmission: 'automatic',
+      use: 'family',
+    });
+
+    const recommendations = screen.getByTestId('list-recommendations');
+    expect(recommendations).toHaveAttribute('data-recommendation-view', 'cards');
+    expect(screen.getByTestId('card-vehicle-exact-fit')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('button-recommendation-view-compact'));
+    expect(recommendations).toHaveAttribute('data-recommendation-view', 'compact');
+    expect(screen.getByTestId('compact-vehicle-exact-fit')).toBeInTheDocument();
+    expect(screen.getByTestId('compact-vehicle-near-fit')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('button-recommendation-view-shortlist'));
+    expect(recommendations).toHaveAttribute('data-recommendation-view', 'shortlist');
+    expect(screen.getByTestId('card-vehicle-exact-fit')).toBeInTheDocument();
+    expect(screen.getByTestId('compact-vehicle-near-fit')).toBeInTheDocument();
+  });
+
   it('labels a forgiving budget match separately from exact preferences', () => {
     stockState.stock = makeStock([
       makeCar({
