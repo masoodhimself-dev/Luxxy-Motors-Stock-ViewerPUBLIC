@@ -450,28 +450,32 @@ export default function FindMyCar() {
   return (
     <main className="luxxy-shell min-h-[100dvh] overflow-hidden">
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-12">
-        <header className="relative max-w-4xl">
-          <div className="absolute -left-16 top-0 hidden h-28 w-px bg-accent/70 lg:block" aria-hidden="true" />
-          <p className="luxxy-kicker luxxy-reveal">A little help choosing well</p>
-          <div className="mt-5 flex flex-wrap items-end justify-between gap-6">
+        <header className="luxxy-reveal grid overflow-hidden border border-border bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="relative px-6 py-9 sm:px-10 sm:py-12 lg:px-14 lg:py-14">
+            <div className="absolute left-0 top-0 h-full w-1 bg-accent" aria-hidden="true" />
+            <p className="luxxy-kicker text-accent">A little help choosing well</p>
+            <h1 className="luxxy-reveal luxxy-reveal-1 mt-5 max-w-3xl font-display text-5xl font-semibold leading-[0.95] tracking-tight sm:text-7xl">
+              Find the car that fits.
+            </h1>
+            <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-2xl text-base leading-7 text-primary-foreground/70 sm:text-lg">
+              Five quick choices, then a short list from our live Harrow stock. Nothing is made up, and you can change your mind at any point.
+            </p>
+          </div>
+          <div className="flex items-end justify-between gap-6 border-t border-primary-foreground/15 bg-primary/60 px-6 py-6 sm:px-10 lg:flex-col lg:items-start lg:justify-end lg:border-l lg:border-t-0 lg:px-8 lg:py-10">
             <div>
-              <h1 className="luxxy-reveal luxxy-reveal-1 max-w-3xl font-display text-5xl font-semibold leading-[0.95] tracking-tight text-primary sm:text-7xl">
-                Find the car that fits.
-              </h1>
-              <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Five quick choices, then a short list from our live Harrow stock. Nothing is made up, and you can change your mind at any point.
-              </p>
+              <span className="luxxy-label text-primary-foreground/60">Live forecourt</span>
+              <span className="mt-2 block font-display text-4xl font-semibold">{stockCount}</span>
+              <span className="text-sm text-primary-foreground/65">cars currently available</span>
             </div>
-            <div className="border-l border-border pl-4 text-sm leading-6 text-muted-foreground">
-              <span className="block font-display text-2xl font-semibold text-primary">{stockCount}</span>
-              cars currently available
+            <div className="hidden max-w-[12rem] text-sm leading-6 text-primary-foreground/60 sm:block lg:block">
+              We keep the matching honest, even when the perfect answer is not on site today.
             </div>
           </div>
         </header>
 
         {!showResults ? (
-          <section className="luxxy-reveal luxxy-reveal-3 mt-12 max-w-4xl" aria-labelledby="question-title">
-            <div className="mb-5 flex items-center justify-between gap-5">
+          <section className="luxxy-reveal luxxy-reveal-3 mt-10 max-w-5xl" aria-labelledby="question-title">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {hasStarted && (
                   <button type="button" onClick={back} data-testid="button-back-question" className="inline-flex h-9 items-center gap-2 px-2 text-sm font-semibold text-primary transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
@@ -479,54 +483,77 @@ export default function FindMyCar() {
                     Back
                   </button>
                 )}
-                <span className="luxxy-label text-muted-foreground">{answeredCount} of {questions.length} answered</span>
+                <span className="luxxy-label text-muted-foreground">Question {step + 1} of {questions.length}</span>
               </div>
               <button type="button" onClick={restart} data-testid="button-restart-quiz" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <RotateCcw className="h-3.5 w-3.5" />
-                Restart
+                Start over
               </button>
             </div>
-            <div className="mb-8 h-1 bg-muted" aria-label={`Step ${step + 1} of ${questions.length}`} role="progressbar" aria-valuemin={1} aria-valuemax={questions.length} aria-valuenow={step + 1}>
-              <div className="h-full bg-accent transition-[width] duration-500" style={{ width: `${((step + 1) / questions.length) * 100}%` }} />
-            </div>
-            <div className="border border-border/80 bg-card p-5 sm:p-9">
-              <p className="luxxy-label text-accent">{question.eyebrow}</p>
-              <h2 id="question-title" className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-primary sm:text-4xl">{question.title}</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{question.description}</p>
-              <fieldset className="mt-8 grid gap-3 sm:grid-cols-2">
-                <legend className="sr-only">{question.title}</legend>
-                {question.options.map((option) => (
-                  <OptionButton key={option.value} option={option} selected={answers[question.key] === option.value} onSelect={() => choose(option.value)} />
+            <div className="mb-8" aria-label={`Step ${step + 1} of ${questions.length}`} role="progressbar" aria-valuemin={1} aria-valuemax={questions.length} aria-valuenow={step + 1}>
+              <div className="grid grid-cols-5 gap-1.5">
+                {questions.map((item, index) => (
+                  <div key={item.key} className="min-w-0">
+                    <div className={cn('h-1.5 transition-colors', index <= step ? 'bg-accent' : 'bg-border')} />
+                    <span className={cn('mt-2 hidden truncate text-[10px] font-bold uppercase tracking-[.1em] sm:block', index === step ? 'text-primary' : 'text-muted-foreground')}>
+                      {item.key === 'bodyType' ? 'Shape' : item.key === 'transmission' ? 'Gearbox' : item.key === 'use' ? 'Use' : item.key}
+                    </span>
+                  </div>
                 ))}
-              </fieldset>
-              <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-6">
-                <p className="text-xs leading-5 text-muted-foreground">Not sure? Pick the closest answer. We keep the matching forgiving.</p>
-                <Button type="button" onClick={next} disabled={!answers[question.key]} data-testid={step === questions.length - 1 ? 'button-see-matches' : 'button-next-question'}>
-                  {step === questions.length - 1 ? 'See my matches' : 'Next question'}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+              </div>
+            </div>
+            <div className="overflow-hidden border border-border/80 bg-card">
+              <div className="border-b border-border/70 bg-secondary/35 px-5 py-6 sm:px-9 sm:py-8">
+                <p className="luxxy-label text-accent">{question.eyebrow}</p>
+                <h2 id="question-title" className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-primary sm:text-4xl">{question.title}</h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{question.description}</p>
+              </div>
+              <div className="p-5 sm:p-9">
+                <fieldset className="grid gap-3 sm:grid-cols-2">
+                  <legend className="sr-only">{question.title}</legend>
+                  {question.options.map((option) => (
+                    <OptionButton key={option.value} option={option} selected={answers[question.key] === option.value} onSelect={() => choose(option.value)} />
+                  ))}
+                </fieldset>
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-6">
+                  <p className="text-xs leading-5 text-muted-foreground">Not sure? Pick the closest answer. We keep the matching forgiving.</p>
+                  <Button type="button" onClick={next} disabled={!answers[question.key]} data-testid={step === questions.length - 1 ? 'button-see-matches' : 'button-next-question'}>
+                    {step === questions.length - 1 ? 'See my matches' : 'Next question'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </section>
         ) : (
           <section className="mt-12" aria-labelledby="results-title">
-            <div className="flex flex-wrap items-end justify-between gap-5 border-b border-border/80 pb-7">
-              <div>
-                <p className="luxxy-kicker">Your shortlist</p>
-                <h2 id="results-title" className="mt-4 font-display text-4xl font-semibold tracking-tight text-primary sm:text-5xl">A considered place to start.</h2>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground" aria-live="polite" data-testid="text-results-announcement">
+            <div className="grid overflow-hidden border border-border bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="px-6 py-8 sm:px-10 sm:py-10">
+                <p className="luxxy-kicker text-accent">Your shortlist</p>
+                <h2 id="results-title" className="mt-4 font-display text-4xl font-semibold tracking-tight sm:text-5xl">A considered place to start.</h2>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-primary-foreground/70" aria-live="polite" data-testid="text-results-announcement">
                   {hasStrongMatch ? 'These are the strongest matches for the answers you gave us.' : 'There is not a perfect match in today’s stock, but these are the closest cars to your brief.'}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={() => { setShowResults(false); setStep(0); setHasStarted(true); }} data-testid="button-change-answers">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Change answers
-                </Button>
-                <Button type="button" variant="ghost" onClick={restart} data-testid="button-restart-results">
-                  <RotateCcw className="h-4 w-4" />
-                  Start again
-                </Button>
+              <div className="border-t border-primary-foreground/15 bg-primary/60 px-6 py-6 sm:px-10 lg:border-l lg:border-t-0 lg:px-8 lg:py-8">
+                <p className="luxxy-label text-primary-foreground/60">Your brief</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {questions.map((item) => answers[item.key] && (
+                    <span key={item.key} className="border border-primary-foreground/20 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground/85">
+                      {answerLabel(item.key, answers[item.key] as string)}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => { setShowResults(false); setStep(0); setHasStarted(true); }} data-testid="button-change-answers" className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Change answers
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={restart} data-testid="button-restart-results" className="text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                    <RotateCcw className="h-4 w-4" />
+                    Start again
+                  </Button>
+                </div>
               </div>
             </div>
 
