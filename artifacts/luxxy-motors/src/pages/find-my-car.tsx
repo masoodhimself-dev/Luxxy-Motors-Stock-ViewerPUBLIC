@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Grid2X2, List, RotateCcw, Rows3, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { CarCard } from '@/components/car-card';
 import { Button } from '@/components/ui/button';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -346,6 +346,7 @@ export default function FindMyCar() {
   const [step, setStep] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [recommendationView, setRecommendationView] = useState<'cards' | 'compact' | 'shortlist'>('cards');
 
   usePageMeta({
     title: 'Find My Car | Luxxy Motors',
@@ -484,6 +485,7 @@ export default function FindMyCar() {
                   </button>
                 )}
                 <span className="luxxy-label text-muted-foreground">Question {step + 1} of {questions.length}</span>
+                <span className="hidden text-xs text-muted-foreground sm:inline">{answeredCount} of {questions.length} answered</span>
               </div>
               <button type="button" onClick={restart} data-testid="button-restart-quiz" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -554,6 +556,38 @@ export default function FindMyCar() {
                     Start again
                   </Button>
                 </div>
+                <div className="mt-6 border-t border-primary-foreground/15 pt-5">
+                  <p className="luxxy-label text-primary-foreground/60">View your matches</p>
+                  <div className="mt-2 grid grid-cols-3 border border-primary-foreground/20">
+                    <button
+                      type="button"
+                      aria-pressed={recommendationView === 'cards'}
+                      onClick={() => setRecommendationView('cards')}
+                      data-testid="button-recommendation-view-cards"
+                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[.06em] transition-colors', recommendationView === 'cards' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
+                    >
+                      <Grid2X2 className="h-3.5 w-3.5" /> Cards
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={recommendationView === 'compact'}
+                      onClick={() => setRecommendationView('compact')}
+                      data-testid="button-recommendation-view-compact"
+                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 border-x border-primary-foreground/20 text-[10px] font-bold uppercase tracking-[.06em] transition-colors', recommendationView === 'compact' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
+                    >
+                      <List className="h-3.5 w-3.5" /> Compact
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={recommendationView === 'shortlist'}
+                      onClick={() => setRecommendationView('shortlist')}
+                      data-testid="button-recommendation-view-shortlist"
+                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[.06em] transition-colors', recommendationView === 'shortlist' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
+                    >
+                      <Rows3 className="h-3.5 w-3.5" /> Shortlist
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -567,9 +601,23 @@ export default function FindMyCar() {
               </div>
             )}
 
-            <div className="mt-8 grid gap-6 lg:grid-cols-3" data-testid="list-recommendations">
+            <div
+              className={cn(
+                'mt-8 grid gap-6',
+                recommendationView === 'cards' ? 'lg:grid-cols-3' : 'lg:grid-cols-2',
+              )}
+              data-testid="list-recommendations"
+              data-recommendation-view={recommendationView}
+            >
               {recommendations.map(({ car, matches, misses, score }, index) => (
-                <div key={car.id} className="flex min-w-0 flex-col gap-3" data-testid={`recommendation-${car.id}`}>
+                <div
+                  key={car.id}
+                  className={cn(
+                    'flex min-w-0 flex-col gap-3',
+                    recommendationView === 'shortlist' && index === 0 && 'lg:col-span-2',
+                  )}
+                  data-testid={`recommendation-${car.id}`}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <span className="luxxy-label text-accent">{index === 0 ? 'Best fit' : `Match ${index + 1}`}</span>
                     <span className="text-xs font-semibold text-muted-foreground">{score > 0 ? `${score} points from your brief` : 'Worth a closer look'}</span>
@@ -577,6 +625,7 @@ export default function FindMyCar() {
                   <CarCard
                     car={car}
                     stretchedLink
+                    layout={recommendationView === 'compact' || (recommendationView === 'shortlist' && index > 0) ? 'compact' : 'card'}
                     badges={[
                       index === 0 ? 'Best match' : `Match ${index + 1}`,
                       ...matches.slice(0, 2).map((match) => match.explanation),
