@@ -9,7 +9,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Banknote, Calendar, CheckCircle2, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowRight, Banknote, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const defaultFilters: FilterState = {
@@ -31,6 +31,7 @@ export default function Home() {
   const { settings: dealerConfig } = useDealerSettings();
   const [showAll, setShowAll] = useState(false);
   const [stockView, setStockView] = useState<'cards' | 'compact'>('cards');
+  const [featuredIndex, setFeaturedIndex] = useState(0);
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
@@ -115,8 +116,18 @@ export default function Home() {
     [stock?.cars],
   );
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
-  const featuredCar = stock?.cars.find((car) => Boolean(getThumbnailUrl(car)));
-  const featuredImage = featuredCar ? getThumbnailUrl(featuredCar) : '';
+  const featuredCars = useMemo(() => {
+    const carsWithPhotos = (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
+    const shuffled = [...carsWithPhotos];
+
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+
+    return shuffled.slice(0, 8);
+  }, [stock?.cars]);
+  const featuredCar = featuredCars[featuredIndex % Math.max(featuredCars.length, 1)];
   const heroHeadline = dealerConfig.hero.copy.trim().toLowerCase() === 'find your next car'
     ? 'Carefully chosen cars.'
     : dealerConfig.hero.copy;
@@ -127,6 +138,25 @@ export default function Home() {
   const heroSecondaryLabel = oldSecondaryLabels.includes(dealerConfig.hero.secondaryCta.trim().toLowerCase())
     ? 'Find my car'
     : dealerConfig.hero.secondaryCta;
+
+  useEffect(() => {
+    setFeaturedIndex(0);
+  }, [featuredCars]);
+
+  useEffect(() => {
+    if (
+      featuredCars.length < 2 ||
+      (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    ) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setFeaturedIndex((current) => (current + 1) % featuredCars.length);
+    }, 5500);
+
+    return () => window.clearInterval(timer);
+  }, [featuredCars.length]);
 
   const revealResults = () => {
     setShowAll(true);
@@ -202,28 +232,65 @@ export default function Home() {
             </div>
 
             <div className="relative min-h-[20rem] overflow-hidden border-t border-border bg-primary lg:min-h-full lg:border-l lg:border-t-0">
-              {featuredCar && featuredImage ? (
-                <Link
-                  href={`/vehicle/${featuredCar.id}`}
-                  aria-label={`View ${vehicleDisplayTitle(featuredCar)}`}
-                  className="group absolute inset-0 block"
-                >
-                  <img
-                    src={featuredImage}
-                    alt=""
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]"
-                  />
-                  <span className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" aria-hidden="true" />
-                  <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
-                    <span>
-                      <span className="luxxy-label block text-primary-foreground/70">Featured on the forecourt</span>
-                      <span className="mt-2 block font-display text-2xl font-semibold">{vehicleDisplayTitle(featuredCar)}</span>
-                    </span>
-                    <span className="luxxy-price text-2xl">
-                      {featuredCar.price ? formatPrice(featuredCar.price, featuredCar.currency) : 'POA'}
-                    </span>
-                  </span>
-                </Link>
+              {featuredCar ? (
+                <>
+                  <div className="absolute inset-0 overflow-hidden">
+                    {featuredCars.map((car, index) => {
+                      const offset = index - featuredIndex;
+                      return (
+                        <Link
+                          key={car.id}
+                          href={`/vehicle/${car.id}`}
+                          aria-label={`View ${vehicleDisplayTitle(car)}`}
+                          aria-hidden={index !== featuredIndex}
+                          tabIndex={index === featuredIndex ? 0 : -1}
+                          className="group absolute inset-0 block transition-transform duration-700 ease-out"
+                          style={{ transform: `translateX(${offset * 100}%)` }}
+                        >
+                          <img
+                            src={getThumbnailUrl(car)}
+                            alt=""
+                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]"
+                          />
+                          <span className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" aria-hidden="true" />
+                          <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
+                            <span>
+                              <span className="luxxy-label block text-primary-foreground/70">Featured on the forecourt</span>
+                              <span className="mt-2 block font-display text-2xl font-semibold">{vehicleDisplayTitle(car)}</span>
+                            </span>
+                            <span className="luxxy-price text-2xl">
+                              {car.price ? formatPrice(car.price, car.currency) : 'POA'}
+                            </span>
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+
+                  {featuredCars.length > 1 && (
+                    <div className="absolute right-4 top-4 z-20 flex border border-white/35 bg-primary/75 backdrop-blur-sm">
+                      <button
+                        type="button"
+                        aria-label="Previous featured car"
+                        onClick={() => setFeaturedIndex((current) => (current - 1 + featuredCars.length) % featuredCars.length)}
+                        className="grid h-11 w-11 place-items-center text-primary-foreground transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <span className="grid min-w-14 place-items-center border-x border-white/25 px-2 font-mono text-[11px] font-bold text-primary-foreground">
+                        {featuredIndex + 1} / {featuredCars.length}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Next featured car"
+                        onClick={() => setFeaturedIndex((current) => (current + 1) % featuredCars.length)}
+                        className="grid h-11 w-11 place-items-center text-primary-foreground transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="absolute inset-0 grid place-items-center px-8 text-center">
                   <p className="font-display text-3xl text-primary-foreground">Fresh stock arriving regularly.</p>

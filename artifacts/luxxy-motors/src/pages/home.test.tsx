@@ -59,6 +59,7 @@ const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
       fuel: 'Petrol',
       transmission: 'Automatic',
       registration: 'AB12 BMW',
+      heroImage: 'https://cdn.example.com/bmw-1.jpg',
     }),
     car({
       id: 'bmw-3-series',
@@ -71,6 +72,7 @@ const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
       fuel: 'Diesel',
       transmission: 'Manual',
       writeOffCategory: 'CAT S',
+      heroImage: 'https://cdn.example.com/bmw-3.jpg',
     }),
     car({
       id: 'ford-fiesta',
@@ -160,6 +162,16 @@ beforeEach(() => {
 });
 
 describe('showroom search filters', () => {
+  it('lets shoppers move through the featured forecourt cars', () => {
+    renderHome();
+
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous featured car' }));
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
   it('switches between full cards and the compact stock list', () => {
     renderHome();
 
