@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
-import { cn, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { cn, formatMileage, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
@@ -234,7 +234,7 @@ export default function Home() {
             <div className="relative min-h-[20rem] overflow-hidden border-t border-border bg-primary lg:min-h-full lg:border-l lg:border-t-0">
               {featuredCar ? (
                 <>
-                  <div className="absolute inset-0 overflow-hidden">
+                  <div className="absolute inset-0 overflow-hidden" data-testid="featured-forecourt-carousel">
                     {featuredCars.map((car, index) => {
                       const offset = index - featuredIndex;
                       return (
@@ -257,6 +257,12 @@ export default function Home() {
                             <span>
                               <span className="luxxy-label block text-primary-foreground/70">Featured on the forecourt</span>
                               <span className="mt-2 block font-display text-2xl font-semibold">{vehicleDisplayTitle(car)}</span>
+                              <span className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[11px] font-semibold text-primary-foreground/80">
+                                {car.year && <span>{car.year}</span>}
+                                {car.mileage != null && <span>· {formatMileage(car.mileage)}</span>}
+                                {car.fuel && <span>· {car.fuel}</span>}
+                                {car.transmission && <span>· {car.transmission}</span>}
+                              </span>
                             </span>
                             <span className="luxxy-price text-2xl">
                               {car.price ? formatPrice(car.price, car.currency) : 'POA'}

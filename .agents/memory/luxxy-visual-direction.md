@@ -20,3 +20,5 @@ The approved homepage opening is an editorial forecourt split: concise serif cop
 **Why:** The earlier text-only opening felt too tall and abstract before shoppers reached the stock.
 
 **How to apply:** Keep the opening visually tied to live inventory, preserve the short path into browsing, and avoid expanding trust points back into a tall pre-stock section.
+
+The rotating featured-forecourt treatment is explicitly approved. Keep its imagery prominent while showing a restrained line of useful buying facts rather than turning it into another full vehicle card.

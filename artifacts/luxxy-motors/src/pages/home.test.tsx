@@ -165,6 +165,9 @@ describe('showroom search filters', () => {
   it('lets shoppers move through the featured forecourt cars', () => {
     renderHome();
 
+    const carousel = screen.getByTestId('featured-forecourt-carousel');
+    expect(within(carousel).getByText(/30,000 miles/)).toBeInTheDocument();
+    expect(within(carousel).getByText(/Automatic/)).toBeInTheDocument();
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
