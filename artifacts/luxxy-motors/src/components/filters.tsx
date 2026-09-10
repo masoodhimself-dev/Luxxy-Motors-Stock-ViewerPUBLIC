@@ -1,14 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
-  ArrowRight,
   Banknote,
   Car,
   ChevronDown,
   Fuel,
-  RotateCcw,
-  Search,
   Settings2,
-  SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -146,14 +142,13 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="luxxy-surface border border-border bg-card">
-      <div className="px-4 py-3 sm:p-6">
+    <div className="mb-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12">
+      <div className="py-2">
         <label className="block">
-          <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
-            <Search className="h-3.5 w-3.5 text-accent" />
+          <span className="mb-2 block text-sm font-medium text-primary">
             What are you looking for?
           </span>
-          <span className="relative block">
+          <span className="relative block max-w-3xl">
             <Input
               aria-label="Search the showroom"
               placeholder="Try “BMW”, “Golf” or a registration"
@@ -165,7 +160,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   handleSearchClick();
                 }
               }}
-              className="h-12 pr-11 text-base placeholder:font-normal focus-visible:border-accent"
+              className="h-12 border-0 border-b border-border/70 bg-transparent px-0 pr-11 text-base placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-0 rounded-none shadow-none"
               data-testid="input-showroom-search"
             />
             {filters.search && (
@@ -173,7 +168,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                 type="button"
                 aria-label="Clear showroom search"
                 onClick={() => setFilters((current) => ({ ...current, search: '' }))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground transition hover:text-primary min-h-[44px] min-w-[44px] grid place-items-center"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-muted-foreground transition hover:text-primary min-h-[44px] min-w-[44px] grid place-items-center"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -181,29 +176,26 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           </span>
         </label>
 
-        <div className="mt-3 border-t border-border/70 pt-3">
+        <div className="mt-2">
           <button
             type="button"
             aria-expanded={showAdvanced}
             onClick={() => setShowAdvanced((current) => !current)}
-            className="flex w-full items-center justify-between gap-3 border border-border bg-secondary/40 px-4 py-3 text-left text-[13px] sm:text-sm font-bold text-primary transition hover:border-accent min-h-[44px]"
+            className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-              <span className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-accent" />
-                Advanced search
-              </span>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+              <span className="font-medium">Advanced search</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
             </button>
 
             {showAdvanced && (
               <section
-                className="mt-4 border border-border bg-secondary/25 p-4 sm:p-5"
+                className="mt-6 pb-6 border-b border-border/40"
                 aria-labelledby="advanced-search-heading"
               >
-                <h3 id="advanced-search-heading" className="luxxy-label mb-5 text-muted-foreground">
+                <h3 id="advanced-search-heading" className="sr-only">
                   Refine the details
                 </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Make" icon={Car}>
                     <Select
                       value={filters.make}
@@ -230,7 +222,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       placeholder="£ Min"
                       value={filters.minPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, minPrice: event.target.value }))}
-                      className="h-11 placeholder:font-semibold"
+                      className="h-10 shadow-none"
                     />
                   </Field>
                   <Field label="Max budget" icon={Banknote}>
@@ -240,7 +232,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       placeholder="£ Max"
                       value={filters.maxPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
-                      className="h-11 placeholder:font-semibold"
+                      className="h-10 shadow-none"
                     />
                   </Field>
                   <Field label="Fuel" icon={Fuel}>
@@ -259,23 +251,23 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     </Select>
                   </Field>
                 </div>
-                <fieldset className="mt-6 border-t border-border pt-5">
-                  <legend className="luxxy-label text-muted-foreground">Insurance history</legend>
-                  <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">
+                <fieldset className="mt-8">
+                  <legend className="text-sm font-medium text-primary">Insurance history</legend>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                     Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
                   </p>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-4 flex flex-wrap gap-4">
                     {[
                       ['noWriteOff', 'No recorded write-off'],
                       ['catS', 'Category S'],
                       ['catN', 'Category N'],
                     ].map(([key, label]) => (
-                      <label key={key} className="flex min-h-11 items-center gap-3 border border-border bg-background px-3 py-2 text-sm font-semibold">
+                      <label key={key} className="flex items-center gap-2.5 text-sm">
                         <input
                           type="checkbox"
                           checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
                           onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.checked }))}
-                          className="h-4 w-4 accent-[hsl(var(--primary))]"
+                          className="h-4 w-4 accent-accent"
                         />
                         {label}
                       </label>
@@ -287,25 +279,24 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-border bg-secondary/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex flex-row items-center justify-between gap-4 sm:justify-start">
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:mt-0">
+          <div className="flex flex-row items-center justify-between gap-6 sm:justify-start">
             <button
               type="button"
               onClick={resetFilters}
-              className="text-left text-[11px] sm:text-xs font-bold uppercase tracking-[.12em] text-muted-foreground transition hover:text-primary min-h-[44px] min-w-[44px] inline-flex items-center"
+              className="text-sm text-muted-foreground hover:text-primary min-h-[44px] inline-flex items-center"
             >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              Reset
-              {activeFilterCount > 0 && <span className="ml-1.5 text-accent">({activeFilterCount})</span>}
+              Reset filters
+              {activeFilterCount > 0 && <span className="ml-1 text-accent">({activeFilterCount})</span>}
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="luxxy-label text-muted-foreground hidden sm:inline">Sort</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground hidden sm:inline">Sort</span>
               <NativeSelect
                 aria-label="Sort results"
                 value={filters.sort}
                 onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-                className="w-44 sm:w-48 text-[13px] h-11"
+                className="w-44 sm:w-48 text-sm h-10 shadow-none border-border/70"
               >
                 <option value="">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
@@ -319,10 +310,9 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <button
             type="button"
             onClick={handleSearchClick}
-            className="h-11 w-full sm:w-auto rounded-none bg-accent px-5 text-[13px] sm:text-sm font-bold text-accent-foreground transition hover:bg-accent/90 flex items-center justify-center"
+            className="h-11 w-full sm:w-auto rounded-none bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 flex items-center justify-center"
           >
             View matching cars
-            <ArrowRight className="ml-2 h-4 w-4" />
           </button>
         </div>
       </div>

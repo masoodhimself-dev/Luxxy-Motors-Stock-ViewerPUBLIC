@@ -28,3 +28,9 @@ Judge mobile homepage density by the distance to the first stock card, not by wh
 **Why:** Small reductions in hero spacing alone left the buying journey too long; stacked trust, search and toolbar sections contributed most of the accumulated height.
 
 **How to apply:** Compare a 402px-wide default-state preview against the roughly 1,400px first-card target when changing the opening. Preserve full-car framing and usable controls rather than shrinking them to meet it.
+
+Use the editorial identity with restraint: plain sentence-case labels, fewer bordered containers, and specific dealership language should carry more weight than decorative systems.
+
+**Why:** A highly regular pattern of uppercase kickers, gold icons, bordered boxes, and polished generic claims made the showroom feel AI-generated despite being visually consistent.
+
+**How to apply:** Keep the serif, ink, sage and brass identity, but avoid repeating the same visual treatment across every section. Prefer real stock, natural copy and uneven editorial rhythm; never invent social proof.
