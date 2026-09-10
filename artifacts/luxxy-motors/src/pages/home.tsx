@@ -280,7 +280,7 @@ export default function Home() {
                             alt=""
                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]"
                           />
-                           <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
+                           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
                           <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
                             <span>
                               <span className="luxxy-label block text-primary-foreground/70">Featured on the forecourt</span>
