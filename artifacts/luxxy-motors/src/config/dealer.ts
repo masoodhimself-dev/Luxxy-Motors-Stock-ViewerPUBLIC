@@ -65,6 +65,10 @@ export interface DealerConfig {
     description: string;
     ctaLabel: string;
   };
+  recentHandovers: {
+    enabled: boolean;
+    count: number;
+  };
   trustItems: string[];
   reviews?: {
     link?: string;
@@ -123,6 +127,10 @@ export const dealerConfig: DealerConfig = {
     title: "Seen something you like?",
     description: "Arrange a viewing at a time that suits you.",
     ctaLabel: "Book a Viewing",
+  },
+  recentHandovers: {
+    enabled: false,
+    count: 3,
   },
   trustItems: [
     "Warranty available",

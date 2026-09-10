@@ -39,6 +39,8 @@ const defaultSettings = {
   delivery: { enabled: true, title: "Nationwide Delivery", description: "Customers may be able to have their vehicle delivered.", ctaLabel: "Ask About Delivery" },
   partExchange: { enabled: true, title: "Looking to part exchange your current car?", description: "Give us your registration and mileage and we’ll help you understand what your current car could be worth.", ctaLabel: "Value My Car" },
   bookViewing: { title: "Seen something you like?", description: "Arrange a viewing at a time that suits you.", ctaLabel: "Book a Viewing" },
+  // Disabled until the dealer opts into publishing anonymised completed-sales proof.
+  recentHandovers: { enabled: false, count: 3 },
   trustItems: ["Warranty available", "Nationwide delivery", "Carefully selected vehicles", "Straightforward buying"],
   whyBuy: [
     { title: "Quality Vehicles", description: "Carefully selected used vehicles." },
@@ -70,7 +72,7 @@ async function cleanFeaturedVehicles(settings: Settings): Promise<Settings> {
     : { ...settings, featuredVehicleIds };
 }
 
-async function getOrCreateSettings() {
+export async function getOrCreateSettings() {
   const id = dealerId();
   const [existing] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, id));
   if (existing) {

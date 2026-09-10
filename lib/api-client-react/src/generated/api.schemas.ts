@@ -159,6 +159,44 @@ export interface DealerWhyBuyItem {
   description: string;
 }
 
+export interface DealerRecentHandovers {
+  enabled: boolean;
+  /**
+     * @minimum 1
+     * @maximum 6
+     */
+  count: number;
+}
+
+export interface RecentHandoverVehicle {
+  /** @nullable */
+  make: string | null;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  trim: string | null;
+  /** @nullable */
+  year: number | null;
+  /** @nullable */
+  bodyType: string | null;
+  /** @nullable */
+  fuel: string | null;
+  /** @nullable */
+  transmission: string | null;
+}
+
+export interface RecentHandover {
+  vehicle: RecentHandoverVehicle;
+  /** @pattern ^[A-Z][a-z]+ [0-9]{4}$ */
+  handoverMonth: string;
+}
+
+export interface RecentHandovers {
+  schemaVersion: 1;
+  /** @maxItems 6 */
+  handovers: RecentHandover[];
+}
+
 export interface DealerSettings {
   identity: DealerIdentity;
   contact: DealerContact;
@@ -178,6 +216,7 @@ export interface DealerSettings {
   delivery: DealerService;
   partExchange: DealerService;
   bookViewing: DealerBookViewing;
+  recentHandovers: DealerRecentHandovers;
   /**
      * @maxItems 8
      * @items.minLength 1

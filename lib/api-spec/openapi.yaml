@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: stock
     description: Shared showroom stock
+  - name: recent-handovers
+    description: Anonymised completed handovers shown on the public showroom
   - name: enquiries
     description: Customer enquiries and viewing requests
   - name: viewings
@@ -51,6 +53,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Stock"
+  /recent-handovers:
+    get:
+      operationId: getRecentHandovers
+      tags: [recent-handovers]
+      summary: Get recent public handovers
+      description: Returns an anonymised, allowlisted projection of completed vehicle handovers for showroom social proof.
+      responses:
+        "200":
+          description: Recent public handovers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecentHandovers"
+        "500":
+          description: Unable to load recent handovers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /stock/imports/autotrader:
     post:
       operationId: importAutotraderStock
@@ -1663,6 +1684,61 @@ components:
         title: { type: string, minLength: 1, maxLength: 120 }
         description: { type: string, minLength: 1, maxLength: 300 }
       required: [title, description]
+    DealerRecentHandovers:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        count:
+          type: number
+          multipleOf: 1
+          minimum: 1
+          maximum: 6
+      required: [enabled, count]
+    RecentHandoverVehicle:
+      type: object
+      additionalProperties: false
+      properties:
+        make:
+          type: [string, "null"]
+        model:
+          type: [string, "null"]
+        trim:
+          type: [string, "null"]
+        year:
+          type: [number, "null"]
+          multipleOf: 1
+        bodyType:
+          type: [string, "null"]
+        fuel:
+          type: [string, "null"]
+        transmission:
+          type: [string, "null"]
+      required: [make, model, trim, year, bodyType, fuel, transmission]
+    RecentHandover:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicle:
+          $ref: "#/components/schemas/RecentHandoverVehicle"
+        handoverMonth:
+          type: string
+          pattern: "^[A-Z][a-z]+ [0-9]{4}$"
+      required: [vehicle, handoverMonth]
+    RecentHandovers:
+      type: object
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: integer
+          const: 1
+        handovers:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/RecentHandover"
+      required: [schemaVersion, handovers]
     DealerSettings:
       type: object
       additionalProperties: false
@@ -1686,6 +1762,7 @@ components:
         delivery: { $ref: "#/components/schemas/DealerService" }
         partExchange: { $ref: "#/components/schemas/DealerService" }
         bookViewing: { $ref: "#/components/schemas/DealerBookViewing" }
+        recentHandovers: { $ref: "#/components/schemas/DealerRecentHandovers" }
         trustItems:
           type: array
           maxItems: 8
@@ -1694,7 +1771,7 @@ components:
           type: array
           maxItems: 8
           items: { $ref: "#/components/schemas/DealerWhyBuyItem" }
-      required: [identity, contact, address, hours, legal, social, hero, featuredVehicleIds, warranty, delivery, partExchange, bookViewing, trustItems, whyBuy]
+      required: [identity, contact, address, hours, legal, social, hero, featuredVehicleIds, warranty, delivery, partExchange, bookViewing, recentHandovers, trustItems, whyBuy]
     DealerSettingsInput:
       allOf:
         - $ref: "#/components/schemas/DealerSettings"

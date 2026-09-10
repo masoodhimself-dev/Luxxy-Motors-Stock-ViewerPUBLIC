@@ -54,6 +54,7 @@ import type {
   LeadUpdate,
   PortalSession,
   PortalWorklist,
+  RecentHandovers,
   Sale,
   SaleChecklist,
   SaleChecklistCode,
@@ -244,6 +245,84 @@ export function useGetStock<TData = Awaited<ReturnType<typeof getStock>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStockQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRecentHandoversUrl = () => {
+
+
+
+
+  return `/api/recent-handovers`
+}
+
+/**
+ * Returns an anonymised, allowlisted projection of completed vehicle handovers for showroom social proof.
+ * @summary Get recent public handovers
+ */
+export const getRecentHandovers = async ( options?: Parameters<typeof customFetch>[1]): Promise<RecentHandovers> => {
+
+  return customFetch<RecentHandovers>(getGetRecentHandoversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRecentHandoversQueryKey = () => {
+    return [
+    `/api/recent-handovers`
+    ] as const;
+    }
+
+
+export const getGetRecentHandoversQueryOptions = <TData = Awaited<ReturnType<typeof getRecentHandovers>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecentHandovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRecentHandoversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentHandovers>>> = ({ signal }) => getRecentHandovers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecentHandovers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRecentHandoversQueryResult = NonNullable<Awaited<ReturnType<typeof getRecentHandovers>>>
+export type GetRecentHandoversQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get recent public handovers
+ */
+
+export function useGetRecentHandovers<TData = Awaited<ReturnType<typeof getRecentHandovers>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecentHandovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRecentHandoversQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

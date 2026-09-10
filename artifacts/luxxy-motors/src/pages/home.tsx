@@ -12,6 +12,7 @@ import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Banknote, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Pause, Phone, Play, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
+import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';
 
 const defaultFilters: FilterState = {
   make: '',
@@ -31,6 +32,12 @@ const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 export default function Home() {
   const { stock, isLoading } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
+  const recentHandoversQuery = useGetRecentHandovers({
+    query: {
+      queryKey: getGetRecentHandoversQueryKey(),
+      enabled: dealerConfig.recentHandovers.enabled,
+    },
+  });
   const [showAll, setShowAll] = useState(false);
   const [stockView, setStockView] = useState<'cards' | 'compact'>(() =>
     window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards',
@@ -114,6 +121,7 @@ export default function Home() {
   }, [isLoading]);
 
   const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
+  const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
 
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', ');
   const makes = useMemo(
@@ -499,6 +507,48 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {dealerConfig.recentHandovers.enabled && recentHandovers.length > 0 && (
+        <section
+          id="recent-handovers"
+          data-home-section
+          data-testid="recent-handovers-section"
+          className="border-y border-border bg-card py-16 md:py-20"
+          aria-labelledby="recent-handovers-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-9 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="luxxy-kicker text-accent">The handover list</p>
+                <h2 id="recent-handovers-heading" className="mt-4 font-display text-4xl font-semibold leading-none tracking-[-.03em] text-primary md:text-5xl">
+                  Recently handed over
+                </h2>
+              </div>
+              <p className="max-w-xs text-sm leading-6 text-muted-foreground">
+                A few recent deliveries and collections from the showroom.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {recentHandovers.map((handover) => {
+                const vehicle = handover.vehicle;
+                const vehicleName = [vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(' ') || 'Vehicle';
+                return (
+                  <article key={`${vehicleName}-${handover.handoverMonth}`} className="border border-border bg-background p-6" data-testid="recent-handover">
+                    <div className="flex items-start justify-between gap-4">
+                      <span className="grid h-10 w-10 place-items-center bg-secondary text-accent"><CheckCircle2 className="h-5 w-5" aria-hidden="true" /></span>
+                      <span className="luxxy-label text-right text-muted-foreground">{handover.handoverMonth}</span>
+                    </div>
+                    <h3 className="mt-8 font-display text-2xl font-semibold leading-tight text-primary">{vehicleName}</h3>
+                    <p className="mt-3 text-[12px] font-bold uppercase tracking-[.1em] text-muted-foreground">
+                      {[vehicle.year, vehicle.bodyType, vehicle.fuel, vehicle.transmission].filter(Boolean).join(' · ')}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* How we work */}
       {dealerConfig.whyBuy && dealerConfig.whyBuy.length > 0 && (

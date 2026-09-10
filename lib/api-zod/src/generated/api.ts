@@ -96,6 +96,34 @@ export const GetStockResponse = zod.object({
 
 
 /**
+ * Returns an anonymised, allowlisted projection of completed vehicle handovers for showroom social proof.
+ * @summary Get recent public handovers
+ */
+export const getRecentHandoversResponseHandoversItemVehicleYearMultipleOf = 1;
+
+export const getRecentHandoversResponseHandoversItemHandoverMonthRegExp = new RegExp('^[A-Z][a-z]+ [0-9]{4}$');
+export const getRecentHandoversResponseHandoversMax = 6;
+
+
+
+export const GetRecentHandoversResponse = zod.object({
+  "schemaVersion": zod.literal(1),
+  "handovers": zod.array(zod.object({
+  "vehicle": zod.object({
+  "make": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "trim": zod.string().nullable(),
+  "year": zod.number().multipleOf(getRecentHandoversResponseHandoversItemVehicleYearMultipleOf).nullable(),
+  "bodyType": zod.string().nullable(),
+  "fuel": zod.string().nullable(),
+  "transmission": zod.string().nullable()
+}),
+  "handoverMonth": zod.string().regex(getRecentHandoversResponseHandoversItemHandoverMonthRegExp)
+})).max(getRecentHandoversResponseHandoversMax)
+})
+
+
+/**
  * Reconciles the database to the supplied complete Auto Trader snapshot. Schema version 1 is the only supported version.
  * @summary Import a full Auto Trader stock snapshot
  */
@@ -2394,6 +2422,9 @@ export const getDealerSettingsResponseBookViewingDescriptionMax = 300;
 
 export const getDealerSettingsResponseBookViewingCtaLabelMax = 80;
 
+export const getDealerSettingsResponseRecentHandoversCountMax = 6;
+export const getDealerSettingsResponseRecentHandoversCountMultipleOf = 1;
+
 export const getDealerSettingsResponseTrustItemsItemMax = 120;
 
 export const getDealerSettingsResponseTrustItemsMax = 8;
@@ -2475,6 +2506,10 @@ export const GetDealerSettingsResponse = zod.object({
   "title": zod.string().min(1).max(getDealerSettingsResponseBookViewingTitleMax),
   "description": zod.string().min(1).max(getDealerSettingsResponseBookViewingDescriptionMax),
   "ctaLabel": zod.string().min(1).max(getDealerSettingsResponseBookViewingCtaLabelMax)
+}),
+  "recentHandovers": zod.object({
+  "enabled": zod.boolean(),
+  "count": zod.number().min(1).max(getDealerSettingsResponseRecentHandoversCountMax).multipleOf(getDealerSettingsResponseRecentHandoversCountMultipleOf)
 }),
   "trustItems": zod.array(zod.string().min(1).max(getDealerSettingsResponseTrustItemsItemMax)).max(getDealerSettingsResponseTrustItemsMax),
   "whyBuy": zod.array(zod.object({
@@ -2574,6 +2609,9 @@ export const updateDealerSettingsBodyOneBookViewingDescriptionMax = 300;
 
 export const updateDealerSettingsBodyOneBookViewingCtaLabelMax = 80;
 
+export const updateDealerSettingsBodyOneRecentHandoversCountMax = 6;
+export const updateDealerSettingsBodyOneRecentHandoversCountMultipleOf = 1;
+
 export const updateDealerSettingsBodyOneTrustItemsItemMax = 120;
 
 export const updateDealerSettingsBodyOneTrustItemsMax = 8;
@@ -2655,6 +2693,10 @@ export const UpdateDealerSettingsBody = zod.object({
   "title": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingTitleMax),
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingCtaLabelMax)
+}),
+  "recentHandovers": zod.object({
+  "enabled": zod.boolean(),
+  "count": zod.number().min(1).max(updateDealerSettingsBodyOneRecentHandoversCountMax).multipleOf(updateDealerSettingsBodyOneRecentHandoversCountMultipleOf)
 }),
   "trustItems": zod.array(zod.string().min(1).max(updateDealerSettingsBodyOneTrustItemsItemMax)).max(updateDealerSettingsBodyOneTrustItemsMax),
   "whyBuy": zod.array(zod.object({
@@ -2749,6 +2791,9 @@ export const updateDealerSettingsResponseBookViewingDescriptionMax = 300;
 
 export const updateDealerSettingsResponseBookViewingCtaLabelMax = 80;
 
+export const updateDealerSettingsResponseRecentHandoversCountMax = 6;
+export const updateDealerSettingsResponseRecentHandoversCountMultipleOf = 1;
+
 export const updateDealerSettingsResponseTrustItemsItemMax = 120;
 
 export const updateDealerSettingsResponseTrustItemsMax = 8;
@@ -2830,6 +2875,10 @@ export const UpdateDealerSettingsResponse = zod.object({
   "title": zod.string().min(1).max(updateDealerSettingsResponseBookViewingTitleMax),
   "description": zod.string().min(1).max(updateDealerSettingsResponseBookViewingDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponseBookViewingCtaLabelMax)
+}),
+  "recentHandovers": zod.object({
+  "enabled": zod.boolean(),
+  "count": zod.number().min(1).max(updateDealerSettingsResponseRecentHandoversCountMax).multipleOf(updateDealerSettingsResponseRecentHandoversCountMultipleOf)
 }),
   "trustItems": zod.array(zod.string().min(1).max(updateDealerSettingsResponseTrustItemsItemMax)).max(updateDealerSettingsResponseTrustItemsMax),
   "whyBuy": zod.array(zod.object({

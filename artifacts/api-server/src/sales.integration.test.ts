@@ -14,6 +14,7 @@ const {
   db,
   pool,
   customerTable,
+  dealerSettingsTable,
   dealVaultArtifactsTable,
   invoicesTable,
   saleAdjustmentsTable,
@@ -64,6 +65,7 @@ async function cleanupNamespace() {
   }
   await db.delete(salesTable).where(eq(salesTable.dealerId, dealerId));
   await db.delete(customerTable).where(eq(customerTable.dealerId, dealerId));
+  await db.delete(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId));
   await db.delete(vehiclesTable).where(eq(vehiclesTable.dealerId, dealerId));
 }
 
@@ -197,6 +199,125 @@ test("prevents two active sales from claiming one vehicle", async () => {
     body: JSON.stringify({ vehicleId, customer: { name: "Second Buyer" }, agreedPricePence: 100000 }),
   });
   assert.equal(second.status, 409);
+});
+
+test("publishes only anonymised completed handovers in newest-first order", async () => {
+  const [settings] = await db
+    .select()
+    .from(dealerSettingsTable)
+    .where(eq(dealerSettingsTable.dealerId, dealerId));
+  const settingsResponse = settings
+    ? settings.config
+    : await (await request("/dealer-settings")).json();
+  await db
+    .insert(dealerSettingsTable)
+    .values({
+      dealerId,
+      config: {
+        ...(settingsResponse as Record<string, unknown>),
+        recentHandovers: { enabled: true, count: 2 },
+      },
+    })
+    .onConflictDoUpdate({
+      target: dealerSettingsTable.dealerId,
+      set: { config: { ...(settingsResponse as Record<string, unknown>), recentHandovers: { enabled: true, count: 2 } } },
+    });
+
+  const [olderVehicle, newestVehicle] = await db
+    .insert(vehiclesTable)
+    .values([
+      {
+        dealerId,
+        source: "sales-integration-test",
+        advertId: `sales-older-${process.pid}`,
+        title: "Older Handover Vehicle",
+        make: "Older",
+        model: "Handover",
+        trim: "Touring",
+        year: 2021,
+        bodyType: "Estate",
+        fuel: "Diesel",
+        transmission: "Manual",
+        inventoryStatus: "sold",
+        sourceStatus: "live",
+      },
+      {
+        dealerId,
+        source: "sales-integration-test",
+        advertId: `sales-newest-${process.pid}`,
+        title: "Newest Handover Vehicle",
+        make: "Newest",
+        model: "Handover",
+        trim: "Premium",
+        year: 2023,
+        bodyType: "SUV",
+        fuel: "Petrol",
+        transmission: "Automatic",
+        inventoryStatus: "sold",
+        sourceStatus: "live",
+      },
+    ])
+    .returning({ id: vehiclesTable.id });
+  const [olderCustomer, newestCustomer, incompleteCustomer] = await db
+    .insert(customerTable)
+    .values([
+      { dealerId, name: "Private Older Buyer", email: "older@example.test", phone: "000" },
+      { dealerId, name: "Private Newest Buyer", email: "newest@example.test", phone: "111" },
+      { dealerId, name: "Private Incomplete Buyer", email: "incomplete@example.test", phone: "222" },
+    ])
+    .returning({ id: customerTable.id });
+  await db.insert(salesTable).values([
+    {
+      dealerId,
+      vehicleId: olderVehicle!.id,
+      customerId: olderCustomer!.id,
+      status: "completed",
+      agreedPricePence: 1200000,
+      depositPence: 100000,
+      balancePence: 1100000,
+      completedAt: new Date("2026-07-10T12:00:00.000Z"),
+      internalNotes: "Never publish this",
+    },
+    {
+      dealerId,
+      vehicleId: newestVehicle!.id,
+      customerId: newestCustomer!.id,
+      status: "completed",
+      agreedPricePence: 2300000,
+      depositPence: 200000,
+      balancePence: 2100000,
+      completedAt: new Date("2026-08-20T12:00:00.000Z"),
+      disclosureNotes: "Never publish this either",
+    },
+    {
+      dealerId,
+      vehicleId,
+      customerId: incompleteCustomer!.id,
+      status: "signed",
+      agreedPricePence: 900000,
+      depositPence: 0,
+      balancePence: 900000,
+      completedAt: null,
+    },
+  ]);
+
+  const response = await request("/recent-handovers");
+  assert.equal(response.status, 200);
+  const body = await response.json() as { schemaVersion: number; handovers: Array<Record<string, unknown>> };
+  assert.deepEqual(Object.keys(body), ["schemaVersion", "handovers"]);
+  assert.equal(body.handovers.length, 2);
+  assert.deepEqual(body.handovers.map((handover) => handover.handoverMonth), ["August 2026", "July 2026"]);
+  assert.deepEqual(Object.keys(body.handovers[0]!), ["vehicle", "handoverMonth"]);
+  assert.deepEqual(Object.keys(body.handovers[0]!.vehicle as object), ["make", "model", "trim", "year", "bodyType", "fuel", "transmission"]);
+  assert.equal(JSON.stringify(body).includes("Private"), false);
+  assert.equal(JSON.stringify(body).includes("Never publish"), false);
+
+  await db
+    .update(dealerSettingsTable)
+    .set({ config: { ...(settingsResponse as Record<string, unknown>), recentHandovers: { enabled: false, count: 2 } } })
+    .where(eq(dealerSettingsTable.dealerId, dealerId));
+  const disabled = await request("/recent-handovers");
+  assert.deepEqual(await disabled.json(), { schemaVersion: 1, handovers: [] });
 });
 
 test("revokes the old signing session when a new revision is prepared", async () => {

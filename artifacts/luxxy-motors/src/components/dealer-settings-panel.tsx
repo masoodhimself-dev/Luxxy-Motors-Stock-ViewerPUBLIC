@@ -102,6 +102,10 @@ const fallbackSettings: DealerSettings = {
     description: dealerConfig.bookViewing.description,
     ctaLabel: dealerConfig.bookViewing.ctaLabel,
   },
+  recentHandovers: {
+    enabled: dealerConfig.recentHandovers?.enabled ?? false,
+    count: dealerConfig.recentHandovers?.count ?? 3,
+  },
   trustItems: [...dealerConfig.trustItems],
   whyBuy: (dealerConfig.whyBuy || []).map((item) => ({ ...item })),
 };
@@ -120,6 +124,7 @@ function copySettings(source: DealerSettings): DealerSettings {
     delivery: { ...source.delivery },
     partExchange: { ...source.partExchange },
     bookViewing: { ...source.bookViewing },
+    recentHandovers: { ...source.recentHandovers },
     trustItems: [...source.trustItems],
     whyBuy: source.whyBuy.map((item) => ({ ...item })),
   };
@@ -540,6 +545,40 @@ export function DealerSettingsPanel() {
                   </select>
                 </div>
               )}
+            </div>
+          </div>
+          <div className="mt-8 border-t border-border/70 pt-8">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary"><Check className="h-4 w-4 text-accent" /> Recent handovers</p>
+                <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">Show a small, anonymised list of completed handovers. No buyer, price, registration or transaction details are published.</p>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2.5 text-[12px] font-bold uppercase tracking-[.08em] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.recentHandovers.enabled}
+                  onChange={(event) => updateNested('recentHandovers', 'enabled', event.target.checked)}
+                  className="peer sr-only"
+                  data-testid="checkbox-recent-handovers"
+                />
+                <span className="flex h-6 w-11 items-center rounded-full bg-muted/60 p-1 transition-colors peer-checked:bg-primary">
+                  <span className="h-4 w-4 rounded-full bg-background shadow-sm transition-transform peer-checked:translate-x-5" />
+                </span>
+                {form.recentHandovers.enabled ? 'On' : 'Off'}
+              </label>
+            </div>
+            <div className="max-w-xs">
+              <Field label="Handovers to show" hint="1–6 items">
+                <Input
+                  type="number"
+                  min={1}
+                  max={6}
+                  step={1}
+                  value={form.recentHandovers.count}
+                  onChange={(event) => updateNested('recentHandovers', 'count', Math.min(6, Math.max(1, Number(event.target.value) || 1)))}
+                  data-testid="input-recent-handovers-count"
+                />
+              </Field>
             </div>
           </div>
           <div className="mt-8 border-t border-border/70 pt-8">

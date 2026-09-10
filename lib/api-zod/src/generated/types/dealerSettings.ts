@@ -12,6 +12,7 @@ import type { DealerHero } from './dealerHero';
 import type { DealerHoursItem } from './dealerHoursItem';
 import type { DealerIdentity } from './dealerIdentity';
 import type { DealerLegal } from './dealerLegal';
+import type { DealerRecentHandovers } from './dealerRecentHandovers';
 import type { DealerService } from './dealerService';
 import type { DealerSocial } from './dealerSocial';
 import type { DealerWhyBuyItem } from './dealerWhyBuyItem';
@@ -35,6 +36,7 @@ export interface DealerSettings {
   delivery: DealerService;
   partExchange: DealerService;
   bookViewing: DealerBookViewing;
+  recentHandovers: DealerRecentHandovers;
   /**
      * @maxItems 8
      * @items.minLength 1

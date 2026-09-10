@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 
-const { stockFixture, dealerConfigFixture, scrollToHomeTarget } = vi.hoisted(() => {
+const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTarget } = vi.hoisted(() => {
   const baseCar = {
     id: '',
     advertId: '',
@@ -117,8 +117,9 @@ const { stockFixture, dealerConfigFixture, scrollToHomeTarget } = vi.hoisted(() 
     hero: { copy: 'Find your next car', subcopy: 'Subcopy', announcement: 'Test Announcement', primaryCta: 'See stock', secondaryCta: 'Part exchange' },
     bookViewing: { title: 'Book a viewing', ctaLabel: 'Book now', description: 'Book a viewing' },
     trustItems: ['Trust point 1'],
-    whyBuy: [],
+    whyBuy: [{ title: 'How we work', description: 'A clear buying process.' }],
     featuredVehicleIds: [] as string[],
+    recentHandovers: { enabled: true, count: 3 },
     delivery: { enabled: true, title: 'Delivery', description: 'Delivery available', ctaLabel: 'Delivery enquiry' },
     warranty: { enabled: true, title: 'Warranty', description: 'Warranty available', ctaLabel: 'Warranty enquiry' },
     partExchange: { enabled: true, title: 'Part exchange', description: 'Part exchange available', ctaLabel: 'Part exchange enquiry' },
@@ -134,6 +135,17 @@ const { stockFixture, dealerConfigFixture, scrollToHomeTarget } = vi.hoisted(() 
       cars,
     },
     dealerConfigFixture: dealerConfigBase,
+    recentHandoversState: {
+      value: {
+        schemaVersion: 1,
+        handovers: [] as Array<{
+          vehicle: { make: string | null; model: string | null; trim: string | null; year: number | null; bodyType: string | null; fuel: string | null; transmission: string | null };
+          handoverMonth: string;
+        }>,
+        isLoading: false,
+        isError: false,
+      },
+    },
     scrollToHomeTarget: vi.fn(),
   };
 });
@@ -151,6 +163,11 @@ vi.mock('@/lib/stock-context', () => ({
 vi.mock('@/lib/home-navigation', () => ({
   flushPendingHomeTarget: vi.fn(),
   scrollToHomeTarget,
+}));
+
+vi.mock('@workspace/api-client-react', () => ({
+  useGetRecentHandovers: () => ({ data: recentHandoversState.value, isLoading: recentHandoversState.value.isLoading, isError: recentHandoversState.value.isError }),
+  getGetRecentHandoversQueryKey: () => ['/api/recent-handovers'],
 }));
 
 function renderHome() {
@@ -182,9 +199,64 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   overrideSettings = dealerConfigFixture;
+  recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: false, isError: false };
 });
 
 describe('showroom search filters', () => {
+  it('shows anonymised recent handovers before the how-we-work section', () => {
+    recentHandoversState.value = {
+      schemaVersion: 1,
+      handovers: [
+        {
+          vehicle: { make: 'BMW', model: '1 Series', trim: 'M Sport', year: 2022, bodyType: 'Hatchback', fuel: 'Petrol', transmission: 'Automatic' },
+          handoverMonth: 'August 2026',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    renderHome();
+
+    const section = screen.getByTestId('recent-handovers-section');
+    expect(within(section).getByRole('heading', { name: 'Recently handed over' })).toBeInTheDocument();
+    expect(within(section).getByText('BMW 1 Series M Sport')).toBeInTheDocument();
+    expect(within(section).getByText('August 2026')).toBeInTheDocument();
+    expect(section.compareDocumentPosition(document.getElementById('about')!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('keeps recent handovers absent when the dealer disables them or none qualify', () => {
+    renderHome();
+    expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
+
+    recentHandoversState.value = {
+      schemaVersion: 1,
+      handovers: [
+        {
+          vehicle: { make: 'Audi', model: 'A3', trim: null, year: 2021, bodyType: 'Hatchback', fuel: 'Hybrid', transmission: 'Automatic' },
+          handoverMonth: 'July 2026',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    overrideSettings = { ...dealerConfigFixture, recentHandovers: { enabled: false, count: 3 } };
+    renderHome();
+    expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
+  });
+
+  it('keeps stock browsing available while handover data is loading or unavailable', () => {
+    recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: true, isError: false };
+    renderHome();
+    expect(screen.getByTestId('button-view-all-vehicles')).toBeInTheDocument();
+    expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
+
+    cleanup();
+    recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: false, isError: true };
+    renderHome();
+    expect(screen.getByTestId('button-view-all-vehicles')).toBeInTheDocument();
+    expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
+  });
+
   it('lets shoppers move through the featured forecourt cars', () => {
     renderHome();
 
