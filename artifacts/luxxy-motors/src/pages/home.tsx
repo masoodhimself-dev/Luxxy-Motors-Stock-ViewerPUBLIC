@@ -226,16 +226,16 @@ export default function Home() {
         <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+2rem)]">
           <div className="grid lg:min-h-[30rem] lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12">
             <div className="relative z-10 flex flex-col justify-center py-4 sm:py-8 lg:py-12">
-              <p className="luxxy-reveal text-[15px] font-medium text-primary/70">
+              <p className="luxxy-reveal label-sm text-primary/70">
                 {heroAnnouncement || `Independent used-car dealer in ${dealerConfig.address?.city || 'Harrow'}`}
               </p>
-              <h1 className="luxxy-reveal luxxy-reveal-1 mt-4 max-w-2xl break-words font-display text-[clamp(2.5rem,8vw,4.5rem)] leading-[1.05] tracking-tight text-primary">
+              <h1 className="luxxy-reveal luxxy-reveal-1 mt-4 max-w-2xl break-words heading-1 text-primary">
                 {heroHeadline}
               </h1>
-              <p className="luxxy-reveal luxxy-reveal-2 mt-4 max-w-lg text-base leading-7 text-primary/80 sm:mt-6 sm:text-[19px] sm:leading-relaxed">
+              <p className="luxxy-reveal luxxy-reveal-2 mt-4 body-lg text-primary/80 sm:mt-6">
                 {heroSubcopy}
               </p>
-              <p className="mt-5 text-sm text-primary/70 sm:mt-8 sm:text-[15px]">
+              <p className="mt-5 body-sm text-primary/70 sm:mt-8">
                 {stockCount} cars available · {locationLabel || 'Harrow, London'}
               </p>
               <div className="luxxy-reveal luxxy-reveal-3 mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
@@ -244,7 +244,7 @@ export default function Home() {
                   size="lg"
                   onClick={revealResults}
                   data-testid="button-hero-primary"
-                  className="h-12 bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 rounded-none sm:h-14 sm:px-8 sm:text-[15px]"
+                  className="h-12 bg-primary px-4 text-sm sm:text-base font-medium text-primary-foreground hover:bg-primary/90 rounded-none sm:h-14 sm:px-8"
                 >
                   <span className="truncate">{heroPrimaryLabel}</span>
                 </Button>
@@ -253,7 +253,7 @@ export default function Home() {
                   variant="outline"
                   asChild
                   data-testid="link-hero-find-my-car"
-                  className="h-12 border-primary/20 bg-transparent px-4 text-sm font-medium text-primary hover:border-primary hover:bg-primary/5 rounded-none sm:h-14 sm:px-8 sm:text-[15px]"
+                  className="h-12 border-primary/20 bg-transparent px-4 text-sm sm:text-base font-medium text-primary hover:border-primary hover:bg-primary/5 rounded-none sm:h-14 sm:px-8"
                 >
                   <Link href="/find-my-car">
                     <span className="truncate">{heroSecondaryLabel}</span>
@@ -287,16 +287,16 @@ export default function Home() {
                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
                           <span className="absolute inset-x-0 bottom-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
                             <span>
-                              <span className="block text-[15px] text-primary-foreground/70">Featured on the forecourt</span>
-                              <span className="mt-1 block font-display text-[1.75rem] font-medium leading-tight">{vehicleDisplayTitle(car)}</span>
-                              <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[15px] text-primary-foreground/80">
+                              <span className="block label-sm text-primary-foreground/70">Featured on the forecourt</span>
+                              <span className="mt-1 block heading-3">{vehicleDisplayTitle(car)}</span>
+                              <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 body-base text-primary-foreground/80">
                                 {car.year && <span>{car.year}</span>}
                                 {car.mileage != null && <span>· {formatMileage(car.mileage)}</span>}
                                 {car.fuel && <span>· {car.fuel}</span>}
                                 {car.transmission && <span>· {car.transmission}</span>}
                               </span>
                             </span>
-                            <span className="text-[1.5rem] font-medium">
+                            <span className="luxxy-price text-2xl">
                               {car.price ? formatPrice(car.price, car.currency) : 'POA'}
                             </span>
                           </span>
@@ -330,7 +330,7 @@ export default function Home() {
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
-                       <span aria-live="polite" aria-atomic="true" className="grid min-w-12 place-items-center px-1 text-[13px] font-medium text-primary-foreground">
+                       <span aria-live="polite" aria-atomic="true" className="grid min-w-12 place-items-center px-1 text-sm font-medium text-primary-foreground">
                         {featuredIndex + 1} / {featuredCars.length}
                       </span>
                       <button
@@ -358,7 +358,7 @@ export default function Home() {
 
         {dealerConfig.trustItems?.length > 0 && (
           <div className="container mx-auto px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8" aria-label={`${dealerConfig.identity.name} promises`}>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px] text-primary/80 sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-4 sm:text-[14px]">
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-primary/80 sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-4">
               {dealerConfig.trustItems.slice(0, 4).map((item) => (
                 <li key={item} className="flex items-start gap-2 sm:items-center sm:gap-3">
                   <span className="h-1.5 w-1.5 bg-accent rounded-full" aria-hidden="true" />
@@ -375,13 +375,13 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-col gap-2 sm:mb-10 sm:flex-row sm:items-end sm:justify-between border-b border-border/70 pb-4 sm:pb-8">
             <div>
-              <p className="text-[15px] font-medium text-primary/70">{showAll ? 'Full stock list' : 'Browse our stock'}</p>
-              <h2 className="mt-2 font-display text-[2.25rem] font-medium tracking-tight text-primary md:text-5xl">
+              <p className="label-sm text-primary/70">{showAll ? 'Full stock list' : 'Browse our stock'}</p>
+              <h2 className="mt-2 heading-2 text-primary">
                 {showAll ? 'Every car on site' : 'Latest arrivals'}
               </h2>
             </div>
             {stock && (
-              <p className="text-[15px] text-primary/70 mb-2" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
+              <p className="body-sm text-primary/70 mb-2" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
                 {filteredCars.length} {filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available
               </p>
             )}
@@ -419,7 +419,7 @@ export default function Home() {
 
           <section className="mt-1 sm:mt-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-center border-b border-border/70 pb-4 sm:pb-8">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[15px] text-primary/70 mr-2 hidden sm:inline">Shortcuts</span>
+              <span className="text-sm sm:text-base text-primary/70 mr-2 hidden sm:inline">Shortcuts</span>
               <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className={quickFilterClass} data-testid="button-quick-automatic">
                 Automatic
               </button>
@@ -439,7 +439,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'cards' });
                 }}
                 data-testid="button-stock-view-cards"
-                className={cn('flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 px-4 text-sm font-medium transition-colors rounded-none sm:h-12 sm:px-6 sm:text-[15px]', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:text-primary')}
+                className={cn('flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 px-4 text-sm sm:text-base font-medium transition-colors rounded-none sm:h-12 sm:px-6', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:text-primary')}
               >
                 <Grid2X2 className="h-4 w-4" /> Cards
               </button>
@@ -451,7 +451,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'compact' });
                 }}
                 data-testid="button-stock-view-compact"
-                className={cn('flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 px-4 text-sm font-medium transition-colors rounded-none sm:h-12 sm:px-6 sm:text-[15px]', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:text-primary')}
+                className={cn('flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 px-4 text-sm sm:text-base font-medium transition-colors rounded-none sm:h-12 sm:px-6', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:text-primary')}
               >
                 <List className="h-4 w-4" /> Compact
               </button>
@@ -481,7 +481,7 @@ export default function Home() {
                       }}
                       size="lg"
                       data-testid="button-view-all-vehicles"
-                      className="h-14 bg-primary px-10 text-[15px] font-medium hover:bg-primary/90 rounded-none text-primary-foreground"
+                      className="h-14 bg-primary px-10 text-base font-medium hover:bg-primary/90 rounded-none text-primary-foreground"
                     >
                       View all {filteredCars.length} vehicles
                     </Button>
@@ -491,11 +491,11 @@ export default function Home() {
             ) : (
               <div className="mx-auto max-w-2xl py-24 text-center">
                 <Search className="mx-auto mb-6 h-8 w-8 text-primary/40" />
-                <p className="font-display text-[2rem] font-medium tracking-tight text-primary">Nothing matches that search</p>
-                <p className="mx-auto mb-10 mt-4 max-w-md text-[16px] leading-relaxed text-primary/70">
+                <p className="heading-3 text-primary">Nothing matches that search</p>
+                <p className="mx-auto mb-10 mt-4 body-base max-w-md text-primary/70">
                   Try widening your budget or clearing the filters to see the full stock list.
                 </p>
-                <Button size="lg" onClick={() => { setFilters(defaultFilters); setShowAll(false); }} data-testid="button-clear-filters" className="h-14 px-8 text-[15px] font-medium rounded-none bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button size="lg" onClick={() => { setFilters(defaultFilters); setShowAll(false); }} data-testid="button-clear-filters" className="h-14 px-8 text-base font-medium rounded-none bg-primary text-primary-foreground hover:bg-primary/90">
                   Clear all filters
                 </Button>
               </div>
@@ -515,12 +515,12 @@ export default function Home() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-primary-foreground/10 pb-8">
               <div>
-                <p className="text-[15px] font-medium text-accent">Recent deliveries</p>
-                <h2 id="recent-handovers-heading" className="mt-3 font-display text-[2.5rem] font-medium tracking-tight text-primary-foreground md:text-5xl">
+                <p className="label-sm text-accent">Recent deliveries</p>
+                <h2 id="recent-handovers-heading" className="mt-3 heading-2 text-primary-foreground">
                   Recently handed over
                 </h2>
               </div>
-              <p className="max-w-xs text-[15px] leading-relaxed text-primary-foreground/70 mb-2">
+              <p className="max-w-xs body-sm text-primary-foreground/70 mb-2">
                 A few recent deliveries and collections from the showroom.
               </p>
             </div>
@@ -531,10 +531,10 @@ export default function Home() {
                 return (
                   <article key={`${vehicleName}-${handover.handoverMonth}`} className="flex flex-col" data-testid="recent-handover">
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="text-[15px] font-medium text-accent">{handover.handoverMonth}</span>
+                      <span className="label-sm text-accent">{handover.handoverMonth}</span>
                     </div>
-                    <h3 className="font-display text-[1.75rem] font-medium text-primary-foreground leading-tight">{vehicleName}</h3>
-                    <p className="mt-3 text-[15px] text-primary-foreground/70">
+                    <h3 className="heading-3 text-primary-foreground">{vehicleName}</h3>
+                    <p className="mt-3 body-sm text-primary-foreground/70">
                       {[vehicle.year, vehicle.bodyType, vehicle.fuel, vehicle.transmission].filter(Boolean).join(', ')}
                     </p>
                   </article>
@@ -547,23 +547,23 @@ export default function Home() {
 
       {/* How we work */}
       {dealerConfig.whyBuy && dealerConfig.whyBuy.length > 0 && (
-        <section id="about" data-home-section className="bg-background py-20 md:py-28 border-t border-border">
+        <section id="about" data-home-section className="bg-background py-16 md:py-24 border-t border-border">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-16 lg:grid-cols-[.9fr_1.1fr] lg:gap-24">
+            <div className="grid gap-16 lg:grid-cols-[.9fr_1.1fr] lg:gap-20">
               <div className="max-w-md">
-                <p className="text-[15px] font-medium text-primary/70">How we work</p>
-                <h2 className="mt-4 font-display text-[2.5rem] font-medium tracking-tight text-primary md:text-5xl leading-tight">
+                <p className="label-sm text-primary/70">How we work</p>
+                <h2 className="mt-4 heading-2 text-primary">
                   Good cars. <br/><span className="italic text-accent font-normal">Good sense.</span>
                 </h2>
-                <p className="mt-6 text-[17px] leading-relaxed text-primary/80">
+                <p className="mt-6 body-lg text-primary/80">
                   A used-car showroom should make choosing feel clearer, not louder. That is the standard we bring to every vehicle and every conversation.
                 </p>
               </div>
               <div className="grid gap-x-12 gap-y-12 sm:grid-cols-2 mt-4 lg:mt-0">
                 {dealerConfig.whyBuy.map((item, idx) => (
                   <article key={idx} className="flex flex-col border-t border-border/60 pt-6">
-                    <h3 className="text-[17px] font-medium text-primary">{item.title}</h3>
-                    <p className="mt-3 text-[15px] leading-relaxed text-primary/70">{item.description}</p>
+                    <h3 className="text-base font-medium text-primary">{item.title}</h3>
+                    <p className="mt-3 body-sm text-primary/70">{item.description}</p>
                   </article>
                 ))}
               </div>
@@ -573,43 +573,43 @@ export default function Home() {
       )}
 
       {/* Services */}
-      <section className="bg-secondary py-20 md:py-28 border-t border-secondary">
+      <section className="bg-secondary py-16 md:py-24 border-t border-secondary">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-16 flex flex-col justify-between gap-6 md:flex-row md:items-end border-b border-primary/10 pb-10">
             <div>
-              <p className="text-[15px] font-medium text-primary/70">Once you've found it</p>
-              <h2 className="mt-4 max-w-xl font-display text-[2.5rem] font-medium tracking-tight text-primary md:text-5xl leading-tight">
+              <p className="label-sm text-primary/70">Once you've found it</p>
+              <h2 className="mt-4 max-w-xl heading-2 text-primary">
                 The useful bits,<br />handled properly.
               </h2>
             </div>
-            <p className="max-w-sm text-[17px] leading-relaxed text-primary/80 mb-2">
+            <p className="max-w-sm body-lg text-primary/80 mb-2">
               From warranty questions to getting the car to your door, ask us plainly and we will give you a plain answer.
             </p>
           </div>
           <div className="grid gap-16 md:gap-12 md:grid-cols-2">
             {dealerConfig.warranty?.enabled && (
               <article id="warranty" data-home-section className="flex flex-col sm:pr-8 border-t border-primary/10 pt-6">
-                <h3 className="font-display text-[2rem] font-medium text-primary">{dealerConfig.warranty.title}</h3>
-                <p className="mt-5 flex-1 text-[16px] leading-relaxed text-primary/80">{dealerConfig.warranty.description}</p>
-                <Button asChild variant="link" size="lg" data-testid="link-warranty-enquiry" className="mt-8 w-fit px-0 text-[16px] font-medium text-primary hover:text-accent">
+                <h3 className="heading-3 text-primary">{dealerConfig.warranty.title}</h3>
+                <p className="mt-5 flex-1 body-base text-primary/80">{dealerConfig.warranty.description}</p>
+                <Button asChild variant="link" size="lg" data-testid="link-warranty-enquiry" className="mt-8 w-fit px-0 text-base font-medium text-primary hover:text-accent">
                   <a href={getContactHref('Warranty Enquiry')}>{dealerConfig.warranty.ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></a>
                 </Button>
               </article>
             )}
             {dealerConfig.partExchange?.enabled && (
               <article id="part-exchange" data-home-section className="flex flex-col sm:pr-8 border-t border-primary/10 pt-6">
-                <h3 className="font-display text-[2rem] font-medium text-primary">{dealerConfig.partExchange.title}</h3>
-                <p className="mt-5 flex-1 text-[16px] leading-relaxed text-primary/80">{dealerConfig.partExchange.description}</p>
-                <Button asChild variant="link" size="lg" data-testid="link-px-enquiry" className="mt-8 w-fit px-0 text-[16px] font-medium text-primary hover:text-accent">
+                <h3 className="heading-3 text-primary">{dealerConfig.partExchange.title}</h3>
+                <p className="mt-5 flex-1 body-base text-primary/80">{dealerConfig.partExchange.description}</p>
+                <Button asChild variant="link" size="lg" data-testid="link-px-enquiry" className="mt-8 w-fit px-0 text-base font-medium text-primary hover:text-accent">
                   <a href={getContactHref('Part Exchange Enquiry')}>{dealerConfig.partExchange.ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></a>
                 </Button>
               </article>
             )}
             {dealerConfig.delivery?.enabled && (
               <article id="delivery" data-home-section className="flex flex-col sm:pr-8 border-t border-primary/10 pt-6">
-                <h3 className="font-display text-[2rem] font-medium text-primary">{dealerConfig.delivery.title}</h3>
-                <p className="mt-5 flex-1 text-[16px] leading-relaxed text-primary/80">{dealerConfig.delivery.description}</p>
-                <Button asChild variant="link" size="lg" data-testid="link-delivery-enquiry" className="mt-8 w-fit px-0 text-[16px] font-medium text-primary hover:text-accent">
+                <h3 className="heading-3 text-primary">{dealerConfig.delivery.title}</h3>
+                <p className="mt-5 flex-1 body-base text-primary/80">{dealerConfig.delivery.description}</p>
+                <Button asChild variant="link" size="lg" data-testid="link-delivery-enquiry" className="mt-8 w-fit px-0 text-base font-medium text-primary hover:text-accent">
                   <a href={getContactHref('Delivery Enquiry')}>{dealerConfig.delivery.ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></a>
                 </Button>
               </article>

@@ -52,7 +52,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[15px] text-primary/80">
+      <span className="mb-2 block text-sm font-medium text-primary/80">
         {label}
       </span>
       {children}
@@ -76,7 +76,7 @@ function Select({
       value={value} 
       onChange={(event) => onChange(event.target.value)} 
       disabled={disabled}
-      className="h-12 rounded-none border-primary/20 text-[15px] shadow-none"
+      className="h-12 rounded-none border-primary/20 text-sm shadow-none"
     >
       {children}
     </NativeSelect>
@@ -220,7 +220,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       placeholder="£ Min"
                       value={filters.minPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, minPrice: event.target.value }))}
-                      className="h-12 shadow-none border-primary/20 rounded-none text-[15px]"
+                      className="h-12 shadow-none border-primary/20 rounded-none text-sm"
                     />
                   </Field>
                   <Field label="Max budget">
@@ -230,7 +230,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       placeholder="£ Max"
                       value={filters.maxPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
-                      className="h-12 shadow-none border-primary/20 rounded-none text-[15px]"
+                      className="h-12 shadow-none border-primary/20 rounded-none text-sm"
                     />
                   </Field>
                   <Field label="Fuel">
@@ -250,8 +250,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   </Field>
                 </div>
                 <fieldset className="mt-10 border-t border-primary/10 pt-8">
-                  <legend className="text-[15px] font-medium text-primary">Insurance history</legend>
-                  <p className="mt-2 max-w-2xl text-[14px] text-primary/70">
+                  <legend className="text-sm font-medium text-primary">Insurance history</legend>
+                  <p className="mt-2 max-w-2xl text-sm text-primary/70">
                     Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
                   </p>
                   <div className="mt-5 flex flex-wrap gap-6">
@@ -260,7 +260,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       ['catS', 'Category S'],
                       ['catN', 'Category N'],
                     ].map(([key, label]) => (
-                      <label key={key} className="flex items-center gap-3 text-[15px] text-primary">
+                      <label key={key} className="flex items-center gap-3 text-sm text-primary">
                         <input
                           type="checkbox"
                           checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
@@ -282,19 +282,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             <button
               type="button"
               onClick={resetFilters}
-              className="text-[15px] text-primary/70 hover:text-primary min-h-[44px] inline-flex items-center"
+              className="text-sm text-primary/70 hover:text-primary min-h-[44px] inline-flex items-center"
             >
               Reset filters
               {activeFilterCount > 0 && <span className="ml-1 text-accent font-medium">({activeFilterCount})</span>}
             </button>
 
             <div className="flex items-center gap-3">
-              <span className="text-[15px] text-primary/70 hidden sm:inline">Sort</span>
+              <span className="text-sm text-primary/70 hidden sm:inline">Sort</span>
               <NativeSelect
                 aria-label="Sort results"
                 value={filters.sort}
                 onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-                className="h-11 w-44 rounded-none border-primary/20 text-sm shadow-none sm:w-56 sm:text-[15px]"
+                className="h-11 w-44 rounded-none border-primary/20 text-sm shadow-none sm:w-56"
               >
                 <option value="">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
@@ -308,7 +308,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <button
             type="button"
             onClick={handleSearchClick}
-            className="flex h-12 w-full items-center justify-center rounded-none bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:h-14 sm:w-auto sm:px-8 sm:text-[15px]"
+            className="flex h-12 w-full items-center justify-center rounded-none bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:h-14 sm:w-auto sm:px-8"
           >
             View matching cars
           </button>

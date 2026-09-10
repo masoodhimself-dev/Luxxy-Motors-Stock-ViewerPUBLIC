@@ -12,12 +12,12 @@ import { isWritableFormControl } from '@/lib/form-draft';
 // Chrome shares the showroom type scale: compact uppercase for navigation,
 // monospaced figures for anything the customer might read back to us.
 const navLinkClass =
-  'whitespace-nowrap text-[12px] font-bold uppercase tracking-[.08em] text-muted-foreground transition-colors hover:text-accent';
+  'whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-primary';
 const mobileNavRowClass =
-  'flex items-center justify-between border-b border-border/60 py-3.5 text-left text-[12px] font-bold uppercase tracking-[.1em] text-foreground/80 transition-colors hover:text-accent';
+  'flex items-center justify-between border-b border-border/60 py-4 text-left text-base font-medium text-foreground transition-colors hover:text-primary';
 const footerLinkClass =
   'text-sm text-primary-foreground/70 transition-colors hover:text-primary-foreground';
-const footerHeadingClass = 'font-display text-xl font-medium text-primary-foreground';
+const footerHeadingClass = 'heading-4 text-primary-foreground';
 const socialLinkClass =
   'grid h-10 w-10 place-items-center border border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground/80 transition-colors hover:border-accent hover:bg-accent hover:text-primary';
 
@@ -170,11 +170,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <CarIcon className="w-5 h-5" />
                 </span>
                 <span className="leading-none">
-                  <span className="block whitespace-nowrap font-display text-lg font-semibold tracking-[-.02em] text-primary sm:text-xl">
+                  <span className="block whitespace-nowrap font-display text-lg font-medium tracking-tight text-primary sm:text-xl">
                     {wordmark}
                   </span>
                   {locationLabel && (
-                    <span className="luxxy-label mt-1.5 block text-muted-foreground">{locationLabel}</span>
+                    <span className="label-micro mt-1 block text-muted-foreground">{locationLabel}</span>
                   )}
                 </span>
               </>
@@ -242,7 +242,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button>
                <Button
                  onClick={() => setLocation(getEnquiryHref('viewing'))}
-                 className="h-11 px-4 text-[12px] font-bold uppercase tracking-[.08em] 2xl:px-5"
+                 className="h-11 px-4 text-sm font-medium 2xl:px-5"
                >
                  {dealerConfig.bookViewing.ctaLabel}
               </Button>
@@ -300,7 +300,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   className="flex items-baseline gap-2.5 border border-border bg-secondary/40 px-4 py-3.5 transition-colors hover:border-accent/60"
                 >
                   <Phone className="h-4 w-4 shrink-0 translate-y-0.5 text-accent" />
-                  <span className="luxxy-label shrink-0 text-muted-foreground">Call us</span>
+                  <span className="label-sm text-muted-foreground">Call us</span>
                   <span className="luxxy-leader" aria-hidden="true" />
                   <span className="shrink-0 font-mono text-[13px] font-bold text-primary">{dealerConfig.contact.phone}</span>
                 </a>
@@ -313,7 +313,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   className="flex items-baseline gap-2.5 border border-border bg-secondary/40 px-4 py-3.5 transition-colors hover:border-accent/60"
                 >
                   <MessageCircle className="h-4 w-4 shrink-0 translate-y-0.5 text-[#1f7a4d]" />
-                  <span className="luxxy-label shrink-0 text-muted-foreground">Message us</span>
+                  <span className="label-sm text-muted-foreground">Message us</span>
                   <span className="luxxy-leader" aria-hidden="true" />
                   <span className="shrink-0 font-mono text-[13px] font-bold text-primary">WhatsApp</span>
                 </a>
@@ -331,7 +331,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 lg:gap-10">
             <div className="lg:col-span-4">
-              <p className="font-display text-3xl font-medium tracking-[-.02em] text-primary-foreground">
+              <p className="heading-3 text-primary-foreground">
                 {wordmark}
               </p>
               {locationLabel && (

@@ -12,7 +12,7 @@ import { trackEvent } from '@/lib/analytics';
 type SpecEntry = { label: string; value: string };
 
 const actionBase =
-  'relative z-10 inline-flex h-11 items-center justify-center gap-2 px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card';
+  'relative z-10 inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card';
 
 const MAX_PREVIEW_IMAGES = 6;
 
@@ -148,7 +148,7 @@ export function CarCard({
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
             <Camera className="h-7 w-7 opacity-40" />
-            <span className="luxxy-label">Photographs to follow</span>
+            <span className="label-micro">Photographs to follow</span>
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/5 to-transparent" />
@@ -159,7 +159,7 @@ export function CarCard({
       {badges.length > 0 && (
         <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5">
           {badges.slice(0, 3).map((badge) => (
-            <span key={badge} className="bg-primary/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-primary-foreground backdrop-blur-sm">
+            <span key={badge} className="bg-primary/90 px-2.5 py-1 label-micro text-primary-foreground backdrop-blur-sm">
               {badge}
             </span>
           ))}
@@ -197,11 +197,11 @@ export function CarCard({
   );
 
   const ledger = visibleSpecs.length > 0 && (
-    <dl className={cn('grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]', isRow && 'sm:grid-cols-3')}>
+    <dl className={cn('grid grid-cols-2 gap-x-4 gap-y-3 text-sm', isRow && 'sm:grid-cols-3')}>
       {visibleSpecs.map((spec) => (
         <div key={spec.label} className="min-w-0">
-          <dt className="luxxy-label text-muted-foreground">{spec.label}</dt>
-          <dd className="mt-1 truncate font-bold text-foreground">{spec.value}</dd>
+          <dt className="text-muted-foreground">{spec.label}</dt>
+          <dd className="mt-0.5 truncate font-medium text-foreground">{spec.value}</dd>
         </div>
       ))}
     </dl>
@@ -209,8 +209,8 @@ export function CarCard({
 
   const priceBlock = (
     <div>
-      <p className="luxxy-label text-muted-foreground">Price</p>
-      <p className={cn('luxxy-price mt-1 text-3xl leading-none text-primary', isRow ? 'sm:text-[2.1rem]' : '')}>
+      <p className="text-sm text-muted-foreground mb-0.5">Price</p>
+      <p className={cn('luxxy-price text-2xl text-primary', isRow ? 'sm:text-3xl' : '')}>
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </p>
     </div>
@@ -268,8 +268,8 @@ export function CarCard({
   const title = (
     <h3
       className={cn(
-        'break-words font-display font-semibold leading-tight tracking-tight text-primary',
-        isRow ? 'text-2xl sm:text-[1.7rem]' : 'text-xl',
+        'break-words font-display font-medium leading-tight tracking-tight text-primary',
+        isRow ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl',
       )}
     >
       <Link
@@ -302,7 +302,7 @@ export function CarCard({
             {title}
             {subtitle}
           </div>
-          <p className="luxxy-price mt-2 text-2xl leading-none text-primary">
+          <p className="luxxy-price mt-2 text-xl sm:text-2xl text-primary">
             {car.price ? formatPrice(car.price, car.currency) : 'POA'}
           </p>
           {ledger && <div className="mt-3 overflow-hidden">{ledger}</div>}
@@ -311,7 +311,7 @@ export function CarCard({
               href={bookingHref}
               onClick={() => recordBookingIntent({ source: `${analyticsSource}_compact`, vehicleContext: true })}
               aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
-              className="inline-flex min-h-11 min-w-0 items-center justify-center bg-primary px-2 text-[12px] font-bold text-primary-foreground sm:px-3"
+              className="inline-flex min-h-11 min-w-0 items-center justify-center bg-primary px-2 text-sm font-medium text-primary-foreground sm:px-3"
             >
               <Calendar className="mr-2 h-3.5 w-3.5 shrink-0" />
               <span className="sm:hidden">Book</span>
@@ -357,7 +357,7 @@ export function CarCard({
           <Link
             href={detailHref}
             onClick={recordVehicleOpen}
-            className="inline-flex items-center gap-2 text-[13px] font-bold text-primary underline-offset-4 transition-colors hover:text-accent hover:underline"
+            className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 transition-colors hover:text-accent hover:underline"
           >
             Full vehicle details
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />

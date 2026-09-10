@@ -156,12 +156,50 @@
     font-family: var(--font-display);
   }
 
+  /* Semantic Typography System */
+  .heading-1 {
+    font-family: var(--font-display);
+    @apply text-[clamp(2.5rem,6vw,4rem)] font-medium leading-[1.05] tracking-tight;
+  }
+  .heading-2 {
+    font-family: var(--font-display);
+    @apply text-[clamp(2rem,5vw,3rem)] font-medium leading-[1.1] tracking-tight;
+  }
+  .heading-3 {
+    font-family: var(--font-display);
+    @apply text-[clamp(1.5rem,4vw,2.25rem)] font-medium leading-[1.15] tracking-tight;
+  }
+  .heading-4 {
+    font-family: var(--font-display);
+    @apply text-xl sm:text-2xl font-medium leading-[1.2] tracking-tight;
+  }
+
+  .body-lg {
+    @apply text-base sm:text-lg leading-relaxed text-balance;
+  }
+  .body-base {
+    @apply text-sm sm:text-base leading-relaxed;
+  }
+  .body-sm {
+    @apply text-sm leading-relaxed;
+  }
+
+  .label-base {
+    @apply text-sm sm:text-base font-medium;
+  }
+  .label-sm {
+    @apply text-sm font-medium;
+  }
+  .label-micro {
+    @apply text-[11px] font-bold uppercase tracking-[0.06em];
+  }
+
   .luxxy-price {
     font-family: var(--app-font-sans);
     font-variant-numeric: tabular-nums lining-nums;
     font-feature-settings: "tnum" 1, "lnum" 1;
-    font-weight: 700;
-    letter-spacing: -.045em;
+    font-weight: 500;
+    letter-spacing: -.02em;
     white-space: nowrap;
   }
 
@@ -169,8 +207,8 @@
     font-family: var(--app-font-sans);
     font-variant-numeric: tabular-nums lining-nums;
     font-feature-settings: "tnum" 1, "lnum" 1;
-    font-weight: 700;
-    letter-spacing: -.025em;
+    font-weight: 500;
+    letter-spacing: -.01em;
     white-space: nowrap;
   }
   
