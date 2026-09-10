@@ -122,15 +122,19 @@ export default function Home() {
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
   const featuredCars = useMemo(() => {
     const carsWithPhotos = (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
-    const shuffled = [...carsWithPhotos];
-
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    
+    if (dealerConfig.featuredVehicleIds?.length > 0) {
+      const curated = dealerConfig.featuredVehicleIds
+        .map(id => carsWithPhotos.find(car => car.id === id))
+        .filter(Boolean) as typeof carsWithPhotos;
+        
+      if (curated.length > 0) {
+        return curated.slice(0, 8);
+      }
     }
 
-    return shuffled.slice(0, 8);
-  }, [stock?.cars]);
+    return carsWithPhotos.slice(0, 8);
+  }, [stock?.cars, dealerConfig.featuredVehicleIds]);
   const featuredCar = featuredCars[featuredIndex % Math.max(featuredCars.length, 1)];
   const heroHeadline = dealerConfig.hero.copy.trim().toLowerCase() === 'find your next car'
     ? 'Carefully chosen cars.'

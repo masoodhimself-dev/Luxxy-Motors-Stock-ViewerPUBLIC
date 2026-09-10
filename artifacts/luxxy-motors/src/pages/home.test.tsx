@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 
-const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
+const { stockFixture, dealerConfigFixture, scrollToHomeTarget } = vi.hoisted(() => {
   const baseCar = {
     id: '',
     advertId: '',
@@ -110,6 +110,20 @@ const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
     }),
   ];
 
+  const dealerConfigBase = {
+    identity: { name: 'Test Motors', brandColors: { primaryHsl: '0 0 0', accentHsl: '0 0 0' } },
+    contact: { phone: '01234567890' },
+    address: { city: 'Test City', region: 'Test Region' },
+    hero: { copy: 'Find your next car', subcopy: 'Subcopy', announcement: 'Test Announcement', primaryCta: 'See stock', secondaryCta: 'Part exchange' },
+    bookViewing: { title: 'Book a viewing', ctaLabel: 'Book now', description: 'Book a viewing' },
+    trustItems: ['Trust point 1'],
+    whyBuy: [],
+    featuredVehicleIds: [] as string[],
+    delivery: { enabled: true, title: 'Delivery', description: 'Delivery available', ctaLabel: 'Delivery enquiry' },
+    warranty: { enabled: true, title: 'Warranty', description: 'Warranty available', ctaLabel: 'Warranty enquiry' },
+    partExchange: { enabled: true, title: 'Part exchange', description: 'Part exchange available', ctaLabel: 'Part exchange enquiry' },
+  };
+
   return {
     stockFixture: {
       schemaVersion: 1,
@@ -119,9 +133,16 @@ const { stockFixture, scrollToHomeTarget } = vi.hoisted(() => {
       scrapedAt: null,
       cars,
     },
+    dealerConfigFixture: dealerConfigBase,
     scrollToHomeTarget: vi.fn(),
   };
 });
+
+let overrideSettings = dealerConfigFixture;
+
+vi.mock('@/lib/dealer-settings-context', () => ({
+  useDealerSettings: () => ({ settings: overrideSettings, isLoading: false, isError: false }),
+}));
 
 vi.mock('@/lib/stock-context', () => ({
   useStock: () => ({ stock: stockFixture, isLoading: false, error: null }),
@@ -160,6 +181,7 @@ function resultTitles() {
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
+  overrideSettings = dealerConfigFixture;
 });
 
 describe('showroom search filters', () => {
@@ -189,7 +211,7 @@ describe('showroom search filters', () => {
     expect(screen.queryByTestId('card-vehicle-bmw-1-series')).not.toBeInTheDocument();
     expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('compact');
     expect(screen.getByTestId('button-compare-bmw-1-series')).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Book a viewing/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /view/i }).length).toBeGreaterThan(0);
     expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('grid-cols-1');
     expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('sm:grid-cols-[1fr_auto]');
   });
@@ -210,6 +232,45 @@ describe('showroom search filters', () => {
     expect(screen.getByRole('button', { name: 'Play featured vehicles' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Play featured vehicles' }));
     expect(screen.getByRole('button', { name: 'Pause featured vehicles' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('respects curated featured order and filters stale IDs without images', () => {
+    // Both bmw-3-series and bmw-1-series have photos. ford-fiesta does not. unknown-id does not exist.
+    overrideSettings = {
+      ...dealerConfigFixture,
+      featuredVehicleIds: ['unknown-id', 'bmw-3-series', 'ford-fiesta', 'bmw-1-series'],
+    };
+    renderHome();
+
+    // Since 'bmw-3-series' and 'bmw-1-series' are the only valid photographed ones, 
+    // it should only show 2 cars, and start with bmw-3-series.
+    const carousel = screen.getByTestId('featured-forecourt-carousel');
+    expect(within(carousel).getByText(/BMW 3 Series/)).toBeInTheDocument();
+    
+    // There are only 2 valid cars that made it through
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    
+    // Check next car is bmw-1-series
+    fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
+    expect(within(carousel).getByText(/BMW 1 Series/)).toBeInTheDocument();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+  });
+
+  it('falls back to stable stock order when no featured vehicles are valid', () => {
+    // Only invalid IDs provided
+    overrideSettings = {
+      ...dealerConfigFixture,
+      featuredVehicleIds: ['unknown-id', 'ford-fiesta'],
+    };
+    renderHome();
+
+    // Should fall back to the 2 cars with photos, ordered exactly as they arrive from the mock feed ('bmw-1-series', then 'bmw-3-series')
+    const carousel = screen.getByTestId('featured-forecourt-carousel');
+    expect(within(carousel).getByText(/BMW 1 Series/)).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    
+    fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
+    expect(within(carousel).getByText(/BMW 3 Series/)).toBeInTheDocument();
   });
 
   it('filters by text and limits model choices to the selected make', () => {

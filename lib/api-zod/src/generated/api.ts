@@ -2366,6 +2366,10 @@ export const getDealerSettingsResponseHeroPrimaryCtaMax = 80;
 
 export const getDealerSettingsResponseHeroSecondaryCtaMax = 80;
 
+export const getDealerSettingsResponseFeaturedVehicleIdsItemMax = 120;
+
+export const getDealerSettingsResponseFeaturedVehicleIdsMax = 8;
+
 export const getDealerSettingsResponseWarrantyTitleMax = 120;
 
 export const getDealerSettingsResponseWarrantyDescriptionMax = 300;
@@ -2448,6 +2452,7 @@ export const GetDealerSettingsResponse = zod.object({
   "primaryCta": zod.string().min(1).max(getDealerSettingsResponseHeroPrimaryCtaMax),
   "secondaryCta": zod.string().min(1).max(getDealerSettingsResponseHeroSecondaryCtaMax)
 }),
+  "featuredVehicleIds": zod.array(zod.string().min(1).max(getDealerSettingsResponseFeaturedVehicleIdsItemMax)).max(getDealerSettingsResponseFeaturedVehicleIdsMax),
   "warranty": zod.object({
   "enabled": zod.boolean(),
   "title": zod.string().min(1).max(getDealerSettingsResponseWarrantyTitleMax),
@@ -2541,6 +2546,10 @@ export const updateDealerSettingsBodyOneHeroPrimaryCtaMax = 80;
 
 export const updateDealerSettingsBodyOneHeroSecondaryCtaMax = 80;
 
+export const updateDealerSettingsBodyOneFeaturedVehicleIdsItemMax = 120;
+
+export const updateDealerSettingsBodyOneFeaturedVehicleIdsMax = 8;
+
 export const updateDealerSettingsBodyOneWarrantyTitleMax = 120;
 
 export const updateDealerSettingsBodyOneWarrantyDescriptionMax = 300;
@@ -2623,6 +2632,7 @@ export const UpdateDealerSettingsBody = zod.object({
   "primaryCta": zod.string().min(1).max(updateDealerSettingsBodyOneHeroPrimaryCtaMax),
   "secondaryCta": zod.string().min(1).max(updateDealerSettingsBodyOneHeroSecondaryCtaMax)
 }),
+  "featuredVehicleIds": zod.array(zod.string().min(1).max(updateDealerSettingsBodyOneFeaturedVehicleIdsItemMax)).max(updateDealerSettingsBodyOneFeaturedVehicleIdsMax),
   "warranty": zod.object({
   "enabled": zod.boolean(),
   "title": zod.string().min(1).max(updateDealerSettingsBodyOneWarrantyTitleMax),
@@ -2711,6 +2721,10 @@ export const updateDealerSettingsResponseHeroPrimaryCtaMax = 80;
 
 export const updateDealerSettingsResponseHeroSecondaryCtaMax = 80;
 
+export const updateDealerSettingsResponseFeaturedVehicleIdsItemMax = 120;
+
+export const updateDealerSettingsResponseFeaturedVehicleIdsMax = 8;
+
 export const updateDealerSettingsResponseWarrantyTitleMax = 120;
 
 export const updateDealerSettingsResponseWarrantyDescriptionMax = 300;
@@ -2793,6 +2807,7 @@ export const UpdateDealerSettingsResponse = zod.object({
   "primaryCta": zod.string().min(1).max(updateDealerSettingsResponseHeroPrimaryCtaMax),
   "secondaryCta": zod.string().min(1).max(updateDealerSettingsResponseHeroSecondaryCtaMax)
 }),
+  "featuredVehicleIds": zod.array(zod.string().min(1).max(updateDealerSettingsResponseFeaturedVehicleIdsItemMax)).max(updateDealerSettingsResponseFeaturedVehicleIdsMax),
   "warranty": zod.object({
   "enabled": zod.boolean(),
   "title": zod.string().min(1).max(updateDealerSettingsResponseWarrantyTitleMax),

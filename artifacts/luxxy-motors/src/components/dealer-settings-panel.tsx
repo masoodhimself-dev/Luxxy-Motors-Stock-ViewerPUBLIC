@@ -7,7 +7,11 @@ import {
   useUpdateDealerSettings,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useStock } from '@/lib/stock-context';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   CircleAlert,
   Clock3,
@@ -74,6 +78,7 @@ const fallbackSettings: DealerSettings = {
     primaryCta: dealerConfig.hero.primaryCta,
     secondaryCta: dealerConfig.hero.secondaryCta,
   },
+  featuredVehicleIds: [...(dealerConfig.featuredVehicleIds || [])],
   warranty: {
     enabled: dealerConfig.warranty?.enabled ?? true,
     title: dealerConfig.warranty?.title || 'Warranty',
@@ -110,6 +115,7 @@ function copySettings(source: DealerSettings): DealerSettings {
     legal: { ...source.legal },
     social: { ...source.social },
     hero: { ...source.hero },
+    featuredVehicleIds: [...source.featuredVehicleIds],
     warranty: { ...source.warranty },
     delivery: { ...source.delivery },
     partExchange: { ...source.partExchange },
@@ -231,6 +237,11 @@ function ServiceEditor({
 }
 
 export function DealerSettingsPanel() {
+  const { stock } = useStock();
+  const stockWithThumbnails = useMemo(() => {
+    return (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
+  }, [stock?.cars]);
+
   const settingsQuery = useGetDealerSettings({ query: { queryKey: getGetDealerSettingsQueryKey() } });
   const queryClient = useQueryClient();
   const updateSettings = useUpdateDealerSettings();
@@ -329,6 +340,23 @@ export function DealerSettingsPanel() {
   };
   const addWhyBuy = () => {
     if (form.whyBuy.length < 8) updateGroup('whyBuy', [...form.whyBuy, { title: '', description: '' }]);
+  };
+  const addFeatured = (id: string) => {
+    if (!id || form.featuredVehicleIds.includes(id) || form.featuredVehicleIds.length >= 8) return;
+    updateGroup('featuredVehicleIds', [...form.featuredVehicleIds, id]);
+  };
+  const removeFeatured = (index: number) => {
+    const next = [...form.featuredVehicleIds];
+    next.splice(index, 1);
+    updateGroup('featuredVehicleIds', next);
+  };
+  const moveFeatured = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === form.featuredVehicleIds.length - 1) return;
+    const next = [...form.featuredVehicleIds];
+    const swap = direction === 'up' ? index - 1 : index + 1;
+    [next[index], next[swap]] = [next[swap], next[index]];
+    updateGroup('featuredVehicleIds', next);
   };
 
   if (settingsQuery.isLoading && !initialized) {
@@ -437,6 +465,81 @@ export function DealerSettingsPanel() {
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Browse cars button" error={validationErrors['hero.primaryCta']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.hero.primaryCta} onChange={(event) => updateNested('hero', 'primaryCta', event.target.value)} data-testid="input-hero-primary-cta" /></Field>
               <Field label="Find my car button" error={validationErrors['hero.secondaryCta']}><Input required className="h-11 rounded-none text-[13px] focus-visible:ring-0 focus-visible:border-accent" value={form.hero.secondaryCta} onChange={(event) => updateNested('hero', 'secondaryCta', event.target.value)} data-testid="input-hero-secondary-cta" /></Field>
+            </div>
+          </div>
+          <div className="mt-8 border-t border-border/70 pt-8">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary"><Image className="h-4 w-4 text-accent" /> Featured carousel</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">Select up to 8 vehicles to lead the homepage. If you choose none or they sell out, your most recent photographed stock is shown automatically.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {form.featuredVehicleIds.map((id, index) => {
+                const car = stock?.cars.find(c => c.id === id);
+                const thumb = car ? getThumbnailUrl(car) : null;
+                const isStale = !car;
+                
+                return (
+                  <div key={`${id}-${index}`} className="flex items-center justify-between gap-4 border border-border bg-card p-2 pr-4 transition-colors" data-testid={`featured-vehicle-${index}`}>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative h-12 w-16 shrink-0 bg-secondary/20">
+                        {thumb ? (
+                          <img src={thumb} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground"><Image className="h-4 w-4" /></div>
+                        )}
+                      </div>
+                      <div className="min-w-0 truncate">
+                        <p className="truncate text-[13px] font-bold text-foreground">{car ? vehicleDisplayTitle(car) : `Unknown vehicle (${id})`}</p>
+                        <p className="truncate text-[12px] text-muted-foreground">{car && car.price ? formatPrice(car.price, car.currency) : (isStale ? 'Sold or removed' : 'Needs a photo to be featured')}</p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button type="button" size="icon" variant="ghost" className="h-8 w-8 rounded-none hover:bg-secondary" onClick={() => moveFeatured(index, 'up')} disabled={index === 0} aria-label={`Move ${car ? vehicleDisplayTitle(car) : 'vehicle'} up`} data-testid={`button-featured-up-${index}`}>
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" className="h-8 w-8 rounded-none hover:bg-secondary" onClick={() => moveFeatured(index, 'down')} disabled={index === form.featuredVehicleIds.length - 1} aria-label={`Move ${car ? vehicleDisplayTitle(car) : 'vehicle'} down`} data-testid={`button-featured-down-${index}`}>
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <div className="mx-1 h-4 w-px bg-border/60" />
+                      <Button type="button" size="icon" variant="ghost" className="h-8 w-8 rounded-none hover:bg-destructive/10 hover:text-destructive" onClick={() => removeFeatured(index)} aria-label={`Remove ${car ? vehicleDisplayTitle(car) : 'vehicle'}`} data-testid={`button-featured-remove-${index}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {form.featuredVehicleIds.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 border border-dashed border-border bg-secondary/10 p-8 text-center" data-testid="featured-empty-state">
+                  <Image className="h-5 w-5 text-muted-foreground/60" />
+                  <p className="text-[13px] font-bold text-primary">No vehicles selected</p>
+                  <p className="text-[12px] text-muted-foreground">The most recent stock with photos will be shown instead.</p>
+                </div>
+              )}
+
+              {form.featuredVehicleIds.length < 8 && stockWithThumbnails.length > 0 && (
+                <div className="mt-4 flex items-center gap-3 border border-border bg-secondary/10 p-3">
+                  <select
+                    className="h-9 w-full flex-1 rounded-none border border-transparent bg-background px-3 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value=""
+                    onChange={(e) => addFeatured(e.target.value)}
+                    data-testid="select-featured-vehicle"
+                    aria-label="Add a vehicle to feature"
+                  >
+                    <option value="" disabled>Add a vehicle to the carousel ({8 - form.featuredVehicleIds.length} remaining)...</option>
+                    {stockWithThumbnails
+                      .filter((c) => !form.featuredVehicleIds.includes(c.id))
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {vehicleDisplayTitle(c)} • {c.price ? formatPrice(c.price, c.currency) : 'POA'} • {c.registration || 'No reg'}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-8 border-t border-border/70 pt-8">

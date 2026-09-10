@@ -41,6 +41,7 @@ export interface DealerConfig {
     primaryCta: string;
     secondaryCta: string;
   };
+  featuredVehicleIds?: string[];
   warranty?: {
     enabled: boolean;
     title: string;
@@ -99,6 +100,7 @@ export const dealerConfig: DealerConfig = {
     primaryCta: "Browse cars",
     secondaryCta: "Find my car",
   },
+  featuredVehicleIds: [],
   warranty: {
     enabled: true,
     title: "Warranty",

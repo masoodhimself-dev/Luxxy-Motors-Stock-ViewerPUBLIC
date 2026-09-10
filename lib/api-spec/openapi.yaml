@@ -1677,6 +1677,11 @@ components:
         legal: { $ref: "#/components/schemas/DealerLegal" }
         social: { $ref: "#/components/schemas/DealerSocial" }
         hero: { $ref: "#/components/schemas/DealerHero" }
+        featuredVehicleIds:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 120 }
         warranty: { $ref: "#/components/schemas/DealerService" }
         delivery: { $ref: "#/components/schemas/DealerService" }
         partExchange: { $ref: "#/components/schemas/DealerService" }
@@ -1689,7 +1694,7 @@ components:
           type: array
           maxItems: 8
           items: { $ref: "#/components/schemas/DealerWhyBuyItem" }
-      required: [identity, contact, address, hours, legal, social, hero, warranty, delivery, partExchange, bookViewing, trustItems, whyBuy]
+      required: [identity, contact, address, hours, legal, social, hero, featuredVehicleIds, warranty, delivery, partExchange, bookViewing, trustItems, whyBuy]
     DealerSettingsInput:
       allOf:
         - $ref: "#/components/schemas/DealerSettings"

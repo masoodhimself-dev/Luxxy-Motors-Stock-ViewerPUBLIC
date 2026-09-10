@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
-import { db, dealerSettingsTable } from "@workspace/db";
+import { db, dealerSettingsTable, vehiclesTable } from "@workspace/db";
 import {
   GetDealerSettingsResponse,
   UpdateDealerSettingsBody,
@@ -34,6 +34,7 @@ const defaultSettings = {
     primaryCta: "See All Cars",
     secondaryCta: "Get a Part-Exchange Valuation",
   },
+  featuredVehicleIds: [],
   warranty: { enabled: true, title: "Warranty", description: "Warranty options are available on eligible vehicles.", ctaLabel: "Learn About Warranty" },
   delivery: { enabled: true, title: "Nationwide Delivery", description: "Customers may be able to have their vehicle delivered.", ctaLabel: "Ask About Delivery" },
   partExchange: { enabled: true, title: "Looking to part exchange your current car?", description: "Give us your registration and mileage and we’ll help you understand what your current car could be worth.", ctaLabel: "Value My Car" },
@@ -47,10 +48,45 @@ const defaultSettings = {
   ],
 };
 
+type Settings = typeof UpdateDealerSettingsBody._output;
+
+function stockIsVisible(vehicle: typeof vehiclesTable.$inferSelect): boolean {
+  const missingHideThreshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD);
+  const threshold = Number.isFinite(missingHideThreshold) && missingHideThreshold >= 0 ? missingHideThreshold : 2;
+  return (
+    ["available", "reserved"].includes(vehicle.inventoryStatus) &&
+    vehicle.missingCount < threshold &&
+    !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null)
+  );
+}
+
+async function cleanFeaturedVehicles(settings: Settings): Promise<Settings> {
+  if (settings.featuredVehicleIds.length === 0) return settings;
+  const vehicles = await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, dealerId()));
+  const visibleIds = new Set(vehicles.filter(stockIsVisible).map((vehicle) => vehicle.id));
+  const featuredVehicleIds = settings.featuredVehicleIds.filter((id) => visibleIds.has(id));
+  return featuredVehicleIds.length === settings.featuredVehicleIds.length
+    ? settings
+    : { ...settings, featuredVehicleIds };
+}
+
 async function getOrCreateSettings() {
   const id = dealerId();
   const [existing] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, id));
-  if (existing) return existing.config;
+  if (existing) {
+    const parsed = UpdateDealerSettingsBody.parse({
+      ...defaultSettings,
+      ...(existing.config as object),
+      featuredVehicleIds: Array.isArray((existing.config as Record<string, unknown>).featuredVehicleIds)
+        ? (existing.config as Record<string, unknown>).featuredVehicleIds
+        : [],
+    });
+    const cleaned = await cleanFeaturedVehicles(parsed);
+    if (cleaned.featuredVehicleIds.length !== parsed.featuredVehicleIds.length) {
+      await db.update(dealerSettingsTable).set({ config: cleaned, updatedAt: new Date() }).where(eq(dealerSettingsTable.dealerId, id));
+    }
+    return cleaned;
+  }
   await db.insert(dealerSettingsTable).values({ dealerId: id, config: defaultSettings }).onConflictDoNothing();
   return defaultSettings;
 }
@@ -86,12 +122,13 @@ router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> =
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const cleaned = await cleanFeaturedVehicles(parsed.data);
   const [settings] = await db
     .insert(dealerSettingsTable)
-    .values({ dealerId: dealerId(), config: parsed.data })
+    .values({ dealerId: dealerId(), config: cleaned })
     .onConflictDoUpdate({
       target: dealerSettingsTable.dealerId,
-      set: { config: parsed.data, updatedAt: new Date() },
+      set: { config: cleaned, updatedAt: new Date() },
     })
     .returning();
   res.json(UpdateDealerSettingsResponse.parse(settings.config));

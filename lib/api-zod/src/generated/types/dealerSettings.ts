@@ -25,6 +25,12 @@ export interface DealerSettings {
   legal: DealerLegal;
   social: DealerSocial;
   hero: DealerHero;
+  /**
+     * @maxItems 8
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  featuredVehicleIds: string[];
   warranty: DealerService;
   delivery: DealerService;
   partExchange: DealerService;
