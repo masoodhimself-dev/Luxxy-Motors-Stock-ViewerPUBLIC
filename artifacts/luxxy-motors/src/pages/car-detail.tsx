@@ -1,5 +1,5 @@
 import { useRoute } from 'wouter';
-import { ArrowLeft, Activity, MessageCircle, Phone, Calendar, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Phone, Calendar } from 'lucide-react';
 import { Link } from 'wouter';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -46,10 +46,9 @@ function getSimilarCars(currentCar: Car, cars: Car[]) {
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
-    <div className="flex items-baseline gap-2">
-      <dt className="luxxy-label shrink-0 text-muted-foreground">{label}</dt>
-      <span className="luxxy-leader" aria-hidden="true" />
-      <dd className="shrink-0 font-mono text-[13px] font-bold text-foreground" data-testid={testId}>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-5 border-b border-border/40 py-3 last:border-0">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-right text-sm font-medium text-primary" data-testid={testId}>
         {value}
       </dd>
     </div>
@@ -62,8 +61,6 @@ export default function CarDetail() {
   const { settings: dealerConfig } = useDealerSettings();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
-  // Title, description and link-preview tags for this vehicle; the showroom
-  // defaults come back when the page unmounts.
   usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : null);
 
   if (isLoading) {
@@ -88,8 +85,6 @@ export default function CarDetail() {
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
-  // Only an authoritative plate earns plate styling; a registration band such as
-  // "2009 (59 reg)" is year metadata, so it reads as an ordinary ledger value.
   const registrationBand = [car.registrationBand, car.registration]
     .map((value) => value?.trim() || '')
     .find((value) => value && !isUKNumberPlate(value));
@@ -140,210 +135,190 @@ export default function CarDetail() {
 
   return (
     <div className="luxxy-shell luxxy-grain min-h-screen pb-20 lg:pb-0">
-      <div className="border-b border-border bg-background">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="border-b border-border/60 bg-background/50 backdrop-blur-sm">
+        <div className="container mx-auto max-w-[85rem] px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
-            className="luxxy-label inline-flex items-center gap-2 py-5 text-muted-foreground transition-colors hover:text-accent"
+            className="inline-flex items-center gap-2 py-5 text-sm text-muted-foreground transition-colors hover:text-primary"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Showroom
+            Back to showroom
           </Link>
         </div>
       </div>
 
-      <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        {/* Explicit placement keeps the purchase panel ahead of the spec ledger on
-            narrow screens, while both stay beside the gallery on desktop. */}
-        <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
-
+      <div className="container mx-auto max-w-[85rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-14 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-20">
+          
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <Gallery images={car.images || []} heroImage={car.heroImage} />
           </div>
 
           {/* Right Column: Key Details & CTA */}
-          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <div className="luxxy-detail-panel border border-border bg-card">
-              <div className="border-b border-border/70 p-6 sm:p-8">
-                <h1 className="font-display text-[1.9rem] font-semibold leading-[1.08] tracking-tight text-primary">
-                  {vehicleLabel}
-                </h1>
+          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 flex flex-col pt-2 lg:pt-0">
+            <div className="mb-7">
+              <h1 className="font-display text-[2.25rem] font-medium leading-[1.08] tracking-[-.02em] text-primary sm:text-[2.5rem]">
+                {vehicleLabel}
+              </h1>
+              {(car.variant || car.trim) && (
+                <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
+                  {car.variant || car.trim}
+                </p>
+              )}
+            </div>
 
-                {(car.variant || car.trim) && (
-                  <p className="mt-2.5 text-sm leading-6 text-muted-foreground">
-                    {car.variant || car.trim}
-                  </p>
-                )}
-
-                {registration && (
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
-                    <UKNumberPlate
-                      size="sm"
-                      value={registration}
-                      testId={`plate-vehicle-${car.id}`}
-                      className="w-[132px] shrink-0"
-                    />
-                  </div>
-                )}
-
-                <dl className="mt-5 grid grid-cols-2 border border-border/70 bg-background">
-                  <div className="border-r border-border/70 px-3 py-2.5">
-                    <dt className="luxxy-label text-muted-foreground">Photographs</dt>
-                    <dd className="mt-1 text-[13px] font-bold text-foreground">
-                      {photoCount > 0 ? `${photoCount} available` : 'To follow'}
-                    </dd>
-                  </div>
-                  <div className="px-3 py-2.5">
-                    <dt className="luxxy-label text-muted-foreground">Mileage</dt>
-                    <dd className="mt-1 text-[13px] font-bold text-foreground">
-                      {car.mileage ? formatMileage(car.mileage) : (car.mileageText || 'Unknown')}
-                    </dd>
-                  </div>
-                </dl>
+            {registration && (
+              <div className="mb-7 flex flex-wrap items-center gap-3">
+                <UKNumberPlate
+                  size="sm"
+                  value={registration}
+                  testId={`plate-vehicle-${car.id}`}
+                  className="w-[132px] shrink-0"
+                />
               </div>
+            )}
 
-              <div className="flex items-end justify-between gap-4 border-b border-border/70 p-6 sm:p-8">
-                <div>
-                  <p className="luxxy-label text-muted-foreground">Price</p>
-                  <p className="luxxy-price mt-2 text-[2.5rem] leading-none text-primary">
-                    {car.price ? formatPrice(car.price, car.currency) : 'POA'}
-                  </p>
-                </div>
-                {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-                  <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground">
-                    {car.priceType}
-                  </span>
-                )}
+            <div className="mb-9 flex items-end justify-between border-b border-border/60 pb-7">
+              <div>
+                <p className="mb-2 text-sm text-muted-foreground">Price</p>
+                <p className="luxxy-price text-[2.75rem] leading-none text-primary">
+                  {car.price ? formatPrice(car.price, car.currency) : 'POA'}
+                </p>
               </div>
+              {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
+                <span className="shrink-0 text-sm text-muted-foreground">
+                  {car.priceType}
+                </span>
+              )}
+            </div>
 
-              <dl className="grid gap-3.5 border-b border-border/70 p-6 sm:p-8 bg-background">
+            <div className="mb-9">
+              <h2 className="mb-2 font-display text-xl font-medium text-primary">At a glance</h2>
+              <dl className="grid gap-1">
+                <LedgerRow label="Photographs" value={photoCount > 0 ? `${photoCount} available` : 'To follow'} />
                 {keyFacts.map((fact) => (
                   <LedgerRow key={fact.label} label={fact.label} value={fact.value} testId={fact.testId} />
                 ))}
               </dl>
+            </div>
 
-               <div className="hidden grid-cols-2 gap-2 p-6 sm:grid lg:grid">
-                <Button asChild size="lg" className="col-span-2 h-12 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground">
+            <div className="mb-9 hidden grid-cols-2 gap-3 sm:grid lg:grid">
+              <Button asChild size="lg" className="col-span-2 h-14 bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                <a
+                   href={bookingHref}
+                   onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
+                   target={bookingHref.startsWith('https://') ? '_blank' : undefined}
+                   rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
+                  data-vehicle-contact="booking"
+                >
+                  <Calendar className="mr-3 h-4 w-4" />
+                  {dealerConfig.bookViewing.ctaLabel}
+                </a>
+              </Button>
+              {phoneHref && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="h-14 border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+                >
                   <a
-                     href={bookingHref}
-                     onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
-                     target={bookingHref.startsWith('https://') ? '_blank' : undefined}
-                     rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
-                    data-vehicle-contact="booking"
+                    href={phoneHref}
+                    aria-label={`Call about ${vehicleLabel}`}
+                    onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail' })}
+                    data-vehicle-contact="call"
                   >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {dealerConfig.bookViewing.ctaLabel}
+                    <Phone className="mr-2 h-4 w-4 text-accent" />
+                    Call
                   </a>
                 </Button>
-                {phoneHref && (
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className="h-12 border-border bg-background px-4 text-[13px] font-bold text-foreground hover:border-primary/45 hover:bg-secondary hover:text-foreground"
+              )}
+              {whatsappHref && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                   className="luxxy-contact h-14 border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:border-[#1f7a4d]/40 hover:bg-[#1f7a4d]/5 hover:text-[#1f7a4d]"
+                >
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`WhatsApp about ${vehicleLabel}`}
+                    onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail' })}
+                    data-vehicle-contact="whatsapp"
                   >
-                    <a
-                      href={phoneHref}
-                      aria-label={`Call about ${vehicleLabel}`}
-                      onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail' })}
-                      data-vehicle-contact="call"
-                    >
-                      <Phone className="mr-2 h-4 w-4 text-accent" />
-                      Call
-                    </a>
-                  </Button>
-                )}
-                {whatsappHref && (
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                     className="luxxy-contact h-12 px-4 text-[13px] font-bold hover:bg-[hsl(var(--contact)/.2)]"
-                  >
-                    <a
-                      href={whatsappHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`WhatsApp about ${vehicleLabel}`}
-                      onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail' })}
-                      data-vehicle-contact="whatsapp"
-                    >
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      WhatsApp
-                    </a>
-                  </Button>
-                )}
-              </div>
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    WhatsApp
+                  </a>
+                </Button>
+              )}
+            </div>
 
-              <div className="flex gap-3 border-t border-border/70 bg-secondary/25 px-6 sm:px-8 py-5">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                <p className="text-[13px] leading-6 text-muted-foreground">
-                  Sold by {dealerConfig.identity.name || stock.dealerName || 'Independent Dealer'}. Viewings by appointment only.
-                </p>
-              </div>
+            <div className="border-l-2 border-accent bg-secondary/25 px-5 py-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                This car is sold by <strong className="font-medium text-primary">{dealerConfig.identity.name || stock.dealerName || 'Independent Dealer'}</strong>. Viewings are by appointment.
+              </p>
             </div>
           </div>
 
           <section
-            className="border border-border bg-card lg:col-start-1 lg:row-start-2"
+            className="border-t border-border/50 pt-7 lg:col-start-1 lg:row-start-2"
             aria-labelledby="vehicle-overview-heading"
           >
-            <div className="flex items-center gap-3 border-b border-border/70 px-6 py-4 sm:px-8 bg-secondary/15">
-              <Activity className="h-4 w-4 shrink-0 text-accent" />
-              <h2 id="vehicle-overview-heading" className="luxxy-label text-primary">
-                Vehicle Overview
-              </h2>
-            </div>
-            <dl className="grid gap-x-12 gap-y-3.5 px-6 sm:px-8 py-6 sm:grid-cols-2 bg-background">
+            <h2 id="vehicle-overview-heading" className="mb-3 font-display text-2xl font-medium text-primary">
+              Vehicle details
+            </h2>
+            <dl className="grid gap-x-16 sm:grid-cols-2">
               {overviewSpecs.map((spec) => (
                 <LedgerRow key={spec.label} label={spec.label} value={spec.value} />
               ))}
             </dl>
             {damageDisclosure && (
-              <div className="border-t border-border/70 bg-secondary/20 px-6 py-5 text-[13px] leading-6 text-muted-foreground sm:px-8">
-                <p className="luxxy-label text-foreground">
-                  Insurance history · {damageDisclosure.label}
+              <div className="mt-8 border-l-2 border-accent bg-secondary/25 px-5 py-4 text-sm leading-6 text-muted-foreground">
+                <p className="font-medium text-primary">
+                  Insurance history: {damageDisclosure.label}
                 </p>
                 <p className="mt-2 max-w-3xl">{damageDisclosure.explanation}</p>
               </div>
             )}
           </section>
-
         </div>
-        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[1fr_auto] gap-2 border-t-2 border-accent bg-card p-3 lg:hidden" data-testid="mobile-conversion-bar">
-          <Button asChild className="h-12">
+
+        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[1fr_auto] gap-2 border-t border-border bg-background p-3 lg:hidden" data-testid="mobile-conversion-bar">
+          <Button asChild className="h-14 text-sm font-medium">
             <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_detail_mobile', vehicleContext: true })}><Calendar className="mr-2 h-4 w-4" />{dealerConfig.bookViewing.ctaLabel}</a>
           </Button>
           {phoneHref && (
-            <Button asChild variant="outline" size="icon" className="h-12 w-12" aria-label={`Call about ${vehicleLabel}`}>
-              <a href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail-mobile' })}><Phone className="h-4 w-4 text-accent" /></a>
+            <Button asChild variant="outline" size="icon" className="h-14 w-14 border-border text-accent hover:border-accent hover:text-accent">
+              <a href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail-mobile' })}><Phone className="h-4 w-4" /></a>
             </Button>
           )}
         </div>
 
         {similarCars.length > 0 && (
-          <section className="mt-16 border-t border-border pt-10" aria-labelledby="similar-cars-heading">
-            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <section className="mt-16 border-t border-border/60 pt-10 sm:mt-24 sm:pt-16" aria-labelledby="similar-cars-heading">
+            <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="luxxy-kicker text-accent">Keep exploring</p>
+                <p className="text-sm text-muted-foreground">Other cars worth a look</p>
                 <h2
                   id="similar-cars-heading"
-                  className="mt-4 font-display text-4xl font-semibold leading-none tracking-[-.03em] text-primary"
+                  className="mt-5 font-display text-[2rem] font-medium leading-none tracking-[-.02em] text-primary"
                 >
                   Similar cars
                 </h2>
-                <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
+                <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
                   A few other vehicles from our current stock that may suit what you&apos;re looking for.
                 </p>
               </div>
               <Link
                 href="/#stock"
-                className="luxxy-label shrink-0 text-primary transition-colors hover:text-accent"
+                className="shrink-0 text-sm font-medium text-primary transition-colors hover:text-accent"
               >
-                View all stock <span aria-hidden="true">→</span>
+                View all stock <span aria-hidden="true" className="ml-1 opacity-70">→</span>
               </Link>
             </div>
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:gap-8">
               {similarCars.map((similarCar) => (
                 <CarCard key={similarCar.id} car={similarCar} stretchedLink analyticsSource="similar_cars" />
               ))}
