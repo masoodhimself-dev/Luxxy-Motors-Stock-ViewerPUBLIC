@@ -1,10 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Banknote,
-  Car,
   ChevronDown,
-  Fuel,
-  Settings2,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -49,17 +45,14 @@ const emptyFilters: FilterState = {
 
 function Field({
   label,
-  icon: Icon,
   children,
 }: {
   label: string;
-  icon: typeof Car;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5 text-accent" />
+      <span className="mb-2 block text-[15px] text-primary/80">
         {label}
       </span>
       {children}
@@ -79,7 +72,12 @@ function Select({
   disabled?: boolean;
 }) {
   return (
-    <NativeSelect value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
+    <NativeSelect 
+      value={value} 
+      onChange={(event) => onChange(event.target.value)} 
+      disabled={disabled}
+      className="h-12 rounded-none border-primary/20 text-[15px] shadow-none"
+    >
       {children}
     </NativeSelect>
   );
@@ -160,7 +158,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   handleSearchClick();
                 }
               }}
-              className="h-12 border-0 border-b border-border/70 bg-transparent px-0 pr-11 text-base placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-0 rounded-none shadow-none"
+              className="h-12 border-0 border-b border-primary/20 bg-transparent px-0 pr-11 text-base placeholder:text-primary/40 focus-visible:border-primary focus-visible:ring-0 rounded-none shadow-none text-primary"
               data-testid="input-showroom-search"
             />
             {filters.search && (
@@ -168,7 +166,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                 type="button"
                 aria-label="Clear showroom search"
                 onClick={() => setFilters((current) => ({ ...current, search: '' }))}
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-muted-foreground transition hover:text-primary min-h-[44px] min-w-[44px] grid place-items-center"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-primary/50 transition hover:text-primary min-h-[44px] min-w-[44px] grid place-items-center"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -181,7 +179,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             type="button"
             aria-expanded={showAdvanced}
             onClick={() => setShowAdvanced((current) => !current)}
-            className="flex items-center gap-2 py-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="flex min-h-11 items-center gap-2 py-2 text-sm text-primary/70 hover:text-primary transition-colors"
           >
               <span className="font-medium">Advanced search</span>
               <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
@@ -189,14 +187,14 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
 
             {showAdvanced && (
               <section
-                className="mt-6 pb-6 border-b border-border/40"
+                className="mt-4 pb-8 border-b border-primary/10"
                 aria-labelledby="advanced-search-heading"
               >
                 <h3 id="advanced-search-heading" className="sr-only">
                   Refine the details
                 </h3>
-                <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Make" icon={Car}>
+                <div className="grid gap-x-12 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Make">
                     <Select
                       value={filters.make}
                       onChange={(make) => setFilters((current) => ({ ...current, make, model: '' }))}
@@ -205,7 +203,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       {makes.map((make) => <option key={make} value={make}>{make}</option>)}
                     </Select>
                   </Field>
-                  <Field label="Model" icon={Car}>
+                  <Field label="Model">
                     <Select
                       value={filters.model}
                       onChange={(model) => setFilters((current) => ({ ...current, model }))}
@@ -215,33 +213,33 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                       {models.map((model) => <option key={model} value={model}>{model}</option>)}
                     </Select>
                   </Field>
-                  <Field label="Min budget" icon={Banknote}>
+                  <Field label="Min budget">
                     <Input
                       type="number"
                       min="0"
                       placeholder="£ Min"
                       value={filters.minPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, minPrice: event.target.value }))}
-                      className="h-10 shadow-none"
+                      className="h-12 shadow-none border-primary/20 rounded-none text-[15px]"
                     />
                   </Field>
-                  <Field label="Max budget" icon={Banknote}>
+                  <Field label="Max budget">
                     <Input
                       type="number"
                       min="0"
                       placeholder="£ Max"
                       value={filters.maxPrice}
                       onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
-                      className="h-10 shadow-none"
+                      className="h-12 shadow-none border-primary/20 rounded-none text-[15px]"
                     />
                   </Field>
-                  <Field label="Fuel" icon={Fuel}>
+                  <Field label="Fuel">
                     <Select value={filters.fuel} onChange={(fuel) => setFilters((current) => ({ ...current, fuel }))}>
                       <option value="">Any fuel</option>
                       {fuels.map((fuel) => <option key={fuel} value={fuel}>{fuel}</option>)}
                     </Select>
                   </Field>
-                  <Field label="Transmission" icon={Settings2}>
+                  <Field label="Transmission">
                     <Select
                       value={filters.transmission}
                       onChange={(transmission) => setFilters((current) => ({ ...current, transmission }))}
@@ -251,23 +249,23 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     </Select>
                   </Field>
                 </div>
-                <fieldset className="mt-8">
-                  <legend className="text-sm font-medium text-primary">Insurance history</legend>
-                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                <fieldset className="mt-10 border-t border-primary/10 pt-8">
+                  <legend className="text-[15px] font-medium text-primary">Insurance history</legend>
+                  <p className="mt-2 max-w-2xl text-[14px] text-primary/70">
                     Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
                   </p>
-                  <div className="mt-4 flex flex-wrap gap-4">
+                  <div className="mt-5 flex flex-wrap gap-6">
                     {[
                       ['noWriteOff', 'No recorded write-off'],
                       ['catS', 'Category S'],
                       ['catN', 'Category N'],
                     ].map(([key, label]) => (
-                      <label key={key} className="flex items-center gap-2.5 text-sm">
+                      <label key={key} className="flex items-center gap-3 text-[15px] text-primary">
                         <input
                           type="checkbox"
                           checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
                           onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.checked }))}
-                          className="h-4 w-4 accent-accent"
+                          className="h-5 w-5 accent-accent"
                         />
                         {label}
                       </label>
@@ -284,19 +282,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             <button
               type="button"
               onClick={resetFilters}
-              className="text-sm text-muted-foreground hover:text-primary min-h-[44px] inline-flex items-center"
+              className="text-[15px] text-primary/70 hover:text-primary min-h-[44px] inline-flex items-center"
             >
               Reset filters
-              {activeFilterCount > 0 && <span className="ml-1 text-accent">({activeFilterCount})</span>}
+              {activeFilterCount > 0 && <span className="ml-1 text-accent font-medium">({activeFilterCount})</span>}
             </button>
 
             <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground hidden sm:inline">Sort</span>
+              <span className="text-[15px] text-primary/70 hidden sm:inline">Sort</span>
               <NativeSelect
                 aria-label="Sort results"
                 value={filters.sort}
                 onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-                className="w-44 sm:w-48 text-sm h-10 shadow-none border-border/70"
+                className="h-11 w-44 rounded-none border-primary/20 text-sm shadow-none sm:w-56 sm:text-[15px]"
               >
                 <option value="">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
@@ -310,7 +308,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <button
             type="button"
             onClick={handleSearchClick}
-            className="h-11 w-full sm:w-auto rounded-none bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 flex items-center justify-center"
+            className="flex h-12 w-full items-center justify-center rounded-none bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 sm:h-14 sm:w-auto sm:px-8 sm:text-[15px]"
           >
             View matching cars
           </button>
