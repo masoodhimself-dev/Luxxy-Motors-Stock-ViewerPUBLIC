@@ -2,6 +2,7 @@ import { getRecordContactIntentUrl } from '@workspace/api-client-react';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { getVisitorId } from '@/lib/visitor';
+import { trackEvent } from '@/lib/analytics';
 
 type DealerContactDetails = {
   contact: {
@@ -91,6 +92,12 @@ export function recordContactIntent({
   car?: Car;
   source?: string;
 }) {
+  trackEvent('contact_clicked', {
+    channel,
+    source: source ?? 'unknown',
+    vehicle_context: Boolean(car),
+  });
+
   if (typeof window === 'undefined') return;
   const body = JSON.stringify({
     channel,
@@ -114,6 +121,19 @@ export function recordContactIntent({
   } catch {
     // Never let analytics get in the way of a phone call.
   }
+}
+
+export function recordBookingIntent({
+  source,
+  vehicleContext = false,
+}: {
+  source: string;
+  vehicleContext?: boolean;
+}) {
+  trackEvent('booking_started', {
+    source,
+    vehicle_context: vehicleContext,
+  });
 }
 export type EnquiryType = 'viewing' | 'general' | 'delivery' | 'warranty' | 'part_exchange';
 

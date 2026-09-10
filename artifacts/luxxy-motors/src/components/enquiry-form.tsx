@@ -12,6 +12,7 @@ import { getPhoneHref, getWhatsAppHref, type EnquiryType } from '@/lib/cta-helpe
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { getVisitorId } from '@/lib/visitor';
+import { trackEvent } from '@/lib/analytics';
 
 const typeLabels: Record<EnquiryType, string> = {
   viewing: 'Book a viewing',
@@ -204,7 +205,23 @@ export function EnquiryForm({
         : null,
       visitorId: getVisitorId(),
     };
-    mutation.mutate({ data });
+    trackEvent('enquiry_submitted', {
+      enquiry_type: type,
+      vehicle_context: Boolean(data.vehicleId),
+      preferred_contact: preferredContact,
+    });
+    mutation.mutate(
+      { data },
+      {
+        onSuccess: () => {
+          trackEvent('enquiry_completed', {
+            enquiry_type: type,
+            vehicle_context: Boolean(data.vehicleId),
+            preferred_contact: preferredContact,
+          });
+        },
+      },
+    );
   };
 
   if (mutation.isSuccess) {

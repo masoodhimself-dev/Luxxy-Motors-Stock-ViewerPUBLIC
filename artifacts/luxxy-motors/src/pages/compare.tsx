@@ -3,10 +3,11 @@ import { ArrowLeft, ArrowRight, Calendar, MessageCircle, Phone, Plus, Scale, X }
 import { useStock, type Car } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref } from '@/lib/cta-helpers';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordBookingIntent, recordContactIntent } from '@/lib/cta-helpers';
 import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
+import { trackEvent } from '@/lib/analytics';
 
 type CompareRow = {
   label: string;
@@ -88,7 +89,12 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
   return (
     <div className="flex h-full flex-col border border-border/70 bg-card" data-testid={`compare-column-${car.id}`}>
       <div className="relative aspect-[4/3] overflow-hidden bg-secondary/60">
-        <Link href={`/vehicle/${car.id}`} aria-label={`View details for ${label}`} className="absolute inset-0 block">
+        <Link
+          href={`/vehicle/${car.id}`}
+          onClick={() => trackEvent('vehicle_opened', { source: 'compare_page', layout: 'comparison' })}
+          aria-label={`View details for ${label}`}
+          className="absolute inset-0 block"
+        >
           {thumbnail ? (
             <img src={thumbnail} alt={label} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
           ) : (
@@ -111,7 +117,11 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div>
           <h3 className="font-display text-lg font-semibold leading-tight tracking-tight text-primary sm:text-xl">
-            <Link href={`/vehicle/${car.id}`} className="outline-none transition-colors hover:text-accent focus-visible:underline">
+            <Link
+              href={`/vehicle/${car.id}`}
+              onClick={() => trackEvent('vehicle_opened', { source: 'compare_page', layout: 'comparison' })}
+              className="outline-none transition-colors hover:text-accent focus-visible:underline"
+            >
               {label}
             </Link>
           </h3>
@@ -127,6 +137,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
         <div className="mt-auto grid gap-2">
           <a
             href={bookingHref}
+            onClick={() => recordBookingIntent({ source: 'compare_page', vehicleContext: true })}
             target={bookingHref.startsWith('https://') ? '_blank' : undefined}
             rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
             aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${label}`}
@@ -140,6 +151,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
             {phoneHref && (
               <a
                 href={phoneHref}
+                onClick={() => recordContactIntent({ channel: 'call', car, source: 'compare-page' })}
                 aria-label={`Call about ${label}`}
                 data-vehicle-contact="call"
                 className="inline-flex h-11 items-center justify-center gap-2 border border-border bg-background px-3 text-[13px] font-bold text-foreground transition-colors hover:border-primary/45 hover:bg-secondary"
@@ -151,6 +163,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
             {whatsappHref && (
               <a
                 href={whatsappHref}
+                onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'compare-page' })}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`WhatsApp about ${label}`}

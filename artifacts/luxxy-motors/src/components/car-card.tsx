@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
-import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordBookingIntent, recordContactIntent } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
 import { ArrowRight, Calendar, Camera, MessageCircle, Phone } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 type SpecEntry = { label: string; value: string };
 
@@ -20,11 +21,13 @@ export function CarCard({
   layout = 'card',
   stretchedLink = false,
   badges = [],
+  analyticsSource = 'showroom',
 }: {
   car: Car;
   layout?: 'row' | 'card' | 'compact';
   stretchedLink?: boolean;
   badges?: string[];
+  analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const { settings: dealerConfig } = useDealerSettings();
   const isRow = layout === 'row';
@@ -60,6 +63,10 @@ export function CarCard({
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsappHref = getVehicleWhatsAppHref(car, 'get more information about this vehicle', dealerConfig);
   const bookingHref = getVehicleBookingHref(car);
+  const recordVehicleOpen = () => trackEvent('vehicle_opened', {
+    source: analyticsSource,
+    layout,
+  });
 
   // Reset on the image set itself, so a stock refresh that swaps photos on the same
   // vehicle clears stale failures and selection too.
@@ -112,6 +119,7 @@ export function CarCard({
     >
       <Link
         href={detailHref}
+        onClick={recordVehicleOpen}
         aria-label={`View details for ${vehicleLabel}`}
         className="absolute inset-0 block outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       >
@@ -211,6 +219,7 @@ export function CarCard({
   const bookingAction = (
     <a
       href={bookingHref}
+      onClick={() => recordBookingIntent({ source: `${analyticsSource}_${layout}`, vehicleContext: true })}
       target={bookingHref.startsWith('https://') ? '_blank' : undefined}
       rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
       aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
@@ -231,7 +240,7 @@ export function CarCard({
       href={phoneHref}
       title={`Call about ${vehicleLabel}`}
       aria-label={`Call about ${vehicleLabel}`}
-      onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-card' })}
+      onClick={() => recordContactIntent({ channel: 'call', car, source: `${analyticsSource}-${layout}` })}
       data-vehicle-contact="call"
       className={cn(actionBase, 'border border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary focus-visible:ring-primary')}
     >
@@ -247,7 +256,7 @@ export function CarCard({
       rel="noopener noreferrer"
       title={`WhatsApp about ${vehicleLabel}`}
       aria-label={`WhatsApp about ${vehicleLabel}`}
-      onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-card' })}
+      onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: `${analyticsSource}-${layout}` })}
       data-vehicle-contact="whatsapp"
        className={cn(actionBase, 'luxxy-contact hover:bg-[hsl(var(--contact)/.18)] focus-visible:ring-[hsl(var(--contact))]')}
     >
@@ -265,6 +274,7 @@ export function CarCard({
     >
       <Link
         href={detailHref}
+        onClick={recordVehicleOpen}
         aria-label={stretchedLink ? `View full details for ${vehicleLabel}` : undefined}
         className={cn(
           'outline-none transition-colors hover:text-accent focus-visible:underline',
@@ -299,6 +309,7 @@ export function CarCard({
           <div className="relative z-10 mt-auto grid grid-cols-1 gap-2 pt-3 sm:grid-cols-[1fr_auto]" data-testid={`compact-actions-${car.id}`}>
             <a
               href={bookingHref}
+              onClick={() => recordBookingIntent({ source: `${analyticsSource}_compact`, vehicleContext: true })}
               aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
               className="inline-flex min-h-11 min-w-0 items-center justify-center bg-primary px-2 text-[12px] font-bold text-primary-foreground sm:px-3"
             >
@@ -345,6 +356,7 @@ export function CarCard({
 
           <Link
             href={detailHref}
+            onClick={recordVehicleOpen}
             className="inline-flex items-center gap-2 text-[13px] font-bold text-primary underline-offset-4 transition-colors hover:text-accent hover:underline"
           >
             Full vehicle details

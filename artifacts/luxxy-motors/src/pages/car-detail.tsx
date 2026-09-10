@@ -11,7 +11,7 @@ import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { vehiclePageMeta } from '@/lib/page-meta';
-import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
+import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordBookingIntent, recordContactIntent } from '@/lib/cta-helpers';
 
 function getSimilarCars(currentCar: Car, cars: Car[]) {
   const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
@@ -226,6 +226,7 @@ export default function CarDetail() {
                 <Button asChild size="lg" className="col-span-2 h-12 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground">
                   <a
                      href={bookingHref}
+                     onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
                      target={bookingHref.startsWith('https://') ? '_blank' : undefined}
                      rel={bookingHref.startsWith('https://') ? 'noopener noreferrer' : undefined}
                     data-vehicle-contact="booking"
@@ -311,11 +312,11 @@ export default function CarDetail() {
         </div>
         <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[1fr_auto] gap-2 border-t-2 border-accent bg-card p-3 lg:hidden" data-testid="mobile-conversion-bar">
           <Button asChild className="h-12">
-            <a href={bookingHref}><Calendar className="mr-2 h-4 w-4" />{dealerConfig.bookViewing.ctaLabel}</a>
+            <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_detail_mobile', vehicleContext: true })}><Calendar className="mr-2 h-4 w-4" />{dealerConfig.bookViewing.ctaLabel}</a>
           </Button>
           {phoneHref && (
             <Button asChild variant="outline" size="icon" className="h-12 w-12" aria-label={`Call about ${vehicleLabel}`}>
-              <a href={phoneHref}><Phone className="h-4 w-4 text-accent" /></a>
+              <a href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail-mobile' })}><Phone className="h-4 w-4 text-accent" /></a>
             </Button>
           )}
         </div>
@@ -344,7 +345,7 @@ export default function CarDetail() {
             </div>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
               {similarCars.map((similarCar) => (
-                <CarCard key={similarCar.id} car={similarCar} stretchedLink />
+                <CarCard key={similarCar.id} car={similarCar} stretchedLink analyticsSource="similar_cars" />
               ))}
             </div>
           </section>

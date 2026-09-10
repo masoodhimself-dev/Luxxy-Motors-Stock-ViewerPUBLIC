@@ -3,6 +3,7 @@ import { Car } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { trackEvent } from '@/lib/analytics';
 
 export function vehicleLabelFor(car: Car) {
   return car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
@@ -60,6 +61,10 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     const result = toggleCompare(car.id);
+    trackEvent('comparison_changed', {
+      action: result === 'full' ? 'limit_reached' : comparing ? 'removed' : 'added',
+      source: variant === 'compact' ? 'compact_card' : 'vehicle_card',
+    });
     if (result === 'full') {
       toast({
         title: `You can compare ${MAX_COMPARE} cars at a time`,

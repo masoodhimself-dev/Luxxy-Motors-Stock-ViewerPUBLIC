@@ -4,13 +4,14 @@ import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, formatMileage, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
-import { getContactHref } from '@/lib/cta-helpers';
+import { getContactHref, recordBookingIntent, recordContactIntent } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Banknote, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Pause, Phone, Play, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { trackEvent } from '@/lib/analytics';
 
 const defaultFilters: FilterState = {
   make: '',
@@ -170,11 +171,18 @@ export default function Home() {
   }, [featuredCars.length, carouselPaused]);
 
   const revealResults = () => {
+    trackEvent('stock_results_opened', { source: 'hero', result_count: filteredCars.length });
     setShowAll(true);
     requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
   };
 
   const applyQuickFilter = (nextFilters: Partial<FilterState>) => {
+    const preset = nextFilters.transmission ? 'automatic' : nextFilters.maxPrice ? 'under_5000' : 'low_mileage';
+    trackEvent('showroom_filter_applied', {
+      source: 'quick_filter',
+      preset,
+      filter_count: 1,
+    });
     setFilters({ ...defaultFilters, ...nextFilters });
     revealResults();
   };
@@ -252,6 +260,7 @@ export default function Home() {
                         <Link
                           key={car.id}
                           href={`/vehicle/${car.id}`}
+                          onClick={() => trackEvent('vehicle_opened', { source: 'featured_carousel', layout: 'hero' })}
                           aria-label={`View ${vehicleDisplayTitle(car)}`}
                           aria-hidden={index !== featuredIndex}
                           tabIndex={index === featuredIndex ? 0 : -1}
@@ -290,7 +299,10 @@ export default function Home() {
                          type="button"
                          aria-label={carouselPaused ? 'Play featured vehicles' : 'Pause featured vehicles'}
                          aria-pressed={carouselPaused}
-                         onClick={() => setCarouselPaused((value) => !value)}
+                         onClick={() => {
+                           trackEvent('carousel_control_used', { action: carouselPaused ? 'play' : 'pause' });
+                           setCarouselPaused(!carouselPaused);
+                         }}
                          className="grid h-11 w-11 place-items-center text-white hover:bg-white/15"
                        >
                          {carouselPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
@@ -298,7 +310,10 @@ export default function Home() {
                       <button
                         type="button"
                         aria-label="Previous featured car"
-                        onClick={() => setFeaturedIndex((current) => (current - 1 + featuredCars.length) % featuredCars.length)}
+                         onClick={() => {
+                           trackEvent('carousel_control_used', { action: 'previous' });
+                           setFeaturedIndex((current) => (current - 1 + featuredCars.length) % featuredCars.length);
+                         }}
                         className="grid h-11 w-11 place-items-center text-primary-foreground transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -309,7 +324,10 @@ export default function Home() {
                       <button
                         type="button"
                         aria-label="Next featured car"
-                        onClick={() => setFeaturedIndex((current) => (current + 1) % featuredCars.length)}
+                         onClick={() => {
+                           trackEvent('carousel_control_used', { action: 'next' });
+                           setFeaturedIndex((current) => (current + 1) % featuredCars.length);
+                         }}
                         className="grid h-11 w-11 place-items-center text-primary-foreground transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                       >
                         <ChevronRight className="h-5 w-5" />
@@ -350,6 +368,25 @@ export default function Home() {
           filters={filters}
           setFilters={setFilters}
           onSearch={() => {
+            trackEvent('showroom_filter_applied', {
+              source: 'filter_panel',
+              filter_count: [
+                filters.make,
+                filters.model,
+                filters.minPrice || filters.maxPrice,
+                filters.fuel,
+                filters.transmission,
+                filters.search,
+                filters.noWriteOff,
+                filters.catS,
+                filters.catN,
+              ].filter(Boolean).length,
+              search_used: Boolean(filters.search),
+              budget_used: Boolean(filters.minPrice || filters.maxPrice),
+              insurance_filter_used: filters.noWriteOff || filters.catS || filters.catN,
+              sort: filters.sort || 'recommended',
+              result_count: filteredCars.length,
+            });
             setShowAll(true);
             requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
           }}
@@ -391,7 +428,10 @@ export default function Home() {
                 <button
                   type="button"
                   aria-pressed={stockView === 'cards'}
-                  onClick={() => setStockView('cards')}
+                  onClick={() => {
+                    setStockView('cards');
+                    trackEvent('stock_view_changed', { view: 'cards' });
+                  }}
                   data-testid="button-stock-view-cards"
                   className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
                 >
@@ -400,7 +440,10 @@ export default function Home() {
                 <button
                   type="button"
                   aria-pressed={stockView === 'compact'}
-                  onClick={() => setStockView('compact')}
+                  onClick={() => {
+                    setStockView('compact');
+                    trackEvent('stock_view_changed', { view: 'compact' });
+                  }}
                   data-testid="button-stock-view-compact"
                   className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
                 >
@@ -425,7 +468,11 @@ export default function Home() {
               {filteredCars.length > 4 && !showAll && (
                 <div className="mt-12 flex justify-center">
                   <Button
-                    onClick={() => { setShowAll(true); requestAnimationFrame(() => scrollToHomeTarget('vehicle-results')); }}
+                    onClick={() => {
+                      trackEvent('stock_results_opened', { source: 'view_all', result_count: filteredCars.length });
+                      setShowAll(true);
+                      requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+                    }}
                     size="lg"
                     data-testid="button-view-all-vehicles"
                     className="group h-[3.25rem] bg-primary px-8 font-bold hover:bg-primary/90"
@@ -535,7 +582,7 @@ export default function Home() {
           <div className="flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
             <h2 className="max-w-xl font-display text-4xl font-semibold leading-[1] tracking-tight md:text-5xl">{dealerConfig.bookViewing.title}</h2>
             <Button size="lg" asChild data-testid="link-book-viewing" className="h-[3.25rem] shrink-0 bg-accent px-6 font-bold text-accent-foreground hover:bg-accent/90">
-              <a href={getContactHref('Book a Viewing')}>{dealerConfig.bookViewing.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
+              <a href={getContactHref('Book a Viewing')} onClick={() => recordBookingIntent({ source: 'home_booking_panel' })}>{dealerConfig.bookViewing.ctaLabel}<ArrowRight className="ml-4 h-4 w-4" /></a>
             </Button>
           </div>
           <p className="text-base leading-7 text-primary-foreground/70 md:col-start-2 md:max-w-xl">{dealerConfig.bookViewing.description}</p>
@@ -561,14 +608,14 @@ export default function Home() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {dealerConfig.contact.phone && (
-                <a data-testid="link-contact-phone" className="group border border-border bg-card p-6 transition-colors hover:border-accent" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>
+                <a data-testid="link-contact-phone" onClick={() => recordContactIntent({ channel: 'call', source: 'home_contact_panel' })} className="group border border-border bg-card p-6 transition-colors hover:border-accent" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>
                   <Phone className="h-5 w-5 text-accent" />
                   <span className="luxxy-label mt-8 block text-muted-foreground">Call us</span>
                   <span className="mt-1.5 block text-lg font-bold text-primary group-hover:text-accent">{dealerConfig.contact.phone}</span>
                 </a>
               )}
               {dealerConfig.contact.whatsapp && (
-                <a data-testid="link-contact-whatsapp" className="group border border-[#1f7a4d]/30 bg-[#1f7a4d]/5 p-6 transition-colors hover:border-[#1f7a4d]" href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer">
+                <a data-testid="link-contact-whatsapp" onClick={() => recordContactIntent({ channel: 'whatsapp', source: 'home_contact_panel' })} className="group border border-[#1f7a4d]/30 bg-[#1f7a4d]/5 p-6 transition-colors hover:border-[#1f7a4d]" href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="h-5 w-5 text-[#1f7a4d]" />
                   <span className="luxxy-label mt-8 block text-[#1b6543]/70">Message us</span>
                   <span className="mt-1.5 block text-lg font-bold text-[#1b6543]">WhatsApp</span>

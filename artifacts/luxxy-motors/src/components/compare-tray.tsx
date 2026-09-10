@@ -5,6 +5,7 @@ import { useStock } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { getSafeImageUrl, getThumbnailUrl } from '@/lib/utils';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
+import { trackEvent } from '@/lib/analytics';
 
 export function routeAllowsCompareTray(location: string) {
   return location !== '/compare' && !location.startsWith('/vehicle/');
@@ -118,6 +119,7 @@ export function CompareTray() {
             {readyToCompare ? (
               <Link
                 href="/compare"
+                onClick={() => trackEvent('comparison_opened', { source: 'compare_tray', vehicle_count: cars.length })}
                 data-testid="link-open-compare"
                 className="inline-flex h-11 items-center gap-3 bg-accent px-5 text-[13px] font-bold text-accent-foreground transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
               >
