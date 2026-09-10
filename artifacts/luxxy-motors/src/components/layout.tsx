@@ -16,8 +16,8 @@ const navLinkClass =
 const mobileNavRowClass =
   'flex items-center justify-between border-b border-border/60 py-3.5 text-left text-[12px] font-bold uppercase tracking-[.1em] text-foreground/80 transition-colors hover:text-accent';
 const footerLinkClass =
-  'text-[13px] font-semibold text-primary-foreground/70 transition-colors hover:text-accent';
-const footerHeadingClass = 'luxxy-label border-b border-primary-foreground/15 pb-3 text-accent';
+  'text-sm text-primary-foreground/70 transition-colors hover:text-primary-foreground';
+const footerHeadingClass = 'font-display text-xl font-medium text-primary-foreground';
 const socialLinkClass =
   'grid h-10 w-10 place-items-center border border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground/80 transition-colors hover:border-accent hover:bg-accent hover:text-primary';
 
@@ -327,25 +327,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer id="contact" data-home-section className="bg-primary text-primary-foreground pt-20 pb-10 mt-auto border-t-4 border-accent">
+      <footer id="contact" data-home-section className="mt-auto border-t border-primary-foreground/10 bg-primary pb-8 pt-14 text-primary-foreground sm:pt-16">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 mb-16">
+          <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 lg:gap-10">
             <div className="lg:col-span-4">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="grid h-10 w-10 shrink-0 place-items-center border border-accent/60 bg-accent/15 text-accent">
-                  <CarIcon className="w-5 h-5" />
-                </span>
-                <span className="leading-none">
-                  <span className="block font-display text-2xl font-semibold tracking-[-.02em] text-primary-foreground">
-                    {wordmark}
-                  </span>
-                  {locationLabel && (
-                    <span className="luxxy-label mt-2 block text-primary-foreground/55">{locationLabel}</span>
-                  )}
-                </span>
-              </div>
-              <p className="text-primary-foreground/70 mb-8 text-sm leading-7 max-w-sm">
-                {dealerConfig.hero.subcopy}
+              <p className="font-display text-3xl font-medium tracking-[-.02em] text-primary-foreground">
+                {wordmark}
+              </p>
+              {locationLabel && (
+                <p className="mt-2 text-sm text-primary-foreground/55">{locationLabel}</p>
+              )}
+              <p className="mb-7 mt-5 max-w-sm text-sm leading-7 text-primary-foreground/70">
+                {dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
+                  ? 'Clear details, fair prices and time to look properly before you decide.'
+                  : dealerConfig.hero.subcopy}
               </p>
               <div className="flex items-center gap-2">
                 {dealerConfig.social.instagram && (
@@ -368,22 +363,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Vehicles</h3>
-              <nav className="mt-5 flex flex-col items-start gap-3">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>View All Stock</button>
+              <nav className="mt-4 flex flex-col items-start gap-3">
+                <button onClick={() => handleNav('stock')} className={footerLinkClass}>View all stock</button>
                 <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find My Car</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part Exchange</button>
                   <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
-                <button onClick={() => handleNav('warranty')} className={footerLinkClass}>Warranty Information</button>
+                <button onClick={() => handleNav('warranty')} className={footerLinkClass}>Warranty information</button>
               </nav>
             </div>
 
             <div className="lg:col-span-3">
-              <h3 className={footerHeadingClass}>Contact &amp; Visit</h3>
-              <div className="mt-5 space-y-4 text-[13px] text-primary-foreground/70">
+              <h3 className={footerHeadingClass}>Contact and visit</h3>
+              <div className="mt-4 space-y-4 text-sm text-primary-foreground/70">
                 {dealerConfig.contact.phone && (
                   <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-3 transition-colors hover:text-accent">
                     <Phone className="w-4 h-4 shrink-0 text-accent" />
-                    <span className="font-mono text-[13px] font-bold text-primary-foreground group-hover:text-accent">{dealerConfig.contact.phone}</span>
+                    <span className="text-primary-foreground group-hover:text-accent">{dealerConfig.contact.phone}</span>
                   </a>
                 )}
                 {dealerConfig.contact.email && (
@@ -397,10 +392,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <address className="not-italic space-y-1 leading-6">
                       {dealerConfig.address.street && <p>{dealerConfig.address.street}</p>}
                       {dealerConfig.address.city && <p>{dealerConfig.address.city}</p>}
-                      {dealerConfig.address.postcode && <p className="font-mono font-bold text-primary-foreground">{dealerConfig.address.postcode}</p>}
+                      {dealerConfig.address.postcode && <p className="text-primary-foreground">{dealerConfig.address.postcode}</p>}
                       {dealerConfig.address.mapsUrl && (
-                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="luxxy-label mt-3 inline-block text-accent transition-colors hover:text-primary-foreground">
-                          Get Directions &rarr;
+                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-accent transition-colors hover:text-primary-foreground">
+                          Get directions &rarr;
                         </a>
                       )}
                     </address>
@@ -411,13 +406,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {dealerConfig.hours && dealerConfig.hours.length > 0 && (
               <div className="lg:col-span-3">
-                <h3 className={footerHeadingClass}>Opening Hours</h3>
-                <ul className="mt-5 space-y-3">
+                <h3 className={footerHeadingClass}>Opening hours</h3>
+                <ul className="mt-4 space-y-3">
                   {dealerConfig.hours.map((h, i) => (
-                    <li key={i} className="flex items-baseline gap-2 text-[13px]">
+                    <li key={i} className="flex items-baseline justify-between gap-4 text-sm">
                       <span className="shrink-0 text-primary-foreground/70">{h.days}</span>
-                      <span className="luxxy-leader opacity-25" aria-hidden="true" />
-                      <span className="shrink-0 font-mono text-[13px] font-bold text-primary-foreground">{h.times}</span>
+                      <span className="shrink-0 text-primary-foreground">{h.times}</span>
                     </li>
                   ))}
                 </ul>
@@ -425,13 +419,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          <div className="border-t border-primary-foreground/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-primary-foreground/50">
-            <p className="luxxy-label text-primary-foreground/45">© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. All rights reserved.</p>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[11px]">
-              {dealerConfig.legal.companyNumber && <span className="font-mono">Company No: {dealerConfig.legal.companyNumber}</span>}
-              {dealerConfig.legal.vatNumber && <span className="font-mono">VAT: {dealerConfig.legal.vatNumber}</span>}
-              {dealerConfig.legal.termsUrl && <a className="luxxy-label transition-colors hover:text-accent" href={dealerConfig.legal.termsUrl}>Terms &amp; Conditions</a>}
-              {dealerConfig.legal.privacyUrl && <a className="luxxy-label transition-colors hover:text-accent" href={dealerConfig.legal.privacyUrl}>Privacy Policy</a>}
+          <div className="flex flex-col items-center justify-between gap-5 border-t border-primary-foreground/10 pt-7 text-xs text-primary-foreground/45 md:flex-row">
+            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. All rights reserved.</p>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+              {dealerConfig.legal.companyNumber && <span>Company no. {dealerConfig.legal.companyNumber}</span>}
+              {dealerConfig.legal.vatNumber && <span>VAT {dealerConfig.legal.vatNumber}</span>}
+              {dealerConfig.legal.termsUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.termsUrl}>Terms and conditions</a>}
+              {dealerConfig.legal.privacyUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.privacyUrl}>Privacy policy</a>}
             </div>
           </div>
         </div>
