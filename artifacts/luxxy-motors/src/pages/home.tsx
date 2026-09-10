@@ -9,7 +9,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Banknote, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Phone, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowRight, Banknote, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, Gauge, Grid2X2, List, Mail, MapPin, MessageCircle, Pause, Phone, Play, Search, Settings2, ShieldCheck, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const defaultFilters: FilterState = {
@@ -25,13 +25,17 @@ const defaultFilters: FilterState = {
   noWriteOff: false,
   sort: '',
 };
+const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home() {
   const { stock, isLoading } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const [showAll, setShowAll] = useState(false);
-  const [stockView, setStockView] = useState<'cards' | 'compact'>('cards');
+  const [stockView, setStockView] = useState<'cards' | 'compact'>(() =>
+    window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards',
+  );
   const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [carouselPaused, setCarouselPaused] = useState(false);
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
@@ -131,9 +135,7 @@ export default function Home() {
   const heroHeadline = dealerConfig.hero.copy.trim().toLowerCase() === 'find your next car'
     ? 'Carefully chosen cars.'
     : dealerConfig.hero.copy;
-  const heroPrimaryLabel = dealerConfig.hero.primaryCta.trim().toLowerCase() === 'see all cars'
-    ? 'Browse cars'
-    : dealerConfig.hero.primaryCta;
+  const heroPrimaryLabel = 'See all cars';
   const oldSecondaryLabels = ['get a part-exchange valuation', 'part exchange'];
   const heroSecondaryLabel = oldSecondaryLabels.includes(dealerConfig.hero.secondaryCta.trim().toLowerCase())
     ? 'Find my car'
@@ -144,8 +146,13 @@ export default function Home() {
   }, [featuredCars]);
 
   useEffect(() => {
+    window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
+  }, [stockView]);
+
+  useEffect(() => {
     if (
       featuredCars.length < 2 ||
+      carouselPaused ||
       (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
     ) {
       return;
@@ -156,7 +163,7 @@ export default function Home() {
     }, 5500);
 
     return () => window.clearInterval(timer);
-  }, [featuredCars.length]);
+  }, [featuredCars.length, carouselPaused]);
 
   const revealResults = () => {
     setShowAll(true);
@@ -192,11 +199,11 @@ export default function Home() {
       <section className="relative overflow-hidden border-b border-border bg-background text-foreground">
         <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1.5rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+2rem)]">
           <div className="grid border-x border-t border-border lg:min-h-[32rem] lg:grid-cols-[0.92fr_1.08fr]">
-            <div className="relative z-10 flex flex-col justify-center px-6 py-10 sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+            <div className="relative z-10 flex flex-col justify-center px-5 py-8 sm:px-10 sm:py-14 lg:px-14 lg:py-16">
               <p className="luxxy-reveal luxxy-kicker text-accent">
                 {dealerConfig.hero.announcement || 'Independent cars, carefully chosen'}
               </p>
-              <h1 className="luxxy-reveal luxxy-reveal-1 mt-6 max-w-2xl font-display text-[3.25rem] leading-[0.94] tracking-[-0.045em] text-primary sm:text-6xl lg:text-[4.75rem]">
+              <h1 className="luxxy-reveal luxxy-reveal-1 mt-5 max-w-2xl break-words font-display text-[clamp(2.6rem,12vw,4.75rem)] leading-[0.96] tracking-[-0.045em] text-primary">
                 {heroHeadline}
               </h1>
               <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-lg text-base leading-7 text-muted-foreground">
@@ -231,7 +238,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative min-h-[20rem] overflow-hidden border-t border-border bg-primary lg:min-h-full lg:border-l lg:border-t-0">
+            <div className="relative min-h-[18rem] overflow-hidden border-t border-border bg-primary sm:min-h-[22rem] lg:min-h-full lg:border-l lg:border-t-0">
               {featuredCar ? (
                 <>
                   <div className="absolute inset-0 overflow-hidden" data-testid="featured-forecourt-carousel">
@@ -252,7 +259,7 @@ export default function Home() {
                             alt=""
                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]"
                           />
-                          <span className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" aria-hidden="true" />
+                           <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
                           <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
                             <span>
                               <span className="luxxy-label block text-primary-foreground/70">Featured on the forecourt</span>
@@ -274,7 +281,16 @@ export default function Home() {
                   </div>
 
                   {featuredCars.length > 1 && (
-                    <div className="absolute right-4 top-4 z-20 flex border border-white/35 bg-primary/75 backdrop-blur-sm">
+                     <div className="absolute right-4 top-4 z-20 flex border border-white/35 bg-black/65 backdrop-blur-sm">
+                       <button
+                         type="button"
+                         aria-label={carouselPaused ? 'Play featured vehicles' : 'Pause featured vehicles'}
+                         aria-pressed={carouselPaused}
+                         onClick={() => setCarouselPaused((value) => !value)}
+                         className="grid h-11 w-11 place-items-center text-white hover:bg-white/15"
+                       >
+                         {carouselPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                       </button>
                       <button
                         type="button"
                         aria-label="Previous featured car"
@@ -283,7 +299,7 @@ export default function Home() {
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
-                      <span className="grid min-w-14 place-items-center border-x border-white/25 px-2 font-mono text-[11px] font-bold text-primary-foreground">
+                       <span aria-live="polite" aria-atomic="true" className="grid min-w-14 place-items-center border-x border-white/25 px-2 font-mono text-[11px] font-bold text-primary-foreground">
                         {featuredIndex + 1} / {featuredCars.length}
                       </span>
                       <button
@@ -348,7 +364,7 @@ export default function Home() {
                 </h2>
               </div>
               {stock && (
-                <p className="font-mono text-[13px] font-bold text-primary" data-testid="text-filtered-stock-count">
+                <p className="font-mono text-[13px] font-bold text-primary" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
                   {filteredCars.length} {filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available
                 </p>
               )}

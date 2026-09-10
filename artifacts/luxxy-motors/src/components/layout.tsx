@@ -21,6 +21,35 @@ const footerHeadingClass = 'luxxy-label border-b border-primary-foreground/15 pb
 const socialLinkClass =
   'grid h-10 w-10 place-items-center border border-primary-foreground/20 bg-primary-foreground/5 text-primary-foreground/80 transition-colors hover:border-accent hover:bg-accent hover:text-primary';
 
+function hslToRelativeLuminance(hsl: string) {
+  const values = hsl.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
+  if (!values || values.length < 3) return null;
+  const [rawHue, rawSaturation, rawLightness] = values;
+  const hue = ((rawHue % 360) + 360) % 360 / 360;
+  const saturation = Math.min(100, Math.max(0, rawSaturation)) / 100;
+  const lightness = Math.min(100, Math.max(0, rawLightness)) / 100;
+  const channel = (offset: number) => {
+    const k = (offset + hue * 12) % 12;
+    const a = saturation * Math.min(lightness, 1 - lightness);
+    return lightness - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  const linear = (value: number) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  const [red, green, blue] = [channel(0), channel(8), channel(4)].map(linear);
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+export function readableForegroundForHsl(hsl: string) {
+  const backgroundLuminance = hslToRelativeLuminance(hsl);
+  if (backgroundLuminance == null) return '42 33% 96%';
+  const dark = '188 50% 10%';
+  const light = '42 33% 96%';
+  const darkLuminance = hslToRelativeLuminance(dark) ?? 0;
+  const lightLuminance = hslToRelativeLuminance(light) ?? 1;
+  const contrastWithDark = (Math.max(backgroundLuminance, darkLuminance) + 0.05) / (Math.min(backgroundLuminance, darkLuminance) + 0.05);
+  const contrastWithLight = (Math.max(backgroundLuminance, lightLuminance) + 0.05) / (Math.min(backgroundLuminance, lightLuminance) + 0.05);
+  return contrastWithDark >= contrastWithLight ? dark : light;
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { settings: dealerConfig } = useDealerSettings();
@@ -28,13 +57,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLElement>(null);
   const hasEditedFormRef = useRef(false);
   const brandStyle = {
     ...(dealerConfig.identity.brandColors?.primaryHsl
-      ? { '--primary': dealerConfig.identity.brandColors.primaryHsl }
+      ? {
+          '--primary': dealerConfig.identity.brandColors.primaryHsl,
+          '--primary-foreground': readableForegroundForHsl(dealerConfig.identity.brandColors.primaryHsl),
+        }
       : {}),
     ...(dealerConfig.identity.brandColors?.accentHsl
-      ? { '--accent': dealerConfig.identity.brandColors.accentHsl }
+      ? {
+          '--accent': dealerConfig.identity.brandColors.accentHsl,
+          '--accent-foreground': readableForegroundForHsl(dealerConfig.identity.brandColors.accentHsl),
+        }
       : {}),
   } as CSSProperties;
   const wordmark = dealerConfig.identity.logoText || dealerConfig.identity.name;
@@ -47,6 +84,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    mobileMenuRef.current?.querySelector<HTMLElement>('button, a')?.focus();
+
+    const handleMenuKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMobileMenuOpen(false);
+      requestAnimationFrame(() => menuButtonRef.current?.focus());
+    };
+
+    document.addEventListener('keydown', handleMenuKeyDown);
+    return () => document.removeEventListener('keydown', handleMenuKeyDown);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     hasEditedFormRef.current = false;
@@ -130,8 +181,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </button>
 
+          <nav className="hidden items-center gap-5 lg:flex 2xl:hidden" aria-label="Primary navigation">
+            <button onClick={() => handleNav('stock')} className={navLinkClass}>Browse stock</button>
+            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
+            <button
+              type="button"
+              onClick={() => setLocation('/saved')}
+              aria-label={savedCount > 0 ? `Saved cars, ${savedCount} saved` : 'Saved cars'}
+              data-testid="link-saved-cars-condensed"
+              className="relative grid h-11 w-11 place-items-center border border-border text-primary hover:border-accent"
+            >
+              <Heart className={`h-4 w-4 text-accent ${savedCount > 0 ? 'fill-current' : ''}`} />
+              {savedCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center bg-accent px-1 text-[10px] font-bold text-accent-foreground">
+                  {savedCount}
+                </span>
+              )}
+            </button>
+            <Button onClick={() => setLocation(getEnquiryHref('viewing'))} className="h-11 px-4 text-xs uppercase">
+              {dealerConfig.bookViewing.ctaLabel}
+            </Button>
+          </nav>
+
           {/* Desktop Nav */}
-          <nav className="hidden xl:flex items-center gap-5 2xl:gap-7">
+          <nav className="hidden 2xl:flex items-center gap-7">
             <button onClick={() => handleNav('top')} className={navLinkClass}>Home</button>
             <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find My Car</button>
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
@@ -178,8 +251,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Mobile Menu Toggle */}
           <button
+            ref={menuButtonRef}
             type="button"
-            className="xl:hidden grid h-10 w-10 place-items-center border border-border text-foreground/80 transition-colors hover:border-primary/45 hover:text-primary"
+            className="lg:hidden grid h-11 w-11 place-items-center border border-border text-foreground/80 transition-colors hover:border-primary/45 hover:text-primary"
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -190,7 +264,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
-          <div className="xl:hidden absolute top-[4.5rem] left-0 w-full border-y border-border bg-background px-4 pb-6 pt-2 flex flex-col max-h-[calc(100vh-4.5rem)] overflow-y-auto lg:px-8">
+          <nav ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute top-[4.5rem] left-0 w-full border-y border-border bg-background px-4 pb-6 pt-2 flex flex-col max-h-[calc(100vh-4.5rem)] overflow-y-auto">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home</button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
               Find My Car <ArrowRight className="w-4 h-4 text-accent" />
@@ -245,7 +319,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </a>
               )}
             </div>
-          </div>
+          </nav>
         )}
       </header>
 

@@ -132,7 +132,10 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
     Number(Boolean(filters.model)) +
     Number(Boolean(filters.minPrice || filters.maxPrice)) +
     Number(Boolean(filters.fuel)) +
-    Number(Boolean(filters.transmission));
+    Number(Boolean(filters.transmission)) +
+    Number(filters.noWriteOff) +
+    Number(filters.catS) +
+    Number(filters.catN);
 
   const handleSearchClick = () => {
     onSearch?.();
@@ -270,6 +273,29 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     </Select>
                   </Field>
                 </div>
+                <fieldset className="mt-6 border-t border-border pt-5">
+                  <legend className="luxxy-label text-muted-foreground">Insurance history</legend>
+                  <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">
+                    Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    {[
+                      ['noWriteOff', 'No recorded write-off'],
+                      ['catS', 'Category S'],
+                      ['catN', 'Category N'],
+                    ].map(([key, label]) => (
+                      <label key={key} className="flex min-h-11 items-center gap-3 border border-border bg-background px-3 py-2 text-sm font-semibold">
+                        <input
+                          type="checkbox"
+                          checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
+                          onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.checked }))}
+                          className="h-4 w-4 accent-[hsl(var(--primary))]"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               </section>
             )}
           </div>

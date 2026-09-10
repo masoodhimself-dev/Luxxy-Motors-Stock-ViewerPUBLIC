@@ -189,16 +189,11 @@ export function CarCard({
   );
 
   const ledger = visibleSpecs.length > 0 && (
-    <dl className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]')}>
-      {visibleSpecs.map((spec, index) => (
-        <div key={spec.label} className="flex items-center gap-3">
-          <div className="flex items-baseline gap-1.5">
-            <dt className="text-muted-foreground">{spec.label}</dt>
-            <dd className="font-bold text-foreground">{spec.value}</dd>
-          </div>
-          {index < visibleSpecs.length - 1 && (
-            <span className="h-1 w-1 bg-border" aria-hidden="true" />
-          )}
+    <dl className={cn('grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]', isRow && 'sm:grid-cols-3')}>
+      {visibleSpecs.map((spec) => (
+        <div key={spec.label} className="min-w-0">
+          <dt className="luxxy-label text-muted-foreground">{spec.label}</dt>
+          <dd className="mt-1 truncate font-bold text-foreground">{spec.value}</dd>
         </div>
       ))}
     </dl>
@@ -254,7 +249,7 @@ export function CarCard({
       aria-label={`WhatsApp about ${vehicleLabel}`}
       onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-card' })}
       data-vehicle-contact="whatsapp"
-      className={cn(actionBase, 'border border-[#1f7a4d]/30 bg-[#1f7a4d]/10 text-[#1b6543] hover:bg-[#1f7a4d]/18 focus-visible:ring-[#1f7a4d]')}
+       className={cn(actionBase, 'luxxy-contact hover:bg-[hsl(var(--contact)/.18)] focus-visible:ring-[hsl(var(--contact))]')}
     >
       <MessageCircle className="h-4 w-4" />
       WhatsApp
@@ -264,7 +259,7 @@ export function CarCard({
   const title = (
     <h3
       className={cn(
-        'font-display font-semibold leading-tight tracking-tight text-primary',
+        'break-words font-display font-semibold leading-tight tracking-tight text-primary',
         isRow ? 'text-2xl sm:text-[1.7rem]' : 'text-xl',
       )}
     >
@@ -301,13 +296,18 @@ export function CarCard({
             {car.price ? formatPrice(car.price, car.currency) : 'POA'}
           </p>
           {ledger && <div className="mt-3 overflow-hidden">{ledger}</div>}
-          <Link
-            href={detailHref}
-            className="relative z-10 mt-auto inline-flex items-center gap-2 pt-3 text-[12px] font-bold uppercase tracking-[.08em] text-primary transition-colors hover:text-accent"
-          >
-            View car
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <div className="relative z-10 mt-auto grid grid-cols-1 gap-2 pt-3 sm:grid-cols-[1fr_auto]" data-testid={`compact-actions-${car.id}`}>
+            <a
+              href={bookingHref}
+              aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
+              className="inline-flex min-h-11 min-w-0 items-center justify-center bg-primary px-2 text-[12px] font-bold text-primary-foreground sm:px-3"
+            >
+              <Calendar className="mr-2 h-3.5 w-3.5 shrink-0" />
+              <span className="sm:hidden">Book</span>
+              <span className="hidden truncate sm:inline">{dealerConfig.bookViewing.ctaLabel}</span>
+            </a>
+            <CompareCarButton car={car} variant="compact" className="min-h-11 min-w-0 justify-center border border-border px-2 sm:px-3" />
+          </div>
         </div>
       </article>
     );

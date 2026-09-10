@@ -139,7 +139,7 @@ export default function CarDetail() {
   })();
 
   return (
-    <div className="luxxy-shell luxxy-grain min-h-screen">
+    <div className="luxxy-shell luxxy-grain min-h-screen pb-20 lg:pb-0">
       <div className="border-b border-border bg-background">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Link
@@ -163,7 +163,7 @@ export default function CarDetail() {
 
           {/* Right Column: Key Details & CTA */}
           <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <div className="sticky top-[calc(var(--site-header-height,5rem)+1.5rem)] border border-border bg-card">
+            <div className="luxxy-detail-panel border border-border bg-card">
               <div className="border-b border-border/70 p-6 sm:p-8">
                 <h1 className="font-display text-[1.9rem] font-semibold leading-[1.08] tracking-tight text-primary">
                   {vehicleLabel}
@@ -222,7 +222,7 @@ export default function CarDetail() {
                 ))}
               </dl>
 
-              <div className="grid grid-cols-2 gap-2 p-6 sm:p-8">
+               <div className="hidden grid-cols-2 gap-2 p-6 sm:grid lg:grid">
                 <Button asChild size="lg" className="col-span-2 h-12 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground">
                   <a
                      href={bookingHref}
@@ -257,7 +257,7 @@ export default function CarDetail() {
                     asChild
                     variant="outline"
                     size="lg"
-                    className="h-12 border-[#1f7a4d]/30 bg-[#1f7a4d]/10 px-4 text-[13px] font-bold text-[#1b6543] hover:bg-[#1f7a4d]/20 hover:text-[#1b6543]"
+                     className="luxxy-contact h-12 px-4 text-[13px] font-bold hover:bg-[hsl(var(--contact)/.2)]"
                   >
                     <a
                       href={whatsappHref}
@@ -308,6 +308,16 @@ export default function CarDetail() {
             )}
           </section>
 
+        </div>
+        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[1fr_auto] gap-2 border-t-2 border-accent bg-card p-3 lg:hidden" data-testid="mobile-conversion-bar">
+          <Button asChild className="h-12">
+            <a href={bookingHref}><Calendar className="mr-2 h-4 w-4" />{dealerConfig.bookViewing.ctaLabel}</a>
+          </Button>
+          {phoneHref && (
+            <Button asChild variant="outline" size="icon" className="h-12 w-12" aria-label={`Call about ${vehicleLabel}`}>
+              <a href={phoneHref}><Phone className="h-4 w-4 text-accent" /></a>
+            </Button>
+          )}
         </div>
 
         {similarCars.length > 0 && (

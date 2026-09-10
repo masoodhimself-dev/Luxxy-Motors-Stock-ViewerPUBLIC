@@ -1,15 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Scale, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Scale, X } from 'lucide-react';
 import { useStock } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { getSafeImageUrl, getThumbnailUrl } from '@/lib/utils';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
 
+export function routeAllowsCompareTray(location: string) {
+  return location !== '/compare' && !location.startsWith('/vehicle/');
+}
+
 export function CompareTray() {
   const [location] = useLocation();
   const { stock, isLoading } = useStock();
   const { compareIds, removeFromCompare, clearCompare, pruneCompare } = useSavedCars();
+  const [collapsed, setCollapsed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const previousIds = useRef(compareIds);
+  const [announcement, setAnnouncement] = useState('');
 
   // The tray is mounted on every page, so it is where a comparison left over from an earlier
   // visit gets reconciled: a car that has since sold must give its slot back.
@@ -20,11 +28,23 @@ export function CompareTray() {
     pruneCompare(stock.cars.map((car) => car.id));
   }, [isLoading, stock, pruneCompare]);
 
+  useEffect(() => {
+    const before = previousIds.current;
+    const added = compareIds.find((id) => !before.includes(id));
+    const removed = before.find((id) => !compareIds.includes(id));
+    if (added) setAnnouncement('Vehicle added to comparison.');
+    if (removed) setAnnouncement('Vehicle removed from comparison.');
+    if (added) setDismissed(false);
+    previousIds.current = compareIds;
+  }, [compareIds]);
+
   const cars = compareIds
     .map((id) => stock?.cars.find((car) => car.id === id))
     .filter((car): car is NonNullable<typeof car> => Boolean(car));
 
-  if (location === '/compare' || cars.length === 0) return null;
+  // Vehicle detail owns the mobile bottom edge for its conversion bar. The saved
+  // comparison remains intact and the tray returns as soon as the shopper leaves.
+  if (!routeAllowsCompareTray(location) || cars.length === 0 || dismissed) return null;
 
   const readyToCompare = cars.length === MAX_COMPARE;
 
@@ -36,10 +56,22 @@ export function CompareTray() {
         aria-label="Cars selected for comparison"
         data-testid="compare-tray"
       >
+        <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
         <div className="container mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
+          <div className="flex min-h-11 items-center justify-between sm:hidden">
+            <p className="text-sm font-bold">{cars.length} of {MAX_COMPARE} cars selected</p>
+            <div className="flex">
+              <button type="button" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand comparison tray' : 'Collapse comparison tray'} className="grid h-11 w-11 place-items-center">
+                {collapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </button>
+              <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss comparison tray" className="grid h-11 w-11 place-items-center">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
           <p className="luxxy-label hidden shrink-0 text-primary-foreground/65 lg:block">Comparing</p>
 
-          <ul className="flex flex-1 items-center gap-3">
+          <ul className={`${collapsed ? 'hidden sm:flex' : 'flex'} flex-1 items-center gap-3`}>
             {cars.map((car) => {
               const thumbnail = getThumbnailUrl(car) || (car.images?.[0] ? getSafeImageUrl(car.images[0]) : '');
               return (
@@ -47,12 +79,14 @@ export function CompareTray() {
                   key={car.id}
                   className="flex min-w-0 flex-1 items-center gap-3 border border-primary-foreground/15 bg-primary-foreground/5 p-1.5 sm:flex-none sm:w-56"
                 >
-                  {thumbnail ? (
-                    <img src={thumbnail} alt="" referrerPolicy="no-referrer" className="h-10 w-14 shrink-0 object-cover" />
-                  ) : (
-                    <span className="h-10 w-14 shrink-0 bg-primary-foreground/10" />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{vehicleLabelFor(car)}</span>
+                  <Link href={`/vehicle/${car.id}`} className="flex min-w-0 flex-1 items-center gap-3 focus-visible:ring-2 focus-visible:ring-accent">
+                    {thumbnail ? (
+                      <img src={thumbnail} alt="" referrerPolicy="no-referrer" className="h-10 w-14 shrink-0 object-cover" />
+                    ) : (
+                      <span className="h-10 w-14 shrink-0 bg-primary-foreground/10" />
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{vehicleLabelFor(car)}</span>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => removeFromCompare(car.id)}
@@ -73,7 +107,7 @@ export function CompareTray() {
             )}
           </ul>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className={`${collapsed ? 'hidden sm:flex' : 'flex'} shrink-0 items-center gap-2`}>
             <button
               type="button"
               onClick={clearCompare}

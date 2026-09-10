@@ -159,6 +159,7 @@ function resultTitles() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
 });
 
 describe('showroom search filters', () => {
@@ -186,6 +187,29 @@ describe('showroom search filters', () => {
     expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
     expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByTestId('card-vehicle-bmw-1-series')).not.toBeInTheDocument();
+    expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('compact');
+    expect(screen.getByTestId('button-compare-bmw-1-series')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Book a viewing/i }).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('grid-cols-1');
+    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('sm:grid-cols-[1fr_auto]');
+  });
+
+  it('restores the saved stock display preference', () => {
+    window.localStorage.setItem('luxxy.stock-view.v1', 'compact');
+    renderHome();
+
+    expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
+  });
+
+  it('lets shoppers pause and resume the featured carousel', () => {
+    renderHome();
+
+    const pause = screen.getByRole('button', { name: 'Pause featured vehicles' });
+    fireEvent.click(pause);
+    expect(screen.getByRole('button', { name: 'Play featured vehicles' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Play featured vehicles' }));
+    expect(screen.getByRole('button', { name: 'Pause featured vehicles' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('filters by text and limits model choices to the selected make', () => {
@@ -238,17 +262,16 @@ describe('showroom search filters', () => {
     expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
   });
 
-  it('keeps condition history filters hidden from the customer search', () => {
+  it('exposes explained insurance-history filters and counts each active choice', () => {
     renderHome();
 
-    expect(screen.queryByRole('switch', { name: 'HPI clear' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'CAT S' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'CAT N' })).not.toBeInTheDocument();
-
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    expect(screen.queryByRole('switch', { name: 'HPI clear' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'CAT S' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'CAT N' })).not.toBeInTheDocument();
+    expect(screen.getByText(/repaired structural damage/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Category S' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
+
+    expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
+    expect(screen.getByRole('button', { name: /Reset search/ })).toHaveTextContent('(2)');
   });
 
   it('sorts the live results and resets every shared filter value', () => {
@@ -277,7 +300,7 @@ describe('showroom search filters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     expect((screen.getByLabelText('Make') as HTMLSelectElement).value).toBe('');
     expect((screen.getByLabelText('Sort results') as HTMLSelectElement).value).toBe('');
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
   it('invokes the existing results-scroll callback when showing results', async () => {
