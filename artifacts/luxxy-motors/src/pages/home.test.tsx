@@ -261,6 +261,7 @@ describe('showroom search filters', () => {
     renderHome();
 
     const carousel = screen.getByTestId('featured-forecourt-carousel');
+    expect(within(carousel).getByRole('presentation')).toHaveClass('object-contain', 'sm:p-6');
     expect(within(carousel).getByText(/30,000 miles/)).toBeInTheDocument();
     expect(within(carousel).getByText(/Automatic/)).toBeInTheDocument();
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
