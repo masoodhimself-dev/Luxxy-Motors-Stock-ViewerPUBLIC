@@ -217,42 +217,42 @@ export default function Home() {
     <div className="luxxy-shell luxxy-grain flex min-h-screen flex-col">
       {/* Forecourt hero */}
       <section className="relative overflow-hidden border-b border-border bg-background text-foreground">
-        <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1.5rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+2rem)]">
-          <div className="grid border-x border-t border-border lg:min-h-[32rem] lg:grid-cols-[0.92fr_1.08fr]">
-            <div className="relative z-10 flex flex-col justify-center px-5 py-8 sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+        <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+1.5rem)]">
+          <div className="grid border-x border-t border-border lg:min-h-[28rem] lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="relative z-10 flex flex-col justify-center px-4 py-5 sm:px-10 sm:py-8 lg:px-14 lg:py-12">
               <p className="luxxy-reveal luxxy-kicker text-accent">
                 {dealerConfig.hero.announcement || 'Independent cars, carefully chosen'}
               </p>
-              <h1 className="luxxy-reveal luxxy-reveal-1 mt-5 max-w-2xl break-words font-display text-[clamp(2.6rem,12vw,4.75rem)] leading-[0.96] tracking-[-0.045em] text-primary">
+              <h1 className="luxxy-reveal luxxy-reveal-1 mt-3 max-w-2xl break-words font-display text-[clamp(2.4rem,11vw,4.75rem)] leading-[0.96] tracking-[-0.045em] text-primary">
                 {heroHeadline}
               </h1>
-              <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-lg text-base leading-7 text-muted-foreground">
+              <p className="luxxy-reveal luxxy-reveal-2 mt-4 max-w-lg text-[15px] leading-6 text-muted-foreground sm:text-base sm:leading-7">
                 {dealerConfig.hero.subcopy}
               </p>
-              <p className="luxxy-label mt-6 text-primary">
+              <p className="luxxy-label mt-4 text-primary">
                 {stockCount} cars available · {locationLabel || 'Harrow, London'}
               </p>
-              <div className="luxxy-reveal luxxy-reveal-3 mt-8 grid gap-3 sm:grid-cols-2">
+              <div className="luxxy-reveal luxxy-reveal-3 mt-6 grid grid-cols-2 gap-2 sm:gap-3">
                 <Button
                   type="button"
                   size="lg"
                   onClick={revealResults}
                   data-testid="button-hero-primary"
-                  className="h-14 justify-between bg-primary px-6 text-[14px] font-bold text-primary-foreground hover:bg-primary/90"
+                  className="h-12 justify-between bg-primary px-3 sm:px-6 text-[12px] sm:text-[14px] font-bold text-primary-foreground hover:bg-primary/90"
                 >
-                  {heroPrimaryLabel}
-                  <ArrowRight className="h-5 w-5" />
+                  <span className="truncate">{heroPrimaryLabel}</span>
+                  <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 ml-1" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   asChild
                   data-testid="link-hero-find-my-car"
-                  className="h-14 justify-between border-primary/35 bg-transparent px-6 text-[14px] font-bold text-primary hover:border-primary hover:bg-secondary"
+                  className="h-12 justify-between border-primary/35 bg-transparent px-3 sm:px-6 text-[12px] sm:text-[14px] font-bold text-primary hover:border-primary hover:bg-secondary"
                 >
                   <Link href="/find-my-car">
-                    {heroSecondaryLabel}
-                    <ArrowRight className="h-5 w-5" />
+                    <span className="truncate">{heroSecondaryLabel}</span>
+                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 ml-1" />
                   </Link>
                 </Button>
               </div>
@@ -354,14 +354,19 @@ export default function Home() {
 
         {dealerConfig.trustItems?.length > 0 && (
           <div className="container mx-auto px-4 sm:px-6 lg:px-8" aria-label={`${dealerConfig.identity.name} promises`}>
-            <div className="grid border-x border-t border-border bg-card sm:grid-cols-2 lg:grid-cols-4">
-              {dealerConfig.trustItems.slice(0, 4).map((item) => (
+            <div className="grid grid-cols-2 border-x border-t border-border bg-card lg:grid-cols-4">
+              {dealerConfig.trustItems.slice(0, 4).map((item, i) => (
               <div
                 key={item}
-                className="flex items-center gap-3 border-b border-border/70 px-5 py-4 last:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b-0"
+                className={cn(
+                  "flex items-start sm:items-center gap-2.5 px-3 py-3 sm:px-5 sm:py-4 border-border/70",
+                  i < 2 ? "border-b lg:border-b-0" : "",
+                  i % 2 === 0 ? "border-r" : "",
+                  "lg:[&:not(:last-child)]:border-r"
+                )}
               >
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />
-                <p className="text-[10px] font-bold uppercase leading-4 tracking-[.12em] text-primary">{item}</p>
+                <CheckCircle2 className="mt-0.5 sm:mt-0 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-accent" />
+                <p className="text-[10px] font-bold uppercase leading-[1.15] sm:leading-4 tracking-[.1em] sm:tracking-[.12em] text-primary">{item}</p>
               </div>
               ))}
             </div>
@@ -370,143 +375,141 @@ export default function Home() {
       </section>
 
       {/* Stock */}
-      <div id="stock" data-home-section className="bg-muted/30 px-0 pb-2 pt-10 md:pt-12">
-        <Filters
-          cars={stock?.cars || []}
-          filters={filters}
-          setFilters={setFilters}
-          onSearch={() => {
-            trackEvent('showroom_filter_applied', {
-              source: 'filter_panel',
-              filter_count: [
-                filters.make,
-                filters.model,
-                filters.minPrice || filters.maxPrice,
-                filters.fuel,
-                filters.transmission,
-                filters.search,
-                filters.noWriteOff,
-                filters.catS,
-                filters.catN,
-              ].filter(Boolean).length,
-              search_used: Boolean(filters.search),
-              budget_used: Boolean(filters.minPrice || filters.maxPrice),
-              insurance_filter_used: filters.noWriteOff || filters.catS || filters.catN,
-              sort: filters.sort || 'recommended',
-              result_count: filteredCars.length,
-            });
-            setShowAll(true);
-            requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
-          }}
-          vehicleCount={stockCount}
-        />
-      </div>
-
-      <section id="vehicle-results" data-home-section className="bg-muted/30 pb-24 pt-8 md:pt-12">
+      <div id="stock" data-home-section className="bg-muted/30 px-0 pb-16 pt-6 md:pt-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8 border-b border-border pb-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="luxxy-kicker text-accent">{showAll ? 'Full stock list' : 'On the forecourt'}</p>
-                <h2 className="mt-4 font-display text-4xl font-semibold leading-none tracking-[-.03em] text-primary md:text-5xl">
-                  {showAll ? 'Every car on site' : 'Latest cars in stock'}
-                </h2>
-              </div>
-              {stock && (
-                <p className="font-mono text-[13px] font-bold text-primary" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
-                  {filteredCars.length} {filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available
-                </p>
-              )}
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="luxxy-kicker text-accent">{showAll ? 'Full stock list' : 'Browse our stock'}</p>
+              <h2 className="mt-2 font-display text-3xl font-semibold leading-none tracking-[-.03em] text-primary md:text-5xl">
+                {showAll ? 'Every car on site' : 'Latest arrivals'}
+              </h2>
             </div>
-
-            <div className="mt-7 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="luxxy-label mr-1 text-muted-foreground">Shortcuts</span>
-                <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className={quickFilterClass} data-testid="button-quick-automatic">
-                  <Settings2 className="h-3.5 w-3.5 text-accent" /> Automatic
-                </button>
-                <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className={quickFilterClass} data-testid="button-quick-under-5000">
-                  <Banknote className="h-3.5 w-3.5 text-accent" /> Under £5,000
-                </button>
-                <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className={quickFilterClass} data-testid="button-quick-low-mileage">
-                  <Gauge className="h-3.5 w-3.5 text-accent" /> Low mileage
-                </button>
-              </div>
-              <div className="grid grid-cols-2 border border-border bg-card p-1" aria-label="Vehicle display">
-                <button
-                  type="button"
-                  aria-pressed={stockView === 'cards'}
-                  onClick={() => {
-                    setStockView('cards');
-                    trackEvent('stock_view_changed', { view: 'cards' });
-                  }}
-                  data-testid="button-stock-view-cards"
-                  className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
-                >
-                  <Grid2X2 className="h-3.5 w-3.5" /> Cards
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={stockView === 'compact'}
-                  onClick={() => {
-                    setStockView('compact');
-                    trackEvent('stock_view_changed', { view: 'compact' });
-                  }}
-                  data-testid="button-stock-view-compact"
-                  className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
-                >
-                  <List className="h-4 w-4" /> Compact
-                </button>
-              </div>
-            </div>
+            {stock && (
+              <p className="font-mono text-[13px] font-bold text-primary" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
+                {filteredCars.length} {filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available
+              </p>
+            )}
           </div>
 
-          {filteredCars.length > 0 ? (
-            <>
-              <div className={cn('grid', stockView === 'compact' ? 'gap-3 lg:grid-cols-2' : 'gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4')}>
-                {displayedCars.map(car => (
-                  <CarCard
-                    key={car.id}
-                    car={car}
-                    layout={stockView === 'compact' ? 'compact' : 'card'}
-                    stretchedLink
-                  />
-                ))}
-              </div>
-              {filteredCars.length > 4 && !showAll && (
-                <div className="mt-12 flex justify-center">
-                  <Button
-                    onClick={() => {
-                      trackEvent('stock_results_opened', { source: 'view_all', result_count: filteredCars.length });
-                      setShowAll(true);
-                      requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
-                    }}
-                    size="lg"
-                    data-testid="button-view-all-vehicles"
-                    className="group h-[3.25rem] bg-primary px-8 font-bold hover:bg-primary/90"
-                  >
-                    View all {filteredCars.length} vehicles
-                    <ArrowRight className="ml-5 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                  </Button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="mx-auto max-w-2xl border border-dashed border-border bg-card px-6 py-20 text-center">
-              <span className="mx-auto mb-6 grid h-14 w-14 place-items-center border border-border bg-secondary text-accent">
-                <Search className="h-6 w-6" />
-              </span>
-              <p className="font-display text-3xl font-semibold tracking-[-.02em] text-primary">Nothing matches that search</p>
-              <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
-                Try widening your budget or clearing the filters to see the full stock list.
-              </p>
-              <Button size="lg" onClick={() => { setFilters(defaultFilters); setShowAll(false); }} data-testid="button-clear-filters" className="h-12 px-7 font-bold">
-                Clear all filters
-              </Button>
+          <Filters
+            cars={stock?.cars || []}
+            filters={filters}
+            setFilters={setFilters}
+            onSearch={() => {
+              trackEvent('showroom_filter_applied', {
+                source: 'filter_panel',
+                filter_count: [
+                  filters.make,
+                  filters.model,
+                  filters.minPrice || filters.maxPrice,
+                  filters.fuel,
+                  filters.transmission,
+                  filters.search,
+                  filters.noWriteOff,
+                  filters.catS,
+                  filters.catN,
+                ].filter(Boolean).length,
+                search_used: Boolean(filters.search),
+                budget_used: Boolean(filters.minPrice || filters.maxPrice),
+                insurance_filter_used: filters.noWriteOff || filters.catS || filters.catN,
+                sort: filters.sort || 'recommended',
+                result_count: filteredCars.length,
+              });
+              setShowAll(true);
+              requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+            }}
+            vehicleCount={stockCount}
+          />
+
+          <section className="mt-3 sm:mt-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="luxxy-label mr-1 hidden sm:inline text-muted-foreground">Shortcuts</span>
+              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className={quickFilterClass} data-testid="button-quick-automatic">
+                <Settings2 className="h-3.5 w-3.5 text-accent" /> Automatic
+              </button>
+              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className={quickFilterClass} data-testid="button-quick-under-5000">
+                <Banknote className="h-3.5 w-3.5 text-accent" /> Under £5k
+              </button>
+              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className={quickFilterClass} data-testid="button-quick-low-mileage">
+                <Gauge className="h-3.5 w-3.5 text-accent" /> Low miles
+              </button>
             </div>
-          )}
+            <div className="grid grid-cols-2 border border-border bg-card p-1 sm:w-auto w-full" aria-label="Vehicle display">
+              <button
+                type="button"
+                aria-pressed={stockView === 'cards'}
+                onClick={() => {
+                  setStockView('cards');
+                  trackEvent('stock_view_changed', { view: 'cards' });
+                }}
+                data-testid="button-stock-view-cards"
+                className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
+              >
+                <Grid2X2 className="h-3.5 w-3.5" /> Cards
+              </button>
+              <button
+                type="button"
+                aria-pressed={stockView === 'compact'}
+                onClick={() => {
+                  setStockView('compact');
+                  trackEvent('stock_view_changed', { view: 'compact' });
+                }}
+                data-testid="button-stock-view-compact"
+                className={cn('inline-flex h-9 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-primary')}
+              >
+                <List className="h-4 w-4" /> Compact
+              </button>
+            </div>
+          </section>
+
+          <div id="vehicle-results" data-home-section className="mt-3 sm:mt-7">
+            {filteredCars.length > 0 ? (
+              <>
+                <div className={cn('grid', stockView === 'compact' ? 'gap-3 xl:grid-cols-2' : 'gap-4 sm:grid-cols-2 xl:grid-cols-4')}>
+                  {displayedCars.map(car => (
+                    <CarCard
+                      key={car.id}
+                      car={car}
+                      layout={stockView === 'compact' ? 'compact' : 'card'}
+                      stretchedLink
+                    />
+                  ))}
+                </div>
+                {filteredCars.length > 4 && !showAll && (
+                  <div className="mt-12 flex justify-center">
+                    <Button
+                      onClick={() => {
+                        trackEvent('stock_results_opened', { source: 'view_all', result_count: filteredCars.length });
+                        setShowAll(true);
+                        requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+                      }}
+                      size="lg"
+                      data-testid="button-view-all-vehicles"
+                      className="group h-[3.25rem] bg-primary px-8 font-bold hover:bg-primary/90"
+                    >
+                      View all {filteredCars.length} vehicles
+                      <ArrowRight className="ml-5 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="mx-auto max-w-2xl border border-dashed border-border bg-card px-6 py-20 text-center">
+                <span className="mx-auto mb-6 grid h-14 w-14 place-items-center border border-border bg-secondary text-accent">
+                  <Search className="h-6 w-6" />
+                </span>
+                <p className="font-display text-3xl font-semibold tracking-[-.02em] text-primary">Nothing matches that search</p>
+                <p className="mx-auto mb-8 mt-3 max-w-md text-base leading-7 text-muted-foreground">
+                  Try widening your budget or clearing the filters to see the full stock list.
+                </p>
+                <Button size="lg" onClick={() => { setFilters(defaultFilters); setShowAll(false); }} data-testid="button-clear-filters" className="h-12 px-7 font-bold">
+                  Clear all filters
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      </section>
+      </div>
 
       {dealerConfig.recentHandovers.enabled && recentHandovers.length > 0 && (
         <section

@@ -22,3 +22,9 @@ The approved homepage opening is an editorial forecourt split: concise serif cop
 **How to apply:** Keep the opening visually tied to live inventory, preserve the short path into browsing, and avoid expanding trust points back into a tall pre-stock section.
 
 The rotating featured-forecourt treatment is explicitly approved. Keep its imagery prominent while showing a restrained line of useful buying facts rather than turning it into another full vehicle card.
+
+Judge mobile homepage density by the distance to the first stock card, not by whether each individual section looks compact.
+
+**Why:** Small reductions in hero spacing alone left the buying journey too long; stacked trust, search and toolbar sections contributed most of the accumulated height.
+
+**How to apply:** Compare a 402px-wide default-state preview against the roughly 1,400px first-card target when changing the opening. Preserve full-car framing and usable controls rather than shrinking them to meet it.

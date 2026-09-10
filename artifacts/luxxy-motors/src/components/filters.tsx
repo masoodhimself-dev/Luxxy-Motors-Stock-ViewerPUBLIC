@@ -146,62 +146,48 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="luxxy-surface border border-border bg-card">
-        <div className="flex flex-col justify-between gap-4 border-b border-border bg-primary text-primary-foreground px-5 py-8 sm:flex-row sm:items-end sm:px-8">
-          <div>
-            <p className="luxxy-label text-accent">Browse our stock</p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-none tracking-tight md:text-5xl">
-              Find a car you&apos;ll love
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/70">
-              Start with a simple search, then fine-tune the details that matter to you.
-            </p>
-          </div>
-          <p className="font-mono text-[13px] font-bold text-accent">{vehicleCount} vehicles in stock</p>
-        </div>
+    <div className="luxxy-surface border border-border bg-card">
+      <div className="px-4 py-3 sm:p-6">
+        <label className="block">
+          <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
+            <Search className="h-3.5 w-3.5 text-accent" />
+            What are you looking for?
+          </span>
+          <span className="relative block">
+            <Input
+              aria-label="Search the showroom"
+              placeholder="Try “BMW”, “Golf” or a registration"
+              value={filters.search}
+              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleSearchClick();
+                }
+              }}
+              className="h-12 pr-11 text-base placeholder:font-normal focus-visible:border-accent"
+              data-testid="input-showroom-search"
+            />
+            {filters.search && (
+              <button
+                type="button"
+                aria-label="Clear showroom search"
+                onClick={() => setFilters((current) => ({ ...current, search: '' }))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground transition hover:text-primary min-h-[44px] min-w-[44px] grid place-items-center"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </span>
+        </label>
 
-        <div className="px-5 py-6 sm:px-8 bg-card">
-          <label className="block">
-            <span className="luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground">
-              <Search className="h-3.5 w-3.5 text-accent" />
-              What are you looking for?
-            </span>
-            <span className="relative block">
-              <Input
-                aria-label="Search the showroom"
-                placeholder="Try “BMW”, “Golf” or a registration"
-                value={filters.search}
-                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    handleSearchClick();
-                  }
-                }}
-                className="h-14 pr-11 text-base placeholder:font-normal focus-visible:border-accent"
-                data-testid="input-showroom-search"
-              />
-              {filters.search && (
-                <button
-                  type="button"
-                  aria-label="Clear showroom search"
-                  onClick={() => setFilters((current) => ({ ...current, search: '' }))}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground transition hover:text-primary"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </span>
-          </label>
-
-          <div className="mt-5 border-t border-border/70 pt-5">
-            <button
-              type="button"
-              aria-expanded={showAdvanced}
-              onClick={() => setShowAdvanced((current) => !current)}
-              className="flex w-full items-center justify-between gap-3 border border-border bg-secondary/40 px-4 py-3 text-left text-sm font-bold text-primary transition hover:border-accent"
-            >
+        <div className="mt-3 border-t border-border/70 pt-3">
+          <button
+            type="button"
+            aria-expanded={showAdvanced}
+            onClick={() => setShowAdvanced((current) => !current)}
+            className="flex w-full items-center justify-between gap-3 border border-border bg-secondary/40 px-4 py-3 text-left text-[13px] sm:text-sm font-bold text-primary transition hover:border-accent min-h-[44px]"
+          >
               <span className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-accent" />
                 Advanced search
@@ -301,25 +287,25 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           </div>
         </div>
 
-        <div className="flex flex-col justify-between gap-4 border-t border-border bg-secondary/25 px-5 py-4 sm:flex-row sm:items-center sm:px-8">
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="text-left text-xs font-bold uppercase tracking-[.12em] text-muted-foreground transition hover:text-primary"
-          >
-            <RotateCcw className="mr-1.5 inline h-3.5 w-3.5" />
-            Reset search
-            {activeFilterCount > 0 && <span className="ml-1.5 text-accent">({activeFilterCount})</span>}
-          </button>
+        <div className="flex flex-col gap-3 border-t border-border bg-secondary/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-row items-center justify-between gap-4 sm:justify-start">
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-left text-[11px] sm:text-xs font-bold uppercase tracking-[.12em] text-muted-foreground transition hover:text-primary min-h-[44px] min-w-[44px] inline-flex items-center"
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              Reset
+              {activeFilterCount > 0 && <span className="ml-1.5 text-accent">({activeFilterCount})</span>}
+            </button>
 
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <span className="luxxy-label text-muted-foreground">Sort by</span>
+              <span className="luxxy-label text-muted-foreground hidden sm:inline">Sort</span>
               <NativeSelect
                 aria-label="Sort results"
                 value={filters.sort}
                 onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-                className="sm:w-52"
+                className="w-44 sm:w-48 text-[13px] h-11"
               >
                 <option value="">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
@@ -328,17 +314,17 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                 <option value="mileage-desc">Mileage: high to low</option>
               </NativeSelect>
             </div>
-            <button
-              type="button"
-              onClick={handleSearchClick}
-              className="h-11 rounded-none bg-accent px-6 text-sm font-bold text-accent-foreground transition hover:bg-accent/90"
-            >
-              Show results
-              <ArrowRight className="ml-2 inline h-4 w-4" />
-            </button>
           </div>
+          
+          <button
+            type="button"
+            onClick={handleSearchClick}
+            className="h-11 w-full sm:w-auto rounded-none bg-accent px-5 text-[13px] sm:text-sm font-bold text-accent-foreground transition hover:bg-accent/90 flex items-center justify-center"
+          >
+            View matching cars
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </button>
         </div>
       </div>
-    </div>
   );
 }

@@ -405,7 +405,7 @@ describe('showroom search filters', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
 
     expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
-    expect(screen.getByRole('button', { name: /Reset search/ })).toHaveTextContent('(2)');
+    expect(screen.getByRole('button', { name: /Reset/i })).toHaveTextContent('(2)');
   });
 
   it('sorts the live results and resets every shared filter value', () => {
@@ -414,7 +414,7 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByLabelText('Sort results'), {
       target: { value: 'price-asc' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
     expect(resultTitles()).toEqual([
       'VW Golf',
       'BMW 1 Series',
@@ -426,10 +426,10 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByTestId('input-showroom-search'), {
       target: { value: 'BMW' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Reset search/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
 
     expect(resultTitles()).toHaveLength(4);
-    expect(resultsRegion().getByText('5 vehicles available')).toBeInTheDocument();
+    expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
     expect((screen.getByTestId('input-showroom-search') as HTMLInputElement).value).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     expect((screen.getByLabelText('Make') as HTMLSelectElement).value).toBe('');
@@ -437,11 +437,40 @@ describe('showroom search filters', () => {
     expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
-  it('invokes the existing results-scroll callback when showing results', async () => {
+  it('invokes the existing results-scroll callback when viewing matching cars', async () => {
     renderHome();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show results' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
 
+    await waitFor(() => {
+      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+    });
+  });
+
+  it('reveals all results and scrolls when using the hero primary button', async () => {
+    renderHome();
+    fireEvent.click(screen.getByTestId('button-hero-primary'));
+    expect(resultTitles()).toHaveLength(5);
+    await waitFor(() => {
+      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+    });
+  });
+
+  it('reveals all results and scrolls when clicking View All Vehicles', async () => {
+    renderHome();
+    expect(resultTitles()).toHaveLength(4); // initially 4
+    fireEvent.click(screen.getByTestId('button-view-all-vehicles'));
+    expect(resultTitles()).toHaveLength(5);
+    await waitFor(() => {
+      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+    });
+  });
+
+  it('reveals all results and scrolls when pressing Enter in the search box', async () => {
+    renderHome();
+    const searchInput = screen.getByTestId('input-showroom-search');
+    fireEvent.keyDown(searchInput, { key: 'Enter', code: 'Enter' });
+    expect(resultTitles()).toHaveLength(5); // assuming it also reveals all
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
     });
