@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { dealerConfig } from '../src/config/dealer';
 
 const stock = {
   schemaVersion: 1,
@@ -61,6 +62,24 @@ const mobileViewports = [
   { width: 402, maxFirstCardTop: 1500 },
 ] as const;
 
+const longCopyMobileViewports = [
+  // Dealer copy can add several lines at the narrowest supported phone width.
+  { width: 320, maxFirstCardTop: 1700 },
+  { width: 375, maxFirstCardTop: 1600 },
+  { width: 402, maxFirstCardTop: 1600 },
+] as const;
+
+const longDealerCopySettings = {
+  ...dealerConfig,
+  hero: {
+    ...dealerConfig.hero,
+    announcement:
+      'Independent used-car specialists helping drivers choose with confidence across Harrow, west London and the surrounding areas',
+    subcopy:
+      'Every vehicle is carefully selected, honestly described and prepared for a straightforward purchase, with clear answers and time to make the right decision.',
+  },
+};
+
 const stockWithoutHeroImages = {
   ...stock,
   cars: stock.cars.map((car) => ({
@@ -73,12 +92,17 @@ const stockWithoutHeroImages = {
 async function mockHomeData(
   page: Page,
   stockResponse: typeof stock,
+  settingsResponse?: typeof longDealerCopySettings,
 ) {
   await page.route('**/api/stock', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stockResponse) }),
   );
   await page.route('**/api/dealer-settings', (route) =>
-    route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+    route.fulfill({
+      status: settingsResponse ? 200 : 500,
+      contentType: 'application/json',
+      body: JSON.stringify(settingsResponse ?? {}),
+    }),
   );
   await page.route('**/api/recent-handovers', (route) =>
     route.fulfill({
@@ -92,19 +116,21 @@ async function mockHomeData(
 test('keeps the first stock card near the approved mobile position', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 402, height: 874 });
-  await mockHomeData(page, stock);
+  for (const { width, maxFirstCardTop } of mobileViewports) {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stock);
 
-  await page.goto('/');
+    await page.goto('/');
 
     const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
     await expect(firstCard).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
 
     const firstCardTop = (await firstCard.boundingBox())?.y;
-  expect(firstCardTop).toBeDefined();
-  expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-  expect(firstCardTop!).toBeLessThanOrEqual(1500);
+    expect(firstCardTop).toBeDefined();
+    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+  }
 });
 
 test('keeps the first stock card near the approved mobile position without hero images', async ({
@@ -116,6 +142,30 @@ test('keeps the first stock card near the approved mobile position without hero 
   await page.goto('/');
 
   await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
+  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+  await expect(firstCard).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const firstCardTop = (await firstCard.boundingBox())?.y;
+  expect(firstCardTop).toBeDefined();
+  expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+  expect(firstCardTop!).toBeLessThanOrEqual(1500);
+});
+
+for (const { width, maxFirstCardTop } of longCopyMobileViewports) {
+  test(`keeps stock reachable with long dealer copy at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stock, longDealerCopySettings);
+
+    await page.goto('/');
+
+    await expect(page.getByText(longDealerCopySettings.hero.announcement)).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText(longDealerCopySettings.hero.subcopy),
+    ).toBeVisible();
+
     const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
     await expect(firstCard).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
@@ -125,20 +175,4 @@ test('keeps the first stock card near the approved mobile position without hero 
     expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
     expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
   });
-}
-
-async function mockHomepageApis(page: Page) {
-  await page.route('**/api/stock', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stock) }),
-  );
-  await page.route('**/api/dealer-settings', (route) =>
-    route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
-  );
-  await page.route('**/api/recent-handovers', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ schemaVersion: 1, handovers: [] }),
-    }),
-  );
 }
