@@ -187,8 +187,8 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [featuredCars.length, carouselPaused]);
 
-  const revealResults = () => {
-    trackEvent('stock_results_opened', { source: 'hero', result_count: filteredCars.length });
+  const revealResults = (source: 'hero' | 'quick_filter' | 'filter_panel' | 'view_all') => {
+    trackEvent('stock_results_opened', { source, result_count: filteredCars.length });
     setShowAll(true);
     requestAnimationFrame(() => {
       if (scrollToHomeTarget('vehicle-results')) {
@@ -205,7 +205,7 @@ export default function Home() {
       filter_count: 1,
     });
     setFilters({ ...defaultFilters, ...nextFilters });
-    revealResults();
+    revealResults('quick_filter');
   };
 
   if (isLoading) {
@@ -249,7 +249,7 @@ export default function Home() {
                 <Button
                   type="button"
                   size="lg"
-                  onClick={revealResults}
+                  onClick={() => revealResults('hero')}
                   data-testid="button-hero-primary"
                   className="h-12 bg-primary px-4 text-sm sm:text-base font-medium text-primary-foreground hover:bg-primary/90 rounded-none sm:h-14 sm:px-8"
                 >
@@ -422,8 +422,7 @@ export default function Home() {
                 sort: filters.sort || 'recommended',
                 result_count: filteredCars.length,
               });
-              setShowAll(true);
-              requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+              revealResults('filter_panel');
             }}
             vehicleCount={stockCount}
           />
@@ -486,9 +485,7 @@ export default function Home() {
                   <div className="mt-16 flex justify-center">
                     <Button
                       onClick={() => {
-                        trackEvent('stock_results_opened', { source: 'view_all', result_count: filteredCars.length });
-                        setShowAll(true);
-                        requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+                        revealResults('view_all');
                       }}
                       size="lg"
                       data-testid="button-view-all-vehicles"

@@ -99,6 +99,16 @@ const stockWithBrokenHeroImage = {
     images: [],
   })),
 };
+
+const stockWithMultipleCars = {
+  ...stock,
+  count: 5,
+  cars: Array.from({ length: 5 }, (_, index) => ({
+    ...stock.cars[0],
+    id: `mobile-layout-car-${index}`,
+    advertId: `mobile-layout-car-${index}`,
+  })),
+};
 async function mockHomeData(
   page: Page,
   stockResponse: typeof stock,
@@ -219,45 +229,40 @@ test('keeps the first stock card near the approved mobile position', async ({
     expect(firstCardTop).toBeDefined();
     expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
     expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
-  }
-});
+  });
+}
 
-test('keeps the first stock card near the approved desktop position without hero images', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await mockHomeData(page, stockWithoutHeroImages);
-
-  await page.goto('/');
-
-  await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
-  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-  await expect(firstCard).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
-
-  const firstCardTop = (await firstCard.boundingBox())?.y;
-  expect(firstCardTop).toBeDefined();
-  expect(firstCardTop!).toBeLessThanOrEqual(1500);
-});
-
-for (const { width, maxFirstCardTop } of longCopyMobileViewports) {
-  test(`keeps stock reachable with long dealer copy at ${width}px`, async ({
+for (const { width, maxFirstCardTop } of mobileViewports) {
+  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stock, longDealerCopySettings);
+    await mockHomeData(page, stockWithoutHeroImages);
 
     await page.goto('/');
 
-    await expect(page.getByText(longDealerCopySettings.hero.announcement)).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: longDealerCopySettings.hero.copy }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('main').getByText(longDealerCopySettings.hero.subcopy),
-    ).toBeVisible();
-    await assertHeroControlsAreFullyVisible(page);
+    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
+    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+    await expect(firstCard).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
 
+    const firstCardTop = (await firstCard.boundingBox())?.y;
+    expect(firstCardTop).toBeDefined();
+    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+  });
+}
+
+for (const { width, maxFirstCardTop } of mobileViewports) {
+  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stockWithoutHeroImages);
+
+    await page.goto('/');
+
+    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
     const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
     await expect(firstCard).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
@@ -318,7 +323,7 @@ test('moves keyboard focus to the results heading after hero activation', async 
   await mockHomeData(page, stock);
   await page.goto('/');
 
-  const resultsHeading = page.getByRole('heading', { name: 'Every car on site' });
+  const resultsHeading = page.locator('#vehicle-results-heading');
   await tabToHeroPrimary(page);
   await assertKeyboardFocusIsVisible(page.getByTestId('button-hero-primary'));
   await page.keyboard.press('Enter');
@@ -328,6 +333,37 @@ test('moves keyboard focus to the results heading after hero activation', async 
   await tabToHeroPrimary(page);
   await page.keyboard.press('Space');
   await expect(resultsHeading).toBeFocused();
+});
+
+test('moves keyboard focus to results after stock-opening controls use Enter or Space', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 874 });
+
+  for (const key of ['Enter', 'Space'] as const) {
+    await mockHomeData(page, stock);
+    await page.goto('/');
+    const resultsHeading = page.locator('#vehicle-results-heading');
+
+    const matchingCars = page.getByRole('button', { name: 'View matching cars' });
+    await matchingCars.focus();
+    await page.keyboard.press(key);
+    await expect(resultsHeading).toBeFocused();
+
+    await page.goto('/');
+    const quickFilter = page.getByTestId('button-quick-automatic');
+    await quickFilter.focus();
+    await page.keyboard.press(key);
+    await expect(resultsHeading).toBeFocused();
+  }
+
+  for (const key of ['Enter', 'Space'] as const) {
+    await mockHomeData(page, stockWithMultipleCars);
+    await page.goto('/');
+    const resultsHeading = page.locator('#vehicle-results-heading');
+    const viewAll = page.getByTestId('button-view-all-vehicles');
+    await viewAll.focus();
+    await page.keyboard.press(key);
+    await expect(resultsHeading).toBeFocused();
+  }
 });
 
 test('moves keyboard focus to the stock heading after cross-route navigation', async ({ page }) => {

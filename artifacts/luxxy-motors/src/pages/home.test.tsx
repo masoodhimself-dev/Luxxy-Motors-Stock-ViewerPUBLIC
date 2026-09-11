@@ -446,6 +446,7 @@ describe('showroom search filters', () => {
 
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
     });
   });
 
@@ -466,6 +467,22 @@ describe('showroom search filters', () => {
     expect(resultTitles()).toHaveLength(5);
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
+    });
+  });
+
+  it.each([
+    ['Automatic', 'button-quick-automatic'],
+    ['Under £5k', 'button-quick-under-5000'],
+    ['Low miles', 'button-quick-low-mileage'],
+  ])('moves focus to results after activating the %s quick filter', async (_label, testId) => {
+    renderHome();
+
+    fireEvent.click(screen.getByTestId(testId));
+
+    await waitFor(() => {
+      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
     });
   });
 
