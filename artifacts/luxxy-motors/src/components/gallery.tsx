@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Camera, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getSafeImageUrl } from '@/lib/utils';
 import { type CarImage } from '@/lib/stock-context';
@@ -33,6 +33,8 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   }, [allImages.length]);
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
+  const openerRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.touches[0].clientX);
@@ -42,7 +44,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
     if (touchStart === null) return;
     const touchEnd = e.changedTouches[0].clientX;
     const diff = touchStart - touchEnd;
-    
+
     if (Math.abs(diff) > 50) {
       if (diff > 0) handleNext();
       else handlePrev();
@@ -51,20 +53,29 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   };
 
   useEffect(() => {
+    if (!isFullscreen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') handleNext();
       if (e.key === 'ArrowLeft') handlePrev();
-      if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+        openerRef.current?.focus();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
+
+    // Focus close button on mount
+    closeButtonRef.current?.focus();
+
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNext, handlePrev, isFullscreen]);
 
   if (allImages.length === 0) {
     return (
-      <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 border border-border/70 bg-secondary/60 text-muted-foreground">
-        <Camera className="h-7 w-7 opacity-40" />
-        <span className="luxxy-label">No images available</span>
+      <div className="flex aspect-[4/3] sm:aspect-[16/10] lg:aspect-[16/9] w-full max-w-[900px] flex-col items-center justify-center gap-4 border-4 border-primary bg-primary/5 text-primary shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <Camera className="h-10 w-10 opacity-40" />
+        <span className="font-display text-[13px] font-black uppercase tracking-[0.2em]">No images available</span>
       </div>
     );
   }
@@ -74,12 +85,13 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   const caption = imageCaption(currentImg);
 
   const arrowButton =
-    'absolute top-1/2 z-10 grid h-11 w-11 -translate-y-1/2 place-items-center bg-primary/85 text-primary-foreground opacity-0 backdrop-blur-sm transition-all hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100';
+    'absolute top-1/2 z-10 grid h-14 w-14 -translate-y-1/2 place-items-center bg-primary text-primary-foreground opacity-0 transition-all hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-0 group-hover:opacity-100 shadow-[4px_4px_0px_hsl(var(--primary))] hover:-translate-y-[calc(50%+2px)] hover:-translate-x-0.5 hover:shadow-[6px_6px_0px_hsl(var(--primary))] border-2 border-primary-foreground/20';
 
   const renderImage = (imgUrl: string, idx: number, className: string = '') => (
     failedImages.has(idx) ? (
-      <div className={cn('flex h-full w-full items-center justify-center bg-secondary text-muted-foreground', className)}>
-        <span className="luxxy-label">Image not available</span>
+      <div className={cn('flex h-full w-full flex-col items-center justify-center gap-3 bg-primary/5 border-4 border-primary text-primary shadow-[8px_8px_0px_hsl(var(--primary))]', className)}>
+        <Camera className="h-8 w-8 opacity-20" />
+        <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] opacity-50">Image missing</span>
       </div>
     ) : (
       <img
@@ -94,43 +106,51 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   );
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden">
+    <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden max-w-[900px]">
       {/* Main Image */}
-      <div 
-        className="group relative aspect-[4/3] w-full cursor-zoom-in overflow-hidden border border-border/70 bg-secondary/60 sm:aspect-[16/10] lg:aspect-[16/9]"
-        onClick={() => setIsFullscreen(true)}
+      <div
+        className="group relative aspect-[4/3] w-full overflow-hidden border-4 border-primary bg-primary/5 sm:aspect-[16/10] lg:aspect-[16/9] shadow-[8px_8px_0px_hsl(var(--primary))]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {renderImage(url, activeIndex, 'h-full w-full object-cover transition-opacity duration-300')}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/55 via-primary/5 to-transparent" />
+        {renderImage(url, activeIndex, 'absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105')}
+
+        <div className="absolute inset-0 bg-primary/0 transition-colors group-hover:bg-primary/5 pointer-events-none" />
+
+        <button
+          type="button"
+          ref={openerRef}
+          aria-label="View gallery fullscreen"
+          className="absolute inset-0 z-0 w-full h-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent inset-ring"
+          onClick={() => setIsFullscreen(true)}
+        />
 
         {allImages.length > 1 && (
           <>
-            <button 
+            <button
               type="button"
+              className={cn(arrowButton, 'left-4')}
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
               aria-label="Previous photograph"
-              className={cn(arrowButton, 'left-0')}
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-6 w-6" />
             </button>
-            <button 
+            <button
               type="button"
+              className={cn(arrowButton, 'right-4')}
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
               aria-label="Next photograph"
-              className={cn(arrowButton, 'right-0')}
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-6 w-6" />
             </button>
-            <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 bg-primary/85 px-2.5 py-1 font-mono text-[10px] font-bold text-primary-foreground backdrop-blur-sm">
-              <Camera className="h-3 w-3" />
+            <span className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-2 bg-primary px-3 py-1 font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary-foreground border-2 border-primary-foreground/20 shadow-[2px_2px_0px_hsl(var(--primary))]">
+              <Camera className="h-4 w-4" />
               {activeIndex + 1} / {allImages.length}
             </span>
           </>
         )}
         {caption && (
-          <span className="pointer-events-none absolute bottom-3 left-3 max-w-[80%] truncate bg-primary/85 px-3 py-1.5 text-[11px] font-semibold tracking-[.04em] text-primary-foreground backdrop-blur-sm">
+          <span className="pointer-events-none absolute bottom-4 left-4 max-w-[80%] truncate bg-primary px-4 py-2 font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary-foreground border-2 border-primary-foreground/20 shadow-[2px_2px_0px_hsl(var(--primary))]">
             {caption}
           </span>
         )}
@@ -138,7 +158,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
 
       {/* Thumbnails */}
       {allImages.length > 1 && (
-        <div className="flex min-w-0 max-w-full snap-x gap-2 overflow-x-auto overscroll-x-contain pb-1 scroll-smooth no-scrollbar">
+        <div className="flex min-w-0 max-w-full snap-x gap-3 overflow-x-auto overscroll-x-contain pb-2 scroll-smooth no-scrollbar pt-2">
           {allImages.map((img, idx) => (
             <button
               key={idx}
@@ -147,10 +167,10 @@ export function Gallery({ images, heroImage }: GalleryProps) {
               aria-label={`Show photograph ${idx + 1} of ${allImages.length}`}
               aria-current={activeIndex === idx}
               className={cn(
-                'relative h-16 w-24 shrink-0 snap-start overflow-hidden border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:h-[4.25rem] sm:w-28',
+                'relative h-[4.5rem] w-[6.5rem] shrink-0 snap-start overflow-hidden border-2 transition-all focus-visible:outline-none focus-visible:ring-0 sm:h-[5.5rem] sm:w-[8rem]',
                 activeIndex === idx
-                  ? 'border-accent'
-                  : 'border-border/70 opacity-55 hover:opacity-100',
+                  ? 'border-accent shadow-[4px_4px_0px_hsl(var(--accent))] -translate-y-1'
+                  : 'border-primary opacity-60 hover:opacity-100 hover:shadow-[2px_2px_0px_hsl(var(--primary))] hover:-translate-y-0.5',
               )}
             >
               {renderImage(getSafeImageUrl(img), idx, 'h-full w-full object-cover')}
@@ -161,45 +181,54 @@ export function Gallery({ images, heroImage }: GalleryProps) {
 
       {/* Fullscreen Lightbox */}
       {isFullscreen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-primary/97 backdrop-blur-md animate-in fade-in duration-200">
-          <button 
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-primary/95 animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Vehicle image gallery"
+        >
+          <button
             type="button"
-            onClick={() => setIsFullscreen(false)}
+            ref={closeButtonRef}
+            onClick={() => {
+              setIsFullscreen(false);
+              openerRef.current?.focus();
+            }}
             aria-label="Close photograph viewer"
-            className="absolute right-5 top-5 z-50 grid h-11 w-11 place-items-center border border-primary-foreground/20 text-primary-foreground/70 transition-colors hover:border-accent hover:text-accent"
+            className="absolute right-6 top-6 z-50 grid h-14 w-14 place-items-center border-4 border-primary-foreground bg-primary text-primary-foreground transition-all hover:bg-accent hover:border-accent hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent"
           >
-            <X className="h-6 w-6" />
+            <X className="h-8 w-8" />
           </button>
-          
+
           <div className="flex w-full max-w-7xl items-center justify-between px-4">
-            <button 
+            <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
               aria-label="Previous photograph"
               className="hidden p-4 text-primary-foreground/50 transition-colors hover:text-accent sm:block"
             >
-              <ChevronLeft className="h-10 w-10" />
+              <ChevronLeft className="h-14 w-14" />
             </button>
-            
-            <div 
+
+            <div
               className="relative flex max-h-[90vh] w-full flex-col items-center justify-center"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              {renderImage(url, activeIndex, 'max-h-[82vh] max-w-full select-none object-contain')}
-              <p className="mt-5 flex items-center gap-3 font-mono text-[11px] font-bold text-primary-foreground/60">
+              {renderImage(url, activeIndex, 'max-h-[82vh] max-w-full select-none object-contain border-4 border-primary-foreground shadow-[12px_12px_0px_hsl(var(--primary))]')}
+              <div className="mt-8 flex items-center gap-6 bg-primary-foreground text-primary px-6 py-3 font-display text-[12px] font-black uppercase tracking-[0.2em] shadow-[4px_4px_0px_hsl(var(--primary))]">
                 <span>{activeIndex + 1} / {allImages.length}</span>
-                {caption && <span className="font-sans text-sm font-semibold text-primary-foreground/85">{caption}</span>}
-              </p>
+                {caption && <span className="text-primary/70">{caption}</span>}
+              </div>
             </div>
 
-            <button 
+            <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
               aria-label="Next photograph"
               className="hidden p-4 text-primary-foreground/50 transition-colors hover:text-accent sm:block"
             >
-              <ChevronRight className="h-10 w-10" />
+              <ChevronRight className="h-14 w-14" />
             </button>
           </div>
         </div>

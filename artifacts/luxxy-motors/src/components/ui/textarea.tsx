@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 // Matches the shared input's showroom treatment: squared, shadow-free, bold value
 // against a lighter placeholder, and the same brass focus edge and halo.
 export const textareaClass =
-  'flex min-h-[60px] w-full rounded-none border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50';
+  'flex min-h-[60px] w-full rounded-none border-2 border-primary bg-background px-4 py-2 font-bold text-foreground shadow-[2px_2px_0px_hsl(var(--primary))] placeholder:font-bold placeholder:text-muted-foreground focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))] disabled:cursor-not-allowed disabled:opacity-50 transition-all';
 
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,

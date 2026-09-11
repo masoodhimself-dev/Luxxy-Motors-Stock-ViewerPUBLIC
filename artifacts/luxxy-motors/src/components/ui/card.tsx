@@ -1,11 +1,7 @@
 import * as React from "react"
+
 import { cn } from "@/lib/utils"
 
-// Showroom cards are squared and flat by default — the Luxxy identity uses hard
-// edges and printed-paper flatness throughout, so no call site should have to undo
-// a radius or a drop shadow. A surface that genuinely wants a soft edge or lift
-// opts in with its own `rounded-*` / `shadow-*` class, which tailwind-merge applies
-// on top.
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -13,7 +9,7 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-none border bg-card text-card-foreground",
+      "rounded-none border-4 border-primary bg-card text-card-foreground shadow-[8px_8px_0px_hsl(var(--primary))]",
       className
     )}
     {...props}
@@ -27,7 +23,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn("flex flex-col space-y-1.5 p-6 border-b-4 border-primary/10", className)}
     {...props}
   />
 ))
@@ -40,7 +36,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "font-display text-2xl font-black uppercase tracking-tighter leading-none text-primary",
       className
     )}
     {...props}
@@ -54,7 +50,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm font-bold uppercase tracking-widest text-primary/60", className)}
     {...props}
   />
 ))
@@ -80,4 +76,4 @@ const CardFooter = React.forwardRef<
 ))
 CardFooter.displayName = "CardFooter"
 
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }

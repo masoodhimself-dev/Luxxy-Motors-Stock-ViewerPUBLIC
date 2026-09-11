@@ -83,12 +83,12 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
 
   return (
     <div className="space-y-5" data-testid="lead-list">
-      <div className="border border-border bg-card p-5">
+      <div className="border-4 border-primary bg-background p-5">
         <div className="flex flex-wrap items-end gap-4">
           <div className="min-w-[240px] flex-1">
             <Field label="Search">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70 font-bold uppercase tracking-widest" />
                 <Input
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
@@ -144,7 +144,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 rounded-none text-[12px] font-bold uppercase tracking-[.1em] text-muted-foreground"
+              className="h-10 rounded-none text-[12px] font-bold uppercase tracking-[.1em] text-primary/70 font-bold uppercase tracking-widest"
               onClick={reset}
               data-testid="button-clear-filters"
             >
@@ -155,18 +155,18 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <p className="luxxy-label text-muted-foreground">
+        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">
           {leadsQuery.isLoading
             ? 'Searching'
             : `${leads.length} ${leads.length === 1 ? 'lead' : 'leads'}`}
         </p>
-        <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-[12px] text-primary/70 font-bold uppercase tracking-widest">
           <SlidersHorizontal className="h-3 w-3" /> Most urgent first
         </p>
       </div>
 
       {leadsQuery.isLoading ? (
-        <div className="flex min-h-32 items-center justify-center border border-border bg-card text-muted-foreground">
+        <div className="flex min-h-32 items-center justify-center border-4 border-primary bg-background text-primary/70 font-bold uppercase tracking-widest">
           <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Searching…
         </div>
       ) : leadsQuery.isError ? (

@@ -46,36 +46,37 @@ function PortalFrame({
   blurb: string;
 }) {
   return (
-    <div className="luxxy-grain min-h-[calc(100dvh-var(--site-header-height))] bg-background px-4 py-16">
-      <div className="mx-auto max-w-xl text-center">
-        <p className="luxxy-kicker justify-center text-accent">
-          <Lock className="h-3.5 w-3.5" /> {kicker}
+    <div className="luxxy-shell min-h-[calc(100dvh-var(--site-header-height))] bg-background px-4 py-16">
+      <div className="mx-auto max-w-xl text-center border-4 border-primary bg-background p-10 shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <p className="font-display text-[12px] font-black uppercase tracking-[0.2em] text-accent flex justify-center items-center gap-2 mb-4">
+          <Lock className="h-4 w-4" /> {kicker}
         </p>
-        <h1 className="mt-4 font-display text-3xl font-semibold tracking-[-.02em] text-primary sm:text-4xl">
+        <h1 className="font-display text-4xl font-black uppercase tracking-tighter text-primary">
           {title}
         </h1>
-        <p className="luxxy-leader mx-auto mt-3">{blurb}</p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">{children}</div>
+        <p className="mt-4 text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/70">{blurb}</p>
+        <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">{children}</div>
       </div>
     </div>
   );
 }
 
-/** Signed in, but this account is not on the staff list. */
 function AccessDenied({ email }: { email: string | null }) {
   return (
     <PortalFrame
-      kicker="No entry"
-      title="This account cannot open the portal"
+      kicker="NO ENTRY"
+      title="ACCESS DENIED"
       blurb={
         email
           ? `${email} is signed in, but it is not on the staff list for this dealership.`
           : 'This account is not on the staff list for this dealership.'
       }
     >
-      <UserButton />
-      <Button asChild variant="outline" className="rounded-none">
-        <Link href="/">Back to the showroom</Link>
+      <div className="bg-background border-2 border-primary p-1 shadow-[2px_2px_0px_hsl(var(--primary))]">
+        <UserButton />
+      </div>
+      <Button asChild variant="outline">
+        <Link href="/">Back to showroom</Link>
       </Button>
     </PortalFrame>
   );
@@ -101,9 +102,9 @@ function PortalDesk() {
 
   if (sessionQuery.isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-background text-muted-foreground">
-        <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" />
-        Unlocking the desk…
+      <div className="flex min-h-[60vh] items-center justify-center bg-background text-primary">
+        <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-accent" />
+        <span className="font-display text-[14px] font-black uppercase tracking-widest">Unlocking the desk…</span>
       </div>
     );
   }
@@ -124,39 +125,40 @@ function PortalDesk() {
     sessionQuery.data?.name ?? user?.firstName ?? sessionQuery.data?.email ?? 'there';
 
   return (
-    <div className="luxxy-grain min-h-[70vh] bg-background px-4 py-10 sm:py-14">
+    <div className="luxxy-shell min-h-[70vh] bg-background px-4 py-10 sm:py-12">
       <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between mb-8 border-b-4 border-primary pb-8">
           <div>
-            <p className="luxxy-kicker text-accent">Sales desk</p>
-            <h1 className="mt-3 font-display text-4xl font-semibold tracking-[-.02em] text-primary sm:text-5xl">
-              Morning, {staffName}.
+            <p className="font-display text-[12px] font-black uppercase tracking-[0.2em] text-accent flex items-center gap-2 mb-2">
+              <Settings2 className="h-4 w-4" /> Sales desk
+            </p>
+            <h1 className="font-display text-4xl sm:text-5xl font-black uppercase tracking-tighter text-primary">
+              MORNING, {staffName}.
             </h1>
-            <p className="luxxy-leader mt-3 max-w-2xl">
+            <p className="mt-4 font-bold text-sm uppercase tracking-widest text-primary/70 leading-relaxed border-l-4 border-accent pl-4 max-w-2xl">
               Everything waiting on you, in the order it needs doing.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Button
               type="button"
-              className="rounded-none text-[12px] font-bold uppercase tracking-[.1em]"
               onClick={() => setCapturing(true)}
               data-testid="button-new-lead"
             >
               <Plus className="mr-2 h-4 w-4" /> New lead
             </Button>
-            <UserButton />
+            <div className="bg-background border-2 border-primary p-1 shadow-[2px_2px_0px_hsl(var(--primary))]">
+              <UserButton />
+            </div>
           </div>
         </header>
-
-        <div className="luxxy-rule my-8" />
 
         {matchesLead && leadParams?.id ? (
           <LeadDetail id={leadParams.id} onBack={closeLead} />
         ) : (
-          <>
+          <div className="bg-background border-4 border-primary shadow-[8px_8px_0px_hsl(var(--primary))] p-4 sm:p-6 lg:p-8">
             <nav
-              className="mb-8 flex flex-wrap gap-px border border-border bg-border"
+              className="mb-8 flex flex-wrap gap-2 border-b-4 border-primary/20 pb-6"
               aria-label="Portal sections"
             >
               {tabs.map(({ key, label, icon: Icon }) => {
@@ -168,10 +170,10 @@ function PortalDesk() {
                     onClick={() => setTab(key)}
                     aria-current={active ? 'page' : undefined}
                     data-testid={`tab-${key}`}
-                    className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 text-[12px] font-bold uppercase tracking-[.1em] transition-colors ${
+                    className={`inline-flex items-center justify-center gap-2 px-5 py-3 font-display text-[11px] font-black uppercase tracking-[0.1em] transition-all border-2 border-primary ${
                       active
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        ? 'bg-primary text-primary-foreground shadow-[3px_3px_0px_hsl(var(--accent))]'
+                        : 'bg-primary/5 text-primary/70 hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] shadow-[3px_3px_0px_hsl(var(--primary))] hover:shadow-[1px_1px_0px_hsl(var(--primary))]'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -181,20 +183,22 @@ function PortalDesk() {
               })}
             </nav>
 
-            {tab === 'today' && <WorkQueue onOpenLead={openLead} />}
-            {tab === 'leads' && <LeadList onOpenLead={openLead} />}
-            {tab === 'deals' && <DealsPanel />}
-            {tab === 'channels' && <ChannelSummary />}
-            {tab === 'settings' && <DealerSettingsPanel />}
-          </>
+            <div className="min-h-[50vh]">
+              {tab === 'today' && <WorkQueue onOpenLead={openLead} />}
+              {tab === 'leads' && <LeadList onOpenLead={openLead} />}
+              {tab === 'deals' && <DealsPanel />}
+              {tab === 'channels' && <ChannelSummary />}
+              {tab === 'settings' && <DealerSettingsPanel />}
+            </div>
+          </div>
         )}
 
-        <div className="mt-12 flex justify-between border-t border-border pt-6">
+        <div className="mt-12 flex justify-between border-t-2 border-primary/20 pt-6">
           <Link
             href="/"
-            className="text-[13px] font-semibold text-primary underline-offset-4 hover:text-accent hover:underline"
+            className="font-display text-[12px] font-black uppercase tracking-[0.2em] text-primary underline-offset-4 hover:text-accent hover:underline"
           >
-            Back to the showroom
+            Back to showroom
           </Link>
         </div>
       </div>
@@ -217,9 +221,9 @@ export default function Portal() {
 
   if (!isLoaded) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-background text-muted-foreground">
-        <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" />
-        Checking the keys…
+      <div className="flex min-h-[60vh] items-center justify-center bg-background text-primary">
+        <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-accent" />
+        <span className="font-display text-[14px] font-black uppercase tracking-widest">Checking keys…</span>
       </div>
     );
   }
@@ -227,20 +231,17 @@ export default function Portal() {
   if (!isSignedIn) {
     return (
       <PortalFrame
-        kicker="Staff only"
-        title="The sales desk is locked"
+        kicker="STAFF ONLY"
+        title="THE DESK IS LOCKED"
         blurb="Sign in with your Luxxy Motors staff account to see enquiries, viewings and deals."
       >
         <SignInButton mode="redirect">
-          <Button
-            className="rounded-none text-[12px] font-bold uppercase tracking-[.1em]"
-            data-testid="button-portal-sign-in"
-          >
+          <Button data-testid="button-portal-sign-in">
             Sign in
           </Button>
         </SignInButton>
-        <Button asChild variant="outline" className="rounded-none">
-          <Link href="/">Back to the showroom</Link>
+        <Button asChild variant="outline">
+          <Link href="/">Back to showroom</Link>
         </Button>
       </PortalFrame>
     );

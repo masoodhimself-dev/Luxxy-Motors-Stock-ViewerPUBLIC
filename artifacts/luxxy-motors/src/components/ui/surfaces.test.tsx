@@ -74,15 +74,21 @@ function shadowClasses(className: string) {
  * `rounded-none` is the only radius allowed: anything else means a soft edge or a
  * drop shadow crept back into a shared surface and every call site has to undo it.
  */
-function expectSquaredAndFlat(element: Element, label: string) {
+function expectBrutalistGeometry(element: Element, label: string) {
   const { className } = element;
 
   expect(radiusClasses(className), `${label} radius`).toEqual(['rounded-none']);
-  expect(shadowClasses(className), `${label} shadow`).toEqual([]);
+
+  const shadows = shadowClasses(className);
+  if (shadows.length > 0) {
+    shadows.forEach(shadow => {
+      expect(shadow, `${label} shadow should be a hard offset`).toMatch(/^shadow-\[/);
+    });
+  }
 }
 
 describe('Card', () => {
-  it('renders squared and shadow-free', () => {
+  it('renders brutalist square and hard-offset shadow', () => {
     render(
       <Card data-testid="card">
         <CardHeader>
@@ -92,24 +98,24 @@ describe('Card', () => {
       </Card>,
     );
 
-    expectSquaredAndFlat(screen.getByTestId('card'), 'Card');
+    expectBrutalistGeometry(screen.getByTestId('card'), 'Card');
   });
 });
 
 describe('Badge', () => {
-  it.each(BADGE_VARIANTS)('renders the %s variant squared and shadow-free', (variant) => {
+  it.each(BADGE_VARIANTS)('renders the %s variant brutalist square and hard-offset shadow', (variant) => {
     render(
       <Badge variant={variant} data-testid="badge">
         Reserved
       </Badge>,
     );
 
-    expectSquaredAndFlat(screen.getByTestId('badge'), `Badge ${variant}`);
+    expectBrutalistGeometry(screen.getByTestId('badge'), `Badge ${variant}`);
   });
 });
 
 describe('Dialog', () => {
-  it('renders the panel and its close button squared and shadow-free', () => {
+  it('renders the panel and its close button brutalist square and hard-offset shadow', () => {
     render(
       <Dialog open>
         <DialogContent>
@@ -119,13 +125,13 @@ describe('Dialog', () => {
       </Dialog>,
     );
 
-    expectSquaredAndFlat(screen.getByRole('dialog'), 'DialogContent');
-    expectSquaredAndFlat(screen.getByRole('button', { name: 'Close' }), 'DialogContent close');
+    expectBrutalistGeometry(screen.getByRole('dialog'), 'DialogContent');
+    expectBrutalistGeometry(screen.getByRole('button', { name: 'Close' }), 'DialogContent close');
   });
 });
 
 describe('Popover', () => {
-  it('renders the panel squared and shadow-free', () => {
+  it('renders the panel brutalist square and hard-offset shadow', () => {
     render(
       <Popover open>
         <PopoverTrigger>Opening hours</PopoverTrigger>
@@ -133,12 +139,12 @@ describe('Popover', () => {
       </Popover>,
     );
 
-    expectSquaredAndFlat(screen.getByTestId('popover-content'), 'PopoverContent');
+    expectBrutalistGeometry(screen.getByTestId('popover-content'), 'PopoverContent');
   });
 });
 
 describe('DropdownMenu', () => {
-  it('renders the panel and its items squared and shadow-free', () => {
+  it('renders the panel and its items brutalist square and hard-offset shadow', () => {
     render(
       <DropdownMenu open>
         <DropdownMenuTrigger>Sort</DropdownMenuTrigger>
@@ -148,13 +154,13 @@ describe('DropdownMenu', () => {
       </DropdownMenu>,
     );
 
-    expectSquaredAndFlat(screen.getByRole('menu'), 'DropdownMenuContent');
-    expectSquaredAndFlat(screen.getByRole('menuitem'), 'DropdownMenuItem');
+    expectBrutalistGeometry(screen.getByRole('menu'), 'DropdownMenuContent');
+    expectBrutalistGeometry(screen.getByRole('menuitem'), 'DropdownMenuItem');
   });
 });
 
 describe('Select', () => {
-  it('renders the trigger, panel and items squared and shadow-free', () => {
+  it('renders the trigger, panel and items brutalist square and hard-offset shadow', () => {
     render(
       <Select open defaultValue="petrol">
         <SelectTrigger data-testid="select-trigger">
@@ -168,9 +174,9 @@ describe('Select', () => {
 
     // The open panel marks the rest of the tree `aria-hidden`, so the trigger is
     // reachable by test id rather than by role here.
-    expectSquaredAndFlat(screen.getByTestId('select-trigger'), 'SelectTrigger');
-    expectSquaredAndFlat(screen.getByRole('listbox'), 'SelectContent');
-    expectSquaredAndFlat(screen.getByRole('option', { name: 'Petrol' }), 'SelectItem');
+    expectBrutalistGeometry(screen.getByTestId('select-trigger'), 'SelectTrigger');
+    expectBrutalistGeometry(screen.getByRole('listbox'), 'SelectContent');
+    expectBrutalistGeometry(screen.getByRole('option', { name: 'Petrol' }), 'SelectItem');
   });
 });
 

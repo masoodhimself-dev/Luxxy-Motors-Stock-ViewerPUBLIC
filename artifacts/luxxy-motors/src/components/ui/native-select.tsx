@@ -11,7 +11,7 @@ export interface NativeSelectProps extends React.SelectHTMLAttributes<HTMLSelect
 // Call sites should only add genuinely per-screen tweaks — a taller control, a fixed
 // width, or the hero's translucent-on-ink palette.
 export const nativeSelectClass =
-  'h-11 w-full rounded-none border border-border bg-background px-3 text-sm font-semibold text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-45';
+  'h-12 w-full appearance-none rounded-none border-2 border-primary bg-background px-4 font-bold uppercase tracking-wider text-[12px] text-foreground shadow-[2px_2px_0px_hsl(var(--primary))] outline-none transition-all focus:border-accent focus:ring-0 focus:shadow-[4px_4px_0px_hsl(var(--accent))] disabled:cursor-not-allowed disabled:opacity-45';
 
 export const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProps>(
   ({ className, children, ...props }, ref) => {

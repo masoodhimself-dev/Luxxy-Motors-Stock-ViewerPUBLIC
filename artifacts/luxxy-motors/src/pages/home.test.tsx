@@ -262,7 +262,7 @@ describe('showroom search filters', () => {
   it('starts with a short welcome and puts stock search before any editorial sections', () => {
     renderHome();
 
-    expect(screen.getByText(/Welcome to Test Motors\./)).toBeInTheDocument();
+    expect(screen.getByText(/Find your next car/i)).toBeInTheDocument();
     expect(screen.getByTestId('input-showroom-search')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Latest arrivals' })).toBeInTheDocument();
     expect(screen.queryByTestId('featured-forecourt-carousel')).not.toBeInTheDocument();

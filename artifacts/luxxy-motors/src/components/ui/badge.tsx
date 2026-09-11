@@ -1,10 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-// Showroom badges are squared and flat by default — the Luxxy identity uses hard
-// edges and printed-paper flatness throughout, so no call site should have to undo
-// a pill radius or a drop shadow. A badge that genuinely wants a soft edge opts in
-// with its own `rounded-*` class, which tailwind-merge applies on top.
 export function Badge({
   className,
   variant = 'default',
@@ -13,13 +9,13 @@ export function Badge({
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-none border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+        'inline-flex items-center rounded-none border-2 px-3 py-1 font-display text-[10px] font-black uppercase tracking-[0.2em] transition-colors focus:outline-none shadow-[2px_2px_0px_hsl(var(--primary))]',
         {
-          'border-transparent bg-primary text-primary-foreground': variant === 'default',
-          'border-transparent bg-secondary text-secondary-foreground': variant === 'secondary',
-          'border-transparent bg-destructive text-destructive-foreground': variant === 'destructive',
-          'border-transparent bg-amber-500 text-white': variant === 'warning',
-          'text-foreground': variant === 'outline',
+          'border-primary bg-primary text-primary-foreground': variant === 'default',
+          'border-primary bg-secondary text-primary': variant === 'secondary',
+          'border-destructive bg-destructive text-destructive-foreground shadow-[2px_2px_0px_hsl(var(--accent))]': variant === 'destructive',
+          'border-amber-500 bg-amber-500 text-black shadow-[2px_2px_0px_#b45309]': variant === 'warning',
+          'border-primary bg-background text-primary': variant === 'outline',
         },
         className
       )}

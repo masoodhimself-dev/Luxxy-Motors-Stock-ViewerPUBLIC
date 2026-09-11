@@ -11,7 +11,7 @@ export function ChannelSummary() {
 
   if (summaryQuery.isLoading) {
     return (
-      <div className="flex min-h-32 items-center justify-center border border-border bg-card text-muted-foreground">
+      <div className="flex min-h-32 items-center justify-center border-4 border-primary bg-background text-primary/70 font-bold uppercase tracking-widest">
         <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Counting…
       </div>
     );
@@ -33,20 +33,20 @@ export function ChannelSummary() {
 
   return (
     <Panel data-testid="channel-summary">
-      <header className="border-b border-border px-5 py-4">
-        <p className="luxxy-kicker text-accent">Where the business comes from</p>
-        <h2 className="mt-2 font-display text-xl font-semibold tracking-[-.01em] text-primary">
+      <header className="border-b-4 border-primary px-5 py-4">
+        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">Where the business comes from</p>
+        <h2 className="mt-2 font-display text-2xl font-black uppercase tracking-tighter text-primary">
           By channel
         </h2>
       </header>
       <table className="w-full text-left">
         <thead>
-          <tr className="border-b border-border">
+          <tr className="border-b-4 border-primary">
             {['Channel', 'Total', 'Open', 'Won', 'Lost', 'Win rate'].map((heading, index) => (
               <th
                 key={heading}
                 scope="col"
-                className={`px-5 py-3 text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground ${index === 0 ? '' : 'text-right'}`}
+                className={`px-5 py-3 text-[10px] font-bold uppercase tracking-[.14em] text-primary/70 font-bold uppercase tracking-widest ${index === 0 ? '' : 'text-right'}`}
               >
                 {heading}
               </th>
@@ -81,7 +81,7 @@ export function ChannelSummary() {
                 <td className="px-5 py-3.5 text-right font-mono text-[15px] font-semibold text-primary">
                   {row.won}
                 </td>
-                <td className="px-5 py-3.5 text-right font-mono text-[15px] text-muted-foreground">
+                <td className="px-5 py-3.5 text-right font-mono text-[15px] text-primary/70 font-bold uppercase tracking-widest">
                   {row.lost}
                 </td>
                 <td className="px-5 py-3.5 text-right font-mono text-[15px] text-foreground">

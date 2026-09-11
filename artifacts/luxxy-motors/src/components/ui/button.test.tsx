@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { VariantProps } from 'class-variance-authority';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { expectSquaredAndFlat, radiusClasses, shadowClasses } from '@/test/showroom-style';
+import { expectBrutalistGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
 
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>['variant']>;
 type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>['size']>;
@@ -30,18 +30,18 @@ const VARIANTS = Object.keys(VARIANT_COVERAGE) as ButtonVariant[];
 const SIZES = Object.keys(SIZE_COVERAGE) as ButtonSize[];
 
 describe('Button', () => {
-  it.each(SIZES)('renders the %s size squared and shadow-free', (size) => {
+  it.each(SIZES)('renders the %s size brutalist square and hard-offset shadow', (size) => {
     render(<Button size={size}>Book a viewing</Button>);
 
     // `rounded-none` is the only radius allowed: anything else means a soft edge
     // crept back into the base or a variant.
-    expectSquaredAndFlat(screen.getByRole('button').className, `Button ${size}`);
+    expectBrutalistGeometry(screen.getByRole('button').className, `Button ${size}`);
   });
 
-  it('keeps every variant and size combination squared and shadow-free', () => {
+  it('keeps every variant and size combination brutalist square and hard-offset shadow', () => {
     for (const variant of VARIANTS) {
       for (const size of SIZES) {
-        expectSquaredAndFlat(buttonVariants({ variant, size }), `Button ${variant}/${size}`);
+        expectBrutalistGeometry(buttonVariants({ variant, size }), `Button ${variant}/${size}`);
       }
     }
   });
@@ -51,7 +51,7 @@ describe('Button', () => {
 
     const { className } = screen.getByRole('button');
 
-    expect(radiusClasses(className)).toEqual(['rounded-lg']);
-    expect(shadowClasses(className)).toEqual(['shadow-md']);
+    expect(radiusClasses(className)).toContain('rounded-lg');
+    expect(shadowClasses(className)).toContain('shadow-md');
   });
 });

@@ -160,25 +160,25 @@ function DealChecklist({ id }: { id: string }) {
   };
 
   return (
-    <div className="mt-7 rounded-none border border-border bg-card p-5 shadow-none luxxy-surface sm:p-7">
+    <div className="mt-7 rounded-none border-4 border-primary bg-background p-5 shadow-none luxxy-surface sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="luxxy-kicker text-primary">Auditable workflow</p>
-          <h3 className="mt-2 flex items-center gap-2 font-display text-[1.5rem] font-semibold tracking-[-.02em] text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Sales readiness checklist</h3>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-muted-foreground">
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary">Auditable workflow</p>
+          <h3 className="mt-2 flex items-center gap-2 font-display text-2xl font-black uppercase tracking-tighter text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Sales readiness checklist</h3>
+          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-primary/70 font-bold uppercase tracking-widest">
             Confirm each deal fact against the current records. If a price, customer, vehicle or document revision changes, the relevant confirmation returns to review.
           </p>
         </div>
         <div className="shrink-0 sm:text-right">
           <p className="font-display text-[2rem] font-semibold leading-none tracking-[-.03em] text-primary">{completedCount}/{totalCount}</p>
-          <p className="luxxy-label mt-1 text-muted-foreground">Current items</p>
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mt-1 text-primary/70 font-bold uppercase tracking-widest">Current items</p>
         </div>
       </div>
       <div className="mt-5 h-1 overflow-hidden bg-muted/40">
         <div className="h-full bg-accent transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
       {checklistQuery.isLoading ? (
-        <p className="mt-6 flex items-center text-[13px] font-semibold text-muted-foreground"><LoaderCircle className="mr-2 h-4 w-4 animate-spin text-accent" /> Loading checklist…</p>
+        <p className="mt-6 flex items-center text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest"><LoaderCircle className="mr-2 h-4 w-4 animate-spin text-accent" /> Loading checklist…</p>
       ) : checklistQuery.isError ? (
         <p className="mt-6 text-[13px] font-semibold text-destructive">The checklist could not be loaded. Refresh and try again.</p>
       ) : (
@@ -193,10 +193,10 @@ function DealChecklist({ id }: { id: string }) {
                     <p className={`flex items-center gap-2 text-[13px] font-bold ${confirmed ? 'text-[#1b6543]' : invalidated ? 'text-destructive' : 'text-primary'}`}>
                       {confirmed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1b6543]" /> : invalidated ? <CircleAlert className="h-4 w-4 shrink-0 text-destructive" /> : <span className="h-4 w-4 shrink-0 rounded-none border border-muted-foreground/40" />}
                       {item.label}
-                      {item.status === 'not_applicable' && <span className="luxxy-label ml-2 border border-border px-1.5 py-0.5 text-muted-foreground">Not applicable</span>}
+                      {item.status === 'not_applicable' && <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary ml-2 border-4 border-primary px-1.5 py-0.5 text-primary/70 font-bold uppercase tracking-widest">Not applicable</span>}
                     </p>
-                    <p className={`mt-1.5 text-[13px] leading-relaxed ${confirmed ? 'text-[#1b6543]/80' : invalidated ? 'text-destructive/80' : 'text-muted-foreground'}`}>{item.message}</p>
-                    {confirmed && item.completedAt && <p className="mt-2 font-mono text-[11px] text-muted-foreground">Confirmed {formatDate(item.completedAt)} · {item.completedBy || 'staff'}</p>}
+                    <p className={`mt-1.5 text-[13px] leading-relaxed ${confirmed ? 'text-[#1b6543]/80' : invalidated ? 'text-destructive/80' : 'text-primary/70 font-bold uppercase tracking-widest'}`}>{item.message}</p>
+                    {confirmed && item.completedAt && <p className="mt-2 font-mono text-[11px] text-primary/70 font-bold uppercase tracking-widest">Confirmed {formatDate(item.completedAt)} · {item.completedBy || 'staff'}</p>}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {!confirmed && item.eligible && (
@@ -380,13 +380,13 @@ function SaleCreateForm({
   };
 
   return (
-    <form onSubmit={submit} className="rounded-none border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
-      <div className="mb-6 flex items-start justify-between gap-4 border-b border-border/70 pb-5">
+    <form onSubmit={submit} className="rounded-none border-4 border-primary bg-background p-6 shadow-none luxxy-surface sm:p-8">
+      <div className="mb-6 flex items-start justify-between gap-4 border-b-4 border-primary pb-5">
         <div>
-          <p className="luxxy-kicker text-primary">New development sale</p>
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary">New development sale</p>
           <h2 className="mt-2 font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-.02em] text-primary">Start a deal</h2>
         </div>
-        <span className="luxxy-label border border-border px-2 py-1 text-muted-foreground">Demo only</span>
+        <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary/70 font-bold uppercase tracking-widest">Demo only</span>
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="space-y-2 text-[13px] font-bold sm:col-span-2">
@@ -410,12 +410,12 @@ function SaleCreateForm({
             ))}
           </select>
         </label>
-        <div className="border border-border bg-secondary/20 p-5 sm:col-span-2">
+        <div className="border-4 border-primary bg-secondary/20 p-5 sm:col-span-2">
           <div className="flex items-start gap-3">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
               <p className="text-[13px] font-bold text-primary">Customer details</p>
-              <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
+              <p className="mt-1 text-[13px] leading-6 text-primary/70 font-bold uppercase tracking-widest">
                 You do not need to type them here. Use a recent enquiry or let the customer enter their own details.
               </p>
             </div>
@@ -452,17 +452,17 @@ function SaleCreateForm({
               <p className="font-bold text-[#1b6543]">Customer ready</p>
               <p className="mt-1.5 font-semibold">{selectedCustomer.name}</p>
               <p className="text-[#1b6543]/80">{selectedCustomer.email || selectedCustomer.phone || 'No contact method provided'}</p>
-              <button type="button" className="luxxy-label mt-3 text-accent hover:text-primary transition-colors" onClick={resetCustomer}>Choose a different customer</button>
+              <button type="button" className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mt-3 text-accent hover:text-primary transition-colors" onClick={resetCustomer}>Choose a different customer</button>
             </div>
           )}
           {customerMode === 'qr' && intakePath && !intakeCustomer && (
-            <div className="mt-6 flex flex-col items-center gap-5 border border-border bg-background p-5 text-center sm:flex-row sm:text-left">
-              <div className="border border-border/50 bg-white p-3 shadow-sm">
+            <div className="mt-6 flex flex-col items-center gap-5 border-4 border-primary bg-background p-5 text-center sm:flex-row sm:text-left">
+              <div className="border-4 border-primary bg-white p-3 shadow-[4px_4px_0px_hsl(var(--primary))]">
                 <QRCodeSVG value={customerDetailsUrl} size={160} includeMargin />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-bold text-primary">Ask the customer to scan this code</p>
-                <p className="mt-1 text-[13px] leading-5 text-muted-foreground">This screen will fill in automatically when they save their details.</p>
+                <p className="mt-1 text-[13px] leading-5 text-primary/70 font-bold uppercase tracking-widest">This screen will fill in automatically when they save their details.</p>
                 <Input readOnly value={customerDetailsUrl} className="mt-4 h-9 rounded-none font-mono text-[11px]" />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="outline" className="rounded-none text-[11px] font-bold uppercase tracking-wider" onClick={() => navigator.clipboard?.writeText(customerDetailsUrl)}><Copy className="mr-2 h-3.5 w-3.5" />Copy link</Button>
@@ -499,14 +499,14 @@ function SaleCreateForm({
             <option value="collection">Customer collection</option>
             <option value="delivery">Dealer delivery</option>
           </select>
-          <span className="block text-[12px] font-normal text-muted-foreground">The date and address can be added to the fulfilment record before signing.</span>
+          <span className="block text-[12px] font-normal text-primary/70 font-bold uppercase tracking-widest">The date and address can be added to the fulfilment record before signing.</span>
         </label>
       </div>
       {createSale.isError && <p className="mt-5 text-[13px] font-semibold text-destructive">{apiMessage(createSale.error, 'Could not create this sale.')}</p>}
       <Button type="submit" className="mt-6 h-12 rounded-none text-[13px] font-bold uppercase tracking-[.08em]" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
         <Plus className="mr-2 h-4 w-4" /> {createSale.isPending ? 'Creating deal…' : 'Create draft sale'}
       </Button>
-      {!selectedCustomer && <p className="mt-3 text-[13px] text-muted-foreground">Select a recent enquiry or wait for the customer to save their details before creating the draft.</p>}
+      {!selectedCustomer && <p className="mt-3 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Select a recent enquiry or wait for the customer to save their details before creating the draft.</p>}
     </form>
   );
 }
@@ -548,7 +548,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const checklist = checklistQuery.data as unknown as SaleChecklistView | undefined;
 
   if (saleQuery.isLoading || !sale) {
-    return <div className="flex min-h-48 items-center justify-center border border-border bg-card text-[13px] font-semibold text-muted-foreground"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading sale…</div>;
+    return <div className="flex min-h-48 items-center justify-center border-4 border-primary bg-background text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading sale…</div>;
   }
 
   const sessionStatus = sale.signingSession?.status;
@@ -556,48 +556,48 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const readyForPreparation = checklist?.readyForPreparation ?? false;
 
   return (
-    <section className="rounded-none border border-border bg-card p-5 shadow-none luxxy-surface sm:p-7">
-      <div className="flex flex-col gap-5 border-b border-border/70 pb-6 sm:flex-row sm:items-start sm:justify-between">
+    <section className="rounded-none border-4 border-primary bg-background p-5 shadow-none luxxy-surface sm:p-7">
+      <div className="flex flex-col gap-5 border-b-4 border-primary pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <button type="button" onClick={onBack} className="luxxy-label mb-4 flex items-center gap-2 text-muted-foreground hover:text-accent transition-colors"><ArrowLeft className="h-3 w-3" /> All sales</button>
+          <button type="button" onClick={onBack} className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2 text-primary/70 font-bold uppercase tracking-widest hover:text-accent transition-colors"><ArrowLeft className="h-3 w-3" /> All sales</button>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="luxxy-label border border-border px-2 py-1 text-primary">{sale.status}</span>
-            <span className="font-mono text-[11px] font-bold text-muted-foreground">Ref {sale.id.slice(0, 8)}</span>
+            <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary">{sale.status}</span>
+            <span className="font-mono text-[11px] font-bold text-primary/70 font-bold uppercase tracking-widest">Ref {sale.id.slice(0, 8)}</span>
           </div>
           <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary">{sale.customer?.name || 'Unnamed customer'}</h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
+          <p className="mt-2 text-[13px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
         </div>
         <div className="text-left sm:text-right">
-          <p className="luxxy-label text-muted-foreground">Total</p>
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Total</p>
           <p className="luxxy-price mt-2 text-[2.25rem] leading-none text-primary">{formatPence(sale.agreedPricePence)}</p>
-          <p className="mt-2 text-[13px] text-muted-foreground">Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></p>
+          <p className="mt-2 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></p>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="border border-border bg-secondary/15 p-5">
-          <p className="luxxy-label text-muted-foreground">Customer</p>
+        <div className="border-4 border-primary bg-secondary/15 p-5">
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Customer</p>
           <p className="mt-3 text-[13px] font-bold text-primary">{sale.customer?.name}</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">{sale.customer?.email || sale.customer?.phone || 'No contact recorded'}</p>
+          <p className="mt-1 text-[13px] text-primary/70 font-bold uppercase tracking-widest">{sale.customer?.email || sale.customer?.phone || 'No contact recorded'}</p>
         </div>
-        <div className="border border-border bg-secondary/15 p-5">
-          <p className="luxxy-label text-muted-foreground">Revision</p>
+        <div className="border-4 border-primary bg-secondary/15 p-5">
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Revision</p>
           <p className="mt-3 text-[13px] font-bold text-primary">{sale.latestRevision ? `Revision ${sale.latestRevision.revisionNumber}` : 'Not prepared'}</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">{sale.latestRevision?.status || 'Draft terms'}</p>
+          <p className="mt-1 text-[13px] text-primary/70 font-bold uppercase tracking-widest">{sale.latestRevision?.status || 'Draft terms'}</p>
         </div>
-        <div className="border border-border bg-secondary/15 p-5">
-          <p className="luxxy-label text-muted-foreground">Signing</p>
+        <div className="border-4 border-primary bg-secondary/15 p-5">
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Signing</p>
           <p className="mt-3 text-[13px] font-bold text-primary">{sessionStatus || 'Not started'}</p>
-          {sale.signingSession?.expiresAt && <p className="mt-1 text-[13px] text-muted-foreground">Expires {formatDate(sale.signingSession.expiresAt)}</p>}
+          {sale.signingSession?.expiresAt && <p className="mt-1 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Expires {formatDate(sale.signingSession.expiresAt)}</p>}
         </div>
       </div>
 
       {prepared?.signingUrl && (
         <div className="mt-8 border border-accent/30 bg-accent/5 p-6">
           <div>
-            <p className="luxxy-kicker text-accent"><Link2 className="h-3.5 w-3.5" /> Secure signing link ready</p>
-            <h3 className="mt-3 font-display text-[1.5rem] font-semibold tracking-[-.02em] text-primary">Send this link to the customer</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">The link expires automatically and is bound to revision <span className="font-mono">{prepared.revision?.revisionNumber}</span>. Open it yourself or copy it into an email or message.</p>
+            <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent"><Link2 className="h-3.5 w-3.5" /> Secure signing link ready</p>
+            <h3 className="mt-3 font-display text-2xl font-black uppercase tracking-tighter text-primary">Send this link to the customer</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">The link expires automatically and is bound to revision <span className="font-mono">{prepared.revision?.revisionNumber}</span>. Open it yourself or copy it into an email or message.</p>
             <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center">
               <Input readOnly value={prepared.signingUrl || ''} className="h-11 rounded-none font-mono text-[11px] lg:max-w-md focus-visible:ring-0 focus-visible:border-accent" />
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -618,12 +618,12 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
       <DealChecklist id={id} />
 
-      <div className="mt-8 border-t border-border/70 pt-8">
+      <div className="mt-8 border-t-4 border-primary pt-8">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 font-display text-[1.5rem] font-semibold tracking-[-.02em] text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Final-sale checks</h3>
-          <span className={`luxxy-label ${sale.status === 'completed' || checks?.canComplete ? 'text-[#1b6543]' : 'text-amber-700'}`}>{sale.status === 'completed' ? 'Completed' : checks?.canComplete ? 'Ready to complete' : 'Not ready'}</span>
+          <h3 className="flex items-center gap-2 font-display text-2xl font-black uppercase tracking-tighter text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Final-sale checks</h3>
+          <span className={`font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary ${sale.status === 'completed' || checks?.canComplete ? 'text-[#1b6543]' : 'text-amber-700'}`}>{sale.status === 'completed' ? 'Completed' : checks?.canComplete ? 'Ready to complete' : 'Not ready'}</span>
         </div>
-        {checksQuery.isLoading ? <p className="mt-5 text-[13px] font-semibold text-muted-foreground">Checking sale readiness…</p> : (
+        {checksQuery.isLoading ? <p className="mt-5 text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest">Checking sale readiness…</p> : (
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {(checks?.checks || []).map((check) => (
               <div key={check.code} className={`border p-4 transition-colors ${check.passed ? 'border-[#1b6543]/20 bg-[#1b6543]/5' : 'border-amber-500/30 bg-amber-50/50'}`}>
@@ -687,11 +687,11 @@ export function DealsPanel() {
         <div className="min-h-[100dvh] luxxy-shell px-4 py-8 sm:px-8 sm:py-12">
           <div className="mx-auto flex max-w-4xl flex-col items-start gap-6 lg:flex-row lg:justify-between lg:items-start">
             <div>
-              <p className="luxxy-kicker text-primary">Focused sales workspace</p>
+              <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary">Focused sales workspace</p>
               <h1 id="focused-sale-title" className="mt-4 max-w-xl font-display text-[2.5rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[3.25rem]">
                 Build the deal, one step at a time.
               </h1>
-              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest sm:text-[15px]">
                 The rest of the portal is tucked away while you prepare this sale. Customer details can be selected from an enquiry or collected by QR code.
               </p>
             </div>
@@ -718,9 +718,9 @@ export function DealsPanel() {
     <section className="mb-12">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="luxxy-kicker text-accent"><ClipboardCheck className="h-3.5 w-3.5" /> Digital sales</p>
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent"><ClipboardCheck className="h-3.5 w-3.5" /> Digital sales</p>
           <h2 className="mt-3 font-display text-[2.25rem] font-semibold leading-none tracking-[-.03em] text-primary">Deal workspace</h2>
-          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
+          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
         </div>
         <Button type="button" variant={showSaleForm ? 'outline' : 'default'} className={`rounded-none text-[12px] font-bold uppercase tracking-[.08em] ${showSaleForm ? '' : 'shadow-none'}`} onClick={showSaleForm ? closeNewSale : openNewSale}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
       </div>
@@ -732,30 +732,30 @@ export function DealsPanel() {
       {selectedSaleId ? (
         <SaleDetail id={selectedSaleId} onBack={() => setSelectedSaleId(null)} />
       ) : salesQuery.isLoading ? (
-        <div className="flex min-h-48 items-center justify-center border border-border bg-card text-[13px] font-semibold text-muted-foreground"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading development sales…</div>
+        <div className="flex min-h-48 items-center justify-center border-4 border-primary bg-background text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading development sales…</div>
       ) : salesQuery.isError ? (
         <div className="border border-destructive/30 bg-destructive/5 p-8 text-center text-[13px] text-destructive"><p className="font-bold">Could not load development sales</p><p className="mt-1">The sale workspace may need a database migration or a refresh.</p></div>
       ) : sales.length === 0 ? (
-        <div className="border border-dashed border-border bg-card p-12 text-center"><ClipboardCheck className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h3 className="font-display text-[1.5rem] font-semibold tracking-[-.02em] text-primary">No development sales yet</h3><p className="mt-2 text-[13px] text-muted-foreground">Start with an existing vehicle and customer details to generate a secure signing link.</p></div>
+        <div className="border-4 border-dashed border-primary/20 bg-background p-12 text-center"><ClipboardCheck className="mx-auto mb-4 h-8 w-8 text-primary/70 font-bold uppercase tracking-widest" /><h3 className="font-display text-2xl font-black uppercase tracking-tighter text-primary">No development sales yet</h3><p className="mt-2 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Start with an existing vehicle and customer details to generate a secure signing link.</p></div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
           {sales.map((value) => {
             const sale = saleView(value);
             if (!sale) return null;
             return (
-              <button key={sale.id} type="button" onClick={() => setSelectedSaleId(sale.id)} className="group border border-border bg-card p-6 text-left transition-colors hover:border-accent hover:bg-secondary/10">
+              <button key={sale.id} type="button" onClick={() => setSelectedSaleId(sale.id)} className="group border-4 border-primary bg-background p-6 text-left transition-colors hover:border-accent hover:bg-secondary/10">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="luxxy-label border border-border px-2 py-1 text-primary bg-background">{sale.status}</span>
-                      {sale.signingSession?.status === 'pending' && <span className="luxxy-label flex items-center gap-1 border border-accent/30 bg-accent/5 px-2 py-1 text-primary"><Link2 className="h-3 w-3 text-accent" /> Signing link active</span>}
+                      <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary bg-background">{sale.status}</span>
+                      {sale.signingSession?.status === 'pending' && <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-1 border border-accent/30 bg-accent/5 px-2 py-1 text-primary"><Link2 className="h-3 w-3 text-accent" /> Signing link active</span>}
                     </div>
-                    <h3 className="mt-4 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary transition-colors group-hover:text-accent">{sale.customer?.name || 'Unnamed customer'}</h3>
-                    <p className="mt-1.5 text-[13px] text-muted-foreground">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
+                    <h3 className="mt-4 font-display text-2xl font-black uppercase tracking-tighter text-primary transition-colors group-hover:text-accent">{sale.customer?.name || 'Unnamed customer'}</h3>
+                    <p className="mt-1.5 text-[13px] text-primary/70 font-bold uppercase tracking-widest">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
                   </div>
                   <p className="luxxy-price text-[1.5rem] leading-none text-primary">{formatPence(sale.agreedPricePence)}</p>
                 </div>
-                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-bold uppercase tracking-widest text-primary/70 font-bold uppercase tracking-widest">
                   <span>Deposit <span className="luxxy-price-inline text-foreground">{formatPence(sale.depositPence)}</span></span>
                   <span className="luxxy-leader opacity-30" />
                   <span>Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></span>

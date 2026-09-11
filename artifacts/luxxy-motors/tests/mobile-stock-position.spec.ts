@@ -312,3 +312,18 @@ test('scrolls to a homepage section without requiring focus to move on same-page
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   await expect(page.locator('#about-heading')).not.toBeFocused();
 });
+
+for (const width of [768, 1024]) {
+  test(`saved cars row layout avoids horizontal overflow on ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await mockHomeData(page);
+    await page.goto('/');
+    // Setup a saved car to ensure row layout renders something
+    await page.evaluate(() => {
+      window.localStorage.setItem('luxxy_saved_cars', JSON.stringify(['1']));
+    });
+    await page.goto('/saved');
+    await page.waitForLoadState('networkidle');
+    await assertNoHorizontalOverflow(page);
+  });
+}

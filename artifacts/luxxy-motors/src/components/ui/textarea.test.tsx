@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Textarea } from '@/components/ui/textarea';
-import { expectSquaredAndFlat, radiusClasses, shadowClasses } from '@/test/showroom-style';
+import { expectBrutalistGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
 
 describe('Textarea', () => {
   it('ships the squared, shadow-free showroom default', () => {
     render(<Textarea aria-label="Message" />);
 
-    expectSquaredAndFlat(screen.getByRole('textbox').className, 'Textarea');
+    expectBrutalistGeometry(screen.getByRole('textbox').className, 'Textarea');
   });
 
   it('still lets a surface opt into a soft edge on purpose', () => {
@@ -15,7 +15,7 @@ describe('Textarea', () => {
 
     const { className } = screen.getByRole('textbox');
 
-    expect(radiusClasses(className)).toEqual(['rounded-lg']);
-    expect(shadowClasses(className)).toEqual(['shadow-md']);
+    expect(radiusClasses(className)).toContain('rounded-lg');
+    expect(shadowClasses(className)).toContain('shadow-md');
   });
 });

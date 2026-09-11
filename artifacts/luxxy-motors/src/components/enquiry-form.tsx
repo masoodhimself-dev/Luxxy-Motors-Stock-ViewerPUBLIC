@@ -24,7 +24,7 @@ const typeLabels: Record<EnquiryType, string> = {
 
 const bookingTimezone = 'Europe/London';
 
-const labelClass = 'luxxy-label mb-2 flex items-center gap-1.5 text-muted-foreground';
+const labelClass = 'font-display text-[11px] font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2 text-primary';
 type PreferredContact = 'email' | 'phone' | 'whatsapp';
 type PartExchangeCondition = 'excellent' | 'good' | 'fair' | 'poor';
 
@@ -234,7 +234,7 @@ export function EnquiryForm({
         <h2 className="mt-4 font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-.035em] text-primary sm:text-[2.5rem]">
           {isViewing ? 'See you at the showroom.' : 'We will be in touch.'}
         </h2>
-        <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-muted-foreground">
+        <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-primary/70">
           {isViewing
             ? `Thank you, ${customerName.trim()}. We have held your appointment for ${formatAppointment(selectedSlot!)}.`
             : `Thank you, ${customerName.trim()}. The ${dealerConfig.identity.name} team has your request and will be in touch.`}
@@ -242,7 +242,7 @@ export function EnquiryForm({
         <div className="mx-auto mt-6 max-w-sm border border-primary/20 bg-primary/5 px-5 py-4 text-left">
           <p className="luxxy-label text-accent">Your reference</p>
           <p className="mt-2 font-mono text-xl font-bold tracking-[.12em] text-primary" data-testid="text-enquiry-reference">{mutation.data.reference}</p>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">Keep this reference handy if you call the showroom.</p>
+          <p className="mt-2 text-xs leading-5 text-primary/70">Keep this reference handy if you call the showroom.</p>
         </div>
         {selectedVehicle && (
           <p className="mx-auto mt-5 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
@@ -253,10 +253,10 @@ export function EnquiryForm({
           <div className="flex items-start gap-2.5">
             <Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
-              <p className="luxxy-label text-muted-foreground">
+              <p className="luxxy-label text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Confirmation email not sent'}
               </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              <p className="mt-1 text-xs leading-5 text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent'
                   ? `We sent your reference and ${isViewing ? 'viewing details' : 'enquiry details'} to ${email.trim()}.`
                   : `Please contact the showroom by phone or WhatsApp and quote ${mutation.data.reference}.`}
@@ -276,7 +276,7 @@ export function EnquiryForm({
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <div>
                 <p className="text-sm font-bold text-primary">Manage your viewing</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Reschedule or cancel using your secure link.</p>
+                <p className="mt-1 text-xs leading-5 text-primary/70">Reschedule or cancel using your secure link.</p>
               </div>
             </div>
             <Button asChild type="button" variant="outline" size="sm" className="h-9 shrink-0 rounded-none border-border bg-background text-xs font-bold shadow-none">
@@ -316,7 +316,7 @@ export function EnquiryForm({
           <h2 className="mt-4 font-display text-[1.85rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2.1rem]">
             {isViewing ? (viewingStep === 1 ? 'Choose a time that suits you.' : 'Tell us a little about you.') : 'How can we help?'}
           </h2>
-          <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">
+          <p className="mt-3 max-w-md text-sm leading-7 text-primary/70">
             {isViewing
               ? viewingStep === 1
                 ? 'Pick your date and time first. You can add your details next.'
@@ -330,7 +330,7 @@ export function EnquiryForm({
       {vehicle && !isPartExchange && (
         <div className="flex items-center justify-between gap-4 border border-border/70 bg-secondary/35 px-4 py-3.5" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
-            <p className="luxxy-label text-muted-foreground">{isViewing ? 'Your chosen car' : 'Enquiry about'}</p>
+            <p className="luxxy-label text-primary/70">{isViewing ? 'Your chosen car' : 'Enquiry about'}</p>
             <p className="mt-1.5 truncate text-sm font-bold text-primary">{vehicleLabel}</p>
           </div>
           {vehicle.price != null && <p className="luxxy-price-inline shrink-0 text-[13px] text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
@@ -405,7 +405,7 @@ export function EnquiryForm({
             <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
               <CarFront className="h-5 w-5 text-accent" /> Let’s work out the difference
             </legend>
-            <p className="mt-3 text-[13px] leading-6 text-muted-foreground">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
+            <p className="mt-3 text-[13px] leading-6 text-primary/70">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
           </div>
           <div className="space-y-4" data-testid="section-part-exchange-target-vehicle">
             <div className="flex items-start justify-between gap-3">
@@ -413,7 +413,7 @@ export function EnquiryForm({
                 <p className="luxxy-label text-accent">Step 1 · Your next car</p>
                 <p className="mt-2 text-sm font-bold text-primary">Which car are you considering?</p>
               </div>
-              <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground">{stockCars.length} available</span>
+              <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-primary/70">{stockCars.length} available</span>
             </div>
             <NativeSelect
               required
@@ -440,7 +440,7 @@ export function EnquiryForm({
                   )}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-primary">{vehicleLabel}</p>
-                    <p className="mt-1 text-[12px] font-semibold text-muted-foreground">
+                    <p className="mt-1 text-[12px] font-semibold text-primary/70">
                       {selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}
                       {selectedVehicle.price != null ? <span className="luxxy-price-inline text-foreground">{formatPrice(selectedVehicle.price, selectedVehicle.currency)}</span> : 'Price on request'}
                     </p>
@@ -451,7 +451,7 @@ export function EnquiryForm({
                   <div className="mt-4 border-t border-border/70 pt-4">
                     <div className="mb-2.5 flex items-center justify-between gap-3">
                       <span className="luxxy-label text-accent">Actual registration</span>
-                      <span className="luxxy-label text-muted-foreground">From stock record</span>
+                      <span className="luxxy-label text-primary/70">From stock record</span>
                     </div>
                     <UKNumberPlate value={vehicleRegistration(selectedVehicle)} testId="visual-target-uk-number-plate" />
                   </div>
@@ -468,7 +468,7 @@ export function EnquiryForm({
             <label className="block">
               <span className={`${labelClass} justify-between`}>
                 <span>Your car’s registration</span>
-                <span className="text-muted-foreground">UK plate</span>
+                <span className="text-primary/70">UK plate</span>
               </span>
               <UKNumberPlate
                 value={partExchangeRegistration}
@@ -478,7 +478,7 @@ export function EnquiryForm({
                 inputTestId="input-part-exchange-registration"
                 helpId="part-exchange-registration-help"
               />
-              <span id="part-exchange-registration-help" className="mt-2 block text-[13px] leading-6 text-muted-foreground">Enter the registration exactly as it appears on the plate.</span>
+              <span id="part-exchange-registration-help" className="mt-2 block text-[13px] leading-6 text-primary/70">Enter the registration exactly as it appears on the plate.</span>
             </label>
             <label className="block">
               <span className={labelClass}><Gauge className="h-3.5 w-3.5 text-accent" />Current mileage</span>
@@ -515,9 +515,9 @@ export function EnquiryForm({
               <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
                 <CalendarDays className="h-5 w-5 text-accent" /> Choose a time to visit
               </legend>
-               <p className="mt-3 text-[13px] leading-6 text-muted-foreground">A relaxed 30-minute visit · Monday to Saturday · 10:00–18:00</p>
+               <p className="mt-3 text-[13px] leading-6 text-primary/70">A relaxed 30-minute visit · Monday to Saturday · 10:00–18:00</p>
             </div>
-            <span className="luxxy-label hidden shrink-0 border border-border bg-background px-2.5 py-1.5 text-muted-foreground sm:block">London time</span>
+            <span className="luxxy-label hidden shrink-0 border border-border bg-background px-2.5 py-1.5 text-primary/70 sm:block">London time</span>
           </div>
           <label className="block sm:hidden" data-testid="label-viewing-date-mobile">
             <span className="sr-only">Choose a viewing date</span>
@@ -544,7 +544,7 @@ export function EnquiryForm({
                   onClick={() => setSelectedDate(date)}
                   aria-label={`Select ${formatDateLabel(date)}`}
                   aria-pressed={selectedDate === date}
-                  className={`min-w-[76px] border px-3 py-3 text-center transition-colors ${selectedDate === date ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:border-accent hover:text-primary'}`}
+                  className={`min-w-[76px] border px-3 py-3 text-center transition-colors ${selectedDate === date ? 'border-primary bg-primary text-primary-foreground shadow-[2px_2px_0px_hsl(var(--accent))]' : 'border-border bg-background text-primary/70 hover:border-accent hover:text-primary'}`}
                   data-testid={`button-viewing-date-${date}`}
                 >
                   <span className="luxxy-label block opacity-75">{weekday}</span>
@@ -556,12 +556,12 @@ export function EnquiryForm({
           </div>
           <div className="border-t border-border/70 pt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="luxxy-label text-muted-foreground">Available times</p>
+              <p className="luxxy-label text-primary/70">Available times</p>
               {availableSlots.length > 0 && <p className="font-mono text-[12px] font-bold text-primary">{availableSlots.length} times open</p>}
             </div>
             {availabilityQuery.isLoading ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="loading-availability">
-                {[1, 2, 3, 4].map((item) => <div key={item} className="h-11 animate-pulse bg-secondary" />)}
+                {[1, 2, 3, 4].map((item) => <div key={item} className="h-12 animate-pulse bg-primary/10 border-2 border-primary/20" />)}
               </div>
             ) : availabilityQuery.isError ? (
               <div role="alert" className="flex items-start gap-2.5 border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]" data-testid="status-availability-error">
@@ -577,7 +577,7 @@ export function EnquiryForm({
                     onClick={() => setSelectedSlot(slot.startAt)}
                     aria-label={`${slot.label}${slot.available ? '' : ' unavailable'}`}
                     aria-pressed={selectedSlot === slot.startAt}
-                    className={`flex h-11 items-center justify-center gap-2 border px-3 font-mono text-[13px] font-bold transition-colors ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground' : slot.available ? 'border-border bg-background text-foreground hover:border-accent hover:text-primary' : 'cursor-not-allowed border-border/50 bg-secondary/40 text-muted-foreground/45 line-through'}`}
+                    className={`flex h-11 items-center justify-center gap-2 border px-3 font-mono text-[13px] font-bold transition-colors ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground shadow-[2px_2px_0px_hsl(var(--accent))]' : slot.available ? 'border-border bg-background text-foreground hover:border-accent hover:text-primary' : 'cursor-not-allowed border-border/50 bg-secondary/40 text-primary/70/45 line-through'}`}
                     data-testid={`button-viewing-slot-${slot.startAt}`}
                   >
                     {selectedSlot === slot.startAt && <Check className="h-4 w-4" />}
@@ -586,10 +586,10 @@ export function EnquiryForm({
                 ))}
               </div>
             ) : (
-               <p className="border border-[#d4bd83] bg-[#f7f0dd] p-3 text-[13px] leading-6 text-[#80611f]" data-testid="status-availability-empty">That day is now full. Please choose another date and we’ll find a good time for you.</p>
+               <p className="border-4 border-accent/50 bg-background p-4 text-[13px] font-bold uppercase tracking-widest text-accent" data-testid="status-availability-empty">That day is now full. Please choose another date and we’ll find a good time for you.</p>
             )}
           </div>
-          <div className="flex items-start gap-2.5 text-[13px] leading-6 text-muted-foreground">
+          <div className="flex items-start gap-2.5 text-[13px] leading-6 text-primary/70">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
              {selectedSlotLabel ? <span><strong className="font-bold text-primary">Your visit:</strong> {selectedSlotLabel} · {formatDateLabel(selectedDate)}</span> : <span>Choose any open time that suits you.</span>}
           </div>
@@ -613,7 +613,7 @@ export function EnquiryForm({
       )}
 
       {mutation.isError && (
-        <div role="alert" className="flex items-start gap-3 border border-[#c9a49c] bg-[#f7ece9] p-4 text-sm leading-6 text-[#8d3e34]" data-testid="status-enquiry-error">
+        <div role="alert" className="flex items-start gap-3 border-4 border-destructive/50 bg-background p-4 text-[13px] font-bold uppercase tracking-widest text-destructive" data-testid="status-enquiry-error">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
@@ -625,24 +625,24 @@ export function EnquiryForm({
             size="lg"
             disabled={!selectedSlot || availabilityQuery.isLoading}
             onClick={() => setViewingStep(2)}
-            className="group h-12 w-full rounded-none text-sm font-bold shadow-none"
+            className="group h-16 w-full rounded-none font-display text-[13px] font-black uppercase tracking-[0.2em] shadow-[6px_6px_0px_hsl(var(--accent))] hover:-translate-y-1 hover:shadow-[8px_8px_0px_hsl(var(--accent))] transition-all"
             data-testid="button-continue-to-details"
           >
             Continue to your details
             <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         ) : (
-          <Button type="submit" size="lg" disabled={mutation.isPending} className="group h-12 w-full rounded-none text-sm font-bold shadow-none" data-testid="button-submit-enquiry">
+          <Button type="submit" size="lg" disabled={mutation.isPending} className="group h-16 w-full rounded-none font-display text-[13px] font-black uppercase tracking-[0.2em] shadow-[6px_6px_0px_hsl(var(--accent))] hover:-translate-y-1 hover:shadow-[8px_8px_0px_hsl(var(--accent))] transition-all" data-testid="button-submit-enquiry">
             {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
             {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
           </Button>
         )}
         {isViewing && viewingStep === 2 && (
-          <button type="button" onClick={() => setViewingStep(1)} className="w-full text-center text-xs font-bold text-muted-foreground underline underline-offset-4 hover:text-primary">
+          <button type="button" onClick={() => setViewingStep(1)} className="w-full text-center text-xs font-bold text-primary/70 underline underline-offset-4 hover:text-primary">
             Back to date and time
           </button>
         )}
-        <div className="flex items-start gap-3 border border-border/70 bg-secondary/35 px-4 py-3.5 text-[13px] leading-6 text-muted-foreground">
+        <div className="flex items-start gap-3 border-2 border-primary/20 bg-primary/5 px-4 py-4 font-bold text-[11px] uppercase tracking-widest leading-relaxed text-primary/70">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
            <span>
              {isViewing && viewingStep === 1

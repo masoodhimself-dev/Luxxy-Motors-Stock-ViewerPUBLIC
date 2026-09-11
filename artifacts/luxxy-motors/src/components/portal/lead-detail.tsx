@@ -70,7 +70,7 @@ function DetailRow({
     <div className="flex items-start gap-3 py-2.5">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
       <div className="min-w-0">
-        <span className="luxxy-label block text-muted-foreground">{label}</span>
+        <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary block text-primary/70 font-bold uppercase tracking-widest">{label}</span>
         {href ? (
           <a href={href} className="underline-offset-4 hover:underline">
             {body}
@@ -175,12 +175,12 @@ function NextActionBand({
       data-testid="next-action-band"
     >
       <div className="min-w-0">
-        <p className="luxxy-label text-muted-foreground">Next action</p>
+        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Next action</p>
         {closed ? (
           <p className="mt-1 font-display text-lg font-semibold text-primary">
             Closed as {lead.stage === 'won' ? 'won' : 'lost'}
             {lead.closedAt && (
-              <span className="ml-2 font-sans text-[13px] font-normal text-muted-foreground">
+              <span className="ml-2 font-sans text-[13px] font-normal text-primary/70 font-bold uppercase tracking-widest">
                 {formatDate(lead.closedAt)}
               </span>
             )}
@@ -191,13 +191,13 @@ function NextActionBand({
           >
             {lead.nextAction}
             {lead.nextActionDueAt && (
-              <span className="ml-2 font-sans text-[13px] font-normal text-muted-foreground">
+              <span className="ml-2 font-sans text-[13px] font-normal text-primary/70 font-bold uppercase tracking-widest">
                 due {formatDateTime(lead.nextActionDueAt)} · {relativeTime(lead.nextActionDueAt)}
               </span>
             )}
           </p>
         ) : (
-          <p className="mt-1 font-display text-lg font-semibold italic text-muted-foreground">
+          <p className="mt-1 font-display text-lg font-semibold italic text-primary/70 font-bold uppercase tracking-widest">
             Nothing decided yet
           </p>
         )}
@@ -219,7 +219,7 @@ function NextActionBand({
 function Timeline({ activities }: { activities: LeadActivity[] }) {
   if (activities.length === 0) {
     return (
-      <p className="px-5 py-8 text-center text-[13px] text-muted-foreground">
+      <p className="px-5 py-8 text-center text-[13px] text-primary/70 font-bold uppercase tracking-widest">
         Nothing logged yet. The first call or note will show up here.
       </p>
     );
@@ -235,7 +235,7 @@ function Timeline({ activities }: { activities: LeadActivity[] }) {
             <span
               className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center border ${
                 quiet
-                  ? 'border-border bg-muted text-muted-foreground'
+                  ? 'border-border bg-muted text-primary/70 font-bold uppercase tracking-widest'
                   : 'border-accent/50 bg-accent/12 text-accent'
               }`}
             >
@@ -243,16 +243,16 @@ function Timeline({ activities }: { activities: LeadActivity[] }) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className="luxxy-label text-muted-foreground">
+                <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">
                   {activityLabels[activity.kind]}
                   {activity.actor && ` · ${activity.actor}`}
                 </span>
-                <span className="font-mono text-[12px] text-muted-foreground">
+                <span className="font-mono text-[12px] text-primary/70 font-bold uppercase tracking-widest">
                   {formatDateTime(activity.occurredAt)}
                 </span>
               </div>
               <p
-                className={`mt-1 whitespace-pre-wrap text-[14px] leading-relaxed ${quiet ? 'text-muted-foreground' : 'text-foreground'}`}
+                className={`mt-1 whitespace-pre-wrap text-[14px] leading-relaxed ${quiet ? 'text-primary/70 font-bold uppercase tracking-widest' : 'text-foreground'}`}
               >
                 {activity.body}
               </p>
@@ -268,11 +268,11 @@ function DealPanel({ deal }: { deal: LeadDeal | null }) {
   if (!deal) {
     return (
       <Panel>
-        <header className="border-b border-border px-5 py-4">
-          <p className="luxxy-kicker text-accent">Paperwork</p>
+        <header className="border-b-4 border-primary px-5 py-4">
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">Paperwork</p>
           <h2 className="mt-2 font-display text-xl font-semibold text-primary">Deal</h2>
         </header>
-        <p className="px-5 py-6 text-[13px] text-muted-foreground">
+        <p className="px-5 py-6 text-[13px] text-primary/70 font-bold uppercase tracking-widest">
           No deal raised against this lead yet. Start one from the Deals tab when the
           customer commits.
         </p>
@@ -282,9 +282,9 @@ function DealPanel({ deal }: { deal: LeadDeal | null }) {
 
   return (
     <Panel data-testid="lead-deal">
-      <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+      <header className="flex items-start justify-between gap-3 border-b-4 border-primary px-5 py-4">
         <div>
-          <p className="luxxy-kicker text-accent">Paperwork</p>
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">Paperwork</p>
           <h2 className="mt-2 font-display text-xl font-semibold text-primary">Deal</h2>
         </div>
         <Chip tone="primary">{deal.status.replace(/_/g, ' ')}</Chip>
@@ -296,15 +296,15 @@ function DealPanel({ deal }: { deal: LeadDeal | null }) {
           ['Balance', deal.balancePence],
         ].map(([label, value]) => (
           <div key={label as string} className="flex items-center justify-between py-3">
-            <dt className="luxxy-label text-muted-foreground">{label}</dt>
+            <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">{label}</dt>
             <dd className="luxxy-price-inline text-[15px] text-primary">
               {formatPence(value as number)}
             </dd>
           </div>
         ))}
         <div className="flex items-center justify-between py-3">
-          <dt className="luxxy-label text-muted-foreground">Raised</dt>
-          <dd className="font-mono text-[13px] text-muted-foreground">
+          <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Raised</dt>
+          <dd className="font-mono text-[13px] text-primary/70 font-bold uppercase tracking-widest">
             {formatDate(deal.createdAt)}
           </dd>
         </div>
@@ -330,12 +330,12 @@ function OutcomePanel({
   if (closed) {
     return (
       <Panel className="p-5">
-        <p className="luxxy-label text-muted-foreground">Outcome</p>
+        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Outcome</p>
         <p className="mt-2 flex items-center gap-2 font-display text-lg font-semibold text-primary">
           {lead.stage === 'won' ? (
             <CheckCircle2 className="h-5 w-5 text-accent" />
           ) : (
-            <XCircle className="h-5 w-5 text-muted-foreground" />
+            <XCircle className="h-5 w-5 text-primary/70 font-bold uppercase tracking-widest" />
           )}
           {lead.stage === 'won' ? 'Won' : 'Lost'}
         </p>
@@ -345,7 +345,7 @@ function OutcomePanel({
         <Button
           type="button"
           variant="ghost"
-          className="mt-4 rounded-none px-0 text-[12px] font-bold uppercase tracking-[.1em] text-muted-foreground hover:bg-transparent hover:text-accent"
+          className="mt-4 rounded-none px-0 text-[12px] font-bold uppercase tracking-[.1em] text-primary/70 font-bold uppercase tracking-widest hover:bg-transparent hover:text-accent"
           disabled={saving}
           onClick={() => onSave({ stage: 'offer', outcomeReason: null })}
           data-testid="button-reopen-lead"
@@ -358,7 +358,7 @@ function OutcomePanel({
 
   return (
     <Panel className="p-5" data-testid="outcome-panel">
-      <p className="luxxy-label text-muted-foreground">Close this lead</p>
+      <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Close this lead</p>
       {pending ? (
         <div className="mt-3 space-y-3">
           <Field label={pending === 'won' ? 'How was it won?' : 'Why was it lost?'}>
@@ -447,7 +447,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
   if (leadQuery.isLoading) {
     return (
-      <div className="flex min-h-40 items-center justify-center border border-border bg-card text-muted-foreground">
+      <div className="flex min-h-40 items-center justify-center border-4 border-primary bg-background text-primary/70 font-bold uppercase tracking-widest">
         <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" />
         Opening the file…
       </div>
@@ -481,17 +481,17 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          className="luxxy-kicker text-muted-foreground transition-colors hover:text-accent"
+          className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary/70 font-bold uppercase tracking-widest transition-colors hover:text-accent"
           data-testid="button-back-to-list"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to the desk
         </button>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-semibold tracking-[-.02em] text-primary sm:text-4xl">
+            <h1 className="font-display text-2xl font-black uppercase tracking-tighter text-primary sm:text-4xl">
               {lead.customerName}
             </h1>
-            <p className="mt-2 text-[13px] text-muted-foreground">
+            <p className="mt-2 text-[13px] text-primary/70 font-bold uppercase tracking-widest">
               First seen {formatDate(lead.createdAt)} · last activity{' '}
               {relativeTime(lead.lastActivityAt)}
             </p>
@@ -516,8 +516,8 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ActivityComposer leadId={lead.id} currentStage={lead.stage} />
 
           <Panel>
-            <header className="border-b border-border px-5 py-4">
-              <p className="luxxy-kicker text-accent">The story</p>
+            <header className="border-b-4 border-primary px-5 py-4">
+              <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">The story</p>
               <h2 className="mt-2 font-display text-xl font-semibold text-primary">
                 Timeline
               </h2>
@@ -528,7 +528,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
         <div className="space-y-6">
           <Panel className="px-5 py-4">
-            <p className="luxxy-kicker text-accent">
+            <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">
               <UserRound className="h-3.5 w-3.5" /> Customer
             </p>
             <div className="mt-2 divide-y divide-border">
@@ -557,14 +557,14 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
           {(lead.vehicleTitle || lead.vehicleRegistration) && (
             <Panel className="px-5 py-4">
-              <p className="luxxy-kicker text-accent">
+              <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">
                 <Car className="h-3.5 w-3.5" /> Vehicle
               </p>
               <p className="mt-3 font-display text-lg font-semibold text-primary">
                 {lead.vehicleTitle ?? 'Unnamed vehicle'}
               </p>
               {lead.vehicleRegistration && (
-                <p className="mt-1 font-mono text-[13px] text-muted-foreground">
+                <p className="mt-1 font-mono text-[13px] text-primary/70 font-bold uppercase tracking-widest">
                   {lead.vehicleRegistration}
                 </p>
               )}
@@ -582,14 +582,14 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
           {(lead.summary || enquiryMessage) && (
             <Panel className="px-5 py-4">
-              <p className="luxxy-kicker text-accent">
+              <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">
                 <MessageSquareQuote className="h-3.5 w-3.5" /> In their words
               </p>
               <p className="mt-3 whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">
                 {enquiryMessage ?? lead.summary}
               </p>
               {enquiryMessage && lead.summary && (
-                <p className="mt-3 whitespace-pre-wrap border-t border-border pt-3 text-[13px] leading-relaxed text-muted-foreground">
+                <p className="mt-3 whitespace-pre-wrap border-t-4 border-primary pt-3 text-[13px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">
                   {lead.summary}
                 </p>
               )}
@@ -600,7 +600,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <OutcomePanel lead={lead} onSave={save} saving={saving} />
 
           {lead.enquiryId && (
-            <p className="flex items-center gap-2 px-1 font-mono text-[12px] text-muted-foreground">
+            <p className="flex items-center gap-2 px-1 font-mono text-[12px] text-primary/70 font-bold uppercase tracking-widest">
               <FileText className="h-3.5 w-3.5" />
               From website enquiry {lead.enquiryId.slice(0, 8)}
             </p>

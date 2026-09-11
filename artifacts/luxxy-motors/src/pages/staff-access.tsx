@@ -5,20 +5,22 @@ const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 function AccessFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="luxxy-grain relative flex min-h-[calc(100dvh-var(--site-header-height))] flex-col items-center justify-center gap-8 bg-background px-4 py-16">
-      <div className="text-center">
-        <p className="luxxy-kicker justify-center text-accent">
-          <ShieldCheck className="h-3.5 w-3.5" /> Staff entrance
+    <div className="luxxy-shell relative flex min-h-[calc(100dvh-var(--site-header-height))] flex-col items-center justify-center gap-12 bg-background px-4 py-16">
+      <div className="text-center border-4 border-primary p-10 bg-background shadow-[8px_8px_0px_hsl(var(--primary))] max-w-lg">
+        <p className="font-display text-[12px] font-black uppercase tracking-[0.2em] text-accent flex justify-center items-center gap-2 mb-4">
+          <ShieldCheck className="h-4 w-4" /> STAFF ENTRANCE
         </p>
-        <h1 className="mt-4 font-display text-3xl font-semibold tracking-[-.02em] text-primary sm:text-4xl">
-          Luxxy Motors Portal
+        <h1 className="font-display text-4xl font-black uppercase tracking-tighter text-primary">
+          LUXXY MOTORS PORTAL
         </h1>
-        <p className="luxxy-leader mx-auto mt-3 max-w-md">
+        <p className="mt-4 text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/70 border-l-4 border-accent pl-4 text-left">
           The sales desk — enquiries, viewings, deals and paperwork. Customers
           never see this door.
         </p>
       </div>
-      {children}
+      <div className="border-4 border-primary shadow-[8px_8px_0px_hsl(var(--primary))] bg-background">
+        {children}
+      </div>
     </div>
   );
 }
@@ -26,7 +28,6 @@ function AccessFrame({ children }: { children: React.ReactNode }) {
 export function StaffSignIn() {
   return (
     <AccessFrame>
-      {/* path must be the full browser path — Clerk reads window.location.pathname directly */}
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}

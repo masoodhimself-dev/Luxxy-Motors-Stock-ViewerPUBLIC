@@ -20,11 +20,7 @@ export function CompareTray() {
   const previousIds = useRef(compareIds);
   const [announcement, setAnnouncement] = useState('');
 
-  // The tray is mounted on every page, so it is where a comparison left over from an earlier
-  // visit gets reconciled: a car that has since sold must give its slot back.
   useEffect(() => {
-    // An empty list is more likely a bad response than a sold-out forecourt, so leave the
-    // selection alone rather than wiping it.
     if (isLoading || !stock?.cars.length) return;
     pruneCompare(stock.cars.map((car) => car.id));
   }, [isLoading, stock, pruneCompare]);
@@ -43,8 +39,6 @@ export function CompareTray() {
     .map((id) => stock?.cars.find((car) => car.id === id))
     .filter((car): car is NonNullable<typeof car> => Boolean(car));
 
-  // Vehicle detail owns the mobile bottom edge for its conversion bar. The saved
-  // comparison remains intact and the tray returns as soon as the shopper leaves.
   if (!routeAllowsCompareTray(location) || cars.length === 0 || dismissed) return null;
 
   const readyToCompare = cars.length === MAX_COMPARE;
@@ -52,47 +46,47 @@ export function CompareTray() {
   return (
     <>
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-accent bg-primary text-primary-foreground shadow-[0_-12px_40px_hsl(var(--primary)/.25)]"
+        className="fixed inset-x-0 bottom-0 z-40 border-t-4 border-primary bg-background shadow-[0_-8px_0px_hsl(var(--primary))]"
         role="region"
         aria-label="Cars selected for comparison"
         data-testid="compare-tray"
       >
         <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
-        <div className="container mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
-          <div className="flex min-h-11 items-center justify-between sm:hidden">
-            <p className="text-sm font-bold">{cars.length} of {MAX_COMPARE} cars selected</p>
-            <div className="flex">
-              <button type="button" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand comparison tray' : 'Collapse comparison tray'} className="grid h-11 w-11 place-items-center">
+        <div className="container mx-auto flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
+          <div className="flex min-h-12 items-center justify-between sm:hidden">
+            <p className="font-display text-[12px] font-black uppercase tracking-[0.2em] text-primary">{cars.length} of {MAX_COMPARE} selected</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand comparison tray' : 'Collapse comparison tray'} className="grid h-12 w-12 place-items-center border-2 border-primary bg-primary/5 shadow-[2px_2px_0px_hsl(var(--primary))] transition-all hover:bg-primary hover:text-primary-foreground">
                 {collapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </button>
-              <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss comparison tray" className="grid h-11 w-11 place-items-center">
+              <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss comparison tray" className="grid h-12 w-12 place-items-center border-2 border-primary bg-primary/5 shadow-[2px_2px_0px_hsl(var(--primary))] transition-all hover:bg-primary hover:text-primary-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
           </div>
-          <p className="luxxy-label hidden shrink-0 text-primary-foreground/65 lg:block">Comparing</p>
+          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] hidden shrink-0 text-primary/60 lg:block">COMPARING</p>
 
-          <ul className={`${collapsed ? 'hidden sm:flex' : 'flex'} flex-1 items-center gap-3`}>
+          <ul className={`${collapsed ? 'hidden sm:flex' : 'flex'} flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-3`}>
             {cars.map((car) => {
               const thumbnail = getThumbnailUrl(car) || (car.images?.[0] ? getSafeImageUrl(car.images[0]) : '');
               return (
                 <li
                   key={car.id}
-                  className="flex min-w-0 flex-1 items-center gap-3 border border-primary-foreground/15 bg-primary-foreground/5 p-1.5 sm:flex-none sm:w-56"
+                  className="flex min-w-0 flex-1 items-center gap-3 border-2 border-primary bg-primary/5 p-2 sm:flex-none sm:w-64 shadow-[2px_2px_0px_hsl(var(--primary))]"
                 >
-                  <Link href={`/vehicle/${car.id}`} className="flex min-w-0 flex-1 items-center gap-3 focus-visible:ring-2 focus-visible:ring-accent">
+                  <Link href={`/vehicle/${car.id}`} className="flex min-w-0 flex-1 items-center gap-3 focus-visible:ring-0 group">
                     {thumbnail ? (
-                      <img src={thumbnail} alt="" referrerPolicy="no-referrer" className="h-10 w-14 shrink-0 object-cover" />
+                      <img src={thumbnail} alt="" referrerPolicy="no-referrer" className="h-12 w-16 shrink-0 object-cover border-2 border-primary/20" />
                     ) : (
-                      <span className="h-10 w-14 shrink-0 bg-primary-foreground/10" />
+                      <span className="h-12 w-16 shrink-0 bg-primary/10 border-2 border-primary/20" />
                     )}
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-bold">{vehicleLabelFor(car)}</span>
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-widest text-primary group-hover:text-accent transition-colors">{vehicleLabelFor(car)}</span>
                   </Link>
                   <button
                     type="button"
                     onClick={() => removeFromCompare(car.id)}
                     aria-label={`Remove ${vehicleLabelFor(car)} from your comparison`}
-                    className="shrink-0 p-1 text-primary-foreground/60 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="shrink-0 grid h-8 w-8 place-items-center text-primary/50 transition-colors hover:text-destructive focus-visible:outline-none"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -101,41 +95,40 @@ export function CompareTray() {
             })}
 
             {!readyToCompare && (
-              <li className="hidden flex-1 items-center gap-2 border border-dashed border-primary-foreground/25 px-3 py-3 text-[12px] font-semibold text-primary-foreground/55 sm:flex sm:w-56 sm:flex-none">
-                <Scale className="h-4 w-4 shrink-0 text-accent" />
+              <li className="hidden flex-1 items-center gap-3 border-2 border-dashed border-primary/20 bg-background px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-primary/40 sm:flex sm:w-64 sm:flex-none">
+                <Scale className="h-4 w-4 shrink-0 text-accent/50" />
                 Pick one more car
               </li>
             )}
           </ul>
 
-          <div className={`${collapsed ? 'hidden sm:flex' : 'flex'} shrink-0 items-center gap-2`}>
+          <div className={`${collapsed ? 'hidden sm:flex' : 'flex'} shrink-0 items-center justify-between sm:justify-start gap-4`}>
             <button
               type="button"
               onClick={clearCompare}
-              className="px-3 py-2 text-[12px] font-bold uppercase tracking-[.08em] text-primary-foreground/60 transition-colors hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/60 transition-colors hover:text-destructive focus-visible:outline-none"
             >
-              Clear
+              CLEAR
             </button>
             {readyToCompare ? (
               <Link
                 href="/compare"
                 onClick={() => trackEvent('comparison_opened', { source: 'compare_tray', vehicle_count: cars.length })}
                 data-testid="link-open-compare"
-                className="inline-flex h-11 items-center gap-3 bg-accent px-5 text-[13px] font-bold text-accent-foreground transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                className="inline-flex h-12 sm:h-14 items-center gap-3 bg-primary px-6 font-display text-[12px] font-black uppercase tracking-[0.2em] text-primary-foreground shadow-[4px_4px_0px_hsl(var(--accent))] transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_hsl(var(--accent))] focus-visible:outline-none"
               >
-                Compare these {MAX_COMPARE}
+                COMPARE {MAX_COMPARE}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             ) : (
-              <span className="inline-flex h-11 items-center px-1 text-[12px] font-semibold text-primary-foreground/55 sm:hidden">
+              <span className="inline-flex h-12 items-center text-[11px] font-bold uppercase tracking-widest text-primary/50 sm:hidden">
                 Pick one more car
               </span>
             )}
           </div>
         </div>
       </div>
-      {/* Keeps the footer clear of the fixed tray. */}
-      <div aria-hidden="true" className="h-[5.5rem] bg-primary sm:h-[4.75rem]" />
+      <div aria-hidden="true" className="h-[7.5rem] bg-background sm:h-[6.5rem]" />
     </>
   );
 }

@@ -57,7 +57,7 @@ export function Field({
     <label className={`block space-y-1.5 ${className}`}>
       <FieldLabel>{label}</FieldLabel>
       {children}
-      {hint && <span className="block text-[12px] text-muted-foreground">{hint}</span>}
+      {hint && <span className="block text-[12px] text-primary/70 font-bold uppercase tracking-widest">{hint}</span>}
     </label>
   );
 }

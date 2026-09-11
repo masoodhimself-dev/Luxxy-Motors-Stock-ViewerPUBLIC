@@ -16,6 +16,7 @@ import {
   Chip,
   EmptyState,
   Panel,
+  PanelHeader,
   formatPence,
   formatTime,
   relativeTime,
@@ -36,46 +37,45 @@ const queues: Array<{
 }> = [
   {
     key: 'viewingsToday',
-    kicker: 'Diary',
-    title: 'Viewings today',
+    kicker: 'DIARY',
+    title: 'VIEWINGS TODAY',
     blurb: 'Booked in for today. Confirm the car is clean, fuelled and out front.',
     empty: 'Nothing booked in today.',
     icon: CalendarClock,
   },
   {
     key: 'overdueFollowUps',
-    kicker: 'Slipping',
-    title: 'Overdue follow-ups',
+    kicker: 'SLIPPING',
+    title: 'OVERDUE FOLLOW-UPS',
     blurb: 'You said you would come back to these and the date has passed.',
     empty: 'No follow-up has been missed.',
     icon: CircleAlert,
   },
   {
     key: 'unansweredEnquiries',
-    kicker: 'Waiting',
-    title: 'Nobody has answered',
+    kicker: 'WAITING',
+    title: 'NOBODY HAS ANSWERED',
     blurb: 'Enquiries with no reply logged against them yet.',
     empty: 'Every enquiry has had a first response.',
     icon: Inbox,
   },
   {
     key: 'depositsWithoutDeal',
-    kicker: 'Money held',
-    title: 'Deposits with no deal started',
+    kicker: 'MONEY HELD',
+    title: 'DEPOSITS WITH NO DEAL',
     blurb: 'Cash is on the counter but no paperwork has been raised.',
     empty: 'Every deposit has a deal behind it.',
     icon: PoundSterling,
   },
 ];
 
-/** Per-queue trailing line — each queue cares about a different clock. */
 function highlightFor(key: QueueKey, lead: Lead) {
   if (key === 'viewingsToday' && lead.appointmentAt) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary">
-        <CalendarClock className="h-3.5 w-3.5" />
-        <span className="font-mono">{formatTime(lead.appointmentAt)}</span>
-        <span className="font-normal text-muted-foreground">
+      <span className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-primary">
+        <CalendarClock className="h-4 w-4 text-accent" />
+        <span>{formatTime(lead.appointmentAt)}</span>
+        <span className="text-primary/50">
           · {relativeTime(lead.appointmentAt)}
         </span>
       </span>
@@ -83,10 +83,10 @@ function highlightFor(key: QueueKey, lead: Lead) {
   }
   if (key === 'overdueFollowUps' && lead.nextActionDueAt) {
     return (
-      <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-destructive">
-        <CircleAlert className="h-3.5 w-3.5 shrink-0" />
+      <span className="inline-flex min-w-0 items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-destructive">
+        <CircleAlert className="h-4 w-4 shrink-0" />
         <span className="truncate">{lead.nextAction ?? 'Follow up'}</span>
-        <span className="whitespace-nowrap font-normal">
+        <span className="whitespace-nowrap text-destructive/70">
           · {relativeTime(lead.nextActionDueAt)}
         </span>
       </span>
@@ -94,19 +94,19 @@ function highlightFor(key: QueueKey, lead: Lead) {
   }
   if (key === 'unansweredEnquiries') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[13px] text-foreground/80">
-        <Inbox className="h-3.5 w-3.5 shrink-0 text-accent" />
+      <span className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-primary/80">
+        <Inbox className="h-4 w-4 shrink-0 text-accent" />
         Arrived {relativeTime(lead.createdAt)}
       </span>
     );
   }
   if (key === 'depositsWithoutDeal') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary">
-        <PoundSterling className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-primary">
+        <PoundSterling className="h-4 w-4 text-accent" />
         {formatPence(lead.depositPence)} taken
         {lead.depositTakenAt && (
-          <span className="font-normal text-muted-foreground">
+          <span className="text-primary/50">
             · {relativeTime(lead.depositTakenAt)}
           </span>
         )}
@@ -126,20 +126,20 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
 
   if (worklistQuery.isLoading) {
     return (
-      <div className="flex min-h-40 items-center justify-center border border-border bg-card text-muted-foreground">
-        <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" />
-        Working out what needs chasing…
+      <div className="flex min-h-40 items-center justify-center border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))] text-primary">
+        <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-accent" />
+        <span className="font-display text-[14px] font-black uppercase tracking-widest">Building worklist…</span>
       </div>
     );
   }
 
   if (worklistQuery.isError || !worklistQuery.data) {
     return (
-      <div className="border border-destructive/40 bg-destructive/10 p-6 text-[13px] text-destructive">
-        <p className="font-display text-base font-semibold">
+      <div className="border-4 border-destructive bg-destructive/5 p-8 text-destructive shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <p className="font-display text-2xl font-black uppercase tracking-tighter">
           Could not build today&apos;s work list
         </p>
-        <p className="mt-1">Refresh the page, or check the API server is running.</p>
+        <p className="mt-2 text-[13px] font-bold uppercase tracking-widest">Refresh the page, or check the API server is running.</p>
       </div>
     );
   }
@@ -148,45 +148,40 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
   const total = queues.reduce((sum, queue) => sum + worklist[queue.key].length, 0);
 
   return (
-    <div className="space-y-6" data-testid="work-queue">
-      <div className="flex flex-wrap items-center justify-between gap-3 border border-border bg-secondary/60 px-5 py-4">
-        <p className="flex items-center gap-2 font-display text-base font-semibold text-primary">
-          <Sun className="h-4 w-4 text-accent" />
+    <div className="space-y-8" data-testid="work-queue">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-4 border-primary bg-primary px-6 py-5 shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <p className="flex items-center gap-3 font-display text-[15px] font-black uppercase tracking-widest text-primary-foreground">
+          <Sun className="h-5 w-5 text-accent" />
           {total === 0
             ? 'Nothing is waiting on you.'
             : `${total} ${total === 1 ? 'thing needs' : 'things need'} chasing.`}
         </p>
-        <p className="font-mono text-[12px] text-muted-foreground">
+        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary-foreground/70">
           As at {formatTime(worklist.generatedAt)}
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-8 xl:grid-cols-2">
         {queues.map(({ key, kicker, title, blurb, empty, icon: Icon }) => {
           const leads = worklist[key];
           return (
-            <Panel key={key} className="flex flex-col">
-              <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-                <div>
-                  <p className="luxxy-kicker text-accent">{kicker}</p>
-                  <h2 className="mt-2 flex items-center gap-2 font-display text-xl font-semibold tracking-[-.01em] text-primary">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    {title}
-                  </h2>
-                  <p className="mt-1 max-w-md text-[13px] text-muted-foreground">
-                    {blurb}
-                  </p>
-                </div>
-                <Chip
-                  tone={leads.length === 0 ? 'muted' : key === 'overdueFollowUps' ? 'urgent' : 'accent'}
-                  className="shrink-0 tabular-nums"
-                >
-                  {leads.length}
-                </Chip>
-              </header>
-              <div className="flex-1 space-y-3 p-4">
+            <Panel key={key} className="flex flex-col border-4 border-primary shadow-[8px_8px_0px_hsl(var(--primary))]">
+              <PanelHeader
+                kicker={kicker}
+                title={<span className="flex items-center gap-3"><Icon className="h-5 w-5 text-accent" />{title}</span>}
+                meta={blurb}
+                action={
+                  <Chip
+                    tone={leads.length === 0 ? 'muted' : key === 'overdueFollowUps' ? 'urgent' : 'accent'}
+                    className="shrink-0 tabular-nums shadow-none"
+                  >
+                    {leads.length}
+                  </Chip>
+                }
+              />
+              <div className="flex-1 space-y-4 p-6">
                 {leads.length === 0 ? (
-                  <EmptyState icon={Icon} title="All clear" body={empty} />
+                  <EmptyState icon={Icon} title="ALL CLEAR" body={empty} />
                 ) : (
                   leads.map((lead) => (
                     <LeadCard

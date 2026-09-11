@@ -107,12 +107,12 @@ export function ActivityComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border border-border bg-card"
+      className="border-4 border-primary bg-background"
       data-testid="activity-composer"
     >
-      <header className="border-b border-border px-5 py-4">
-        <p className="luxxy-kicker text-accent">Log contact</p>
-        <h2 className="mt-2 font-display text-xl font-semibold tracking-[-.01em] text-primary">
+      <header className="border-b-4 border-primary px-5 py-4">
+        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">Log contact</p>
+        <h2 className="mt-2 font-display text-2xl font-black uppercase tracking-tighter text-primary">
           What just happened?
         </h2>
       </header>
@@ -132,7 +132,7 @@ export function ActivityComposer({
                 className={`inline-flex items-center gap-2 border px-3 py-2 text-[12px] font-bold uppercase tracking-[.1em] transition-colors ${
                   active
                     ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-card text-muted-foreground hover:border-accent hover:text-foreground'
+                    : 'border-border bg-background text-primary/70 font-bold uppercase tracking-widest hover:border-accent hover:text-foreground'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -199,7 +199,7 @@ export function ActivityComposer({
         )}
       </div>
 
-      <footer className="flex justify-end border-t border-border bg-secondary/50 px-5 py-4">
+      <footer className="flex justify-end border-t-4 border-primary bg-secondary/50 px-5 py-4">
         <Button
           type="submit"
           className="rounded-none text-[12px] font-bold uppercase tracking-[.1em]"

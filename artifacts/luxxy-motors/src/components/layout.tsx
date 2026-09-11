@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
-import { Menu, X, Car as CarIcon, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart } from 'lucide-react';
+import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,15 @@ import { useSavedCars } from '@/lib/saved-cars-context';
 import { CompareTray } from '@/components/compare-tray';
 import { isWritableFormControl } from '@/lib/form-draft';
 
-// Chrome shares the showroom type scale: compact uppercase for navigation,
-// monospaced figures for anything the customer might read back to us.
 const navLinkClass =
-  'whitespace-nowrap text-[15px] font-medium text-primary/70 transition-colors hover:text-primary';
+  'whitespace-nowrap font-display text-[13px] font-bold uppercase tracking-[0.1em] text-primary/80 transition-all hover:text-accent hover:translate-y-[-1px]';
 const mobileNavRowClass =
-  'flex items-center justify-between border-b border-primary/10 py-5 text-left text-lg font-medium text-primary transition-colors hover:text-accent';
+  'flex items-center justify-between border-b-2 border-primary/5 py-5 text-left font-display text-lg font-bold uppercase tracking-widest text-primary transition-colors hover:text-accent';
 const footerLinkClass =
-  'text-[15px] text-primary-foreground/70 transition-colors hover:text-primary-foreground';
-const footerHeadingClass = 'font-display text-xl text-primary-foreground';
+  'text-[14px] font-bold uppercase tracking-widest text-primary-foreground/70 transition-colors hover:text-accent';
+const footerHeadingClass = 'font-display text-xl font-bold uppercase tracking-widest text-primary-foreground mb-6';
 const socialLinkClass =
-  'grid h-11 w-11 place-items-center border border-primary-foreground/20 text-primary-foreground/80 transition-colors hover:border-accent hover:text-accent hover:bg-transparent';
+  'grid h-12 w-12 place-items-center bg-primary-foreground/10 text-primary-foreground transition-all hover:bg-accent hover:text-accent-foreground hover:scale-105';
 
 function hslToRelativeLuminance(hsl: string) {
   const values = hsl.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
@@ -40,9 +38,9 @@ function hslToRelativeLuminance(hsl: string) {
 
 export function readableForegroundForHsl(hsl: string) {
   const backgroundLuminance = hslToRelativeLuminance(hsl);
-  if (backgroundLuminance == null) return '42 33% 96%';
-  const dark = '188 50% 10%';
-  const light = '42 33% 96%';
+  if (backgroundLuminance == null) return '0 0% 100%';
+  const dark = '0 0% 8%';
+  const light = '0 0% 100%';
   const darkLuminance = hslToRelativeLuminance(dark) ?? 0;
   const lightLuminance = hslToRelativeLuminance(light) ?? 1;
   const contrastWithDark = (Math.max(backgroundLuminance, darkLuminance) + 0.05) / (Math.min(backgroundLuminance, darkLuminance) + 0.05);
@@ -60,6 +58,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLElement>(null);
   const hasEditedFormRef = useRef(false);
+
   const brandStyle = {
     ...(dealerConfig.identity.brandColors?.primaryHsl
       ? {
@@ -74,6 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }
       : {}),
   } as CSSProperties;
+
   const wordmark = dealerConfig.identity.logoText || dealerConfig.identity.name;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(' · ');
 
@@ -153,71 +153,77 @@ export function Layout({ children }: { children: React.ReactNode }) {
     ) {
       return;
     }
-
     handleNav('top');
   };
 
   return (
     <div style={brandStyle} className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
-      <header ref={headerRef} data-site-header className={`fixed top-0 left-0 right-0 z-50 w-full transition-colors duration-300 ${scrolled ? 'border-b border-border bg-background/95 backdrop-blur-md' : 'border-transparent bg-background/80 backdrop-blur-sm'}`}>
+      <header
+        ref={headerRef}
+        data-site-header
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b-2 transition-all duration-300 ${
+          scrolled
+            ? 'border-primary bg-background/95 backdrop-blur-md shadow-sm'
+            : 'border-primary/10 bg-background'
+        }`}
+      >
         <div className="container mx-auto px-4 lg:px-8 h-[4.5rem] lg:h-[5.5rem] flex items-center justify-between gap-4">
           <button type="button" onClick={handleLogoClick} className="flex items-center gap-3 text-left group">
             {dealerConfig.identity.logoAsset ? (
-              <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 md:h-10 object-contain" />
+              <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 md:h-10 object-contain mix-blend-multiply" />
             ) : (
-              <>
-                <span className="grid shrink-0 place-items-center text-primary transition-colors duration-300 group-hover:text-accent">
-                  <svg viewBox="0 0 40 40" className="w-8 h-8 lg:w-11 lg:h-11" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M13 12v16h11v-2H15V12h-2z" />
-                    <path d="M27 12l-3.5 5.5L20 12h-2.5l5 8-5 8h2.5l3.5-5.5 3.5 5.5H29.5l-5-8 5-8H27z" />
-                  </svg>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-xl group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+                  {wordmark.charAt(0)}
+                </div>
+                <span className="flex flex-col text-left leading-none justify-center">
+                  <span className="font-display text-xl lg:text-2xl font-black tracking-tighter text-primary uppercase leading-none mt-1 group-hover:text-accent transition-colors">{wordmark}</span>
+                  <span className="font-display text-[10px] lg:text-[11px] font-bold tracking-widest text-primary/60 uppercase mt-1">{locationLabel}</span>
                 </span>
-                <span className="flex flex-col text-left leading-[0.9]">
-                  <span className="font-display text-[15px] lg:text-[17px] font-medium tracking-wide text-primary uppercase">LUXXY</span>
-                  <span className="font-display text-[15px] lg:text-[17px] font-medium tracking-wide text-primary uppercase">MOTORS <span className="text-accent font-sans mx-0.5">·</span> {dealerConfig.address?.city || 'HARROW'}</span>
-                </span>
-              </>
+              </div>
             )}
           </button>
 
+          {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
-            <button onClick={() => handleNav('stock')} className={navLinkClass}>Browse stock</button>
-            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
+            <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
+            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find Car</button>
             <button
               type="button"
               onClick={() => setLocation('/saved')}
               aria-label={savedCount > 0 ? `Saved cars, ${savedCount} saved` : 'Saved cars'}
               data-testid="link-saved-cars-condensed"
-              className="relative flex items-center gap-2 text-[15px] font-medium text-primary/70 hover:text-primary transition-colors"
+              className="relative flex items-center gap-2 font-display text-[13px] font-bold uppercase tracking-[0.1em] text-primary/80 transition-colors hover:text-accent"
             >
               <Heart className={`h-5 w-5 ${savedCount > 0 ? 'text-accent fill-current' : ''}`} />
               {savedCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 bg-accent text-accent-foreground text-[10px] font-bold px-1 min-w-[16px] text-center h-4 flex items-center justify-center rounded-full">
+                <span className="absolute -top-2 -right-2.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 min-w-[20px] text-center h-5 flex items-center justify-center rounded-none shadow-[2px_2px_0px_#000]">
                   {savedCount}
                 </span>
               )}
             </button>
-            <Button onClick={() => setLocation(getEnquiryHref('viewing'))} className="h-11 px-5 text-[15px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-none ml-2">
+            <Button
+              onClick={() => setLocation(getEnquiryHref('viewing'))}
+              className="h-11 px-6 font-display text-[13px] font-bold uppercase tracking-widest bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-none shadow-[3px_3px_0px_rgba(0,0,0,0.1)] transition-all active:translate-y-[2px] active:shadow-[1px_1px_0px_rgba(0,0,0,0.1)] ml-4"
+            >
               {dealerConfig.bookViewing.ctaLabel}
             </Button>
           </nav>
 
-          {/* Desktop Nav */}
+          {/* Desktop Nav - Full */}
           <nav className="hidden 2xl:flex items-center gap-8">
-            <button onClick={() => handleNav('top')} className={navLinkClass}>Home</button>
-            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part exchange</button>}
+            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find Car</button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Ex</button>}
             {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={navLinkClass}>Warranty</button>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
-            <button onClick={() => handleNav('about')} className={navLinkClass}>About us</button>
             <button onClick={() => handleNav('visit')} className={navLinkClass}>Contact</button>
 
-            <div className="flex items-center gap-5 ml-2 pl-6 border-l border-primary/20 2xl:gap-6 2xl:pl-8">
+            <div className="flex items-center gap-6 ml-4 pl-8 border-l-2 border-primary/10">
               {dealerConfig.contact.phone && (
-                <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-2.5">
-                  <Phone className="h-4 w-4 shrink-0 text-accent" />
-                  <span className="whitespace-nowrap font-mono text-[14px] font-medium text-primary transition-colors group-hover:text-accent">
+                <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-2">
+                  <Phone className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:scale-110" />
+                  <span className="whitespace-nowrap font-display text-[14px] font-bold tracking-widest text-primary transition-colors group-hover:text-accent">
                     {dealerConfig.contact.phone}
                   </span>
                 </a>
@@ -229,17 +235,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 data-testid="link-saved-cars"
                 className={`group relative flex items-center gap-2 ${navLinkClass}`}
               >
-                <Heart className={`h-5 w-5 transition-colors ${savedCount > 0 ? 'text-accent fill-current' : 'group-hover:text-accent'}`} />
+                <Heart className={`h-5 w-5 transition-transform group-hover:scale-110 ${savedCount > 0 ? 'text-accent fill-current' : 'group-hover:text-accent'}`} />
                 <span>Saved</span>
                 {savedCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-accent text-accent-foreground text-[10px] font-bold px-1 min-w-[16px] text-center h-4 flex items-center justify-center rounded-full">
+                  <span className="absolute -top-2 -right-3 bg-accent text-accent-foreground text-[10px] font-black px-1.5 min-w-[20px] text-center h-5 flex items-center justify-center rounded-none shadow-[2px_2px_0px_#000]">
                     {savedCount}
                   </span>
                 )}
               </button>
                <Button
                  onClick={() => setLocation(getEnquiryHref('viewing'))}
-                 className="h-12 px-6 text-[15px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-none ml-2"
+                 className="h-12 px-7 font-display text-[13px] font-bold uppercase tracking-widest bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-none shadow-[4px_4px_0px_rgba(0,0,0,0.15)] transition-all active:translate-y-[2px] active:translate-x-[2px] active:shadow-[1px_1px_0px_rgba(0,0,0,0.15)] ml-4"
                >
                  {dealerConfig.bookViewing.ctaLabel}
               </Button>
@@ -250,7 +256,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             ref={menuButtonRef}
             type="button"
-            className="lg:hidden flex h-11 w-11 items-center justify-center text-primary transition-colors hover:text-accent"
+            className="lg:hidden flex h-11 w-11 items-center justify-center text-primary transition-colors hover:text-accent bg-secondary/50 rounded-none"
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -261,45 +267,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
-          <nav ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute top-[4.5rem] left-0 w-full border-y border-border bg-background px-4 pb-6 pt-2 flex flex-col max-h-[calc(100vh-4.5rem)] overflow-y-auto">
-            <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home</button>
+          <nav ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute top-[4.5rem] left-0 w-full border-b-2 border-primary bg-background px-4 pb-8 pt-4 flex flex-col max-h-[calc(100vh-4.5rem)] overflow-y-auto shadow-2xl">
+            <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
-              Find My Car <ArrowRight className="w-4 h-4 text-accent" />
+              Find My Car <ArrowRight className="w-5 h-5 text-accent" />
             </button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
-              Browse Stock <ArrowRight className="w-4 h-4 text-accent" />
+              Browse Stock <ArrowRight className="w-5 h-5 text-accent" />
             </button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>Part Exchange</button>}
-            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={mobileNavRowClass}>Warranty</button>}
-            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery</button>}
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>Part Exchange <ArrowRight className="w-5 h-5 opacity-40" /></button>}
+            {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={mobileNavRowClass}>Warranty <ArrowRight className="w-5 h-5 opacity-40" /></button>}
+            {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             <button
               onClick={() => { setMobileMenuOpen(false); setLocation('/saved'); }}
               data-testid="link-saved-cars-mobile"
               className={mobileNavRowClass}
             >
-              <span className="flex items-center gap-2">
-                <Heart className={`w-4 h-4 text-accent ${savedCount > 0 ? 'fill-current' : ''}`} />
+              <span className="flex items-center gap-3">
                 Saved Cars
+                {savedCount > 0 && (
+                  <span className="grid h-6 min-w-[24px] place-items-center bg-accent px-1.5 font-display text-[12px] font-black text-accent-foreground rounded-none shadow-[2px_2px_0px_rgba(0,0,0,0.2)]">
+                    {savedCount}
+                  </span>
+                )}
               </span>
-              {savedCount > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center bg-accent px-1.5 font-mono text-[11px] font-bold text-accent-foreground">
-                  {savedCount}
-                </span>
-              )}
+              <Heart className={`w-5 h-5 text-accent ${savedCount > 0 ? 'fill-current' : ''}`} />
             </button>
-            <button onClick={() => handleNav('about')} className={mobileNavRowClass}>Why Buy From Us</button>
-            <button onClick={() => handleNav('visit')} className={mobileNavRowClass}>Contact & Location</button>
+            <button onClick={() => handleNav('about')} className={mobileNavRowClass}>Why Buy From Us <ArrowRight className="w-5 h-5 opacity-40" /></button>
+            <button onClick={() => handleNav('visit')} className={mobileNavRowClass}>Contact & Location <ArrowRight className="w-5 h-5 opacity-40" /></button>
 
-            <div className="mt-8 flex flex-col gap-3 pb-8">
+            <div className="mt-8 flex flex-col gap-4 pb-4">
               {dealerConfig.contact.phone && (
                 <a
                   href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}
-                  className="flex items-baseline gap-3 px-2 py-3 transition-colors hover:text-accent text-primary"
+                  className="flex items-center justify-between p-4 bg-primary text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
-                  <Phone className="h-5 w-5 shrink-0 translate-y-0.5 text-accent" />
-                  <span className="text-lg font-medium">Call us</span>
-                  <span className="luxxy-leader" aria-hidden="true" />
-                  <span className="shrink-0 font-mono text-[15px] font-medium">{dealerConfig.contact.phone}</span>
+                  <span className="font-display font-bold uppercase tracking-widest text-sm flex items-center gap-3"><Phone className="h-5 w-5" /> Call us</span>
+                  <span className="font-display font-black tracking-wider text-base">{dealerConfig.contact.phone}</span>
                 </a>
               )}
               {dealerConfig.contact.whatsapp && (
@@ -307,12 +311,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-baseline gap-3 px-2 py-3 transition-colors text-[#1f7a4d]"
+                  className="flex items-center justify-between p-4 bg-[#25D366] text-white transition-colors hover:bg-[#128C7E]"
                 >
-                  <MessageCircle className="h-5 w-5 shrink-0 translate-y-0.5" />
-                  <span className="text-lg font-medium">Message us</span>
-                  <span className="luxxy-leader" aria-hidden="true" />
-                  <span className="shrink-0 font-mono text-[15px] font-medium">WhatsApp</span>
+                  <span className="font-display font-bold uppercase tracking-widest text-sm flex items-center gap-3"><MessageCircle className="h-5 w-5" /> Message</span>
+                  <span className="font-display font-black tracking-wider text-base">WhatsApp</span>
                 </a>
               )}
             </div>
@@ -320,39 +322,39 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
-      <main className={`flex-1 w-full ${location === '/' ? '' : 'pt-[var(--site-header-height)]'}`}>
+      <main className={`flex-1 w-full flex flex-col ${location === '/' ? '' : 'pt-[var(--site-header-height)]'}`}>
         {children}
       </main>
 
-      <footer id="contact" data-home-section className="mt-auto border-t border-primary-foreground/10 bg-primary pb-8 pt-14 text-primary-foreground sm:pt-16">
+      <footer id="contact" data-home-section className="mt-auto bg-primary pt-16 pb-8 text-primary-foreground border-t-8 border-accent">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-12 lg:gap-10">
-            <div className="lg:col-span-4">
-              <p className="heading-3 text-primary-foreground">
+          <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-12 lg:gap-12">
+            <div className="lg:col-span-5">
+              <p className="font-display text-3xl font-black uppercase tracking-tighter text-primary-foreground mb-1">
                 {wordmark}
               </p>
               {locationLabel && (
-                <p className="mt-2 text-sm text-primary-foreground/55">{locationLabel}</p>
+                <p className="font-display text-xs font-bold uppercase tracking-widest text-primary-foreground/50 mb-6">{locationLabel}</p>
               )}
-              <p className="mb-7 mt-5 max-w-sm text-sm leading-7 text-primary-foreground/70">
+              <p className="mb-8 max-w-sm text-base leading-relaxed text-primary-foreground/80 font-medium">
                 {dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
                   ? 'Clear details, fair prices and time to look properly before you decide.'
                   : dealerConfig.hero.subcopy}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {dealerConfig.social.instagram && (
                   <a href={dealerConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className={socialLinkClass}>
-                    <Instagram className="w-4 h-4" />
+                    <Instagram className="w-5 h-5" />
                   </a>
                 )}
                 {dealerConfig.social.facebook && (
                   <a href={dealerConfig.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={socialLinkClass}>
-                    <Facebook className="w-4 h-4" />
+                    <Facebook className="w-5 h-5" />
                   </a>
                 )}
                 {dealerConfig.social.twitter && (
                   <a href={dealerConfig.social.twitter} target="_blank" rel="noopener noreferrer" aria-label="Twitter" className={socialLinkClass}>
-                    <Twitter className="w-4 h-4" />
+                    <Twitter className="w-5 h-5" />
                   </a>
                 )}
               </div>
@@ -360,39 +362,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Vehicles</h3>
-              <nav className="mt-4 flex flex-col items-start gap-3">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>View all stock</button>
+              <nav className="flex flex-col items-start gap-4">
+                <button onClick={() => handleNav('stock')} className={footerLinkClass}>All Stock</button>
                 <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find My Car</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part Exchange</button>
-                  <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
-                <button onClick={() => handleNav('warranty')} className={footerLinkClass}>Warranty information</button>
+                <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
+                <button onClick={() => handleNav('warranty')} className={footerLinkClass}>Warranty</button>
               </nav>
             </div>
 
-            <div className="lg:col-span-3">
-              <h3 className={footerHeadingClass}>Contact and visit</h3>
-              <div className="mt-4 space-y-4 text-sm text-primary-foreground/70">
+            <div className="lg:col-span-2">
+              <h3 className={footerHeadingClass}>Visit</h3>
+              <div className="space-y-5 text-sm text-primary-foreground/80 font-medium">
                 {dealerConfig.contact.phone && (
                   <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-3 transition-colors hover:text-accent">
-                    <Phone className="w-4 h-4 shrink-0 text-accent" />
-                    <span className="text-primary-foreground group-hover:text-accent">{dealerConfig.contact.phone}</span>
+                    <Phone className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
+                    <span className="font-display font-bold tracking-widest text-primary-foreground group-hover:text-accent">{dealerConfig.contact.phone}</span>
                   </a>
                 )}
                 {dealerConfig.contact.email && (
-                  <a href={`mailto:${dealerConfig.contact.email}`} className="flex items-center gap-3 font-semibold transition-colors hover:text-accent">
-                    <MessageCircle className="w-4 h-4 shrink-0 text-accent" /> {dealerConfig.contact.email}
+                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex items-center gap-3 transition-colors hover:text-accent truncate">
+                    <MessageCircle className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
+                    <span className="truncate">{dealerConfig.contact.email}</span>
                   </a>
                 )}
                 {dealerConfig.address && (
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 mt-4">
                     <MapPin className="w-4 h-4 text-accent shrink-0 mt-1" />
-                    <address className="not-italic space-y-1 leading-6">
+                    <address className="not-italic space-y-1 leading-relaxed">
                       {dealerConfig.address.street && <p>{dealerConfig.address.street}</p>}
                       {dealerConfig.address.city && <p>{dealerConfig.address.city}</p>}
-                      {dealerConfig.address.postcode && <p className="text-primary-foreground">{dealerConfig.address.postcode}</p>}
+                      {dealerConfig.address.postcode && <p className="text-primary-foreground font-bold">{dealerConfig.address.postcode}</p>}
                       {dealerConfig.address.mapsUrl && (
-                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-accent transition-colors hover:text-primary-foreground">
-                          Get directions &rarr;
+                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 font-display text-[11px] font-bold uppercase tracking-widest text-accent hover:text-primary-foreground transition-colors group">
+                          Directions <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                         </a>
                       )}
                     </address>
@@ -403,12 +406,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {dealerConfig.hours && dealerConfig.hours.length > 0 && (
               <div className="lg:col-span-3">
-                <h3 className={footerHeadingClass}>Opening hours</h3>
-                <ul className="mt-4 space-y-3">
+                <h3 className={footerHeadingClass}>Hours</h3>
+                <ul className="space-y-4">
                   {dealerConfig.hours.map((h, i) => (
-                    <li key={i} className="flex items-baseline justify-between gap-4 text-sm">
-                      <span className="shrink-0 text-primary-foreground/70">{h.days}</span>
-                      <span className="shrink-0 text-primary-foreground">{h.times}</span>
+                    <li key={i} className="flex items-baseline justify-between gap-4 text-[14px]">
+                      <span className="shrink-0 font-bold text-primary-foreground/60">{h.days}</span>
+                      <span className="shrink-0 font-display font-bold tracking-wider text-primary-foreground">{h.times}</span>
                     </li>
                   ))}
                 </ul>
@@ -416,13 +419,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          <div className="flex flex-col items-center justify-between gap-5 border-t border-primary-foreground/10 pt-7 text-xs text-primary-foreground/45 md:flex-row">
-            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. All rights reserved.</p>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-              {dealerConfig.legal.companyNumber && <span>Company no. {dealerConfig.legal.companyNumber}</span>}
+          <div className="flex flex-col items-center justify-between gap-6 border-t-2 border-primary-foreground/10 pt-8 mt-12 text-[12px] font-bold text-primary-foreground/40 md:flex-row">
+            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. ALL RIGHTS RESERVED.</p>
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
+              {dealerConfig.legal.companyNumber && <span>CO {dealerConfig.legal.companyNumber}</span>}
               {dealerConfig.legal.vatNumber && <span>VAT {dealerConfig.legal.vatNumber}</span>}
-              {dealerConfig.legal.termsUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.termsUrl}>Terms and conditions</a>}
-              {dealerConfig.legal.privacyUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.privacyUrl}>Privacy policy</a>}
+              {dealerConfig.legal.termsUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.termsUrl}>TERMS</a>}
+              {dealerConfig.legal.privacyUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.privacyUrl}>PRIVACY</a>}
             </div>
           </div>
         </div>

@@ -14,7 +14,6 @@ import {
   DoorOpen,
 } from 'lucide-react';
 
-/** Channel labels the dealer would actually say out loud. */
 export const sourceLabels: Record<LeadSource, string> = {
   website_form: 'Website',
   phone: 'Phone',
@@ -100,7 +99,6 @@ export function formatPence(value: number | null | undefined) {
   }).format(value / 100);
 }
 
-/** "3 days overdue", "in 2 hours", "just now" — the dealer thinks in elapsed time. */
 export function relativeTime(value: string, now = Date.now()) {
   const diffMs = new Date(value).getTime() - now;
   const abs = Math.abs(diffMs);
@@ -124,11 +122,6 @@ export function isOverdue(value: string | null, now = Date.now()) {
   return value != null && new Date(value).getTime() < now;
 }
 
-/**
- * The one-line description of a lead's vehicle interest. Registrations are
- * shown as plain monospaced text, never as a number-plate band — most stock
- * carries no real VRM.
- */
 export function vehicleLine(lead: Pick<Lead, 'vehicleTitle' | 'vehicleRegistration'>) {
   if (!lead.vehicleTitle && !lead.vehicleRegistration) return null;
   return [lead.vehicleTitle, lead.vehicleRegistration].filter(Boolean).join(' · ');
@@ -137,11 +130,11 @@ export function vehicleLine(lead: Pick<Lead, 'vehicleTitle' | 'vehicleRegistrati
 type Tone = 'neutral' | 'accent' | 'primary' | 'urgent' | 'muted';
 
 const toneClasses: Record<Tone, string> = {
-  neutral: 'border-border bg-card text-foreground',
-  accent: 'border-accent/50 bg-accent/12 text-accent-foreground',
-  primary: 'border-primary/30 bg-primary text-primary-foreground',
-  urgent: 'border-destructive/40 bg-destructive/10 text-destructive',
-  muted: 'border-border/70 bg-muted text-muted-foreground',
+  neutral: 'border-primary bg-background text-primary',
+  accent: 'border-accent bg-accent/10 text-accent',
+  primary: 'border-primary bg-primary text-primary-foreground',
+  urgent: 'border-destructive bg-destructive/10 text-destructive',
+  muted: 'border-primary/30 bg-primary/5 text-primary/60',
 };
 
 export function Chip({
@@ -155,7 +148,7 @@ export function Chip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 border px-2 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${toneClasses[tone]} ${className}`}
+      className={`inline-flex items-center gap-2 border-2 px-3 py-1 font-display text-[10px] font-black uppercase tracking-[0.2em] shadow-[2px_2px_0px_hsl(var(--primary))] ${toneClasses[tone]} ${className}`}
     >
       {children}
     </span>
@@ -187,7 +180,6 @@ export function SourceChip({ source }: { source: LeadSource }) {
   );
 }
 
-/** A squared, bordered panel — the portal's only surface primitive. */
 export function Panel({
   children,
   className = '',
@@ -196,7 +188,7 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`border border-border bg-card ${className}`}>{children}</section>
+    <section className={`border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))] ${className}`}>{children}</section>
   );
 }
 
@@ -212,13 +204,13 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border px-5 py-4">
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b-4 border-primary px-6 py-6 bg-primary/5">
       <div className="min-w-0">
-        {kicker && <p className="luxxy-kicker text-accent">{kicker}</p>}
-        <h2 className="mt-2 font-display text-xl font-semibold tracking-[-.01em] text-primary">
+        {kicker && <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent mb-2">{kicker}</p>}
+        <h2 className="font-display text-2xl font-black uppercase tracking-tighter text-primary">
           {title}
         </h2>
-        {meta && <p className="mt-1 text-[13px] text-muted-foreground">{meta}</p>}
+        {meta && <p className="mt-2 text-[12px] font-bold uppercase tracking-widest leading-relaxed text-primary/70">{meta}</p>}
       </div>
       {action}
     </header>
@@ -235,23 +227,18 @@ export function EmptyState({
   body: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 border border-dashed border-border px-6 py-10 text-center">
-      <Icon className="h-7 w-7 text-muted-foreground" />
-      <p className="font-display text-base font-semibold text-primary">{title}</p>
-      <p className="max-w-md text-[13px] text-muted-foreground">{body}</p>
+    <div className="flex flex-col items-center gap-4 border-4 border-primary/20 border-dashed bg-background px-8 py-12 text-center my-4">
+      <Icon className="h-10 w-10 text-primary/30 mb-2" />
+      <p className="font-display text-xl font-black uppercase tracking-tight text-primary/50">{title}</p>
+      <p className="max-w-md text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/40">{body}</p>
     </div>
   );
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="luxxy-label block text-muted-foreground">{children}</span>;
+  return <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] mb-2 block text-primary">{children}</span>;
 }
 
-/**
- * Squared select that matches the showroom inputs. shadcn's Select is a popover
- * component; the portal's filters are dense enough that a native control is
- * both faster to use and easier to keep on-brand.
- */
 export function SelectField({
   value,
   onChange,
@@ -268,7 +255,7 @@ export function SelectField({
       {...rest}
       value={value}
       onChange={onChange}
-      className={`h-10 w-full appearance-none border border-input bg-card px-3 text-[13px] font-semibold text-foreground outline-none transition-colors focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent ${className}`}
+      className={`h-12 w-full appearance-none rounded-none border-2 border-primary bg-background px-4 font-bold uppercase tracking-wider text-[12px] text-primary shadow-[2px_2px_0px_hsl(var(--primary))] outline-none transition-all focus-visible:border-accent focus-visible:ring-0 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))] ${className}`}
     >
       {children}
     </select>

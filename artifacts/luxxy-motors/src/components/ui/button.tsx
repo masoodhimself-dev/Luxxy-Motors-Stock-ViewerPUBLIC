@@ -4,31 +4,27 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-// Showroom buttons are squared and flat by default — the Luxxy identity uses hard
-// edges and printed-paper flatness throughout, so no call site should have to undo
-// a radius or a drop shadow. A surface that genuinely wants a soft edge opts in
-// with its own `rounded-*` / `shadow-*` class, which tailwind-merge applies on top.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-none text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-none font-display text-[12px] font-bold uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none border-2 border-transparent",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-accent border-primary shadow-[4px_4px_0px_hsl(var(--primary))]",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive shadow-[4px_4px_0px_hsl(var(--primary))]",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border-2 border-primary bg-background text-primary hover:bg-primary hover:text-primary-foreground shadow-[4px_4px_0px_hsl(var(--primary))]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        accent: "bg-accent text-accent-foreground hover:bg-accent/90",
+          "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground border-transparent shadow-[4px_4px_0px_hsl(var(--primary))]",
+        ghost: "hover:bg-primary/5 hover:text-primary-foreground border-transparent",
+        link: "text-primary underline-offset-4 hover:underline border-transparent shadow-none active:translate-y-0 active:translate-x-0",
+        accent: "bg-accent text-accent-foreground hover:bg-accent/90 border-accent shadow-[4px_4px_0px_hsl(var(--accent))]",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 px-3",
-        lg: "h-11 px-8",
-        icon: "h-10 w-10",
+        default: "h-12 px-6 py-2",
+        sm: "h-10 px-4",
+        lg: "h-16 px-10 text-[14px]",
+        icon: "h-12 w-12",
       },
     },
     defaultVariants: {
