@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const stock = {
   schemaVersion: 1,
@@ -51,12 +51,21 @@ const stock = {
   ],
 };
 
-test('keeps the first stock card near the approved mobile position', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 402, height: 874 });
+const stockWithoutHeroImages = {
+  ...stock,
+  cars: stock.cars.map((car) => ({
+    ...car,
+    heroImage: null,
+    images: [],
+  })),
+};
+
+async function mockHomeData(
+  page: Page,
+  stockResponse: typeof stock,
+) {
   await page.route('**/api/stock', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stock) }),
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stockResponse) }),
   );
   await page.route('**/api/dealer-settings', (route) =>
     route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
@@ -68,9 +77,35 @@ test('keeps the first stock card near the approved mobile position', async ({
       body: JSON.stringify({ schemaVersion: 1, handovers: [] }),
     }),
   );
+}
+
+test('keeps the first stock card near the approved mobile position', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 402, height: 874 });
+  await mockHomeData(page, stock);
 
   await page.goto('/');
 
+  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+  await expect(firstCard).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const firstCardTop = (await firstCard.boundingBox())?.y;
+  expect(firstCardTop).toBeDefined();
+  expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+  expect(firstCardTop!).toBeLessThanOrEqual(1500);
+});
+
+test('keeps the first stock card near the approved mobile position without hero images', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 402, height: 874 });
+  await mockHomeData(page, stockWithoutHeroImages);
+
+  await page.goto('/');
+
+  await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
   const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
   await expect(firstCard).toBeVisible();
   await page.evaluate(() => document.fonts.ready);

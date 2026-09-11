@@ -348,7 +348,10 @@ export default function Home() {
                   )}
                 </>
               ) : (
-                <div className="absolute inset-0 grid place-items-center px-8 text-center bg-primary">
+                <div
+                  className="absolute inset-0 grid place-items-center px-8 text-center bg-primary"
+                  data-testid="empty-featured-forecourt"
+                >
                   <p className="font-display text-3xl text-primary-foreground">Fresh stock arriving regularly.</p>
                 </div>
               )}
