@@ -135,6 +135,39 @@ async function assertNoHorizontalOverflow(page: Page) {
   ).toBeLessThanOrEqual(dimensions.viewportWidth);
 }
 
+async function assertHeroControlsAreFullyVisible(page: Page) {
+  const controls = [
+    {
+      locator: page.getByTestId('button-hero-primary'),
+      name: 'primary hero control',
+    },
+    {
+      locator: page.getByTestId('link-hero-find-my-car'),
+      name: 'secondary hero control',
+    },
+  ];
+  const viewportWidth = page.viewportSize()?.width;
+
+  expect(viewportWidth).toBeDefined();
+
+  for (const { locator, name } of controls) {
+    await expect(locator, name).toBeVisible();
+    await expect(locator, name).toBeEnabled();
+
+    const box = await locator.boundingBox();
+    expect(box, `${name} should have a measurable hit area`).not.toBeNull();
+    expect(box!.width, `${name} should have a non-zero width`).toBeGreaterThan(0);
+    expect(box!.height, `${name} should have a non-zero height`).toBeGreaterThan(0);
+    expect(box!.x, `${name} should not be clipped on the left`).toBeGreaterThanOrEqual(0);
+    expect(
+      box!.x + box!.width,
+      `${name} should not be clipped on the right at ${viewportWidth}px`,
+    ).toBeLessThanOrEqual(viewportWidth!);
+  }
+
+  await expect(page.getByTestId('link-hero-find-my-car')).toHaveAttribute('href', '/find-my-car');
+}
+
 test('keeps the first stock card near the approved mobile position', async ({
   page,
 }) => {
@@ -189,6 +222,7 @@ for (const { width, maxFirstCardTop } of longCopyMobileViewports) {
     await expect(
       page.getByRole('main').getByText(longDealerCopySettings.hero.subcopy),
     ).toBeVisible();
+    await assertHeroControlsAreFullyVisible(page);
 
     const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
     await expect(firstCard).toBeVisible();
