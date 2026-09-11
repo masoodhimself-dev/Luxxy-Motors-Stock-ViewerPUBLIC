@@ -1,6 +1,6 @@
-import { useRoute } from 'wouter';
+import type { MouseEvent } from 'react';
+import { Link, useLocation, useRoute } from 'wouter';
 import { ArrowLeft, MessageCircle, Phone, Calendar } from 'lucide-react';
-import { Link } from 'wouter';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
 import { Gallery } from '@/components/gallery';
@@ -12,6 +12,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordBookingIntent, recordContactIntent } from '@/lib/cta-helpers';
+import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 function getSimilarCars(currentCar: Car, cars: Car[]) {
   const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
@@ -57,6 +58,7 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 
 export default function CarDetail() {
   const [, params] = useRoute('/vehicle/:id');
+  const [location, setLocation] = useLocation();
   const { stock, isLoading } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
@@ -313,6 +315,10 @@ export default function CarDetail() {
               </div>
               <Link
                 href="/#stock"
+                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                  event.preventDefault();
+                  navigateToHomeTarget('stock', location, setLocation);
+                }}
                 className="shrink-0 text-sm sm:text-base font-medium text-primary-foreground transition-colors hover:text-accent pb-1"
               >
                 View all stock <span aria-hidden="true" className="ml-1 opacity-70">→</span>

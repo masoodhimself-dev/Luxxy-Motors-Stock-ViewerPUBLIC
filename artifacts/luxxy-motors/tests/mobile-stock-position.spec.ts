@@ -100,6 +100,19 @@ const stockWithBrokenHeroImage = {
   })),
 };
 
+const stockWithSimilarCar = {
+  ...stock,
+  count: 2,
+  cars: [
+    stock.cars[0],
+    {
+      ...stock.cars[0],
+      id: 'similar-mobile-layout-car',
+      advertId: 'similar-mobile-layout-car',
+    },
+  ],
+};
+
 const stockWithMultipleCars = {
   ...stock,
   count: 5,
@@ -133,6 +146,13 @@ async function mockHomeData(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ schemaVersion: 1, handovers: [] }),
+    }),
+  );
+  await page.route('**/api/enquiries/availability*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ date: '2099-01-01', timezone: 'Europe/London', slots: [] }),
     }),
   );
 }
@@ -281,7 +301,7 @@ test('moves keyboard focus to the results heading after hero activation', async 
   await mockHomeData(page, stock);
   await page.goto('/');
 
-  const resultsHeading = page.locator('#vehicle-results-heading');
+    const resultsHeading = page.locator('#vehicle-results-heading');
   await tabToHeroPrimary(page);
   await assertKeyboardFocusIsVisible(page.getByTestId('button-hero-primary'));
   await page.keyboard.press('Enter');
@@ -334,8 +354,12 @@ test('moves keyboard focus to the stock heading after cross-route navigation', a
   await menuButton.press('Enter');
 
   const browseStock = page.getByRole('button', { name: 'Browse Stock' });
-  await browseStock.focus();
-  await browseStock.press('Enter');
 
+  const detailStockLink = page.getByRole('link', { name: /View all stock/ });
+  await expect(enquiryStockLink).toHaveAttribute('href', '/#stock');
+  await enquiryStockLink.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeFocused();
 });
+
+  const enquiryStockLink = page.getByTestId('link-browse-stock-from-enquiry');

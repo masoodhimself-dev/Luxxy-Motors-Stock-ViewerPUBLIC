@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Camera, Car as CarIcon, CircleAlert, Clock3, Fuel, Gauge, Mail, MapPin, Phone, Settings2, ShieldCheck } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
@@ -8,6 +8,7 @@ import { formatMileage, formatPrice, getThumbnailUrl } from '@/lib/utils';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { enquiryPageMeta } from '@/lib/page-meta';
+import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
@@ -32,6 +33,7 @@ function vehicleName(vehicle: { title: string | null; make: string | null; model
 }
 
 export default function Enquire() {
+  const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -218,6 +220,10 @@ export default function Enquire() {
             {type === 'viewing' && !vehicle && (
               <Link
                 href="/#stock"
+                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                  event.preventDefault();
+                  navigateToHomeTarget('stock', location, setLocation);
+                }}
                 className="luxxy-label group mt-7 inline-flex items-center gap-2 text-primary transition-colors hover:text-accent"
                 data-testid="link-browse-stock-from-enquiry"
               >
