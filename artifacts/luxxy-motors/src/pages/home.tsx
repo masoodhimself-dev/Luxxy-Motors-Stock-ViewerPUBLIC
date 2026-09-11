@@ -169,7 +169,9 @@ export default function Home() {
       {/* Short welcome before the live stock */}
       <section className="border-b border-primary/10 bg-secondary text-primary">
         <div className="container mx-auto px-4 pb-7 pt-[calc(var(--site-header-height,4.5rem)+1.25rem)] sm:px-6 sm:pb-9 lg:px-8">
-          <p className="font-display text-2xl sm:text-3xl">Welcome to {dealerConfig.identity.name}.</p>
+          <h1 id="home-heading" tabIndex={-1} className="font-display text-2xl sm:text-3xl">
+            Welcome to {dealerConfig.identity.name}.
+          </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-primary/75">
             Browse our current stock, compare the details and choose a car that suits you.
           </p>

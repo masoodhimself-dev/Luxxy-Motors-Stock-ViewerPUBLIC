@@ -61,6 +61,13 @@ const longCopyMobileViewports = [
   { width: 402, maxFirstCardTop: 1750 },
 ] as const;
 
+const crossRouteHomeDestinations = [
+  { label: 'Home', headingId: 'home-heading' },
+  { label: 'Why Buy From Us', headingId: 'about-heading' },
+  { label: 'Warranty', headingId: 'warranty-heading' },
+  { label: 'Delivery', headingId: 'delivery-heading' },
+  { label: 'Part Exchange', headingId: 'part-exchange-heading' },
+] as const;
 const longDealerCopySettings = {
   ...dealerConfig,
   hero: {
@@ -254,9 +261,54 @@ test('moves keyboard focus to the stock heading after cross-route navigation', a
   await page.setViewportSize({ width: 375, height: 874 });
   await mockHomeData(page, stock);
   await page.goto('/enquire?type=viewing');
+
   const enquiryStockLink = page.getByTestId('link-browse-stock-from-enquiry');
   await expect(enquiryStockLink).toHaveAttribute('href', '/#stock');
   await enquiryStockLink.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeFocused();
+});
+
+for (const { label, headingId } of crossRouteHomeDestinations) {
+  test(`moves keyboard focus to the ${label} heading after cross-route navigation`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 874 });
+    await mockHomeData(page, stock);
+    await page.goto('/find-my-car');
+
+    const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
+    await expect(menuButton).toBeVisible();
+    await menuButton.press('Enter');
+
+    const destination = page
+      .getByRole('navigation', { name: 'Mobile navigation' })
+      .getByRole('button', { name: label, exact: true });
+    await destination.focus();
+    await destination.press('Enter');
+
+    await expect(page.locator(`#${headingId}`)).toBeFocused();
+  });
+}
+
+test('scrolls to a homepage section without requiring focus to move on same-page activation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 874 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockHomeData(page, stock);
+  await page.goto('/');
+
+  const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
+  await menuButton.press('Enter');
+
+  const aboutLink = page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('button', {
+    name: 'Why Buy From Us',
+    exact: true,
+  });
+  await aboutLink.focus();
+  await aboutLink.press('Enter');
+
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect(page.locator('#about-heading')).not.toBeFocused();
 });
