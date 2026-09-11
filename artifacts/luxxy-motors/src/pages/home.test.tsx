@@ -259,18 +259,14 @@ describe('showroom search filters', () => {
     expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
   });
 
-  it('lets shoppers move through the featured forecourt cars', () => {
+  it('starts with a short welcome and puts stock search before any editorial sections', () => {
     renderHome();
 
-    const carousel = screen.getByTestId('featured-forecourt-carousel');
-    expect(within(carousel).getByRole('presentation')).toHaveClass('object-contain', 'sm:p-6');
-    expect(within(carousel).getByText(/30,000 miles/)).toBeInTheDocument();
-    expect(within(carousel).getByText(/Automatic/)).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Previous featured car' }));
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(screen.getByText(/Welcome to Test Motors\./)).toBeInTheDocument();
+    expect(screen.getByTestId('input-showroom-search')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Latest arrivals' })).toBeInTheDocument();
+    expect(screen.queryByTestId('featured-forecourt-carousel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('button-hero-primary')).not.toBeInTheDocument();
   });
 
   it('switches between full cards and the compact stock list', () => {
@@ -297,55 +293,6 @@ describe('showroom search filters', () => {
 
     expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
-  });
-
-  it('lets shoppers pause and resume the featured carousel', () => {
-    renderHome();
-
-    const pause = screen.getByRole('button', { name: 'Pause featured vehicles' });
-    fireEvent.click(pause);
-    expect(screen.getByRole('button', { name: 'Play featured vehicles' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Play featured vehicles' }));
-    expect(screen.getByRole('button', { name: 'Pause featured vehicles' })).toHaveAttribute('aria-pressed', 'false');
-  });
-
-  it('respects curated featured order and filters stale IDs without images', () => {
-    // Both bmw-3-series and bmw-1-series have photos. ford-fiesta does not. unknown-id does not exist.
-    overrideSettings = {
-      ...dealerConfigFixture,
-      featuredVehicleIds: ['unknown-id', 'bmw-3-series', 'ford-fiesta', 'bmw-1-series'],
-    };
-    renderHome();
-
-    // Since 'bmw-3-series' and 'bmw-1-series' are the only valid photographed ones, 
-    // it should only show 2 cars, and start with bmw-3-series.
-    const carousel = screen.getByTestId('featured-forecourt-carousel');
-    expect(within(carousel).getByText(/BMW 3 Series/)).toBeInTheDocument();
-    
-    // There are only 2 valid cars that made it through
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
-    
-    // Check next car is bmw-1-series
-    fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
-    expect(within(carousel).getByText(/BMW 1 Series/)).toBeInTheDocument();
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-  });
-
-  it('falls back to stable stock order when no featured vehicles are valid', () => {
-    // Only invalid IDs provided
-    overrideSettings = {
-      ...dealerConfigFixture,
-      featuredVehicleIds: ['unknown-id', 'ford-fiesta'],
-    };
-    renderHome();
-
-    // Should fall back to the 2 cars with photos, ordered exactly as they arrive from the mock feed ('bmw-1-series', then 'bmw-3-series')
-    const carousel = screen.getByTestId('featured-forecourt-carousel');
-    expect(within(carousel).getByText(/BMW 1 Series/)).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
-    
-    fireEvent.click(screen.getByRole('button', { name: 'Next featured car' }));
-    expect(within(carousel).getByText(/BMW 3 Series/)).toBeInTheDocument();
   });
 
   it('filters by text and limits model choices to the selected make', () => {
@@ -444,16 +391,6 @@ describe('showroom search filters', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
 
-    await waitFor(() => {
-      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
-      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
-    });
-  });
-
-  it('reveals all results and scrolls when using the hero primary button', async () => {
-    renderHome();
-    fireEvent.click(screen.getByTestId('button-hero-primary'));
-    expect(resultTitles()).toHaveLength(5);
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
       expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');

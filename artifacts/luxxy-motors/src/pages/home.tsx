@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
@@ -121,10 +120,6 @@ export default function Home() {
   const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
 
-  const makes = useMemo(
-    () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
-    [stock?.cars],
-  );
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
   useEffect(() => {
     window.localStorage.setItem(STOCK_VIEW_KEY, stockView);

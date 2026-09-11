@@ -52,15 +52,7 @@ const stock = {
   ],
 };
 
-const mobileViewports = [
-  // The 320px layout wraps the opening copy and controls most; allow ~84px above
-  // the measured position for font/rendering variance without hiding regressions.
-  { width: 320, maxFirstCardTop: 1575 },
-  // These widths share the same control layout; allow ~77px above the measured
-  // position so a new wrapped line or spacing block still fails the check.
-  { width: 375, maxFirstCardTop: 1500 },
-  { width: 402, maxFirstCardTop: 1500 },
-] as const;
+const mobileViewports = [320, 375, 402] as const;
 
 const longCopyMobileViewports = [
   // Dealer copy and a long headline can add several lines at the narrowest supported phone width.
@@ -169,73 +161,10 @@ async function assertNoHorizontalOverflow(page: Page) {
   ).toBeLessThanOrEqual(dimensions.viewportWidth);
 }
 
-async function assertHeroControlsAreFullyVisible(page: Page) {
-  const controls = [
-    {
-      locator: page.getByTestId('button-hero-primary'),
-      name: 'primary hero control',
-    },
-    {
-      locator: page.getByTestId('link-hero-find-my-car'),
-      name: 'secondary hero control',
-    },
-  ];
-  const viewportWidth = page.viewportSize()?.width;
-
-  expect(viewportWidth).toBeDefined();
-
-  for (const { locator, name } of controls) {
-    await expect(locator, name).toBeVisible();
-    await expect(locator, name).toBeEnabled();
-
-    const box = await locator.boundingBox();
-    expect(box, `${name} should have a measurable hit area`).not.toBeNull();
-    expect(box!.width, `${name} should have a non-zero width`).toBeGreaterThan(0);
-    expect(box!.height, `${name} should have a non-zero height`).toBeGreaterThan(0);
-    expect(box!.x, `${name} should not be clipped on the left`).toBeGreaterThanOrEqual(0);
-    expect(
-      box!.x + box!.width,
-      `${name} should not be clipped on the right at ${viewportWidth}px`,
-    ).toBeLessThanOrEqual(viewportWidth!);
-  }
-
-  await expect(page.getByTestId('link-hero-find-my-car')).toHaveAttribute('href', '/find-my-car');
-}
-
-async function assertKeyboardFocusIsVisible(locator: ReturnType<Page['getByTestId']>) {
-  const focusStyle = await locator.evaluate((element) => {
-    const styles = window.getComputedStyle(element);
-    return {
-      outlineStyle: styles.outlineStyle,
-      outlineWidth: styles.outlineWidth,
-      boxShadow: styles.boxShadow,
-    };
-  });
-
-  expect(
-    (focusStyle.outlineStyle !== 'none' && focusStyle.outlineWidth !== '0px') ||
-      focusStyle.boxShadow !== 'none',
-    'focused hero control should have a visible focus indicator',
-  ).toBe(true);
-}
-
-async function tabToHeroPrimary(page: Page) {
-  const primary = page.getByTestId('button-hero-primary');
-
-  for (let tabPresses = 0; tabPresses < 100; tabPresses += 1) {
-    await page.keyboard.press('Tab');
-    if (await primary.evaluate((element) => document.activeElement === element)) {
-      return;
-    }
-  }
-
-  throw new Error('Keyboard navigation did not reach the primary hero control');
-}
-
-test('keeps the first stock card near the approved mobile position', async ({
+test('keeps the first stock card near the search on mobile', async ({
   page,
 }) => {
-  for (const { width, maxFirstCardTop } of mobileViewports) {
+  for (const width of mobileViewports) {
     await page.setViewportSize({ width, height: 874 });
     await mockHomeData(page, stock);
 
@@ -247,13 +176,12 @@ test('keeps the first stock card near the approved mobile position', async ({
 
     const firstCardTop = (await firstCard.boundingBox())?.y;
     expect(firstCardTop).toBeDefined();
-    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+    expect(firstCardTop!).toBeLessThanOrEqual(1050);
   }
 });
 
-for (const { width, maxFirstCardTop } of mobileViewports) {
-  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
+for (const width of mobileViewports) {
+  test(`keeps the first ${width}px stock card near the search without photos`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 874 });
@@ -261,20 +189,18 @@ for (const { width, maxFirstCardTop } of mobileViewports) {
 
     await page.goto('/');
 
-    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
     const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
     await expect(firstCard).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
 
     const firstCardTop = (await firstCard.boundingBox())?.y;
     expect(firstCardTop).toBeDefined();
-    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+    expect(firstCardTop!).toBeLessThanOrEqual(1050);
   });
 }
 
-for (const { width } of mobileViewports) {
-  test(`keeps the ${width}px homepage within the viewport after using hero and stock controls`, async ({
+for (const width of mobileViewports) {
+  test(`keeps the ${width}px homepage within the viewport while searching`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 874 });
@@ -283,35 +209,15 @@ for (const { width } of mobileViewports) {
     await page.goto('/');
     await page.evaluate(() => document.fonts.ready);
 
-    await expect(page.getByTestId('button-hero-primary')).toBeVisible();
-    await expect(page.getByTestId('link-hero-find-my-car')).toBeVisible();
     await expect(page.getByTestId('input-showroom-search')).toBeVisible();
     await expect(page.getByRole('button', { name: 'View matching cars' })).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
-    await page.getByTestId('button-hero-primary').click();
     await page.getByTestId('input-showroom-search').fill('BMW');
     await page.getByRole('button', { name: 'View matching cars' }).click();
     await assertNoHorizontalOverflow(page);
   });
 }
-
-test('moves keyboard focus to the results heading after hero activation', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 874 });
-  await mockHomeData(page, stock);
-  await page.goto('/');
-
-    const resultsHeading = page.locator('#vehicle-results-heading');
-  await tabToHeroPrimary(page);
-  await assertKeyboardFocusIsVisible(page.getByTestId('button-hero-primary'));
-  await page.keyboard.press('Enter');
-  await expect(resultsHeading).toBeFocused();
-
-  await page.goto('/');
-  await tabToHeroPrimary(page);
-  await page.keyboard.press('Space');
-  await expect(resultsHeading).toBeFocused();
-});
 
 test('moves keyboard focus to results after stock-opening controls use Enter or Space', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 874 });
@@ -347,19 +253,10 @@ test('moves keyboard focus to results after stock-opening controls use Enter or 
 test('moves keyboard focus to the stock heading after cross-route navigation', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 874 });
   await mockHomeData(page, stock);
-  await page.goto('/find-my-car');
-
-  const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
-  await expect(menuButton).toBeVisible();
-  await menuButton.press('Enter');
-
-  const browseStock = page.getByRole('button', { name: 'Browse Stock' });
-
-  const detailStockLink = page.getByRole('link', { name: /View all stock/ });
+  await page.goto('/enquire?type=viewing');
+  const enquiryStockLink = page.getByTestId('link-browse-stock-from-enquiry');
   await expect(enquiryStockLink).toHaveAttribute('href', '/#stock');
   await enquiryStockLink.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeFocused();
 });
-
-  const enquiryStockLink = page.getByTestId('link-browse-stock-from-enquiry');
