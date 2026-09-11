@@ -89,6 +89,14 @@ const stockWithoutHeroImages = {
   })),
 };
 
+const stockWithBrokenHeroImage = {
+  ...stock,
+  cars: stock.cars.map((car) => ({
+    ...car,
+    heroImage: '/broken-featured-image.jpg',
+    images: [],
+  })),
+};
 async function mockHomeData(
   page: Page,
   stockResponse: typeof stock,

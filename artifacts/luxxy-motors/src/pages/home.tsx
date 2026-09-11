@@ -44,6 +44,7 @@ export default function Home() {
   );
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [carouselPaused, setCarouselPaused] = useState(false);
+  const [failedFeaturedImageUrl, setFailedFeaturedImageUrl] = useState<string | null>(null);
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
@@ -145,6 +146,8 @@ export default function Home() {
     return carsWithPhotos.slice(0, 8);
   }, [stock?.cars, dealerConfig.featuredVehicleIds]);
   const featuredCar = featuredCars[featuredIndex % Math.max(featuredCars.length, 1)];
+  const featuredImageUrl = featuredCar ? getThumbnailUrl(featuredCar) : '';
+  const featuredImageFailed = Boolean(featuredImageUrl && failedFeaturedImageUrl === featuredImageUrl);
   const heroHeadline = dealerConfig.hero.copy.trim().toLowerCase() === 'find your next car'
     ? 'Carefully chosen cars.'
     : dealerConfig.hero.copy;
@@ -263,7 +266,7 @@ export default function Home() {
             </div>
 
             <div className="relative min-h-[19rem] overflow-hidden bg-primary sm:min-h-[26rem] lg:min-h-full">
-              {featuredCar ? (
+              {featuredCar && !featuredImageFailed ? (
                 <>
                   <div className="absolute inset-0 overflow-hidden" data-testid="featured-forecourt-carousel">
                     {featuredCars.map((car, index) => {
@@ -283,6 +286,7 @@ export default function Home() {
                             src={getThumbnailUrl(car)}
                             alt=""
                             className="h-full w-full bg-primary object-contain p-3 transition-transform duration-700 group-hover:scale-[1.01] sm:p-6"
+                            onError={() => setFailedFeaturedImageUrl(getThumbnailUrl(car))}
                           />
                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
                           <span className="absolute inset-x-0 bottom-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
