@@ -2,6 +2,15 @@ type SetLocation = (path: string) => void;
 
 let pendingTarget: string | null = null;
 
+const homeTargetFocusIds: Record<string, string> = {
+  top: 'home-heading',
+  stock: 'vehicle-results-heading',
+  about: 'about-heading',
+  warranty: 'warranty-heading',
+  'part-exchange': 'part-exchange-heading',
+  delivery: 'delivery-heading',
+};
+
 function scrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ? 'auto'
@@ -83,7 +92,12 @@ export function navigateToHomeTarget(
 export function flushPendingHomeTarget() {
   if (!pendingTarget) return;
 
-  if (scrollToHomeTarget(pendingTarget)) {
+  const target = pendingTarget;
+  if (scrollToHomeTarget(target)) {
+    const focusTarget = homeTargetFocusIds[target];
+    if (focusTarget) {
+      focusHomeTarget(focusTarget);
+    }
     pendingTarget = null;
   }
 }

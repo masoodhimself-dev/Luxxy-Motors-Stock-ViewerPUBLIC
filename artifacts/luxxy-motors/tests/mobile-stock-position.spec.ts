@@ -329,3 +329,19 @@ test('moves keyboard focus to the results heading after hero activation', async 
   await page.keyboard.press('Space');
   await expect(resultsHeading).toBeFocused();
 });
+
+test('moves keyboard focus to the stock heading after cross-route navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 874 });
+  await mockHomeData(page, stock);
+  await page.goto('/find-my-car');
+
+  const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
+  await expect(menuButton).toBeVisible();
+  await menuButton.press('Enter');
+
+  const browseStock = page.getByRole('button', { name: 'Browse Stock' });
+  await browseStock.focus();
+  await browseStock.press('Enter');
+
+  await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeFocused();
+});

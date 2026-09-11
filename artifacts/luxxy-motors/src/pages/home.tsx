@@ -236,7 +236,7 @@ export default function Home() {
               <p className="luxxy-reveal label-sm text-primary/70">
                 {heroAnnouncement || `Independent used-car dealer in ${dealerConfig.address?.city || 'Harrow'}`}
               </p>
-              <h1 className="luxxy-reveal luxxy-reveal-1 mt-4 max-w-2xl break-words heading-1 text-primary">
+              <h1 id="home-heading" tabIndex={-1} className="luxxy-reveal luxxy-reveal-1 mt-4 max-w-2xl break-words heading-1 text-primary">
                 {heroHeadline}
               </h1>
               <p className="luxxy-reveal luxxy-reveal-2 mt-4 body-lg text-primary/80 sm:mt-6">
@@ -563,7 +563,7 @@ export default function Home() {
             <div className="grid gap-16 lg:grid-cols-[.9fr_1.1fr] lg:gap-20">
               <div className="max-w-md">
                 <p className="label-sm text-primary/70">How we work</p>
-                <h2 className="mt-4 heading-2 text-primary">
+                <h2 id="about-heading" tabIndex={-1} className="mt-4 heading-2 text-primary">
                   Good cars. <br/><span className="italic text-accent font-normal">Good sense.</span>
                 </h2>
                 <p className="mt-6 body-lg text-primary/80">
@@ -600,7 +600,7 @@ export default function Home() {
           <div className="grid gap-16 md:gap-12 md:grid-cols-2">
             {dealerConfig.warranty?.enabled && (
               <article id="warranty" data-home-section className="flex flex-col sm:pr-8 border-t border-primary/10 pt-6">
-                <h3 className="heading-3 text-primary">{dealerConfig.warranty.title}</h3>
+                <h3 id="warranty-heading" tabIndex={-1} className="heading-3 text-primary">{dealerConfig.warranty.title}</h3>
                 <p className="mt-5 flex-1 body-base text-primary/80">{dealerConfig.warranty.description}</p>
                 <Button asChild variant="link" size="lg" data-testid="link-warranty-enquiry" className="mt-8 w-fit px-0 text-base font-medium text-primary hover:text-accent">
                   <a href={getContactHref('Warranty Enquiry')}>{dealerConfig.warranty.ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></a>
@@ -609,7 +609,7 @@ export default function Home() {
             )}
             {dealerConfig.partExchange?.enabled && (
               <article id="part-exchange" data-home-section className="flex flex-col sm:pr-8 border-t border-primary/10 pt-6">
-                <h3 className="heading-3 text-primary">{dealerConfig.partExchange.title}</h3>
+                <h3 id="part-exchange-heading" tabIndex={-1} className="heading-3 text-primary">{dealerConfig.partExchange.title}</h3>
                 <p className="mt-5 flex-1 body-base text-primary/80">{dealerConfig.partExchange.description}</p>
                 <Button asChild variant="link" size="lg" data-testid="link-px-enquiry" className="mt-8 w-fit px-0 text-base font-medium text-primary hover:text-accent">
                   <a href={getContactHref('Part Exchange Enquiry')}>{dealerConfig.partExchange.ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></a>
@@ -618,7 +618,7 @@ export default function Home() {
             )}
             {dealerConfig.delivery?.enabled && (
               <article id="delivery" data-home-section className="flex flex-col sm:pr-8 border-t border-primary/10 pt-6">
-                <h3 className="heading-3 text-primary">{dealerConfig.delivery.title}</h3>
+                <h3 id="delivery-heading" tabIndex={-1} className="heading-3 text-primary">{dealerConfig.delivery.title}</h3>
                 <p className="mt-5 flex-1 body-base text-primary/80">{dealerConfig.delivery.description}</p>
                 <Button asChild variant="link" size="lg" data-testid="link-delivery-enquiry" className="mt-8 w-fit px-0 text-base font-medium text-primary hover:text-accent">
                   <a href={getContactHref('Delivery Enquiry')}>{dealerConfig.delivery.ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></a>
