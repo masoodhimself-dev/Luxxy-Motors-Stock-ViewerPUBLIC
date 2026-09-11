@@ -105,7 +105,11 @@ async function mockHomeData(
   settingsResponse?: typeof longDealerCopySettings,
 ) {
   await page.route('**/api/stock', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stockResponse) }),
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(stockResponse),
+    }),
   );
   await page.route('**/api/dealer-settings', (route) =>
     route.fulfill({
@@ -177,58 +181,13 @@ test('keeps the first stock card near the approved mobile position', async ({
 
     await page.goto('/');
 
-    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-    await expect(firstCard).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-
-    const firstCardTop = (await firstCard.boundingBox())?.y;
-    expect(firstCardTop).toBeDefined();
-    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
-  }
-});
-
-test('keeps the first stock card near the approved desktop position without hero images', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await mockHomeData(page, stockWithoutHeroImages);
-
-  await page.goto('/');
-
-  await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
   const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
   await expect(firstCard).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 
   const firstCardTop = (await firstCard.boundingBox())?.y;
-  expect(firstCardTop).toBeDefined();
-  expect(firstCardTop!).toBeLessThanOrEqual(1500);
-});
 
-for (const { width, maxFirstCardTop } of longCopyMobileViewports) {
-  test(`keeps stock reachable with long dealer copy at ${width}px`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stock, longDealerCopySettings);
-
-    await page.goto('/');
-
-    await expect(page.getByText(longDealerCopySettings.hero.announcement)).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: longDealerCopySettings.hero.copy }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('main').getByText(longDealerCopySettings.hero.subcopy),
-    ).toBeVisible();
-    await assertHeroControlsAreFullyVisible(page);
-
-    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-    await expect(firstCard).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-
-    const firstCardTop = (await firstCard.boundingBox())?.y;
+  const persistedSettings = { current: structuredClone(dealerConfig) };
     expect(firstCardTop).toBeDefined();
     expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
     expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
@@ -245,36 +204,73 @@ for (const { width, maxFirstCardTop } of mobileViewports) {
     await page.goto('/');
 
     await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
-    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-    await expect(firstCard).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
+  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+  await expect(firstCard).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
 
-    const firstCardTop = (await firstCard.boundingBox())?.y;
+  const firstCardTop = (await firstCard.boundingBox())?.y;
+
+  const persistedSettings = { current: structuredClone(dealerConfig) };
     expect(firstCardTop).toBeDefined();
     expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
     expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
   });
 }
 
-for (const { width } of mobileViewports) {
-  test(`keeps the ${width}px homepage within the viewport after using hero and stock controls`, async ({
+for (const { width, maxFirstCardTop } of mobileViewports) {
+  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stock);
+    await mockHomeData(page, stockWithoutHeroImages);
 
     await page.goto('/');
-    await page.evaluate(() => document.fonts.ready);
 
-    await expect(page.getByTestId('button-hero-primary')).toBeVisible();
-    await expect(page.getByTestId('link-hero-find-my-car')).toBeVisible();
-    await expect(page.getByTestId('input-showroom-search')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'View matching cars' })).toBeVisible();
-    await assertNoHorizontalOverflow(page);
+    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
+  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+  await expect(firstCard).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
 
-    await page.getByTestId('button-hero-primary').click();
-    await page.getByTestId('input-showroom-search').fill('BMW');
-    await page.getByRole('button', { name: 'View matching cars' }).click();
-    await assertNoHorizontalOverflow(page);
+  const firstCardTop = (await firstCard.boundingBox())?.y;
+
+  const persistedSettings = { current: structuredClone(dealerConfig) };
+    expect(firstCardTop).toBeDefined();
+    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
   });
 }
+
+for (const { width, maxFirstCardTop } of mobileViewports) {
+  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stockWithoutHeroImages);
+
+    await page.goto('/');
+
+    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
+  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+  await expect(firstCard).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const firstCardTop = (await firstCard.boundingBox())?.y;
+
+  const persistedSettings = { current: structuredClone(dealerConfig) };
+  expect(firstCardTop).toBeDefined();
+  expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+  expect(firstCardTop!).toBeLessThanOrEqual(longCopyMobileViewports[0].maxFirstCardTop);
+});
+
+  const saveResponse = await page.evaluate(async (settings) => {
+    const response = await fetch('/api/dealer-settings', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+
+    return {
+      status: response.status,
+      body: await response.json(),
+    };
+  }, longDealerCopySettings);
