@@ -63,16 +63,18 @@ const mobileViewports = [
 ] as const;
 
 const longCopyMobileViewports = [
-  // Dealer copy can add several lines at the narrowest supported phone width.
-  { width: 320, maxFirstCardTop: 1700 },
-  { width: 375, maxFirstCardTop: 1600 },
-  { width: 402, maxFirstCardTop: 1600 },
+  // Dealer copy and a long headline can add several lines at the narrowest supported phone width.
+  { width: 320, maxFirstCardTop: 1950 },
+  { width: 375, maxFirstCardTop: 1800 },
+  { width: 402, maxFirstCardTop: 1750 },
 ] as const;
 
 const longDealerCopySettings = {
   ...dealerConfig,
   hero: {
     ...dealerConfig.hero,
+    copy:
+      'Find a quality used car with confidence, from a dealer who keeps buying straightforward',
     announcement:
       'Independent used-car specialists helping drivers choose with confidence across Harrow, west London and the surrounding areas',
     subcopy:
@@ -181,6 +183,9 @@ for (const { width, maxFirstCardTop } of longCopyMobileViewports) {
     await page.goto('/');
 
     await expect(page.getByText(longDealerCopySettings.hero.announcement)).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: longDealerCopySettings.hero.copy }),
+    ).toBeVisible();
     await expect(
       page.getByRole('main').getByText(longDealerCopySettings.hero.subcopy),
     ).toBeVisible();
