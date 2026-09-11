@@ -172,20 +172,29 @@ async function assertHeroControlsAreFullyVisible(page: Page) {
   await expect(page.getByTestId('link-hero-find-my-car')).toHaveAttribute('href', '/find-my-car');
 }
 
-test('keeps the first stock card near the approved mobile position', async ({
-  page,
-}) => {
-  for (const { width, maxFirstCardTop } of mobileViewports) {
-    await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stock);
+async function assertKeyboardFocusIsVisible(locator: ReturnType<Page['getByTestId']>) {
+  const focusStyle = await locator.evaluate((element) => {
+    const styles = window.getComputedStyle(element);
+    return {
+      outlineStyle: styles.outlineStyle,
+      outlineWidth: styles.outlineWidth,
+      boxShadow: styles.boxShadow,
+    };
+  });
 
-    await page.goto('/');
-
+  expect(
+    (focusStyle.outlineStyle !== 'none' && focusStyle.outlineWidth !== '0px') ||
+      focusStyle.boxShadow !== 'none',
+    'focused hero control should have a visible focus indicator',
+  ).toBe(true);
+}
   const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
   await expect(firstCard).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 
   const firstCardTop = (await firstCard.boundingBox())?.y;
+
+    const primary = page.getByTestId('button-hero-primary');
 
   const persistedSettings = { current: structuredClone(dealerConfig) };
     expect(firstCardTop).toBeDefined();
@@ -210,28 +219,7 @@ for (const { width, maxFirstCardTop } of mobileViewports) {
 
   const firstCardTop = (await firstCard.boundingBox())?.y;
 
-  const persistedSettings = { current: structuredClone(dealerConfig) };
-    expect(firstCardTop).toBeDefined();
-    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
-  });
-}
-
-for (const { width, maxFirstCardTop } of mobileViewports) {
-  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stockWithoutHeroImages);
-
-    await page.goto('/');
-
-    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
-  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-  await expect(firstCard).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
-
-  const firstCardTop = (await firstCard.boundingBox())?.y;
+    const primary = page.getByTestId('button-hero-primary');
 
   const persistedSettings = { current: structuredClone(dealerConfig) };
     expect(firstCardTop).toBeDefined();
@@ -255,6 +243,33 @@ for (const { width, maxFirstCardTop } of mobileViewports) {
   await page.evaluate(() => document.fonts.ready);
 
   const firstCardTop = (await firstCard.boundingBox())?.y;
+
+    const primary = page.getByTestId('button-hero-primary');
+
+  const persistedSettings = { current: structuredClone(dealerConfig) };
+    expect(firstCardTop).toBeDefined();
+    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+  });
+}
+
+for (const { width, maxFirstCardTop } of mobileViewports) {
+  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stockWithoutHeroImages);
+
+    await page.goto('/');
+
+    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
+  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+  await expect(firstCard).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const firstCardTop = (await firstCard.boundingBox())?.y;
+
+    const primary = page.getByTestId('button-hero-primary');
 
   const persistedSettings = { current: structuredClone(dealerConfig) };
   expect(firstCardTop).toBeDefined();
@@ -274,3 +289,18 @@ for (const { width, maxFirstCardTop } of mobileViewports) {
       body: await response.json(),
     };
   }, longDealerCopySettings);
+
+async function tabToHeroPrimary(page: Page) {
+  const primary = page.getByTestId('button-hero-primary');
+
+  for (let tabPresses = 0; tabPresses < 100; tabPresses += 1) {
+    await page.keyboard.press('Tab');
+    if (await primary.evaluate((element) => document.activeElement === element)) {
+      return;
+    }
+  }
+
+  throw new Error('Keyboard navigation did not reach the primary hero control');
+}
+
+    const secondary = page.getByTestId('link-hero-find-my-car');
