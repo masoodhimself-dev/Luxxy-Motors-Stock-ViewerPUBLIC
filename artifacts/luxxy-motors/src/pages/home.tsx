@@ -3,13 +3,13 @@ import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
-import { cn, formatMileage, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { focusHomeTarget, flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, ChevronLeft, ChevronRight, Grid2X2, List, Pause, Play, Search } from 'lucide-react';
+import { ArrowRight, Grid2X2, List, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
 import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';
@@ -42,9 +42,6 @@ export default function Home() {
   const [stockView, setStockView] = useState<'cards' | 'compact'>(() =>
     window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards',
   );
-  const [featuredIndex, setFeaturedIndex] = useState(0);
-  const [carouselPaused, setCarouselPaused] = useState(false);
-  const [failedFeaturedImageUrl, setFailedFeaturedImageUrl] = useState<string | null>(null);
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
@@ -124,70 +121,16 @@ export default function Home() {
   const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
 
-  const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(', ');
   const makes = useMemo(
     () => Array.from(new Set((stock?.cars || []).map(car => car.make).filter(Boolean) as string[])).sort(),
     [stock?.cars],
   );
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
-  const featuredCars = useMemo(() => {
-    const carsWithPhotos = (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
-    
-    if (dealerConfig.featuredVehicleIds?.length > 0) {
-      const curated = dealerConfig.featuredVehicleIds
-        .map(id => carsWithPhotos.find(car => car.id === id))
-        .filter(Boolean) as typeof carsWithPhotos;
-        
-      if (curated.length > 0) {
-        return curated.slice(0, 8);
-      }
-    }
-
-    return carsWithPhotos.slice(0, 8);
-  }, [stock?.cars, dealerConfig.featuredVehicleIds]);
-  const featuredCar = featuredCars[featuredIndex % Math.max(featuredCars.length, 1)];
-  const featuredImageUrl = featuredCar ? getThumbnailUrl(featuredCar) : '';
-  const featuredImageFailed = Boolean(featuredImageUrl && failedFeaturedImageUrl === featuredImageUrl);
-  const heroHeadline = dealerConfig.hero.copy.trim().toLowerCase() === 'find your next car'
-    ? 'Carefully chosen cars.'
-    : dealerConfig.hero.copy;
-  const heroAnnouncement = dealerConfig.hero.announcement?.trim().toLowerCase() === 'independent cars, carefully chosen'
-    ? `Independent used-car dealer in ${dealerConfig.address?.city || 'Harrow'}`
-    : dealerConfig.hero.announcement;
-  const heroSubcopy = dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
-    ? 'Clear details, fair prices and time to look properly before you decide.'
-    : dealerConfig.hero.subcopy;
-  const heroPrimaryLabel = 'See all cars';
-  const oldSecondaryLabels = ['get a part-exchange valuation', 'part exchange'];
-  const heroSecondaryLabel = oldSecondaryLabels.includes(dealerConfig.hero.secondaryCta.trim().toLowerCase())
-    ? 'Find my car'
-    : dealerConfig.hero.secondaryCta;
-
-  useEffect(() => {
-    setFeaturedIndex(0);
-  }, [featuredCars]);
-
   useEffect(() => {
     window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
   }, [stockView]);
 
-  useEffect(() => {
-    if (
-      featuredCars.length < 2 ||
-      carouselPaused ||
-      (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    ) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setFeaturedIndex((current) => (current + 1) % featuredCars.length);
-    }, 5500);
-
-    return () => window.clearInterval(timer);
-  }, [featuredCars.length, carouselPaused]);
-
-  const revealResults = (source: 'hero' | 'quick_filter' | 'filter_panel' | 'view_all') => {
+  const revealResults = (source: 'quick_filter' | 'filter_panel' | 'view_all') => {
     trackEvent('stock_results_opened', { source, result_count: filteredCars.length });
     setShowAll(true);
     requestAnimationFrame(() => {
@@ -228,160 +171,17 @@ export default function Home() {
 
   return (
     <div className="luxxy-shell luxxy-grain flex min-h-screen flex-col">
-      {/* Forecourt hero */}
-      <section className="relative overflow-hidden bg-secondary text-primary">
-        <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+2rem)]">
-          <div className="grid lg:min-h-[36rem] lg:grid-cols-[1fr_1.2fr] gap-8 lg:gap-12">
-            <div className="relative z-10 flex flex-col justify-center py-4 sm:py-8 lg:py-12">
-              <p className="luxxy-reveal font-display italic text-base sm:text-lg text-primary/70">
-                {heroAnnouncement || `Independent used-car dealer in ${dealerConfig.address?.city || 'Harrow'}`}
-              </p>
-              <h1 id="home-heading" tabIndex={-1} className="luxxy-reveal luxxy-reveal-1 mt-3 sm:mt-4 max-w-2xl break-words heading-1 text-primary">
-                {heroHeadline}
-              </h1>
-              <p className="luxxy-reveal luxxy-reveal-2 mt-4 sm:mt-5 text-[15px] sm:text-lg leading-relaxed text-primary/80 max-w-xl">
-                {heroSubcopy}
-              </p>
-              <p className="mt-4 sm:mt-6 text-[15px] text-primary/70">
-                {stockCount} cars available · {locationLabel || 'Harrow, London'}
-              </p>
-              <div className="luxxy-reveal luxxy-reveal-3 mt-5 sm:mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
-                <Button
-                  type="button"
-                  size="lg"
-                  onClick={() => revealResults('hero')}
-                  data-testid="button-hero-primary"
-                  className="h-12 bg-primary px-4 text-[15px] font-medium text-primary-foreground hover:bg-primary/90 rounded-none sm:h-14 sm:px-8"
-                >
-                  <span className="truncate">{heroPrimaryLabel}</span>
-                </Button>
-                <Button
-                  size="lg"
-                  variant="link"
-                  asChild
-                  data-testid="link-hero-find-my-car"
-                  className="h-12 px-2 text-[15px] font-medium text-primary hover:text-accent sm:h-14 sm:px-4"
-                >
-                  <Link href="/find-my-car">
-                    <span className="truncate">{heroSecondaryLabel}</span> <ArrowRight className="ml-1.5 w-4 h-4" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="relative min-h-[22rem] overflow-hidden bg-primary sm:min-h-[28rem] lg:min-h-full">
-              {featuredCar && !featuredImageFailed ? (
-                <>
-                  <div className="absolute inset-0 overflow-hidden" data-testid="featured-forecourt-carousel">
-                    {featuredCars.map((car, index) => {
-                      const offset = index - featuredIndex;
-                      return (
-                        <Link
-                          key={car.id}
-                          href={`/vehicle/${car.id}`}
-                          onClick={() => trackEvent('vehicle_opened', { source: 'featured_carousel', layout: 'hero' })}
-                          aria-label={`View ${vehicleDisplayTitle(car)}`}
-                          aria-hidden={index !== featuredIndex}
-                          tabIndex={index === featuredIndex ? 0 : -1}
-                          className="group absolute inset-0 block transition-transform duration-700 ease-out bg-primary"
-                          style={{ transform: `translateX(${offset * 100}%)` }}
-                        >
-                          <img
-                            src={getThumbnailUrl(car)}
-                            alt=""
-                            role="presentation"
-                            className="h-full w-full object-contain p-3 sm:p-6 transition-transform duration-700 group-hover:scale-[1.01]"
-                            onError={() => setFailedFeaturedImageUrl(getThumbnailUrl(car))}
-                          />
-                           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
-                          <span className="absolute inset-x-0 bottom-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4 p-6 sm:p-8">
-                            <span className="text-primary-foreground">
-                              <span className="block text-[13px] font-medium text-primary-foreground/70 uppercase tracking-widest">Featured</span>
-                              <span className="mt-2 block font-display text-2xl sm:text-3xl font-medium">{vehicleDisplayTitle(car)}</span>
-                              <span className="mt-1.5 block text-[15px] text-primary-foreground/80">
-                                {[
-                                  car.year,
-                                  car.mileage != null ? formatMileage(car.mileage) : undefined,
-                                  car.fuel,
-                                  car.transmission
-                                ].filter(Boolean).join(' • ')}
-                              </span>
-                            </span>
-                            <span className="luxxy-price text-2xl sm:text-3xl text-primary-foreground">
-                              {car.price ? formatPrice(car.price, car.currency) : 'POA'}
-                            </span>
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-
-                  {featuredCars.length > 1 && (
-                     <div className="absolute right-4 top-4 z-20 flex bg-primary/80 backdrop-blur-md">
-                       <button
-                         type="button"
-                         aria-label={carouselPaused ? 'Play featured vehicles' : 'Pause featured vehicles'}
-                         aria-pressed={carouselPaused}
-                         onClick={() => {
-                           trackEvent('carousel_control_used', { action: carouselPaused ? 'play' : 'pause' });
-                           setCarouselPaused(!carouselPaused);
-                         }}
-                         className="grid h-12 w-12 place-items-center text-primary-foreground hover:bg-primary transition-colors"
-                       >
-                         {carouselPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                       </button>
-                      <button
-                        type="button"
-                        aria-label="Previous featured car"
-                         onClick={() => {
-                           trackEvent('carousel_control_used', { action: 'previous' });
-                           setFeaturedIndex((current) => (current - 1 + featuredCars.length) % featuredCars.length);
-                         }}
-                        className="grid h-12 w-12 place-items-center text-primary-foreground transition-colors hover:bg-primary"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                       <span aria-live="polite" aria-atomic="true" className="grid min-w-12 place-items-center px-1 text-[13px] font-medium text-primary-foreground">
-                        {featuredIndex + 1} / {featuredCars.length}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Next featured car"
-                         onClick={() => {
-                           trackEvent('carousel_control_used', { action: 'next' });
-                           setFeaturedIndex((current) => (current + 1) % featuredCars.length);
-                         }}
-                        className="grid h-12 w-12 place-items-center text-primary-foreground transition-colors hover:bg-primary"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div
-                  className="absolute inset-0 grid place-items-center px-8 text-center bg-primary"
-                  data-testid="empty-featured-forecourt"
-                >
-                  <p className="font-display text-3xl text-primary-foreground">Fresh stock arriving regularly.</p>
-                </div>
-              )}
-            </div>
-          </div>
+      {/* Short welcome before the live stock */}
+      <section className="border-b border-primary/10 bg-secondary text-primary">
+        <div className="container mx-auto px-4 pb-7 pt-[calc(var(--site-header-height,4.5rem)+1.25rem)] sm:px-6 sm:pb-9 lg:px-8">
+          <p className="font-display text-2xl sm:text-3xl">Welcome to {dealerConfig.identity.name}.</p>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-primary/75">
+            Browse our current stock, compare the details and choose a car that suits you.
+          </p>
+          <p className="mt-3 text-[15px] text-primary/65">
+            {stockCount} {stockCount === 1 ? 'car' : 'cars'} available
+          </p>
         </div>
-
-        {dealerConfig.trustItems?.length > 0 && (
-          <div className="container mx-auto px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8 border-b border-primary/10" aria-label={`${dealerConfig.identity.name} promises`}>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-[15px] text-primary/80 sm:flex sm:flex-wrap sm:gap-x-10 sm:gap-y-4">
-              {dealerConfig.trustItems.slice(0, 4).map((item) => (
-                <li key={item} className="flex items-start gap-2 sm:items-center sm:gap-3">
-                  <span className="h-1.5 w-1.5 bg-accent rounded-full shrink-0 mt-2 sm:mt-0" aria-hidden="true" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
 
       {/* Stock */}
