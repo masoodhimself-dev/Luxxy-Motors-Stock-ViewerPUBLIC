@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 
-const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTarget } = vi.hoisted(() => {
+const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTarget, focusHomeTarget } = vi.hoisted(() => {
   const baseCar = {
     id: '',
     advertId: '',
@@ -146,7 +146,8 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
         isError: false,
       },
     },
-    scrollToHomeTarget: vi.fn(),
+    scrollToHomeTarget: vi.fn(() => true),
+    focusHomeTarget: vi.fn(),
   };
 });
 
@@ -163,6 +164,7 @@ vi.mock('@/lib/stock-context', () => ({
 vi.mock('@/lib/home-navigation', () => ({
   flushPendingHomeTarget: vi.fn(),
   scrollToHomeTarget,
+  focusHomeTarget,
 }));
 
 vi.mock('@workspace/api-client-react', () => ({
@@ -453,6 +455,7 @@ describe('showroom search filters', () => {
     expect(resultTitles()).toHaveLength(5);
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
+      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
     });
   });
 

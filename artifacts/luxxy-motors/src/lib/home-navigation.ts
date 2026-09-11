@@ -53,6 +53,14 @@ export function scrollToHomeTarget(target: string): boolean {
   return true;
 }
 
+export function focusHomeTarget(target: string): boolean {
+  const element = document.getElementById(target);
+  if (!element) return false;
+
+  element.focus({ preventScroll: true });
+  return document.activeElement === element;
+}
+
 export function navigateToHomeTarget(
   target: string,
   currentLocation: string,

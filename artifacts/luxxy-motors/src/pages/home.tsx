@@ -6,7 +6,7 @@ import { Filters, type FilterState } from '@/components/filters';
 import { cn, formatMileage, formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
+import { focusHomeTarget, flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, ChevronLeft, ChevronRight, Grid2X2, List, Pause, Play, Search } from 'lucide-react';
@@ -190,7 +190,11 @@ export default function Home() {
   const revealResults = () => {
     trackEvent('stock_results_opened', { source: 'hero', result_count: filteredCars.length });
     setShowAll(true);
-    requestAnimationFrame(() => scrollToHomeTarget('vehicle-results'));
+    requestAnimationFrame(() => {
+      if (scrollToHomeTarget('vehicle-results')) {
+        focusHomeTarget('vehicle-results-heading');
+      }
+    });
   };
 
   const applyQuickFilter = (nextFilters: Partial<FilterState>) => {
@@ -383,7 +387,7 @@ export default function Home() {
           <div className="mb-4 flex flex-col gap-2 sm:mb-10 sm:flex-row sm:items-end sm:justify-between border-b border-border/70 pb-4 sm:pb-8">
             <div>
               <p className="label-sm text-primary/70">{showAll ? 'Full stock list' : 'Browse our stock'}</p>
-              <h2 className="mt-2 heading-2 text-primary">
+              <h2 id="vehicle-results-heading" tabIndex={-1} className="mt-2 heading-2 text-primary">
                 {showAll ? 'Every car on site' : 'Latest arrivals'}
               </h2>
             </div>
