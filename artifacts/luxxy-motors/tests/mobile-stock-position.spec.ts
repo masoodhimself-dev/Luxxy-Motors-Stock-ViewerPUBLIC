@@ -133,10 +133,10 @@ test('keeps the first stock card near the approved mobile position', async ({
   }
 });
 
-test('keeps the first stock card near the approved mobile position without hero images', async ({
+test('keeps the first stock card near the approved desktop position without hero images', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 402, height: 874 });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await mockHomeData(page, stockWithoutHeroImages);
 
   await page.goto('/');
