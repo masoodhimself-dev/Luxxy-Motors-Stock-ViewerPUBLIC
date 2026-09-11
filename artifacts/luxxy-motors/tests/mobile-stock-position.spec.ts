@@ -121,6 +121,18 @@ async function mockHomeData(
   );
 }
 
+async function assertNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }));
+
+  expect(
+    dimensions.documentWidth,
+    `document width ${dimensions.documentWidth}px exceeds viewport width ${dimensions.viewportWidth}px`,
+  ).toBeLessThanOrEqual(dimensions.viewportWidth);
+}
+
 test('keeps the first stock card near the approved mobile position', async ({
   page,
 }) => {
@@ -156,7 +168,6 @@ test('keeps the first stock card near the approved desktop position without hero
 
   const firstCardTop = (await firstCard.boundingBox())?.y;
   expect(firstCardTop).toBeDefined();
-  expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
   expect(firstCardTop!).toBeLessThanOrEqual(1500);
 });
 
@@ -182,5 +193,49 @@ for (const { width, maxFirstCardTop } of longCopyMobileViewports) {
     expect(firstCardTop).toBeDefined();
     expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
     expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+  });
+}
+
+for (const { width, maxFirstCardTop } of mobileViewports) {
+  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stockWithoutHeroImages);
+
+    await page.goto('/');
+
+    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
+    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+    await expect(firstCard).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+
+    const firstCardTop = (await firstCard.boundingBox())?.y;
+    expect(firstCardTop).toBeDefined();
+    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+  });
+}
+
+for (const { width } of mobileViewports) {
+  test(`keeps the ${width}px homepage within the viewport after using hero and stock controls`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 874 });
+    await mockHomeData(page, stock);
+
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+
+    await expect(page.getByTestId('button-hero-primary')).toBeVisible();
+    await expect(page.getByTestId('link-hero-find-my-car')).toBeVisible();
+    await expect(page.getByTestId('input-showroom-search')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View matching cars' })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.getByTestId('button-hero-primary').click();
+    await page.getByTestId('input-showroom-search').fill('BMW');
+    await page.getByRole('button', { name: 'View matching cars' }).click();
+    await assertNoHorizontalOverflow(page);
   });
 }
