@@ -12,7 +12,7 @@ import { trackEvent } from '@/lib/analytics';
 type SpecEntry = { label: string; value: string };
 
 const actionBase =
-  'relative z-10 inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card';
+  'relative z-10 inline-flex h-11 items-center justify-center gap-2 px-4 text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 const MAX_PREVIEW_IMAGES = 6;
 
@@ -208,9 +208,8 @@ export function CarCard({
   );
 
   const priceBlock = (
-    <div>
-      <p className="text-sm text-muted-foreground mb-0.5">Price</p>
-      <p className={cn('luxxy-price text-2xl text-primary', isRow ? 'sm:text-3xl' : '')}>
+    <div className="text-right shrink-0">
+      <p className={cn('luxxy-price text-primary', isRow ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl')}>
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </p>
     </div>
@@ -227,7 +226,7 @@ export function CarCard({
       className={cn(
         actionBase,
         'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary',
-        !isRow && 'min-w-0 px-2 sm:px-4',
+        !isRow && 'w-full'
       )}
     >
       <Calendar className="h-4 w-4" />
@@ -242,10 +241,9 @@ export function CarCard({
       aria-label={`Call about ${vehicleLabel}`}
       onClick={() => recordContactIntent({ channel: 'call', car, source: `${analyticsSource}-${layout}` })}
       data-vehicle-contact="call"
-      className={cn(actionBase, 'border border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary focus-visible:ring-primary')}
+      className={cn(actionBase, 'border border-border bg-transparent text-primary hover:border-primary/45 focus-visible:ring-primary px-3')}
     >
       <Phone className="h-4 w-4 text-accent" />
-      Call
     </a>
   );
 
@@ -258,18 +256,17 @@ export function CarCard({
       aria-label={`WhatsApp about ${vehicleLabel}`}
       onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: `${analyticsSource}-${layout}` })}
       data-vehicle-contact="whatsapp"
-       className={cn(actionBase, 'luxxy-contact hover:bg-[hsl(var(--contact)/.18)] focus-visible:ring-[hsl(var(--contact))]')}
+       className={cn(actionBase, 'border border-border bg-transparent text-[#1f7a4d] hover:border-[#1f7a4d]/45 focus-visible:ring-primary px-3')}
     >
       <MessageCircle className="h-4 w-4" />
-      WhatsApp
     </a>
   );
 
   const title = (
     <h3
       className={cn(
-        'break-words font-display font-medium leading-tight tracking-tight text-primary',
-        isRow ? 'text-xl sm:text-2xl' : 'text-lg sm:text-xl',
+        'break-words font-display font-medium leading-[1.1] tracking-tight text-primary',
+        isRow ? 'text-[1.35rem] sm:text-[1.75rem]' : 'text-xl sm:text-2xl',
       )}
     >
       <Link
@@ -287,37 +284,38 @@ export function CarCard({
   );
 
   const subtitle = (car.variant || car.trim) && (
-    <p className="mt-1 line-clamp-1 text-sm leading-6 text-muted-foreground">{car.variant || car.trim}</p>
+    <p className="mt-1 line-clamp-1 text-[15px] leading-6 text-primary/70">{car.variant || car.trim}</p>
   );
 
   if (isCompact) {
     return (
       <article
-        className="group relative grid min-h-36 grid-cols-[7.5rem_minmax(0,1fr)] border border-border/70 bg-card transition-colors hover:border-primary/35 hover:bg-secondary/15 sm:grid-cols-[10rem_minmax(0,1fr)]"
+        className="group relative grid min-h-36 grid-cols-[7.5rem_minmax(0,1fr)] border-b border-primary/10 transition-colors sm:grid-cols-[12rem_minmax(0,1fr)] py-6 first:pt-2"
         data-testid={`compact-vehicle-${car.id}`}
       >
         {imageBlock}
-        <div className="flex min-w-0 flex-col p-4">
+        <div className="flex min-w-0 flex-col pl-5 sm:pl-8">
           <div className="min-w-0">
             {title}
             {subtitle}
           </div>
-          <p className="luxxy-price mt-2 text-xl sm:text-2xl text-primary">
+          <p className="luxxy-price mt-3 text-xl sm:text-2xl text-primary">
             {car.price ? formatPrice(car.price, car.currency) : 'POA'}
           </p>
-          {ledger && <div className="mt-3 overflow-hidden">{ledger}</div>}
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[15px] text-primary/70">
+            {visibleSpecs.map(s => s.value).join(' • ')}
+          </div>
           <div className="relative z-10 mt-auto grid grid-cols-1 gap-2 pt-3 sm:grid-cols-[1fr_auto]" data-testid={`compact-actions-${car.id}`}>
-            <a
-              href={bookingHref}
-              onClick={() => recordBookingIntent({ source: `${analyticsSource}_compact`, vehicleContext: true })}
-              aria-label={`${dealerConfig.bookViewing.ctaLabel} for ${vehicleLabel}`}
-              className="inline-flex min-h-11 min-w-0 items-center justify-center bg-primary px-2 text-sm font-medium text-primary-foreground sm:px-3"
-            >
-              <Calendar className="mr-2 h-3.5 w-3.5 shrink-0" />
-              <span className="sm:hidden">Book</span>
-              <span className="hidden truncate sm:inline">{dealerConfig.bookViewing.ctaLabel}</span>
-            </a>
-            <CompareCarButton car={car} variant="compact" className="min-h-11 min-w-0 justify-center border border-border px-2 sm:px-3" />
+             <a
+                href={bookingHref}
+                onClick={() => recordBookingIntent({ source: `${analyticsSource}_compact`, vehicleContext: true })}
+                className="inline-flex h-11 min-w-0 items-center justify-center bg-primary px-4 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Calendar className="mr-2 h-4 w-4 shrink-0" />
+                <span className="sm:hidden">Book</span>
+                <span className="hidden truncate sm:inline">{dealerConfig.bookViewing.ctaLabel}</span>
+              </a>
+              <CompareCarButton car={car} variant="compact" className="h-11 min-w-0 justify-center border border-border bg-transparent px-3 text-primary hover:border-primary/45" />
           </div>
         </div>
       </article>
@@ -327,11 +325,11 @@ export function CarCard({
   if (isRow) {
     return (
       <article
-        className="group grid border border-border/70 bg-card transition-colors hover:border-primary/35 md:grid-cols-[minmax(0,38%)_minmax(0,1fr)]"
+        className="group grid border-b border-primary/10 transition-colors md:grid-cols-[minmax(0,40%)_minmax(0,1fr)] py-8 first:pt-4"
         data-testid={`row-vehicle-${car.id}`}
       >
         {imageBlock}
-        <div className="flex min-w-0 flex-col gap-5 p-5 sm:p-7">
+        <div className="flex min-w-0 flex-col gap-6 pt-5 md:pt-0 md:pl-8">
           <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
             <div className="min-w-0 flex-1">
               {title}
@@ -342,22 +340,24 @@ export function CarCard({
             )}
           </div>
 
-          {ledger && <div className="border-y border-border/70 py-4">{ledger}</div>}
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[15px] text-primary/70">
+             {visibleSpecs.map(s => s.value).join(' • ')}
+          </div>
 
           <div className="mt-auto flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             {priceBlock}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               {bookingAction}
               {callAction}
               {whatsappAction}
-              <CompareCarButton car={car} />
+              <CompareCarButton car={car} className="h-11 border border-border bg-transparent px-3 text-primary hover:border-primary/45" />
             </div>
           </div>
 
           <Link
             href={detailHref}
             onClick={recordVehicleOpen}
-            className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 transition-colors hover:text-accent hover:underline"
+            className="inline-flex items-center gap-2 text-[15px] font-medium text-primary underline-offset-4 transition-colors hover:text-accent hover:underline mt-2"
           >
             Full vehicle details
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -370,32 +370,44 @@ export function CarCard({
   return (
     <article
       className={cn(
-        'group relative flex h-full flex-col border border-border/70 bg-card transition-colors hover:border-primary/35',
-        stretchedLink && 'cursor-pointer hover:bg-secondary/15 focus-within:border-primary/45',
+        'group relative flex h-full flex-col transition-all',
+        stretchedLink && 'cursor-pointer'
       )}
       data-testid={`card-vehicle-${car.id}`}
     >
       {imageBlock}
-      <div className="flex flex-1 flex-col gap-3 p-4 sm:gap-4 sm:p-5">
-        <div>
-          {title}
-          {subtitle}
-          <div className="mt-3">{priceBlock}</div>
+      <div className="flex flex-1 flex-col pt-5 pb-2">
+        <div className="flex justify-between items-start gap-4">
+          <div className="min-w-0">
+            {title}
+            {subtitle}
+          </div>
+          {priceBlock}
         </div>
 
-        {ledger && <div className="border-y border-border/70 py-3 sm:py-4">{ledger}</div>}
+        <p className="text-[15px] text-primary/70 mt-3 truncate">
+          {[
+            car.year,
+            car.mileage ? formatMileage(car.mileage) : car.mileageText,
+            car.fuel,
+            car.transmission,
+            car.engineSize
+          ].filter(Boolean).join(' • ')}
+        </p>
 
         {registration && (
-          <UKNumberPlate size="sm" value={registration} testId={`plate-vehicle-${car.id}`} className="w-[104px] shrink-0" />
+          <div className="mt-4">
+            <UKNumberPlate size="sm" value={registration} testId={`plate-vehicle-${car.id}`} className="w-[104px]" />
+          </div>
         )}
 
-        <div className="mt-auto grid grid-cols-2 gap-2">
-          <div className="col-span-2 [&>a]:w-full">{bookingAction}</div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <div className="flex-1 min-w-[140px] [&>a]:w-full">{bookingAction}</div>
           {callAction}
           {whatsappAction}
           <CompareCarButton
             car={car}
-            className="relative z-10 col-span-2 h-9 min-w-0 border-0 bg-transparent px-2 text-muted-foreground hover:bg-secondary hover:text-primary"
+            className="h-11 border border-border bg-transparent px-3 text-primary hover:border-primary/45 relative z-10"
           />
         </div>
       </div>

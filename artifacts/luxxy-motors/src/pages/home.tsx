@@ -231,45 +231,45 @@ export default function Home() {
       {/* Forecourt hero */}
       <section className="relative overflow-hidden bg-secondary text-primary">
         <div className="container mx-auto px-4 pt-[calc(var(--site-header-height,4.5rem)+1rem)] sm:px-6 lg:px-8 lg:pt-[calc(var(--site-header-height,4.5rem)+2rem)]">
-          <div className="grid lg:min-h-[30rem] lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12">
+          <div className="grid lg:min-h-[36rem] lg:grid-cols-[1fr_1.2fr] gap-8 lg:gap-12">
             <div className="relative z-10 flex flex-col justify-center py-4 sm:py-8 lg:py-12">
-              <p className="luxxy-reveal label-sm text-primary/70">
+              <p className="luxxy-reveal font-display italic text-base sm:text-lg text-primary/70">
                 {heroAnnouncement || `Independent used-car dealer in ${dealerConfig.address?.city || 'Harrow'}`}
               </p>
-              <h1 id="home-heading" tabIndex={-1} className="luxxy-reveal luxxy-reveal-1 mt-4 max-w-2xl break-words heading-1 text-primary">
+              <h1 id="home-heading" tabIndex={-1} className="luxxy-reveal luxxy-reveal-1 mt-3 sm:mt-4 max-w-2xl break-words heading-1 text-primary">
                 {heroHeadline}
               </h1>
-              <p className="luxxy-reveal luxxy-reveal-2 mt-4 body-lg text-primary/80 sm:mt-6">
+              <p className="luxxy-reveal luxxy-reveal-2 mt-4 sm:mt-5 text-[15px] sm:text-lg leading-relaxed text-primary/80 max-w-xl">
                 {heroSubcopy}
               </p>
-              <p className="mt-5 body-sm text-primary/70 sm:mt-8">
+              <p className="mt-4 sm:mt-6 text-[15px] text-primary/70">
                 {stockCount} cars available · {locationLabel || 'Harrow, London'}
               </p>
-              <div className="luxxy-reveal luxxy-reveal-3 mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap sm:gap-4">
+              <div className="luxxy-reveal luxxy-reveal-3 mt-5 sm:mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
                 <Button
                   type="button"
                   size="lg"
                   onClick={() => revealResults('hero')}
                   data-testid="button-hero-primary"
-                  className="h-12 bg-primary px-4 text-sm sm:text-base font-medium text-primary-foreground hover:bg-primary/90 rounded-none sm:h-14 sm:px-8"
+                  className="h-12 bg-primary px-4 text-[15px] font-medium text-primary-foreground hover:bg-primary/90 rounded-none sm:h-14 sm:px-8"
                 >
                   <span className="truncate">{heroPrimaryLabel}</span>
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
+                  variant="link"
                   asChild
                   data-testid="link-hero-find-my-car"
-                  className="h-12 border-primary/20 bg-transparent px-4 text-sm sm:text-base font-medium text-primary hover:border-primary hover:bg-primary/5 rounded-none sm:h-14 sm:px-8"
+                  className="h-12 px-2 text-[15px] font-medium text-primary hover:text-accent sm:h-14 sm:px-4"
                 >
                   <Link href="/find-my-car">
-                    <span className="truncate">{heroSecondaryLabel}</span>
+                    <span className="truncate">{heroSecondaryLabel}</span> <ArrowRight className="ml-1.5 w-4 h-4" />
                   </Link>
                 </Button>
               </div>
             </div>
 
-            <div className="relative min-h-[19rem] overflow-hidden bg-primary sm:min-h-[26rem] lg:min-h-full">
+            <div className="relative min-h-[22rem] overflow-hidden bg-primary sm:min-h-[28rem] lg:min-h-full">
               {featuredCar && !featuredImageFailed ? (
                 <>
                   <div className="absolute inset-0 overflow-hidden" data-testid="featured-forecourt-carousel">
@@ -283,28 +283,31 @@ export default function Home() {
                           aria-label={`View ${vehicleDisplayTitle(car)}`}
                           aria-hidden={index !== featuredIndex}
                           tabIndex={index === featuredIndex ? 0 : -1}
-                          className="group absolute inset-0 block transition-transform duration-700 ease-out"
+                          className="group absolute inset-0 block transition-transform duration-700 ease-out bg-primary"
                           style={{ transform: `translateX(${offset * 100}%)` }}
                         >
                           <img
                             src={getThumbnailUrl(car)}
                             alt=""
-                            className="h-full w-full bg-primary object-contain p-3 transition-transform duration-700 group-hover:scale-[1.01] sm:p-6"
+                            role="presentation"
+                            className="h-full w-full object-contain p-3 sm:p-6 transition-transform duration-700 group-hover:scale-[1.01]"
                             onError={() => setFailedFeaturedImageUrl(getThumbnailUrl(car))}
                           />
                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/25" aria-hidden="true" />
-                          <span className="absolute inset-x-0 bottom-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4 p-6 text-primary-foreground sm:p-8">
-                            <span>
-                              <span className="block label-sm text-primary-foreground/70">Featured on the forecourt</span>
-                              <span className="mt-1 block heading-3">{vehicleDisplayTitle(car)}</span>
-                              <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 body-base text-primary-foreground/80">
-                                {car.year && <span>{car.year}</span>}
-                                {car.mileage != null && <span>· {formatMileage(car.mileage)}</span>}
-                                {car.fuel && <span>· {car.fuel}</span>}
-                                {car.transmission && <span>· {car.transmission}</span>}
+                          <span className="absolute inset-x-0 bottom-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4 p-6 sm:p-8">
+                            <span className="text-primary-foreground">
+                              <span className="block text-[13px] font-medium text-primary-foreground/70 uppercase tracking-widest">Featured</span>
+                              <span className="mt-2 block font-display text-2xl sm:text-3xl font-medium">{vehicleDisplayTitle(car)}</span>
+                              <span className="mt-1.5 block text-[15px] text-primary-foreground/80">
+                                {[
+                                  car.year,
+                                  car.mileage != null ? formatMileage(car.mileage) : undefined,
+                                  car.fuel,
+                                  car.transmission
+                                ].filter(Boolean).join(' • ')}
                               </span>
                             </span>
-                            <span className="luxxy-price text-2xl">
+                            <span className="luxxy-price text-2xl sm:text-3xl text-primary-foreground">
                               {car.price ? formatPrice(car.price, car.currency) : 'POA'}
                             </span>
                           </span>
@@ -338,7 +341,7 @@ export default function Home() {
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
-                       <span aria-live="polite" aria-atomic="true" className="grid min-w-12 place-items-center px-1 text-sm font-medium text-primary-foreground">
+                       <span aria-live="polite" aria-atomic="true" className="grid min-w-12 place-items-center px-1 text-[13px] font-medium text-primary-foreground">
                         {featuredIndex + 1} / {featuredCars.length}
                       </span>
                       <button
@@ -368,11 +371,11 @@ export default function Home() {
         </div>
 
         {dealerConfig.trustItems?.length > 0 && (
-          <div className="container mx-auto px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8" aria-label={`${dealerConfig.identity.name} promises`}>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-primary/80 sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-4">
+          <div className="container mx-auto px-4 pb-6 pt-4 sm:px-6 sm:pb-8 lg:px-8 border-b border-primary/10" aria-label={`${dealerConfig.identity.name} promises`}>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-[15px] text-primary/80 sm:flex sm:flex-wrap sm:gap-x-10 sm:gap-y-4">
               {dealerConfig.trustItems.slice(0, 4).map((item) => (
                 <li key={item} className="flex items-start gap-2 sm:items-center sm:gap-3">
-                  <span className="h-1.5 w-1.5 bg-accent rounded-full" aria-hidden="true" />
+                  <span className="h-1.5 w-1.5 bg-accent rounded-full shrink-0 mt-2 sm:mt-0" aria-hidden="true" />
                   {item}
                 </li>
               ))}
@@ -382,17 +385,16 @@ export default function Home() {
       </section>
 
       {/* Stock */}
-      <div id="stock" data-home-section className="px-0 pb-20 pt-5 md:pt-16 border-t border-border bg-background">
+      <div id="stock" data-home-section className="px-0 pb-20 pt-5 md:pt-16 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-4 flex flex-col gap-2 sm:mb-10 sm:flex-row sm:items-end sm:justify-between border-b border-border/70 pb-4 sm:pb-8">
+          <div className="mb-4 flex flex-col gap-2 sm:mb-10 sm:flex-row sm:items-end sm:justify-between border-b border-primary/10 pb-4 sm:pb-8">
             <div>
-              <p className="label-sm text-primary/70">{showAll ? 'Full stock list' : 'Browse our stock'}</p>
-              <h2 id="vehicle-results-heading" tabIndex={-1} className="mt-2 heading-2 text-primary">
+              <h2 id="vehicle-results-heading" tabIndex={-1} className="heading-2 text-primary">
                 {showAll ? 'Every car on site' : 'Latest arrivals'}
               </h2>
             </div>
             {stock && (
-              <p className="body-sm text-primary/70 mb-2" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
+              <p className="text-[15px] text-primary/70 mb-2" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
                 {filteredCars.length} {filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available
               </p>
             )}
@@ -427,20 +429,21 @@ export default function Home() {
             vehicleCount={stockCount}
           />
 
-          <section className="mt-1 sm:mt-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-center border-b border-border/70 pb-4 sm:pb-8">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm sm:text-base text-primary/70 mr-2 hidden sm:inline">Shortcuts</span>
-              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className={quickFilterClass} data-testid="button-quick-automatic">
+          <section className="mt-4 sm:mt-6 flex flex-col justify-between gap-3 lg:flex-row lg:items-center pb-4 sm:pb-8 border-b border-primary/10">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-[15px] font-medium text-primary/70 mr-2 hidden sm:inline">Shortcuts</span>
+              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="text-[15px] text-primary/80 hover:text-primary transition-colors border-b border-transparent hover:border-primary min-h-[44px] flex items-center" data-testid="button-quick-automatic">
                 Automatic
               </button>
-              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className={quickFilterClass} data-testid="button-quick-under-5000">
+              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="text-[15px] text-primary/80 hover:text-primary transition-colors border-b border-transparent hover:border-primary min-h-[44px] flex items-center" data-testid="button-quick-under-5000">
                 Under £5k
               </button>
-              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className={quickFilterClass} data-testid="button-quick-low-mileage">
+              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="text-[15px] text-primary/80 hover:text-primary transition-colors border-b border-transparent hover:border-primary min-h-[44px] flex items-center" data-testid="button-quick-low-mileage">
                 Low miles
               </button>
             </div>
-            <div className="flex border border-primary/20 bg-transparent sm:w-auto w-full rounded-none" aria-label="Vehicle display">
+            <div className="flex items-center gap-4 text-[15px]" aria-label="Vehicle display">
+              <span className="text-primary/60 hidden sm:inline">Layout</span>
               <button
                 type="button"
                 aria-pressed={stockView === 'cards'}
@@ -449,7 +452,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'cards' });
                 }}
                 data-testid="button-stock-view-cards"
-                className={cn('flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 px-4 text-sm sm:text-base font-medium transition-colors rounded-none sm:h-12 sm:px-6', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:text-primary')}
+                className={cn('transition-colors hover:text-primary flex items-center gap-2 min-h-[44px] px-2 -ml-2', stockView === 'cards' ? 'text-primary font-medium' : 'text-primary/60')}
               >
                 <Grid2X2 className="h-4 w-4" /> Cards
               </button>
@@ -461,7 +464,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'compact' });
                 }}
                 data-testid="button-stock-view-compact"
-                className={cn('flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 px-4 text-sm sm:text-base font-medium transition-colors rounded-none sm:h-12 sm:px-6', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:text-primary')}
+                className={cn('transition-colors hover:text-primary flex items-center gap-2 min-h-[44px] px-2', stockView === 'compact' ? 'text-primary font-medium' : 'text-primary/60')}
               >
                 <List className="h-4 w-4" /> Compact
               </button>
@@ -555,23 +558,23 @@ export default function Home() {
 
       {/* How we work */}
       {dealerConfig.whyBuy && dealerConfig.whyBuy.length > 0 && (
-        <section id="about" data-home-section className="bg-background py-16 md:py-24 border-t border-border">
+        <section id="about" data-home-section className="bg-secondary py-16 md:py-24 border-t border-secondary text-primary">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid gap-16 lg:grid-cols-[.9fr_1.1fr] lg:gap-20">
               <div className="max-w-md">
-                <p className="label-sm text-primary/70">How we work</p>
+                <p className="text-[15px] font-medium text-primary/70">How we work</p>
                 <h2 id="about-heading" tabIndex={-1} className="mt-4 heading-2 text-primary">
                   Good cars. <br/><span className="italic text-accent font-normal">Good sense.</span>
                 </h2>
-                <p className="mt-6 body-lg text-primary/80">
+                <p className="mt-6 text-lg leading-relaxed text-primary/80">
                   A used-car showroom should make choosing feel clearer, not louder. That is the standard we bring to every vehicle and every conversation.
                 </p>
               </div>
               <div className="grid gap-x-12 gap-y-12 sm:grid-cols-2 mt-4 lg:mt-0">
                 {dealerConfig.whyBuy.map((item, idx) => (
-                  <article key={idx} className="flex flex-col border-t border-border/60 pt-6">
+                  <article key={idx} className="flex flex-col border-t border-primary/10 pt-6">
                     <h3 className="text-base font-medium text-primary">{item.title}</h3>
-                    <p className="mt-3 body-sm text-primary/70">{item.description}</p>
+                    <p className="mt-3 text-[15px] leading-relaxed text-primary/70">{item.description}</p>
                   </article>
                 ))}
               </div>

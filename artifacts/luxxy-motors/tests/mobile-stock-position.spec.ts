@@ -229,50 +229,8 @@ test('keeps the first stock card near the approved mobile position', async ({
     expect(firstCardTop).toBeDefined();
     expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
     expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
-  });
-}
-
-for (const { width, maxFirstCardTop } of mobileViewports) {
-  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stockWithoutHeroImages);
-
-    await page.goto('/');
-
-    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
-    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-    await expect(firstCard).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-
-    const firstCardTop = (await firstCard.boundingBox())?.y;
-    expect(firstCardTop).toBeDefined();
-    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
-  });
-}
-
-for (const { width, maxFirstCardTop } of mobileViewports) {
-  test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 874 });
-    await mockHomeData(page, stockWithoutHeroImages);
-
-    await page.goto('/');
-
-    await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
-    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-    await expect(firstCard).toBeVisible();
-    await page.evaluate(() => document.fonts.ready);
-
-    const firstCardTop = (await firstCard.boundingBox())?.y;
-    expect(firstCardTop).toBeDefined();
-    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
-  });
-}
+  }
+});
 
 for (const { width, maxFirstCardTop } of mobileViewports) {
   test(`keeps the first stock card near the approved ${width}px position without hero images`, async ({

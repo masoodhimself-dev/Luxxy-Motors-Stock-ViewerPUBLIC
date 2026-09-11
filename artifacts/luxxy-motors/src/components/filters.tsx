@@ -52,7 +52,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-primary/80">
+      <span className="mb-1 block text-[15px] font-medium text-primary/70">
         {label}
       </span>
       {children}
@@ -76,7 +76,7 @@ function Select({
       value={value} 
       onChange={(event) => onChange(event.target.value)} 
       disabled={disabled}
-      className="h-12 rounded-none border-primary/20 text-sm shadow-none"
+      className="h-12 border-0 border-b border-primary/20 bg-transparent px-0 text-[15px] shadow-none focus-visible:border-primary focus-visible:ring-0 text-primary"
     >
       {children}
     </NativeSelect>
@@ -143,10 +143,10 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
     <div className="mb-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12">
       <div className="py-2">
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-primary">
+          <span className="mb-2 block font-display text-lg sm:text-xl text-primary">
             What are you looking for?
           </span>
-          <span className="relative block max-w-3xl">
+          <span className="relative block max-w-3xl mt-2">
             <Input
               aria-label="Search the showroom"
               placeholder="Try “BMW”, “Golf” or a registration"
@@ -158,7 +158,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   handleSearchClick();
                 }
               }}
-              className="h-12 border-0 border-b border-primary/20 bg-transparent px-0 pr-11 text-base placeholder:text-primary/40 focus-visible:border-primary focus-visible:ring-0 rounded-none shadow-none text-primary"
+              className="h-12 sm:h-14 border-0 border-b-2 border-primary/20 bg-transparent px-0 pr-11 text-lg sm:text-xl placeholder:text-primary/40 focus-visible:border-primary focus-visible:ring-0 rounded-none shadow-none text-primary"
               data-testid="input-showroom-search"
             />
             {filters.search && (
@@ -282,7 +282,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             <button
               type="button"
               onClick={resetFilters}
-              className="text-sm text-primary/70 hover:text-primary min-h-[44px] inline-flex items-center"
+              className="text-sm text-primary/70 hover:text-primary min-h-[44px] flex items-center"
             >
               Reset filters
               {activeFilterCount > 0 && <span className="ml-1 text-accent font-medium">({activeFilterCount})</span>}

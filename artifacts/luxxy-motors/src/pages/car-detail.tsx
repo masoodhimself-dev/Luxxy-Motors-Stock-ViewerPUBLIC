@@ -46,9 +46,9 @@ function getSimilarCars(currentCar: Car, cars: Car[]) {
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-5 border-b border-primary/10 py-3.5 last:border-0">
-      <dt className="text-sm sm:text-base text-primary/70">{label}</dt>
-      <dd className="text-right text-sm sm:text-base font-medium text-primary" data-testid={testId}>
+    <div className="flex justify-between items-baseline gap-4 py-3 border-b border-primary/10 last:border-0">
+      <dt className="text-[15px] sm:text-base text-primary/70">{label}</dt>
+      <dd className="text-right text-[15px] sm:text-base font-medium text-primary" data-testid={testId}>
         {value}
       </dd>
     </div>
@@ -135,11 +135,11 @@ export default function CarDetail() {
 
   return (
     <div className="luxxy-shell luxxy-grain min-h-screen pb-20 lg:pb-0 bg-background">
-      <div className="border-b border-border/60 bg-background/50 backdrop-blur-sm">
+      <div className="border-b border-primary/10 bg-background/50 backdrop-blur-sm sticky top-[calc(var(--site-header-height))] z-40">
         <div className="container mx-auto max-w-[85rem] px-4 sm:px-6 lg:px-8">
           <Link
-            href="/"
-            className="inline-flex items-center gap-2 py-5 text-sm sm:text-base text-primary/70 transition-colors hover:text-primary"
+            href="/#stock"
+            className="inline-flex items-center gap-2 py-4 sm:py-5 text-[15px] font-medium text-primary/60 transition-colors hover:text-primary"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to showroom
@@ -148,53 +148,49 @@ export default function CarDetail() {
       </div>
 
       <div className="container mx-auto max-w-[85rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-14">
+        <div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.2fr)_1fr] xl:grid-cols-[minmax(0,1.3fr)_1fr] lg:items-start lg:gap-16 xl:gap-24">
           
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <Gallery images={car.images || []} heroImage={car.heroImage} />
           </div>
 
           {/* Right Column: Key Details & CTA */}
-          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 flex flex-col bg-secondary/60 p-6 sm:p-8 lg:p-10">
-            <div className="mb-7">
-              <h1 className="heading-2 text-primary">
+          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 flex flex-col bg-secondary/50 p-6 sm:p-8 lg:p-10 lg:pt-10">
+            <div className="mb-6">
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] leading-[1.05] tracking-tight text-primary">
                 {vehicleLabel}
               </h1>
               {(car.variant || car.trim) && (
-                <p className="mt-3 text-sm sm:text-base leading-relaxed text-primary/80">
+                <p className="mt-3 text-lg text-primary/70">
                   {car.variant || car.trim}
                 </p>
               )}
             </div>
 
-            {registration && (
-              <div className="mb-8 flex flex-wrap items-center gap-3">
-                <UKNumberPlate
-                  size="sm"
-                  value={registration}
-                  testId={`plate-vehicle-${car.id}`}
-                  className="w-[132px] shrink-0"
-                />
-              </div>
-            )}
-
-            <div className="mb-10 flex items-end justify-between border-b border-primary/10 pb-8">
-              <div>
-                <p className="mb-2 text-sm sm:text-base text-primary/70">Price</p>
-                <p className="luxxy-price text-4xl sm:text-5xl text-primary">
-                  {car.price ? formatPrice(car.price, car.currency) : 'POA'}
-                </p>
-              </div>
+            <div className="mb-10 flex flex-wrap items-baseline gap-4 border-b border-primary/10 pb-8">
+              <p className="luxxy-price text-[2.5rem] sm:text-[3.25rem] leading-none text-primary">
+                {car.price ? formatPrice(car.price, car.currency) : 'POA'}
+              </p>
               {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-                <span className="shrink-0 text-sm sm:text-base text-primary/70">
+                <span className="text-lg text-primary/60">
                   {car.priceType}
                 </span>
               )}
             </div>
 
-            <div className="mb-10">
-              <h2 className="mb-5 font-display text-xl font-medium text-primary">At a glance</h2>
-              <dl className="grid gap-1">
+            {registration && (
+              <div className="mb-10">
+                <UKNumberPlate
+                  size="sm"
+                  value={registration}
+                  testId={`plate-vehicle-${car.id}`}
+                  className="w-[132px]"
+                />
+              </div>
+            )}
+
+            <div className="mb-12">
+              <dl className="grid gap-y-1">
                 <LedgerRow label="Photographs" value={photoCount > 0 ? `${photoCount} available` : 'To follow'} />
                 {keyFacts.map((fact) => (
                   <LedgerRow key={fact.label} label={fact.label} value={fact.value} testId={fact.testId} />
@@ -202,8 +198,8 @@ export default function CarDetail() {
               </dl>
             </div>
 
-            <div className="mb-10 hidden grid-cols-2 gap-4 sm:grid lg:grid">
-              <Button asChild size="lg" className="col-span-2 h-14 rounded-none bg-primary text-sm sm:text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+            <div className="mb-10 hidden flex-col gap-4 sm:flex lg:flex">
+              <Button asChild size="lg" className="h-14 rounded-none bg-primary text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                 <a
                    href={bookingHref}
                    onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
@@ -215,47 +211,49 @@ export default function CarDetail() {
                   {dealerConfig.bookViewing.ctaLabel}
                 </a>
               </Button>
-              {phoneHref && (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="h-14 rounded-none border-primary/20 bg-transparent px-4 text-sm sm:text-base font-medium text-primary transition-colors hover:border-primary hover:bg-primary/5"
-                >
-                  <a
-                    href={phoneHref}
-                    aria-label={`Call about ${vehicleLabel}`}
-                    onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail' })}
-                    data-vehicle-contact="call"
+              <div className="grid grid-cols-2 gap-4">
+                {phoneHref && (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="h-14 rounded-none border-border bg-transparent text-[15px] font-medium text-primary transition-colors hover:border-primary/45"
                   >
-                    <Phone className="mr-2 h-4 w-4 text-accent" />
-                    Call
-                  </a>
-                </Button>
-              )}
-              {whatsappHref && (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                   className="luxxy-contact h-14 rounded-none border-primary/20 bg-transparent px-4 text-sm sm:text-base font-medium text-[#1f7a4d] transition-colors hover:border-[#1f7a4d] hover:bg-[#1f7a4d]/5"
-                >
-                  <a
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`WhatsApp about ${vehicleLabel}`}
-                    onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail' })}
-                    data-vehicle-contact="whatsapp"
+                    <a
+                      href={phoneHref}
+                      aria-label={`Call about ${vehicleLabel}`}
+                      onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail' })}
+                      data-vehicle-contact="call"
+                    >
+                      <Phone className="mr-2 h-4 w-4 text-accent" />
+                      Call
+                    </a>
+                  </Button>
+                )}
+                {whatsappHref && (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                     className="luxxy-contact h-14 rounded-none border-border bg-transparent text-[#1f7a4d] transition-colors hover:border-[#1f7a4d]/45 hover:bg-transparent"
                   >
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    WhatsApp
-                  </a>
-                </Button>
-              )}
+                    <a
+                      href={whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`WhatsApp about ${vehicleLabel}`}
+                      onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail' })}
+                      data-vehicle-contact="whatsapp"
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      WhatsApp
+                    </a>
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="mt-auto pt-6 text-sm sm:text-base leading-relaxed text-primary/80 border-t border-primary/10">
+            <div className="mt-auto pt-6 text-[15px] leading-relaxed text-primary/70 border-t border-primary/10">
               <p>
                 This car is sold by <strong className="font-medium text-primary">{dealerConfig.identity.name || stock.dealerName || 'Independent Dealer'}</strong>. Viewings are by appointment.
               </p>
