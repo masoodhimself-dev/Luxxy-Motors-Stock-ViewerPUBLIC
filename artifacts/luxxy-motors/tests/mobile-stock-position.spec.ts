@@ -51,6 +51,16 @@ const stock = {
   ],
 };
 
+const mobileViewports = [
+  // The 320px layout wraps the opening copy and controls most; allow ~84px above
+  // the measured position for font/rendering variance without hiding regressions.
+  { width: 320, maxFirstCardTop: 1575 },
+  // These widths share the same control layout; allow ~77px above the measured
+  // position so a new wrapped line or spacing block still fails the check.
+  { width: 375, maxFirstCardTop: 1500 },
+  { width: 402, maxFirstCardTop: 1500 },
+] as const;
+
 const stockWithoutHeroImages = {
   ...stock,
   cars: stock.cars.map((car) => ({
@@ -87,11 +97,11 @@ test('keeps the first stock card near the approved mobile position', async ({
 
   await page.goto('/');
 
-  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-  await expect(firstCard).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+    await expect(firstCard).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
 
-  const firstCardTop = (await firstCard.boundingBox())?.y;
+    const firstCardTop = (await firstCard.boundingBox())?.y;
   expect(firstCardTop).toBeDefined();
   expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
   expect(firstCardTop!).toBeLessThanOrEqual(1500);
@@ -106,12 +116,29 @@ test('keeps the first stock card near the approved mobile position without hero 
   await page.goto('/');
 
   await expect(page.getByTestId('empty-featured-forecourt')).toBeVisible();
-  const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
-  await expect(firstCard).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car');
+    await expect(firstCard).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
 
-  const firstCardTop = (await firstCard.boundingBox())?.y;
-  expect(firstCardTop).toBeDefined();
-  expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
-  expect(firstCardTop!).toBeLessThanOrEqual(1500);
-});
+    const firstCardTop = (await firstCard.boundingBox())?.y;
+    expect(firstCardTop).toBeDefined();
+    expect(firstCardTop!).toBeGreaterThanOrEqual(1320);
+    expect(firstCardTop!).toBeLessThanOrEqual(maxFirstCardTop);
+  });
+}
+
+async function mockHomepageApis(page: Page) {
+  await page.route('**/api/stock', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stock) }),
+  );
+  await page.route('**/api/dealer-settings', (route) =>
+    route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+  );
+  await page.route('**/api/recent-handovers', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ schemaVersion: 1, handovers: [] }),
+    }),
+  );
+}
