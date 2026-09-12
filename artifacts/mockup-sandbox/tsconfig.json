@@ -9,6 +9,7 @@
     "lib": ["es2022", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "types": ["node", "vite/client"],
     "paths": {

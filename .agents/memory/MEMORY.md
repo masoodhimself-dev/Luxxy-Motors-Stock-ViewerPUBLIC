@@ -3,7 +3,7 @@
 - [Stock integration test isolation](stock-integration-test-isolation.md) — the API stock suite clears shared development inventory; protect or restore real dev stock when running it.
 - [OpenAPI/Zod compatibility](openapi-zod-compatibility.md) — keep generated constraints compatible with the workspace’s Zod runtime and typecheck after codegen.
 - [Workspace dependency removal](workspace-dependency-removal.md) — verify nested package manifests and the lockfile after generic package-tool removals.
-- [Approved Luxxy visual direction](luxxy-visual-direction.md) — use the editorial concierge identity with sage, ink teal, brass, and the L/X road monogram.
+- [Luxxy visual approval](luxxy-visual-direction.md) — heavy flat redesign rejected; approve representative screens before rollout and preserve the search-first opening.
 - [Sales readiness evidence](sales-readiness-evidence.md) — checklist confirmations hash the current deal evidence and invalidate when source records change.
 - [Vehicle registration display](vehicle-registration-display.md) — most stock has no real VRM; never render a registration band as a number plate.
 - [Customer-side state](customer-side-state.md) — no customer accounts exist, so shopper shortlists and comparisons live in localStorage, not the database.
