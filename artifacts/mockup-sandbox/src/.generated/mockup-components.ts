@@ -3,10 +3,14 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/luxxy/LuxxyConcierge.tsx": () => import("../components/mockups/luxxy/LuxxyConcierge.tsx"),
   "./components/mockups/luxxy/LuxxyRailShowroom.tsx": () => import("../components/mockups/luxxy/LuxxyRailShowroom.tsx"),
+  "./components/mockups/luxxy-fluid/CuratedHome.tsx": () => import("../components/mockups/luxxy-fluid/CuratedHome.tsx"),
   "./components/mockups/luxxy-fluid/CurrentDetail.tsx": () => import("../components/mockups/luxxy-fluid/CurrentDetail.tsx"),
   "./components/mockups/luxxy-fluid/CurrentHome.tsx": () => import("../components/mockups/luxxy-fluid/CurrentHome.tsx"),
   "./components/mockups/luxxy-fluid/FluidDetail.tsx": () => import("../components/mockups/luxxy-fluid/FluidDetail.tsx"),
   "./components/mockups/luxxy-fluid/FluidHome.tsx": () => import("../components/mockups/luxxy-fluid/FluidHome.tsx"),
+  "./components/mockups/luxxy-fluid/ModernDetail.tsx": () => import("../components/mockups/luxxy-fluid/ModernDetail.tsx"),
+  "./components/mockups/luxxy-fluid/ModernHome.tsx": () => import("../components/mockups/luxxy-fluid/ModernHome.tsx"),
+  "./components/mockups/luxxy-fluid/RefinedHome.tsx": () => import("../components/mockups/luxxy-fluid/RefinedHome.tsx"),
   "./components/mockups/stock-search/AdvancedSearchBeside.tsx": () => import("../components/mockups/stock-search/AdvancedSearchBeside.tsx"),
   "./components/mockups/stock-search/Current.tsx": () => import("../components/mockups/stock-search/Current.tsx")
 };

@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+
+.luxxy-modern {
+  --modern-ivory: 40 24% 97%;
+  --modern-panel: 38 20% 94%;
+  --modern-ink: 222 16% 14%;
+  --modern-muted: 220 9% 46%;
+  --modern-line: 220 12% 84%;
+  --modern-blue: 220 92% 48%;
+  --modern-blue-soft: 220 88% 94%;
+  min-height: 100dvh;
+  background: hsl(var(--modern-ivory));
+  color: hsl(var(--modern-ink));
+  font-family: 'DM Sans', sans-serif;
+}
+
+.modern-display {
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: -0.045em;
+}
+
+.modern-editorial {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+}
+
+.modern-focus {
+  outline: none;
+}
+
+.modern-focus:focus-visible {
+  outline: 2px solid hsl(var(--modern-blue));
+  outline-offset: 3px;
+}
+
+.modern-rule {
+  border-color: hsl(var(--modern-line));
+}
+
+.modern-image {
+  transition: transform 220ms cubic-bezier(.22, 1, .36, 1), opacity 220ms ease;
+}
+
+.modern-gallery-frame {
+  height: min(74vw, 420px);
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .modern-gallery-frame {
+    height: auto;
+    aspect-ratio: 16 / 10;
+  }
+  .modern-gallery-image {
+    background-size: cover !important;
+  }
+}
+
+.modern-vehicle:hover .modern-image {
+  transform: scale(1.025);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luxxy-modern *,
+  .luxxy-modern *::before,
+  .luxxy-modern *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
