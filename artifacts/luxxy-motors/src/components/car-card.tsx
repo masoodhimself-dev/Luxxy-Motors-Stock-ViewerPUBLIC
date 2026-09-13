@@ -297,7 +297,10 @@ export function CarCard({
               <div className="flex-1 lg:flex-none min-w-[140px]">{bookingAction}</div>
               {callAction}
               {whatsappAction}
-              <CompareCarButton car={car} className="h-12 w-12 flex-none border-2 border-primary bg-background text-primary shadow-[3px_3px_0px_hsl(var(--primary))] hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--primary))] transition-all" />
+               <CompareCarButton
+                 car={car}
+                 className="h-12 min-w-[104px] w-auto flex-none whitespace-nowrap border-2 border-primary bg-background px-3 text-primary shadow-[3px_3px_0px_hsl(var(--primary))] hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--primary))] transition-all"
+               />
             </div>
           </div>
         </div>
@@ -345,7 +348,7 @@ export function CarCard({
             {whatsappAction}
             <CompareCarButton
               car={car}
-              className="relative z-10 h-12 w-12 flex-none justify-center rounded-xl border border-primary/20 bg-background text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
+              className="relative z-10 h-12 min-w-[104px] w-auto flex-none justify-center whitespace-nowrap rounded-xl border border-primary/20 bg-background px-3 text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
             />
           </div>
         </div>
