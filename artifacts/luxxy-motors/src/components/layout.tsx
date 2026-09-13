@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
-import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart } from 'lucide-react';
+import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CompareTray } from '@/components/compare-tray';
 import { isWritableFormControl } from '@/lib/form-draft';
+import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 
 const navLinkClass =
   'whitespace-nowrap font-display text-[14px] font-semibold tracking-[0.02em] text-primary/75 transition-colors hover:text-accent';
@@ -76,6 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const wordmark = dealerConfig.identity.logoText || dealerConfig.identity.name;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(' · ');
+  const upcomingVisitDates = getUpcomingVisitDates(dealerConfig.hours ?? []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -404,14 +406,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {dealerConfig.hours && dealerConfig.hours.length > 0 && (
+            {upcomingVisitDates.length > 0 && (
               <div className="lg:col-span-3">
-                <h3 className={footerHeadingClass}>Hours</h3>
-                <ul className="space-y-4">
-                  {dealerConfig.hours.map((h, i) => (
-                    <li key={i} className="flex items-baseline justify-between gap-4 text-[14px]">
-                      <span className="shrink-0 font-bold text-primary-foreground/60">{h.days}</span>
-                      <span className="shrink-0 font-display font-bold tracking-wider text-primary-foreground">{h.times}</span>
+                <h3 className={footerHeadingClass}>Next available visits</h3>
+                <p className="mb-5 max-w-[22rem] text-[13px] leading-6 text-primary-foreground/65">
+                  Pick a day that works. We’ll confirm the exact time when you book.
+                </p>
+                <ul className="space-y-3">
+                  {upcomingVisitDates.map((visit) => (
+                    <li key={visit.date} className="flex items-center justify-between gap-4 border-b border-primary-foreground/10 pb-3 text-[14px]">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <CalendarDays className="h-4 w-4 shrink-0 text-accent" />
+                        <span className="min-w-0">
+                          <span className="block font-bold text-primary-foreground">{visit.relativeLabel}</span>
+                          <span className="block text-[12px] text-primary-foreground/60">{visit.dateLabel}</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-display text-[12px] font-bold tracking-wider text-primary-foreground">{visit.times}</span>
                     </li>
                   ))}
                 </ul>
