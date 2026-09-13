@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { CircleAlert, LoaderCircle, UserRound } from 'lucide-react';
 import { useParams } from 'wouter';
-import { getGetSigningSessionQueryKey, useCompleteCustomerIntakeSession, useGetSigningSession } from '@workspace/api-client-react';
+import {
+  getGetCustomerIntakeSessionQueryKey,
+  useCompleteCustomerIntakeSession,
+  useGetCustomerIntakeSession,
+} from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -17,12 +21,14 @@ function apiMessage(error: unknown) {
 
 export default function CustomerDetails() {
   const { token = '' } = useParams<{ token: string }>();
-  const query = useGetSigningSession(token, { query: { queryKey: getGetSigningSessionQueryKey(token), retry: false } });
+  const query = useGetCustomerIntakeSession(token, {
+    query: { queryKey: getGetCustomerIntakeSessionQueryKey(token), retry: false },
+  });
   const complete = useCompleteCustomerIntakeSession();
 
-  const session = query.data?.session as any;
-  const initialData = (session?.type === 'customer_intake' ? query.data?.customer : null) as any;
-  const hasFinished = session?.type === 'customer_intake' && session.status === 'completed';
+  const session = query.data;
+  const initialData = session?.customer;
+  const hasFinished = session?.status === 'completed';
 
   const [name, setName] = useState(initialData?.name || '');
   const [email, setEmail] = useState(initialData?.email || '');
@@ -58,11 +64,13 @@ export default function CustomerDetails() {
 
   if (query.isLoading) {
     return (
-      <div className="luxxy-shell flex min-h-[70vh] items-center justify-center px-4 bg-background">
-        <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
-          <LoaderCircle className="h-6 w-6 animate-spin text-accent" />
-          Loading form…
-        </p>
+      <div className="luxxy-shell min-h-[70vh] bg-background px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center border-4 border-primary bg-background p-8 shadow-[8px_8px_0px_hsl(var(--primary))]" data-testid="loading-customer-session">
+          <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
+            <LoaderCircle className="h-6 w-6 animate-spin text-accent" />
+            Loading form…
+          </p>
+        </div>
       </div>
     );
   }

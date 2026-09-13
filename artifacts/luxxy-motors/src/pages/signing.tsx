@@ -102,11 +102,13 @@ export default function Signing() {
 
   if (query.isLoading) {
     return (
-      <div className="luxxy-shell flex min-h-[70vh] items-center justify-center px-4 bg-background">
-        <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
-          <LoaderCircle className="h-6 w-6 animate-spin text-accent" />
-          Loading document pack…
-        </p>
+      <div className="luxxy-shell min-h-[70vh] bg-background px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center border-4 border-primary bg-background p-8 shadow-[8px_8px_0px_hsl(var(--primary))]" data-testid="loading-signing-session">
+          <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
+            <LoaderCircle className="h-6 w-6 animate-spin text-accent" />
+            Loading document pack…
+          </p>
+        </div>
       </div>
     );
   }
