@@ -130,11 +130,11 @@ export function vehicleLine(lead: Pick<Lead, 'vehicleTitle' | 'vehicleRegistrati
 type Tone = 'neutral' | 'accent' | 'primary' | 'urgent' | 'muted';
 
 const toneClasses: Record<Tone, string> = {
-  neutral: 'border-primary bg-background text-primary',
-  accent: 'border-accent bg-accent/10 text-accent',
+  neutral: 'border-primary/15 bg-background text-primary',
+  accent: 'border-accent/30 bg-accent/10 text-accent',
   primary: 'border-primary bg-primary text-primary-foreground',
-  urgent: 'border-destructive bg-destructive/10 text-destructive',
-  muted: 'border-primary/30 bg-primary/5 text-primary/60',
+  urgent: 'border-destructive/30 bg-destructive/10 text-destructive',
+  muted: 'border-primary/15 bg-primary/5 text-primary/60',
 };
 
 export function Chip({
@@ -148,7 +148,7 @@ export function Chip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 border-2 px-3 py-1 font-display text-[10px] font-black uppercase tracking-[0.2em] shadow-[2px_2px_0px_hsl(var(--primary))] ${toneClasses[tone]} ${className}`}
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-display text-[10px] font-semibold tracking-[0.08em] shadow-none ${toneClasses[tone]} ${className}`}
     >
       {children}
     </span>
@@ -188,7 +188,7 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))] ${className}`}>{children}</section>
+    <section className={`portal-panel luxxy-surface rounded-[1rem] border border-primary/10 ${className}`}>{children}</section>
   );
 }
 
@@ -204,13 +204,13 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 border-b-4 border-primary px-6 py-6 bg-primary/5">
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-primary/10 bg-background/45 px-6 py-5">
       <div className="min-w-0">
-        {kicker && <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent mb-2">{kicker}</p>}
-        <h2 className="font-display text-2xl font-black uppercase tracking-tighter text-primary">
+        {kicker && <p className="luxxy-kicker mb-2 text-[11px]">{kicker}</p>}
+        <h2 className="font-display text-2xl font-semibold tracking-[-.03em] text-primary">
           {title}
         </h2>
-        {meta && <p className="mt-2 text-[12px] font-bold uppercase tracking-widest leading-relaxed text-primary/70">{meta}</p>}
+        {meta && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">{meta}</p>}
       </div>
       {action}
     </header>
@@ -227,16 +227,16 @@ export function EmptyState({
   body: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 border-4 border-primary/20 border-dashed bg-background px-8 py-12 text-center my-4">
-      <Icon className="h-10 w-10 text-primary/30 mb-2" />
-      <p className="font-display text-xl font-black uppercase tracking-tight text-primary/50">{title}</p>
-      <p className="max-w-md text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/40">{body}</p>
+    <div className="my-4 flex flex-col items-center gap-4 rounded-[.85rem] border border-dashed border-primary/15 bg-background/55 px-8 py-12 text-center">
+      <Icon className="mb-2 h-10 w-10 text-primary/25" />
+      <p className="font-display text-xl font-semibold tracking-[-.02em] text-primary/60">{title}</p>
+      <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">{body}</p>
     </div>
   );
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] mb-2 block text-primary">{children}</span>;
+    return <span className="mb-2 block font-display text-[11px] font-semibold tracking-[0.08em] text-primary/75">{children}</span>;
 }
 
 export function SelectField({

@@ -149,14 +149,14 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
 
   return (
     <div className="space-y-8" data-testid="work-queue">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-4 border-primary bg-primary px-6 py-5 shadow-[8px_8px_0px_hsl(var(--primary))]">
-        <p className="flex items-center gap-3 font-display text-[15px] font-black uppercase tracking-widest text-primary-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1rem] border border-primary bg-primary px-6 py-5 shadow-[0_12px_28px_hsl(var(--primary)/.16)]">
+         <p className="flex items-center gap-3 font-display text-[15px] font-semibold tracking-[.04em] text-primary-foreground">
           <Sun className="h-5 w-5 text-accent" />
           {total === 0
             ? 'Nothing is waiting on you.'
             : `${total} ${total === 1 ? 'thing needs' : 'things need'} chasing.`}
         </p>
-        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary-foreground/70">
+         <p className="font-display text-[11px] font-semibold tracking-[.08em] text-primary-foreground/70">
           As at {formatTime(worklist.generatedAt)}
         </p>
       </div>
@@ -165,7 +165,7 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
         {queues.map(({ key, kicker, title, blurb, empty, icon: Icon }) => {
           const leads = worklist[key];
           return (
-            <Panel key={key} className="flex flex-col border-4 border-primary shadow-[8px_8px_0px_hsl(var(--primary))]">
+             <Panel key={key} className="flex flex-col">
               <PanelHeader
                 kicker={kicker}
                 title={<span className="flex items-center gap-3"><Icon className="h-5 w-5 text-accent" />{title}</span>}

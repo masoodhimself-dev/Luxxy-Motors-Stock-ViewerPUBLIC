@@ -107,7 +107,7 @@ function NextActionBand({
 
   if (editing) {
     return (
-      <div className="border border-accent bg-accent/10 px-5 py-4" data-testid="next-action-edit">
+      <div className="rounded-[.85rem] border border-accent/30 bg-accent/10 px-5 py-4" data-testid="next-action-edit">
         <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
           <Field label="Next action">
             <Input
@@ -165,7 +165,7 @@ function NextActionBand({
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-4 border px-5 py-4 ${
+      className={`flex flex-wrap items-center justify-between gap-4 rounded-[.85rem] border px-5 py-4 ${
         closed
           ? 'border-border bg-muted'
           : overdue
@@ -175,7 +175,7 @@ function NextActionBand({
       data-testid="next-action-band"
     >
       <div className="min-w-0">
-        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Next action</p>
+         <p className="luxxy-kicker text-[11px] text-primary/70">Next action</p>
         {closed ? (
           <p className="mt-1 font-display text-lg font-semibold text-primary">
             Closed as {lead.stage === 'won' ? 'won' : 'lost'}
@@ -187,7 +187,7 @@ function NextActionBand({
           </p>
         ) : lead.nextAction ? (
           <p
-            className={`mt-1 font-display text-lg font-semibold ${overdue ? 'text-destructive' : 'text-primary'}`}
+             className={`mt-1 font-display text-lg font-medium tracking-[-.02em] ${overdue ? 'text-destructive' : 'text-primary'}`}
           >
             {lead.nextAction}
             {lead.nextActionDueAt && (
@@ -226,14 +226,14 @@ function Timeline({ activities }: { activities: LeadActivity[] }) {
   }
 
   return (
-    <ol className="divide-y divide-border" data-testid="lead-timeline">
+     <ol className="divide-y divide-primary/10" data-testid="lead-timeline">
       {activities.map((activity) => {
         const Icon = activityIcons[activity.kind];
         const quiet = activity.kind === 'system' || activity.kind === 'stage_change';
         return (
-          <li key={activity.id} className="flex gap-4 px-5 py-4">
+         <li key={activity.id} className="flex gap-4 px-5 py-4">
             <span
-              className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center border ${
+               className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
                 quiet
                   ? 'border-border bg-muted text-primary/70 font-bold uppercase tracking-widest'
                   : 'border-accent/50 bg-accent/12 text-accent'
@@ -243,11 +243,11 @@ function Timeline({ activities }: { activities: LeadActivity[] }) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">
+                 <span className="font-display text-[11px] font-semibold tracking-[.08em] text-primary/70">
                   {activityLabels[activity.kind]}
                   {activity.actor && ` · ${activity.actor}`}
                 </span>
-                <span className="font-mono text-[12px] text-primary/70 font-bold uppercase tracking-widest">
+                 <span className="font-mono text-[12px] text-primary/60">
                   {formatDateTime(activity.occurredAt)}
                 </span>
               </div>
@@ -516,9 +516,9 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <ActivityComposer leadId={lead.id} currentStage={lead.stage} />
 
           <Panel>
-            <header className="border-b-4 border-primary px-5 py-4">
-              <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">The story</p>
-              <h2 className="mt-2 font-display text-xl font-semibold text-primary">
+             <header className="border-b border-primary/10 bg-background/45 px-5 py-4">
+               <p className="luxxy-kicker text-[11px]">The story</p>
+               <h2 className="mt-2 font-display text-xl font-medium tracking-[-.02em] text-primary">
                 Timeline
               </h2>
             </header>

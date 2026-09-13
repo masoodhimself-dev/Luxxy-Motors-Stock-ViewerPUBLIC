@@ -33,9 +33,9 @@ export function ChannelSummary() {
 
   return (
     <Panel data-testid="channel-summary">
-      <header className="border-b-4 border-primary px-5 py-4">
-        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent">Where the business comes from</p>
-        <h2 className="mt-2 font-display text-2xl font-black uppercase tracking-tighter text-primary">
+      <header className="border-b border-primary/10 bg-background/45 px-5 py-4">
+        <p className="luxxy-kicker text-[11px]">Where the business comes from</p>
+        <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-.03em] text-primary">
           By channel
         </h2>
       </header>
@@ -46,7 +46,7 @@ export function ChannelSummary() {
               <th
                 key={heading}
                 scope="col"
-                className={`px-5 py-3 text-[10px] font-bold uppercase tracking-[.14em] text-primary/70 font-bold uppercase tracking-widest ${index === 0 ? '' : 'text-right'}`}
+                className={`px-5 py-3 text-[10px] font-semibold tracking-[.08em] text-primary/60 ${index === 0 ? '' : 'text-right'}`}
               >
                 {heading}
               </th>
@@ -62,7 +62,7 @@ export function ChannelSummary() {
                 <th scope="row" className="px-5 py-3.5 font-normal">
                   <span className="flex items-center gap-2.5">
                     <SourceIcon source={row.source} className="h-4 w-4 text-accent" />
-                    <span className="font-display text-[15px] font-semibold text-primary">
+                      <span className="font-display text-[15px] font-medium text-primary">
                       {sourceLabels[row.source]}
                     </span>
                   </span>

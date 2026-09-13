@@ -28,11 +28,11 @@ export function LeadCard({
       type="button"
       onClick={() => onOpen(lead.id)}
       data-testid={`lead-card-${lead.id}`}
-      className="group block w-full border-4 border-primary bg-background p-5 text-left transition-all hover:border-accent hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_hsl(var(--primary))] focus-visible:border-accent focus-visible:outline-none shadow-[2px_2px_0px_hsl(var(--primary))]"
+      className="group block w-full rounded-[.9rem] border border-primary/10 bg-card p-5 text-left shadow-[0_8px_24px_hsl(var(--primary)/.06)] transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_14px_30px_hsl(var(--primary)/.12)] focus-visible:border-accent focus-visible:outline-none"
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <h3 className="truncate font-display text-2xl font-black uppercase tracking-tighter text-primary transition-colors group-hover:text-accent">
+           <h3 className="truncate font-display text-2xl font-semibold tracking-[-.03em] text-primary transition-colors group-hover:text-accent">
             {lead.customerName}
           </h3>
           <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] font-bold uppercase tracking-widest text-primary/70">
@@ -57,7 +57,7 @@ export function LeadCard({
       </div>
 
       {vehicle && (
-        <p className="mt-4 flex items-center gap-3 text-[13px] font-bold uppercase tracking-widest text-primary/80 bg-primary/5 p-3 border-2 border-primary/10">
+           <p className="mt-4 flex items-center gap-3 rounded-lg border border-primary/10 bg-primary/5 p-3 text-[13px] text-primary/80">
           <Car className="h-4 w-4 shrink-0 text-primary/40" />
           <span className="truncate">{vehicle}</span>
         </p>

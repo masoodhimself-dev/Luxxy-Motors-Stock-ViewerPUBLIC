@@ -160,18 +160,18 @@ function DealChecklist({ id }: { id: string }) {
   };
 
   return (
-    <div className="mt-7 rounded-none border-4 border-primary bg-background p-5 shadow-none luxxy-surface sm:p-7">
+    <div className="luxxy-surface mt-7 rounded-[1rem] border border-primary/10 p-5 sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary">Auditable workflow</p>
-          <h3 className="mt-2 flex items-center gap-2 font-display text-2xl font-black uppercase tracking-tighter text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Sales readiness checklist</h3>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-primary/70 font-bold uppercase tracking-widest">
+           <p className="luxxy-kicker text-[11px]">Auditable workflow</p>
+           <h3 className="mt-2 flex items-center gap-2 font-display text-2xl font-semibold tracking-[-.03em] text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Sales readiness checklist</h3>
+           <p className="mt-2 max-w-2xl text-[13px] leading-6 text-muted-foreground">
             Confirm each deal fact against the current records. If a price, customer, vehicle or document revision changes, the relevant confirmation returns to review.
           </p>
         </div>
         <div className="shrink-0 sm:text-right">
-          <p className="font-display text-[2rem] font-semibold leading-none tracking-[-.03em] text-primary">{completedCount}/{totalCount}</p>
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mt-1 text-primary/70 font-bold uppercase tracking-widest">Current items</p>
+           <p className="font-display text-[2rem] font-medium leading-none tracking-[-.03em] text-primary">{completedCount}/{totalCount}</p>
+           <p className="mt-1 font-display text-[11px] font-semibold tracking-[.08em] text-primary/70">Current items</p>
         </div>
       </div>
       <div className="mt-5 h-1 overflow-hidden bg-muted/40">
@@ -187,7 +187,7 @@ function DealChecklist({ id }: { id: string }) {
             const confirmed = item.status === 'complete' || item.status === 'not_applicable';
             const invalidated = item.status === 'invalidated';
             return (
-              <div key={item.code} className={`rounded-none border p-4 transition-colors ${confirmed ? 'border-[#1b6543]/20 bg-[#1b6543]/5' : invalidated ? 'border-destructive/30 bg-destructive/5' : 'bg-background hover:border-primary/20'}`}>
+               <div key={item.code} className={`rounded-[.8rem] border p-4 transition-colors ${confirmed ? 'border-[#1b6543]/20 bg-[#1b6543]/5' : invalidated ? 'border-destructive/30 bg-destructive/5' : 'border-primary/10 bg-background/55 hover:border-accent/30'}`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className={`flex items-center gap-2 text-[13px] font-bold ${confirmed ? 'text-[#1b6543]' : invalidated ? 'text-destructive' : 'text-primary'}`}>
@@ -380,11 +380,11 @@ function SaleCreateForm({
   };
 
   return (
-    <form onSubmit={submit} className="rounded-none border-4 border-primary bg-background p-6 shadow-none luxxy-surface sm:p-8">
-      <div className="mb-6 flex items-start justify-between gap-4 border-b-4 border-primary pb-5">
+    <form onSubmit={submit} className="luxxy-surface rounded-[1rem] border border-primary/10 p-6 sm:p-8">
+       <div className="mb-6 flex items-start justify-between gap-4 border-b border-primary/10 pb-5">
         <div>
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary">New development sale</p>
-          <h2 className="mt-2 font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-.02em] text-primary">Start a deal</h2>
+           <p className="luxxy-kicker text-[11px]">New development sale</p>
+           <h2 className="mt-2 font-display text-[1.75rem] font-medium leading-[1.1] tracking-[-.03em] text-primary">Start a deal</h2>
         </div>
         <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary/70 font-bold uppercase tracking-widest">Demo only</span>
       </div>
@@ -556,8 +556,8 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const readyForPreparation = checklist?.readyForPreparation ?? false;
 
   return (
-    <section className="rounded-none border-4 border-primary bg-background p-5 shadow-none luxxy-surface sm:p-7">
-      <div className="flex flex-col gap-5 border-b-4 border-primary pb-6 sm:flex-row sm:items-start sm:justify-between">
+     <section className="luxxy-surface rounded-[1rem] border border-primary/10 p-5 sm:p-7">
+       <div className="flex flex-col gap-5 border-b border-primary/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <button type="button" onClick={onBack} className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2 text-primary/70 font-bold uppercase tracking-widest hover:text-accent transition-colors"><ArrowLeft className="h-3 w-3" /> All sales</button>
           <div className="flex flex-wrap items-center gap-3">
@@ -715,12 +715,12 @@ export function DealsPanel() {
   }
 
   return (
-    <section className="mb-12">
+     <section className="mb-12">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent"><ClipboardCheck className="h-3.5 w-3.5" /> Digital sales</p>
-          <h2 className="mt-3 font-display text-[2.25rem] font-semibold leading-none tracking-[-.03em] text-primary">Deal workspace</h2>
-          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
+           <p className="luxxy-kicker text-[11px]"><ClipboardCheck className="h-3.5 w-3.5" /> Digital sales</p>
+           <h2 className="mt-3 font-display text-[2.25rem] font-medium leading-none tracking-[-.04em] text-primary">Deal workspace</h2>
+           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
         </div>
         <Button type="button" variant={showSaleForm ? 'outline' : 'default'} className={`rounded-none text-[12px] font-bold uppercase tracking-[.08em] ${showSaleForm ? '' : 'shadow-none'}`} onClick={showSaleForm ? closeNewSale : openNewSale}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
       </div>

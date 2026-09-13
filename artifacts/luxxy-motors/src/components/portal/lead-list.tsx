@@ -83,7 +83,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
 
   return (
     <div className="space-y-5" data-testid="lead-list">
-      <div className="border-4 border-primary bg-background p-5">
+      <div className="luxxy-surface rounded-[1rem] border border-primary/10 p-5">
         <div className="flex flex-wrap items-end gap-4">
           <div className="min-w-[240px] flex-1">
             <Field label="Search">
@@ -99,7 +99,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
               </div>
             </Field>
           </div>
-          <div className="w-[170px]">
+           <div className="w-full sm:w-[170px]">
             <Field label="Stage">
               <SelectField
                 value={stage}
@@ -114,7 +114,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
               </SelectField>
             </Field>
           </div>
-          <div className="w-[170px]">
+           <div className="w-full sm:w-[170px]">
             <Field label="Channel">
               <SelectField
                 value={source}
@@ -129,7 +129,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
               </SelectField>
             </Field>
           </div>
-          <div className="w-[170px]">
+           <div className="w-full sm:w-[170px]">
             <Field label="Owner">
               <Input
                 value={owner}
@@ -144,7 +144,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 rounded-none text-[12px] font-bold uppercase tracking-[.1em] text-primary/70 font-bold uppercase tracking-widest"
+              className="h-10 rounded-full text-[12px] font-semibold tracking-[.06em] text-primary/70"
               onClick={reset}
               data-testid="button-clear-filters"
             >
@@ -155,23 +155,23 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">
+         <p className="font-display text-[11px] font-semibold tracking-[0.08em] text-primary/70">
           {leadsQuery.isLoading
             ? 'Searching'
             : `${leads.length} ${leads.length === 1 ? 'lead' : 'leads'}`}
         </p>
-        <p className="flex items-center gap-1.5 text-[12px] text-primary/70 font-bold uppercase tracking-widest">
+         <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
           <SlidersHorizontal className="h-3 w-3" /> Most urgent first
         </p>
       </div>
 
       {leadsQuery.isLoading ? (
-        <div className="flex min-h-32 items-center justify-center border-4 border-primary bg-background text-primary/70 font-bold uppercase tracking-widest">
+         <div className="luxxy-surface flex min-h-32 items-center justify-center rounded-[1rem] border border-primary/10 text-primary/70">
           <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Searching…
         </div>
       ) : leadsQuery.isError ? (
-        <div className="border border-destructive/40 bg-destructive/10 p-6 text-[13px] text-destructive">
-          <p className="font-display text-base font-semibold">Could not load leads</p>
+         <div className="rounded-[1rem] border border-destructive/30 bg-destructive/10 p-6 text-[13px] text-destructive">
+           <p className="font-display text-base font-semibold">Could not load leads</p>
           <p className="mt-1">Refresh the page, or check the API server is running.</p>
         </div>
       ) : leads.length === 0 ? (
