@@ -73,7 +73,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
 
   if (allImages.length === 0) {
     return (
-      <div className="flex aspect-[4/3] sm:aspect-[16/10] lg:aspect-[16/9] w-full max-w-[900px] flex-col items-center justify-center gap-4 border-4 border-primary bg-primary/5 text-primary shadow-[8px_8px_0px_hsl(var(--primary))]">
+      <div className="flex aspect-[4/3] w-full max-w-[900px] flex-col items-center justify-center gap-4 rounded-2xl border border-primary/10 bg-primary/5 text-primary sm:aspect-[16/10] lg:aspect-[16/9]">
         <Camera className="h-10 w-10 opacity-40" />
         <span className="font-display text-[13px] font-black uppercase tracking-[0.2em]">No images available</span>
       </div>
@@ -85,7 +85,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   const caption = imageCaption(currentImg);
 
   const arrowButton =
-    'absolute top-1/2 z-10 grid h-14 w-14 -translate-y-1/2 place-items-center bg-primary text-primary-foreground opacity-0 transition-all hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-0 group-hover:opacity-100 shadow-[4px_4px_0px_hsl(var(--primary))] hover:-translate-y-[calc(50%+2px)] hover:-translate-x-0.5 hover:shadow-[6px_6px_0px_hsl(var(--primary))] border-2 border-primary-foreground/20';
+    'absolute top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-primary/90 text-primary-foreground opacity-0 shadow-none backdrop-blur transition-all hover:bg-accent hover:text-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-0 group-hover:opacity-100';
 
   const renderImage = (imgUrl: string, idx: number, className: string = '') => (
     failedImages.has(idx) ? (
@@ -109,7 +109,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
     <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden max-w-[900px]">
       {/* Main Image */}
       <div
-        className="group relative aspect-[4/3] w-full overflow-hidden border-4 border-primary bg-primary/5 sm:aspect-[16/10] lg:aspect-[16/9] shadow-[8px_8px_0px_hsl(var(--primary))]"
+        className="group relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-primary/5 shadow-[0_18px_42px_hsl(var(--primary)/.13)] sm:aspect-[16/10] lg:aspect-[16/9]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -143,14 +143,14 @@ export function Gallery({ images, heroImage }: GalleryProps) {
             >
               <ChevronRight className="h-6 w-6" />
             </button>
-            <span className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-2 bg-primary px-3 py-1 font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary-foreground border-2 border-primary-foreground/20 shadow-[2px_2px_0px_hsl(var(--primary))]">
+            <span className="pointer-events-none absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-primary/85 px-3 py-1.5 font-display text-[11px] font-semibold text-primary-foreground shadow-none backdrop-blur">
               <Camera className="h-4 w-4" />
               {activeIndex + 1} / {allImages.length}
             </span>
           </>
         )}
         {caption && (
-          <span className="pointer-events-none absolute bottom-4 left-4 max-w-[80%] truncate bg-primary px-4 py-2 font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary-foreground border-2 border-primary-foreground/20 shadow-[2px_2px_0px_hsl(var(--primary))]">
+          <span className="pointer-events-none absolute bottom-4 left-4 max-w-[80%] truncate rounded-full bg-primary/85 px-4 py-2 font-display text-[11px] font-semibold text-primary-foreground shadow-none backdrop-blur">
             {caption}
           </span>
         )}
@@ -167,10 +167,10 @@ export function Gallery({ images, heroImage }: GalleryProps) {
               aria-label={`Show photograph ${idx + 1} of ${allImages.length}`}
               aria-current={activeIndex === idx}
               className={cn(
-                'relative h-[4.5rem] w-[6.5rem] shrink-0 snap-start overflow-hidden border-2 transition-all focus-visible:outline-none focus-visible:ring-0 sm:h-[5.5rem] sm:w-[8rem]',
+                'relative h-[4.5rem] w-[6.5rem] shrink-0 snap-start overflow-hidden rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-0 sm:h-[5.5rem] sm:w-[8rem]',
                 activeIndex === idx
-                  ? 'border-accent shadow-[4px_4px_0px_hsl(var(--accent))] -translate-y-1'
-                  : 'border-primary opacity-60 hover:opacity-100 hover:shadow-[2px_2px_0px_hsl(var(--primary))] hover:-translate-y-0.5',
+                  ? 'border-accent shadow-[0_0_0_2px_hsl(var(--accent)/.22)] -translate-y-1'
+                  : 'border-primary/20 opacity-60 hover:opacity-100 hover:shadow-[0_6px_18px_hsl(var(--primary)/.12)] hover:-translate-y-0.5',
               )}
             >
               {renderImage(getSafeImageUrl(img), idx, 'h-full w-full object-cover')}
@@ -182,7 +182,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
       {/* Fullscreen Lightbox */}
       {isFullscreen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-primary/95 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-primary/95 backdrop-blur-sm animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
           aria-label="Vehicle image gallery"
@@ -195,7 +195,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
               openerRef.current?.focus();
             }}
             aria-label="Close photograph viewer"
-            className="absolute right-6 top-6 z-50 grid h-14 w-14 place-items-center border-4 border-primary-foreground bg-primary text-primary-foreground transition-all hover:bg-accent hover:border-accent hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[6px_6px_0px_hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent"
+            className="absolute right-6 top-6 z-50 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent"
           >
             <X className="h-8 w-8" />
           </button>
@@ -215,8 +215,8 @@ export function Gallery({ images, heroImage }: GalleryProps) {
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              {renderImage(url, activeIndex, 'max-h-[82vh] max-w-full select-none object-contain border-4 border-primary-foreground shadow-[12px_12px_0px_hsl(var(--primary))]')}
-              <div className="mt-8 flex items-center gap-6 bg-primary-foreground text-primary px-6 py-3 font-display text-[12px] font-black uppercase tracking-[0.2em] shadow-[4px_4px_0px_hsl(var(--primary))]">
+              {renderImage(url, activeIndex, 'max-h-[82vh] max-w-full select-none rounded-xl object-contain')}
+              <div className="mt-8 flex items-center gap-6 rounded-full bg-primary-foreground px-6 py-3 font-display text-[12px] font-semibold text-primary shadow-none">
                 <span>{activeIndex + 1} / {allImages.length}</span>
                 {caption && <span className="text-primary/70">{caption}</span>}
               </div>

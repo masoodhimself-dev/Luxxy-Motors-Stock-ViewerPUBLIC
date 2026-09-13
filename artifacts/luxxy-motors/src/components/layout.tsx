@@ -10,14 +10,14 @@ import { CompareTray } from '@/components/compare-tray';
 import { isWritableFormControl } from '@/lib/form-draft';
 
 const navLinkClass =
-  'whitespace-nowrap font-display text-[13px] font-bold uppercase tracking-[0.1em] text-primary/80 transition-all hover:text-accent hover:translate-y-[-1px]';
+  'whitespace-nowrap font-display text-[14px] font-semibold tracking-[0.02em] text-primary/75 transition-colors hover:text-accent';
 const mobileNavRowClass =
-  'flex items-center justify-between border-b-2 border-primary/5 py-5 text-left font-display text-lg font-bold uppercase tracking-widest text-primary transition-colors hover:text-accent';
+  'flex min-h-14 items-center justify-between border-b border-primary/10 py-4 text-left font-display text-lg font-semibold text-primary transition-colors hover:text-accent';
 const footerLinkClass =
-  'text-[14px] font-bold uppercase tracking-widest text-primary-foreground/70 transition-colors hover:text-accent';
-const footerHeadingClass = 'font-display text-xl font-bold uppercase tracking-widest text-primary-foreground mb-6';
+  'text-[14px] font-semibold text-primary-foreground/70 transition-colors hover:text-accent';
+const footerHeadingClass = 'font-display text-lg font-semibold text-primary-foreground mb-5';
 const socialLinkClass =
-  'grid h-12 w-12 place-items-center bg-primary-foreground/10 text-primary-foreground transition-all hover:bg-accent hover:text-accent-foreground hover:scale-105';
+  'grid h-11 w-11 place-items-center rounded-lg bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground';
 
 function hslToRelativeLuminance(hsl: string) {
   const values = hsl.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
@@ -157,28 +157,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} className="min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
+    <div style={brandStyle} className="luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
       <header
         ref={headerRef}
         data-site-header
-        className={`fixed top-0 left-0 right-0 z-50 w-full border-b-2 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${
           scrolled
-            ? 'border-primary bg-background/95 backdrop-blur-md shadow-sm'
-            : 'border-primary/10 bg-background'
+            ? 'border-primary/15 bg-background/90 backdrop-blur-xl shadow-[0_8px_30px_hsl(var(--primary)/.08)]'
+            : 'border-primary/10 bg-background/80 backdrop-blur-md'
         }`}
       >
-        <div className="container mx-auto px-4 lg:px-8 h-[4.5rem] lg:h-[5.5rem] flex items-center justify-between gap-4">
+        <div className="container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <button type="button" onClick={handleLogoClick} className="flex items-center gap-3 text-left group">
             {dealerConfig.identity.logoAsset ? (
               <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 md:h-10 object-contain mix-blend-multiply" />
             ) : (
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-xl group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent font-display text-xl font-semibold text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   {wordmark.charAt(0)}
                 </div>
-                <span className="flex flex-col text-left leading-none justify-center">
-                  <span className="font-display text-xl lg:text-2xl font-black tracking-tighter text-primary uppercase leading-none mt-1 group-hover:text-accent transition-colors">{wordmark}</span>
-                  <span className="font-display text-[10px] lg:text-[11px] font-bold tracking-widest text-primary/60 uppercase mt-1">{locationLabel}</span>
+                <span className="flex flex-col justify-center text-left leading-none">
+                  <span className="font-display text-xl font-semibold tracking-[-.04em] text-primary transition-colors group-hover:text-accent lg:text-2xl">{wordmark}</span>
+                  <span className="mt-1 font-display text-[10px] font-medium tracking-[.06em] text-primary/55">{locationLabel || 'Independent used cars'}</span>
                 </span>
               </div>
             )}
@@ -256,7 +256,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             ref={menuButtonRef}
             type="button"
-            className="lg:hidden flex h-11 w-11 items-center justify-center text-primary transition-colors hover:text-accent bg-secondary/50 rounded-none"
+             className="lg:hidden flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/60 text-primary transition-colors hover:bg-accent hover:text-accent-foreground"
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -267,7 +267,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
-          <nav ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute top-[4.5rem] left-0 w-full border-b-2 border-primary bg-background px-4 pb-8 pt-4 flex flex-col max-h-[calc(100vh-4.5rem)] overflow-y-auto shadow-2xl">
+          <nav ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100vh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-[0_16px_32px_hsl(var(--primary)/.12)]">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
               Find My Car <ArrowRight className="w-5 h-5 text-accent" />
@@ -326,22 +326,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer id="contact" data-home-section className="mt-auto bg-primary pt-16 pb-8 text-primary-foreground border-t-8 border-accent">
+      <footer id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-16 pb-8 text-primary-foreground">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-12 lg:gap-12">
             <div className="lg:col-span-5">
-              <p className="font-display text-3xl font-black uppercase tracking-tighter text-primary-foreground mb-1">
+               <p className="font-display mb-1 text-3xl font-semibold tracking-[-.04em] text-primary-foreground">
                 {wordmark}
               </p>
               {locationLabel && (
-                <p className="font-display text-xs font-bold uppercase tracking-widest text-primary-foreground/50 mb-6">{locationLabel}</p>
+                 <p className="mb-6 font-display text-xs font-medium tracking-[.06em] text-primary-foreground/50">{locationLabel}</p>
               )}
               <p className="mb-8 max-w-sm text-base leading-relaxed text-primary-foreground/80 font-medium">
                 {dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
                   ? 'Clear details, fair prices and time to look properly before you decide.'
                   : dealerConfig.hero.subcopy}
               </p>
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
                 {dealerConfig.social.instagram && (
                   <a href={dealerConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className={socialLinkClass}>
                     <Instagram className="w-5 h-5" />

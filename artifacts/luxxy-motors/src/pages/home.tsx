@@ -164,28 +164,28 @@ export default function Home() {
 
   return (
     <div className="luxxy-shell flex min-h-screen flex-col">
-      <section className="border-b-4 border-primary bg-background text-primary overflow-hidden">
-        <div className="container relative mx-auto px-4 pb-6 pt-[calc(var(--site-header-height,5.5rem)+1.25rem)] sm:px-6 sm:pb-16 sm:pt-[calc(var(--site-header-height,5.5rem)+2rem)] lg:px-8">
-          <div className="max-w-4xl relative z-10">
+      <section className="overflow-hidden border-b border-primary/10 bg-primary text-primary-foreground">
+        <div className="container relative mx-auto px-4 pb-7 pt-[calc(var(--site-header-height,4.75rem)+1.15rem)] sm:px-6 sm:pb-10 sm:pt-[calc(var(--site-header-height,4.75rem)+1.75rem)] lg:px-8">
+          <div className="relative z-10 max-w-4xl">
             {dealerConfig.hero.announcement && (
-              <p className="mb-4 inline-flex items-center border-2 border-primary bg-primary px-3 py-1 font-display text-[11px] font-black uppercase tracking-widest text-primary-foreground shadow-[2px_2px_0px_hsl(var(--primary))]">
+              <p className="mb-3 inline-flex items-center rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-1.5 font-display text-[11px] font-semibold tracking-[.06em] text-primary-foreground/85">
                 {dealerConfig.hero.announcement}
               </p>
             )}
-            <h1 id="home-heading" tabIndex={-1} className="heading-1 !text-[2.35rem] text-primary sm:!text-[clamp(2.75rem,6vw,5rem)]">
+            <h1 id="home-heading" tabIndex={-1} className="heading-1 !text-[2.55rem] text-primary-foreground sm:!text-[clamp(3rem,6vw,5rem)]">
               {dealerConfig.hero.copy}
             </h1>
-            <p className="mt-3 max-w-2xl border-l-4 border-accent pl-4 text-[14px] font-bold uppercase leading-6 tracking-wide text-primary/80 sm:mt-6 sm:text-xl sm:leading-relaxed whitespace-pre-wrap">
+            <p className="mt-3 max-w-2xl border-l-2 border-accent pl-4 text-[14px] font-medium leading-6 text-primary-foreground/72 sm:mt-5 sm:text-lg sm:leading-relaxed whitespace-pre-wrap">
               {dealerConfig.hero.subcopy}
             </p>
-            <div className="mt-6 hidden sm:flex flex-col sm:flex-row gap-4">
+            <div className="mt-5 hidden flex-col gap-3 sm:flex sm:flex-row">
               {dealerConfig.hero.primaryCta && (
-                <Button asChild size="lg" className="w-full sm:w-auto font-display text-[13px] font-bold uppercase tracking-widest bg-primary text-primary-foreground rounded-none hover:bg-accent shadow-[3px_3px_0px_hsl(var(--primary))] transition-all">
+                <Button asChild size="lg" className="w-full border-transparent bg-accent text-accent-foreground shadow-none hover:bg-primary-foreground hover:text-primary sm:w-auto">
                   <a href="#stock">{dealerConfig.hero.primaryCta}</a>
                 </Button>
               )}
               {dealerConfig.hero.secondaryCta && (
-                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto font-display text-[13px] font-bold uppercase tracking-widest border-2 border-primary text-primary rounded-none hover:bg-primary hover:text-primary-foreground shadow-[3px_3px_0px_hsl(var(--primary))] transition-all">
+                <Button asChild variant="outline" size="lg" className="w-full border-primary-foreground/25 bg-transparent text-primary-foreground shadow-none hover:bg-primary-foreground/10 hover:text-primary-foreground sm:w-auto">
                   <Link href="/find-my-car">{dealerConfig.hero.secondaryCta}</Link>
                 </Button>
               )}
@@ -195,16 +195,16 @@ export default function Home() {
       </section>
 
       {/* Stock */}
-      <div id="stock" data-home-section className="bg-background px-0 pb-20 pt-0 md:pt-16">
+      <div id="stock" data-home-section className="bg-background px-0 pb-20 pt-7 md:pt-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-3 flex items-end justify-between gap-3 border-b-4 border-primary pb-2 sm:mb-6 sm:gap-4 sm:pb-4">
+           <div className="mb-3 flex items-end justify-between gap-3 border-b border-primary/15 pb-3 sm:mb-5 sm:gap-4 sm:pb-4">
             <div>
               <h2 id="vehicle-results-heading" tabIndex={-1} className="heading-2 !text-[2rem] text-primary sm:!text-[clamp(2.25rem,5vw,3.5rem)]">
                 {showAll ? 'All stock' : 'Latest arrivals'}
               </h2>
             </div>
             {stock && (
-              <p className="mb-1 shrink-0 border border-primary/10 bg-primary/5 px-2 py-1 font-display text-[10px] font-bold uppercase tracking-widest text-primary/70 sm:mb-2 sm:px-3 sm:text-sm" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
+             <p className="mb-1 shrink-0 rounded-full border border-primary/10 bg-primary/5 px-2.5 py-1 font-display text-[10px] font-semibold tracking-[.04em] text-primary/70 sm:mb-2 sm:px-3 sm:text-sm" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
                 {filteredCars.length === stockCount ? `${filteredCars.length} vehicles available` : `${filteredCars.length} matches`}
               </p>
             )}
@@ -232,20 +232,20 @@ export default function Home() {
             vehicleCount={stockCount}
           />
 
-          <section className="mt-4 flex flex-col justify-between gap-3 border-b-2 border-primary/10 pb-4 sm:mt-6 sm:gap-4 sm:pb-6 lg:flex-row lg:items-center">
+           <section className="mt-4 flex flex-col justify-between gap-3 border-b border-primary/10 pb-4 sm:mt-5 sm:gap-4 sm:pb-5 lg:flex-row lg:items-center">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="font-display text-[12px] font-black uppercase tracking-widest text-primary/60 mr-2 hidden sm:inline">Shortcuts</span>
-              <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="font-display text-[13px] font-bold uppercase tracking-widest text-primary hover:bg-primary hover:text-primary-foreground transition-colors border-2 border-primary px-3 py-1.5 shadow-[2px_2px_0px_hsl(var(--primary))] active:translate-y-[1px] active:translate-x-[1px] active:shadow-none" data-testid="button-quick-automatic">
+               <span className="mr-2 hidden font-display text-[12px] font-semibold text-primary/55 sm:inline">Quick filters</span>
+               <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="rounded-full border border-primary/20 bg-card px-3 py-1.5 font-display text-[13px] font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-automatic">
                 Automatic
               </button>
-              <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="font-display text-[13px] font-bold uppercase tracking-widest text-primary hover:bg-primary hover:text-primary-foreground transition-colors border-2 border-primary px-3 py-1.5 shadow-[2px_2px_0px_hsl(var(--primary))] active:translate-y-[1px] active:translate-x-[1px] active:shadow-none" data-testid="button-quick-under-5000">
+               <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="rounded-full border border-primary/20 bg-card px-3 py-1.5 font-display text-[13px] font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-under-5000">
                 Under £5k
               </button>
-              <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="font-display text-[13px] font-bold uppercase tracking-widest text-primary hover:bg-primary hover:text-primary-foreground transition-colors border-2 border-primary px-3 py-1.5 shadow-[2px_2px_0px_hsl(var(--primary))] active:translate-y-[1px] active:translate-x-[1px] active:shadow-none" data-testid="button-quick-low-mileage">
+               <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="rounded-full border border-primary/20 bg-card px-3 py-1.5 font-display text-[13px] font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-low-mileage">
                 Low miles
               </button>
             </div>
-            <div className="flex items-center gap-4 bg-primary/5 border border-primary/10 p-1" aria-label="Vehicle display">
+             <div className="flex items-center gap-1 rounded-xl border border-primary/10 bg-primary/5 p-1" aria-label="Vehicle display">
               <button
                 type="button"
                 aria-pressed={stockView === 'cards'}
@@ -254,7 +254,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'cards' });
                 }}
                 data-testid="button-stock-view-cards"
-                className={cn('font-display text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 px-3 py-2', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
+                 className={cn('flex items-center gap-2 rounded-lg px-3 py-2 font-display text-[11px] font-semibold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
               >
                 <Grid2X2 className="h-4 w-4" /> Grid
               </button>
@@ -266,7 +266,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'compact' });
                 }}
                 data-testid="button-stock-view-compact"
-                className={cn('font-display text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 px-3 py-2', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
+                 className={cn('flex items-center gap-2 rounded-lg px-3 py-2 font-display text-[11px] font-semibold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
               >
                 <List className="h-4 w-4" /> List
               </button>

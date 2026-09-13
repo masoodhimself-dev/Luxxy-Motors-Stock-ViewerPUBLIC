@@ -137,11 +137,11 @@ export default function CarDetail() {
 
   return (
     <div className="luxxy-shell min-h-screen pb-20 lg:pb-0 bg-background">
-      <div className="border-b-4 border-primary bg-background/95 backdrop-blur-sm sticky top-[calc(var(--site-header-height))] z-40">
+       <div className="sticky top-[calc(var(--site-header-height))] z-40 border-b border-primary/10 bg-background/85 backdrop-blur-xl">
         <div className="container mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
           <Link
             href="/#stock"
-            className="inline-flex items-center gap-3 py-4 sm:py-5 font-display text-[12px] font-bold uppercase tracking-[0.2em] text-primary transition-colors hover:text-accent group"
+             className="inline-flex items-center gap-3 py-4 font-display text-[12px] font-semibold text-primary transition-colors hover:text-accent group sm:py-5"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             Back to showroom
@@ -153,26 +153,26 @@ export default function CarDetail() {
         <div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.2fr)_400px] xl:grid-cols-[minmax(0,1.4fr)_460px] lg:items-start lg:gap-14 xl:gap-20">
           
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
-            <div className="border-4 border-primary p-2 bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
+             <div className="rounded-2xl border border-primary/10 bg-card p-2 shadow-[0_18px_42px_hsl(var(--primary)/.1)]">
                <Gallery images={car.images || []} heroImage={car.heroImage} />
             </div>
           </div>
 
           {/* Right Column: Key Details & CTA */}
-          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 flex flex-col bg-background border-4 border-primary p-6 sm:p-8 lg:p-10 shadow-[8px_8px_0px_hsl(var(--primary))]">
-            <div className="mb-8 border-b-4 border-primary pb-8">
-              <h1 className="font-display text-4xl sm:text-5xl font-black uppercase tracking-tighter text-primary leading-[0.9]">
+           <div className="min-w-0 rounded-2xl border border-primary/10 bg-card p-6 shadow-[0_18px_42px_hsl(var(--primary)/.09)] sm:p-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:p-10">
+             <div className="mb-8 border-b border-primary/10 pb-8">
+               <h1 className="font-display text-4xl font-semibold leading-[.94] tracking-[-.05em] text-primary sm:text-5xl">
                 {vehicleLabel}
               </h1>
               {(car.variant || car.trim) && (
-                <p className="mt-4 font-bold text-sm uppercase tracking-widest text-primary/70">
+                 <p className="mt-4 text-sm font-medium text-primary/65">
                   {car.variant || car.trim}
                 </p>
               )}
             </div>
 
-            <div className="mb-10 flex flex-wrap items-baseline gap-4 border-b-2 border-primary/20 pb-8">
-              <p className="font-display text-[3.5rem] sm:text-[4.5rem] font-black leading-none tracking-tighter text-primary">
+             <div className="mb-10 flex flex-wrap items-baseline gap-4 border-b border-primary/15 pb-8">
+               <p className="font-display text-[3.5rem] font-semibold leading-none tracking-[-.06em] text-primary sm:text-[4.5rem]">
                 {car.price ? formatPrice(car.price, car.currency) : 'POA'}
               </p>
               {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
@@ -195,8 +195,8 @@ export default function CarDetail() {
 
             <div className="mb-12">
               <div className="flex items-center gap-3 mb-6">
-                <div className="h-2 w-8 bg-accent" />
-                <h3 className="font-display text-[15px] font-black uppercase tracking-[0.2em] text-primary">Overview</h3>
+                 <div className="h-1.5 w-8 rounded-full bg-accent" />
+                 <h3 className="font-display text-[15px] font-semibold text-primary">Overview</h3>
               </div>
               <dl className="grid gap-y-0">
                 <LedgerRow label="Photos" value={photoCount > 0 ? `${photoCount} available` : 'To follow'} />
@@ -261,7 +261,7 @@ export default function CarDetail() {
               </div>
             </div>
 
-            <div className="mt-auto pt-8 font-display text-[11px] font-bold uppercase tracking-widest leading-relaxed text-primary/50 border-t-2 border-primary/10">
+             <div className="mt-auto border-t border-primary/10 pt-8 font-display text-[11px] font-medium leading-relaxed text-primary/50">
               <p>
                 SOLD BY <strong className="font-black text-primary">{dealerConfig.identity.name || stock.dealerName || 'Independent Dealer'}</strong>. VIEWINGS BY APPOINTMENT.
               </p>

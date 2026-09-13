@@ -319,8 +319,8 @@ function OptionButton({
       aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        'group flex min-h-[5.35rem] w-full items-center justify-between gap-5 border bg-card px-5 py-4 text-left transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        selected ? 'border-accent bg-accent/10' : 'border-border/80',
+        'group flex min-h-[5.35rem] w-full items-center justify-between gap-5 rounded-xl border bg-card px-5 py-4 text-left transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        selected ? 'border-accent bg-accent/10 shadow-[0_8px_22px_hsl(var(--accent)/.12)]' : 'border-border/80',
       )}
     >
       <span className="min-w-0">

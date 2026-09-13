@@ -95,7 +95,7 @@ export function CarCard({
   const imageBlock = (
     <div
       className={cn(
-        'relative isolate overflow-hidden bg-muted group-hover:shadow-[4px_4px_0px_hsl(var(--primary))] transition-shadow duration-300 border-2 border-primary',
+        'relative isolate overflow-hidden rounded-xl bg-muted transition-shadow duration-300',
         'aspect-[4/3] w-full'
       )}
       onMouseEnter={() => setIsPreviewing(true)}
@@ -107,17 +107,17 @@ export function CarCard({
         </Link>
       )}
 
-      <SaveCarButton car={car} className="absolute top-3 right-3 z-30 h-10 w-10 bg-background text-primary border-2 border-primary hover:bg-accent hover:text-accent-foreground hover:border-accent transition-colors shadow-[2px_2px_0px_hsl(var(--primary))]" />
+      <SaveCarButton car={car} className="absolute right-3 top-3 z-30 h-10 w-10 rounded-full border border-background/70 bg-background/90 text-primary shadow-none backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground hover:border-accent" />
 
       <div className="absolute top-3 left-3 z-30 flex flex-col items-start gap-2">
         {photoCount > 0 && (
-          <div className="inline-flex h-8 items-center gap-1.5 bg-background border-2 border-primary px-2 text-[11px] font-bold text-primary shadow-[2px_2px_0px_hsl(var(--primary))]">
+          <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-background/70 bg-background/90 px-2.5 text-[11px] font-semibold text-primary shadow-none backdrop-blur">
             <Camera className="h-3.5 w-3.5" />
             {photoCount}
           </div>
         )}
         {badges.map((badge, i) => (
-          <div key={i} className="inline-flex h-8 items-center bg-accent border-2 border-primary px-2 text-[11px] font-bold uppercase tracking-widest text-accent-foreground shadow-[2px_2px_0px_hsl(var(--primary))]">
+          <div key={i} className="inline-flex h-8 items-center rounded-full bg-accent px-2.5 text-[11px] font-semibold text-accent-foreground shadow-none">
             {badge}
           </div>
         ))}
@@ -166,7 +166,7 @@ export function CarCard({
   ) : imageBlock;
 
   const title = (
-    <h3 className="font-display text-xl lg:text-2xl font-black uppercase tracking-tighter text-primary leading-[1.1] mb-1 group-hover:text-accent transition-colors">
+    <h3 className="mb-1 font-display text-xl font-semibold leading-[1.05] tracking-[-.03em] text-primary transition-colors group-hover:text-accent lg:text-2xl">
       <Link href={detailHref} onClick={recordVehicleOpen} className="outline-none hover:underline">
         {vehicleLabel}
       </Link>
@@ -174,7 +174,7 @@ export function CarCard({
   );
 
   const subtitle = (car.variant || car.trim) && (
-    <p className="text-[13px] font-bold text-primary/70 line-clamp-1 uppercase tracking-wider">{car.variant || car.trim}</p>
+    <p className="line-clamp-1 text-[13px] font-medium text-primary/65">{car.variant || car.trim}</p>
   );
 
   const priceBlock = (
@@ -183,7 +183,7 @@ export function CarCard({
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </div>
       {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-        <div className="text-[10px] font-bold uppercase tracking-widest text-primary/60 mt-0.5">
+        <div className="mt-0.5 text-[10px] font-semibold text-primary/60">
           {car.priceType}
         </div>
       )}
@@ -193,7 +193,7 @@ export function CarCard({
   const bookingAction = (
     <Button
       asChild
-      className="relative z-10 w-full rounded-none bg-primary text-[13px] font-bold uppercase tracking-widest text-primary-foreground shadow-[3px_3px_0px_hsl(var(--accent))] transition-all hover:bg-accent hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--accent))] active:shadow-none whitespace-normal h-auto py-3 text-center"
+      className="relative z-10 h-auto w-full whitespace-normal rounded-xl bg-accent py-3 text-center text-[13px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
     >
       <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_card', vehicleContext: true })}>
         <Calendar className="mr-2 h-4 w-4 shrink-0" />
@@ -206,7 +206,7 @@ export function CarCard({
     <Button
       asChild
       variant="outline"
-      className="relative z-10 flex-1 h-12 px-2 sm:px-6 rounded-none border-2 border-primary bg-background text-[13px] font-bold uppercase tracking-widest text-primary shadow-[3px_3px_0px_hsl(var(--primary))] transition-all hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--primary))]"
+      className="relative z-10 h-12 flex-1 rounded-xl border border-primary/20 bg-background px-2 text-[13px] font-semibold text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:px-6"
     >
       <a href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-card' })}>
         <Phone className="mr-2 h-4 w-4 shrink-0" />
@@ -219,7 +219,7 @@ export function CarCard({
     <Button
       asChild
       variant="outline"
-      className="relative z-10 flex-1 h-12 px-2 sm:px-6 rounded-none border-2 border-[#25D366] bg-background text-[13px] font-bold uppercase tracking-widest text-[#25D366] shadow-[3px_3px_0px_#25D366] transition-all hover:bg-[#25D366] hover:text-white hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_#25D366]"
+      className="relative z-10 h-12 flex-1 rounded-xl border border-[hsl(var(--contact))] bg-background px-2 text-[13px] font-semibold text-[hsl(var(--contact))] shadow-none transition-colors hover:bg-[hsl(var(--contact))] hover:text-[hsl(var(--contact-foreground))] sm:px-6"
     >
       <a href={whatsappHref} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-card' })}>
         <MessageCircle className="mr-2 h-4 w-4 shrink-0" />
@@ -230,7 +230,7 @@ export function CarCard({
 
   if (isCompact) {
     return (
-      <article className="group flex flex-col sm:flex-row gap-4 sm:gap-6 border-b-2 border-primary/10 py-6 first:pt-4" data-testid={`compact-vehicle-${car.id}`}>
+      <article className="group flex flex-col gap-4 border-b border-primary/10 py-6 first:pt-4 sm:flex-row sm:gap-6" data-testid={`compact-vehicle-${car.id}`}>
         <div className="w-full sm:w-[200px] shrink-0">
           {wrappedImageBlock}
         </div>
@@ -244,19 +244,19 @@ export function CarCard({
           </div>
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
              {visibleSpecs.map(s => (
-               <span key={s.label} className="text-[12px] font-bold uppercase tracking-wider text-primary/70 bg-primary/5 px-2 py-1">{s.value}</span>
+                <span key={s.label} className="rounded-full bg-primary/5 px-2.5 py-1 text-[12px] font-medium text-primary/70">{s.value}</span>
              ))}
           </div>
           <div data-testid={`compact-actions-${car.id}`} className="mt-auto pt-4 flex gap-3 sm:grid-cols-[1fr_auto] grid-cols-1">
               <a
                 href={bookingHref}
                 onClick={() => recordBookingIntent({ source: 'car_card', vehicleContext: true })}
-                className="inline-flex h-11 flex-1 items-center justify-center border-2 border-primary bg-primary text-[12px] font-bold uppercase tracking-widest text-primary-foreground transition-all shadow-[2px_2px_0px_hsl(var(--accent))] hover:bg-accent hover:border-accent hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-[1px_1px_0px_hsl(var(--accent))]"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl bg-accent text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
               >
                 <Calendar className="mr-2 h-4 w-4 shrink-0" />
                 <span>Book</span>
               </a>
-              <CompareCarButton car={car} variant="compact" className="h-11 w-11 justify-center border-2 border-primary bg-background text-primary shadow-[2px_2px_0px_hsl(var(--primary))] hover:bg-primary hover:text-primary-foreground hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-[1px_1px_0px_hsl(var(--primary))] transition-all" />
+              <CompareCarButton car={car} variant="compact" className="h-11 w-11 justify-center rounded-xl border border-primary/20 bg-background text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground" />
           </div>
         </div>
       </article>
@@ -266,7 +266,7 @@ export function CarCard({
   if (isRow) {
     return (
       <article
-        className="group grid border-b-2 border-primary/10 transition-colors md:grid-cols-[minmax(0,40%)_minmax(0,1fr)] py-8 first:pt-4"
+        className="group grid border-b border-primary/10 py-8 transition-colors md:grid-cols-[minmax(0,40%)_minmax(0,1fr)] first:pt-4"
         data-testid={`row-vehicle-${car.id}`}
       >
         {wrappedImageBlock}
@@ -281,9 +281,9 @@ export function CarCard({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 text-[12px] font-bold uppercase tracking-wider text-primary/80">
+          <div className="flex flex-wrap gap-2 text-[12px] font-medium text-primary/80">
              {visibleSpecs.map(s => (
-               <span key={s.label} className="bg-primary/5 border border-primary/10 px-2.5 py-1.5">{s.value}</span>
+                <span key={s.label} className="rounded-full border border-primary/10 bg-primary/5 px-2.5 py-1.5">{s.value}</span>
              ))}
           </div>
 
@@ -304,13 +304,13 @@ export function CarCard({
   return (
     <article
       className={cn(
-        'group relative flex h-full flex-col transition-all bg-background border-2 border-primary p-4 shadow-[4px_4px_0px_hsl(var(--primary))] hover:shadow-[6px_6px_0px_hsl(var(--primary))] hover:-translate-y-1',
+        'group relative flex h-full flex-col rounded-2xl border border-primary/15 bg-card p-3 shadow-[0_12px_30px_hsl(var(--primary)/.07)] transition-transform hover:-translate-y-1',
         stretchedLink && 'cursor-pointer'
       )}
       data-testid={`card-vehicle-${car.id}`}
     >
       {wrappedImageBlock}
-      <div className="flex flex-1 flex-col pt-5 pb-1">
+      <div className="flex flex-1 flex-col px-1 pb-1 pt-5">
         <div className="flex justify-between items-start gap-4">
           <div className="min-w-0">
             {title}
@@ -324,7 +324,7 @@ export function CarCard({
 
         <div className="flex flex-wrap gap-2 mb-6 mt-auto">
            {visibleSpecs.map(s => (
-             <span key={s.label} className="text-[11px] font-bold uppercase tracking-widest text-primary/70 bg-primary/5 px-2 py-1">{s.value}</span>
+              <span key={s.label} className="rounded-full bg-primary/5 px-2 py-1 text-[11px] font-medium text-primary/70">{s.value}</span>
            ))}
         </div>
 
@@ -341,7 +341,7 @@ export function CarCard({
             {whatsappAction}
             <CompareCarButton
               car={car}
-              className="relative z-10 h-12 w-12 flex-none justify-center border-2 border-primary bg-background text-primary shadow-[3px_3px_0px_hsl(var(--primary))] transition-all hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--primary))]"
+              className="relative z-10 h-12 w-12 flex-none justify-center rounded-xl border border-primary/20 bg-background text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
             />
           </div>
         </div>

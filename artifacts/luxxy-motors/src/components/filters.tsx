@@ -52,7 +52,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+       <span className="mb-2 block font-display text-[11px] font-semibold tracking-[.08em] text-primary/70">
         {label}
       </span>
       {children}
@@ -76,7 +76,7 @@ function Select({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={disabled}
-      className="h-12 w-full appearance-none rounded-none border-2 border-primary bg-background px-4 font-bold uppercase tracking-wider text-[12px] text-primary shadow-[2px_2px_0px_hsl(var(--primary))] outline-none transition-all focus-visible:border-accent focus-visible:ring-0 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))]"
+       className="h-12 w-full appearance-none rounded-xl border border-primary/20 bg-background px-4 text-[13px] font-medium text-primary shadow-none outline-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
     >
       {children}
     </NativeSelect>
@@ -140,11 +140,11 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="mb-3 border-4 border-primary bg-background p-4 shadow-[6px_6px_0px_hsl(var(--primary))] sm:p-6 sm:shadow-[8px_8px_0px_hsl(var(--primary))] lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12">
+    <div className="mb-3 rounded-2xl border border-primary/15 bg-card p-4 shadow-[0_12px_30px_hsl(var(--primary)/.07)] sm:p-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12">
       <div className="sm:py-2">
         <label className="block">
-          <span className="mb-2 block font-display text-xl font-black uppercase tracking-tighter text-primary sm:mb-4 sm:text-2xl">
-            SEARCH SHOWROOM
+           <span className="mb-2 block font-display text-xl font-semibold tracking-[-.03em] text-primary sm:mb-4 sm:text-2xl">
+             Search live stock
           </span>
           <span className="relative block max-w-3xl">
             <Input
@@ -159,7 +159,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   handleSearchClick();
                 }
               }}
-              className="h-12 bg-background pr-10 text-[14px] shadow-[3px_3px_0px_hsl(var(--primary))] sm:h-14 sm:shadow-[4px_4px_0px_hsl(var(--primary))]"
+               className="h-12 rounded-xl border border-primary/20 bg-background pr-10 text-[14px] shadow-none sm:h-14"
             />
             {filters.search && (
               <button
@@ -177,19 +177,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
         <div className="mt-4 border-t-2 border-primary/10 pt-4 sm:mt-8 sm:pt-6">
           <button
             type="button"
-            className="flex items-center gap-2 font-display text-[12px] font-black uppercase tracking-[0.2em] text-primary hover:text-accent transition-colors"
+             className="flex min-h-11 items-center gap-2 font-display text-[12px] font-semibold text-primary hover:text-accent transition-colors"
             onClick={() => setShowAdvanced(!showAdvanced)}
             aria-expanded={showAdvanced}
             aria-label="Advanced search"
           >
-            {showAdvanced ? 'HIDE FILTERS' : 'ADVANCED FILTERS'}
+             {showAdvanced ? 'Hide filters' : 'More filters'}
             <ChevronDown
               className={`h-4 w-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}
             />
           </button>
 
           {showAdvanced && (
-            <section className="mt-8 animate-in fade-in slide-in-from-top-4 duration-300">
+             <section className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
                 <Field label="Make">
                   <Select
@@ -252,8 +252,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                 </Field>
               </div>
               <fieldset className="mt-8 border-t-2 border-primary/10 pt-6">
-                <legend className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary">Insurance history</legend>
-                <p className="mt-2 max-w-2xl text-[12px] font-bold uppercase tracking-widest text-primary/70 leading-relaxed">
+                 <legend className="font-display text-[11px] font-semibold tracking-[.08em] text-primary">Insurance history</legend>
+                 <p className="mt-2 max-w-2xl text-[12px] font-medium leading-relaxed text-primary/65">
                   Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-6">
@@ -262,7 +262,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     ['catS', 'Category S'],
                     ['catN', 'Category N'],
                   ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-3 font-bold text-[12px] uppercase tracking-widest text-primary cursor-pointer border-2 border-primary bg-primary/5 p-3 hover:bg-primary hover:text-primary-foreground transition-colors shadow-[2px_2px_0px_hsl(var(--primary))]">
+                     <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3 text-[12px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
                       <input
                         type="checkbox"
                         checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
@@ -284,19 +284,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <button
             type="button"
             onClick={resetFilters}
-            className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/70 hover:text-primary min-h-[44px] flex items-center shrink-0"
+             className="flex min-h-[44px] shrink-0 items-center font-display text-[11px] font-semibold text-primary/65 hover:text-primary"
           >
             Reset filters
             {activeFilterCount > 0 && <span className="ml-2 bg-accent text-accent-foreground px-2 py-0.5 shadow-[2px_2px_0px_hsl(var(--primary))]">({activeFilterCount})</span>}
           </button>
 
           <div className="flex items-center gap-3 flex-1 sm:flex-none">
-            <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/70 hidden sm:inline">SORT</span>
+               <span className="hidden font-display text-[11px] font-semibold text-primary/70 sm:inline">Sort</span>
             <NativeSelect
               aria-label="Sort results"
               value={filters.sort}
               onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-              className="h-12 w-full flex-1 rounded-none border-2 border-primary bg-background px-2 sm:px-4 font-bold uppercase tracking-wider text-[11px] text-primary shadow-[2px_2px_0px_hsl(var(--primary))] sm:w-56"
+               className="h-12 w-full flex-1 rounded-xl border border-primary/20 bg-background px-2 text-[11px] font-medium text-primary shadow-none sm:w-56 sm:px-4"
             >
               <option value="">Recommended</option>
               <option value="price-asc">Price: low to high</option>
@@ -310,9 +310,9 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
         <button
           type="button"
           onClick={handleSearchClick}
-          className="flex h-12 w-full items-center justify-center rounded-none bg-primary px-8 font-display text-[12px] font-black uppercase tracking-[0.18em] text-primary-foreground shadow-[4px_4px_0px_hsl(var(--accent))] transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_hsl(var(--accent))] sm:h-14 sm:w-auto sm:text-[13px] sm:tracking-[0.2em]"
+           className="flex h-12 w-full items-center justify-center rounded-xl bg-accent px-8 font-display text-[12px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:h-14 sm:w-auto sm:text-[13px]"
         >
-          View matching cars
+           View matching cars
         </button>
       </div>
     </div>

@@ -14,3 +14,9 @@ Keep the short welcome/search-first homepage; the earlier approval of a large fe
 **Why:** The user subsequently requested the carousel's removal and a shorter path to live stock.
 
 **How to apply:** Judge cumulative space above stock rather than individual section compactness; the redesign target is first stock photography within 900px at 390px width. Do not restore the earlier 1,400px target or hero carousel.
+
+On 2026-09-13 the user explicitly requested a complete visual-only redesign of the website, authorizing a full customer-facing rollout while preserving existing behavior, routes and data flows. The implemented direction uses warm paper, midnight ink, copper accent, mixed-case type, softened depth and stock-first spacing.
+
+**Why:** The user rejected the earlier heavy flat draft and the first replacement preview, then asked for the website to be redesigned rather than iterated through another approval-only mockup.
+
+**How to apply:** Future visual work should extend this current system across remaining secure and staff surfaces instead of reviving the old poster-like treatment; do not change business logic when refining the look.
