@@ -259,7 +259,7 @@ export function CarCard({
               <CompareCarButton
                 car={car}
                 variant="compact"
-                className="h-11 min-w-[104px] w-auto whitespace-nowrap justify-center rounded-xl border border-primary/20 bg-background px-3 text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
+       className="h-11 min-w-[104px] w-fit flex-none whitespace-nowrap justify-center rounded-xl border border-primary/20 bg-background px-3 text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
               />
           </div>
         </div>
@@ -293,13 +293,13 @@ export function CarCard({
 
           <div className="mt-auto flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between border-t-2 border-primary/5 pt-6">
             {priceBlock}
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+             <div className="flex w-full min-w-0 flex-wrap items-center gap-3 lg:w-auto">
               <div className="flex-1 lg:flex-none min-w-[140px]">{bookingAction}</div>
               {callAction}
               {whatsappAction}
                <CompareCarButton
                  car={car}
-                 className="h-12 min-w-[104px] w-auto flex-none whitespace-nowrap border-2 border-primary bg-background px-3 text-primary shadow-[3px_3px_0px_hsl(var(--primary))] hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--primary))] transition-all"
+                 className="h-12 min-w-[104px] w-fit max-w-full flex-none whitespace-nowrap border-2 border-primary bg-background px-3 text-primary shadow-[3px_3px_0px_hsl(var(--primary))] hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--primary))] transition-all"
                />
             </div>
           </div>
@@ -343,12 +343,12 @@ export function CarCard({
 
         <div className="mt-auto flex flex-col gap-3">
           <div className="w-full">{bookingAction}</div>
-          <div className="flex gap-3">
+           <div className="flex min-w-0 flex-wrap gap-3">
             {callAction}
             {whatsappAction}
             <CompareCarButton
               car={car}
-              className="relative z-10 h-12 min-w-[104px] w-auto flex-none justify-center whitespace-nowrap rounded-xl border border-primary/20 bg-background px-3 text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
+               className="relative z-10 h-12 min-w-[104px] w-fit max-w-full flex-none justify-center whitespace-nowrap rounded-xl border border-primary/20 bg-background px-3 text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
             />
           </div>
         </div>
