@@ -256,7 +256,11 @@ export function CarCard({
                 <Calendar className="mr-2 h-4 w-4 shrink-0" />
                 <span>Book</span>
               </a>
-              <CompareCarButton car={car} variant="compact" className="h-11 w-11 justify-center rounded-xl border border-primary/20 bg-background text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground" />
+              <CompareCarButton
+                car={car}
+                variant="compact"
+                className="h-11 min-w-[104px] w-auto whitespace-nowrap justify-center rounded-xl border border-primary/20 bg-background px-3 text-primary shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
+              />
           </div>
         </div>
       </article>
