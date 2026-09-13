@@ -82,13 +82,13 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
         aria-label={comparing ? `Remove ${label} from your comparison` : `Add ${label} to your comparison`}
         data-testid={`button-compare-${car.id}`}
         className={cn(
-          'inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
           comparing ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           className
         )}
       >
         {comparing ? <Check className="h-3.5 w-3.5" /> : <Scale className="h-3.5 w-3.5" />}
-        {comparing ? 'Comparing' : 'Compare'}
+        <span>{comparing ? 'Comparing' : 'Compare'}</span>
       </button>
     );
   }
@@ -101,7 +101,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
       aria-label={comparing ? `Remove ${label} from your comparison` : `Add ${label} to your comparison`}
       data-testid={`button-compare-${car.id}`}
       className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 border px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap border px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         comparing
           ? 'border-primary bg-primary/10 text-primary'
           : 'border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary',
@@ -109,7 +109,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
       )}
     >
       {comparing ? <Check className="h-4 w-4 text-primary" /> : <Scale className="h-4 w-4 text-accent" />}
-      {comparing ? 'Comparing' : 'Compare'}
+      <span>{comparing ? 'Comparing' : 'Compare'}</span>
     </button>
   );
 }
