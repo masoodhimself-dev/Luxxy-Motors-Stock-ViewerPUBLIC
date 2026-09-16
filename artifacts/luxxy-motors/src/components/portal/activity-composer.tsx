@@ -107,10 +107,10 @@ export function ActivityComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className="luxxy-surface overflow-hidden rounded-[1rem] border border-primary/10"
+      className="luxxy-surface overflow-hidden rounded-lg border border-border"
       data-testid="activity-composer"
     >
-      <header className="border-b border-primary/10 bg-background/45 px-5 py-4">
+      <header className="border-b border-border bg-background/45 px-5 py-4">
         <p className="luxxy-kicker text-[11px]">Log contact</p>
         <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-.03em] text-primary">
           What just happened?
@@ -129,10 +129,10 @@ export function ActivityComposer({
                 onClick={() => setKind(option)}
                 aria-pressed={active}
                 data-testid={`button-kind-${option}`}
-                className={`inline-flex items-center gap-2 border px-3 py-2 text-[12px] font-bold uppercase tracking-[.1em] transition-colors ${
+                className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-[12px] font-medium transition-colors ${
                   active
                     ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-primary/10 bg-background text-primary/70 hover:border-accent/40 hover:bg-accent/10 hover:text-primary'
+                    : 'border-border bg-background text-primary/70 hover:border-accent/40 hover:bg-accent/10 hover:text-primary'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -143,10 +143,11 @@ export function ActivityComposer({
         </div>
 
         <Textarea
+          aria-label="Contact notes"
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder={kindPlaceholders[kind]}
-          className="min-h-24 rounded-none"
+          className="min-h-24 rounded-md"
           maxLength={4000}
           data-testid="input-activity-body"
         />
@@ -172,7 +173,7 @@ export function ActivityComposer({
               value={nextAction}
               onChange={(event) => setNextAction(event.target.value)}
               placeholder="Chase for a decision"
-              className="rounded-none"
+              className="rounded-md"
               maxLength={300}
               data-testid="input-activity-next-action"
             />
@@ -183,7 +184,7 @@ export function ActivityComposer({
               type="datetime-local"
               value={nextActionDueAt}
               onChange={(event) => setNextActionDueAt(event.target.value)}
-              className="rounded-none font-mono"
+              className="rounded-md font-mono"
               data-testid="input-activity-next-due"
             />
           </Field>
@@ -199,10 +200,10 @@ export function ActivityComposer({
         )}
       </div>
 
-      <footer className="flex justify-end border-t border-primary/10 bg-secondary/35 px-5 py-4">
+      <footer className="flex justify-end border-t border-border bg-secondary/35 px-5 py-4">
         <Button
           type="submit"
-          className="rounded-none text-[12px] font-bold uppercase tracking-[.1em]"
+          className="rounded-md text-[12px] font-medium"
           disabled={createActivity.isPending}
           data-testid="button-log-activity"
         >

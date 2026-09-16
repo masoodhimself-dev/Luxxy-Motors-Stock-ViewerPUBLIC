@@ -37,32 +37,32 @@ const queues: Array<{
 }> = [
   {
     key: 'viewingsToday',
-    kicker: 'DIARY',
-    title: 'VIEWINGS TODAY',
+    kicker: 'Today’s diary',
+    title: 'Viewings today',
     blurb: 'Booked in for today. Confirm the car is clean, fuelled and out front.',
     empty: 'Nothing booked in today.',
     icon: CalendarClock,
   },
   {
     key: 'overdueFollowUps',
-    kicker: 'SLIPPING',
-    title: 'OVERDUE FOLLOW-UPS',
+    kicker: 'Needs attention',
+    title: 'Overdue follow-ups',
     blurb: 'You said you would come back to these and the date has passed.',
     empty: 'No follow-up has been missed.',
     icon: CircleAlert,
   },
   {
     key: 'unansweredEnquiries',
-    kicker: 'WAITING',
-    title: 'NOBODY HAS ANSWERED',
+    kicker: 'New enquiries',
+    title: 'Awaiting a reply',
     blurb: 'Enquiries with no reply logged against them yet.',
     empty: 'Every enquiry has had a first response.',
     icon: Inbox,
   },
   {
     key: 'depositsWithoutDeal',
-    kicker: 'MONEY HELD',
-    title: 'DEPOSITS WITH NO DEAL',
+    kicker: 'Paperwork',
+    title: 'Deposits without a deal',
     blurb: 'Cash is on the counter but no paperwork has been raised.',
     empty: 'Every deposit has a deal behind it.',
     icon: PoundSterling,
@@ -72,10 +72,10 @@ const queues: Array<{
 function highlightFor(key: QueueKey, lead: Lead) {
   if (key === 'viewingsToday' && lead.appointmentAt) {
     return (
-      <span className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-primary">
+      <span className="inline-flex items-center gap-2 text-[12px] font-medium text-primary">
         <CalendarClock className="h-4 w-4 text-accent" />
         <span>{formatTime(lead.appointmentAt)}</span>
-        <span className="text-primary/50">
+        <span className="text-muted-foreground">
           · {relativeTime(lead.appointmentAt)}
         </span>
       </span>
@@ -83,7 +83,7 @@ function highlightFor(key: QueueKey, lead: Lead) {
   }
   if (key === 'overdueFollowUps' && lead.nextActionDueAt) {
     return (
-      <span className="inline-flex min-w-0 items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-destructive">
+      <span className="inline-flex min-w-0 items-center gap-2 text-[12px] font-medium text-destructive">
         <CircleAlert className="h-4 w-4 shrink-0" />
         <span className="truncate">{lead.nextAction ?? 'Follow up'}</span>
         <span className="whitespace-nowrap text-destructive/70">
@@ -94,7 +94,7 @@ function highlightFor(key: QueueKey, lead: Lead) {
   }
   if (key === 'unansweredEnquiries') {
     return (
-      <span className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-primary/80">
+      <span className="inline-flex items-center gap-2 text-[12px] font-medium text-primary/80">
         <Inbox className="h-4 w-4 shrink-0 text-accent" />
         Arrived {relativeTime(lead.createdAt)}
       </span>
@@ -102,11 +102,11 @@ function highlightFor(key: QueueKey, lead: Lead) {
   }
   if (key === 'depositsWithoutDeal') {
     return (
-      <span className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-primary">
+      <span className="inline-flex items-center gap-2 text-[12px] font-medium text-primary">
         <PoundSterling className="h-4 w-4 text-accent" />
         {formatPence(lead.depositPence)} taken
         {lead.depositTakenAt && (
-          <span className="text-primary/50">
+          <span className="text-muted-foreground">
             · {relativeTime(lead.depositTakenAt)}
           </span>
         )}
@@ -126,20 +126,20 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
 
   if (worklistQuery.isLoading) {
     return (
-      <div className="flex min-h-40 items-center justify-center border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))] text-primary">
+      <div className="flex min-h-40 items-center justify-center border border-border bg-card shadow-none text-primary">
         <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-accent" />
-        <span className="font-display text-[14px] font-black uppercase tracking-widest">Building worklist…</span>
+        <span className="font-display text-[14px] font-semibold tracking-normal">Building worklist…</span>
       </div>
     );
   }
 
   if (worklistQuery.isError || !worklistQuery.data) {
     return (
-      <div className="border-4 border-destructive bg-destructive/5 p-8 text-destructive shadow-[8px_8px_0px_hsl(var(--primary))]">
-        <p className="font-display text-2xl font-black uppercase tracking-tighter">
+      <div className="border border-destructive bg-destructive/5 p-8 text-destructive shadow-none">
+        <p className="font-display text-2xl font-semibold tracking-tight">
           Could not build today&apos;s work list
         </p>
-        <p className="mt-2 text-[13px] font-bold uppercase tracking-widest">Refresh the page, or check the API server is running.</p>
+        <p className="mt-2 text-[13px] font-medium">Refresh the page, or check the API server is running.</p>
       </div>
     );
   }
@@ -148,20 +148,20 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
   const total = queues.reduce((sum, queue) => sum + worklist[queue.key].length, 0);
 
   return (
-    <div className="space-y-8" data-testid="work-queue">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[1rem] border border-primary bg-primary px-6 py-5 shadow-[0_12px_28px_hsl(var(--primary)/.16)]">
-         <p className="flex items-center gap-3 font-display text-[15px] font-semibold tracking-[.04em] text-primary-foreground">
+    <div className="space-y-5" data-testid="work-queue">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-l-2 border-accent bg-secondary/60 px-4 py-3">
+         <p className="flex items-center gap-3 font-display text-[15px] font-semibold tracking-normal text-primary">
           <Sun className="h-5 w-5 text-accent" />
           {total === 0
             ? 'Nothing is waiting on you.'
-            : `${total} ${total === 1 ? 'thing needs' : 'things need'} chasing.`}
+            : `${total} ${total === 1 ? 'item needs' : 'items need'} attention.`}
         </p>
-         <p className="font-display text-[11px] font-semibold tracking-[.08em] text-primary-foreground/70">
+         <p className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground">
           As at {formatTime(worklist.generatedAt)}
         </p>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         {queues.map(({ key, kicker, title, blurb, empty, icon: Icon }) => {
           const leads = worklist[key];
           return (
@@ -179,9 +179,9 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
                   </Chip>
                 }
               />
-              <div className="flex-1 space-y-4 p-6">
+              <div className="flex-1">
                 {leads.length === 0 ? (
-                  <EmptyState icon={Icon} title="ALL CLEAR" body={empty} />
+                  <EmptyState icon={Icon} title="All clear" body={empty} />
                 ) : (
                   leads.map((lead) => (
                     <LeadCard

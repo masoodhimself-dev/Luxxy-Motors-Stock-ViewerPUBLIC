@@ -38,6 +38,7 @@ import {
   UserRound,
   XCircle,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -160,25 +161,25 @@ function DealChecklist({ id }: { id: string }) {
   };
 
   return (
-    <div className="luxxy-surface mt-7 rounded-[1rem] border border-primary/10 p-5 sm:p-7">
+    <div className="luxxy-surface mt-7 rounded-lg border border-border p-5 sm:p-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
            <p className="luxxy-kicker text-[11px]">Auditable workflow</p>
-           <h3 className="mt-2 flex items-center gap-2 font-display text-2xl font-semibold tracking-[-.03em] text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Sales readiness checklist</h3>
+           <h3 className="mt-2 flex items-center gap-2 font-display text-xl font-semibold tracking-[-.03em] text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Sales readiness checklist</h3>
            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-muted-foreground">
             Confirm each deal fact against the current records. If a price, customer, vehicle or document revision changes, the relevant confirmation returns to review.
           </p>
         </div>
         <div className="shrink-0 sm:text-right">
            <p className="font-display text-[2rem] font-medium leading-none tracking-[-.03em] text-primary">{completedCount}/{totalCount}</p>
-           <p className="mt-1 font-display text-[11px] font-semibold tracking-[.08em] text-primary/70">Current items</p>
+           <p className="mt-1 font-display text-[11px] font-semibold tracking-normal text-primary/70">Current items</p>
         </div>
       </div>
       <div className="mt-5 h-1 overflow-hidden bg-muted/40">
         <div className="h-full bg-accent transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
       {checklistQuery.isLoading ? (
-        <p className="mt-6 flex items-center text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest"><LoaderCircle className="mr-2 h-4 w-4 animate-spin text-accent" /> Loading checklist…</p>
+        <p className="mt-6 flex items-center text-[13px] font-semibold text-primary/70 font-medium"><LoaderCircle className="mr-2 h-4 w-4 animate-spin text-accent" /> Loading checklist…</p>
       ) : checklistQuery.isError ? (
         <p className="mt-6 text-[13px] font-semibold text-destructive">The checklist could not be loaded. Refresh and try again.</p>
       ) : (
@@ -187,30 +188,30 @@ function DealChecklist({ id }: { id: string }) {
             const confirmed = item.status === 'complete' || item.status === 'not_applicable';
             const invalidated = item.status === 'invalidated';
             return (
-               <div key={item.code} className={`rounded-[.8rem] border p-4 transition-colors ${confirmed ? 'border-[#1b6543]/20 bg-[#1b6543]/5' : invalidated ? 'border-destructive/30 bg-destructive/5' : 'border-primary/10 bg-background/55 hover:border-accent/30'}`}>
+               <div key={item.code} className={`rounded-md border p-4 transition-colors ${confirmed ? 'border-[#1b6543]/20 bg-[#1b6543]/5' : invalidated ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-background/55 hover:border-accent/30'}`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className={`flex items-center gap-2 text-[13px] font-bold ${confirmed ? 'text-[#1b6543]' : invalidated ? 'text-destructive' : 'text-primary'}`}>
-                      {confirmed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1b6543]" /> : invalidated ? <CircleAlert className="h-4 w-4 shrink-0 text-destructive" /> : <span className="h-4 w-4 shrink-0 rounded-none border border-muted-foreground/40" />}
+                    <p className={`flex items-center gap-2 text-[13px] font-semibold ${confirmed ? 'text-[#1b6543]' : invalidated ? 'text-destructive' : 'text-primary'}`}>
+                      {confirmed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1b6543]" /> : invalidated ? <CircleAlert className="h-4 w-4 shrink-0 text-destructive" /> : <span className="h-4 w-4 shrink-0 rounded-md border border-muted-foreground/40" />}
                       {item.label}
-                      {item.status === 'not_applicable' && <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary ml-2 border-4 border-primary px-1.5 py-0.5 text-primary/70 font-bold uppercase tracking-widest">Not applicable</span>}
+                      {item.status === 'not_applicable' && <span className="font-display text-xs font-semibold text-primary ml-2 border border-primary px-1.5 py-0.5 text-primary/70 font-medium">Not applicable</span>}
                     </p>
-                    <p className={`mt-1.5 text-[13px] leading-relaxed ${confirmed ? 'text-[#1b6543]/80' : invalidated ? 'text-destructive/80' : 'text-primary/70 font-bold uppercase tracking-widest'}`}>{item.message}</p>
-                    {confirmed && item.completedAt && <p className="mt-2 font-mono text-[11px] text-primary/70 font-bold uppercase tracking-widest">Confirmed {formatDate(item.completedAt)} · {item.completedBy || 'staff'}</p>}
+                    <p className={`mt-1.5 text-[13px] leading-relaxed ${confirmed ? 'text-[#1b6543]/80' : invalidated ? 'text-destructive/80' : 'text-primary/70 font-medium'}`}>{item.message}</p>
+                    {confirmed && item.completedAt && <p className="mt-2 font-mono text-[11px] text-primary/70 font-medium">Confirmed {formatDate(item.completedAt)} · {item.completedBy || 'staff'}</p>}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {!confirmed && item.eligible && (
-                      <Button type="button" size="sm" className="rounded-none font-bold tracking-wide" onClick={() => update(item.code, 'complete')} disabled={updateItem.isPending}>
+                      <Button type="button" size="sm" className="rounded-md font-bold tracking-wide" onClick={() => update(item.code, 'complete')} disabled={updateItem.isPending}>
                         Confirm
                       </Button>
                     )}
                     {!confirmed && item.canMarkNotApplicable && item.eligible && (
-                      <Button type="button" size="sm" variant="outline" className="rounded-none font-bold tracking-wide" onClick={() => update(item.code, 'not_applicable')} disabled={updateItem.isPending}>
+                      <Button type="button" size="sm" variant="outline" className="rounded-md font-bold tracking-wide" onClick={() => update(item.code, 'not_applicable')} disabled={updateItem.isPending}>
                         N/A
                       </Button>
                     )}
                     {confirmed && item.code !== 'documents_generated' && (
-                      <Button type="button" size="sm" variant="ghost" className="rounded-none text-[12px] font-bold uppercase tracking-[.08em] hover:bg-transparent hover:text-accent" onClick={() => update(item.code, 'pending')} disabled={updateItem.isPending}>
+                      <Button type="button" size="sm" variant="ghost" className="rounded-md text-[12px] font-medium hover:bg-transparent hover:text-accent" onClick={() => update(item.code, 'pending')} disabled={updateItem.isPending}>
                         Reopen
                       </Button>
                     )}
@@ -223,10 +224,10 @@ function DealChecklist({ id }: { id: string }) {
       )}
       {updateItem.isError && <p className="mt-4 text-[13px] font-semibold text-destructive">{apiMessage(updateItem.error, 'That checklist item could not be updated.')}</p>}
       {checklist && !checklist.readyForPreparation && (
-        <p className="mt-5 border border-amber-500/20 bg-amber-50/50 px-4 py-3 text-[13px] font-bold text-amber-900">Complete the pre-signature items above before preparing the document pack.</p>
+        <p className="mt-5 border border-amber-500/20 bg-amber-50/50 px-4 py-3 text-[13px] font-semibold text-amber-900">Complete the pre-signature items above before preparing the document pack.</p>
       )}
       {checklist?.readyForPreparation && !checklist.readyForCompletion && (
-        <p className="mt-5 border border-accent/20 bg-accent/5 px-4 py-3 text-[13px] font-bold text-primary">Pre-signature checks are complete. Prepare the document pack to create the final document item.</p>
+        <p className="mt-5 border border-accent/20 bg-accent/5 px-4 py-3 text-[13px] font-semibold text-primary">Pre-signature checks are complete. Prepare the document pack to create the final document item.</p>
       )}
     </div>
   );
@@ -380,16 +381,16 @@ function SaleCreateForm({
   };
 
   return (
-    <form onSubmit={submit} className="luxxy-surface rounded-[1rem] border border-primary/10 p-6 sm:p-8">
-       <div className="mb-6 flex items-start justify-between gap-4 border-b border-primary/10 pb-5">
+    <form onSubmit={submit} className="luxxy-surface rounded-lg border border-border p-6 sm:p-8">
+       <div className="mb-6 flex items-start justify-between gap-4 border-b border-border pb-5">
         <div>
            <p className="luxxy-kicker text-[11px]">New development sale</p>
            <h2 className="mt-2 font-display text-[1.75rem] font-medium leading-[1.1] tracking-[-.03em] text-primary">Start a deal</h2>
         </div>
-        <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary/70 font-bold uppercase tracking-widest">Demo only</span>
+        <span className="font-display text-xs font-semibold text-primary border border-primary px-2 py-1 text-primary/70 font-medium">Demo only</span>
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
-        <label className="space-y-2 text-[13px] font-bold sm:col-span-2">
+        <label className="space-y-2 text-[13px] font-semibold sm:col-span-2">
           <span>Vehicle</span>
           <select
             required
@@ -400,7 +401,7 @@ function SaleCreateForm({
               const car = cars.find((candidate) => candidate.id === event.target.value);
               if (car?.price != null) setPrice(String(car.price));
             }}
-            className="flex h-11 w-full rounded-none border border-input bg-background px-3 py-2 text-[13px] transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0"
+            className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-[13px] transition-colors focus-visible:border-accent"
           >
             <option value="">Choose a vehicle</option>
             {cars.map((car) => (
@@ -410,23 +411,23 @@ function SaleCreateForm({
             ))}
           </select>
         </label>
-        <div className="border-4 border-primary bg-secondary/20 p-5 sm:col-span-2">
+        <div className="border border-primary bg-secondary/20 p-5 sm:col-span-2">
           <div className="flex items-start gap-3">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
-              <p className="text-[13px] font-bold text-primary">Customer details</p>
-              <p className="mt-1 text-[13px] leading-6 text-primary/70 font-bold uppercase tracking-widest">
+              <p className="text-[13px] font-semibold text-primary">Customer details</p>
+              <p className="mt-1 text-[13px] leading-6 text-primary/70 font-medium">
                 You do not need to type them here. Use a recent enquiry or let the customer enter their own details.
               </p>
             </div>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto]">
-            <label className="space-y-2 text-[13px] font-bold">
+            <label className="space-y-2 text-[13px] font-semibold">
               <span>Use a recent enquiry</span>
               <select
                 value={enquiryId}
                 onChange={(event) => chooseEnquiry(event.target.value)}
-                className="flex h-11 w-full rounded-none border border-input bg-background px-3 py-2 text-[13px] transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0"
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-[13px] transition-colors focus-visible:border-accent"
               >
                 <option value="">Choose an enquiry…</option>
                 {recentEnquiries.slice(0, 10).map((enquiry) => (
@@ -439,7 +440,7 @@ function SaleCreateForm({
             <Button
               type="button"
               variant="outline"
-              className="mt-6 h-11 rounded-none text-[12px] font-bold uppercase tracking-[.08em] md:mt-0"
+              className="mt-6 h-11 rounded-md text-[12px] font-medium md:mt-0"
               onClick={generateCustomerLink}
               disabled={createIntake.isPending || !vehicleId}
             >
@@ -452,21 +453,21 @@ function SaleCreateForm({
               <p className="font-bold text-[#1b6543]">Customer ready</p>
               <p className="mt-1.5 font-semibold">{selectedCustomer.name}</p>
               <p className="text-[#1b6543]/80">{selectedCustomer.email || selectedCustomer.phone || 'No contact method provided'}</p>
-              <button type="button" className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mt-3 text-accent hover:text-primary transition-colors" onClick={resetCustomer}>Choose a different customer</button>
+              <button type="button" className="font-display text-xs font-semibold text-primary mt-3 text-accent hover:text-primary transition-colors" onClick={resetCustomer}>Choose a different customer</button>
             </div>
           )}
           {customerMode === 'qr' && intakePath && !intakeCustomer && (
-            <div className="mt-6 flex flex-col items-center gap-5 border-4 border-primary bg-background p-5 text-center sm:flex-row sm:text-left">
-              <div className="border-4 border-primary bg-white p-3 shadow-[4px_4px_0px_hsl(var(--primary))]">
+            <div className="mt-6 flex flex-col items-center gap-5 border border-border bg-card p-5 text-center sm:flex-row sm:text-left">
+              <div className="border border-primary bg-white p-3 shadow-none">
                 <QRCodeSVG value={customerDetailsUrl} size={160} includeMargin />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold text-primary">Ask the customer to scan this code</p>
-                <p className="mt-1 text-[13px] leading-5 text-primary/70 font-bold uppercase tracking-widest">This screen will fill in automatically when they save their details.</p>
-                <Input readOnly value={customerDetailsUrl} className="mt-4 h-9 rounded-none font-mono text-[11px]" />
+                <p className="text-[13px] font-semibold text-primary">Ask the customer to scan this code</p>
+                <p className="mt-1 text-[13px] leading-5 text-primary/70 font-medium">This screen will fill in automatically when they save their details.</p>
+                <Input readOnly value={customerDetailsUrl} className="mt-4 h-9 rounded-md font-mono text-[11px]" />
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" className="rounded-none text-[11px] font-bold uppercase tracking-wider" onClick={() => navigator.clipboard?.writeText(customerDetailsUrl)}><Copy className="mr-2 h-3.5 w-3.5" />Copy link</Button>
-                  <Button type="button" size="sm" variant="outline" className="rounded-none text-[11px] font-bold uppercase tracking-wider" asChild><a href={customerDetailsUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-3.5 w-3.5" />Open form</a></Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-md text-[11px] font-medium" onClick={() => navigator.clipboard?.writeText(customerDetailsUrl)}><Copy className="mr-2 h-3.5 w-3.5" />Copy link</Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-md text-[11px] font-medium" asChild><a href={customerDetailsUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-3.5 w-3.5" />Open form</a></Button>
                 </div>
               </div>
             </div>
@@ -475,38 +476,38 @@ function SaleCreateForm({
           {createIntake.isError && <p className="mt-4 text-[13px] font-semibold text-destructive">{apiMessage(createIntake.error, 'Could not generate a customer link.')}</p>}
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <label className="space-y-2 text-[13px] font-bold">
+          <label className="space-y-2 text-[13px] font-semibold">
             <span>Total (£)</span>
-            <Input required min="0" step="0.01" type="number" className="h-11 rounded-none font-mono focus-visible:border-accent focus-visible:ring-0" value={price} onChange={(event) => setPrice(event.target.value)} placeholder={selectedCar?.price != null ? String(selectedCar.price) : '0.00'} />
+            <Input required min="0" step="0.01" type="number" className="h-11 rounded-md font-mono focus-visible:border-accent" value={price} onChange={(event) => setPrice(event.target.value)} placeholder={selectedCar?.price != null ? String(selectedCar.price) : '0.00'} />
           </label>
-          <label className="space-y-2 text-[13px] font-bold">
+          <label className="space-y-2 text-[13px] font-semibold">
             <span>Deposit (£)</span>
-            <Input min="0" step="0.01" type="number" className="h-11 rounded-none font-mono focus-visible:border-accent focus-visible:ring-0" value={deposit} onChange={(event) => setDeposit(event.target.value)} />
+            <Input min="0" step="0.01" type="number" className="h-11 rounded-md font-mono focus-visible:border-accent" value={deposit} onChange={(event) => setDeposit(event.target.value)} />
           </label>
         </div>
-        <label className="space-y-2 text-[13px] font-bold sm:col-span-2">
+        <label className="space-y-2 text-[13px] font-semibold sm:col-span-2">
           <span>Vehicle disclosures</span>
-          <Textarea required rows={3} className="rounded-none focus-visible:border-accent focus-visible:ring-0" value={disclosures} onChange={(event) => setDisclosures(event.target.value)} />
+          <Textarea required rows={3} className="rounded-md focus-visible:border-accent" value={disclosures} onChange={(event) => setDisclosures(event.target.value)} />
         </label>
-        <label className="space-y-2 text-[13px] font-bold sm:col-span-2">
+        <label className="space-y-2 text-[13px] font-semibold sm:col-span-2">
           <span>Fulfilment</span>
           <select
             required
             value={fulfilmentMethod}
             onChange={(event) => setFulfilmentMethod(event.target.value as 'collection' | 'delivery')}
-            className="flex h-11 w-full rounded-none border border-input bg-background px-3 py-2 text-[13px] transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0"
+            className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-[13px] transition-colors focus-visible:border-accent"
           >
             <option value="collection">Customer collection</option>
             <option value="delivery">Dealer delivery</option>
           </select>
-          <span className="block text-[12px] font-normal text-primary/70 font-bold uppercase tracking-widest">The date and address can be added to the fulfilment record before signing.</span>
+          <span className="block text-[12px] font-normal text-primary/70 font-medium">The date and address can be added to the fulfilment record before signing.</span>
         </label>
       </div>
       {createSale.isError && <p className="mt-5 text-[13px] font-semibold text-destructive">{apiMessage(createSale.error, 'Could not create this sale.')}</p>}
-      <Button type="submit" className="mt-6 h-12 rounded-none text-[13px] font-bold uppercase tracking-[.08em]" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
+      <Button type="submit" className="mt-6 h-12 rounded-md text-[13px] font-medium" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
         <Plus className="mr-2 h-4 w-4" /> {createSale.isPending ? 'Creating deal…' : 'Create draft sale'}
       </Button>
-      {!selectedCustomer && <p className="mt-3 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Select a recent enquiry or wait for the customer to save their details before creating the draft.</p>}
+      {!selectedCustomer && <p className="mt-3 text-[13px] text-primary/70 font-medium">Select a recent enquiry or wait for the customer to save their details before creating the draft.</p>}
     </form>
   );
 }
@@ -548,7 +549,7 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const checklist = checklistQuery.data as unknown as SaleChecklistView | undefined;
 
   if (saleQuery.isLoading || !sale) {
-    return <div className="flex min-h-48 items-center justify-center border-4 border-primary bg-background text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading sale…</div>;
+    return <div className="flex min-h-48 items-center justify-center border border-border bg-card text-[13px] font-semibold text-primary/70 font-medium"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading sale…</div>;
   }
 
   const sessionStatus = sale.signingSession?.status;
@@ -556,53 +557,53 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const readyForPreparation = checklist?.readyForPreparation ?? false;
 
   return (
-     <section className="luxxy-surface rounded-[1rem] border border-primary/10 p-5 sm:p-7">
-       <div className="flex flex-col gap-5 border-b border-primary/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
+     <section className="luxxy-surface rounded-lg border border-border p-5 sm:p-7">
+       <div className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <button type="button" onClick={onBack} className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2 text-primary/70 font-bold uppercase tracking-widest hover:text-accent transition-colors"><ArrowLeft className="h-3 w-3" /> All sales</button>
+          <button type="button" onClick={onBack} className="font-display text-xs font-semibold text-primary mb-4 flex items-center gap-2 text-primary/70 font-medium hover:text-accent transition-colors"><ArrowLeft className="h-3 w-3" /> All sales</button>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary">{sale.status}</span>
-            <span className="font-mono text-[11px] font-bold text-primary/70 font-bold uppercase tracking-widest">Ref {sale.id.slice(0, 8)}</span>
+            <span className="font-display text-xs font-semibold text-primary border border-primary px-2 py-1">{sale.status}</span>
+            <span className="font-mono text-[11px] font-bold text-primary/70 font-medium">Ref {sale.id.slice(0, 8)}</span>
           </div>
           <h2 className="mt-4 font-display text-[2rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary">{sale.customer?.name || 'Unnamed customer'}</h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
+          <p className="mt-2 text-[13px] leading-relaxed text-primary/70 font-medium">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
         </div>
         <div className="text-left sm:text-right">
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Total</p>
+          <p className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">Total</p>
           <p className="luxxy-price mt-2 text-[2.25rem] leading-none text-primary">{formatPence(sale.agreedPricePence)}</p>
-          <p className="mt-2 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></p>
+          <p className="mt-2 text-[13px] text-primary/70 font-medium">Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></p>
         </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="border-4 border-primary bg-secondary/15 p-5">
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Customer</p>
-          <p className="mt-3 text-[13px] font-bold text-primary">{sale.customer?.name}</p>
-          <p className="mt-1 text-[13px] text-primary/70 font-bold uppercase tracking-widest">{sale.customer?.email || sale.customer?.phone || 'No contact recorded'}</p>
+        <div className="border border-primary bg-secondary/15 p-5">
+          <p className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">Customer</p>
+          <p className="mt-3 text-[13px] font-semibold text-primary">{sale.customer?.name}</p>
+          <p className="mt-1 text-[13px] text-primary/70 font-medium">{sale.customer?.email || sale.customer?.phone || 'No contact recorded'}</p>
         </div>
-        <div className="border-4 border-primary bg-secondary/15 p-5">
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Revision</p>
-          <p className="mt-3 text-[13px] font-bold text-primary">{sale.latestRevision ? `Revision ${sale.latestRevision.revisionNumber}` : 'Not prepared'}</p>
-          <p className="mt-1 text-[13px] text-primary/70 font-bold uppercase tracking-widest">{sale.latestRevision?.status || 'Draft terms'}</p>
+        <div className="border border-primary bg-secondary/15 p-5">
+          <p className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">Revision</p>
+          <p className="mt-3 text-[13px] font-semibold text-primary">{sale.latestRevision ? `Revision ${sale.latestRevision.revisionNumber}` : 'Not prepared'}</p>
+          <p className="mt-1 text-[13px] text-primary/70 font-medium">{sale.latestRevision?.status || 'Draft terms'}</p>
         </div>
-        <div className="border-4 border-primary bg-secondary/15 p-5">
-          <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary text-primary/70 font-bold uppercase tracking-widest">Signing</p>
-          <p className="mt-3 text-[13px] font-bold text-primary">{sessionStatus || 'Not started'}</p>
-          {sale.signingSession?.expiresAt && <p className="mt-1 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Expires {formatDate(sale.signingSession.expiresAt)}</p>}
+        <div className="border border-primary bg-secondary/15 p-5">
+          <p className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">Signing</p>
+          <p className="mt-3 text-[13px] font-semibold text-primary">{sessionStatus || 'Not started'}</p>
+          {sale.signingSession?.expiresAt && <p className="mt-1 text-[13px] text-primary/70 font-medium">Expires {formatDate(sale.signingSession.expiresAt)}</p>}
         </div>
       </div>
 
       {prepared?.signingUrl && (
         <div className="mt-8 border border-accent/30 bg-accent/5 p-6">
           <div>
-            <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-accent"><Link2 className="h-3.5 w-3.5" /> Secure signing link ready</p>
-            <h3 className="mt-3 font-display text-2xl font-black uppercase tracking-tighter text-primary">Send this link to the customer</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest">The link expires automatically and is bound to revision <span className="font-mono">{prepared.revision?.revisionNumber}</span>. Open it yourself or copy it into an email or message.</p>
+            <p className="font-display text-xs font-semibold text-accent"><Link2 className="h-3.5 w-3.5" /> Secure signing link ready</p>
+            <h3 className="mt-3 font-display text-xl font-semibold tracking-tight text-primary">Send this link to the customer</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-primary/70 font-medium">The link expires automatically and is bound to revision <span className="font-mono">{prepared.revision?.revisionNumber}</span>. Open it yourself or copy it into an email or message.</p>
             <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center">
-              <Input readOnly value={prepared.signingUrl || ''} className="h-11 rounded-none font-mono text-[11px] lg:max-w-md focus-visible:ring-0 focus-visible:border-accent" />
+              <Input readOnly value={prepared.signingUrl || ''} className="h-11 rounded-md font-mono text-[11px] lg:max-w-md focus-visible:border-accent" />
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button type="button" variant="outline" className="h-11 rounded-none text-[12px] font-bold uppercase tracking-[.08em]" onClick={() => prepared.signingUrl && navigator.clipboard?.writeText(prepared.signingUrl)}><Copy className="mr-2 h-4 w-4 text-accent" /> Copy link</Button>
-                <Button type="button" variant="outline" className="h-11 rounded-none text-[12px] font-bold uppercase tracking-[.08em]" asChild><a href={prepared.signingUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4 text-accent" /> Open link</a></Button>
+                <Button type="button" variant="outline" className="h-11 rounded-md text-[12px] font-medium" onClick={() => prepared.signingUrl && navigator.clipboard?.writeText(prepared.signingUrl)}><Copy className="mr-2 h-4 w-4 text-accent" /> Copy link</Button>
+                <Button type="button" variant="outline" className="h-11 rounded-md text-[12px] font-medium" asChild><a href={prepared.signingUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4 text-accent" /> Open link</a></Button>
               </div>
             </div>
           </div>
@@ -610,24 +611,24 @@ function SaleDetail({ id, onBack }: { id: string; onBack: () => void }) {
       )}
 
       <div className="mt-8 flex flex-wrap gap-3">
-        {canPrepare && <Button type="button" className="h-11 rounded-none text-[12px] font-bold uppercase tracking-[.08em]" onClick={() => prepare.mutate({ id })} disabled={prepare.isPending || !readyForPreparation}><Link2 className="mr-2 h-4 w-4" /> {prepare.isPending ? 'Preparing pack…' : !readyForPreparation ? 'Complete checklist to prepare' : sale.latestRevision ? 'Create new revision & link' : 'Prepare pack & create link'}</Button>}
-        {sessionStatus === 'pending' && <Button type="button" variant="outline" className="h-11 rounded-none text-[12px] font-bold uppercase tracking-[.08em] hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30" onClick={() => revoke.mutate({ id })} disabled={revoke.isPending}><XCircle className="mr-2 h-4 w-4" /> Revoke signing link</Button>}
-        {checks?.canComplete && sale.status === 'signed' && <Button type="button" variant="outline" className="h-11 rounded-none border-primary/20 bg-primary text-primary-foreground text-[12px] font-bold uppercase tracking-[.08em] hover:bg-accent hover:text-primary" onClick={() => complete.mutate({ id })} disabled={complete.isPending}><CheckCircle2 className="mr-2 h-4 w-4" /> {complete.isPending ? 'Completing…' : 'Complete sale'}</Button>}
+        {canPrepare && <Button type="button" className="h-11 rounded-md text-[12px] font-medium" onClick={() => prepare.mutate({ id })} disabled={prepare.isPending || !readyForPreparation}><Link2 className="mr-2 h-4 w-4" /> {prepare.isPending ? 'Preparing pack…' : !readyForPreparation ? 'Complete checklist to prepare' : sale.latestRevision ? 'Create new revision & link' : 'Prepare pack & create link'}</Button>}
+        {sessionStatus === 'pending' && <Button type="button" variant="outline" className="h-11 rounded-md text-[12px] font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30" onClick={() => revoke.mutate({ id })} disabled={revoke.isPending}><XCircle className="mr-2 h-4 w-4" /> Revoke signing link</Button>}
+        {checks?.canComplete && sale.status === 'signed' && <Button type="button" variant="outline" className="h-11 rounded-md border-primary/20 bg-primary text-primary-foreground text-[12px] font-medium hover:bg-accent hover:text-primary" onClick={() => complete.mutate({ id })} disabled={complete.isPending}><CheckCircle2 className="mr-2 h-4 w-4" /> {complete.isPending ? 'Completing…' : 'Complete sale'}</Button>}
       </div>
       {(prepare.isError || revoke.isError || complete.isError) && <p className="mt-4 text-[13px] font-semibold text-destructive">{apiMessage(prepare.error || revoke.error || complete.error, 'The sale action could not be completed.')}</p>}
 
       <DealChecklist id={id} />
 
-      <div className="mt-8 border-t-4 border-primary pt-8">
+      <div className="mt-8 border-t border-primary pt-8">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 font-display text-2xl font-black uppercase tracking-tighter text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Final-sale checks</h3>
-          <span className={`font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary ${sale.status === 'completed' || checks?.canComplete ? 'text-[#1b6543]' : 'text-amber-700'}`}>{sale.status === 'completed' ? 'Completed' : checks?.canComplete ? 'Ready to complete' : 'Not ready'}</span>
+          <h3 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-primary"><ClipboardCheck className="h-5 w-5 text-accent" /> Final-sale checks</h3>
+          <span className={`font-display text-xs font-semibold text-primary ${sale.status === 'completed' || checks?.canComplete ? 'text-[#1b6543]' : 'text-amber-700'}`}>{sale.status === 'completed' ? 'Completed' : checks?.canComplete ? 'Ready to complete' : 'Not ready'}</span>
         </div>
-        {checksQuery.isLoading ? <p className="mt-5 text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest">Checking sale readiness…</p> : (
+        {checksQuery.isLoading ? <p className="mt-5 text-[13px] font-semibold text-primary/70 font-medium">Checking sale readiness…</p> : (
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {(checks?.checks || []).map((check) => (
               <div key={check.code} className={`border p-4 transition-colors ${check.passed ? 'border-[#1b6543]/20 bg-[#1b6543]/5' : 'border-amber-500/30 bg-amber-50/50'}`}>
-                <p className={`flex items-center gap-2 text-[13px] font-bold ${check.passed ? 'text-[#1b6543]' : 'text-amber-900'}`}>{check.passed ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <CircleAlert className="h-4 w-4 shrink-0" />}{check.label}</p>
+                <p className={`flex items-center gap-2 text-[13px] font-semibold ${check.passed ? 'text-[#1b6543]' : 'text-amber-900'}`}>{check.passed ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <CircleAlert className="h-4 w-4 shrink-0" />}{check.label}</p>
                 <p className={`mt-1.5 text-[12px] leading-relaxed ${check.passed ? 'text-[#1b6543]/80' : 'text-amber-900/80'}`}>{check.message}</p>
               </div>
             ))}
@@ -683,22 +684,22 @@ export function DealsPanel() {
 
   if (showSaleForm && saleFocusMode) {
     return (
-      <div className="fixed inset-0 z-[60] overflow-y-auto bg-background luxxy-grain" role="dialog" aria-modal="true" aria-labelledby="focused-sale-title">
-        <div className="min-h-[100dvh] luxxy-shell px-4 py-8 sm:px-8 sm:py-12">
+      <Dialog open onOpenChange={open => { if (!open) setSaleFocusMode(false); }}><DialogContent className="max-w-5xl" aria-describedby={undefined} onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLButtonElement>('[data-testid="button-toggle-sale-form"]')?.focus(); }}>
+        <div className="px-0 py-5 sm:px-3">
           <div className="mx-auto flex max-w-4xl flex-col items-start gap-6 lg:flex-row lg:justify-between lg:items-start">
             <div>
-              <p className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent text-primary">Focused sales workspace</p>
-              <h1 id="focused-sale-title" className="mt-4 max-w-xl font-display text-[2.5rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[3.25rem]">
+              <p className="font-display text-xs font-semibold text-accent text-primary">Focused sales workspace</p>
+              <DialogTitle id="focused-sale-title" className="mt-4 max-w-xl font-display text-[1.75rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2rem]">
                 Build the deal, one step at a time.
-              </h1>
-              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-primary/70 font-bold uppercase tracking-widest sm:text-[15px]">
+              </DialogTitle>
+              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-primary/70 font-medium sm:text-[15px]">
                 The rest of the portal is tucked away while you prepare this sale. Customer details can be selected from an enquiry or collected by QR code.
               </p>
             </div>
             <Button
               type="button"
               variant="outline"
-              className="shrink-0 rounded-none bg-background/80 text-[12px] font-bold uppercase tracking-[.08em] shadow-none hover:border-accent hover:text-accent"
+              className="shrink-0 rounded-md bg-background/80 text-[12px] font-medium shadow-none hover:border-accent hover:text-accent"
               onClick={() => setSaleFocusMode(false)}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -710,7 +711,7 @@ export function DealsPanel() {
             <SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={handleSaleCreated} />
           </div>
         </div>
-      </div>
+      </DialogContent></Dialog>
     );
   }
 
@@ -722,7 +723,7 @@ export function DealsPanel() {
            <h2 className="mt-3 font-display text-[2.25rem] font-medium leading-none tracking-[-.04em] text-primary">Deal workspace</h2>
            <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
         </div>
-        <Button type="button" variant={showSaleForm ? 'outline' : 'default'} className={`rounded-none text-[12px] font-bold uppercase tracking-[.08em] ${showSaleForm ? '' : 'shadow-none'}`} onClick={showSaleForm ? closeNewSale : openNewSale}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
+        <Button type="button" variant={showSaleForm ? 'outline' : 'default'} className={`rounded-md text-[12px] font-medium ${showSaleForm ? '' : 'shadow-none'}`} data-testid="button-toggle-sale-form" onClick={showSaleForm ? closeNewSale : openNewSale}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
       </div>
       <div className="mb-8 flex items-start gap-4 border border-amber-500/30 bg-amber-50/50 p-5 text-[13px] text-amber-900">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
@@ -732,30 +733,30 @@ export function DealsPanel() {
       {selectedSaleId ? (
         <SaleDetail id={selectedSaleId} onBack={() => setSelectedSaleId(null)} />
       ) : salesQuery.isLoading ? (
-        <div className="flex min-h-48 items-center justify-center border-4 border-primary bg-background text-[13px] font-semibold text-primary/70 font-bold uppercase tracking-widest"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading development sales…</div>
+        <div className="flex min-h-48 items-center justify-center border border-border bg-card text-[13px] font-semibold text-primary/70 font-medium"><LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Loading development sales…</div>
       ) : salesQuery.isError ? (
         <div className="border border-destructive/30 bg-destructive/5 p-8 text-center text-[13px] text-destructive"><p className="font-bold">Could not load development sales</p><p className="mt-1">The sale workspace may need a database migration or a refresh.</p></div>
       ) : sales.length === 0 ? (
-        <div className="border-4 border-dashed border-primary/20 bg-background p-12 text-center"><ClipboardCheck className="mx-auto mb-4 h-8 w-8 text-primary/70 font-bold uppercase tracking-widest" /><h3 className="font-display text-2xl font-black uppercase tracking-tighter text-primary">No development sales yet</h3><p className="mt-2 text-[13px] text-primary/70 font-bold uppercase tracking-widest">Start with an existing vehicle and customer details to generate a secure signing link.</p></div>
+        <div className="border border-dashed border-primary/20 bg-background p-12 text-center"><ClipboardCheck className="mx-auto mb-4 h-8 w-8 text-primary/70 font-medium" /><h3 className="font-display text-xl font-semibold tracking-tight text-primary">No development sales yet</h3><p className="mt-2 text-[13px] text-primary/70 font-medium">Start with an existing vehicle and customer details to generate a secure signing link.</p></div>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="space-y-3">
           {sales.map((value) => {
             const sale = saleView(value);
             if (!sale) return null;
             return (
-              <button key={sale.id} type="button" onClick={() => setSelectedSaleId(sale.id)} className="group border-4 border-primary bg-background p-6 text-left transition-colors hover:border-accent hover:bg-secondary/10">
+              <button key={sale.id} type="button" onClick={() => setSelectedSaleId(sale.id)} className="group block w-full rounded-md border border-border bg-card p-5 text-left transition-colors hover:border-accent hover:bg-secondary/10">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary border-4 border-primary px-2 py-1 text-primary bg-background">{sale.status}</span>
-                      {sale.signingSession?.status === 'pending' && <span className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-1 border border-accent/30 bg-accent/5 px-2 py-1 text-primary"><Link2 className="h-3 w-3 text-accent" /> Signing link active</span>}
+                      <span className="font-display text-xs font-semibold text-primary border border-primary px-2 py-1 bg-background">{sale.status}</span>
+                      {sale.signingSession?.status === 'pending' && <span className="font-display text-xs font-semibold text-primary flex items-center gap-1 border border-accent/30 bg-accent/5 px-2 py-1"><Link2 className="h-3 w-3 text-accent" /> Signing link active</span>}
                     </div>
-                    <h3 className="mt-4 font-display text-2xl font-black uppercase tracking-tighter text-primary transition-colors group-hover:text-accent">{sale.customer?.name || 'Unnamed customer'}</h3>
-                    <p className="mt-1.5 text-[13px] text-primary/70 font-bold uppercase tracking-widest">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
+                    <h3 className="mt-4 font-display text-xl font-semibold tracking-tight text-primary transition-colors group-hover:text-accent">{sale.customer?.name || 'Unnamed customer'}</h3>
+                    <p className="mt-1.5 text-[13px] text-primary/70 font-medium">{sale.vehicle?.title || 'Vehicle'}{sale.vehicle?.registration ? ` · ` : ''}{sale.vehicle?.registration ? <span className="font-mono">{sale.vehicle.registration}</span> : ''}</p>
                   </div>
                   <p className="luxxy-price text-[1.5rem] leading-none text-primary">{formatPence(sale.agreedPricePence)}</p>
                 </div>
-                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-bold uppercase tracking-widest text-primary/70 font-bold uppercase tracking-widest">
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-medium text-primary/70">
                   <span>Deposit <span className="luxxy-price-inline text-foreground">{formatPence(sale.depositPence)}</span></span>
                   <span className="luxxy-leader opacity-30" />
                   <span>Balance <span className="luxxy-price-inline text-foreground">{formatPence(sale.balancePence)}</span></span>

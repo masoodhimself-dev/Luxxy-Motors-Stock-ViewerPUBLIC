@@ -83,17 +83,17 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
 
   return (
     <div className="space-y-5" data-testid="lead-list">
-      <div className="luxxy-surface rounded-[1rem] border border-primary/10 p-5">
+      <div className="luxxy-surface rounded-md border border-border p-4">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="min-w-[240px] flex-1">
+          <div className="min-w-0 basis-full lg:basis-60 flex-1">
             <Field label="Search">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70 font-bold uppercase tracking-widest" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70 font-medium" />
                 <Input
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
                   placeholder="Name, phone, email, registration or car"
-                  className="rounded-none pl-9"
+                  className="rounded-md pl-9"
                   data-testid="input-search"
                 />
               </div>
@@ -135,7 +135,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
                 value={owner}
                 onChange={(event) => setOwner(event.target.value)}
                 placeholder="Anyone"
-                className="rounded-none"
+                className="rounded-md"
                 data-testid="input-owner-filter"
               />
             </Field>
@@ -144,7 +144,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 rounded-full text-[12px] font-semibold tracking-[.06em] text-primary/70"
+              className="min-h-11 rounded-sm text-[12px] font-semibold tracking-normal text-primary/70"
               onClick={reset}
               data-testid="button-clear-filters"
             >
@@ -155,7 +155,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
       </div>
 
       <div className="flex items-center justify-between px-1">
-         <p className="font-display text-[11px] font-semibold tracking-[0.08em] text-primary/70">
+         <p className="font-display text-[11px] font-semibold tracking-normal text-primary/70">
           {leadsQuery.isLoading
             ? 'Searching'
             : `${leads.length} ${leads.length === 1 ? 'lead' : 'leads'}`}
@@ -166,11 +166,11 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
       </div>
 
       {leadsQuery.isLoading ? (
-         <div className="luxxy-surface flex min-h-32 items-center justify-center rounded-[1rem] border border-primary/10 text-primary/70">
+         <div className="luxxy-surface flex min-h-32 items-center justify-center rounded-lg border border-border text-primary/70">
           <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Searching…
         </div>
       ) : leadsQuery.isError ? (
-         <div className="rounded-[1rem] border border-destructive/30 bg-destructive/10 p-6 text-[13px] text-destructive">
+         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-[13px] text-destructive">
            <p className="font-display text-base font-semibold">Could not load leads</p>
           <p className="mt-1">Refresh the page, or check the API server is running.</p>
         </div>
@@ -185,7 +185,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="surface overflow-hidden">
           {leads.map((lead) => (
             <LeadCard key={lead.id} lead={lead} onOpen={onOpenLead} />
           ))}

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, HTMLAttributes } from 'react';
+import { NativeSelect } from '@/components/ui/native-select';
 import type { Lead, LeadActivityKind, LeadSource, LeadStage } from '@workspace/api-client-react';
 import {
   CalendarClock,
@@ -134,7 +135,7 @@ const toneClasses: Record<Tone, string> = {
   accent: 'border-accent/30 bg-accent/10 text-accent',
   primary: 'border-primary bg-primary text-primary-foreground',
   urgent: 'border-destructive/30 bg-destructive/10 text-destructive',
-  muted: 'border-primary/15 bg-primary/5 text-primary/60',
+  muted: 'border-primary/15 bg-primary/5 text-muted-foreground',
 };
 
 export function Chip({
@@ -148,7 +149,7 @@ export function Chip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-display text-[10px] font-semibold tracking-[0.08em] shadow-none ${toneClasses[tone]} ${className}`}
+      className={`inline-flex items-center gap-2 rounded-sm border px-3 py-1 font-display text-xs font-semibold tracking-normal shadow-none ${toneClasses[tone]} ${className}`}
     >
       {children}
     </span>
@@ -183,12 +184,10 @@ export function SourceChip({ source }: { source: LeadSource }) {
 export function Panel({
   children,
   className = '',
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+  ...props
+}: HTMLAttributes<HTMLElement>) {
   return (
-    <section className={`portal-panel luxxy-surface rounded-[1rem] border border-primary/10 ${className}`}>{children}</section>
+    <section {...props} className={`portal-panel luxxy-surface rounded-md border border-border ${className}`}>{children}</section>
   );
 }
 
@@ -204,10 +203,10 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-primary/10 bg-background/45 px-6 py-5">
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border bg-background/45 px-4 py-4">
       <div className="min-w-0">
         {kicker && <p className="luxxy-kicker mb-2 text-[11px]">{kicker}</p>}
-        <h2 className="font-display text-2xl font-semibold tracking-[-.03em] text-primary">
+        <h2 className="font-display text-lg font-semibold tracking-[-.03em] text-primary">
           {title}
         </h2>
         {meta && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">{meta}</p>}
@@ -227,16 +226,16 @@ export function EmptyState({
   body: string;
 }) {
   return (
-    <div className="my-4 flex flex-col items-center gap-4 rounded-[.85rem] border border-dashed border-primary/15 bg-background/55 px-8 py-12 text-center">
-      <Icon className="mb-2 h-10 w-10 text-primary/25" />
-      <p className="font-display text-xl font-semibold tracking-[-.02em] text-primary/60">{title}</p>
+    <div className="my-2 flex flex-col items-center gap-2 rounded-md border border-dashed border-primary/15 bg-background/55 px-4 py-6 text-center">
+      <Icon className="mb-2 h-6 w-6 text-primary/25" />
+      <p className="font-display text-base font-medium tracking-[-.02em] text-muted-foreground">{title}</p>
       <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">{body}</p>
     </div>
   );
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-    return <span className="mb-2 block font-display text-[11px] font-semibold tracking-[0.08em] text-primary/75">{children}</span>;
+    return <span className="mb-2 block font-display text-[11px] font-semibold tracking-normal text-primary/75">{children}</span>;
 }
 
 export function SelectField({
@@ -251,13 +250,6 @@ export function SelectField({
   children: ReactNode;
 }) {
   return (
-    <select
-      {...rest}
-      value={value}
-      onChange={onChange}
-      className={`h-12 w-full appearance-none rounded-none border-2 border-primary bg-background px-4 font-bold uppercase tracking-wider text-[12px] text-primary shadow-[2px_2px_0px_hsl(var(--primary))] outline-none transition-all focus-visible:border-accent focus-visible:ring-0 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))] ${className}`}
-    >
-      {children}
-    </select>
+    <NativeSelect {...rest} value={value} onChange={onChange} className={className}>{children}</NativeSelect>
   );
 }

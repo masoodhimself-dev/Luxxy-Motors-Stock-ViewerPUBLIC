@@ -11,7 +11,7 @@ export function ChannelSummary() {
 
   if (summaryQuery.isLoading) {
     return (
-      <div className="flex min-h-32 items-center justify-center border-4 border-primary bg-background text-primary/70 font-bold uppercase tracking-widest">
+      <div className="flex min-h-32 items-center justify-center border border-border bg-card text-primary/70 font-medium">
         <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Counting…
       </div>
     );
@@ -33,20 +33,20 @@ export function ChannelSummary() {
 
   return (
     <Panel data-testid="channel-summary">
-      <header className="border-b border-primary/10 bg-background/45 px-5 py-4">
+      <header className="border-b border-border bg-background/45 px-5 py-4">
         <p className="luxxy-kicker text-[11px]">Where the business comes from</p>
         <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-.03em] text-primary">
           By channel
         </h2>
       </header>
-      <table className="w-full text-left">
+      <div className="overflow-x-auto" role="region" aria-label="Channel results" tabIndex={0}><table className="w-full min-w-[540px] text-left"><caption className="sr-only">Enquiries and outcomes by source channel</caption>
         <thead>
-          <tr className="border-b-4 border-primary">
+          <tr className="border-b border-primary">
             {['Channel', 'Total', 'Open', 'Won', 'Lost', 'Win rate'].map((heading, index) => (
               <th
                 key={heading}
                 scope="col"
-                className={`px-5 py-3 text-[10px] font-semibold tracking-[.08em] text-primary/60 ${index === 0 ? '' : 'text-right'}`}
+                className={`px-5 py-3 text-xs font-semibold tracking-normal text-muted-foreground ${index === 0 ? '' : 'text-right'}`}
               >
                 {heading}
               </th>
@@ -81,7 +81,7 @@ export function ChannelSummary() {
                 <td className="px-5 py-3.5 text-right font-mono text-[15px] font-semibold text-primary">
                   {row.won}
                 </td>
-                <td className="px-5 py-3.5 text-right font-mono text-[15px] text-primary/70 font-bold uppercase tracking-widest">
+                <td className="px-5 py-3.5 text-right font-mono text-[15px] text-primary/70 font-medium">
                   {row.lost}
                 </td>
                 <td className="px-5 py-3.5 text-right font-mono text-[15px] text-foreground">
@@ -91,7 +91,7 @@ export function ChannelSummary() {
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </Panel>
   );
 }
