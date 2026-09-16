@@ -8,6 +8,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
+import Portal from '@/pages/portal';
+import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 import CarDetail from '@/pages/car-detail';
 import Saved from '@/pages/saved';
@@ -32,6 +34,8 @@ createRoot(document.getElementById('root')!).render(
               <RouteScrollReset />
               <Layout>
                 <Switch>
+                  <Route path="/portal" component={Portal} />
+                  <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/" component={Home} />
                   <Route path="/vehicle/:id" component={CarDetail} />
                   <Route path="/saved" component={Saved} />
@@ -41,10 +45,10 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/sign/:token" component={Signing} />
                   <Route path="/customer-details/:token" component={CustomerDetails} />
-                  <Route><p className="mx-auto max-w-xl px-6 py-20">Staff sign-in needs your Clerk and database settings. This local preview covers the customer showroom.</p></Route>
+                  <Route component={NotFound} />
                 </Switch>
               </Layout>
-              <aside className="pointer-events-none fixed right-3 top-[4.9rem] z-[60] rounded-full bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground shadow-sm" aria-label="Preview mode">Local preview · Sample stock</aside>
+              <aside className="pointer-events-none fixed right-3 top-[4.9rem] z-[60] rounded-full bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground shadow-sm" aria-label="Preview mode">Preview · Archived stock · Writes disabled</aside>
             </SavedCarsProvider>
           </StockProvider>
           <Toaster />
