@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
 import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CalendarDays, CalendarPlus, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, Phone, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarDays, CalendarPlus, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, Phone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -30,7 +30,7 @@ type PartExchangeCondition = 'excellent' | 'good' | 'fair' | 'poor';
 
 const contactOptions: Array<{ value: PreferredContact; label: string; hint: string }> = [
   { value: 'email', label: 'Email', hint: 'Written confirmation' },
-  { value: 'phone', label: 'Phone call', hint: 'Quickest answer' },
+  { value: 'phone', label: 'Phone call', hint: 'Talk to the team' },
   { value: 'whatsapp', label: 'WhatsApp', hint: 'Photos and questions' },
 ];
 
@@ -112,13 +112,16 @@ export function EnquiryForm({
   initialType = 'general',
   vehicle,
   stockCars = [],
+  onTypeChange,
 }: {
   initialType?: EnquiryType;
   vehicle?: Car;
   stockCars?: Car[];
+  onTypeChange?: (type: EnquiryType) => void;
 }) {
   const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -314,17 +317,16 @@ export function EnquiryForm({
         <div>
           <p className="luxxy-label text-accent">{isViewing ? `Step ${viewingStep} of 2` : 'Your details'}</p>
           <h2 id="enquiry-form-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">
-            {isViewing ? (viewingStep === 1 ? 'Choose a date and time' : 'Tell us a little about you.') : 'How can we help?'}
+            {isViewing ? (viewingStep === 1 ? 'Choose a date and time' : 'Your contact details') : 'How can we help?'}
           </h2>
           <p className="mt-3 max-w-md text-sm leading-7 text-primary/70">
             {isViewing
               ? viewingStep === 1
                 ? 'Pick your date and time first. You can add your details next.'
-                : 'Just a few details and we’ll have your car ready when you arrive.'
-              : 'A few details is all we need. No pressure, no sales script.'}
+                : 'Add your contact details to confirm your booking.'
+              : 'Tell us what you would like to know and how to contact you.'}
           </p>
         </div>
-        <span className="hidden h-10 w-10 shrink-0 place-items-center border border-border bg-secondary/50 text-accent sm:grid"><Sparkles className="h-4 w-4" /></span>
       </div>
 
       {vehicle && !isPartExchange && (
@@ -340,7 +342,7 @@ export function EnquiryForm({
       {isViewing && viewingStep === 2 && selectedSlotLabel && (
         <div className="flex items-center justify-between gap-4 border border-primary/20 bg-primary/5 px-4 py-3.5" data-testid="card-selected-viewing">
           <div>
-            <p className="luxxy-label text-accent">Your reserved time</p>
+            <p className="luxxy-label text-accent">Selected appointment</p>
             <p className="mt-1.5 text-sm font-bold text-primary">{selectedSlotLabel} · {formatDateLabel(selectedDate)}</p>
           </div>
           <button type="button" onClick={() => setViewingStep(1)} className="shrink-0 text-xs font-bold text-accent underline underline-offset-4">
@@ -354,7 +356,7 @@ export function EnquiryForm({
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block">
               <span className={labelClass}>Your name</span>
-              <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
+              <Input ref={nameInputRef} required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
             </label>
             <label className="block">
               <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
@@ -392,7 +394,7 @@ export function EnquiryForm({
           {!isViewing && (
             <label className="block">
               <span className={labelClass}>What can we help with?</span>
-              <NativeSelect value={type} onChange={(event) => setType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
+              <NativeSelect value={type} onChange={(event) => { const nextType = event.target.value as EnquiryType; setType(nextType); onTypeChange?.(nextType); }} data-testid="select-enquiry-type">
                 {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
             </label>
@@ -422,6 +424,7 @@ export function EnquiryForm({
               onChange={(event) => setSelectedVehicleId(event.target.value)}
               disabled={stockCars.length === 0}
               className="h-12"
+              aria-label="Vehicle to part-exchange against"
               data-testid="select-part-exchange-target-vehicle"
             >
               <option value="">Choose a car from our current stock</option>
@@ -615,10 +618,11 @@ export function EnquiryForm({
       <div className="space-y-4">
         {isViewing && viewingStep === 1 ? (
           <Button
+            key="continue-details"
             type="button"
             size="lg"
             disabled={!selectedSlot || availabilityQuery.isLoading}
-            onClick={() => setViewingStep(2)}
+            onClick={(event) => { event.preventDefault(); setViewingStep(2); requestAnimationFrame(() => nameInputRef.current?.focus()); }}
             className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all"
             data-testid="button-continue-to-details"
           >
@@ -626,7 +630,7 @@ export function EnquiryForm({
             <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         ) : (
-          <Button type="submit" size="lg" disabled={mutation.isPending} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
+          <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
             {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
             {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
           </Button>

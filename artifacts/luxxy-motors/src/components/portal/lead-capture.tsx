@@ -125,10 +125,10 @@ export function LeadCapture({
                 id="lead-capture-title"
                 className="mt-2 font-display text-2xl font-semibold tracking-tight text-primary"
               >
-                Who walked in?
+                Add a lead
               </DialogTitle>
               <p className="mt-1 text-[13px] text-primary/70 font-medium">
-                A name and a channel is enough. Everything else can wait.
+                Add a name and source. Other details can be added later.
               </p>
             </div>
           </header>
@@ -264,7 +264,7 @@ export function LeadCapture({
             </p>
           )}
 
-          <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-primary bg-secondary/50 px-6 py-4">
+          <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-card px-6 py-4">
             <Button type="button" variant="ghost" className="rounded-md" onClick={onClose}>
               Cancel
             </Button>

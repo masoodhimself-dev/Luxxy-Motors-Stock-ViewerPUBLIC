@@ -99,7 +99,7 @@ export function CarCard({
 
   const specs = [
     car.year ? { label: 'Year', value: String(car.year) } : null,
-    car.mileage
+    car.mileage != null
       ? { label: 'Mileage', value: formatMileage(car.mileage) }
       : car.mileageText
         ? { label: 'Mileage', value: car.mileageText }

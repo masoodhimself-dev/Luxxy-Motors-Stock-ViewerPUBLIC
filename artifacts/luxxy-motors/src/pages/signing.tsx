@@ -166,7 +166,7 @@ export default function Signing() {
                 <div className="mt-6 flex flex-wrap gap-x-8 gap-y-4 font-normal text-[13px] text-primary/80">
                   {Boolean(vehicle.registration) && <p>Reg: <span className="text-primary">{String(vehicle.registration)}</span></p>}
                   {Boolean(vehicle.vin) && <p>VIN: <span className="text-primary">{String(vehicle.vin)}</span></p>}
-                  {Boolean(vehicle.mileage) && <p>Mileage: <span className="text-primary">{String(vehicle.mileage)}</span></p>}
+                  {Boolean(vehicle.mileage) && <p>Mileage: <span className="text-primary">{typeof vehicle.mileage === 'number' ? `${vehicle.mileage.toLocaleString('en-GB')} miles` : String(vehicle.mileage)}</span></p>}
                 </div>
               </div>
             </section>
@@ -270,7 +270,7 @@ export default function Signing() {
                 </p>
               )}
               <Button type="submit" size="lg" className="w-full min-h-12 rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" disabled={!canSubmit}>
-                {complete.isPending ? 'SIGNING…' : 'SIGN AND AGREE'}
+                {complete.isPending ? 'Signing…' : 'Sign and agree'}
               </Button>
             </div>
           </form>

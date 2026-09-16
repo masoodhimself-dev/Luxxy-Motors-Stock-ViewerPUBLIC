@@ -124,7 +124,7 @@ export default function Home() {
     }
   }, [isLoading]);
 
-  const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
+  const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 3);
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
 
@@ -183,7 +183,7 @@ export default function Home() {
     <div className="luxxy-shell min-h-screen">
       <section className="border-b border-border bg-secondary/40 pt-[var(--site-header-height)]">
         <div className="container mx-auto grid items-stretch lg:grid-cols-2">
-          <div className="flex flex-col justify-center px-4 py-7 sm:px-6 sm:py-10 lg:py-12 lg:pl-8 lg:pr-12">
+          <div className="flex flex-col justify-center px-4 py-7 sm:px-6 sm:py-10 lg:py-8 lg:pl-8 lg:pr-12">
             <p className="luxxy-kicker mb-3">
               {dealerConfig.hero.announcement ||
                 `Independent car dealership · ${dealerConfig.address?.city || 'UK'}`}
@@ -213,13 +213,13 @@ export default function Home() {
           {featuredCar && (
             <Link
               href={`/vehicle/${featuredCar.id}`}
-              className="group relative hidden min-h-[330px] overflow-hidden bg-muted lg:block"
+              className="group relative hidden h-[320px] overflow-hidden bg-muted lg:block"
               aria-label={`Explore ${vehicleDisplayTitle(featuredCar)}`}
             >
               <img
                 src={getThumbnailUrl(featuredCar)}
                 alt={vehicleDisplayTitle(featuredCar)}
-                className="h-full max-h-[390px] w-full object-cover"
+                className="h-full w-full object-cover"
                 fetchPriority="high"
               />
               <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-4 bg-primary/95 px-6 py-4 text-primary-foreground">
@@ -254,7 +254,7 @@ export default function Home() {
         </div>
       )}
 
-      <section id="stock" data-home-section className="section-space">
+      <section id="stock" data-home-section className="py-8 md:py-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -375,7 +375,7 @@ export default function Home() {
                 <div
                   className={cn(
                     'grid gap-5',
-                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-4',
+                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3',
                   )}
                 >
                   {displayedCars.map((car) => (
@@ -387,7 +387,7 @@ export default function Home() {
                     />
                   ))}
                 </div>
-                {filteredCars.length > 4 && !showAll && (
+                {filteredCars.length > 3 && !showAll && (
                   <div className="mt-8 text-center">
                     <Button
                       variant="outline"

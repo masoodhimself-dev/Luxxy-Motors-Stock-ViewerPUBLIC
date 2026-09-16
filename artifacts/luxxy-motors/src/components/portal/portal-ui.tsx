@@ -203,8 +203,8 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border bg-background/45 px-4 py-4">
-      <div className="min-w-0">
+    <header className="flex items-start justify-between gap-3 border-b border-border bg-background/45 px-4 py-4">
+      <div className="min-w-0 flex-1">
         {kicker && <p className="luxxy-kicker mb-2 text-[11px]">{kicker}</p>}
         <h2 className="font-display text-lg font-semibold tracking-[-.03em] text-primary">
           {title}

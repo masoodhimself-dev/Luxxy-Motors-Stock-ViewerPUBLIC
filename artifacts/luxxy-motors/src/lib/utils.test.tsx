@@ -58,7 +58,7 @@ describe('vehicleDisplayTitle', () => {
       make: 'MG',
       model: 'MG ZS',
       year: 2023,
-    })).toBe('MG MG ZS');
+    })).toBe('MG ZS');
   });
 
   it('does not mistake a numeric model name for the vehicle year', () => {
@@ -68,5 +68,15 @@ describe('vehicleDisplayTitle', () => {
       model: '2008',
       year: 2021,
     })).toBe('Peugeot 2008');
+  });
+});
+
+
+describe('imported vehicle display labels', () => {
+  it('removes a duplicated make without changing the record or a legitimate model', () => {
+    const car = { title: '2026 MG MG HS', make: 'MG', model: 'MG HS', year: 2026 };
+    expect(vehicleDisplayTitle(car)).toBe('MG HS');
+    expect(car.title).toBe('2026 MG MG HS');
+    expect(vehicleDisplayTitle({ make: 'Land Rover', model: 'Range Rover Sport' })).toBe('Land Rover Range Rover Sport');
   });
 });

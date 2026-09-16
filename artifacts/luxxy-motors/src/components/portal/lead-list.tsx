@@ -84,22 +84,22 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
   return (
     <div className="space-y-5" data-testid="lead-list">
       <div className="luxxy-surface rounded-md border border-border p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="min-w-0 basis-full lg:basis-60 flex-1">
+        <div className="grid grid-cols-2 items-end gap-3 lg:grid-cols-[minmax(0,1fr)_170px_170px_170px_auto]">
+          <div className="min-w-0 col-span-2 lg:col-span-1">
             <Field label="Search">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70 font-medium" />
                 <Input
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Name, phone, email, registration or car"
+                  placeholder="Name, contact details or car"
                   className="rounded-md pl-9"
                   data-testid="input-search"
                 />
               </div>
             </Field>
           </div>
-           <div className="w-full sm:w-[170px]">
+           <div className="min-w-0">
             <Field label="Stage">
               <SelectField
                 value={stage}
@@ -114,7 +114,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
               </SelectField>
             </Field>
           </div>
-           <div className="w-full sm:w-[170px]">
+           <div className="min-w-0">
             <Field label="Channel">
               <SelectField
                 value={source}
@@ -129,7 +129,7 @@ export function LeadList({ onOpenLead }: { onOpenLead: (id: string) => void }) {
               </SelectField>
             </Field>
           </div>
-           <div className="w-full sm:w-[170px]">
+           <div className="min-w-0">
             <Field label="Owner">
               <Input
                 value={owner}

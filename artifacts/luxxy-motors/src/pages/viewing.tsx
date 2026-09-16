@@ -154,7 +154,7 @@ export default function Viewing() {
       <div className="flex flex-col gap-6 border-b border-primary p-6 sm:flex-row sm:items-start sm:justify-between sm:p-10">
         <div>
           <h1 className="font-display text-3xl sm:text-2xl font-semibold tracking-tight text-primary">
-            {isCancelled ? 'Viewing Cancelled' : 'Your Viewing'}
+            {isCancelled ? 'Viewing cancelled' : 'Your viewing'}
           </h1>
           <p className="mt-4 font-bold text-sm tracking-normal leading-relaxed text-primary/70" data-testid="text-viewing-customer">
             Hello, {booking.customerName}.
@@ -218,7 +218,7 @@ export default function Viewing() {
       ) : mode === 'confirm-cancel' ? (
         <div className="bg-destructive/10 p-6 sm:p-10 border-t border-destructive">
           <p className="font-display text-[15px] font-semibold tracking-normal text-destructive">Cancel your viewing</p>
-          <p className="mt-2 text-sm font-normal text-destructive/80">Are you sure? We will open the diary back up for someone else.</p>
+          <p className="mt-2 text-sm font-normal text-destructive/80">This will release your appointment. You can book another time later.</p>
 
           {cancel.isError && (
             <p role="alert" className="mt-6 border border-destructive/50 bg-background p-4 text-sm font-bold text-destructive" data-testid="status-cancel-error">{apiMessage(cancel.error, 'We could not cancel your viewing. Please try again or call us.')}</p>
@@ -236,7 +236,7 @@ export default function Viewing() {
       ) : mode === 'reschedule' ? (
         <div className="bg-primary/5 p-6 sm:p-10 border-t border-primary/10">
           <p className="font-display text-[15px] font-semibold tracking-normal text-primary mb-6">Choose a new time</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" data-testid="group-viewing-dates">
+          <div className="grid grid-cols-4 gap-2 lg:grid-cols-7" data-testid="group-viewing-dates">
             {dates.map((date) => (
               <button
                 key={date}
@@ -303,7 +303,7 @@ export default function Viewing() {
               className="h-14 flex-1 rounded-md font-display text-[12px] font-normal shadow-none transition-all"
               data-testid="button-confirm-reschedule"
             >
-              {reschedule.isPending ? 'MOVING VIEWING…' : 'CONFIRM NEW TIME'}
+              {reschedule.isPending ? 'Moving viewing…' : 'Confirm new time'}
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={() => setMode('idle')} className="h-14 flex-1 rounded-md border border-primary font-display text-[12px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="button-cancel-reschedule">
               Keep current time

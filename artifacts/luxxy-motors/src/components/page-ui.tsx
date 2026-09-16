@@ -26,3 +26,13 @@ export function PageHeading({
     </header>
   );
 }
+
+export function PageEmptyState({ title, children, action }: {
+  title: string; children: ReactNode; action: ReactNode;
+}) {
+  return <section className="mx-auto max-w-lg py-10 text-center sm:py-14">
+    <h2 className="font-display text-2xl font-semibold tracking-tight text-primary">{title}</h2>
+    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{children}</p>
+    <div className="mt-6">{action}</div>
+  </section>;
+}

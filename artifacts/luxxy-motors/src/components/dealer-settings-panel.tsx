@@ -382,7 +382,7 @@ export function DealerSettingsPanel() {
       <div className="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="luxxy-kicker text-primary"><Store className="h-3.5 w-3.5" /> Showroom settings</p>
-          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Set the shop window</h2>
+          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Showroom settings</h2>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70">Control what customers see across the public showroom. Save once, and the live site reflects it without touching code.</p>
         </div>
         <div className="flex items-center gap-4 border border-border bg-card px-5 py-4 shadow-none luxxy-surface">
@@ -412,7 +412,7 @@ export function DealerSettingsPanel() {
       </div>
 
       <form onSubmit={save} className="space-y-6">
-        <SectionCard id="identity" eyebrow="01 / Brand" title="Make it unmistakably yours" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
+        <SectionCard id="identity" eyebrow="01 / Brand" title="Brand identity" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Dealership name" error={validationErrors['identity.name']}><Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.identity.name} onChange={(event) => updateNested('identity', 'name', event.target.value)} data-testid="input-identity-name" /></Field>
             <Field label="Logo text" hint="Shown when no image is set"><Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.identity.logoText} onChange={(event) => updateNested('identity', 'logoText', event.target.value)} data-testid="input-identity-logo-text" /></Field>
@@ -429,7 +429,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="contact" eyebrow="02 / Visit" title="Be easy to reach" description="Give shoppers the details they need to call, message or find the forecourt with confidence." icon={<MapPin className="h-5 w-5" />}>
+        <SectionCard id="contact" eyebrow="02 / Visit" title="Contact and opening hours" description="Give shoppers the details they need to call, message or find the forecourt with confidence." icon={<MapPin className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="Phone"><Input type="tel" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.phone} onChange={(event) => updateNested('contact', 'phone', event.target.value)} data-testid="input-contact-phone" /></Field>
             <Field label="WhatsApp"><Input type="tel" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.whatsapp} onChange={(event) => updateNested('contact', 'whatsapp', event.target.value)} data-testid="input-contact-whatsapp" /></Field>
@@ -458,7 +458,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="homepage" eyebrow="03 / First impression" title="Write the welcome" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
+        <SectionCard id="homepage" eyebrow="03 / First impression" title="Homepage content" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
           <div className="grid gap-5">
             <Field label="Announcement strip" hint="Optional"><Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.hero.announcement} onChange={(event) => updateNested('hero', 'announcement', event.target.value)} placeholder="New stock added this week" data-testid="input-hero-announcement" /></Field>
             <Field label="Homepage headline" error={validationErrors['hero.copy']}><Input required className="h-11 rounded-md font-display text-[15px] font-semibold focus-visible:border-accent" value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" /></Field>
@@ -587,7 +587,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="services" eyebrow="04 / Offer" title="Choose what you promise" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
+        <SectionCard id="services" eyebrow="04 / Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
           <div className="grid gap-5">
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
             <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
@@ -595,7 +595,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="proof" eyebrow="05 / Confidence" title="Add the reasons to choose you" description="Short, specific proof points help customers decide to make the call or book the viewing." icon={<Check className="h-5 w-5" />}>
+        <SectionCard id="proof" eyebrow="05 / Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book the viewing." icon={<Check className="h-5 w-5" />}>
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
               <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-[14px] font-bold text-primary">Trust points</p><p className="mt-1 text-[13px] text-primary/70">A compact strip of promises near the stock.</p></div><Button type="button" size="sm" variant="outline" className="rounded-md text-[12px] font-medium shadow-none" onClick={addTrustItem} disabled={form.trustItems.length >= 8} data-testid="button-add-trust-item"><Plus className="mr-2 h-4 w-4" /> Add</Button></div>
@@ -614,7 +614,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="legal" eyebrow="06 / Details" title="Finish the public footprint" description="Keep social profiles and company details in one place so the footer stays current." icon={<ExternalLink className="h-5 w-5" />}>
+        <SectionCard id="legal" eyebrow="06 / Details" title="Social and company details" description="Keep social profiles and company details in one place so the footer stays current." icon={<ExternalLink className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="Instagram"><Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" type="url" value={form.social.instagram} onChange={(event) => updateNested('social', 'instagram', event.target.value)} placeholder="https://instagram.com/…" data-testid="input-social-instagram" /></Field>
             <Field label="Facebook"><Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" type="url" value={form.social.facebook} onChange={(event) => updateNested('social', 'facebook', event.target.value)} placeholder="https://facebook.com/…" data-testid="input-social-facebook" /></Field>
@@ -633,16 +633,16 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <div className="sticky bottom-4 z-20 flex flex-col gap-4 border border-border bg-card p-6 shadow-none sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-h-[40px] text-[13px]">
+        <div className="sticky bottom-0 z-20 flex flex-col gap-2 border border-border bg-card p-3 sm:p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-[13px]">
             {saveMessage && <p className="flex items-center gap-2 font-bold text-[#1b6543]" data-testid="status-settings-success"><Check className="h-4 w-4" />{saveMessage}</p>}
             {updateSettings.isError && <p className="flex items-center gap-2 font-bold text-destructive" data-testid="status-settings-error"><CircleAlert className="h-4 w-4" />{apiErrorMessage(updateSettings.error)}</p>}
             {Object.keys(validationErrors).length > 0 && !saveMessage && !updateSettings.isError && <p className="flex items-center gap-2 font-bold text-destructive" data-testid="status-settings-validation"><CircleAlert className="h-4 w-4" />A few fields need your attention.</p>}
-            {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && <p className="text-primary/70">Changes stay here until you publish them.</p>}
+            {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && <p className="hidden text-primary/70 sm:block">Changes stay here until you publish them.</p>}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/" className="inline-flex h-14 items-center justify-center gap-3 border border-border bg-card px-6 font-display text-[12px] font-semibold tracking-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="link-preview-showroom"><ExternalLink className="h-3.5 w-3.5" /> Preview showroom</Link>
-            <Button type="submit" disabled={updateSettings.isPending} className="h-14 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings"><Save className="mr-2 h-4 w-4" />{updateSettings.isPending ? 'Publishing…' : 'Publish showroom'}</Button>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 border border-border bg-card px-2 sm:px-6 font-display text-[12px] font-semibold tracking-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="link-preview-showroom"><ExternalLink className="h-3.5 w-3.5" /> Preview showroom</Link>
+            <Button type="submit" disabled={updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings"><Save className="mr-2 h-4 w-4" />{updateSettings.isPending ? 'Publishing…' : 'Publish showroom'}</Button>
           </div>
         </div>
       </form>

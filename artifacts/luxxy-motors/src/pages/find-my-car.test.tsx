@@ -169,7 +169,7 @@ describe('Find My Car recommendation scoring', () => {
     renderFindMyCar();
     completeQuiz(answers);
 
-    expect(screen.getByTestId('recommendation-target')).toHaveTextContent(expectedScore);
+    expect(screen.getByTestId('recommendation-target')).toHaveAttribute('data-match-score', expectedScore.split(' ')[0]);
     expect(recommendationIds()[0]).toHaveAttribute('data-testid', 'recommendation-target');
   });
 
@@ -206,7 +206,7 @@ describe('Find My Car recommendation scoring', () => {
     });
 
     const exactRecommendation = screen.getByTestId('recommendation-exact-fit');
-    expect(exactRecommendation).toHaveTextContent('13 points from your brief');
+    expect(exactRecommendation).toHaveAttribute('data-match-score', '13');
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-budget')).toHaveTextContent('£15,000 – £22,000');
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-budget')).toHaveTextContent('Exact preference');
     expect(within(exactRecommendation).getByTestId('recommendation-match-exact-fit-bodyType')).toHaveTextContent('SUV or crossover');
@@ -465,7 +465,7 @@ describe('Find My Car quiz state', () => {
     });
 
     expect(screen.getByTestId('state-no-perfect-match')).toBeInTheDocument();
-    expect(screen.getByTestId('text-results-announcement')).toHaveTextContent(/not a perfect match/i);
+    expect(screen.getByTestId('text-results-announcement')).toHaveTextContent(/No close match/i);
     const recommendation = screen.getByTestId('recommendation-closest');
     expect(recommendation).toBeInTheDocument();
     expect(within(recommendation).getByTestId('recommendation-miss-closest-budget')).toHaveTextContent('Up to £10,000');

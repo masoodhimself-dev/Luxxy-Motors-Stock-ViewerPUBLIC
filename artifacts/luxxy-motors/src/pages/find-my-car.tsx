@@ -72,14 +72,14 @@ const questions: Question[] = [
       { value: 'petrol', label: 'Petrol', detail: 'Familiar, flexible and easy to live with' },
       { value: 'diesel', label: 'Diesel', detail: 'A sensible choice for higher mileage' },
       { value: 'hybrid', label: 'Hybrid or electric', detail: 'Quieter running and modern efficiency' },
-      { value: 'any', label: 'Open to options', detail: 'Show me the strongest all-round fits' },
+      { value: 'any', label: 'Open to options', detail: 'Include all fuel types' },
     ],
   },
   {
     key: 'transmission',
     eyebrow: '04 / five',
     title: 'Which gearbox feels right?',
-    description: 'Choose the one you enjoy, rather than the one you think you should choose.',
+    description: 'Choose your preferred transmission.',
     options: [
       { value: 'automatic', label: 'Automatic', detail: 'Relaxed in traffic and simple to use' },
       { value: 'manual', label: 'Manual', detail: 'Connected and familiar on every road' },
@@ -420,7 +420,7 @@ export default function FindMyCar() {
       <div className="luxxy-shell min-h-[70dvh]">
         <div className="mx-auto flex min-h-[70dvh] max-w-xl flex-col items-start justify-center px-5 py-16 sm:px-8">
           <p className="luxxy-kicker">Find My Car</p>
-          <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-primary">The forecourt is taking a moment.</h1>
+          <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-primary">Stock could not be loaded</h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground">We could not load the live stock just now. Please try again and we will get you back to the right cars.</p>
           <Button type="button" onClick={() => window.location.reload()} data-testid="button-retry-stock" className="mt-8">
             Try again
@@ -437,9 +437,9 @@ export default function FindMyCar() {
       <div className="luxxy-shell min-h-[70dvh]">
         <div className="mx-auto flex min-h-[70dvh] max-w-3xl flex-col justify-center px-5 py-16 sm:px-8 lg:px-12">
           <p className="luxxy-kicker">Find My Car</p>
-          <h1 className="mt-5 max-w-2xl font-display text-3xl font-semibold leading-tight text-primary sm:text-4xl">A thoughtful match starts with the right stock.</h1>
+          <h1 className="mt-5 max-w-2xl font-display text-2xl font-semibold leading-tight text-primary sm:text-3xl">No vehicles available to match</h1>
           <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground">There are no cars available to match at this moment. Our stock changes regularly, so please check back soon or speak with the Harrow team about what is arriving.</p>
-          <div className="mt-9 border-l-2 border-accent pl-5 text-sm font-semibold leading-6 text-primary">No guesswork. No placeholder cars. Just the vehicles we can actually help you with.</div>
+          <div className="mt-9 border-l-2 border-accent pl-5 text-sm font-semibold leading-6 text-primary">Speak to the team about the car you are looking for.</div>
           <Button type="button" onClick={() => window.location.reload()} data-testid="button-refresh-empty-stock" className="mt-9 w-fit">
             Check live stock again
           </Button>
@@ -451,31 +451,14 @@ export default function FindMyCar() {
   return (
     <div className="luxxy-shell min-h-[70dvh] overflow-hidden">
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-12">
-        <header className="luxxy-reveal grid overflow-hidden border border-border bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="relative px-6 py-7 sm:px-8 sm:py-9">
-            <div className="absolute left-0 top-0 h-full w-1 bg-accent" aria-hidden="true" />
-            <p className="luxxy-kicker text-primary-foreground/80">A little help choosing well</p>
-            <h1 className="luxxy-reveal luxxy-reveal-1 mt-5 max-w-3xl font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-              Find the car that fits.
-            </h1>
-            <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-2xl text-base leading-7 text-primary-foreground/70 sm:text-lg">
-              Five quick choices, then a short list from our live Harrow stock. Nothing is made up, and you can change your mind at any point.
-            </p>
-          </div>
-          <div className="flex items-end justify-between gap-6 border-t border-primary-foreground/15 bg-primary/60 px-6 py-6 sm:px-10 lg:flex-col lg:items-start lg:justify-end lg:border-l lg:border-t-0 lg:px-8 lg:py-10">
-            <div>
-              <span className="luxxy-label text-primary-foreground/60">Live forecourt</span>
-              <span className="mt-2 block font-display text-4xl font-semibold">{stockCount}</span>
-              <span className="text-sm text-primary-foreground/65">cars currently available</span>
-            </div>
-            <div className="hidden max-w-[12rem] text-sm leading-6 text-primary-foreground/60 sm:block lg:block">
-              We keep the matching honest, even when the perfect answer is not on site today.
-            </div>
-          </div>
+        <header className="border-b border-border pb-6">
+          <p className="luxxy-kicker">Find my car</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-primary">Find the car that fits.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Answer five questions to narrow down our {stockCount} available cars. You can change your answers at any time.</p>
         </header>
 
         {!showResults ? (
-          <section className="luxxy-reveal luxxy-reveal-3 mt-10 max-w-5xl" aria-labelledby="question-title">
+          <section className="luxxy-reveal luxxy-reveal-3 mt-6 max-w-5xl" aria-labelledby="question-title">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {hasStarted && (
@@ -507,7 +490,7 @@ export default function FindMyCar() {
             <div className="overflow-hidden border border-border/80 bg-card">
               <div className="border-b border-border/70 bg-secondary/35 px-5 py-6 sm:px-9 sm:py-8">
                 <p className="luxxy-label text-accent">{question.eyebrow}</p>
-                <h2 id="question-title" className="mt-3 max-w-2xl font-display text-3xl font-semibold leading-tight text-primary sm:text-4xl">{question.title}</h2>
+                <h2 id="question-title" className="mt-3 max-w-2xl font-display text-2xl font-semibold leading-tight text-primary sm:text-3xl">{question.title}</h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{question.description}</p>
               </div>
               <div className="p-5 sm:p-9">
@@ -518,7 +501,7 @@ export default function FindMyCar() {
                   ))}
                 </fieldset>
                 <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-6">
-                  <p className="text-xs leading-5 text-muted-foreground">Not sure? Pick the closest answer. We keep the matching forgiving.</p>
+                  <p className="text-xs leading-5 text-muted-foreground">Choose the closest answer. You can go back and change it.</p>
                   <Button type="button" onClick={next} disabled={!answers[question.key]} data-testid={step === questions.length - 1 ? 'button-see-matches' : 'button-next-question'}>
                     {step === questions.length - 1 ? 'See my matches' : 'Next question'}
                     <ArrowRight className="h-4 w-4" />
@@ -528,75 +511,30 @@ export default function FindMyCar() {
             </div>
           </section>
         ) : (
-          <section className="mt-12" aria-labelledby="results-title">
-            <div className="grid overflow-hidden border border-border bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <div className="px-6 py-8 sm:px-10 sm:py-10">
-                <p className="luxxy-kicker text-primary-foreground/80">Your shortlist</p>
-                <h2 id="results-title" className="mt-4 font-display text-4xl font-semibold tracking-tight sm:text-5xl">A considered place to start.</h2>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-primary-foreground/70" aria-live="polite" data-testid="text-results-announcement">
-                  {hasStrongMatch ? 'These are the strongest matches for the answers you gave us.' : 'There is not a perfect match in today’s stock, but these are the closest cars to your brief.'}
+          <section className="mt-6" aria-labelledby="results-title">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div>
+                <h2 id="results-title" className="font-display text-2xl font-semibold tracking-tight">Your matches</h2>
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground" aria-live="polite" data-testid="text-results-announcement">
+                  {hasStrongMatch ? 'The closest matches for your answers, with any differences explained below.' : 'No close match in current stock. These are the nearest alternatives.'}
                 </p>
+                <p className="mt-3 text-sm text-muted-foreground">{questions.filter(item => answers[item.key]).map(item => answerLabel(item.key, answers[item.key] as string)).join(' · ')}</p>
               </div>
-              <div className="border-t border-primary-foreground/15 bg-primary/60 px-6 py-6 sm:px-10 lg:border-l lg:border-t-0 lg:px-8 lg:py-8">
-                <p className="luxxy-label text-primary-foreground/60">Your brief</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {questions.map((item) => answers[item.key] && (
-                    <span key={item.key} className="border border-primary-foreground/20 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground/85">
-                      {answerLabel(item.key, answers[item.key] as string)}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={() => { setShowResults(false); setStep(0); setHasStarted(true); }} data-testid="button-change-answers" className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Change answers
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={restart} data-testid="button-restart-results" className="text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                    <RotateCcw className="h-4 w-4" />
-                    Start again
-                  </Button>
-                </div>
-                <div className="mt-6 border-t border-primary-foreground/15 pt-5">
-                  <p className="luxxy-label text-primary-foreground/60">View your matches</p>
-                  <div className="mt-2 grid grid-cols-3 border border-primary-foreground/20">
-                    <button
-                      type="button"
-                      aria-pressed={recommendationView === 'cards'}
-                      onClick={() => setRecommendationView('cards')}
-                      data-testid="button-recommendation-view-cards"
-                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold  tracking-normal transition-colors', recommendationView === 'cards' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
-                    >
-                      <Grid2X2 className="h-3.5 w-3.5" /> Cards
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={recommendationView === 'compact'}
-                      onClick={() => setRecommendationView('compact')}
-                      data-testid="button-recommendation-view-compact"
-                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 border-x border-primary-foreground/20 text-[10px] font-bold  tracking-normal transition-colors', recommendationView === 'compact' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
-                    >
-                      <List className="h-3.5 w-3.5" /> Compact
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={recommendationView === 'shortlist'}
-                      onClick={() => setRecommendationView('shortlist')}
-                      data-testid="button-recommendation-view-shortlist"
-                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold  tracking-normal transition-colors', recommendationView === 'shortlist' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
-                    >
-                      <Rows3 className="h-3.5 w-3.5" /> Shortlist
-                    </button>
-                  </div>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => { setShowResults(false); setStep(0); setHasStarted(true); }} data-testid="button-change-answers">Change answers</Button>
+                <Button type="button" variant="ghost" onClick={restart} data-testid="button-restart-results">Start again</Button>
               </div>
+            </div>
+            <div className="mt-5 inline-flex border border-border" aria-label="View your matches">
+              {(['cards', 'compact', 'shortlist'] as const).map(view => <button key={view} type="button" aria-pressed={recommendationView === view} onClick={() => setRecommendationView(view)} data-testid={`button-recommendation-view-${view}`} className={cn('min-h-11 px-4 text-sm capitalize', recommendationView === view ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground')}>{view}</button>)}
             </div>
 
             {!hasStrongMatch && (
               <div className="mt-7 flex gap-4 border border-accent/40 bg-accent/10 p-5 sm:p-6" data-testid="state-no-perfect-match">
                 <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
                 <div>
-                  <h3 className="font-display text-xl font-semibold text-primary">No exact match today — and that is useful to know.</h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">We would rather show you the nearest honest options than force a car into the wrong box. Try changing one answer, or call the team and tell us what you are looking for.</p>
+                  <h3 className="font-display text-xl font-semibold text-primary">No exact match today</h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Try changing an answer, or contact the team about upcoming stock.</p>
                 </div>
               </div>
             )}
@@ -617,19 +555,13 @@ export default function FindMyCar() {
                     recommendationView === 'shortlist' && index === 0 && 'lg:col-span-2',
                   )}
                   data-testid={`recommendation-${car.id}`}
+                  data-match-score={score}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="luxxy-label text-accent">{index === 0 ? 'Best fit' : `Match ${index + 1}`}</span>
-                    <span className="text-xs font-semibold text-muted-foreground">{score > 0 ? `${score} points from your brief` : 'Worth a closer look'}</span>
-                  </div>
                   <CarCard
                     car={car}
                     stretchedLink
                     layout={recommendationView === 'compact' || (recommendationView === 'shortlist' && index > 0) ? 'compact' : 'card'}
-                    badges={[
-                      index === 0 ? 'Best match' : `Match ${index + 1}`,
-                      ...matches.slice(0, 2).map((match) => match.explanation),
-                    ]}
+
                   />
                   <div className="border-t border-border/70 px-1 pt-4" data-testid={`recommendation-explanation-${car.id}`}>
                     <p className="luxxy-label text-accent">{matches.length > 0 ? 'Why it fits' : 'Why it is here'}</p>
@@ -642,8 +574,8 @@ export default function FindMyCar() {
                               <span className="block text-xs leading-5 text-muted-foreground">{match.explanation}</span>
                             </span>
                             <span className={cn(
-                              'shrink-0 border px-2 py-1 text-[10px] font-bold  tracking-normal',
-                              match.kind === 'flexible' ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border bg-secondary text-muted-foreground',
+                              'shrink-0 text-[10px] font-medium',
+                              match.kind === 'flexible' ? 'text-accent' : 'text-muted-foreground',
                             )}>
                               {match.kind === 'flexible' ? 'Flexible fallback' : match.key === 'use' ? 'Good fit' : 'Exact preference'}
                             </span>
@@ -665,7 +597,7 @@ export default function FindMyCar() {
                                 <span className="block font-semibold leading-5 text-primary">{miss.answer}</span>
                                 <span className="block text-xs leading-5 text-muted-foreground">{miss.explanation}</span>
                               </span>
-                              <span className="shrink-0 border border-border bg-background px-2 py-1 text-[10px] font-bold tracking-normal text-muted-foreground">
+                              <span className="shrink-0 text-[10px] font-medium tracking-normal text-muted-foreground">
                                 Missed preference
                               </span>
                             </li>

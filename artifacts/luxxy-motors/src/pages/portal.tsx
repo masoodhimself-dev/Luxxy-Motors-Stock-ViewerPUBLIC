@@ -125,27 +125,27 @@ function PortalDesk() {
     sessionQuery.data?.name ?? user?.firstName ?? sessionQuery.data?.email ?? 'there';
 
   return (
-    <div className="portal-workspace luxxy-shell min-h-[70vh] bg-background px-4 py-7 sm:py-8">
+    <div className="portal-workspace luxxy-shell min-h-[70vh] bg-background px-4 py-5 sm:py-6">
       <div className="mx-auto max-w-[1216px]">
-        <header className="mb-6 flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div>
-            <p className="luxxy-kicker mb-2 text-[12px]">
+            <p className="luxxy-kicker mb-1 text-[11px]">
               <Settings2 className="h-4 w-4" /> Staff portal
             </p>
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-primary">
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">
               Sales desk
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Welcome, {staffName}. Your enquiries, viewings and sales in one place.
+            <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
+              Signed in as {staffName}
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               onClick={() => setCapturing(true)}
               data-testid="button-new-lead"
             >
-              <Plus className="mr-2 h-4 w-4" /> New lead
+              <Plus className="hidden h-4 w-4 sm:block" /> New lead
             </Button>
             <div className="rounded-md border border-border bg-card p-1 shadow-none">
               <UserButton />
@@ -158,7 +158,7 @@ function PortalDesk() {
         ) : (
           <div className="min-w-0">
             <nav
-              className="mb-6 flex max-w-full gap-1 overflow-x-auto border-b border-border"
+              className="mb-5 grid grid-cols-5 sm:flex max-w-full gap-0.5 overflow-x-auto border-b border-border"
               aria-label="Portal sections"
             >
               {tabs.map(({ key, label, icon: Icon }) => {
@@ -170,13 +170,13 @@ function PortalDesk() {
                     onClick={() => setTab(key)}
                     aria-current={active ? 'page' : undefined}
                     data-testid={`tab-${key}`}
-                    className={`inline-flex items-center justify-center gap-2 rounded-sm border px-5 py-3 font-display text-[11px] font-semibold tracking-normal transition-all ${
+                    className={`inline-flex items-center justify-center gap-2 rounded-sm border px-1 sm:px-5 py-3 font-display text-[11px] font-semibold tracking-normal transition-all ${
                       active
                         ? 'border-primary text-primary'
                         : 'border-transparent text-muted-foreground hover:bg-secondary hover:text-primary'
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="hidden h-4 w-4 sm:block" />
                     {label}
                   </button>
                 );

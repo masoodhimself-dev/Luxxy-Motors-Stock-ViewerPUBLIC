@@ -16,6 +16,13 @@ export function formatPrice(price: number, currency: string | null = 'GBP') {
   }).format(price);
 }
 
+export function formatPhoneDisplay(phone: string) {
+  const compact = phone.replace(/\s/g, '');
+  return /^020\d{8}$/.test(compact)
+    ? `${compact.slice(0, 3)} ${compact.slice(3, 7)} ${compact.slice(7)}`
+    : phone;
+}
+
 export function formatMileage(mileage: number) {
   return new Intl.NumberFormat('en-GB').format(mileage) + ' miles';
 }
@@ -34,7 +41,14 @@ export function vehicleDisplayTitle(vehicle?: {
     ? title.replace(new RegExp(`(^|\\s)${vehicle.year}(?=\\s|$)`, 'g'), ' ')
     : title;
 
-  return displayTitle.replace(/\s{2,}/g, ' ').trim() || fallback || 'Vehicle';
+  let cleaned = displayTitle.replace(/\s{2,}/g, ' ').trim();
+  // Some imported titles repeat the make at the start of the model (e.g. MG MG HS).
+  // Normalise the label only; retain the original stock record and all model words.
+  const make = vehicle?.make?.trim();
+  if (make && cleaned.toLowerCase().startsWith(`${make} ${make} `.toLowerCase())) {
+    cleaned = cleaned.slice(make.length + 1);
+  }
+  return cleaned || fallback || 'Vehicle';
 }
 
 /**

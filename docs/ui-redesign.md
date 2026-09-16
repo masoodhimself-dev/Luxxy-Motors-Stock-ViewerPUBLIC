@@ -1,5 +1,7 @@
 # Luxxy Motors UI/UX redesign
 
+Latest review: [final visual QA findings](#final-visual-qa--16-september-2026) and [40 fresh desktop/mobile screenshots](ui-qa-screenshots.md).
+
 Branch: `codex/luxxy-premium-ui-redesign`. Starting point: `d548c0b` (the existing local preview and mobile fixes, preserved separately).
 
 ## Frontend audit
@@ -49,7 +51,7 @@ Shared Button, Input, Textarea, NativeSelect, Card, Badge, Alert, Dialog, Select
 - Reduced-motion preferences suppress decorative transitions and photo hover cycling. Statuses retain text/icons in addition to colour. Channel-table horizontal scrolling is contained in a labelled, keyboard-focusable region.
 - Browser tests cover loading, expired secure links and success states using synthetic responses. These checks are not a formal WCAG certification or a substitute for physical-device testing.
 
-## Verification (16 September 2026)
+## Initial redesign verification (16 September 2026)
 
 | Check | Result |
 | --- | --- |
@@ -75,7 +77,7 @@ The two databases are disposable local PostgreSQL 16 databases, not Replit. Post
 
 Build warnings remain: Vite reports an existing tooltip sourcemap diagnostic and a frontend JavaScript chunk of approximately 802KB (225KB gzip), above its 500KB advisory threshold. Neither fails the build. Splitting public and staff bundles is a separate performance improvement.
 
-## Review and remaining work
+## Initial review and remaining work
 
 Run `pnpm dev:preview`, then open `http://127.0.0.1:4175`. Useful routes: `/`, `/vehicle/preview-1`, `/enquire?type=viewing&vehicleId=preview-1`, `/portal`, `/portal/leads/sample-lead-1`, `/viewing/sample`, `/customer-details/sample` and `/sign/sample`. Select two cars to populate `/compare`, or save them to populate `/saved`.
 
@@ -155,3 +157,111 @@ Paths are relative to the repository root. The 16 PNG screenshots are in `docs/s
 - `artifacts/luxxy-motors/vite.preview.config.ts`
 - `docs/ui-redesign-screenshots.md`
 - `docs/ui-redesign.md`
+
+
+## Final visual QA — 16 September 2026
+
+Reviewed the existing redesign in the local browser as a dealership showroom and working sales desk. The changes in this pass are confined to frontend presentation, client-side interaction fixes, tests and review evidence. No backend, database, API contract, authentication logic, sales rules, migration or deployment configuration was changed. No production service or database was used. The local preview remains read-only and uses archived stock with synthetic staff/customer records.
+
+### Problems found and changes made
+
+- **Stock sat too far below the desktop opening.** Reduced hero and section spacing, arranged desktop search/sort/actions in one row, and enlarged stock photography with three columns. Latest arrivals now shows three vehicles before View all, avoiding an isolated fourth card. Search and View all still expose the complete matching stock.
+- **Vehicle information had distracting inconsistencies.** Display titles no longer repeat a leading make such as “MG MG”; original stock records are untouched. Zero mileage displays correctly. Two-column key facts avoid stranded separator dots. London telephone numbers use readable spacing. Existing Category S/N history is linked beside the vehicle facts.
+- **Comparison prices were too far down the page.** Price now appears immediately below each vehicle title, with quieter comparison labels and less vertical padding. The mobile comparison tray starts collapsed with its Compare action visible, retaining expand, remove and dismiss controls.
+- **Saved/compare headers and empty states were overbuilt.** Removed duplicated wrappers/dividers, added shared PageEmptyState, simplified copy, and kept unavailable saved cars distinct from a genuinely empty shortlist. Failed stock requests now show a retry state and preserve saved IDs instead of pretending the shortlist is empty.
+- **Viewing Continue triggered premature form validation.** React reused the button that becomes Submit on the next step. Separate button keys and prevention of the original click's default action stop that accidental submission. Focus moves to the name field; availability, validation and submission payloads are unchanged.
+- **Changing enquiry service left a stale heading.** The parent heading/intro now follows the form selection without resetting entered details. The part-exchange stock selector has an accessible label. Removed a decorative sparkle badge, premature “reserved” wording and unsupported vehicle-preparation promises.
+- **The finder presented itself as a scoring dashboard.** Removed internal point totals, oversized result banners and repeated badges. Cars, preference explanations and differences now lead. Matching/scoring, all five questions and three result views remain intact.
+- **Staff navigation and page introductions consumed too much mobile space.** Staff pages use a compact brand header with View showroom, an inline New lead action and five tabs. Leads filters fit two columns. Work queues, activity capture and new-lead/deal introductions use shorter operational copy. Duplicate enquiry text is shown once. Settings actions occupy one compact sticky row.
+- **Keyboard users could tab through 70 gallery thumbnails.** The strip now has one tab stop, with Left/Right/Home/End moving the selected photograph and focus. Fullscreen focus containment and Escape continue to work. Mobile menu rows/footer links and the unavailable-stock removal action retain comfortable touch targets; WhatsApp uses a darker contrasting colour.
+- **Secure-link pages repeated information and used excessive all-caps copy.** Removed the duplicate customer-details introduction, formatted signing mileage, and made viewing reschedule dates a four-column mobile grid. Signing controls, consent requirements and sale restrictions are unchanged.
+
+### Interactive review coverage
+
+Desktop and mobile versions were compared, with final evidence at **1440 × 1000** and **390 × 844**. Automated layout coverage additionally includes 320, 375, 402, 768 and 1024px.
+
+| Area | Pages and interactions reviewed |
+| --- | --- |
+| Homepage / stock | Full page, advanced filters, make/search, sort, no results/reset, grid/list controls, View all, header/mobile menu and footer |
+| Vehicle detail | Mercedes and MG examples; photographs/thumbnails, fullscreen, keyboard arrows/Escape, save/compare, history disclosure, related stock, enquiry/viewing links and sticky mobile actions |
+| Saved / compare | Populated, one/two/zero selections, remove/clear, empty and unavailable stock; stock failure and persistence covered by browser interception |
+| Enquiries | General, viewing, part exchange, warranty and delivery; service changes, date/time selection, Continue, focus and validation. No real enquiry sent |
+| Find My Car | Five-question journey, result explanations; automated interaction also checks compact/shortlist views and changing answers |
+| Customer links | Customer-details form/native validation; viewing reschedule/time selection/cancellation confirmation and backing out; signing fields, consent/enabled state and Edit details link. No agreement signed |
+| Staff | Today queues; leads list/filter controls; lead detail, next action and outcome editor; New lead dialog; deals list/detail/new-sale dialog/checklist; channels table; settings sections/contact/hours and action bar. No lead/sale mutation or Publish action performed |
+| State coverage | Loading, expired links, successful fixture responses, stock errors and empty states in the browser suite; responsive not-found coverage retained |
+
+The real Clerk sign-in screen, generated document pack and external communication destinations require a separate authenticated staging review. Stock imports have no separate frontend page. The existing API integration and migration results above belong to the initial redesign verification, and were **not rerun in this frontend-only QA pass**.
+
+### Final verification
+
+| Check | Final result |
+| --- | --- |
+| Complete frontend Vitest suite | **119 passed**, 15 files |
+| Full Playwright Chromium suite | **49 passed**: 47 behaviour/layout checks and two opt-in screenshot journeys |
+| Final screenshot recapture | **2 passed** after adding explicit readiness checks; 40 PNGs across 16 page pairs plus eight viewport images |
+| Workspace typechecking | **Passed**, including shared libraries, frontend, backend, mockup sandbox and scripts |
+| Workspace production builds | **Passed**, frontend, backend and mockup sandbox |
+| Whitespace/scope review | **Passed**; this QA diff is confined to `artifacts/luxxy-motors/` and `docs/` |
+
+```sh
+NODE_OPTIONS=--no-experimental-webstorage pnpm --filter @workspace/luxxy-motors test
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' LUXXY_LOCAL_PREVIEW=1 LUXXY_QA_SCREENSHOTS=1 pnpm --filter @workspace/luxxy-motors test:mobile-layout
+PORT=4175 BASE_PATH=/ NODE_ENV=production pnpm run build
+```
+
+No final test or build failures remain. Restarting the local preview also logged a pre-transform warning for the production entry’s `@clerk/react/internal` import under the existing preview alias; the separate preview entry rendered successfully and was verified in a fresh browser tab. This existing preview-configuration warning has not been suppressed or changed in this UI pass.
+
+Vite still emits its tooltip sourcemap diagnostic and the large-chunk advisory: approximately **796KB JavaScript / 224KB gzip**. These are not build failures; splitting public and staff code remains a separate performance task.
+
+### Visual judgement and remaining work
+
+This pass improves vehicle prominence, price visibility, restrained typography and staff task density. It is ready for review on the design branch. Passing tests does not establish launch readiness:
+
+- The archived photographs vary in lighting, background and framing. A consistent set of real exterior/interior photos would improve the commercial impression more than additional decoration.
+- Some records lack descriptions and feature lists. Accurate supplied content is needed for a convincing vehicle detail page; it has not been invented. Review current stock and the dealership's configured service/branding copy before publication.
+- Confirm the real address, opening hours, company details and contact destinations in an authorised staging environment. The read-only preview is not evidence of the production configuration.
+- The development sales warning remains prominent, especially on mobile. It reflects existing workflow restrictions and has deliberately not been hidden or weakened. Actual document content and authenticated sales acceptance remain outside this UI pass.
+- Physical iPhone/Safari and Android testing, including software keyboards, native share and telephone/WhatsApp hand-offs, remains outstanding. Mobile-width Chromium is not a substitute.
+
+No merge, push or deployment was performed. Recommended next step: visual approval and real content/branding review, followed by authenticated staging and physical-device acceptance. Replit removal remains a separate milestone.
+
+### Files changed in this QA pass
+
+The following source/test inventory supplements the initial redesign inventory above. Review documentation is in `docs/ui-redesign.md`, `docs/ui-qa-screenshots.md` and `docs/ui-redesign-screenshots.md`; 40 evidence images are in `docs/screenshots/ui-qa/`.
+
+- `artifacts/luxxy-motors/src/components/car-card.tsx`
+- `artifacts/luxxy-motors/src/components/compare-tray.tsx`
+- `artifacts/luxxy-motors/src/components/dealer-settings-panel.tsx`
+- `artifacts/luxxy-motors/src/components/enquiry-form.tsx`
+- `artifacts/luxxy-motors/src/components/filters.tsx`
+- `artifacts/luxxy-motors/src/components/gallery.tsx`
+- `artifacts/luxxy-motors/src/components/layout.tsx`
+- `artifacts/luxxy-motors/src/components/page-ui.tsx`
+- `artifacts/luxxy-motors/src/components/portal/activity-composer.tsx`
+- `artifacts/luxxy-motors/src/components/portal/deals-panel.tsx`
+- `artifacts/luxxy-motors/src/components/portal/lead-capture.tsx`
+- `artifacts/luxxy-motors/src/components/portal/lead-detail.tsx`
+- `artifacts/luxxy-motors/src/components/portal/lead-list.tsx`
+- `artifacts/luxxy-motors/src/components/portal/portal-ui.tsx`
+- `artifacts/luxxy-motors/src/components/portal/work-queue.tsx`
+- `artifacts/luxxy-motors/src/components/saved-car-controls.tsx`
+- `artifacts/luxxy-motors/src/index.css`
+- `artifacts/luxxy-motors/src/lib/utils.test.tsx`
+- `artifacts/luxxy-motors/src/lib/utils.ts`
+- `artifacts/luxxy-motors/src/pages/car-detail.tsx`
+- `artifacts/luxxy-motors/src/pages/compare.tsx`
+- `artifacts/luxxy-motors/src/pages/customer-details.tsx`
+- `artifacts/luxxy-motors/src/pages/enquire.tsx`
+- `artifacts/luxxy-motors/src/pages/find-my-car.test.tsx`
+- `artifacts/luxxy-motors/src/pages/find-my-car.tsx`
+- `artifacts/luxxy-motors/src/pages/home.test.tsx`
+- `artifacts/luxxy-motors/src/pages/home.tsx`
+- `artifacts/luxxy-motors/src/pages/portal.tsx`
+- `artifacts/luxxy-motors/src/pages/saved.tsx`
+- `artifacts/luxxy-motors/src/pages/signing.tsx`
+- `artifacts/luxxy-motors/src/pages/viewing.tsx`
+- `artifacts/luxxy-motors/src/preview.tsx`
+- `artifacts/luxxy-motors/tests/redesign-journeys.spec.ts`
+- `artifacts/luxxy-motors/tests/secure-link-showroom.spec.ts`
+- `artifacts/luxxy-motors/tests/visual-qa-capture.spec.ts`

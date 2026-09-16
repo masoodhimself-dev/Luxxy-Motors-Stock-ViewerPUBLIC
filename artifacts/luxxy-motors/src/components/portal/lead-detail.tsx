@@ -517,7 +517,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
           <Panel>
              <header className="border-b border-border bg-background/45 px-5 py-4">
-               <p className="luxxy-kicker text-[11px]">The story</p>
+               <p className="luxxy-kicker text-[11px]">Activity</p>
                <h2 className="mt-2 font-display text-xl font-medium tracking-[-.02em] text-primary">
                 Timeline
               </h2>
@@ -588,7 +588,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
               <p className="mt-3 whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">
                 {enquiryMessage ?? lead.summary}
               </p>
-              {enquiryMessage && lead.summary && (
+              {enquiryMessage && lead.summary && enquiryMessage.trim() !== lead.summary.trim() && (
                 <p className="mt-3 whitespace-pre-wrap border-t border-primary pt-3 text-[13px] leading-relaxed text-primary/70 font-medium">
                   {lead.summary}
                 </p>

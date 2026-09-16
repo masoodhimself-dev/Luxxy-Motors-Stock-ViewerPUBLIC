@@ -2,11 +2,11 @@ import { Check, Heart, Scale } from 'lucide-react';
 import { Car } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, vehicleDisplayTitle } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 
 export function vehicleLabelFor(car: Car) {
-  return car.title || `${car.make || ''} ${car.model || ''}`.trim() || 'this vehicle';
+  return vehicleDisplayTitle(car);
 }
 
 export function SaveCarButton({

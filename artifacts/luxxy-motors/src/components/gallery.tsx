@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type CarImage } from '@/lib/stock-context';
@@ -13,6 +13,7 @@ function imageCaption(image: CarImage | string | undefined) {
 }
 
 export function Gallery({ images, heroImage }: GalleryProps) {
+  const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -129,6 +130,18 @@ export function Gallery({ images, heroImage }: GalleryProps) {
                 type="button"
                 aria-label={`Show photograph ${i + 1} of ${allImages.length}`}
                 aria-current={i === index}
+                ref={(element) => { thumbnailRefs.current[i] = element; }}
+                tabIndex={i === index ? 0 : -1}
+                onKeyDown={(event) => {
+                  const target = event.key === 'ArrowRight' ? (i + 1) % allImages.length
+                    : event.key === 'ArrowLeft' ? (i + allImages.length - 1) % allImages.length
+                    : event.key === 'Home' ? 0 : event.key === 'End' ? allImages.length - 1 : null;
+                  if (target === null) return;
+                  event.preventDefault();
+                  setActiveIndex(target);
+                  thumbnailRefs.current[target]?.focus({ preventScroll: true });
+                  thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }}
                 onClick={() => setActiveIndex(i)}
                 className={cn(
                   'h-16 w-24 shrink-0 overflow-hidden rounded-sm border-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',

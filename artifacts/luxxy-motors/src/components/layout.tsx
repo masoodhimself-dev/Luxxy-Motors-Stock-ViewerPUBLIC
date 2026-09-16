@@ -8,14 +8,15 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CompareTray } from '@/components/compare-tray';
 import { isWritableFormControl } from '@/lib/form-draft';
+import { formatPhoneDisplay } from '@/lib/utils';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 
 const navLinkClass =
   'whitespace-nowrap font-display text-[14px] font-semibold tracking-normal text-primary/75 transition-colors hover:text-accent';
 const mobileNavRowClass =
-  'flex min-h-14 items-center justify-between border-b border-primary/10 py-4 text-left font-display text-lg font-semibold text-primary transition-colors hover:text-accent';
+  'flex min-h-12 items-center justify-between border-b border-primary/10 py-2 text-left font-display text-base font-semibold text-primary transition-colors hover:text-accent';
 const footerLinkClass =
-  'text-[14px] font-semibold text-primary-foreground/70 transition-colors hover:text-accent';
+  'min-h-11 text-left text-[14px] font-medium text-primary-foreground/80 transition-colors hover:text-accent';
 const footerHeadingClass = 'font-display text-lg font-semibold text-primary-foreground mb-5';
 const socialLinkClass =
   'grid h-11 w-11 place-items-center rounded-lg bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground';
@@ -51,6 +52,7 @@ export function readableForegroundForHsl(hsl: string) {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
+  const isStaff = location.startsWith('/portal');
   const { settings: dealerConfig } = useDealerSettings();
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -187,6 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </button>
 
+          {isStaff ? <Button variant="outline" className="shrink-0 px-3 text-xs" onClick={() => handleNav('top')}>View showroom <ArrowRight className="h-4 w-4" /></Button> : <>
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
@@ -227,7 +230,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-2">
                   <Phone className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:scale-110" />
                   <span className="whitespace-nowrap font-display text-[14px] font-bold tracking-normal text-primary transition-colors group-hover:text-accent">
-                    {dealerConfig.contact.phone}
+                    {formatPhoneDisplay(dealerConfig.contact.phone)}
                   </span>
                 </a>
               )}
@@ -270,6 +273,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           </div>
+          </>}
         </div>
 
         {/* Mobile Nav Dropdown */}
@@ -282,6 +286,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
               Browse Stock <ArrowRight className="w-5 h-5 text-accent" />
             </button>
+            <button onClick={() => { setMobileMenuOpen(false); setLocation(getEnquiryHref('viewing')); }} className={mobileNavRowClass}>Book a viewing <CalendarDays className="h-5 w-5 text-accent" /></button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>Part Exchange <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={mobileNavRowClass}>Warranty <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery <ArrowRight className="w-5 h-5 opacity-40" /></button>}
@@ -310,7 +315,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   className="flex items-center justify-between p-4 bg-primary text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <span className="font-display font-bold tracking-normal text-sm flex items-center gap-3"><Phone className="h-5 w-5" /> Call us</span>
-                  <span className="font-display font-semibold tracking-normal text-base">{dealerConfig.contact.phone}</span>
+                  <span className="font-display font-semibold tracking-normal text-base">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
                 </a>
               )}
               {dealerConfig.contact.whatsapp && (
@@ -318,7 +323,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-[#25D366] text-white transition-colors hover:bg-[#128C7E]"
+                  className="flex items-center justify-between p-4 bg-[hsl(var(--contact))] text-white transition-colors hover:opacity-90"
                 >
                   <span className="font-display font-bold tracking-normal text-sm flex items-center gap-3"><MessageCircle className="h-5 w-5" /> Message</span>
                   <span className="font-display font-semibold tracking-normal text-base">WhatsApp</span>
@@ -335,15 +340,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <footer hidden={location.startsWith('/portal')} id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-12 pb-8 text-primary-foreground">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="mb-10 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-12 lg:gap-12">
-            <div className="lg:col-span-5">
+          <div className="mb-10 grid grid-cols-2 gap-6 lg:grid-cols-12 lg:gap-12">
+            <div className="col-span-2 lg:col-span-5">
                <p className="font-display mb-1 text-3xl font-semibold tracking-[-.04em] text-primary-foreground">
                 {wordmark}
               </p>
               {locationLabel && (
                  <p className="mb-6 font-display text-xs font-medium tracking-normal text-primary-foreground/75">{locationLabel}</p>
               )}
-              <p className="mb-8 max-w-sm text-base leading-relaxed text-primary-foreground/80 font-medium">
+              <p className="mb-4 max-w-sm text-sm leading-relaxed text-primary-foreground/80 font-medium">
                 {dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
                   ? 'Clear details, fair prices and time to look properly before you decide.'
                   : dealerConfig.hero.subcopy}
@@ -369,7 +374,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Vehicles</h3>
-              <nav className="flex flex-col items-start gap-4">
+              <nav className="flex flex-col items-start gap-0">
                 <button onClick={() => handleNav('stock')} className={footerLinkClass}>All Stock</button>
                 <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find My Car</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part Exchange</button>
@@ -384,7 +389,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {dealerConfig.contact.phone && (
                   <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-3 transition-colors hover:text-accent">
                     <Phone className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-accent">{dealerConfig.contact.phone}</span>
+                    <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-accent">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
                   </a>
                 )}
                 {dealerConfig.contact.email && (

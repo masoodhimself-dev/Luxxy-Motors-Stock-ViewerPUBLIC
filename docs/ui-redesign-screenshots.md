@@ -1,5 +1,7 @@
 # Luxxy Motors — visual review
 
+**Latest:** [Final visual QA gallery — 16 page pairs and viewport captures](ui-qa-screenshots.md). The images below record the earlier redesign stage.
+
 Desktop screenshots: 1440 × 1000 viewport. Mobile: 390 × 844 viewport. Images show the full page. Captured from the read-only local preview using archived stock photography and synthetic customer/staff records. The preview badge is not included in production.
 
 | Page | Desktop | Mobile |

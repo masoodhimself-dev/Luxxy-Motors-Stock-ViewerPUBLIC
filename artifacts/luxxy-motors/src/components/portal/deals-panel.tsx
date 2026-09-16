@@ -688,12 +688,12 @@ export function DealsPanel() {
         <div className="px-0 py-5 sm:px-3">
           <div className="mx-auto flex max-w-4xl flex-col items-start gap-6 lg:flex-row lg:justify-between lg:items-start">
             <div>
-              <p className="font-display text-xs font-semibold text-accent text-primary">Focused sales workspace</p>
+              <p className="font-display text-xs font-semibold text-accent text-primary">Development sales</p>
               <DialogTitle id="focused-sale-title" className="mt-4 max-w-xl font-display text-[1.75rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2rem]">
-                Build the deal, one step at a time.
+                New sale
               </DialogTitle>
               <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-primary/70 font-medium sm:text-[15px]">
-                The rest of the portal is tucked away while you prepare this sale. Customer details can be selected from an enquiry or collected by QR code.
+                Choose a vehicle and add the customer from an enquiry or a secure QR link.
               </p>
             </div>
             <Button
@@ -707,7 +707,7 @@ export function DealsPanel() {
               <span className="sm:hidden">Portal</span>
             </Button>
           </div>
-          <div className="mx-auto mt-10 max-w-4xl pb-10">
+          <div className="mx-auto mt-5 max-w-4xl pb-4">
             <SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={handleSaleCreated} />
           </div>
         </div>
@@ -720,8 +720,8 @@ export function DealsPanel() {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
            <p className="luxxy-kicker text-[11px]"><ClipboardCheck className="h-3.5 w-3.5" /> Digital sales</p>
-           <h2 className="mt-3 font-display text-[2.25rem] font-medium leading-none tracking-[-.04em] text-primary">Deal workspace</h2>
-           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">Create a development sale, prepare a hashed document pack, and send a secure signing link before production decisions are made.</p>
+           <h2 className="mt-2 font-display text-2xl font-medium leading-none tracking-[-.04em] text-primary">Deal workspace</h2>
+           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-muted-foreground">Prepare development sales, review documents and track signing.</p>
         </div>
         <Button type="button" variant={showSaleForm ? 'outline' : 'default'} className={`rounded-md text-[12px] font-medium ${showSaleForm ? '' : 'shadow-none'}`} data-testid="button-toggle-sale-form" onClick={showSaleForm ? closeNewSale : openNewSale}><Plus className="mr-2 h-4 w-4" />{showSaleForm ? 'Hide new sale' : 'New development sale'}</Button>
       </div>

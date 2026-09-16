@@ -111,9 +111,8 @@ export function ActivityComposer({
       data-testid="activity-composer"
     >
       <header className="border-b border-border bg-background/45 px-5 py-4">
-        <p className="luxxy-kicker text-[11px]">Log contact</p>
-        <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-.03em] text-primary">
-          What just happened?
+        <h2 className="font-display text-xl font-semibold tracking-[-.03em] text-primary">
+          Log contact
         </h2>
       </header>
 
@@ -168,18 +167,18 @@ export function ActivityComposer({
             </SelectField>
           </Field>
 
-          <Field label="Then do this">
+          <Field label="Next action">
             <Input
               value={nextAction}
               onChange={(event) => setNextAction(event.target.value)}
-              placeholder="Chase for a decision"
+              placeholder="Follow up after viewing"
               className="rounded-md"
               maxLength={300}
               data-testid="input-activity-next-action"
             />
           </Field>
 
-          <Field label="By when">
+          <Field label="Due">
             <Input
               type="datetime-local"
               value={nextActionDueAt}
@@ -210,7 +209,7 @@ export function ActivityComposer({
           {createActivity.isPending && (
             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
           )}
-          Log it
+          Save activity
         </Button>
       </footer>
     </form>

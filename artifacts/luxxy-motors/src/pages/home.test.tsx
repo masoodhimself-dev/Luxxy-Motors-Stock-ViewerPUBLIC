@@ -326,6 +326,7 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByLabelText('Min budget'), {
       target: { value: '5000' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Ford Fiesta', 'Audi A3']);
 
     fireEvent.change(screen.getByLabelText('Min budget'), { target: { value: '' } });
@@ -377,7 +378,7 @@ describe('showroom search filters', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
 
-    expect(resultTitles()).toHaveLength(4);
+    expect(resultTitles()).toHaveLength(3);
     expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
     expect((screen.getByTestId('input-showroom-search') as HTMLInputElement).value).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
@@ -399,7 +400,7 @@ describe('showroom search filters', () => {
 
   it('reveals all results and scrolls when clicking View All Vehicles', async () => {
     renderHome();
-    expect(resultTitles()).toHaveLength(4); // initially 4
+    expect(resultTitles()).toHaveLength(3); // latest arrivals shows one desktop row
     fireEvent.click(screen.getByTestId('button-view-all-vehicles'));
     expect(resultTitles()).toHaveLength(5);
     await waitFor(() => {

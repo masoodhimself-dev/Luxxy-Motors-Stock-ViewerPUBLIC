@@ -1,4 +1,4 @@
-import { PageHeading } from '@/components/page-ui';
+import { PageHeading, PageEmptyState } from '@/components/page-ui';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Calendar, MessageCircle, Phone, Plus, Scale, X } from 'lucide-react';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -90,7 +90,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
 
   return (
     <div className="flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card shadow-none">
-      <div className="relative aspect-[4/3] w-full border-b border-primary bg-primary/10">
+      <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full border-b border-primary bg-primary/10">
         {thumbnail ? (
           <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
@@ -107,7 +107,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
         </button>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-6">
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-5">
         <Link
           href={`/vehicle/${car.id}`}
           onClick={() => trackEvent('vehicle_opened', { source: 'compare_tray' })}
@@ -123,13 +123,16 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
           )}
         </Link>
 
+        <p className="luxxy-price mt-3 text-xl sm:text-2xl" data-testid={`compare-price-${car.id}`}>{car.price != null ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{car.registrationBand || car.year}</p>
+
         {registration && (
           <div className="mt-4">
             <UKNumberPlate size="sm" value={registration} className="w-[104px]" testId="compare-plate" />
           </div>
         )}
 
-        <div className="mt-auto pt-6 flex flex-col gap-3">
+        <div className="mt-auto pt-4 flex flex-col gap-3">
           <Button
             asChild
             className="w-full h-11 px-2 rounded-md bg-primary font-display text-[12px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none"
@@ -170,25 +173,25 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
 
 function EmptySlot() {
   return (
-    <div className="flex flex-col border border-dashed border-primary/20 bg-primary/5 p-6 md:p-8">
+    <div className="flex flex-col border border-border bg-secondary/30 p-4 sm:p-6">
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="grid h-16 w-16 place-items-center bg-background border border-primary text-primary shadow-none mb-6">
+        <div className="grid h-11 w-11 place-items-center text-muted-foreground mb-3">
           <Plus className="h-8 w-8" />
         </div>
-        <p className="font-display text-[13px] font-semibold tracking-normal text-primary mb-2">ADD A SECOND CAR</p>
+        <p className="font-display text-[13px] font-semibold tracking-normal text-primary mb-2">Add a second car</p>
         <p className="text-[11px] font-normal leading-relaxed text-muted-foreground">
           Pick another car to compare specs side by side.
         </p>
       </div>
       <Button asChild variant="outline" className="mt-6 w-full h-12 rounded-md border border-border bg-card font-display text-[11px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground hover:shadow-none">
-        <Link href="/">Back to Stock</Link>
+        <Link href="/">Browse stock</Link>
       </Button>
     </div>
   );
 }
 
 export default function Compare() {
-  const { stock, isLoading } = useStock();
+  const { stock, isLoading, error } = useStock();
   const { compareIds, removeFromCompare } = useSavedCars();
 
   const cars = compareIds
@@ -219,28 +222,16 @@ export default function Compare() {
           Back to showroom
         </Link>
 
-        <div className="mt-8 flex flex-col gap-5 border-b border-primary pb-8 sm:flex-row sm:items-end sm:justify-between">
-          <PageHeading eyebrow="Side by side" title="Compare cars" description="The details that matter, together in one place." />
-          <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-            <span className="font-display font-semibold text-sm tracking-normal text-primary bg-primary/5 border border-primary/10 px-3 py-1">
-              {cars.length} OF {MAX_COMPARE} SLOTS USED
-            </span>
-          </div>
-        </div>
+        <div className="mt-6"><PageHeading eyebrow="Side by side" title="Compare cars" description="Price, specification and running details at a glance." action={<p className="text-sm text-muted-foreground">{cars.length} of {MAX_COMPARE} cars selected</p>} /></div>
 
-        {cars.length === 0 ? (
-          <div className="mx-auto mt-10 max-w-2xl border border-dashed border-primary/20 bg-primary/5 px-6 py-12 text-center">
-            <span className="mx-auto mb-6 grid h-16 w-16 place-items-center border border-border bg-card text-accent shadow-none">
-              <Scale className="h-8 w-8" />
-            </span>
-            <p className="font-display text-2xl font-semibold tracking-tight text-primary">Nothing to Compare</p>
-            <p className="mx-auto mb-10 mt-4 max-w-md font-normal text-sm leading-relaxed text-muted-foreground">
-              Choose Compare on any {MAX_COMPARE} cars in the showroom and their details will line up here.
-            </p>
-            <Button asChild size="lg" className="min-h-12 rounded-md bg-primary font-display text-[13px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none">
-              <Link href="/">Browse Stock <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
+        {error ? (
+          <div role="alert"><PageEmptyState title="Stock could not be loaded" action={<Button onClick={() => window.location.reload()}>Try again</Button>}>
+            Your selections are still saved on this device. Try again to check current availability.
+          </PageEmptyState></div>
+        ) : cars.length === 0 ? (
+          <PageEmptyState title="Choose cars to compare" action={<Button asChild><Link href="/">Browse stock <ArrowRight className="h-4 w-4" /></Link></Button>}>
+            Choose Compare on any {MAX_COMPARE} cars to see their details side by side.
+          </PageEmptyState>
         ) : (
           <>
             <div className={cn(gridTemplate, 'mt-8 gap-y-6 pb-8')}>
@@ -266,7 +257,7 @@ export default function Compare() {
                 </p>
               ))}
               {cars.length < MAX_COMPARE && (
-                <p className="truncate font-bold text-[10px] tracking-normal text-primary/40">EMPTY SLOT</p>
+                <p className="truncate font-bold text-[10px] tracking-normal text-primary/40">Choose another car</p>
               )}
             </div>
 
@@ -275,7 +266,7 @@ export default function Compare() {
                 const best = preferredIndex(row, cars);
 
                 return (
-                  <div key={row.label} className={cn(gridTemplate, 'gap-y-2 border-b border-primary/10 py-6 last:border-0')}>
+                  <div key={row.label} className={cn(gridTemplate, 'gap-y-2 border-b border-primary/10 py-4 last:border-0')}>
                     <dt className="font-display text-[12px] font-semibold tracking-normal col-span-2 self-center text-muted-foreground md:col-span-1">{row.label}</dt>
                     {cars.map((car, index) => (
                       <dd
@@ -290,7 +281,7 @@ export default function Compare() {
                         {best === index && row.preference && (
                           <span
                             title={row.preference.hint}
-                            className="inline-flex shrink-0 items-center bg-accent text-accent-foreground px-2 py-1 font-display text-[9px] font-semibold tracking-normal shadow-none"
+                            className="inline-flex shrink-0 items-center text-accent font-display text-[11px] font-medium"
                           >
                             {row.preference.hint}
                           </span>

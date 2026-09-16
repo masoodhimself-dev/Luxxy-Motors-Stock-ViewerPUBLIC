@@ -266,6 +266,7 @@ export default function CarDetail() {
                 />
               </div>
             )}
+            {damageDisclosure && <a href="#vehicle-history" className="mt-5 inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">{damageDisclosure.label} recorded · Read vehicle history</a>}
             <div className="mt-6 flex flex-col gap-3">
               <Button asChild size="lg">
                 <a
@@ -374,7 +375,7 @@ export default function CarDetail() {
               </section>
             )}
             {damageDisclosure && (
-              <div className="mt-7 rounded-md border border-amber-700/30 bg-amber-50 p-5">
+              <div id="vehicle-history" className="mt-7 scroll-mt-24 rounded-md border border-amber-700/30 bg-amber-50 p-5">
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-950">
                   <Info className="h-5 w-5" />
                   Insurance history: {damageDisclosure.label}
@@ -441,7 +442,7 @@ export default function CarDetail() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-flow-col auto-cols-[85%] gap-4 overflow-x-auto overscroll-x-contain pb-3 sm:grid-flow-row sm:auto-cols-auto sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
               {similarCars.map((similarCar) => (
                 <CarCard
                   key={similarCar.id}

@@ -182,7 +182,7 @@ test.describe('secure customer links keep the showroom system', () => {
           }),
         );
         await page.goto(`/viewing/${tokens.viewing}`);
-        await expect(page.getByRole('heading', { name: 'Your Viewing' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Your viewing' })).toBeVisible();
         await assertCurrentShowroomVisuals(page);
 
         await page.route(`**/api/signing/${tokens.signing}`, (route) =>
@@ -291,7 +291,7 @@ test.describe('secure customer links keep the showroom system', () => {
         await page.getByLabel('Full name').fill('Avery Morgan');
         await page.getByLabel('Email address').fill('avery@example.com');
         await page.getByRole('button', { name: 'Save my details' }).click();
-        await expect(page.getByRole('heading', { name: 'DETAILS SAVED' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /details saved/i })).toBeVisible();
         await assertCurrentShowroomVisuals(page);
 
         await page.route(`**/api/signing/${tokens.signing}`, (route) =>

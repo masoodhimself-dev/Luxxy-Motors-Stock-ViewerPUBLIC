@@ -51,7 +51,7 @@ export default function CustomerDetails() {
       <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8 bg-background">
         <div className="mx-auto max-w-xl border border-border bg-card p-10 text-center shadow-none">
           <h1 className="font-display text-4xl sm:text-3xl font-semibold tracking-tight text-primary">
-            DETAILS SAVED
+            Details saved
           </h1>
           <p className="mx-auto mt-6 max-w-sm font-bold text-[13px] tracking-normal leading-relaxed text-primary/70 border-l-2 border-accent pl-4">
             The sales team has everything they need to prepare your paperwork.
@@ -90,22 +90,12 @@ export default function CustomerDetails() {
   return (
     <div className="luxxy-shell min-h-[70vh] px-4 py-10 sm:px-6 sm:py-16 lg:px-8 bg-background">
       <div className="mx-auto max-w-xl">
-        <div className="mb-8 flex items-start gap-4 border border-border bg-card px-6 py-6 shadow-none">
-          <UserRound className="mt-1 h-6 w-6 shrink-0 text-accent" />
-          <div>
-            <p className="font-display text-[14px] font-semibold tracking-normal text-primary">Customer details</p>
-            <p className="mt-2 text-[13px] font-normal leading-relaxed text-primary/70">
-              Enter your details below so the sales team can prepare your paperwork.
-            </p>
-          </div>
-        </div>
-
         <form onSubmit={submit} className="border border-border bg-card shadow-none">
           <div className="border-b border-border px-5 sm:px-8 py-8">
             <h1 className="font-display text-3xl sm:text-2xl font-semibold tracking-tight text-primary">Your details</h1>
-            <p className="mt-3 text-[11px] font-normal leading-relaxed text-muted-foreground">This should only take a moment.</p>
+            <p className="mt-3 text-sm font-normal leading-relaxed text-muted-foreground">Enter your contact details so the sales team can prepare your paperwork.</p>
           </div>
-          <div className="space-y-6 px-8 py-8">
+          <div className="space-y-5 px-5 py-6 sm:px-8">
             <label className="block">
               <span className={labelClass}>Full name</span>
               <Input
@@ -145,7 +135,7 @@ export default function CustomerDetails() {
               </p>
             )}
             <Button type="submit" size="lg" className="mt-4 min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" disabled={complete.isPending}>
-              {complete.isPending ? 'SAVING…' : 'SAVE MY DETAILS'}
+              {complete.isPending ? 'SAVING…' : 'Save my details'}
             </Button>
           </div>
         </form>

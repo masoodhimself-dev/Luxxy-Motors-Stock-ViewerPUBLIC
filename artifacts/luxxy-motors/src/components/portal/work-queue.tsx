@@ -39,7 +39,7 @@ const queues: Array<{
     key: 'viewingsToday',
     kicker: 'Today’s diary',
     title: 'Viewings today',
-    blurb: 'Booked in for today. Confirm the car is clean, fuelled and out front.',
+    blurb: 'Prepare these vehicles for their appointments.',
     empty: 'Nothing booked in today.',
     icon: CalendarClock,
   },
@@ -47,7 +47,7 @@ const queues: Array<{
     key: 'overdueFollowUps',
     kicker: 'Needs attention',
     title: 'Overdue follow-ups',
-    blurb: 'You said you would come back to these and the date has passed.',
+    blurb: 'Follow-ups past their due date.',
     empty: 'No follow-up has been missed.',
     icon: CircleAlert,
   },
@@ -63,7 +63,7 @@ const queues: Array<{
     key: 'depositsWithoutDeal',
     kicker: 'Paperwork',
     title: 'Deposits without a deal',
-    blurb: 'Cash is on the counter but no paperwork has been raised.',
+    blurb: 'Deposits received without a linked deal.',
     empty: 'Every deposit has a deal behind it.',
     icon: PoundSterling,
   },
@@ -167,7 +167,6 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
           return (
              <Panel key={key} className="flex flex-col">
               <PanelHeader
-                kicker={kicker}
                 title={<span className="flex items-center gap-3"><Icon className="h-5 w-5 text-accent" />{title}</span>}
                 meta={blurb}
                 action={

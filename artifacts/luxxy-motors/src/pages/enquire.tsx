@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Camera, Car as CarIcon, CircleAlert, Clock3, Fuel, Gauge, Mail, MapPin, Phone, Settings2, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
@@ -12,9 +12,9 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
-  viewing: { eyebrow: 'Private showroom visit', title: 'Book a viewing', description: 'Choose a time that suits you. We will have the vehicle ready, warmed up and waiting.' },
+  viewing: { eyebrow: 'Visit Luxxy Motors', title: 'Book a viewing', description: 'Choose a date and time to see the car and ask the team any questions.' },
   general: { eyebrow: 'Talk to the team', title: 'How can we help?', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
-  delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Share where you are and we will map out the simplest route to getting your next car home.' },
+  delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We will confirm delivery options and costs.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
   part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us a little about your car and we will help you understand your options.' },
 };
@@ -37,7 +37,7 @@ export default function Enquire() {
   const { settings: dealerConfig } = useDealerSettings();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const requestedType = params.get('type') as EnquiryType | null;
-  const type = requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general';
+  const [type, setType] = useState<EnquiryType>(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general');
   const vehicleId = params.get('vehicleId');
   const vehicle = stock?.cars.find((car) => car.id === vehicleId);
   const copy = {
@@ -121,7 +121,7 @@ export default function Enquire() {
                 )}
               </div>
             ) : (
-              <div className="mt-5 flex flex-col gap-4 border border-primary/20 bg-primary/5 p-6" data-testid="enquiry-no-vehicle-summary">
+              <div className="mt-5 hidden flex-col gap-4 border-t border-border pt-5 lg:flex" data-testid="enquiry-no-vehicle-summary">
                 <CarIcon className="h-8 w-8 text-primary/40" />
                 <div>
                   <p className="font-display text-lg font-semibold tracking-tight text-primary">No vehicle selected</p>
@@ -173,22 +173,12 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              <EnquiryForm initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
+              <EnquiryForm onTypeChange={setType} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-5 border-t border-border pt-5">
-              {[
-                { icon: ShieldCheck, title: 'No pressure', text: 'A viewing is simply time with the car.' },
-                { icon: Mail, title: 'Clear confirmation', text: 'Details arrive straight in our inbox.' },
-                { icon: Phone, title: 'Real people', text: 'Questions? We are happy to talk.' },
-              ].map(({ icon: Icon, title, text }) => (
-                <div key={title} className="flex-1 min-w-[140px]" data-testid={`info-enquiry-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-                  <Icon className="h-5 w-5 text-accent mb-2" />
-                  <p className="font-display text-sm font-semibold tracking-normal text-primary">{title}</p>
-                  <p className="mt-2 text-xs font-normal leading-relaxed text-muted-foreground">{text}</p>
-                </div>
-              ))}
-            </div>
+            {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
+              Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call the showroom</a>.
+            </p>}
 
             {type === 'viewing' && !vehicle && (
               <Link

@@ -144,9 +144,9 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="mb-3 border-y border-border bg-card p-4 sm:p-5">
-      <div className="min-w-0">
-        <label className="block min-w-0">
+    <div className="mb-3 grid gap-x-5 border-y border-border bg-card p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+      <div className="contents">
+        <label className="block min-w-0 lg:col-start-1 lg:row-start-1">
            <span className="mb-3 block field-label">
              Find your next car
           </span>
@@ -179,7 +179,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           </span>
         </label>
 
-        <div className="mt-2">
+        <div className="mt-2 lg:col-span-2 lg:row-start-2">
           <div className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -296,7 +296,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-1 items-end gap-3 min-[360px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] sm:mt-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:mt-4 lg:col-start-2 lg:row-start-1 lg:mt-0">
         <div className="min-w-0">
           <div className="relative flex min-w-0 items-center gap-3">
                <span className="hidden font-display text-[11px] font-semibold text-primary/70 sm:inline">Sort</span>
@@ -319,9 +319,10 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
         <button
           type="button"
           onClick={handleSearchClick}
+          aria-label="View matching cars"
            className="flex h-12 w-full items-center justify-center rounded-md bg-accent px-3 font-display text-[12px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto sm:px-8 sm:text-sm"
         >
-           View matching cars
+           <span className="sm:hidden">View cars</span><span className="hidden sm:inline">View matching cars</span>
         </button>
       </div>
     </div>
