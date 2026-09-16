@@ -85,7 +85,7 @@ export default function ModernDetail() {
                 {(car.variant || car.trim) && <p className="mt-2 text-sm text-[hsl(var(--modern-muted))]">{car.variant || car.trim}</p>}
                 <p className="mt-6 text-4xl font-semibold">{car.price ? formatPrice(car.price, car.currency) : 'POA'}</p>
               </div>
-              {registration && <div className="mt-5"><Plate size="sm" value={registration} className="w-[132px]" /></div>}
+              {registration && <div className="mt-5"><Plate testId="modern-detail-registration" size="sm" value={registration} className="w-[132px]" /></div>}
               <div className="mt-6 flex flex-col gap-3">
                 <button type="button" onClick={() => setBookingPreview((value) => !value)} className="modern-focus flex min-h-12 items-center justify-center gap-2 rounded-full bg-[hsl(var(--modern-blue))] px-5 text-sm font-semibold text-white hover:bg-[hsl(var(--modern-ink))]"><Calendar className="h-4 w-4" /> Book a Viewing <span className="text-[11px] font-normal opacity-75">Preview</span></button>
                 {bookingPreview && <p role="status" className="border-l-2 border-[hsl(var(--modern-blue))] px-3 py-2 text-xs leading-5 text-[hsl(var(--modern-muted))]">Booking is a preview in this prototype — no request has been sent.</p>}

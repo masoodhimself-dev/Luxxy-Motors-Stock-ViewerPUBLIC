@@ -184,7 +184,7 @@ export default function FluidDetail() {
 
               {registration && (
                 <div className="mb-8">
-                  <Plate size="sm" value={registration} className="w-[140px]" />
+                  <Plate testId="fluid-detail-registration" size="sm" value={registration} className="w-[140px]" />
                 </div>
               )}
 

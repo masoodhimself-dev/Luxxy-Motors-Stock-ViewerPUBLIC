@@ -180,7 +180,7 @@ export default function FluidHome() {
           {filteredCars.length > 0 ? (
             <div className={cn("grid gap-6 lg:gap-8", stockView === 'compact' ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3')}>
               {filteredCars.slice(0, 6).map(car => (
-                <FluidCarCard key={car.id} car={car} layout={stockView} />
+                <FluidCarCard key={car.id} car={car} layout={stockView === 'cards' ? 'card' : stockView} />
               ))}
             </div>
           ) : (
