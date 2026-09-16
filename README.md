@@ -11,9 +11,9 @@ pnpm install
 pnpm dev:preview
 ```
 
-Open http://127.0.0.1:4175. The preview renders the actual customer-facing components with four clearly labelled sample vehicles. Photos are intentionally absent because the repository does not contain the live inventory. Search, filters, vehicle details, saved cars and comparisons work locally.
+Open http://127.0.0.1:4175. The preview renders the actual customer and staff components with six vehicles and matching photographs from the repository’s archived stock snapshot. These are not current stock. Search, filters, galleries, vehicle details, saved cars and comparisons work locally. Staff records are synthetic. See [the redesign review](docs/ui-redesign.md) for routes and screenshots.
 
-The preview has a separate Vite config and entry point. It requires no database or Clerk credentials, rejects all API writes, and does not start the API server. Enquiries, bookings, staff sign-in and signing transactions need the full application. The normal production build continues to use `src/main.tsx` and the existing authentication.
+The preview has a separate Vite config and entry point. It requires no database or Clerk credentials, rejects all API writes, and does not start the API server. The read-only staff preview uses a development-only identity shim. Real enquiries, bookings, staff sign-in and signing transactions need the full application. The normal production build continues to use `src/main.tsx` and the existing authentication.
 
 The workspace enables native macOS dependencies as well as the original Linux dependencies. The original runtime is Node.js 24; this checkout was also verified with Node.js 25.5 and pnpm 11.19.
 
@@ -29,7 +29,7 @@ LUXXY_LOCAL_PREVIEW=1 pnpm --filter @workspace/luxxy-motors test:mobile-layout
 
 On Node.js 25, run the unit tests with `NODE_OPTIONS=--no-experimental-webstorage` so jsdom supplies browser storage. Playwright needs its Chromium installation, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to an existing browser executable (on this Mac: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`).
 
-The whole-workspace `pnpm typecheck` currently reports existing errors in the API sales/enquiry routes and lead integration tests. Customer frontend checks can run independently. API integration suites delete data and must use an isolated test database; see `.agents/memory/stock-integration-test-isolation.md`.
+Run `PORT=4175 BASE_PATH=/ pnpm build` for full workspace typechecking and builds. API integration suites delete data and must use an isolated local test database through `LUXXY_TEST_DATABASE_URL`; see [the milestone 1 notes](docs/milestone-1-verification.md).
 
 ## Full application
 

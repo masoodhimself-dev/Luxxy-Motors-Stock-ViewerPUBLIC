@@ -137,7 +137,7 @@ async function assertCurrentShowroomVisuals(page: Page) {
     };
   });
 
-  expect(visualState.backgroundImage).toContain('gradient');
+  expect(visualState.backgroundImage).toBe('none');
   expect(visualState.fontFamily).toContain('DM Sans');
 
   const legacySurface = page.locator('main .luxxy-shell [class*="shadow-"]').first();
@@ -150,21 +150,17 @@ async function assertCurrentShowroomVisuals(page: Page) {
     };
   });
 
-  // The reset in index.css turns legacy poster utilities into the current
-  // lighter surface treatment. This catches an old hard-offset treatment
-  // returning on a secure route.
+  // Secure routes share the explicit, flat surface system.
   expect(surfaceStyle.borderWidth).toBe('1px');
-  expect(surfaceStyle.boxShadow).toContain('0px 12px 30px');
+  expect(surfaceStyle.boxShadow).toMatch(/^(none|.*0px 0px 0px 0px.*)$/);
   await assertNoHorizontalOverflow(page);
 }
 
 async function assertKeyboardFocusTreatment(page: Page, label: string) {
   const control = page.getByLabel(label);
-  const restingBorderColor = await control.evaluate((element) => getComputedStyle(element).borderColor);
   await control.focus();
-  // Secure forms use an accent border as their focus treatment. The input
-  // primitive intentionally opts out of the generic outline in favour of it.
-  await expect.poll(() => control.evaluate((element) => getComputedStyle(element).borderColor)).not.toBe(restingBorderColor);
+  await expect.poll(() => control.evaluate((element) => parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2);
+  expect(await control.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none');
 }
 
 test.describe('secure customer links keep the showroom system', () => {
