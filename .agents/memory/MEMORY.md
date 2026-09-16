@@ -12,7 +12,7 @@
 - [Previewing token-gated buyer screens](previewing-token-gated-buyer-screens.md) — intake links are cheap to mint; a signing link needs a whole seeded sale.
 - [Workspace typecheck order](workspace-typecheck-project-references.md) — run install then the root typecheck; an unbuilt shared lib fakes a cascade of type errors.
 - [Radix surface tests in jsdom](radix-surface-tests-jsdom.md) — overlays need ResizeObserver/pointer stubs, and an open panel aria-hides its own trigger.
-- [Shared dev database](shared-dev-database.md) — every parallel task environment shares one dev DB; post-merge push-force drops whatever is not in that branch's schema.
+- [Shared dev database](shared-dev-database.md) — task environments may share one dev DB; merge hooks never apply schemas, and migrations require a verified baseline.
 - [Lead pipeline](lead-pipeline.md) — an enquiry opens a lead; carry-across rule, append-only timeline and closure invariants.
 - [Lead model ownership](lead-model-ownership.md) — portal work must consume the shared lead model and use additive schema changes rather than replacing lead migrations.
 - [Sales suite prepare gate](sales-suite-prepare-gate.md) — the sales integration suite fails at /prepare on main; the deal readiness checklist is never confirmed in it.
