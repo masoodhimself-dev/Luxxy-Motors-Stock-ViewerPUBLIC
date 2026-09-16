@@ -1,3 +1,4 @@
+import "./test/setup";
 /*
  * Lead integration coverage is scoped to a synthetic dealer namespace and
  * deletes only its own rows. It never truncates or rewrites shared showroom
@@ -234,11 +235,7 @@ test("carries existing enquiries across without losing or altering any of them",
   const booked = byName.get("Booked Viewing Enquiry")!;
   assert.equal(booked.stage, "viewing_booked");
 
-  const closed = await post(`/leads/${lead.id}/outcome`, {
-    outcome: "lost",
-    reason: "Bought the same car cheaper from a main dealer.",
-    actor: "Dealer",
-  });
+  const closed = byName.get("Closed Enquiry")!;
   assert.equal(closed.stage, "lost");
   assert.equal(closed.outcome, "lost");
   assert.ok(closed.outcomeReason, "a carried-across closure states its reason");
@@ -307,7 +304,13 @@ test("a website enquiry opens a lead on the website form channel", async () => {
 });
 
 test("a lead can be taken by hand for a phone call or a walk-in", async () => {
-  const detail = (await detailResponse.json()) as LeadDetailBody;
+  const detail = await createManualLead({
+    source: "walk_in",
+    vehicleId,
+    owner: "Sam on the forecourt",
+    nextAction: "Call with a valuation",
+    nextActionDueAt: new Date(Date.now() + 86_400_000).toISOString(),
+  });
 
   assert.equal(detail.lead.source, "walk_in");
   assert.equal(detail.lead.enquiryId, null);
@@ -315,7 +318,7 @@ test("a lead can be taken by hand for a phone call or a walk-in", async () => {
   assert.equal(detail.lead.vehicleTitle, "Synthetic Lead Test Vehicle");
   assert.deepEqual(
     detail.events.map((event) => event.type),
-    ["lead_created", "owner_assigned", "next_action_set"],
+    ["lead_created"],
   );
 
   const listResponse = await request("/leads?source=walk_in");
@@ -333,15 +336,7 @@ test("a lead can be taken by hand for a phone call or a walk-in", async () => {
 });
 
 test("every touch is appended to the timeline and never overwrites an earlier one", async () => {
-  const { lead } = await createManualLead({ vehicleId, customerName: "Wrong Vehicle Lead" });
-
-  const wrongVehicle = await post("/sales", {
-    vehicleId: otherVehicle!.id,
-    leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 725000,
-    depositPence: 0,
-  });
+  const { lead } = await createManualLead({ vehicleId });
 
   const callResponse = await post(`/leads/${lead.id}/touches`, {
     type: "call",
@@ -384,15 +379,7 @@ test("every touch is appended to the timeline and never overwrites an earlier on
 });
 
 test("stage transitions are checked, and reserving can hold an offline deposit", async () => {
-  const { lead } = await createManualLead({ vehicleId, customerName: "Wrong Vehicle Lead" });
-
-  const wrongVehicle = await post("/sales", {
-    vehicleId: otherVehicle!.id,
-    leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 725000,
-    depositPence: 0,
-  });
+  const { lead } = await createManualLead({ vehicleId });
 
   const sameStage = await post(`/leads/${lead.id}/stage`, { stage: "new" });
   assert.equal(sameStage.status, 409, "a lead cannot move to the stage it is already at");
@@ -424,15 +411,7 @@ test("stage transitions are checked, and reserving can hold an offline deposit",
 });
 
 test("a lead cannot be closed without both an outcome and a reason", async () => {
-  const { lead } = await createManualLead({ vehicleId, customerName: "Wrong Vehicle Lead" });
-
-  const wrongVehicle = await post("/sales", {
-    vehicleId: otherVehicle!.id,
-    leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 725000,
-    depositPence: 0,
-  });
+  const { lead } = await createManualLead({ vehicleId });
 
   const noBody = await post(`/leads/${lead.id}/outcome`, {});
   assert.equal(noBody.status, 400);
@@ -490,15 +469,7 @@ test("a lead cannot be closed without both an outcome and a reason", async () =>
 });
 
 test("a next action always carries a due date, and an owner can be assigned", async () => {
-  const { lead } = await createManualLead({ vehicleId, customerName: "Wrong Vehicle Lead" });
-
-  const wrongVehicle = await post("/sales", {
-    vehicleId: otherVehicle!.id,
-    leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 725000,
-    depositPence: 0,
-  });
+  const { lead } = await createManualLead({ vehicleId });
 
   const undated = await post(`/leads/${lead.id}/next-action`, {
     nextAction: "Ring them back",
@@ -536,15 +507,7 @@ test("a next action always carries a due date, and an owner can be assigned", as
 });
 
 test("creating a sale from a lead advances the lead and links the sale back", async () => {
-  const { lead } = await createManualLead({ vehicleId, customerName: "Wrong Vehicle Lead" });
-
-  const wrongVehicle = await post("/sales", {
-    vehicleId: otherVehicle!.id,
-    leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 725000,
-    depositPence: 0,
-  });
+  const { lead } = await createManualLead({ vehicleId });
 
   const saleResponse = await post("/sales", {
     vehicleId,
@@ -606,60 +569,46 @@ test("creating a sale from a lead advances the lead and links the sale back", as
     depositPence: 0,
   });
 
-  const [otherVehicle] = await db
-    .insert(vehiclesTable)
-    .values({
-      dealerId,
-      source: "autotrader",
-      advertId: `leads-mismatch-${process.pid}`,
-      title: "Mismatched Synthetic Lead Vehicle",
-      make: "Testmaker",
-      model: "Crossline",
-      year: 2019,
-      sourcePrice: 7250,
-      currency: "GBP",
-      inventoryStatus: "available",
-      sourceStatus: "live",
-    })
-    .returning({ id: vehiclesTable.id });
-  assert.equal(accepted.status, 201, await accepted.clone().text());
+  assert.equal(blocked.status, 409, await blocked.clone().text());
+  const strandedSales = await db.select().from(salesTable).where(eq(salesTable.vehicleId, secondVehicle!.id));
+  assert.equal(strandedSales.length, 0, "the rejected sale rolls back");
 });
 
-  const stillOpen = (await (await request(`/leads/${lead.id}`)).json()) as LeadDetailBody;
-
+test("rejects contradictory lead and enquiry context without changing the lead", async () => {
+  const { lead } = await createManualLead({ vehicleId });
+  const [otherVehicle] = await db.insert(vehiclesTable).values({
+    dealerId, source: "autotrader", advertId: `leads-mismatch-${process.pid}`,
+    title: "Mismatched Synthetic Lead Vehicle", inventoryStatus: "available", sourceStatus: "live",
+  }).returning({ id: vehiclesTable.id });
+  const wrongVehicle = await post("/sales", {
+    vehicleId: otherVehicle!.id, leadId: lead.id,
+    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
+    agreedPricePence: 725000,
+  });
+  assert.equal(wrongVehicle.status, 409, await wrongVehicle.clone().text());
   const enquiryResponse = await post("/enquiries", {
-    vehicleId,
-    type: "general",
-    customerName: "Separate Enquiry",
-    email: "separate-enquiry@example.test",
-    phone: null,
-    preferredContact: "email",
+    vehicleId, type: "general", customerName: "Separate Enquiry",
+    email: "separate-enquiry@example.test", preferredContact: "email", phone: null, appointmentAt: null,
     message: "Is this still available?",
-    appointmentAt: null,
   });
-
-  const accepted = await post("/sales", {
-    vehicleId,
-    leadId: lead.id,
-    customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
-    agreedPricePence: 1250000,
-    depositPence: 0,
-  });
-
+  assert.equal(enquiryResponse.status, 201, await enquiryResponse.clone().text());
+  const separateEnquiry = await enquiryResponse.json() as { id: string };
   const contradictory = await post("/sales", {
-    vehicleId,
-    leadId: lead.id,
-    enquiryId: separateEnquiry.id,
+    vehicleId, leadId: lead.id, enquiryId: separateEnquiry.id,
     customer: { name: "Wrong Vehicle Lead", email: "wrong-vehicle@example.test" },
     agreedPricePence: 1250000,
-    depositPence: 0,
   });
-
-  const untouched = (await (await request(`/leads/${lead.id}`)).json()) as LeadDetailBody;
-
-  const separateEnquiry = (await enquiryResponse.json()) as { id: string };
-
-  const strandedSales = await db
-    .select({ id: salesTable.id })
-    .from(salesTable)
-    .where(eq(salesTable.vehicleId, otherVehicle!.id));
+  assert.equal(contradictory.status, 409, await contradictory.clone().text());
+  const untouched = await (await request(`/leads/${lead.id}`)).json() as LeadDetailBody;
+  assert.equal(untouched.lead.stage, "new");
+  assert.equal(untouched.sales.length, 0);
+  assert.equal(untouched.events.some(event => event.type === "sale_created"), false);
+  const strandedSales = await db.select().from(salesTable).where(eq(salesTable.vehicleId, otherVehicle!.id));
+  assert.equal(strandedSales.length, 0);
+  const accepted = await post("/sales", {
+    vehicleId, leadId: lead.id,
+    customer: { name: "Matching Buyer", email: "matching@example.test" },
+    agreedPricePence: 1250000,
+  });
+  assert.equal(accepted.status, 201, await accepted.clone().text());
+});

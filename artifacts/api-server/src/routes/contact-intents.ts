@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { requireStaff } from "../middlewares/staff-auth";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import {
   GetContactIntentsQueryParams,
@@ -152,7 +153,7 @@ router.post("/contact-intents", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/contact-intents", async (req, res): Promise<void> => {
+router.get("/contact-intents", requireStaff, async (req, res): Promise<void> => {
   const parsedQuery = GetContactIntentsQueryParams.safeParse(req.query);
   if (!parsedQuery.success) {
     res.status(400).json(errorResponse("Invalid contact intent filter."));

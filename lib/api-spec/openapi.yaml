@@ -492,7 +492,7 @@ paths:
       operationId: getContactIntents
       tags: [enquiries]
       summary: List recent call and WhatsApp taps
-      description: Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
+      description: Requires authorized staff. Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
       parameters:
         - in: query
           name: unattributed
@@ -509,6 +509,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ContactIntent"
+        "401":
+          description: Staff sign-in required
+        "403":
+          description: Account is not authorized for the dealer portal
         "500":
           description: Unable to load contact intents
           content:

@@ -43,9 +43,8 @@ import {
   LEAD_TOUCH_KINDS,
   LeadError,
   leadDealerId,
-  leadDetailPayload,
   loadLead as loadCoreLead,
-  loadLeadDetail,
+  type QueryDb,
 } from "../lib/leads";
 
 const router: IRouter = Router();
@@ -77,11 +76,16 @@ const openStageFilter = () => sql`${leadsTable.stage} not in ('won','lost')`;
  * belongs to the website enquiry that booked it, or to the `viewing_booked`
  * event the dealer logged by hand. This resolves both to one instant.
  */
+// Keep correlated outer columns qualified: Drizzle strips direct column
+// qualification from single-table SELECT expressions, which would otherwise
+// bind "id" to the inner sales/event row instead of the lead.
+const outerLeadId = sql`${leadsTable.id}`;
+const outerEnquiryId = sql`${leadsTable.enquiryId}`;
 const appointmentAtSql = sql<Date | null>`coalesce(
   (select e.appointment_at from enquiries e
-    where e.id = ${leadsTable.enquiryId} and e.appointment_cancelled_at is null),
+    where e.id = ${outerEnquiryId} and e.appointment_cancelled_at is null),
   (select (ev.payload->>'appointmentAt')::timestamptz from lead_events ev
-    where ev.lead_id = ${leadsTable.id} and ev.type = 'viewing_booked'
+    where ev.lead_id = ${outerLeadId} and ev.type = 'viewing_booked'
     order by ev.occurred_at desc, ev.created_at desc limit 1)
 )`;
 
@@ -91,14 +95,14 @@ const appointmentAtSql = sql<Date | null>`coalesce(
  */
 const saleIdSql = sql<string | null>`(
   select s.id from sales s
-   where s.lead_id = ${leadsTable.id}
-      or (s.lead_id is null and s.enquiry_id = ${leadsTable.enquiryId})
+   where s.lead_id = ${outerLeadId}
+      or (s.lead_id is null and s.enquiry_id = ${outerEnquiryId})
    order by s.created_at asc limit 1
 )`;
 
 const firstContactedAtSql = sql<Date | null>`(
   select min(ev.occurred_at) from lead_events ev
-   where ev.lead_id = ${leadsTable.id}
+   where ev.lead_id = ${outerLeadId}
      and ev.type in ('call_logged','message_logged','email_logged','visit_logged')
 )`;
 
@@ -323,16 +327,16 @@ async function mirrorEnquiries(): Promise<void> {
   );
 }
 
-async function loadLead(id: string): Promise<LeadView | null> {
-  const [row] = await db
+async function loadLead(id: string, query: QueryDb = db): Promise<LeadView | null> {
+  const [row] = await query
     .select(leadSelect)
     .from(leadsTable)
     .where(and(eq(leadsTable.id, id), eq(leadsTable.dealerId, dealerId())));
   return (row as LeadView | undefined) ?? null;
 }
 
-async function leadDetail(row: LeadView) {
-  const events = await db
+async function leadDetail(row: LeadView, query: QueryDb = db) {
+  const events = await query
     .select()
     .from(leadEventsTable)
     .where(eq(leadEventsTable.leadId, row.id))
@@ -340,7 +344,7 @@ async function leadDetail(row: LeadView) {
 
   let deal = null;
   if (row.saleId) {
-    const [sale] = await db
+    const [sale] = await query
       .select({
         id: salesTable.id,
         status: salesTable.status,
@@ -357,7 +361,7 @@ async function leadDetail(row: LeadView) {
 
   let enquiryMessage: string | null = null;
   if (row.enquiryId) {
-    const [enquiry] = await db
+    const [enquiry] = await query
       .select({ message: enquiriesTable.message })
       .from(enquiriesTable)
       .where(eq(enquiriesTable.id, row.enquiryId));
@@ -369,7 +373,7 @@ async function leadDetail(row: LeadView) {
     activities: events.map(serialiseEvent),
     deal,
     enquiryMessage,
-    events,
+    events: [...events].reverse(),
     sales: deal ? [deal] : [],
   };
 }
@@ -639,6 +643,10 @@ router.post("/leads", requireStaff, async (req: Request, res): Promise<void> => 
     return;
   }
   const data = parsed.data;
+  if (!data.email?.trim() && !data.phone?.trim()) {
+    res.status(400).json({ error: "Provide an email address or phone number for the lead." });
+    return;
+  }
 
   let snapshot: {
     vehicleId: string | null;
@@ -938,13 +946,14 @@ router.post("/leads/:id/touches", requireStaff, async (req, res): Promise<void> 
       if (kind.contact && (!lead.lastContactedAt || lead.lastContactedAt < occurredAt)) {
         await tx.update(leadsTable).set({ lastContactedAt: occurredAt }).where(eq(leadsTable.id, lead.id));
       }
-      return loadLeadDetail(tx, lead.id);
+      const row = await loadLead(lead.id, tx);
+      return row ? leadDetail(row, tx) : null;
     });
     if (!detail) {
       res.status(404).json({ error: "Lead not found." });
       return;
     }
-    res.status(201).json(LogLeadTouchResponse.parse(leadDetailPayload(detail)));
+    res.status(201).json(LogLeadTouchResponse.parse(detail));
   } catch (error) {
     if (error instanceof LeadError) {
       res.status(error.status).json({ error: error.message });
@@ -976,13 +985,14 @@ router.post("/leads/:id/stage", requireStaff, async (req, res): Promise<void> =>
         actor: parsed.data.actor?.trim() || staffLabel(req),
         deposit: parsed.data.deposit ?? null,
       });
-      return loadLeadDetail(tx, lead.id);
+      const row = await loadLead(lead.id, tx);
+      return row ? leadDetail(row, tx) : null;
     });
     if (!detail) {
       res.status(404).json({ error: "Lead not found." });
       return;
     }
-    res.json(UpdateLeadStageResponse.parse(leadDetailPayload(detail)));
+    res.json(UpdateLeadStageResponse.parse(detail));
   } catch (error) {
     if (error instanceof LeadError) {
       res.status(error.status).json({ error: error.message });
@@ -1018,13 +1028,14 @@ router.post("/leads/:id/owner", requireStaff, async (req, res): Promise<void> =>
         body: owner ? `Owner assigned to ${owner}.` : "Owner cleared.",
         payload: { owner },
       });
-      return loadLeadDetail(tx, lead.id);
+      const row = await loadLead(lead.id, tx);
+      return row ? leadDetail(row, tx) : null;
     });
     if (!detail) {
       res.status(404).json({ error: "Lead not found." });
       return;
     }
-    res.json(AssignLeadOwnerResponse.parse(leadDetailPayload(detail)));
+    res.json(AssignLeadOwnerResponse.parse(detail));
   } catch (error) {
     req.log.error({ err: error }, "Unable to assign lead owner");
     res.status(500).json({ error: "Unable to assign the owner." });
@@ -1068,13 +1079,14 @@ router.post("/leads/:id/next-action", requireStaff, async (req, res): Promise<vo
         body: nextAction ?? "Next action cleared.",
         payload: { nextAction, dueAt: dueAt?.toISOString() ?? null },
       });
-      return loadLeadDetail(tx, lead.id);
+      const row = await loadLead(lead.id, tx);
+      return row ? leadDetail(row, tx) : null;
     });
     if (!detail) {
       res.status(404).json({ error: "Lead not found." });
       return;
     }
-    res.json(SetLeadNextActionResponse.parse(leadDetailPayload(detail)));
+    res.json(SetLeadNextActionResponse.parse(detail));
   } catch (error) {
     if (error instanceof LeadError) {
       res.status(error.status).json({ error: error.message });
@@ -1105,13 +1117,14 @@ router.post("/leads/:id/outcome", requireStaff, async (req, res): Promise<void> 
         reason: parsed.data.reason,
         actor: parsed.data.actor?.trim() || staffLabel(req),
       });
-      return loadLeadDetail(tx, lead.id);
+      const row = await loadLead(lead.id, tx);
+      return row ? leadDetail(row, tx) : null;
     });
     if (!detail) {
       res.status(404).json({ error: "Lead not found." });
       return;
     }
-    res.json(CloseLeadResponse.parse(leadDetailPayload(detail)));
+    res.json(CloseLeadResponse.parse(detail));
   } catch (error) {
     if (error instanceof LeadError) {
       res.status(error.status).json({ error: error.message });

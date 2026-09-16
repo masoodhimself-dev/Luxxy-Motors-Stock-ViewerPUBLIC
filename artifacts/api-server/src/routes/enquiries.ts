@@ -119,11 +119,15 @@ async function insertEnquiryWithReference(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const reference = generateEnquiryReference();
     try {
-      const [created] = await db
-        .insert(enquiriesTable)
-        .values({ ...values, reference })
-        .returning();
-      return created;
+      return await db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(enquiriesTable)
+          .values({ ...values, reference })
+          .returning();
+        // The enquiry and its lead timeline must either both persist or roll back.
+        await openLeadForEnquiry(tx, created);
+        return created;
+      });
     } catch (error) {
       if (!isReferenceConflict(error)) throw error;
       lastError = error;
@@ -356,9 +360,6 @@ router.post("/enquiries", async (req, res): Promise<void> => {
       reminderStatus: isViewing ? "pending" : "not_scheduled",
       source: "website",
     });
-
-    // Website enquiries belong in the shared lead pipeline immediately.
-    await openLeadForEnquiry(db, created);
 
     // A booked viewing gets a capability link so the customer can move or drop
     // it themselves; the token is derived from the id, so only its hash is kept.

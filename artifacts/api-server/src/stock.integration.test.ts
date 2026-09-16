@@ -1,7 +1,8 @@
+import "./test/setup";
 /*
  * This is deliberately an HTTP integration test: it starts the exported Express
- * app on an ephemeral port and uses the development PostgreSQL database.  Do not
- * point DATABASE_URL at a shared or production database.
+ * app on an ephemeral port and uses a disposable local PostgreSQL database.
+ * The shared setup requires LUXXY_TEST_DATABASE_URL and rejects remote targets.
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

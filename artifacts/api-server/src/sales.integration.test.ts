@@ -1,3 +1,4 @@
+import "./test/setup";
 /*
  * Sales integration coverage is scoped to a synthetic dealer namespace and
  * deletes only its own rows. It never truncates or rewrites shared showroom stock.
@@ -7,6 +8,7 @@ import { createServer, type Server } from "node:http";
 import test, { after, beforeEach } from "node:test";
 import { and, eq } from "drizzle-orm";
 
+process.env.PORTAL_API_TOKEN = "sales-integration-portal-token";
 process.env.SESSION_SECRET = "sales-integration-session-secret";
 process.env.STOCK_DEALER_ID = `sales-test-${process.pid}`;
 
@@ -43,8 +45,35 @@ let vehicleId = "";
 async function request(path: string, init: RequestInit = {}) {
   return fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", ...init.headers },
+    headers: { "content-type": "application/json", "x-portal-token": process.env.PORTAL_API_TOKEN!, ...init.headers },
   });
+}
+
+type Checklist = {
+  readyForPreparation: boolean;
+  readyForCompletion: boolean;
+  items: Array<{ code: string; status: string; eligible: boolean; canMarkNotApplicable: boolean }>;
+};
+
+async function confirmChecklist(id: string) {
+  const response = await request(`/sales/${id}/checklist`);
+  assert.equal(response.status, 200, await response.clone().text());
+  const checklist = await response.json() as Checklist;
+  for (const item of checklist.items) {
+    if (item.code === "documents_generated") continue;
+    const confirmed = await request(`/sales/${id}/checklist/${item.code}`, {
+      method: "POST",
+      body: JSON.stringify({ status: item.canMarkNotApplicable ? "not_applicable" : "complete", method: "bank_transfer" }),
+    });
+    assert.equal(confirmed.status, 200, `${item.code}: ${await confirmed.clone().text()}`);
+  }
+}
+
+async function prepareSale(id: string) {
+  await confirmChecklist(id);
+  const response = await request(`/sales/${id}/prepare`, { method: "POST" });
+  assert.equal(response.status, 201, await response.clone().text());
+  return response;
 }
 
 async function cleanupNamespace() {
@@ -53,9 +82,7 @@ async function cleanupNamespace() {
     await db.delete(dealVaultArtifactsTable).where(eq(dealVaultArtifactsTable.saleId, sale.id));
     await db.delete(invoicesTable).where(eq(invoicesTable.saleId, sale.id));
     await db.delete(saleEventsTable).where(eq(saleEventsTable.saleId, sale.id));
-    await db.delete(signaturesTable).where(eq(signaturesTable.signingSessionId, sale.id));
     await db.delete(signingSessionsTable).where(eq(signingSessionsTable.saleId, sale.id));
-    await db.delete(saleDocumentsTable).where(eq(saleDocumentsTable.revisionId, sale.id));
     await db.delete(saleAdjustmentsTable).where(eq(saleAdjustmentsTable.saleId, sale.id));
     await db.delete(salePaymentsTable).where(eq(salePaymentsTable.saleId, sale.id));
     await db.delete(salePartExchangesTable).where(eq(salePartExchangesTable.saleId, sale.id));
@@ -103,6 +130,7 @@ test("stores only a token hash and binds the signing session to its revision", a
     method: "POST",
     body: JSON.stringify({
       vehicleId,
+      fulfilment: { method: "collection" },
       customer: { name: "Sale Test Customer", email: "sale@example.test" },
       agreedPricePence: 1250000,
       depositPence: 250000,
@@ -113,7 +141,7 @@ test("stores only a token hash and binds the signing session to its revision", a
   const created = await createdResponse.json() as { id: string; balancePence: number };
   assert.equal(created.balancePence, 1000000);
 
-  const preparedResponse = await request(`/sales/${created.id}/prepare`, { method: "POST" });
+  const preparedResponse = await prepareSale(created.id);
   assert.equal(preparedResponse.status, 201);
   const prepared = await preparedResponse.json() as { signingUrl: string; revision: { id: string } };
   const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
@@ -135,13 +163,14 @@ test("rejects incomplete or duplicate signing and completes a signed sale once",
     method: "POST",
     body: JSON.stringify({
       vehicleId,
+      fulfilment: { method: "collection" },
       customer: { name: "Duplicate Test Customer", email: "duplicate@example.test" },
       agreedPricePence: 900000,
       depositPence: 0,
     }),
   });
   const created = await createdResponse.json() as { id: string };
-  const prepared = await (await request(`/sales/${created.id}/prepare`, { method: "POST" })).json() as { signingUrl: string };
+  const prepared = await (await prepareSale(created.id)).json() as { signingUrl: string };
   const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
   const incomplete = await request(`/signing/${token}/complete`, {
     method: "POST",
@@ -323,13 +352,118 @@ test("publishes only anonymised completed handovers in newest-first order", asyn
 test("revokes the old signing session when a new revision is prepared", async () => {
   const created = await (await request("/sales", {
     method: "POST",
-    body: JSON.stringify({ vehicleId, customer: { name: "Revision Test Customer" }, agreedPricePence: 100000 }),
+    body: JSON.stringify({ vehicleId, fulfilment: { method: "collection" }, customer: { name: "Revision Test Customer", email: "revision@example.test" }, agreedPricePence: 100000 }),
   })).json() as { id: string };
-  const first = await (await request(`/sales/${created.id}/prepare`, { method: "POST" })).json() as { signingUrl: string; revision: { id: string } };
+  const first = await (await prepareSale(created.id)).json() as { signingUrl: string; revision: { id: string } };
   const oldToken = new URL(first.signingUrl).pathname.split("/").pop()!;
-  const second = await (await request(`/sales/${created.id}/prepare`, { method: "POST" })).json() as { revision: { id: string } };
+  const second = await (await prepareSale(created.id)).json() as { revision: { id: string } };
   assert.notEqual(second.revision.id, first.revision.id);
   assert.equal((await request(`/signing/${oldToken}`)).status, 410);
   const sessions = await db.select().from(signingSessionsTable).where(eq(signingSessionsTable.saleId, created.id));
   assert.equal(sessions.filter((session) => session.revisionId === first.revision.id)[0]?.status, "revoked");
+});
+async function createReadyFixture() {
+  const response = await request("/sales", {
+    method: "POST",
+    body: JSON.stringify({
+      vehicleId, customer: { name: "Workflow Buyer", email: "workflow@example.test" },
+      agreedPricePence: 1000000, depositPence: 100000,
+      fulfilment: { method: "collection" }, disclosureNotes: "Reviewed vehicle condition.",
+    }),
+  });
+  assert.equal(response.status, 201, await response.clone().text());
+  return await response.json() as { id: string; customer: { id: string } };
+}
+
+const signature = {
+  signerName: "Workflow Buyer", signerEmail: "workflow@example.test",
+  acceptedCodes: ["sale_terms", "vehicle_disclosures", "document_review"],
+};
+
+test("validates sale inputs and returns missing sales consistently", async () => {
+  assert.equal((await request("/sales", { method: "POST", body: JSON.stringify(signature) })).status, 400);
+  assert.equal((await request("/sales/not-a-uuid")).status, 400);
+  const missing = "11111111-1111-4111-8111-111111111111";
+  for (const [suffix, method, body] of [
+    ["", "GET", undefined], ["/final-checks", "GET", undefined], ["/checklist", "GET", undefined],
+    ["/prepare", "POST", undefined], ["/complete", "POST", undefined], ["/revoke-signing", "POST", undefined],
+    ["/checklist/customer_confirmed", "POST", '{"status":"complete"}'],
+  ] as const) {
+    const response = await request(`/sales/${missing}${suffix}`, { method, body });
+    assert.equal(response.status, 404, `${method} ${suffix}: ${await response.clone().text()}`);
+  }
+});
+
+test("requires current checklist evidence and records an offline deposit once", async () => {
+  const sale = await createReadyFixture();
+  assert.equal((await request(`/sales/${sale.id}/prepare`, { method: "POST" })).status, 400);
+  const notApplicable = await request(`/sales/${sale.id}/checklist/deposit_confirmed`, {
+    method: "POST", body: JSON.stringify({ status: "not_applicable" }),
+  });
+  assert.equal(notApplicable.status, 422, "a nonzero deposit cannot be skipped");
+  await confirmChecklist(sale.id);
+  await confirmChecklist(sale.id);
+  const payments = await db.select().from(salePaymentsTable).where(eq(salePaymentsTable.saleId, sale.id));
+  assert.equal(payments.length, 1);
+  assert.equal(payments[0]!.amountPence, 100000);
+  assert.equal(payments[0]!.method, "bank_transfer");
+  await db.update(customerTable).set({ phone: "07700900111" }).where(eq(customerTable.id, sale.customer.id));
+  const checklist = await (await request(`/sales/${sale.id}/checklist`)).json() as Checklist;
+  assert.equal(checklist.items.find(item => item.code === "customer_confirmed")?.status, "invalidated");
+  assert.equal(checklist.readyForPreparation, false);
+  assert.equal((await request(`/sales/${sale.id}/prepare`, { method: "POST" })).status, 400);
+  await prepareSale(sale.id);
+  const detail = await request(`/sales/${sale.id}`);
+  assert.equal(detail.status, 200);
+  assert.equal((await detail.json() as { status: string }).status, "signing");
+});
+
+test("revoking a link prevents signing and preserves the sale until a new preparation", async () => {
+  const sale = await createReadyFixture();
+  const prepared = await (await prepareSale(sale.id)).json() as { signingUrl: string };
+  const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
+  assert.equal((await request(`/sales/${sale.id}/revoke-signing`, { method: "POST" })).status, 200);
+  assert.equal((await request(`/signing/${token}`)).status, 410);
+  assert.equal((await request(`/signing/${token}/complete`, { method: "POST", body: JSON.stringify(signature) })).status, 409);
+  assert.equal((await request(`/sales/${sale.id}/complete`, { method: "POST" })).status, 422);
+  assert.equal((await request(`/sales/${sale.id}/revoke-signing`, { method: "POST" })).status, 409);
+  const fresh = await prepareSale(sale.id);
+  assert.equal(fresh.status, 201);
+});
+
+test("rejects missing or wrong signer email and expired tokens", async () => {
+  const sale = await createReadyFixture();
+  const prepared = await (await prepareSale(sale.id)).json() as { signingUrl: string };
+  const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
+  for (const signerEmail of [undefined, "someone-else@example.test"]) {
+    const response = await request(`/signing/${token}/complete`, { method: "POST", body: JSON.stringify({ ...signature, signerEmail }) });
+    assert.equal(response.status, 409);
+  }
+  await db.update(signingSessionsTable).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(signingSessionsTable.saleId, sale.id));
+  assert.equal((await request(`/signing/${token}`)).status, 410);
+  assert.equal((await request(`/signing/${token}`)).status, 410);
+  assert.equal((await request(`/signing/${token}/complete`, { method: "POST", body: JSON.stringify(signature) })).status, 409);
+});
+
+test("concurrent completion creates one invoice, vault record and completion event", async () => {
+  const sale = await createReadyFixture();
+  const prepared = await (await prepareSale(sale.id)).json() as { signingUrl: string };
+  const token = new URL(prepared.signingUrl).pathname.split("/").pop()!;
+  const signing = await Promise.all([1, 2].map(() => request(`/signing/${token}/complete`, { method: "POST", body: JSON.stringify(signature) })));
+  assert.deepEqual(signing.map(response => response.status).sort(), [200, 409]);
+  const completion = await Promise.all([1, 2].map(() => request(`/sales/${sale.id}/complete`, { method: "POST" })));
+  for (const response of completion) assert.equal(response.status, 200, await response.clone().text());
+  const bodies = await Promise.all(completion.map(response => response.json() as Promise<{ idempotent: boolean }>));
+  assert.equal(bodies.filter(body => body.idempotent).length, 1);
+  assert.equal((await db.select().from(invoicesTable).where(eq(invoicesTable.saleId, sale.id))).length, 1);
+  assert.equal((await db.select().from(dealVaultArtifactsTable).where(eq(dealVaultArtifactsTable.saleId, sale.id))).length, 1);
+  const events = await db.select().from(saleEventsTable).where(eq(saleEventsTable.saleId, sale.id));
+  assert.equal(events.filter(event => event.eventType === "sale.completed").length, 1);
+  // Once completed, a retry must not recreate side effects or fail because later
+  // stock/customer changes would prevent a NEW completion.
+  await db.update(customerTable).set({ phone: "07700900222" }).where(eq(customerTable.id, sale.customer.id));
+  const retry = await request(`/sales/${sale.id}/complete`, { method: "POST" });
+  assert.equal(retry.status, 200);
+  assert.equal((await retry.json() as { idempotent: boolean }).idempotent, true);
+  assert.equal((await request(`/sales/${sale.id}/checklist/price_confirmed`, { method: "POST", body: '{"status":"pending"}' })).status, 422);
 });

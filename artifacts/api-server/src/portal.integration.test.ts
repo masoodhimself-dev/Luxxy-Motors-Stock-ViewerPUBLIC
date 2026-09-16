@@ -1,3 +1,4 @@
+import "./test/setup";
 /*
  * Portal regression coverage uses the staff automation token against a
  * synthetic dealer namespace. It exercises the same protected HTTP contracts
@@ -16,6 +17,7 @@ const {
   db,
   pool,
   enquiriesTable,
+  enquiryEventsTable,
   leadEventsTable,
   leadsTable,
 } = await import("@workspace/db");
@@ -88,6 +90,7 @@ test("keeps the staff work queue safe across lead changes", async () => {
     ["PATCH", `/leads/${testUuid}`, "{}"],
     ["POST", `/leads/${testUuid}/activities`, "{}"],
     ["GET", "/enquiries"],
+    ["GET", "/contact-intents"],
     ["PATCH", `/enquiries/${testUuid}/status`, "{}"],
     ["GET", "/sales"],
     ["POST", "/sales", "{}"],
@@ -139,12 +142,12 @@ test("keeps the staff work queue safe across lead changes", async () => {
     }),
   });
   assert.equal(walkInResponse.status, 201);
-  const walkIn = await json<{
+  const { lead: walkIn } = await json<{ lead: {
     id: string;
     source: string;
     stage: string;
     nextActionDueAt: string | null;
-  }>(walkInResponse);
+  } }>(walkInResponse);
   assert.equal(walkIn.source, "walk_in");
   assert.equal(walkIn.stage, "new");
   assert.equal(new Date(walkIn.nextActionDueAt!).toISOString(), futureDueAt);
@@ -162,7 +165,7 @@ test("keeps the staff work queue safe across lead changes", async () => {
     }),
   });
   assert.equal(overdueResponse.status, 201);
-  const overdue = await json<{ id: string; source: string }>(overdueResponse);
+  const { lead: overdue } = await json<{ lead: { id: string; source: string } }>(overdueResponse);
   assert.equal(overdue.source, "phone");
 
   const activityResponse = await request(
@@ -330,4 +333,25 @@ test("keeps the staff work queue safe across lead changes", async () => {
     summary.find((entry) => entry.source === "website_form"),
     { source: "website_form", total: 1, open: 1, won: 0, lost: 0 },
   );
+});
+test("contact history requires staff access while public contact recording stays available", async () => {
+  const [enquiry] = await db.insert(enquiriesTable).values({
+    dealerId, type: "general", customerName: "Private History Customer",
+    email: "history@example.test", message: "Interested in a car.",
+  }).returning();
+  await db.insert(enquiryEventsTable).values({
+    dealerId, enquiryId: enquiry.id, kind: "call_intent", actor: "customer", summary: "Called about stock",
+  });
+  const anonymous = await request("/contact-intents", {}, false);
+  assert.equal(anonymous.status, 401);
+  assert.equal((await anonymous.text()).includes("Private History Customer"), false);
+  assert.equal((await request("/contact-intents", { headers: { "x-portal-token": "wrong-token" } }, false)).status, 401);
+  const staff = await request("/contact-intents");
+  assert.equal(staff.status, 200);
+  const history = await staff.json() as Array<{ customerName: string | null }>;
+  assert.ok(history.some(item => item.customerName === "Private History Customer"));
+  const tap = await request("/contact-intents", {
+    method: "POST", body: JSON.stringify({ channel: "call", source: "integration-test" }),
+  }, false);
+  assert.equal(tap.status, 201, await tap.clone().text());
 });
