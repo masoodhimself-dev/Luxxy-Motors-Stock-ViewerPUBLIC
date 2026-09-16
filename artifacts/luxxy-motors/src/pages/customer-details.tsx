@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-const labelClass = 'font-display text-[11px] font-black uppercase tracking-[0.2em] mb-3 block text-primary';
+const labelClass = 'field-label';
 
 function apiMessage(error: unknown) {
   if (error && typeof error === 'object' && 'data' in error) {
@@ -49,14 +49,14 @@ export default function CustomerDetails() {
   if (complete.isSuccess || hasFinished) {
     return (
       <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8 bg-background">
-        <div className="mx-auto max-w-xl border-4 border-primary bg-background p-10 text-center shadow-[8px_8px_0px_hsl(var(--primary))]">
-          <h1 className="font-display text-4xl sm:text-5xl font-black uppercase tracking-tighter text-primary">
+        <div className="mx-auto max-w-xl border border-border bg-card p-10 text-center shadow-none">
+          <h1 className="font-display text-4xl sm:text-3xl font-semibold tracking-tight text-primary">
             DETAILS SAVED
           </h1>
-          <p className="mx-auto mt-6 max-w-sm font-bold text-[13px] uppercase tracking-widest leading-relaxed text-primary/70 border-l-4 border-accent pl-4">
+          <p className="mx-auto mt-6 max-w-sm font-bold text-[13px] tracking-normal leading-relaxed text-primary/70 border-l-2 border-accent pl-4">
             The sales team has everything they need to prepare your paperwork.
           </p>
-          <p className="mt-8 font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/40">You may close this window.</p>
+          <p className="mt-8 font-display text-[11px] font-semibold tracking-normal text-primary/40">You may close this window.</p>
         </div>
       </div>
     );
@@ -65,8 +65,8 @@ export default function CustomerDetails() {
   if (query.isLoading) {
     return (
       <div className="luxxy-shell min-h-[70vh] bg-background px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center border-4 border-primary bg-background p-8 shadow-[8px_8px_0px_hsl(var(--primary))]" data-testid="loading-customer-session">
-          <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
+        <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center border border-border bg-card p-8 shadow-none" data-testid="loading-customer-session">
+          <p className="font-display text-[14px] font-semibold tracking-normal flex items-center gap-3 text-primary">
             <LoaderCircle className="h-6 w-6 animate-spin text-accent" />
             Loading form…
           </p>
@@ -78,10 +78,10 @@ export default function CustomerDetails() {
   if (query.isError || !session || session.status === 'expired') {
     return (
       <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8 bg-background">
-        <div className="mx-auto max-w-xl border-4 border-destructive bg-destructive/5 px-8 py-12 text-center text-destructive shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <div className="mx-auto max-w-xl border border-destructive bg-destructive/5 px-8 py-12 text-center text-destructive shadow-none">
           <CircleAlert className="mx-auto h-10 w-10 text-destructive" />
-          <h1 className="mt-6 font-display text-3xl font-black uppercase tracking-tighter">Link unavailable</h1>
-          <p className="mx-auto mt-6 max-w-sm text-[13px] font-bold uppercase tracking-widest leading-relaxed text-destructive/80 border-l-4 border-destructive pl-4">{apiMessage(query.error)}</p>
+          <h1 className="mt-6 font-display text-3xl font-semibold tracking-tight">Link unavailable</h1>
+          <p className="mx-auto mt-6 max-w-sm text-[13px] font-normal leading-relaxed text-destructive/80 border-l-2 border-destructive pl-4">{apiMessage(query.error)}</p>
         </div>
       </div>
     );
@@ -90,20 +90,20 @@ export default function CustomerDetails() {
   return (
     <div className="luxxy-shell min-h-[70vh] px-4 py-10 sm:px-6 sm:py-16 lg:px-8 bg-background">
       <div className="mx-auto max-w-xl">
-        <div className="mb-8 flex items-start gap-4 border-4 border-primary bg-background px-6 py-6 shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <div className="mb-8 flex items-start gap-4 border border-border bg-card px-6 py-6 shadow-none">
           <UserRound className="mt-1 h-6 w-6 shrink-0 text-accent" />
           <div>
-            <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] text-primary">Customer details</p>
-            <p className="mt-2 text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/70">
+            <p className="font-display text-[14px] font-semibold tracking-normal text-primary">Customer details</p>
+            <p className="mt-2 text-[13px] font-normal leading-relaxed text-primary/70">
               Enter your details below so the sales team can prepare your paperwork.
             </p>
           </div>
         </div>
 
-        <form onSubmit={submit} className="border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
-          <div className="border-b-4 border-primary px-8 py-8">
-            <h1 className="font-display text-3xl sm:text-4xl font-black uppercase tracking-tighter text-primary">Your details</h1>
-            <p className="mt-3 text-[11px] font-bold uppercase tracking-widest leading-relaxed text-primary/50">This should only take a moment.</p>
+        <form onSubmit={submit} className="border border-border bg-card shadow-none">
+          <div className="border-b border-border px-5 sm:px-8 py-8">
+            <h1 className="font-display text-3xl sm:text-2xl font-semibold tracking-tight text-primary">Your details</h1>
+            <p className="mt-3 text-[11px] font-normal leading-relaxed text-muted-foreground">This should only take a moment.</p>
           </div>
           <div className="space-y-6 px-8 py-8">
             <label className="block">
@@ -140,11 +140,11 @@ export default function CustomerDetails() {
               />
             </label>
             {complete.isError && (
-              <p role="alert" className="border-4 border-destructive/50 bg-background p-4 text-[11px] font-bold uppercase tracking-widest text-destructive">
+              <p role="alert" className="border border-destructive/50 bg-background p-4 text-[11px] font-normal text-destructive">
                 {apiMessage(complete.error)}
               </p>
             )}
-            <Button type="submit" size="lg" className="mt-4 h-16 w-full rounded-none font-display text-[13px] font-black uppercase tracking-[0.2em] shadow-[6px_6px_0px_hsl(var(--accent))] hover:-translate-y-1 hover:shadow-[8px_8px_0px_hsl(var(--accent))] transition-all" disabled={complete.isPending}>
+            <Button type="submit" size="lg" className="mt-4 min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" disabled={complete.isPending}>
               {complete.isPending ? 'SAVING…' : 'SAVE MY DETAILS'}
             </Button>
           </div>

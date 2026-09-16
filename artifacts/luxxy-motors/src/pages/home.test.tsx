@@ -262,7 +262,7 @@ describe('showroom search filters', () => {
   it('starts with a short welcome and puts stock search before any editorial sections', () => {
     renderHome();
 
-    expect(screen.getByText(/Find your next car/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Find your next car/i })).toBeInTheDocument();
     expect(screen.getByTestId('input-showroom-search')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Latest arrivals' })).toBeInTheDocument();
     expect(screen.queryByTestId('featured-forecourt-carousel')).not.toBeInTheDocument();
@@ -283,8 +283,8 @@ describe('showroom search filters', () => {
     expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('compact');
     expect(screen.getByTestId('button-compare-bmw-1-series')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /view/i }).length).toBeGreaterThan(0);
-    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('grid-cols-1');
-    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('sm:grid-cols-[1fr_auto]');
+    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('flex-wrap');
+    expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('justify-between');
   });
 
   it('restores the saved stock display preference', () => {

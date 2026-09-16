@@ -319,8 +319,8 @@ function OptionButton({
       aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        'group flex min-h-[5.35rem] w-full items-center justify-between gap-5 rounded-xl border bg-card px-5 py-4 text-left transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        selected ? 'border-accent bg-accent/10 shadow-[0_8px_22px_hsl(var(--accent)/.12)]' : 'border-border/80',
+        'group flex min-h-[4.5rem] w-full items-center justify-between gap-5 rounded-md border bg-card px-5 py-4 text-left transition-[border-color,background-color,transform] duration-200  hover:border-primary/50  focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        selected ? 'border-accent bg-accent/10 shadow-none' : 'border-border/80',
       )}
     >
       <span className="min-w-0">
@@ -401,7 +401,7 @@ export default function FindMyCar() {
 
   if (isLoading) {
     return (
-      <main className="luxxy-shell min-h-[100dvh]">
+      <div className="luxxy-shell min-h-[70dvh]">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 lg:px-12">
           <div className="animate-pulse space-y-8" aria-label="Loading Find My Car" data-testid="state-loading">
             <div className="h-3 w-32 bg-muted" />
@@ -411,22 +411,22 @@ export default function FindMyCar() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="luxxy-shell min-h-[100dvh]">
+      <div className="luxxy-shell min-h-[70dvh]">
         <div className="mx-auto flex min-h-[70dvh] max-w-xl flex-col items-start justify-center px-5 py-16 sm:px-8">
           <p className="luxxy-kicker">Find My Car</p>
-          <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight text-primary sm:text-5xl">The forecourt is taking a moment.</h1>
+          <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-primary">The forecourt is taking a moment.</h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground">We could not load the live stock just now. Please try again and we will get you back to the right cars.</p>
           <Button type="button" onClick={() => window.location.reload()} data-testid="button-retry-stock" className="mt-8">
             Try again
           </Button>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -434,28 +434,28 @@ export default function FindMyCar() {
 
   if (stockCount === 0) {
     return (
-      <main className="luxxy-shell min-h-[100dvh]">
+      <div className="luxxy-shell min-h-[70dvh]">
         <div className="mx-auto flex min-h-[70dvh] max-w-3xl flex-col justify-center px-5 py-16 sm:px-8 lg:px-12">
           <p className="luxxy-kicker">Find My Car</p>
-          <h1 className="mt-5 max-w-2xl font-display text-5xl font-semibold leading-[0.98] tracking-tight text-primary sm:text-7xl">A thoughtful match starts with the right stock.</h1>
+          <h1 className="mt-5 max-w-2xl font-display text-3xl font-semibold leading-tight text-primary sm:text-4xl">A thoughtful match starts with the right stock.</h1>
           <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground">There are no cars available to match at this moment. Our stock changes regularly, so please check back soon or speak with the Harrow team about what is arriving.</p>
           <div className="mt-9 border-l-2 border-accent pl-5 text-sm font-semibold leading-6 text-primary">No guesswork. No placeholder cars. Just the vehicles we can actually help you with.</div>
           <Button type="button" onClick={() => window.location.reload()} data-testid="button-refresh-empty-stock" className="mt-9 w-fit">
             Check live stock again
           </Button>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="luxxy-shell min-h-[100dvh] overflow-hidden">
+    <div className="luxxy-shell min-h-[70dvh] overflow-hidden">
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-12">
         <header className="luxxy-reveal grid overflow-hidden border border-border bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="relative px-6 py-9 sm:px-10 sm:py-12 lg:px-14 lg:py-14">
+          <div className="relative px-6 py-7 sm:px-8 sm:py-9">
             <div className="absolute left-0 top-0 h-full w-1 bg-accent" aria-hidden="true" />
-            <p className="luxxy-kicker text-accent">A little help choosing well</p>
-            <h1 className="luxxy-reveal luxxy-reveal-1 mt-5 max-w-3xl font-display text-5xl font-semibold leading-[0.95] tracking-tight sm:text-7xl">
+            <p className="luxxy-kicker text-primary-foreground/80">A little help choosing well</p>
+            <h1 className="luxxy-reveal luxxy-reveal-1 mt-5 max-w-3xl font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
               Find the car that fits.
             </h1>
             <p className="luxxy-reveal luxxy-reveal-2 mt-6 max-w-2xl text-base leading-7 text-primary-foreground/70 sm:text-lg">
@@ -479,7 +479,7 @@ export default function FindMyCar() {
             <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {hasStarted && (
-                  <button type="button" onClick={back} data-testid="button-back-question" className="inline-flex h-9 items-center gap-2 px-2 text-sm font-semibold text-primary transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  <button type="button" onClick={back} data-testid="button-back-question" className="inline-flex h-9 items-center gap-2 px-2 text-sm font-semibold text-primary transition-colors hover:text-accent focus-visible:ring-2 focus-visible:ring-accent">
                     <ArrowLeft className="h-4 w-4" />
                     Back
                   </button>
@@ -487,7 +487,7 @@ export default function FindMyCar() {
                 <span className="luxxy-label text-muted-foreground">Question {step + 1} of {questions.length}</span>
                 <span className="hidden text-xs text-muted-foreground sm:inline">{answeredCount} of {questions.length} answered</span>
               </div>
-              <button type="button" onClick={restart} data-testid="button-restart-quiz" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <button type="button" onClick={restart} data-testid="button-restart-quiz" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-accent">
                 <RotateCcw className="h-3.5 w-3.5" />
                 Start over
               </button>
@@ -497,7 +497,7 @@ export default function FindMyCar() {
                 {questions.map((item, index) => (
                   <div key={item.key} className="min-w-0">
                     <div className={cn('h-1.5 transition-colors', index <= step ? 'bg-accent' : 'bg-border')} />
-                    <span className={cn('mt-2 hidden truncate text-[10px] font-bold uppercase tracking-[.1em] sm:block', index === step ? 'text-primary' : 'text-muted-foreground')}>
+                    <span className={cn('mt-2 hidden truncate text-[10px] font-bold  tracking-normal sm:block', index === step ? 'text-primary' : 'text-muted-foreground')}>
                       {item.key === 'bodyType' ? 'Shape' : item.key === 'transmission' ? 'Gearbox' : item.key === 'use' ? 'Use' : item.key}
                     </span>
                   </div>
@@ -531,7 +531,7 @@ export default function FindMyCar() {
           <section className="mt-12" aria-labelledby="results-title">
             <div className="grid overflow-hidden border border-border bg-primary text-primary-foreground lg:grid-cols-[minmax(0,1fr)_20rem]">
               <div className="px-6 py-8 sm:px-10 sm:py-10">
-                <p className="luxxy-kicker text-accent">Your shortlist</p>
+                <p className="luxxy-kicker text-primary-foreground/80">Your shortlist</p>
                 <h2 id="results-title" className="mt-4 font-display text-4xl font-semibold tracking-tight sm:text-5xl">A considered place to start.</h2>
                 <p className="mt-3 max-w-2xl text-base leading-7 text-primary-foreground/70" aria-live="polite" data-testid="text-results-announcement">
                   {hasStrongMatch ? 'These are the strongest matches for the answers you gave us.' : 'There is not a perfect match in today’s stock, but these are the closest cars to your brief.'}
@@ -564,7 +564,7 @@ export default function FindMyCar() {
                       aria-pressed={recommendationView === 'cards'}
                       onClick={() => setRecommendationView('cards')}
                       data-testid="button-recommendation-view-cards"
-                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[.06em] transition-colors', recommendationView === 'cards' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
+                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold  tracking-normal transition-colors', recommendationView === 'cards' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
                     >
                       <Grid2X2 className="h-3.5 w-3.5" /> Cards
                     </button>
@@ -573,7 +573,7 @@ export default function FindMyCar() {
                       aria-pressed={recommendationView === 'compact'}
                       onClick={() => setRecommendationView('compact')}
                       data-testid="button-recommendation-view-compact"
-                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 border-x border-primary-foreground/20 text-[10px] font-bold uppercase tracking-[.06em] transition-colors', recommendationView === 'compact' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
+                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 border-x border-primary-foreground/20 text-[10px] font-bold  tracking-normal transition-colors', recommendationView === 'compact' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
                     >
                       <List className="h-3.5 w-3.5" /> Compact
                     </button>
@@ -582,7 +582,7 @@ export default function FindMyCar() {
                       aria-pressed={recommendationView === 'shortlist'}
                       onClick={() => setRecommendationView('shortlist')}
                       data-testid="button-recommendation-view-shortlist"
-                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[.06em] transition-colors', recommendationView === 'shortlist' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
+                      className={cn('inline-flex h-9 items-center justify-center gap-1.5 text-[10px] font-bold  tracking-normal transition-colors', recommendationView === 'shortlist' ? 'bg-primary-foreground text-primary' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground')}
                     >
                       <Rows3 className="h-3.5 w-3.5" /> Shortlist
                     </button>
@@ -642,7 +642,7 @@ export default function FindMyCar() {
                               <span className="block text-xs leading-5 text-muted-foreground">{match.explanation}</span>
                             </span>
                             <span className={cn(
-                              'shrink-0 border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em]',
+                              'shrink-0 border px-2 py-1 text-[10px] font-bold  tracking-normal',
                               match.kind === 'flexible' ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border bg-secondary text-muted-foreground',
                             )}>
                               {match.kind === 'flexible' ? 'Flexible fallback' : match.key === 'use' ? 'Good fit' : 'Exact preference'}
@@ -665,7 +665,7 @@ export default function FindMyCar() {
                                 <span className="block font-semibold leading-5 text-primary">{miss.answer}</span>
                                 <span className="block text-xs leading-5 text-muted-foreground">{miss.explanation}</span>
                               </span>
-                              <span className="shrink-0 border border-border bg-background px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                              <span className="shrink-0 border border-border bg-background px-2 py-1 text-[10px] font-bold tracking-normal text-muted-foreground">
                                 Missed preference
                               </span>
                             </li>
@@ -681,6 +681,6 @@ export default function FindMyCar() {
           </section>
         )}
       </div>
-    </main>
+    </div>
   );
 }

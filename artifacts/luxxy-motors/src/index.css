@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=DM+Sans:opsz,wght@9..40,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400..700&display=swap');
 @layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
 @import '@clerk/themes/shadcn.css';
@@ -30,43 +30,42 @@
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --font-sans: var(--app-font-sans);
-  --radius-sm: .55rem;
-  --radius-md: .75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
+  --radius-sm: .125rem;
+  --radius-md: .25rem;
+  --radius-lg: .375rem;
+  --radius-xl: .5rem;
 }
 
 :root {
   --site-header-height: 4.75rem;
-  /* A confident showroom palette: ink, warm paper, and a single copper signal. */
-  --background: 39 29% 95%;
-  --foreground: 216 25% 17%;
-  --border: 214 16% 79%;
-  --input: 214 16% 79%;
-  --ring: 17 73% 50%;
-  --card: 40 33% 98%;
-  --card-foreground: 216 25% 17%;
-  --card-border: 214 16% 82%;
-  --popover: 40 33% 98%;
-  --popover-foreground: 216 25% 17%;
-  --popover-border: 214 16% 82%;
-  --primary: 216 25% 17%;
-  --primary-foreground: 39 29% 95%;
-  --secondary: 174 17% 87%;
-  --secondary-foreground: 216 25% 17%;
-  --muted: 36 20% 90%;
-  --muted-foreground: 215 12% 43%;
-  --accent: 17 73% 50%;
-  --accent-foreground: 39 29% 95%;
-  --destructive: 5 65% 45%;
-  --destructive-foreground: 39 29% 95%;
-  --contact: 166 48% 34%;
-  --contact-foreground: 39 29% 95%;
-  --app-font-sans: 'DM Sans', sans-serif;
-  --font-display: 'Bricolage Grotesque', sans-serif;
-  --radius: .75rem;
-  --shadow-soft: 0 12px 30px hsl(216 25% 17% / .09);
-  --shadow-lift: 0 18px 42px hsl(216 25% 17% / .14);
+  --background: 40 20% 97%;
+  --foreground: 170 15% 14%;
+  --border: 40 10% 83%;
+  --input: 40 8% 70%;
+  --ring: 31 45% 35%;
+  --card: 0 0% 100%;
+  --card-foreground: 170 15% 14%;
+  --card-border: 40 10% 83%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 170 15% 14%;
+  --popover-border: 40 10% 83%;
+  --primary: 170 15% 14%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 40 14% 92%;
+  --secondary-foreground: 170 15% 14%;
+  --muted: 40 14% 92%;
+  --muted-foreground: 165 5% 39%;
+  --accent: 31 45% 35%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 60% 38%;
+  --destructive-foreground: 0 0% 100%;
+  --contact: 157 43% 28%;
+  --contact-foreground: 0 0% 100%;
+  --app-font-sans: 'DM Sans', Arial, sans-serif;
+  --font-display: 'Manrope', Arial, sans-serif;
+  --radius: .25rem;
+  --shadow-soft: 0 2px 8px hsl(170 15% 14% / .05);
+  --shadow-lift: 0 12px 40px hsl(170 15% 14% / .12);
 }
 
 .dark {
@@ -115,13 +114,13 @@
   .font-display { font-family: var(--font-display); }
   .heading-1, .heading-2, .heading-3, .heading-4 {
     font-family: var(--font-display);
-    letter-spacing: -.045em;
+    letter-spacing: -.035em;
     text-transform: none;
     text-wrap: balance;
   }
-  .heading-1 { @apply text-[clamp(2.4rem,7vw,5.75rem)] font-semibold leading-[.94]; }
-  .heading-2 { @apply text-[clamp(2rem,5vw,4.25rem)] font-semibold leading-[.98]; }
-  .heading-3 { @apply text-[clamp(1.5rem,3vw,2.35rem)] font-semibold leading-[1.05]; }
+  .heading-1 { @apply text-[clamp(1.9rem,4vw,3rem)] font-semibold leading-[1.15]; }
+  .heading-2 { @apply text-[clamp(1.6rem,3vw,2.25rem)] font-semibold leading-[1.2]; }
+  .heading-3 { @apply text-[clamp(1.25rem,2vw,1.6rem)] font-semibold leading-[1.05]; }
   .heading-4 { @apply text-xl sm:text-2xl font-semibold leading-[1.1]; }
   .body-lg { @apply text-base sm:text-lg leading-relaxed text-balance; }
   .body-base { @apply text-sm sm:text-base leading-relaxed; }
@@ -140,24 +139,19 @@
 }
 
 @layer components {
-  .luxxy-shell {
-    position: relative;
-    background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(circle at 12% 0%, hsl(var(--secondary) / .48), transparent 28rem),
-      linear-gradient(120deg, hsl(var(--background)), hsl(var(--muted) / .22));
-  }
-  .luxxy-shell::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    opacity: .17;
-    z-index: 0;
-    background-image: radial-gradient(hsl(var(--primary) / .18) .45px, transparent .45px);
-    background-size: 5px 5px;
-    mask-image: linear-gradient(to bottom, black, transparent 75%);
-  }
+  .container { width: 100%; max-width: 1280px; }
+  .luxxy-shell { position: relative; background: hsl(var(--background)); }
+  .surface { border: 1px solid hsl(var(--border)); border-radius: var(--radius); background: hsl(var(--card)); }
+  .section-space { padding-block: clamp(2.5rem, 5vw, 4.5rem); }
+  .field-label { display: block; margin-bottom: .5rem; font-size: .8125rem; font-weight: 600; color: hsl(var(--foreground)); }
+  .text-link { display: inline-flex; min-height: 44px; align-items: center; gap: .5rem; font-size: .875rem; font-weight: 600; text-underline-offset: 4px; }
+  .text-link:hover { text-decoration: underline; }
+  .quiet-status { display: inline-flex; align-items: center; gap: .375rem; padding: .25rem .5rem; border-radius: .125rem; font-size: .75rem; font-weight: 500; line-height: 1.5; }
+  .luxxy-control { min-height: 44px; border: 1px solid hsl(var(--input)); border-radius: var(--radius); background: hsl(var(--card)); padding: .625rem .875rem; font-size: 1rem; color: hsl(var(--foreground)); }
+  .luxxy-control:disabled { cursor: not-allowed; opacity: .5; }
+  .luxxy-control:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  select.luxxy-control { appearance: auto; }
+  .section-heading { font-family: var(--font-display); font-size: clamp(1.35rem,2.5vw,1.9rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.25; }
   .luxxy-kicker {
     display: inline-flex;
     align-items: center;
@@ -166,26 +160,19 @@
     font-family: var(--font-display);
     font-size: .72rem;
     font-weight: 700;
-    letter-spacing: .12em;
+    letter-spacing: .06em;
     line-height: 1;
   }
-  .luxxy-kicker::before {
-    content: "";
-    display: block;
-    width: 1.45rem;
-    height: 2px;
-    background: currentColor;
-  }
   .luxxy-label {
-    font-size: .68rem;
+    font-size: .75rem;
     font-weight: 700;
-    letter-spacing: .12em;
+    letter-spacing: .06em;
     line-height: 1.2;
     font-family: var(--font-display);
   }
   .luxxy-leader { flex: 1 1 auto; min-width: .75rem; border-bottom: 1px dotted hsl(var(--border)); transform: translateY(-.35rem); }
   .luxxy-rule { background: hsl(var(--border)); height: 1px; }
-  .luxxy-surface { background: hsl(var(--card)); box-shadow: var(--shadow-soft); }
+  .luxxy-surface { background: hsl(var(--card)); box-shadow: none; }
   .luxxy-hero-image { animation: luxxy-image-settle 700ms cubic-bezier(.22, 1, .36, 1) both; }
   .luxxy-reveal { animation: luxxy-rise 500ms cubic-bezier(.22, 1, .36, 1) both; }
   .luxxy-reveal-1 { animation-delay: 60ms; }
@@ -198,27 +185,16 @@
   }
 }
 
-/* Visual reset for legacy utility combinations: retain behavior, lose the heavy
-   poster-like treatment. These selectors are intentionally scoped to the
-   showroom shell so portal density and focus semantics remain intact. */
-.luxxy-shell [class*="shadow-"]:not([class*="shadow-none"]) {
-  box-shadow: var(--shadow-soft) !important;
-}
-.luxxy-shell [class*="rounded-none"] { border-radius: .75rem !important; }
-.luxxy-shell [class*="border-4"], .luxxy-shell [class*="border-2"],
-.luxxy-shell [class*="border-t-8"], .luxxy-shell [class*="border-b-4"],
-.luxxy-shell [class*="border-x-4"], .luxxy-shell [class*="border-y-4"] { border-width: 1px !important; }
-.luxxy-shell .uppercase { text-transform: none !important; }
-.luxxy-shell [class*="tracking-widest"], .luxxy-shell [class*="tracking-["] { letter-spacing: .04em !important; }
-.luxxy-shell .hover\:translate-y-\[2px\]:hover,
-.luxxy-shell .hover\:-translate-y-1:hover,
-.luxxy-shell .hover\:-translate-y-0\.5:hover { transform: translateY(-2px); }
 
-@keyframes luxxy-rise {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Shared layout primitives; presentation is explicit, without legacy !important resets. */
+@layer components {
+  .vehicle-card { min-width: 0; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: .25rem; overflow: hidden; }
+  .vehicle-card:hover { border-color: hsl(var(--primary) / .4); }
+  .vehicle-specs { display: flex; flex-wrap: wrap; gap: .35rem .75rem; font-size: .8125rem; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+  .vehicle-specs span + span::before { content: "·"; margin-right: .75rem; color: hsl(var(--muted-foreground)); }
+  .portal-workspace { font-size: .875rem; }
+  .portal-workspace input, .portal-workspace select, .portal-workspace textarea { max-width: 100%; }
+  .portal-workspace .portal-panel { overflow: hidden; }
 }
-@keyframes luxxy-image-settle {
-  from { opacity: 0; transform: scale(1.025); filter: saturate(.8) blur(2px); }
-  to { opacity: 1; transform: scale(1); filter: saturate(1) blur(0); }
-}
+@keyframes luxxy-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes luxxy-image-settle { from { opacity: 0; } to { opacity: 1; } }

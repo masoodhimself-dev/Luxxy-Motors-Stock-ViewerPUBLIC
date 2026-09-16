@@ -5,19 +5,13 @@ import { Input, inputClass } from '@/components/ui/input';
 import { NativeSelect, nativeSelectClass } from '@/components/ui/native-select';
 import { Textarea, textareaClass } from '@/components/ui/textarea';
 import {
-  expectBrutalistGeometry,
+  expectRefinedGeometry,
   radiusClasses,
   shadowClasses,
   utilities,
 } from '@/test/showroom-style';
 
-/**
- * The showroom field language is shared by the three primitives buyers type into:
- * brutalist square and hard-offset shadow, with the browser's own focus outline replaced by a brass
- * border and halo. They are guarded together because they have to stay in step — a
- * field that quietly regained a rounded edge, a drop shadow or a default focus ring
- * would change every buyer-facing form at once.
- */
+// Shared field appearance and call-site overrides stay aligned.
 
 type Field = {
   label: string;
@@ -41,7 +35,7 @@ const FIELDS: Field[] = [
     base: inputClass,
     taller: 'h-14',
     onInk:
-      'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/45 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))]',
+      'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/45 focus-visible:outline-primary-foreground',
     hasPlaceholder: true,
     render: (className) => (
       <Input aria-label="Field" placeholder="Make, model or registration" className={className} />
@@ -53,7 +47,7 @@ const FIELDS: Field[] = [
     base: textareaClass,
     taller: 'min-h-[160px]',
     onInk:
-      'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/45 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))]',
+      'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground placeholder:text-primary-foreground/45 focus-visible:outline-primary-foreground',
     hasPlaceholder: true,
     render: (className) => (
       <Textarea aria-label="Field" placeholder="Anything else we should know?" className={className} />
@@ -65,7 +59,7 @@ const FIELDS: Field[] = [
     base: nativeSelectClass,
     taller: 'h-14',
     onInk:
-      'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground focus:shadow-[4px_4px_0px_hsl(var(--accent))]',
+      'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground focus-visible:outline-primary-foreground',
     hasPlaceholder: false,
     render: (className) => (
       <NativeSelect aria-label="Field" defaultValue="" className={className}>
@@ -106,42 +100,28 @@ function focusUtilities(className: string) {
   return utilities(focusTokens.join(' '));
 }
 
-/** The brass halo, at whatever opacity the screen asked for. */
-function brutalistShadowClasses(focusUtils: string[]) {
-  return focusUtils.filter((utility) => /^shadow-\[/.test(utility));
-}
-
 /** Every height utility, so a call site's taller control can be shown to win. */
 function heightClasses(className: string) {
   return utilities(className).filter((utility) => /^(min-|max-)?h-/.test(utility));
 }
 
-/**
- * Fails when a field stops replacing the browser's default focus ring with the
- * showroom's brass edge: an accent border, a two-pixel ring and a soft brass halo,
- * with the native outline suppressed so it cannot draw over them.
- */
-function expectBrutalistFocus(className: string, label: string) {
+function expectAccessibleFocus(className: string, label: string) {
   const focus = focusUtilities(className);
-
-  expect(focus, `${label} focus border`).toContain('border-accent');
-  expect(focus, `${label} focus ring`).toContain('ring-0');
-  const shadows = focus.filter(f => f.startsWith('shadow-['));
-  expect(shadows.length, `${label} focus shadow`).toBeGreaterThan(0);
-  expect(utilities(className), `${label} native outline`).toContain('outline-none');
+  expect(focus, `${label} visible outline`).toContain('outline-2');
+  expect(focus, `${label} outline offset`).toContain('outline-offset-2');
+  expect(utilities(className), `${label} native outline`).not.toContain('outline-none');
 }
 
 describe('shared form fields', () => {
-  it.each(FIELDS)('$label ships the squared, shadow-free showroom default', (field) => {
-    expectBrutalistGeometry(fieldClass(field), field.label);
+  it.each(FIELDS)('$label ships the restrained, shadow-free showroom default', (field) => {
+    expectRefinedGeometry(fieldClass(field), field.label);
   });
 
-  it.each(FIELDS)('$label keeps the brutalist focus edge', (field) => {
+  it.each(FIELDS)('$label keeps a visible, offset focus outline', (field) => {
     const className = fieldClass(field);
 
-    expectBrutalistFocus(className, field.label);
-    // All three share one halo opacity; a screen may raise it, but the default is shared.
-    expect(focusUtilities(className), `${field.label} default shadow`).toContain('shadow-[4px_4px_0px_hsl(var(--accent))]');
+    expectAccessibleFocus(className, field.label);
+    expect(focusUtilities(className), `${field.label} focus colour`).toContain('outline-ring');
   });
 });
 
@@ -164,14 +144,14 @@ describe('shared form field call-site tweaks', () => {
       expect(merged, `${field.label} on-ink tweak`).toContain(tweak);
     }
     // The resting palette is replaced rather than layered under the default.
-    for (const surrendered of ['border-primary', 'bg-background', 'text-foreground']) {
+    for (const surrendered of ['border-input', 'bg-card', 'text-foreground']) {
       expect(tokens(field.base), `${field.label} default palette`).toContain(surrendered);
       expect(merged, `${field.label} default palette`).not.toContain(surrendered);
     }
-    // Only the halo opacity moves: the brass focus edge itself survives on ink.
+    // The contrasting focus outline remains visible on a dark surface.
     const focus = focusUtilities(className);
-    expect(focus, `${field.label} on-ink focus border`).toContain('border-accent');
-    expect(brutalistShadowClasses(focus), `${field.label} on-ink shadow`).toEqual(['shadow-[4px_4px_0px_hsl(var(--accent))]']);
+    expect(focus, `${field.label} on-ink outline`).toContain('outline-2');
+    expect(focus, `${field.label} on-ink colour`).toContain('outline-primary-foreground');
   });
 
   it.each(TEXT_FIELDS)('$label lets a screen restyle the placeholder on ink', (field) => {
@@ -201,23 +181,10 @@ describe('field focus-edge helper', () => {
     ]);
   });
 
-  it('fails a field that lost the brutalist edge or kept the browser outline', () => {
-    const brass = 'outline-none focus:border-accent focus:ring-0 focus:shadow-[4px_4px_0px_hsl(var(--accent))]';
-
-    expect(() => expectBrutalistFocus(brass, 'field')).not.toThrow();
-    // No accent border on focus.
-    expect(() =>
-      expectBrutalistFocus('outline-none focus:ring-0 focus:shadow-[4px_4px_0px_hsl(var(--accent))]', 'field'),
-    ).toThrow();
-    // No brass halo behind the border.
-    expect(() => expectBrutalistFocus('outline-none focus:border-accent focus:ring-0', 'field')).toThrow();
-    // The native outline would draw over the brass edge.
-    expect(() =>
-      expectBrutalistFocus('focus:border-accent focus:ring-0 focus:shadow-[4px_4px_0px_hsl(var(--accent))]', 'field'),
-    ).toThrow();
-    // A resting accent border is not a focus edge.
-    expect(() =>
-      expectBrutalistFocus('outline-none border-accent ring-0 shadow-[4px_4px_0px_hsl(var(--accent))]', 'field'),
-    ).toThrow();
+  it('rejects a field without a visible, offset keyboard focus indicator', () => {
+    expect(() => expectAccessibleFocus('focus-visible:outline-2 focus-visible:outline-offset-2', 'field')).not.toThrow();
+    expect(() => expectAccessibleFocus('outline-none', 'field')).toThrow();
+    expect(() => expectAccessibleFocus('focus-visible:outline-2', 'field')).toThrow();
+    expect(() => expectAccessibleFocus('outline-2 outline-offset-2', 'field')).toThrow();
   });
 });

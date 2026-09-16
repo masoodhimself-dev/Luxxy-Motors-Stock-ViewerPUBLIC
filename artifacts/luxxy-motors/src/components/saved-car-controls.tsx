@@ -34,7 +34,7 @@ export function SaveCarButton({
       title={saved ? 'Saved — click to remove' : 'Save this car'}
       data-testid={`button-save-${car.id}`}
       className={cn(
-        'inline-flex items-center justify-center gap-2 border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+        'inline-flex items-center justify-center gap-2 border transition-colors  focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         variant === 'overlay'
           ? 'h-9 w-9 border-border/60 bg-background/90 backdrop-blur-sm hover:border-primary/50'
           : 'h-11 px-4 text-[13px] font-bold',
@@ -82,7 +82,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
         aria-label={comparing ? `Remove ${label} from your comparison` : `Add ${label} to your comparison`}
         data-testid={`button-compare-${car.id}`}
         className={cn(
-          'inline-flex w-fit max-w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          'inline-flex w-fit max-w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-bold  tracking-normal transition-colors  focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
           comparing ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           className
         )}
@@ -101,7 +101,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
       aria-label={comparing ? `Remove ${label} from your comparison` : `Add ${label} to your comparison`}
       data-testid={`button-compare-${car.id}`}
       className={cn(
-        'inline-flex h-11 w-fit max-w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap border px-4 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'inline-flex h-11 w-fit max-w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap border px-4 text-[13px] font-bold transition-colors  focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         comparing
           ? 'border-primary bg-primary/10 text-primary'
           : 'border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary',

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { VariantProps } from 'class-variance-authority';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { expectBrutalistGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
+import { expectRefinedGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
 
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>['variant']>;
 type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>['size']>;
@@ -30,18 +30,18 @@ const VARIANTS = Object.keys(VARIANT_COVERAGE) as ButtonVariant[];
 const SIZES = Object.keys(SIZE_COVERAGE) as ButtonSize[];
 
 describe('Button', () => {
-  it.each(SIZES)('renders the %s size brutalist square and hard-offset shadow', (size) => {
+  it.each(SIZES)('renders the %s size with restrained corners and flat surfaces', (size) => {
     render(<Button size={size}>Book a viewing</Button>);
 
     // `rounded-none` is the only radius allowed: anything else means a soft edge
     // crept back into the base or a variant.
-    expectBrutalistGeometry(screen.getByRole('button').className, `Button ${size}`);
+    expectRefinedGeometry(screen.getByRole('button').className, `Button ${size}`);
   });
 
-  it('keeps every variant and size combination brutalist square and hard-offset shadow', () => {
+  it('keeps every variant and size combination with restrained corners and flat surfaces', () => {
     for (const variant of VARIANTS) {
       for (const size of SIZES) {
-        expectBrutalistGeometry(buttonVariants({ variant, size }), `Button ${variant}/${size}`);
+        expectRefinedGeometry(buttonVariants({ variant, size }), `Button ${variant}/${size}`);
       }
     }
   });

@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { expectRefinedGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -52,43 +53,12 @@ const BADGE_VARIANT_COVERAGE: Record<BadgeVariant, true> = {
 
 const BADGE_VARIANTS = Object.keys(BADGE_VARIANT_COVERAGE) as BadgeVariant[];
 
-/** Drops responsive/state prefixes and `!` markers so `sm:!rounded-lg` reads as `rounded-lg`. */
-function utilities(className: string) {
-  return className
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((token) => token.slice(token.lastIndexOf(':') + 1).replace(/^!/, ''));
-}
-
-function radiusClasses(className: string) {
-  return utilities(className).filter((utility) => /^-?rounded(-|$)/.test(utility));
-}
-
-function shadowClasses(className: string) {
-  return utilities(className).filter(
-    (utility) => /^-?shadow(-|$)/.test(utility) && utility !== 'shadow-none',
-  );
-}
-
-/**
- * `rounded-none` is the only radius allowed: anything else means a soft edge or a
- * drop shadow crept back into a shared surface and every call site has to undo it.
- */
-function expectBrutalistGeometry(element: Element, label: string) {
-  const { className } = element;
-
-  expect(radiusClasses(className), `${label} radius`).toEqual(['rounded-none']);
-
-  const shadows = shadowClasses(className);
-  if (shadows.length > 0) {
-    shadows.forEach(shadow => {
-      expect(shadow, `${label} shadow should be a hard offset`).toMatch(/^shadow-\[/);
-    });
-  }
+function expectSurface(element: Element, label: string) {
+  expectRefinedGeometry(element.className, label);
 }
 
 describe('Card', () => {
-  it('renders brutalist square and hard-offset shadow', () => {
+  it('renders with restrained corners and flat surfaces', () => {
     render(
       <Card data-testid="card">
         <CardHeader>
@@ -98,24 +68,24 @@ describe('Card', () => {
       </Card>,
     );
 
-    expectBrutalistGeometry(screen.getByTestId('card'), 'Card');
+    expectSurface(screen.getByTestId('card'), 'Card');
   });
 });
 
 describe('Badge', () => {
-  it.each(BADGE_VARIANTS)('renders the %s variant brutalist square and hard-offset shadow', (variant) => {
+  it.each(BADGE_VARIANTS)('renders the %s variant with restrained corners and flat surfaces', (variant) => {
     render(
       <Badge variant={variant} data-testid="badge">
         Reserved
       </Badge>,
     );
 
-    expectBrutalistGeometry(screen.getByTestId('badge'), `Badge ${variant}`);
+    expectSurface(screen.getByTestId('badge'), `Badge ${variant}`);
   });
 });
 
 describe('Dialog', () => {
-  it('renders the panel and its close button brutalist square and hard-offset shadow', () => {
+  it('renders the panel and its close button with restrained corners and flat surfaces', () => {
     render(
       <Dialog open>
         <DialogContent>
@@ -125,13 +95,13 @@ describe('Dialog', () => {
       </Dialog>,
     );
 
-    expectBrutalistGeometry(screen.getByRole('dialog'), 'DialogContent');
-    expectBrutalistGeometry(screen.getByRole('button', { name: 'Close' }), 'DialogContent close');
+    expectSurface(screen.getByRole('dialog'), 'DialogContent');
+    expectSurface(screen.getByRole('button', { name: 'Close' }), 'DialogContent close');
   });
 });
 
 describe('Popover', () => {
-  it('renders the panel brutalist square and hard-offset shadow', () => {
+  it('renders the panel with restrained corners and flat surfaces', () => {
     render(
       <Popover open>
         <PopoverTrigger>Opening hours</PopoverTrigger>
@@ -139,12 +109,12 @@ describe('Popover', () => {
       </Popover>,
     );
 
-    expectBrutalistGeometry(screen.getByTestId('popover-content'), 'PopoverContent');
+    expectSurface(screen.getByTestId('popover-content'), 'PopoverContent');
   });
 });
 
 describe('DropdownMenu', () => {
-  it('renders the panel and its items brutalist square and hard-offset shadow', () => {
+  it('renders the panel and its items with restrained corners and flat surfaces', () => {
     render(
       <DropdownMenu open>
         <DropdownMenuTrigger>Sort</DropdownMenuTrigger>
@@ -154,13 +124,13 @@ describe('DropdownMenu', () => {
       </DropdownMenu>,
     );
 
-    expectBrutalistGeometry(screen.getByRole('menu'), 'DropdownMenuContent');
-    expectBrutalistGeometry(screen.getByRole('menuitem'), 'DropdownMenuItem');
+    expectSurface(screen.getByRole('menu'), 'DropdownMenuContent');
+    expectSurface(screen.getByRole('menuitem'), 'DropdownMenuItem');
   });
 });
 
 describe('Select', () => {
-  it('renders the trigger, panel and items brutalist square and hard-offset shadow', () => {
+  it('renders the trigger, panel and items with restrained corners and flat surfaces', () => {
     render(
       <Select open defaultValue="petrol">
         <SelectTrigger data-testid="select-trigger">
@@ -174,9 +144,9 @@ describe('Select', () => {
 
     // The open panel marks the rest of the tree `aria-hidden`, so the trigger is
     // reachable by test id rather than by role here.
-    expectBrutalistGeometry(screen.getByTestId('select-trigger'), 'SelectTrigger');
-    expectBrutalistGeometry(screen.getByRole('listbox'), 'SelectContent');
-    expectBrutalistGeometry(screen.getByRole('option', { name: 'Petrol' }), 'SelectItem');
+    expectSurface(screen.getByTestId('select-trigger'), 'SelectTrigger');
+    expectSurface(screen.getByRole('listbox'), 'SelectContent');
+    expectSurface(screen.getByRole('option', { name: 'Petrol' }), 'SelectItem');
   });
 });
 

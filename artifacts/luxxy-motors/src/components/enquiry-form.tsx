@@ -24,7 +24,7 @@ const typeLabels: Record<EnquiryType, string> = {
 
 const bookingTimezone = 'Europe/London';
 
-const labelClass = 'font-display text-[11px] font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2 text-primary';
+const labelClass = 'field-label flex items-center gap-2';
 type PreferredContact = 'email' | 'phone' | 'whatsapp';
 type PartExchangeCondition = 'excellent' | 'good' | 'fair' | 'poor';
 
@@ -241,7 +241,7 @@ export function EnquiryForm({
         </p>
         <div className="mx-auto mt-6 max-w-sm border border-primary/20 bg-primary/5 px-5 py-4 text-left">
           <p className="luxxy-label text-accent">Your reference</p>
-          <p className="mt-2 font-mono text-xl font-bold tracking-[.12em] text-primary" data-testid="text-enquiry-reference">{mutation.data.reference}</p>
+          <p className="mt-2 font-mono text-xl font-bold tracking-normal text-primary" data-testid="text-enquiry-reference">{mutation.data.reference}</p>
           <p className="mt-2 text-xs leading-5 text-primary/70">Keep this reference handy if you call the showroom.</p>
         </div>
         {selectedVehicle && (
@@ -279,7 +279,7 @@ export function EnquiryForm({
                 <p className="mt-1 text-xs leading-5 text-primary/70">Reschedule or cancel using your secure link.</p>
               </div>
             </div>
-            <Button asChild type="button" variant="outline" size="sm" className="h-9 shrink-0 rounded-none border-border bg-background text-xs font-bold shadow-none">
+            <Button asChild type="button" variant="outline" size="sm" className="h-9 shrink-0 rounded-md border-border bg-background text-xs font-bold shadow-none">
               <Link href={mutation.data.managePath}>Manage viewing</Link>
             </Button>
           </div>
@@ -298,7 +298,7 @@ export function EnquiryForm({
           type="button"
           variant="outline"
           size="lg"
-          className="mt-8 h-12 rounded-none border-border bg-background px-6 text-sm font-bold text-foreground shadow-none hover:border-primary/45 hover:bg-secondary hover:text-foreground"
+          className="mt-8 h-12 rounded-md border-border bg-background px-6 text-sm font-bold text-foreground shadow-none hover:border-primary/45 hover:bg-secondary hover:text-foreground"
           onClick={() => mutation.reset()}
           data-testid="button-send-another-enquiry"
         >
@@ -309,12 +309,12 @@ export function EnquiryForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-8" data-testid="form-enquiry">
+    <form onSubmit={submit} className="space-y-6" data-testid="form-enquiry">
       <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-6">
         <div>
           <p className="luxxy-label text-accent">{isViewing ? `Step ${viewingStep} of 2` : 'Your details'}</p>
-          <h2 className="mt-4 font-display text-[1.85rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2.1rem]">
-            {isViewing ? (viewingStep === 1 ? 'Choose a time that suits you.' : 'Tell us a little about you.') : 'How can we help?'}
+          <h2 id="enquiry-form-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">
+            {isViewing ? (viewingStep === 1 ? 'Choose a date and time' : 'Tell us a little about you.') : 'How can we help?'}
           </h2>
           <p className="mt-3 max-w-md text-sm leading-7 text-primary/70">
             {isViewing
@@ -354,11 +354,11 @@ export function EnquiryForm({
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block">
               <span className={labelClass}>Your name</span>
-              <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
+              <Input required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
             </label>
             <label className="block">
               <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
-              <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+              <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
             </label>
           </div>
 
@@ -369,6 +369,7 @@ export function EnquiryForm({
                 required={phoneRequired}
                 type="tel"
                 inputMode="tel"
+                autoComplete="tel"
                 value={phone}
                 onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
                 onInvalid={(event) => { event.preventDefault(); setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
@@ -400,7 +401,7 @@ export function EnquiryForm({
       )}
 
       {isPartExchange && (
-        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-6 border border-border/70 bg-secondary/25 p-5 sm:p-6" data-testid="section-part-exchange-details">
+        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-5 border-t border-border pt-5" data-testid="section-part-exchange-details">
           <div className="border-b border-border/70 pb-5">
             <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
               <CarFront className="h-5 w-5 text-accent" /> Let’s work out the difference
@@ -509,16 +510,9 @@ export function EnquiryForm({
       {/* min-w-0 stops the browser's default fieldset min-content sizing from letting the
           scrollable date strip push the whole panel wider than the card. */}
       {isViewing && viewingStep === 1 && (
-        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-6 border border-border/70 bg-secondary/25 p-5 sm:p-6" data-testid="section-viewing-availability">
-          <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
-            <div>
-              <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
-                <CalendarDays className="h-5 w-5 text-accent" /> Choose a time to visit
-              </legend>
-               <p className="mt-3 text-[13px] leading-6 text-primary/70">A relaxed 30-minute visit · Monday to Saturday · 10:00–18:00</p>
-            </div>
-            <span className="luxxy-label hidden shrink-0 border border-border bg-background px-2.5 py-1.5 text-primary/70 sm:block">London time</span>
-          </div>
+        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-5 border-t border-border pt-5" data-testid="section-viewing-availability">
+          <legend className="sr-only">Choose a time to visit</legend>
+          <p className="text-xs leading-relaxed text-muted-foreground">30-minute visits · Monday to Saturday · 10:00–18:00 · London time</p>
           <label className="block sm:hidden" data-testid="label-viewing-date-mobile">
             <span className="sr-only">Choose a viewing date</span>
             <NativeSelect
@@ -557,11 +551,11 @@ export function EnquiryForm({
           <div className="border-t border-border/70 pt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="luxxy-label text-primary/70">Available times</p>
-              {availableSlots.length > 0 && <p className="font-mono text-[12px] font-bold text-primary">{availableSlots.length} times open</p>}
+              {availableSlots.length > 0 && <p className="font-mono text-[13px] font-medium text-primary">{availableSlots.length} times open</p>}
             </div>
             {availabilityQuery.isLoading ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="loading-availability">
-                {[1, 2, 3, 4].map((item) => <div key={item} className="h-12 animate-pulse bg-primary/10 border-2 border-primary/20" />)}
+                {[1, 2, 3, 4].map((item) => <div key={item} className="h-12 animate-pulse bg-primary/10 border border-primary/20" />)}
               </div>
             ) : availabilityQuery.isError ? (
               <div role="alert" className="flex items-start gap-2.5 border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]" data-testid="status-availability-error">
@@ -577,7 +571,7 @@ export function EnquiryForm({
                     onClick={() => setSelectedSlot(slot.startAt)}
                     aria-label={`${slot.label}${slot.available ? '' : ' unavailable'}`}
                     aria-pressed={selectedSlot === slot.startAt}
-                    className={`flex h-11 items-center justify-center gap-2 border px-3 font-mono text-[13px] font-bold transition-colors ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground shadow-[2px_2px_0px_hsl(var(--accent))]' : slot.available ? 'border-border bg-background text-foreground hover:border-accent hover:text-primary' : 'cursor-not-allowed border-border/50 bg-secondary/40 text-primary/70/45 line-through'}`}
+                    className={`flex h-11 items-center justify-center gap-2 border px-3 font-mono text-[13px] font-bold transition-colors ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground shadow-[2px_2px_0px_hsl(var(--accent))]' : slot.available ? 'border-border bg-background text-foreground hover:border-accent hover:text-primary' : 'cursor-not-allowed border-border/50 bg-secondary/40 text-muted-foreground line-through'}`}
                     data-testid={`button-viewing-slot-${slot.startAt}`}
                   >
                     {selectedSlot === slot.startAt && <Check className="h-4 w-4" />}
@@ -586,7 +580,7 @@ export function EnquiryForm({
                 ))}
               </div>
             ) : (
-               <p className="border-4 border-accent/50 bg-background p-4 text-[13px] font-bold uppercase tracking-widest text-accent" data-testid="status-availability-empty">That day is now full. Please choose another date and we’ll find a good time for you.</p>
+               <p className="border border-accent/50 bg-background p-4 text-[13px] font-normal text-accent" data-testid="status-availability-empty">That day is now full. Please choose another date and we’ll find a good time for you.</p>
             )}
           </div>
           <div className="flex items-start gap-2.5 text-[13px] leading-6 text-primary/70">
@@ -613,7 +607,7 @@ export function EnquiryForm({
       )}
 
       {mutation.isError && (
-        <div role="alert" className="flex items-start gap-3 border-4 border-destructive/50 bg-background p-4 text-[13px] font-bold uppercase tracking-widest text-destructive" data-testid="status-enquiry-error">
+        <div role="alert" className="flex items-start gap-3 border border-destructive/50 bg-background p-4 text-[13px] font-normal text-destructive" data-testid="status-enquiry-error">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
@@ -625,14 +619,14 @@ export function EnquiryForm({
             size="lg"
             disabled={!selectedSlot || availabilityQuery.isLoading}
             onClick={() => setViewingStep(2)}
-            className="group h-16 w-full rounded-none font-display text-[13px] font-black uppercase tracking-[0.2em] shadow-[6px_6px_0px_hsl(var(--accent))] hover:-translate-y-1 hover:shadow-[8px_8px_0px_hsl(var(--accent))] transition-all"
+            className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all"
             data-testid="button-continue-to-details"
           >
             Continue to your details
             <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         ) : (
-          <Button type="submit" size="lg" disabled={mutation.isPending} className="group h-16 w-full rounded-none font-display text-[13px] font-black uppercase tracking-[0.2em] shadow-[6px_6px_0px_hsl(var(--accent))] hover:-translate-y-1 hover:shadow-[8px_8px_0px_hsl(var(--accent))] transition-all" data-testid="button-submit-enquiry">
+          <Button type="submit" size="lg" disabled={mutation.isPending} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
             {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
             {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
           </Button>
@@ -642,7 +636,7 @@ export function EnquiryForm({
             Back to date and time
           </button>
         )}
-        <div className="flex items-start gap-3 border-2 border-primary/20 bg-primary/5 px-4 py-4 font-bold text-[11px] uppercase tracking-widest leading-relaxed text-primary/70">
+        <div className="flex items-start gap-3 border-t border-border px-0 py-3 font-medium text-[13px] tracking-normal leading-relaxed text-primary/70">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
            <span>
              {isViewing && viewingStep === 1

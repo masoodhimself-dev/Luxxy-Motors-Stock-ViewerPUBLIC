@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Input } from '@/components/ui/input';
-import { expectBrutalistGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
+import { expectRefinedGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
 
 describe('Input', () => {
-  it('ships the squared, shadow-free showroom default', () => {
+  it('ships the restrained, shadow-free showroom default', () => {
     render(<Input aria-label="Full name" />);
 
-    expectBrutalistGeometry(screen.getByRole('textbox').className, 'Input');
+    expectRefinedGeometry(screen.getByRole('textbox').className, 'Input');
   });
 
   it('still lets a surface opt into a soft edge on purpose', () => {

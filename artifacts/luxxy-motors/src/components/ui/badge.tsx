@@ -9,12 +9,12 @@ export function Badge({
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-none border-2 px-3 py-1 font-display text-[10px] font-black uppercase tracking-[0.2em] transition-colors focus:outline-none shadow-[2px_2px_0px_hsl(var(--primary))]',
+        'inline-flex items-center rounded-md border px-3 py-1 font-display text-[10px] font-semibold  tracking-normal transition-colors focus:outline-none shadow-none',
         {
           'border-primary bg-primary text-primary-foreground': variant === 'default',
           'border-primary bg-secondary text-primary': variant === 'secondary',
-          'border-destructive bg-destructive text-destructive-foreground shadow-[2px_2px_0px_hsl(var(--accent))]': variant === 'destructive',
-          'border-amber-500 bg-amber-500 text-black shadow-[2px_2px_0px_#b45309]': variant === 'warning',
+          'border-destructive bg-destructive text-destructive-foreground shadow-none': variant === 'destructive',
+          'border-amber-500 bg-amber-500 text-black shadow-none': variant === 'warning',
           'border-primary bg-background text-primary': variant === 'outline',
         },
         className

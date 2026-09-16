@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
+import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import CarDetail from '@/pages/car-detail';
 import { DEFAULT_PAGE_META } from '@/lib/page-meta';
 
@@ -97,7 +98,7 @@ function renderVehicle(id: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <CarDetail />
+      <SavedCarsProvider><CarDetail /></SavedCarsProvider>
     </QueryClientProvider>,
   );
 }

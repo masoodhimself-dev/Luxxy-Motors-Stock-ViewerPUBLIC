@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 export const inputClass =
-  'flex h-12 w-full rounded-none border-2 border-primary bg-background px-4 py-2 font-bold text-foreground shadow-[2px_2px_0px_hsl(var(--primary))] file:border-0 file:bg-transparent file:font-display file:text-[11px] file:font-bold file:uppercase file:tracking-widest placeholder:font-bold placeholder:text-muted-foreground focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0 focus-visible:shadow-[4px_4px_0px_hsl(var(--accent))] disabled:cursor-not-allowed disabled:opacity-50 transition-all';
+  'luxxy-control rounded-md border border-input bg-card text-foreground shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring flex w-full font-normal placeholder:font-normal placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 transition-colors file:border-0 file:bg-transparent file:font-medium';
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => {

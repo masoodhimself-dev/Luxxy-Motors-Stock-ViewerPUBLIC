@@ -18,7 +18,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'fixed inset-0 z-50 bg-black/55 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
       className,
     )}
     {...props}
@@ -35,13 +35,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg max-h-[85vh] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-none border-4 border-primary bg-background p-8 shadow-[8px_8px_0px_hsl(var(--primary))] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
+        'fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-md border border-border bg-card p-5 sm:p-8 shadow-none duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-none border-2 border-primary bg-background grid h-10 w-10 place-items-center opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-0 shadow-[2px_2px_0px_hsl(var(--primary))] hover:-translate-y-1 hover:shadow-[4px_4px_0px_hsl(var(--primary))] disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-accent-foreground">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md border border-primary bg-background grid h-11 w-11 place-items-center opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring shadow-none disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-accent-foreground">
         <X className="h-5 w-5" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -56,7 +56,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col space-y-2 text-center sm:text-left border-b-4 border-primary pb-4 mb-4',
+      'flex flex-col space-y-2 text-center sm:text-left border-b border-primary pb-4 mb-4',
       className,
     )}
     {...props}
@@ -70,7 +70,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4 mt-8 pt-4 border-t-2 border-primary/20',
+      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4 mt-8 pt-4 border-t border-primary/20',
       className,
     )}
     {...props}
@@ -85,7 +85,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      'font-display text-3xl font-black uppercase tracking-tighter text-primary',
+      'font-display text-2xl font-semibold  tracking-tight text-primary',
       className,
     )}
     {...props}
@@ -99,7 +99,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm font-bold uppercase tracking-widest text-primary/70 leading-relaxed', className)}
+    className={cn('text-sm font-bold  tracking-normal text-primary/70 leading-relaxed', className)}
     {...props}
   />
 ));

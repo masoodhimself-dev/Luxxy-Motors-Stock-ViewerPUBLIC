@@ -1,9 +1,6 @@
 import { expect } from 'vitest';
 
-/**
- * The showroom identity is brutalist automotive: square geometry and deliberate
- * hard-offset shadows (`shadow-[4px_4px_0px_hsl(var(--primary))]`), not soft dropshadows.
- */
+// Small, consistent corners and flat surfaces keep attention on the vehicles.
 
 /** Drops responsive/state prefixes and `!` markers so `md:!rounded-lg` reads as `rounded-lg`. */
 export function utilities(className: string) {
@@ -25,16 +22,8 @@ export function shadowClasses(className: string) {
   );
 }
 
-/**
- * Fails when a primitive's default class list carries any radius other than an
- * explicit `rounded-none`. It ensures the element follows the brutalist rule.
- */
-export function expectBrutalistGeometry(className: string, label: string) {
-  expect(radiusClasses(className), `${label} radius`).toEqual(['rounded-none']);
-
-  const shadows = shadowClasses(className);
-  // Verify all shadows applied are hard-offset variants (starting with shadow-[)
-  shadows.forEach(shadow => {
-    expect(shadow, `${label} shadow should be a hard offset`).toMatch(/^shadow-\[/);
-  });
+/** The shared control/surface defaults use a 4px radius and no ornamental shadow. */
+export function expectRefinedGeometry(className: string, label: string) {
+  expect(radiusClasses(className), `${label} radius`).toEqual(['rounded-md']);
+  expect(shadowClasses(className), `${label} shadow`).toEqual([]);
 }

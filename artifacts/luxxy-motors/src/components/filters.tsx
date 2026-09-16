@@ -53,7 +53,7 @@ function Field({
 }) {
   return (
     <label className="block min-w-0">
-       <span className="mb-2 block font-display text-[11px] font-semibold tracking-[.08em] text-primary/70">
+       <span className="mb-2 block font-display text-[11px] font-semibold tracking-normal text-primary/70">
         {label}
       </span>
       {children}
@@ -78,7 +78,7 @@ function Select({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="h-12 w-full appearance-none rounded-xl border border-primary/20 bg-background pl-3 pr-8 text-base font-medium tracking-normal text-primary shadow-none outline-none sm:text-sm transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
+        className="h-12 w-full appearance-none rounded-md border border-input bg-card pl-3 pr-8 text-base font-normal tracking-normal text-primary shadow-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
       >
         {children}
       </NativeSelect>
@@ -144,11 +144,11 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="mb-3 rounded-2xl border border-primary/15 bg-card p-4 shadow-[0_12px_30px_hsl(var(--primary)/.07)] sm:p-6">
+    <div className="mb-3 border-y border-border bg-card p-4 sm:p-5">
       <div className="min-w-0">
         <label className="block min-w-0">
-           <span className="mb-3 block font-display text-base font-semibold tracking-[-.03em] text-primary sm:text-xl">
-             Search live stock
+           <span className="mb-3 block field-label">
+             Find your next car
           </span>
           <span className="relative block">
             <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary/50" />
@@ -164,12 +164,12 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   handleSearchClick();
                 }
               }}
-               className="h-12 rounded-xl border border-primary/20 bg-background pl-11 pr-12 text-base font-medium placeholder:font-normal shadow-none sm:h-14"
+               className="h-12 rounded-md border border-input bg-card pl-11 pr-12 text-base font-normal placeholder:font-normal shadow-none"
             />
             {filters.search && (
               <button
                 type="button"
-                className="absolute right-0 top-0 grid h-12 w-12 place-items-center text-primary/40 hover:text-accent sm:h-14 sm:w-14"
+                className="absolute right-0 top-0 grid h-12 w-12 place-items-center text-primary/40 hover:text-accent sm:h-12 sm:w-12"
                 onClick={() => setFilters((current) => ({ ...current, search: '' }))}
               >
                 <X className="h-5 w-5" />
@@ -198,7 +198,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <button
             type="button"
             onClick={resetFilters}
-            className="flex min-h-11 shrink-0 items-center font-display text-xs font-semibold text-primary/65 hover:text-primary"
+            className="flex min-h-11 shrink-0 items-center font-display text-xs font-medium text-primary/65 hover:text-primary"
           >
             Reset filters
             {activeFilterCount > 0 && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-primary-foreground">({activeFilterCount})</span>}
@@ -268,8 +268,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   </Select>
                 </Field>
               </div>
-              <fieldset className="mt-8 border-t-2 border-primary/10 pt-6">
-                 <legend className="font-display text-[11px] font-semibold tracking-[.08em] text-primary">Insurance history</legend>
+              <fieldset className="mt-8 border-t border-primary/10 pt-6">
+                 <legend className="font-display text-[11px] font-semibold tracking-normal text-primary">Insurance history</legend>
                  <p className="mt-2 max-w-2xl text-[12px] font-medium leading-relaxed text-primary/65">
                   Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
                 </p>
@@ -279,7 +279,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                     ['catS', 'Category S'],
                     ['catN', 'Category N'],
                   ].map(([key, label]) => (
-                     <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-primary/15 bg-primary/5 p-3 text-[12px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
+                     <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-primary/15 bg-primary/5 p-3 text-[12px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
                       <input
                         type="checkbox"
                         checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
@@ -304,7 +304,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
               aria-label="Sort results"
               value={filters.sort}
               onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-               className="h-12 min-w-0 w-full flex-1 rounded-xl border border-primary/20 bg-background pl-3 pr-8 text-base tracking-normal font-medium text-primary shadow-none sm:max-w-64 sm:text-sm"
+               className="h-12 min-w-0 w-full flex-1 rounded-md border border-input bg-card pl-3 pr-8 text-base tracking-normal font-medium text-primary shadow-none sm:max-w-64 sm:text-sm"
             >
               <option value="">Recommended</option>
               <option value="price-asc">Price: low to high</option>
@@ -319,7 +319,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
         <button
           type="button"
           onClick={handleSearchClick}
-           className="flex h-12 w-full items-center justify-center rounded-xl bg-accent px-3 font-display text-[12px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto sm:px-8 sm:text-sm"
+           className="flex h-12 w-full items-center justify-center rounded-md bg-accent px-3 font-display text-[12px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto sm:px-8 sm:text-sm"
         >
            View matching cars
         </button>

@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/page-ui';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Calendar, MessageCircle, Phone, Plus, Scale, X } from 'lucide-react';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -63,7 +64,7 @@ const rows: CompareRow[] = [
   { label: 'Registration', render: (car) => vehicleRegistration(car) || '—' },
 ];
 
-const gridTemplate = 'grid grid-cols-2 gap-x-4 md:grid-cols-[minmax(8rem,.4fr)_minmax(0,1fr)_minmax(0,1fr)] md:gap-x-8';
+const gridTemplate = 'grid grid-cols-2 gap-x-3 md:grid-cols-[minmax(8rem,.4fr)_minmax(0,1fr)_minmax(0,1fr)] md:gap-x-8';
 
 function preferredIndex(row: CompareRow, cars: Car[]) {
   if (!row.preference || cars.length < 2) return null;
@@ -88,35 +89,35 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
   const bookingHref = getVehicleBookingHref(car);
 
   return (
-    <div className="flex flex-col border-4 border-primary bg-background shadow-[6px_6px_0px_hsl(var(--primary))]">
-      <div className="relative aspect-[4/3] w-full border-b-4 border-primary bg-primary/10">
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card shadow-none">
+      <div className="relative aspect-[4/3] w-full border-b border-primary bg-primary/10">
         {thumbnail ? (
           <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full items-center justify-center font-display text-[11px] font-black uppercase tracking-widest text-primary/40">No photo</div>
+          <div className="flex h-full items-center justify-center font-display text-[11px] font-semibold tracking-normal text-primary/40">No photo</div>
         )}
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Remove ${label} from comparison`}
           data-testid={`button-compare-remove-${car.id}`}
-          className="absolute right-2 top-2 grid h-10 w-10 place-items-center bg-background border-2 border-primary text-primary transition-all hover:bg-accent hover:text-accent-foreground hover:border-accent shadow-[2px_2px_0px_hsl(var(--primary))]"
+          className="absolute right-2 top-2 grid h-11 w-11 place-items-center bg-background border border-primary text-primary transition-all hover:bg-accent hover:text-accent-foreground hover:border-accent shadow-none"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col p-4 sm:p-6">
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-6">
         <Link
           href={`/vehicle/${car.id}`}
           onClick={() => trackEvent('vehicle_opened', { source: 'compare_tray' })}
           className="group block"
         >
-          <h3 className="font-display text-xl sm:text-2xl font-black uppercase tracking-tighter text-primary group-hover:text-accent">
+          <h3 className="font-display text-base sm:text-xl font-semibold tracking-tight text-primary group-hover:text-accent">
             {label}
           </h3>
           {(car.variant || car.trim) && (
-            <p className="mt-2 text-[11px] font-bold uppercase tracking-widest text-primary/70 line-clamp-2">
+            <p className="mt-2 text-[11px] font-normal text-primary/70 line-clamp-2">
               {car.variant || car.trim}
             </p>
           )}
@@ -131,21 +132,21 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
         <div className="mt-auto pt-6 flex flex-col gap-3">
           <Button
             asChild
-            className="w-full h-12 rounded-none bg-primary font-display text-[12px] font-bold uppercase tracking-widest text-primary-foreground shadow-[3px_3px_0px_hsl(var(--accent))] transition-all hover:bg-accent hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_hsl(var(--accent))] active:shadow-none"
+            className="w-full h-11 px-2 rounded-md bg-primary font-display text-[12px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none"
           >
             <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'compare_page', vehicleContext: true })}>
-              <Calendar className="mr-2 h-4 w-4" /> Book
+              <Calendar className="h-4 w-4" /> Book
             </a>
           </Button>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {phoneHref && (
               <Button
                 asChild
                 variant="outline"
-                className="flex-1 h-12 rounded-none border-2 border-primary bg-background font-display text-[11px] font-bold uppercase tracking-widest text-primary shadow-[2px_2px_0px_hsl(var(--primary))] transition-all hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[0px_0px_0px_hsl(var(--primary))]"
+                className="min-w-0 h-11 px-0 sm:px-3 rounded-md border border-border bg-card font-display text-[11px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground"
               >
-                <a href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'compare' })}>
-                  <Phone className="mr-2 h-4 w-4" /> Call
+                <a aria-label={`Call about ${label}`} href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'compare' })}>
+                  <Phone className="h-4 w-4" /><span className="sr-only sm:not-sr-only">Call</span>
                 </a>
               </Button>
             )}
@@ -153,10 +154,10 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
               <Button
                 asChild
                 variant="outline"
-                className="flex-1 h-12 rounded-none border-2 border-[#25D366] bg-background font-display text-[11px] font-bold uppercase tracking-widest text-[#25D366] shadow-[2px_2px_0px_#25D366] transition-all hover:bg-[#25D366] hover:text-white hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[0px_0px_0px_#25D366]"
+                className="min-w-0 h-11 px-0 sm:px-3 rounded-md border border-[hsl(var(--contact))] bg-background font-display text-[11px] font-normal text-[hsl(var(--contact))] shadow-none transition-all hover:bg-[hsl(var(--contact))] hover:text-white"
               >
-                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'compare' })}>
-                  <MessageCircle className="mr-2 h-4 w-4" /> Msg
+                <a aria-label={`WhatsApp about ${label}`} href={whatsappHref} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'compare' })}>
+                  <MessageCircle className="h-4 w-4" /><span className="sr-only sm:not-sr-only">Msg</span>
                 </a>
               </Button>
             )}
@@ -169,17 +170,17 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
 
 function EmptySlot() {
   return (
-    <div className="flex flex-col border-4 border-dashed border-primary/20 bg-primary/5 p-6 md:p-8">
+    <div className="flex flex-col border border-dashed border-primary/20 bg-primary/5 p-6 md:p-8">
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="grid h-16 w-16 place-items-center bg-background border-4 border-primary text-primary shadow-[4px_4px_0px_hsl(var(--primary))] mb-6">
+        <div className="grid h-16 w-16 place-items-center bg-background border border-primary text-primary shadow-none mb-6">
           <Plus className="h-8 w-8" />
         </div>
-        <p className="font-display text-[13px] font-black uppercase tracking-[0.1em] text-primary mb-2">ADD A SECOND CAR</p>
-        <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed text-primary/60">
+        <p className="font-display text-[13px] font-semibold tracking-normal text-primary mb-2">ADD A SECOND CAR</p>
+        <p className="text-[11px] font-normal leading-relaxed text-muted-foreground">
           Pick another car to compare specs side by side.
         </p>
       </div>
-      <Button asChild variant="outline" className="mt-6 w-full h-12 rounded-none border-2 border-primary bg-background font-display text-[11px] font-bold uppercase tracking-widest text-primary shadow-[3px_3px_0px_hsl(var(--primary))] transition-all hover:bg-primary hover:text-primary-foreground hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none">
+      <Button asChild variant="outline" className="mt-6 w-full h-12 rounded-md border border-border bg-card font-display text-[11px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground hover:shadow-none">
         <Link href="/">Back to Stock</Link>
       </Button>
     </div>
@@ -197,11 +198,11 @@ export default function Compare() {
   if (isLoading && compareIds.length > 0) {
     return (
       <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8" aria-busy="true" aria-label="Loading comparison">
-        <div className="h-4 w-40 animate-pulse bg-primary/20 border-2 border-primary" />
-        <div className="mt-8 h-16 w-80 max-w-full animate-pulse bg-primary/20 border-2 border-primary" />
+        <div className="h-4 w-40 animate-pulse bg-primary/20 border border-primary" />
+        <div className="mt-8 h-16 w-80 max-w-full animate-pulse bg-primary/20 border border-primary" />
         <div className="mt-12 space-y-6">
-          <div className="h-64 animate-pulse bg-primary/10 border-4 border-primary shadow-[8px_8px_0px_hsl(var(--primary))]" />
-          <div className="h-64 animate-pulse bg-primary/10 border-4 border-primary shadow-[8px_8px_0px_hsl(var(--primary))]" />
+          <div className="h-64 animate-pulse bg-primary/10 border border-primary shadow-none" />
+          <div className="h-64 animate-pulse bg-primary/10 border border-primary shadow-none" />
         </div>
       </div>
     );
@@ -212,46 +213,38 @@ export default function Compare() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-3 font-display text-[12px] font-bold uppercase tracking-[0.2em] text-primary transition-colors hover:text-accent group"
+          className="inline-flex items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Back to showroom
         </Link>
 
-        <div className="mt-8 flex flex-col gap-5 border-b-4 border-primary pb-8 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-display text-[12px] font-black uppercase tracking-[0.2em] text-accent flex items-center gap-2 mb-4">
-              <Scale className="h-4 w-4" /> Comparison
-            </p>
-            <h1 className="heading-1 text-primary">Compare</h1>
-            <p className="mt-4 max-w-lg font-bold uppercase tracking-widest text-sm text-primary/70 leading-relaxed border-l-4 border-accent pl-4">
-              Side-by-side details to help you choose the right fit.
-            </p>
-          </div>
+        <div className="mt-8 flex flex-col gap-5 border-b border-primary pb-8 sm:flex-row sm:items-end sm:justify-between">
+          <PageHeading eyebrow="Side by side" title="Compare cars" description="The details that matter, together in one place." />
           <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-            <span className="font-display font-black text-sm uppercase tracking-widest text-primary bg-primary/5 border border-primary/10 px-3 py-1">
+            <span className="font-display font-semibold text-sm tracking-normal text-primary bg-primary/5 border border-primary/10 px-3 py-1">
               {cars.length} OF {MAX_COMPARE} SLOTS USED
             </span>
           </div>
         </div>
 
         {cars.length === 0 ? (
-          <div className="mx-auto mt-16 max-w-2xl border-4 border-dashed border-primary/20 bg-primary/5 px-6 py-24 text-center">
-            <span className="mx-auto mb-6 grid h-16 w-16 place-items-center border-4 border-primary bg-background text-accent shadow-[4px_4px_0px_hsl(var(--primary))]">
+          <div className="mx-auto mt-10 max-w-2xl border border-dashed border-primary/20 bg-primary/5 px-6 py-12 text-center">
+            <span className="mx-auto mb-6 grid h-16 w-16 place-items-center border border-border bg-card text-accent shadow-none">
               <Scale className="h-8 w-8" />
             </span>
-            <p className="font-display text-4xl font-black uppercase tracking-tight text-primary">Nothing to Compare</p>
-            <p className="mx-auto mb-10 mt-4 max-w-md font-bold uppercase tracking-widest text-sm leading-relaxed text-primary/60">
+            <p className="font-display text-2xl font-semibold tracking-tight text-primary">Nothing to Compare</p>
+            <p className="mx-auto mb-10 mt-4 max-w-md font-normal text-sm leading-relaxed text-muted-foreground">
               Choose Compare on any {MAX_COMPARE} cars in the showroom and their details will line up here.
             </p>
-            <Button asChild size="lg" className="h-16 rounded-none bg-primary font-display text-[13px] font-bold uppercase tracking-[0.15em] text-primary-foreground shadow-[4px_4px_0px_hsl(var(--accent))] transition-all hover:bg-accent hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_hsl(var(--accent))] active:shadow-none">
+            <Button asChild size="lg" className="min-h-12 rounded-md bg-primary font-display text-[13px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none">
               <Link href="/">Browse Stock <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
         ) : (
           <>
-            <div className={cn(gridTemplate, 'mt-12 gap-y-6 pb-12')}>
-              <p className="font-display text-[15px] font-black uppercase tracking-[0.2em] col-span-2 hidden self-end pb-2 text-primary/60 md:col-span-1 md:block">
+            <div className={cn(gridTemplate, 'mt-8 gap-y-6 pb-8')}>
+              <p className="font-display text-[15px] font-semibold tracking-normal col-span-2 hidden self-end pb-2 text-muted-foreground md:col-span-1 md:block">
                 THE CARS
               </p>
               {cars.map((car) => (
@@ -263,41 +256,41 @@ export default function Compare() {
             <div
               className={cn(
                 gridTemplate,
-                'sticky top-[var(--site-header-height,5.5rem)] z-20 items-center border-t-4 border-primary border-b-4 border-b-accent bg-background/95 py-4 backdrop-blur-md shadow-sm',
+                'sticky top-[var(--site-header-height,5.5rem)] z-20 items-center border-t border-border border-b border-b-border bg-background/95 py-4 backdrop-blur-md shadow-sm',
               )}
             >
-              <p className="font-display text-[12px] font-black uppercase tracking-[0.2em] hidden text-primary md:block">Specs</p>
+              <p className="font-display text-[12px] font-semibold tracking-normal hidden text-primary md:block">Specs</p>
               {cars.map((car) => (
-                <p key={car.id} className="truncate font-display text-sm font-black uppercase tracking-wider text-primary">
+                <p key={car.id} className="truncate font-display text-sm font-semibold tracking-normal text-primary">
                   {vehicleLabelFor(car)}
                 </p>
               ))}
               {cars.length < MAX_COMPARE && (
-                <p className="truncate font-bold text-[10px] uppercase tracking-widest text-primary/40">EMPTY SLOT</p>
+                <p className="truncate font-bold text-[10px] tracking-normal text-primary/40">EMPTY SLOT</p>
               )}
             </div>
 
-            <dl data-testid="compare-table" className="border-x-4 border-b-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))] p-6 sm:p-10 lg:p-12 mb-20">
+            <dl data-testid="compare-table" className="border-x border-b border-border bg-card shadow-none p-4 sm:p-8 lg:p-10 mb-10">
               {rows.map((row) => {
                 const best = preferredIndex(row, cars);
 
                 return (
-                  <div key={row.label} className={cn(gridTemplate, 'gap-y-2 border-b-2 border-primary/10 py-6 last:border-0')}>
-                    <dt className="font-display text-[12px] font-black uppercase tracking-[0.1em] col-span-2 self-center text-primary/60 md:col-span-1">{row.label}</dt>
+                  <div key={row.label} className={cn(gridTemplate, 'gap-y-2 border-b border-primary/10 py-6 last:border-0')}>
+                    <dt className="font-display text-[12px] font-semibold tracking-normal col-span-2 self-center text-muted-foreground md:col-span-1">{row.label}</dt>
                     {cars.map((car, index) => (
                       <dd
                         key={car.id}
                         className={cn(
-                          'flex items-center gap-3 font-bold text-[13px] uppercase tracking-wider leading-relaxed text-foreground',
-                          row.label === 'Price' && 'font-display text-xl font-black tracking-tighter',
-                          best === index && 'text-primary bg-primary/5 -m-2 p-2 border-2 border-primary/10',
+                          'flex flex-wrap items-center gap-2 font-medium text-[13px]  tracking-normal leading-relaxed text-foreground',
+                          row.label === 'Price' && 'font-display text-lg font-semibold tracking-tight',
+                          best === index && 'text-primary bg-primary/5 -m-2 p-2 border border-primary/10',
                         )}
                       >
                         <span className="min-w-0 break-words">{row.render(car)}</span>
                         {best === index && row.preference && (
                           <span
                             title={row.preference.hint}
-                            className="inline-flex shrink-0 items-center bg-accent text-accent-foreground px-2 py-1 font-display text-[9px] font-black uppercase tracking-[0.15em] shadow-[2px_2px_0px_hsl(var(--primary))]"
+                            className="inline-flex shrink-0 items-center bg-accent text-accent-foreground px-2 py-1 font-display text-[9px] font-semibold tracking-normal shadow-none"
                           >
                             {row.preference.hint}
                           </span>

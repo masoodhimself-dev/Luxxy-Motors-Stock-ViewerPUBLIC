@@ -82,8 +82,8 @@ export const dealerConfig: DealerConfig = {
     name: "Luxxy Motors",
     logoText: "LUXXY MOTORS",
     brandColors: {
-      primaryHsl: "222 47% 11%",
-      accentHsl: "38 92% 50%",
+      primaryHsl: "170 15% 14%",
+      accentHsl: "31 45% 35%",
     },
   },
   contact: {

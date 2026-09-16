@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatPrice } from '@/lib/utils';
 
-const labelClass = 'font-display text-[11px] font-black uppercase tracking-[0.2em] mb-3 block text-primary';
+const labelClass = 'field-label';
 
 type SigningView = {
   developmentOnly: boolean;
@@ -81,19 +81,19 @@ export default function Signing() {
   if (complete.isSuccess) {
     return (
       <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8 bg-background">
-        <div className="mx-auto max-w-2xl border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
-          <div className="flex items-center gap-3 border-b-4 border-primary px-8 py-6">
+        <div className="mx-auto max-w-2xl border border-border bg-card shadow-none">
+          <div className="flex items-center gap-3 border-b border-border px-5 sm:px-8 py-6">
             <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" />
-            <p className="font-display text-[13px] font-black uppercase tracking-[0.2em] text-primary">Development signature recorded</p>
+            <p className="font-display text-[13px] font-semibold tracking-normal text-primary">Development signature recorded</p>
           </div>
           <div className="px-8 py-12 text-center sm:px-12 sm:py-16">
-            <h1 className="font-display text-4xl sm:text-5xl font-black uppercase tracking-tighter text-primary">
+            <h1 className="font-display text-4xl sm:text-3xl font-semibold tracking-tight text-primary">
               THANK YOU, {signerName || view?.customer?.name}
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/70 border-l-4 border-accent pl-4">
+            <p className="mx-auto mt-6 max-w-xl text-[13px] font-normal leading-relaxed text-primary/70 border-l-2 border-accent pl-4">
               The demo signature and acknowledgements are now bound to this exact document-pack revision. The dealer can run the final checks from the portal.
             </p>
-            <p className="mt-8 font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/40">You may close this window.</p>
+            <p className="mt-8 font-display text-[11px] font-semibold tracking-normal text-primary/40">You may close this window.</p>
           </div>
         </div>
       </div>
@@ -103,8 +103,8 @@ export default function Signing() {
   if (query.isLoading) {
     return (
       <div className="luxxy-shell min-h-[70vh] bg-background px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center border-4 border-primary bg-background p-8 shadow-[8px_8px_0px_hsl(var(--primary))]" data-testid="loading-signing-session">
-          <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
+        <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center border border-border bg-card p-8 shadow-none" data-testid="loading-signing-session">
+          <p className="font-display text-[14px] font-semibold tracking-normal flex items-center gap-3 text-primary">
             <LoaderCircle className="h-6 w-6 animate-spin text-accent" />
             Loading document pack…
           </p>
@@ -116,10 +116,10 @@ export default function Signing() {
   if (query.isError || !view || view.session.status === 'completed' || view.session.status === 'expired') {
     return (
       <div className="luxxy-shell min-h-[70vh] px-4 py-12 sm:px-6 sm:py-20 lg:px-8 bg-background">
-        <div className="mx-auto max-w-xl border-4 border-destructive bg-destructive/5 px-8 py-12 text-center text-destructive shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <div className="mx-auto max-w-xl border border-destructive bg-destructive/5 px-8 py-12 text-center text-destructive shadow-none">
           <CircleAlert className="mx-auto h-10 w-10 text-destructive" />
-          <h1 className="mt-6 font-display text-3xl font-black uppercase tracking-tighter">Cannot open documents</h1>
-          <p className="mx-auto mt-6 max-w-sm text-[13px] font-bold uppercase tracking-widest leading-relaxed text-destructive/80 border-l-4 border-destructive pl-4">{apiMessage(query.error)}</p>
+          <h1 className="mt-6 font-display text-3xl font-semibold tracking-tight">Cannot open documents</h1>
+          <p className="mx-auto mt-6 max-w-sm text-[13px] font-normal leading-relaxed text-destructive/80 border-l-2 border-destructive pl-4">{apiMessage(query.error)}</p>
         </div>
       </div>
     );
@@ -135,35 +135,35 @@ export default function Signing() {
   return (
     <div className="luxxy-shell min-h-[70vh] bg-background px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8 flex items-start gap-4 border-4 border-primary bg-background px-6 py-6 shadow-[8px_8px_0px_hsl(var(--primary))]">
+        <div className="mb-8 flex items-start gap-4 border border-border bg-card px-6 py-6 shadow-none">
           <LockKeyhole className="mt-1 h-6 w-6 shrink-0 text-accent" />
           <div>
-            <p className="font-display text-[14px] font-black uppercase tracking-[0.2em] text-primary">Secure signing room</p>
-            <p className="mt-2 text-[13px] font-bold uppercase tracking-widest leading-relaxed text-primary/70">
+            <h1 className="section-heading">Review your purchase</h1>
+            <p className="mt-2 text-[13px] font-normal leading-relaxed text-primary/70">
               Review your purchase details and agree to the document pack to complete your side of the sale.
             </p>
           </div>
         </div>
 
         {developmentOnly && (
-          <div className="mb-8 flex items-start gap-4 border-4 border-accent bg-accent/5 px-6 py-6 text-accent shadow-[8px_8px_0px_hsl(var(--primary))]">
+          <div className="mb-8 flex items-start gap-4 border border-accent bg-accent/5 px-6 py-6 text-accent shadow-none">
             <ShieldAlert className="mt-1 h-6 w-6 shrink-0" />
             <div>
-              <p className="font-display text-[13px] font-black uppercase tracking-widest">Development mode</p>
-              <p className="mt-2 text-[12px] font-bold uppercase tracking-wider leading-relaxed text-accent/80">{warning}</p>
+              <p className="font-display text-[13px] font-semibold tracking-normal">Development mode</p>
+              <p className="mt-2 text-[12px] font-normal leading-relaxed text-accent/80">{warning}</p>
             </div>
           </div>
         )}
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex flex-col gap-8">
-            <section className="border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
-              <div className="border-b-4 border-primary px-8 py-6">
-                <h2 className="font-display text-2xl sm:text-3xl font-black uppercase tracking-tighter text-primary">The vehicle</h2>
+            <section className="border border-border bg-card shadow-none">
+              <div className="border-b border-border px-5 sm:px-8 py-6">
+                <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">The vehicle</h2>
               </div>
               <div className="px-8 py-6">
-                <p className="font-display text-xl font-black uppercase tracking-tight text-primary">{String(vehicle.value)}</p>
-                <div className="mt-6 flex flex-wrap gap-x-8 gap-y-4 font-bold uppercase tracking-widest text-[13px] text-primary/80">
+                <p className="font-display text-xl font-semibold tracking-tight text-primary">{String(vehicle.value)}</p>
+                <div className="mt-6 flex flex-wrap gap-x-8 gap-y-4 font-normal text-[13px] text-primary/80">
                   {Boolean(vehicle.registration) && <p>Reg: <span className="text-primary">{String(vehicle.registration)}</span></p>}
                   {Boolean(vehicle.vin) && <p>VIN: <span className="text-primary">{String(vehicle.vin)}</span></p>}
                   {Boolean(vehicle.mileage) && <p>Mileage: <span className="text-primary">{String(vehicle.mileage)}</span></p>}
@@ -171,52 +171,52 @@ export default function Signing() {
               </div>
             </section>
 
-            <section className="border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
-              <div className="border-b-4 border-primary px-8 py-6">
-                <h2 className="font-display text-2xl sm:text-3xl font-black uppercase tracking-tighter text-primary">The deal</h2>
+            <section className="border border-border bg-card shadow-none">
+              <div className="border-b border-border px-5 sm:px-8 py-6">
+                <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">The deal</h2>
               </div>
               <dl className="px-8 py-6 space-y-4">
-                <div className="flex justify-between items-center py-2 border-b-2 border-primary/10">
-                  <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/60">Agreed price</dt>
-                  <dd className="font-display text-[18px] font-black tracking-tighter text-primary">{formatPrice(view.sale.agreedPricePence / 100, view.sale.currency)}</dd>
+                <div className="flex justify-between items-center py-2 border-b border-primary/10">
+                  <dt className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground">Agreed price</dt>
+                  <dd className="font-display text-[18px] font-semibold tracking-tight text-primary">{formatPrice(view.sale.agreedPricePence / 100, view.sale.currency)}</dd>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b-2 border-primary/10">
-                  <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/60">Deposit paid</dt>
-                  <dd className="font-display text-[18px] font-black tracking-tighter text-primary">{formatPrice(view.sale.depositPence / 100, view.sale.currency)}</dd>
+                <div className="flex justify-between items-center py-2 border-b border-primary/10">
+                  <dt className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground">Deposit paid</dt>
+                  <dd className="font-display text-[18px] font-semibold tracking-tight text-primary">{formatPrice(view.sale.depositPence / 100, view.sale.currency)}</dd>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/60">Balance to pay</dt>
-                  <dd className="font-display text-[22px] font-black tracking-tighter text-primary">{formatPrice(view.sale.balancePence / 100, view.sale.currency)}</dd>
+                  <dt className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground">Balance to pay</dt>
+                  <dd className="font-display text-[22px] font-semibold tracking-tight text-primary">{formatPrice(view.sale.balancePence / 100, view.sale.currency)}</dd>
                 </div>
               </dl>
             </section>
 
-            <section className="border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
-              <div className="border-b-4 border-primary px-8 py-6 flex items-center justify-between gap-4">
-                <h2 className="font-display text-2xl sm:text-3xl font-black uppercase tracking-tighter text-primary">Your details</h2>
-                <Link href={`/customer-details/${token}`} className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-accent hover:text-primary transition-colors">Edit</Link>
+            <section className="border border-border bg-card shadow-none">
+              <div className="border-b border-border px-5 sm:px-8 py-6 flex items-center justify-between gap-4">
+                <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Your details</h2>
+                <Link href={`/customer-details/${token}`} className="font-display text-[11px] font-semibold tracking-normal text-accent hover:text-primary transition-colors">Edit</Link>
               </div>
               <dl className="grid gap-x-8 gap-y-4 px-8 py-6 sm:grid-cols-2">
                 <div>
-                  <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/50 mb-1">Name</dt>
-                  <dd className="font-bold text-[13px] uppercase tracking-wider text-primary">{displayValue(details.name)}</dd>
+                  <dt className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground mb-1">Name</dt>
+                  <dd className="font-bold text-[13px] tracking-normal text-primary">{displayValue(details.name)}</dd>
                 </div>
                 <div>
-                  <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/50 mb-1">Email</dt>
-                  <dd className="font-bold text-[13px] uppercase tracking-wider text-primary">{displayValue(details.email)}</dd>
+                  <dt className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground mb-1">Email</dt>
+                  <dd className="font-bold text-[13px] tracking-normal text-primary">{displayValue(details.email)}</dd>
                 </div>
                 <div>
-                  <dt className="font-display text-[11px] font-black uppercase tracking-[0.2em] text-primary/50 mb-1">Phone</dt>
-                  <dd className="font-bold text-[13px] uppercase tracking-wider text-primary">{displayValue(details.phone)}</dd>
+                  <dt className="font-display text-[11px] font-semibold tracking-normal text-muted-foreground mb-1">Phone</dt>
+                  <dd className="font-bold text-[13px] tracking-normal text-primary">{displayValue(details.phone)}</dd>
                 </div>
               </dl>
             </section>
           </div>
 
-          <form onSubmit={submit} className="sticky top-24 flex flex-col gap-6 border-4 border-primary bg-background shadow-[8px_8px_0px_hsl(var(--primary))]">
-            <div className="border-b-4 border-primary px-8 py-6">
-              <h2 className="font-display text-2xl font-black uppercase tracking-tighter text-primary">Agreement</h2>
-              <p className="mt-2 text-[11px] font-bold uppercase tracking-widest leading-relaxed text-primary/70">
+          <form onSubmit={submit} className="sticky top-24 flex flex-col gap-6 border border-border bg-card shadow-none">
+            <div className="border-b border-border px-5 sm:px-8 py-6">
+              <h2 className="font-display text-2xl font-semibold tracking-tight text-primary">Agreement</h2>
+              <p className="mt-2 text-[11px] font-normal leading-relaxed text-primary/70">
                 Confirm your agreement below. You cannot sign until you check these boxes.
               </p>
             </div>
@@ -226,7 +226,7 @@ export default function Signing() {
                 return (
                   <label
                     key={ack.code}
-                    className={`flex items-start gap-4 cursor-pointer border-2 p-4 transition-colors ${
+                    className={`flex items-start gap-4 cursor-pointer border p-4 transition-colors ${
                       isAccepted ? 'border-primary bg-primary/5' : 'border-border bg-background hover:border-primary/50'
                     }`}
                   >
@@ -237,7 +237,7 @@ export default function Signing() {
                       onChange={() => toggleAcknowledgement(ack.code)}
                       className="mt-1 h-5 w-5 shrink-0 accent-primary"
                     />
-                    <span className="text-[12px] font-bold uppercase tracking-widest leading-relaxed text-primary/80 select-none">
+                    <span className="text-[12px] font-normal leading-relaxed text-primary/80 select-none">
                       {ack.statement}
                     </span>
                   </label>
@@ -265,11 +265,11 @@ export default function Signing() {
                 />
               </label>
               {complete.isError && (
-                <p role="alert" className="border-4 border-destructive/50 bg-background p-4 text-[11px] font-bold uppercase tracking-widest text-destructive">
+                <p role="alert" className="border border-destructive/50 bg-background p-4 text-[11px] font-normal text-destructive">
                   {apiMessage(complete.error)}
                 </p>
               )}
-              <Button type="submit" size="lg" className="w-full h-16 rounded-none font-display text-[13px] font-black uppercase tracking-[0.2em] shadow-[6px_6px_0px_hsl(var(--accent))] hover:-translate-y-1 hover:shadow-[8px_8px_0px_hsl(var(--accent))] transition-all" disabled={!canSubmit}>
+              <Button type="submit" size="lg" className="w-full min-h-12 rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" disabled={!canSubmit}>
                 {complete.isPending ? 'SIGNING…' : 'SIGN AND AGREE'}
               </Button>
             </div>

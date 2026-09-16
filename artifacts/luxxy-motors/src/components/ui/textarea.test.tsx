@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Textarea } from '@/components/ui/textarea';
-import { expectBrutalistGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
+import { expectRefinedGeometry, radiusClasses, shadowClasses } from '@/test/showroom-style';
 
 describe('Textarea', () => {
-  it('ships the squared, shadow-free showroom default', () => {
+  it('ships the restrained, shadow-free showroom default', () => {
     render(<Textarea aria-label="Message" />);
 
-    expectBrutalistGeometry(screen.getByRole('textbox').className, 'Textarea');
+    expectRefinedGeometry(screen.getByRole('textbox').className, 'Textarea');
   });
 
   it('still lets a surface opt into a soft edge on purpose', () => {
