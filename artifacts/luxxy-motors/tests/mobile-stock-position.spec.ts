@@ -52,7 +52,7 @@ const stock = {
   ],
 };
 
-const mobileViewports = [320, 375, 402] as const;
+const mobileViewports = [320, 375, 390, 402] as const;
 
 const longCopyMobileViewports = [
   // Dealer copy and a long headline can add several lines at the narrowest supported phone width.
@@ -316,14 +316,54 @@ test('scrolls to a homepage section without requiring focus to move on same-page
 for (const width of [768, 1024]) {
   test(`saved cars row layout avoids horizontal overflow on ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
-    await mockHomeData(page);
+    await mockHomeData(page, stockWithSimilarCar);
     await page.goto('/');
     // Setup a saved car to ensure row layout renders something
     await page.evaluate(() => {
-      window.localStorage.setItem('luxxy_saved_cars', JSON.stringify(['1']));
+      window.localStorage.setItem('luxxy.saved-cars.v1', JSON.stringify(['mobile-layout-car']));
     });
     await page.goto('/saved');
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId('row-vehicle-mobile-layout-car')).toBeVisible();
     await assertNoHorizontalOverflow(page);
+  });
+}
+
+for (const width of [320, 390, 768, 1024, 1440]) {
+  test(`showroom controls and vehicle details fit at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockHomeData(page, stockWithMultipleCars);
+    await page.goto('/');
+    const firstCard = page.getByTestId('card-vehicle-mobile-layout-car-0');
+    await expect(firstCard).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await assertNoHorizontalOverflow(page);
+    if (width === 390) expect((await firstCard.boundingBox())!.y).toBeLessThan(900);
+
+    const search = page.getByTestId('input-showroom-search');
+    expect(await search.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    await page.getByRole('button', { name: 'Advanced search' }).click();
+    await expect(page.getByRole('combobox', { name: 'Make', exact: true })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await page.getByRole('button', { name: 'Advanced search' }).click();
+
+    for (const control of [page.getByTestId('button-quick-automatic'), page.getByTestId('button-stock-view-cards'), page.getByTestId('button-save-mobile-layout-car-0')]) {
+      expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.getByTestId('button-stock-view-compact').click();
+    await expect(page.getByTestId('compact-vehicle-mobile-layout-car-0')).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await page.goto('/vehicle/mobile-layout-car-0');
+    await expect(page.getByRole('heading', { name: 'BMW 1 Series', level: 1, exact: true })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    if (width < 1024) {
+      const bar = page.getByTestId('mobile-conversion-bar');
+      await expect(bar).toBeVisible();
+      const bounds = (await bar.boundingBox())!;
+      expect(bounds.x).toBe(0);
+      expect(bounds.width).toBe(width);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+      await expect(bar.getByRole('link', { name: 'Call about this vehicle' })).toBeVisible();
+    }
   });
 }

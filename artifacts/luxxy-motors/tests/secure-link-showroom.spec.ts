@@ -162,16 +162,9 @@ async function assertKeyboardFocusTreatment(page: Page, label: string) {
   const control = page.getByLabel(label);
   const restingBorderColor = await control.evaluate((element) => getComputedStyle(element).borderColor);
   await control.focus();
-  const focusStyle = await control.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      borderColor: style.borderColor,
-    };
-  });
-
   // Secure forms use an accent border as their focus treatment. The input
   // primitive intentionally opts out of the generic outline in favour of it.
-  expect(focusStyle.borderColor).not.toBe(restingBorderColor);
+  await expect.poll(() => control.evaluate((element) => getComputedStyle(element).borderColor)).not.toBe(restingBorderColor);
 }
 
 test.describe('secure customer links keep the showroom system', () => {

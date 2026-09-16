@@ -50,3 +50,8 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local service credentials
+.env
+.env.*
+!.env.example

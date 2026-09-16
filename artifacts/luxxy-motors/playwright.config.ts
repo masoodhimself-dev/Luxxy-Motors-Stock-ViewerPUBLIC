@@ -18,7 +18,7 @@ export default defineConfig({
     launchOptions: executablePath ? { executablePath } : undefined,
   },
   webServer: {
-    command: `PORT=${port} BASE_PATH=/ pnpm run dev`,
+    command: `PORT=${port} BASE_PATH=/ pnpm run ${process.env.LUXXY_LOCAL_PREVIEW === '1' ? 'dev:preview' : 'dev'}`,
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: !process.env.CI,
   },

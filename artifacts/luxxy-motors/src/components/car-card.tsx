@@ -107,7 +107,7 @@ export function CarCard({
         </Link>
       )}
 
-      <SaveCarButton car={car} className="absolute right-3 top-3 z-30 h-10 w-10 rounded-full border border-background/70 bg-background/90 text-primary shadow-none backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground hover:border-accent" />
+      <SaveCarButton car={car} className="absolute right-3 top-3 z-30 h-11 w-11 rounded-full border border-background/70 bg-background/90 text-primary shadow-none backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground hover:border-accent" />
 
       <div className="absolute top-3 left-3 z-30 flex flex-col items-start gap-2">
         {photoCount > 0 && (
@@ -178,8 +178,8 @@ export function CarCard({
   );
 
   const priceBlock = (
-    <div className="flex flex-col items-end">
-      <div className="font-display text-2xl lg:text-3xl font-black tracking-tighter text-primary">
+    <div className={cn("flex shrink-0 flex-col", isCompact || isRow ? "items-end" : "items-start")}>
+      <div className="font-display text-2xl lg:text-3xl font-semibold tracking-tight text-primary">
         {car.price ? formatPrice(car.price, car.currency) : 'POA'}
       </div>
       {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
@@ -193,7 +193,7 @@ export function CarCard({
   const bookingAction = (
     <Button
       asChild
-      className="relative z-10 h-auto w-full whitespace-normal rounded-xl bg-accent py-3 text-center text-[13px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
+      className="relative z-10 min-h-12 h-auto w-full whitespace-normal rounded-xl bg-accent py-3 text-center text-[13px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground"
     >
       <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_card', vehicleContext: true })}>
         <Calendar className="mr-2 h-4 w-4 shrink-0" />
@@ -235,7 +235,7 @@ export function CarCard({
           {wrappedImageBlock}
         </div>
         <div className="flex flex-col flex-1 min-w-0 py-1">
-          <div className="flex justify-between items-start gap-4">
+          <div className="flex flex-wrap justify-between items-start gap-x-4 gap-y-2">
             <div className="min-w-0">
               {title}
               {subtitle}
@@ -317,15 +317,15 @@ export function CarCard({
       data-testid={`card-vehicle-${car.id}`}
     >
       {wrappedImageBlock}
-      <div className="flex flex-1 flex-col px-1 pb-1 pt-5">
-        <div className="flex justify-between items-start gap-4">
+      <div className="flex flex-1 flex-col px-1 pb-1 pt-4">
+        <div className="flex flex-wrap justify-between items-start gap-x-4 gap-y-2">
           <div className="min-w-0">
             {title}
             {subtitle}
           </div>
         </div>
 
-        <div className="mt-4 mb-4">
+        <div className="mt-3 mb-4">
           {priceBlock}
         </div>
 

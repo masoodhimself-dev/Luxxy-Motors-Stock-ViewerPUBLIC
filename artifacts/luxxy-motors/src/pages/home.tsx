@@ -197,7 +197,7 @@ export default function Home() {
       {/* Stock */}
       <div id="stock" data-home-section className="bg-background px-0 pb-20 pt-7 md:pt-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="mb-3 flex items-end justify-between gap-3 border-b border-primary/15 pb-3 sm:mb-5 sm:gap-4 sm:pb-4">
+           <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b border-primary/15 pb-3 sm:mb-5 sm:gap-4 sm:pb-4">
             <div>
               <h2 id="vehicle-results-heading" tabIndex={-1} className="heading-2 !text-[2rem] text-primary sm:!text-[clamp(2.25rem,5vw,3.5rem)]">
                 {showAll ? 'All stock' : 'Latest arrivals'}
@@ -233,19 +233,19 @@ export default function Home() {
           />
 
            <section className="mt-4 flex flex-col justify-between gap-3 border-b border-primary/10 pb-4 sm:mt-5 sm:gap-4 sm:pb-5 lg:flex-row lg:items-center">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
                <span className="mr-2 hidden font-display text-[12px] font-semibold text-primary/55 sm:inline">Quick filters</span>
-               <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="rounded-full border border-primary/20 bg-card px-3 py-1.5 font-display text-[13px] font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-automatic">
+               <button type="button" onClick={() => applyQuickFilter({ transmission: 'Automatic' })} className="min-h-11 rounded-full border border-primary/20 bg-card px-3 py-2 font-display text-xs font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-automatic">
                 Automatic
               </button>
-               <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="rounded-full border border-primary/20 bg-card px-3 py-1.5 font-display text-[13px] font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-under-5000">
+               <button type="button" onClick={() => applyQuickFilter({ maxPrice: '5000' })} className="min-h-11 rounded-full border border-primary/20 bg-card px-3 py-2 font-display text-xs font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-under-5000">
                 Under £5k
               </button>
-               <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="rounded-full border border-primary/20 bg-card px-3 py-1.5 font-display text-[13px] font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-low-mileage">
+               <button type="button" onClick={() => applyQuickFilter({ sort: 'mileage-asc' })} className="min-h-11 rounded-full border border-primary/20 bg-card px-3 py-2 font-display text-xs font-semibold text-primary transition-colors hover:border-accent hover:bg-accent hover:text-accent-foreground" data-testid="button-quick-low-mileage">
                 Low miles
               </button>
             </div>
-             <div className="flex items-center gap-1 rounded-xl border border-primary/10 bg-primary/5 p-1" aria-label="Vehicle display">
+             <div className="flex w-fit items-center gap-1 rounded-xl border border-primary/10 bg-primary/5 p-1" aria-label="Vehicle display">
               <button
                 type="button"
                 aria-pressed={stockView === 'cards'}
@@ -254,7 +254,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'cards' });
                 }}
                 data-testid="button-stock-view-cards"
-                 className={cn('flex items-center gap-2 rounded-lg px-3 py-2 font-display text-[11px] font-semibold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
+                 className={cn('flex min-h-11 items-center gap-2 rounded-lg px-4 py-2 font-display text-xs font-semibold transition-colors', stockView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
               >
                 <Grid2X2 className="h-4 w-4" /> Grid
               </button>
@@ -266,7 +266,7 @@ export default function Home() {
                   trackEvent('stock_view_changed', { view: 'compact' });
                 }}
                 data-testid="button-stock-view-compact"
-                 className={cn('flex items-center gap-2 rounded-lg px-3 py-2 font-display text-[11px] font-semibold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
+                 className={cn('flex min-h-11 items-center gap-2 rounded-lg px-4 py-2 font-display text-xs font-semibold transition-colors', stockView === 'compact' ? 'bg-primary text-primary-foreground' : 'text-primary/60 hover:text-primary')}
               >
                 <List className="h-4 w-4" /> List
               </button>
@@ -276,7 +276,7 @@ export default function Home() {
           <div id="vehicle-results" data-home-section className="mt-4 sm:mt-12">
             {filteredCars.length > 0 ? (
               <>
-                <div className={cn('grid', stockView === 'compact' ? 'gap-6 xl:grid-cols-2' : 'gap-8 sm:grid-cols-2 xl:grid-cols-4')}>
+                <div className={cn('grid', stockView === 'compact' ? 'gap-6 xl:grid-cols-2' : 'gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4')}>
                   {displayedCars.map(car => (
                     <CarCard
                       key={car.id}

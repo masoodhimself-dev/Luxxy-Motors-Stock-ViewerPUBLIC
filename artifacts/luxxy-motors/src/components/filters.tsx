@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   ChevronDown,
+  Search,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
        <span className="mb-2 block font-display text-[11px] font-semibold tracking-[.08em] text-primary/70">
         {label}
       </span>
@@ -72,14 +73,17 @@ function Select({
   disabled?: boolean;
 }) {
   return (
-    <NativeSelect
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      disabled={disabled}
-       className="h-12 w-full appearance-none rounded-xl border border-primary/20 bg-background px-4 text-[13px] font-medium text-primary shadow-none outline-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
-    >
-      {children}
-    </NativeSelect>
+    <span className="relative block">
+      <NativeSelect
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        className="h-12 w-full appearance-none rounded-xl border border-primary/20 bg-background pl-3 pr-8 text-base font-medium tracking-normal text-primary shadow-none outline-none sm:text-sm transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
+      >
+        {children}
+      </NativeSelect>
+      <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
+    </span>
   );
 }
 
@@ -140,17 +144,18 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="mb-3 rounded-2xl border border-primary/15 bg-card p-4 shadow-[0_12px_30px_hsl(var(--primary)/.07)] sm:p-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-12">
-      <div className="sm:py-2">
-        <label className="block">
-           <span className="mb-2 block font-display text-xl font-semibold tracking-[-.03em] text-primary sm:mb-4 sm:text-2xl">
+    <div className="mb-3 rounded-2xl border border-primary/15 bg-card p-4 shadow-[0_12px_30px_hsl(var(--primary)/.07)] sm:p-6">
+      <div className="min-w-0">
+        <label className="block min-w-0">
+           <span className="mb-3 block font-display text-base font-semibold tracking-[-.03em] text-primary sm:text-xl">
              Search live stock
           </span>
-          <span className="relative block max-w-3xl">
+          <span className="relative block">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary/50" />
             <Input
               aria-label="Search the showroom"
               data-testid="input-showroom-search"
-              placeholder="Try “BMW”, “Golf” or a registration"
+              placeholder="Make, model or registration"
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
               onKeyDown={(event) => {
@@ -159,7 +164,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                   handleSearchClick();
                 }
               }}
-               className="h-12 rounded-xl border border-primary/20 bg-background pr-10 text-[14px] shadow-none sm:h-14"
+               className="h-12 rounded-xl border border-primary/20 bg-background pl-11 pr-12 text-base font-medium placeholder:font-normal shadow-none sm:h-14"
             />
             {filters.search && (
               <button
@@ -174,13 +179,15 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           </span>
         </label>
 
-        <div className="mt-4 border-t-2 border-primary/10 pt-4 sm:mt-8 sm:pt-6">
+        <div className="mt-2">
+          <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-             className="flex min-h-11 items-center gap-2 font-display text-[12px] font-semibold text-primary hover:text-accent transition-colors"
+             className="flex min-h-11 items-center gap-2 font-display text-[13px] font-semibold text-primary hover:text-accent transition-colors"
             onClick={() => setShowAdvanced(!showAdvanced)}
             aria-expanded={showAdvanced}
             aria-label="Advanced search"
+            aria-controls="advanced-stock-filters"
           >
              {showAdvanced ? 'Hide filters' : 'More filters'}
             <ChevronDown
@@ -188,9 +195,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             />
           </button>
 
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="flex min-h-11 shrink-0 items-center font-display text-xs font-semibold text-primary/65 hover:text-primary"
+          >
+            Reset filters
+            {activeFilterCount > 0 && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-primary-foreground">({activeFilterCount})</span>}
+          </button>
+          </div>
+
           {showAdvanced && (
-             <section className="mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
+             <section id="advanced-stock-filters" className="mt-3 border-t border-primary/10 pt-4 animate-in fade-in duration-200">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
                 <Field label="Make">
                   <Select
                     value={filters.make}
@@ -256,7 +273,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                  <p className="mt-2 max-w-2xl text-[12px] font-medium leading-relaxed text-primary/65">
                   Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
                 </p>
-                <div className="mt-6 flex flex-wrap gap-6">
+                <div className="mt-4 flex flex-wrap gap-3">
                   {[
                     ['noWriteOff', 'No recorded write-off'],
                     ['catS', 'Category S'],
@@ -279,24 +296,15 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 border-t-2 border-primary/10 pt-4 sm:mt-6 sm:flex-row sm:items-end sm:justify-between sm:gap-4 sm:pt-6 lg:mt-0 lg:border-t-0 lg:pt-0">
-        <div className="flex flex-row items-center justify-between gap-4 sm:gap-6 sm:justify-start w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={resetFilters}
-             className="flex min-h-[44px] shrink-0 items-center font-display text-[11px] font-semibold text-primary/65 hover:text-primary"
-          >
-            Reset filters
-            {activeFilterCount > 0 && <span className="ml-2 bg-accent text-accent-foreground px-2 py-0.5 shadow-[2px_2px_0px_hsl(var(--primary))]">({activeFilterCount})</span>}
-          </button>
-
-          <div className="flex items-center gap-3 flex-1 sm:flex-none">
+      <div className="mt-2 grid grid-cols-1 items-end gap-3 min-[360px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] sm:mt-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="min-w-0">
+          <div className="relative flex min-w-0 items-center gap-3">
                <span className="hidden font-display text-[11px] font-semibold text-primary/70 sm:inline">Sort</span>
             <NativeSelect
               aria-label="Sort results"
               value={filters.sort}
               onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-               className="h-12 w-full flex-1 rounded-xl border border-primary/20 bg-background px-2 text-[11px] font-medium text-primary shadow-none sm:w-56 sm:px-4"
+               className="h-12 min-w-0 w-full flex-1 rounded-xl border border-primary/20 bg-background pl-3 pr-8 text-base tracking-normal font-medium text-primary shadow-none sm:max-w-64 sm:text-sm"
             >
               <option value="">Recommended</option>
               <option value="price-asc">Price: low to high</option>
@@ -304,13 +312,14 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
               <option value="mileage-asc">Mileage: low to high</option>
               <option value="mileage-desc">Mileage: high to low</option>
             </NativeSelect>
+            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 text-primary/50 sm:hidden" />
           </div>
         </div>
 
         <button
           type="button"
           onClick={handleSearchClick}
-           className="flex h-12 w-full items-center justify-center rounded-xl bg-accent px-8 font-display text-[12px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:h-14 sm:w-auto sm:text-[13px]"
+           className="flex h-12 w-full items-center justify-center rounded-xl bg-accent px-3 font-display text-[12px] font-semibold text-accent-foreground shadow-none transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto sm:px-8 sm:text-sm"
         >
            View matching cars
         </button>

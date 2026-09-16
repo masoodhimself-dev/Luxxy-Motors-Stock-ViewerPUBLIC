@@ -170,16 +170,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div className="container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <button type="button" onClick={handleLogoClick} className="flex items-center gap-3 text-left group">
+          <button type="button" onClick={handleLogoClick} className="flex min-w-0 items-center gap-3 text-left group">
             {dealerConfig.identity.logoAsset ? (
-              <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 md:h-10 object-contain mix-blend-multiply" />
+              <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 max-w-[min(60vw,15rem)] md:h-10 object-contain mix-blend-multiply" />
             ) : (
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent font-display text-xl font-semibold text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent font-display text-xl font-semibold text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   {wordmark.charAt(0)}
                 </div>
-                <span className="flex flex-col justify-center text-left leading-none">
-                  <span className="font-display text-xl font-semibold tracking-[-.04em] text-primary transition-colors group-hover:text-accent lg:text-2xl">{wordmark}</span>
+                <span className="flex min-w-0 flex-col justify-center text-left leading-none">
+                  <span className="truncate font-display text-[17px] font-semibold tracking-[-.04em] text-primary transition-colors group-hover:text-accent sm:text-xl lg:text-2xl">{wordmark}</span>
                   <span className="mt-1 font-display text-[10px] font-medium tracking-[.06em] text-primary/55">{locationLabel || 'Independent used cars'}</span>
                 </span>
               </div>
@@ -258,9 +258,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             ref={menuButtonRef}
             type="button"
-             className="lg:hidden flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/60 text-primary transition-colors hover:bg-accent hover:text-accent-foreground"
+             className="lg:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary/60 text-primary transition-colors hover:bg-accent hover:text-accent-foreground"
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -269,7 +270,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
-          <nav ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100vh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-[0_16px_32px_hsl(var(--primary)/.12)]">
+          <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-[0_16px_32px_hsl(var(--primary)/.12)]">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
               Find My Car <ArrowRight className="w-5 h-5 text-accent" />

@@ -136,7 +136,7 @@ export default function CarDetail() {
   })();
 
   return (
-    <div className="luxxy-shell min-h-screen pb-20 lg:pb-0 bg-background">
+    <div className="luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0 bg-background">
        <div className="sticky top-[calc(var(--site-header-height))] z-40 border-b border-primary/10 bg-background/85 backdrop-blur-xl">
         <div className="container mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
           <Link
@@ -149,8 +149,8 @@ export default function CarDetail() {
         </div>
       </div>
 
-      <div className="container mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <div className="grid min-w-0 grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1.2fr)_400px] xl:grid-cols-[minmax(0,1.4fr)_460px] lg:items-start lg:gap-14 xl:gap-20">
+      <div className="container mx-auto max-w-[90rem] px-4 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
+        <div className="grid min-w-0 grid-cols-1 gap-5 sm:gap-8 lg:grid-cols-[minmax(0,1.2fr)_400px] xl:grid-cols-[minmax(0,1.4fr)_460px] lg:items-start lg:gap-14 xl:gap-20">
           
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
              <div className="rounded-2xl border border-primary/10 bg-card p-2 shadow-[0_18px_42px_hsl(var(--primary)/.1)]">
@@ -160,8 +160,8 @@ export default function CarDetail() {
 
           {/* Right Column: Key Details & CTA */}
            <div className="min-w-0 rounded-2xl border border-primary/10 bg-card p-6 shadow-[0_18px_42px_hsl(var(--primary)/.09)] sm:p-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:p-10">
-             <div className="mb-8 border-b border-primary/10 pb-8">
-               <h1 className="font-display text-4xl font-semibold leading-[.94] tracking-[-.05em] text-primary sm:text-5xl">
+             <div className="mb-5 border-b border-primary/10 pb-5 sm:mb-8 sm:pb-8">
+               <h1 className="font-display text-[clamp(1.75rem,7vw,2.25rem)] font-semibold leading-[1.05] tracking-[-.05em] text-primary sm:text-5xl">
                 {vehicleLabel}
               </h1>
               {(car.variant || car.trim) && (
@@ -171,8 +171,8 @@ export default function CarDetail() {
               )}
             </div>
 
-             <div className="mb-10 flex flex-wrap items-baseline gap-4 border-b border-primary/15 pb-8">
-               <p className="font-display text-[3.5rem] font-semibold leading-none tracking-[-.06em] text-primary sm:text-[4.5rem]">
+             <div className="mb-6 flex flex-wrap items-baseline gap-3 border-b border-primary/15 pb-5 sm:mb-10 sm:gap-4 sm:pb-8">
+               <p className="font-display text-[clamp(2.25rem,10vw,3.5rem)] font-semibold leading-none tracking-[-.06em] text-primary sm:text-[4.5rem]">
                 {car.price ? formatPrice(car.price, car.currency) : 'POA'}
               </p>
               {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
@@ -299,13 +299,13 @@ export default function CarDetail() {
           </section>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[1fr_auto] gap-2 border-t-4 border-primary bg-background p-3 lg:hidden" data-testid="mobile-conversion-bar">
-          <Button asChild className="h-14 rounded-none font-display text-[13px] font-bold uppercase tracking-widest bg-primary text-primary-foreground hover:bg-accent shadow-[3px_3px_0px_hsl(var(--primary))]">
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-primary/15 bg-background/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden" data-testid="mobile-conversion-bar">
+          <Button asChild className="h-auto min-h-12 min-w-0 flex-1 whitespace-normal rounded-xl bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground shadow-none hover:bg-accent hover:text-accent-foreground">
             <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'car_detail_mobile', vehicleContext: true })}><Calendar className="mr-2 h-4 w-4" />{dealerConfig.bookViewing.ctaLabel}</a>
           </Button>
           {phoneHref && (
-            <Button asChild variant="outline" size="icon" className="h-14 w-14 rounded-none border-2 border-primary text-accent hover:bg-primary hover:text-primary-foreground bg-background shadow-[3px_3px_0px_hsl(var(--primary))]">
-              <a href={phoneHref} onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail-mobile' })}><Phone className="h-5 w-5" /></a>
+            <Button asChild variant="outline" size="icon" className="h-12 w-12 shrink-0 rounded-xl border border-primary/20 bg-background text-primary shadow-none hover:bg-primary hover:text-primary-foreground">
+              <a href={phoneHref} aria-label="Call about this vehicle" onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-detail-mobile' })}><Phone className="h-5 w-5" /></a>
             </Button>
           )}
         </div>
