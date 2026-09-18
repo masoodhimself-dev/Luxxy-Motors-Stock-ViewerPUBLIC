@@ -226,7 +226,9 @@ for (const width of mobileViewports) {
   });
 }
 
-test('moves keyboard focus to results after stock-opening controls use Enter or Space', async ({ page }) => {
+test('moves keyboard focus to results after stock-opening controls use Enter or Space', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 375, height: 874 });
 
   for (const key of ['Enter', 'Space'] as const) {
@@ -247,6 +249,8 @@ test('moves keyboard focus to results after stock-opening controls use Enter or 
   }
 
   for (const key of ['Enter', 'Space'] as const) {
+    // Each case starts a new browsing session; showing all stock now persists on return.
+    await page.evaluate(() => sessionStorage.removeItem("luxxy.browse.v1"));
     await mockHomeData(page, stockWithMultipleCars);
     await page.goto('/');
     const resultsHeading = page.locator('#vehicle-results-heading');

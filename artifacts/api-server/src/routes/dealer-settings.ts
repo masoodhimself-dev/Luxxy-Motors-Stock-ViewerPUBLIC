@@ -1,3 +1,4 @@
+import { preservePresentation } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -124,7 +125,9 @@ router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> =
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const cleaned = await cleanFeaturedVehicles(parsed.data);
+  const [previous] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId()));
+  const compatible = UpdateDealerSettingsBody.parse(preservePresentation(parsed.data, previous?.config));
+  const cleaned = await cleanFeaturedVehicles(compatible);
   const [settings] = await db
     .insert(dealerSettingsTable)
     .values({ dealerId: dealerId(), config: cleaned })

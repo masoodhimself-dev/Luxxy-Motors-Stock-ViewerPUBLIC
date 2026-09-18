@@ -101,3 +101,7 @@ export function flushPendingHomeTarget() {
     pendingTarget = null;
   }
 }
+
+export function hasPendingHomeTarget() {
+  return pendingTarget !== null;
+}

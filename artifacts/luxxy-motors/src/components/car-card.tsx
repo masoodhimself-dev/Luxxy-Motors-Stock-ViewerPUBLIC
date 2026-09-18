@@ -1,3 +1,4 @@
+import { rememberStockPosition } from "@/lib/browse-session";
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
@@ -76,11 +77,13 @@ export function CarCard({
     dealerConfig,
   );
   const bookingHref = getVehicleBookingHref(car);
-  const recordVehicleOpen = () =>
+  const recordVehicleOpen = () => {
+    rememberStockPosition(car.id);
     trackEvent('vehicle_opened', {
       source: analyticsSource,
       layout,
     });
+  };
 
   const imageSignature = imageUrls.join('|');
   useEffect(() => {
@@ -137,24 +140,35 @@ export function CarCard({
       >
         <Link
           href={detailHref}
+          data-stock-link={car.id}
           onClick={recordVehicleOpen}
           className="relative block aspect-[4/3]"
           aria-label={`View full details for ${vehicleLabel}`}
         >
           {galleryUrls.length ? (
-            galleryUrls.map((url, index) => (
-              <img
-                key={url}
-                src={url}
-                alt={index === activeIndex ? vehicleLabel : ''}
-                loading="lazy"
-                className={cn(
-                  'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
-                  index === activeIndex ? 'opacity-100' : 'opacity-0',
-                )}
-                onError={() => setFailedImageUrls((prev) => new Set(prev).add(url))}
-              />
-            ))
+            galleryUrls
+              .filter(
+                (_, index) =>
+                  index === 0 || isPreviewing || index === activeIndex,
+              )
+              .map((url) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={url === galleryUrls[activeIndex] ? vehicleLabel : ""}
+                  decoding="async"
+                  width={800}
+                  height={600}
+                  loading="lazy"
+                  className={cn(
+                    'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
+                    url === galleryUrls[activeIndex]
+                      ? "opacity-100"
+                      : "opacity-0",
+                  )}
+                  onError={() => setFailedImageUrls((prev) => new Set(prev).add(url))}
+                />
+              ))
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
               <Camera className="h-7 w-7" />
@@ -180,7 +194,12 @@ export function CarCard({
       </div>
       <div className={cn('flex min-w-0 flex-1 flex-col p-4', isRow && 'md:p-6')}>
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
+          <div
+            className={cn(
+              "min-w-0 w-full",
+              !isRow && !isCompact && "vehicle-card-heading",
+            )}
+          >
             <h3 className="font-display text-lg font-semibold leading-snug tracking-tight text-primary">
               <Link
                 href={detailHref}
@@ -199,10 +218,14 @@ export function CarCard({
         </div>
         <div className="mt-3 flex flex-wrap items-baseline gap-2">
           <p className="luxxy-price text-2xl text-primary">
-            {car.price ? formatPrice(car.price, car.currency) : 'Price on application'}
+            {car.price
+              ? formatPrice(car.price, car.currency)
+              : 'Price on application'}
           </p>
           {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-            <span className="text-xs text-muted-foreground">{car.priceType}</span>
+            <span className="text-xs text-muted-foreground">
+              {car.priceType}
+            </span>
           )}
         </div>
         <div className="vehicle-specs mb-4 mt-3">
@@ -212,7 +235,8 @@ export function CarCard({
         </div>
         {registration && isRow && (
           <p className="mb-4 text-xs text-muted-foreground">
-            Registration <span className="font-medium text-primary">{registration}</span>
+            Registration{" "}
+            <span className="font-medium text-primary">{registration}</span>
           </p>
         )}
         <div

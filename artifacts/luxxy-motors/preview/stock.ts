@@ -9,5 +9,23 @@ export const previewStock = {
   cars: [3, 8, 1, 15, 20, 0].map((index, position) => ({
     ...archivedStock.cars[index],
     id: `preview-${position + 1}`,
+    // Explicit sample copy demonstrates optional buyer fields; never used by production stock.
+    ...(position === 0
+      ? {
+          specifications: {
+            serviceHistory: "Sample: service records available to view",
+            motExpiry: "Sample: confirm the expiry date before purchase",
+            numberOfKeys: 2,
+            conditionNotes:
+              "Sample condition notes: inspect the vehicle and review the available repair information at your appointment.",
+            warrantyDetails:
+              "Sample: ask which warranty options apply to this vehicle",
+            includedItems: [
+              "Sample: vehicle documents",
+              "Sample: supplied accessories to be confirmed",
+            ],
+          },
+        }
+      : {}),
   })),
 } as StockData;

@@ -25,6 +25,7 @@ export * from './dealerHero';
 export * from './dealerHoursItem';
 export * from './dealerIdentity';
 export * from './dealerLegal';
+export * from './dealerPresentation';
 export * from './dealerRecentHandovers';
 export * from './dealerService';
 export * from './dealerSettings';

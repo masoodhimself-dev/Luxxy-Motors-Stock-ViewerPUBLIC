@@ -12,12 +12,14 @@ import type { DealerHero } from './dealerHero';
 import type { DealerHoursItem } from './dealerHoursItem';
 import type { DealerIdentity } from './dealerIdentity';
 import type { DealerLegal } from './dealerLegal';
+import type { DealerPresentation } from './dealerPresentation';
 import type { DealerRecentHandovers } from './dealerRecentHandovers';
 import type { DealerService } from './dealerService';
 import type { DealerSocial } from './dealerSocial';
 import type { DealerWhyBuyItem } from './dealerWhyBuyItem';
 
 export interface DealerSettings {
+  presentation?: DealerPresentation;
   identity: DealerIdentity;
   contact: DealerContact;
   address: DealerAddress;

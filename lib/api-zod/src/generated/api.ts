@@ -844,7 +844,7 @@ export const CancelViewingResponse = zod.object({
 
 
 /**
- * Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
+ * Requires authorized staff. Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
  * @summary List recent call and WhatsApp taps
  */
 export const GetContactIntentsQueryParams = zod.object({
@@ -2336,6 +2336,36 @@ export const CompleteSigningSessionResponse = zod.record(zod.string(), zod.unkno
  * Returns the configured dealer identity, contact details, showroom copy, services, and legal links.
  * @summary Get the public dealer profile
  */
+export const getDealerSettingsResponsePresentationHeroImageUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationHeroImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationHeroImageAltMax = 200;
+
+export const getDealerSettingsResponsePresentationShowroomImageUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationShowroomImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationShowroomImageAltMax = 200;
+
+export const getDealerSettingsResponsePresentationTeamImageUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationTeamImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationTeamImageAltMax = 200;
+
+export const getDealerSettingsResponsePresentationTeamIntroductionMax = 1000;
+
+export const getDealerSettingsResponsePresentationVisitInstructionsMax = 1000;
+
+export const getDealerSettingsResponsePresentationParkingInstructionsMax = 1000;
+
+export const getDealerSettingsResponsePresentationReviewsUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationIncludedInformationMax = 1000;
+
 export const getDealerSettingsResponseIdentityNameMax = 120;
 
 export const getDealerSettingsResponseIdentityLogoTextMax = 120;
@@ -2438,6 +2468,19 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 
 export const GetDealerSettingsResponse = zod.object({
+  "presentation": zod.object({
+  "heroImageUrl": zod.string().max(getDealerSettingsResponsePresentationHeroImageUrlMax).regex(getDealerSettingsResponsePresentationHeroImageUrlRegExp).optional(),
+  "heroImageAlt": zod.string().max(getDealerSettingsResponsePresentationHeroImageAltMax).optional(),
+  "showroomImageUrl": zod.string().max(getDealerSettingsResponsePresentationShowroomImageUrlMax).regex(getDealerSettingsResponsePresentationShowroomImageUrlRegExp).optional(),
+  "showroomImageAlt": zod.string().max(getDealerSettingsResponsePresentationShowroomImageAltMax).optional(),
+  "teamImageUrl": zod.string().max(getDealerSettingsResponsePresentationTeamImageUrlMax).regex(getDealerSettingsResponsePresentationTeamImageUrlRegExp).optional(),
+  "teamImageAlt": zod.string().max(getDealerSettingsResponsePresentationTeamImageAltMax).optional(),
+  "teamIntroduction": zod.string().max(getDealerSettingsResponsePresentationTeamIntroductionMax).optional(),
+  "visitInstructions": zod.string().max(getDealerSettingsResponsePresentationVisitInstructionsMax).optional(),
+  "parkingInstructions": zod.string().max(getDealerSettingsResponsePresentationParkingInstructionsMax).optional(),
+  "reviewsUrl": zod.string().max(getDealerSettingsResponsePresentationReviewsUrlMax).regex(getDealerSettingsResponsePresentationReviewsUrlRegExp).optional(),
+  "includedInformation": zod.string().max(getDealerSettingsResponsePresentationIncludedInformationMax).optional()
+}).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
   "identity": zod.object({
   "name": zod.string().min(1).max(getDealerSettingsResponseIdentityNameMax),
   "logoText": zod.string().max(getDealerSettingsResponseIdentityLogoTextMax),
@@ -2523,6 +2566,36 @@ export const GetDealerSettingsResponse = zod.object({
  * Saves the complete dealer profile used by the public showroom and dealer portal.
  * @summary Replace the dealer profile
  */
+export const updateDealerSettingsBodyOnePresentationHeroImageUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationHeroImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationHeroImageAltMax = 200;
+
+export const updateDealerSettingsBodyOnePresentationShowroomImageUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationShowroomImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationShowroomImageAltMax = 200;
+
+export const updateDealerSettingsBodyOnePresentationTeamImageUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationTeamImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationTeamImageAltMax = 200;
+
+export const updateDealerSettingsBodyOnePresentationTeamIntroductionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationVisitInstructionsMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationParkingInstructionsMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationReviewsUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationIncludedInformationMax = 1000;
+
 export const updateDealerSettingsBodyOneIdentityNameMax = 120;
 
 export const updateDealerSettingsBodyOneIdentityLogoTextMax = 120;
@@ -2625,6 +2698,19 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 
 export const UpdateDealerSettingsBody = zod.object({
+  "presentation": zod.object({
+  "heroImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationHeroImageUrlMax).regex(updateDealerSettingsBodyOnePresentationHeroImageUrlRegExp).optional(),
+  "heroImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationHeroImageAltMax).optional(),
+  "showroomImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationShowroomImageUrlMax).regex(updateDealerSettingsBodyOnePresentationShowroomImageUrlRegExp).optional(),
+  "showroomImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationShowroomImageAltMax).optional(),
+  "teamImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationTeamImageUrlMax).regex(updateDealerSettingsBodyOnePresentationTeamImageUrlRegExp).optional(),
+  "teamImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationTeamImageAltMax).optional(),
+  "teamIntroduction": zod.string().max(updateDealerSettingsBodyOnePresentationTeamIntroductionMax).optional(),
+  "visitInstructions": zod.string().max(updateDealerSettingsBodyOnePresentationVisitInstructionsMax).optional(),
+  "parkingInstructions": zod.string().max(updateDealerSettingsBodyOnePresentationParkingInstructionsMax).optional(),
+  "reviewsUrl": zod.string().max(updateDealerSettingsBodyOnePresentationReviewsUrlMax).regex(updateDealerSettingsBodyOnePresentationReviewsUrlRegExp).optional(),
+  "includedInformation": zod.string().max(updateDealerSettingsBodyOnePresentationIncludedInformationMax).optional()
+}).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
   "identity": zod.object({
   "name": zod.string().min(1).max(updateDealerSettingsBodyOneIdentityNameMax),
   "logoText": zod.string().max(updateDealerSettingsBodyOneIdentityLogoTextMax),
@@ -2704,6 +2790,36 @@ export const UpdateDealerSettingsBody = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneWhyBuyItemDescriptionMax)
 })).max(updateDealerSettingsBodyOneWhyBuyMax)
 })
+
+export const updateDealerSettingsResponsePresentationHeroImageUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationHeroImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationHeroImageAltMax = 200;
+
+export const updateDealerSettingsResponsePresentationShowroomImageUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationShowroomImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationShowroomImageAltMax = 200;
+
+export const updateDealerSettingsResponsePresentationTeamImageUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationTeamImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationTeamImageAltMax = 200;
+
+export const updateDealerSettingsResponsePresentationTeamIntroductionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationVisitInstructionsMax = 1000;
+
+export const updateDealerSettingsResponsePresentationParkingInstructionsMax = 1000;
+
+export const updateDealerSettingsResponsePresentationReviewsUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationIncludedInformationMax = 1000;
 
 export const updateDealerSettingsResponseIdentityNameMax = 120;
 
@@ -2807,6 +2923,19 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 
 export const UpdateDealerSettingsResponse = zod.object({
+  "presentation": zod.object({
+  "heroImageUrl": zod.string().max(updateDealerSettingsResponsePresentationHeroImageUrlMax).regex(updateDealerSettingsResponsePresentationHeroImageUrlRegExp).optional(),
+  "heroImageAlt": zod.string().max(updateDealerSettingsResponsePresentationHeroImageAltMax).optional(),
+  "showroomImageUrl": zod.string().max(updateDealerSettingsResponsePresentationShowroomImageUrlMax).regex(updateDealerSettingsResponsePresentationShowroomImageUrlRegExp).optional(),
+  "showroomImageAlt": zod.string().max(updateDealerSettingsResponsePresentationShowroomImageAltMax).optional(),
+  "teamImageUrl": zod.string().max(updateDealerSettingsResponsePresentationTeamImageUrlMax).regex(updateDealerSettingsResponsePresentationTeamImageUrlRegExp).optional(),
+  "teamImageAlt": zod.string().max(updateDealerSettingsResponsePresentationTeamImageAltMax).optional(),
+  "teamIntroduction": zod.string().max(updateDealerSettingsResponsePresentationTeamIntroductionMax).optional(),
+  "visitInstructions": zod.string().max(updateDealerSettingsResponsePresentationVisitInstructionsMax).optional(),
+  "parkingInstructions": zod.string().max(updateDealerSettingsResponsePresentationParkingInstructionsMax).optional(),
+  "reviewsUrl": zod.string().max(updateDealerSettingsResponsePresentationReviewsUrlMax).regex(updateDealerSettingsResponsePresentationReviewsUrlRegExp).optional(),
+  "includedInformation": zod.string().max(updateDealerSettingsResponsePresentationIncludedInformationMax).optional()
+}).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
   "identity": zod.object({
   "name": zod.string().min(1).max(updateDealerSettingsResponseIdentityNameMax),
   "logoText": zod.string().max(updateDealerSettingsResponseIdentityLogoTextMax),

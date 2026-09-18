@@ -1,3 +1,4 @@
+import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
@@ -77,7 +78,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       : {}),
   } as CSSProperties;
 
-  const wordmark = dealerConfig.identity.logoText || dealerConfig.identity.name;
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(' · ');
   const upcomingVisitDates = getUpcomingVisitDates(dealerConfig.hours ?? []);
 
@@ -174,19 +174,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         <div className="container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <button type="button" onClick={handleLogoClick} className="flex min-w-0 items-center gap-3 text-left group">
-            {dealerConfig.identity.logoAsset ? (
-              <img src={dealerConfig.identity.logoAsset} alt={dealerConfig.identity.name} className="h-8 max-w-[min(60vw,15rem)] md:h-10 object-contain" />
-            ) : (
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-primary/20 bg-primary font-display text-xl font-semibold text-primary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  {wordmark.charAt(0)}
-                </div>
-                <span className="flex min-w-0 flex-col justify-center text-left leading-none">
-                  <span className="truncate font-display text-[17px] font-semibold tracking-[-.04em] text-primary transition-colors group-hover:text-accent sm:text-xl lg:text-xl">{wordmark}</span>
-                  <span className="mt-1 font-display text-[10px] font-medium tracking-normal text-primary/55">{locationLabel || 'Independent used cars'}</span>
-                </span>
-              </div>
-            )}
+            <DealerWordmark {...dealerConfig.identity} className="text-primary" />
           </button>
 
           {isStaff ? <Button variant="outline" className="shrink-0 px-3 text-xs" onClick={() => handleNav('top')}>View showroom <ArrowRight className="h-4 w-4" /></Button> : <>
@@ -342,9 +330,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-10 grid grid-cols-2 gap-6 lg:grid-cols-12 lg:gap-12">
             <div className="col-span-2 lg:col-span-5">
-               <p className="font-display mb-1 text-3xl font-semibold tracking-[-.04em] text-primary-foreground">
-                {wordmark}
-              </p>
+               <DealerWordmark {...dealerConfig.identity} className="mb-4 text-primary-foreground" />
               {locationLabel && (
                  <p className="mb-6 font-display text-xs font-medium tracking-normal text-primary-foreground/75">{locationLabel}</p>
               )}
@@ -417,10 +403,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             {upcomingVisitDates.length > 0 && (
-              <div className="lg:col-span-3">
-                <h3 className={footerHeadingClass}>Next available visits</h3>
+              <div className="col-span-2 lg:col-span-3">
+                <h3 className={footerHeadingClass}>Opening hours</h3>
                 <p className="mb-5 max-w-[22rem] text-[13px] leading-6 text-primary-foreground/65">
-                  Pick a day that works. We’ll confirm the exact time when you book.
+                  Contact us before travelling to arrange a viewing.
                 </p>
                 <ul className="space-y-3">
                   {upcomingVisitDates.map((visit) => (

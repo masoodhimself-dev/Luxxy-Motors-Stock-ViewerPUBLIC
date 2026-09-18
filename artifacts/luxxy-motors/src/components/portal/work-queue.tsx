@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   getGetPortalWorklistQueryKey,
   useGetPortalWorklist,
@@ -117,6 +119,7 @@ function highlightFor(key: QueueKey, lead: Lead) {
 }
 
 export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) {
+  const [selectedQueue, setSelectedQueue] = useState<QueueKey | "all">("all");
   const worklistQuery = useGetPortalWorklist({
     query: {
       queryKey: getGetPortalWorklistQueryKey(),
@@ -161,15 +164,62 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
         </p>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {queues.map(({ key, kicker, title, blurb, empty, icon: Icon }) => {
-          const leads = worklist[key];
-          return (
-             <Panel key={key} className="flex flex-col">
-              <PanelHeader
-                title={<span className="flex items-center gap-3"><Icon className="h-5 w-5 text-accent" />{title}</span>}
-                meta={blurb}
-                action={
+      <NativeSelect
+        aria-label="Focus worklist"
+        value={selectedQueue}
+        onChange={(event) => setSelectedQueue(event.target.value as QueueKey | "all")}
+        className="sm:hidden"
+      >
+        <option value="all">All work ({total})</option>
+        {queues.map((queue) => (
+          <option key={queue.key} value={queue.key}>
+            {queue.title} ({worklist[queue.key].length})
+          </option>
+        ))}
+      </NativeSelect>
+      <div
+        className="hidden sm:flex flex-wrap gap-1 border-b border-border"
+        aria-label="Focus worklist"
+      >
+        {([{ key: "all", title: "All work" }, ...queues] as const).map(
+          (queue) => (
+            <button
+              key={queue.key}
+              type="button"
+              aria-pressed={selectedQueue === queue.key}
+              aria-label={`${queue.title}, ${queue.key === "all" ? total : worklist[queue.key].length} items`}
+              data-testid={`queue-filter-${queue.key}`}
+              onClick={() => setSelectedQueue(queue.key)}
+              className={`min-h-11 border-b-2 px-3 text-xs ${selectedQueue === queue.key ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-primary"}`}
+            >
+              {queue.title}
+              <span className="ml-2 tabular-nums text-muted-foreground">
+                {queue.key === "all" ? total : worklist[queue.key].length}
+              </span>
+            </button>
+          ),
+        )}
+      </div>
+      <div
+        className={`grid gap-5 ${selectedQueue === "all" ? "lg:grid-cols-2" : ""}`}
+      >
+        {queues
+          .filter(
+            (queue) => selectedQueue === "all" || queue.key === selectedQueue,
+          )
+          .map(({ key, kicker, title, blurb, empty, icon: Icon }) => {
+            const leads = worklist[key];
+            return (
+              <Panel key={key} className="flex flex-col">
+                <PanelHeader
+                  title={
+                    <span className="flex items-center gap-3">
+                      <Icon className="h-5 w-5 text-accent" />
+                      {title}
+                    </span>
+                  }
+                  meta={blurb}
+                  action={
                   <Chip
                     tone={leads.length === 0 ? 'muted' : key === 'overdueFollowUps' ? 'urgent' : 'accent'}
                     className="shrink-0 tabular-nums shadow-none"
@@ -177,8 +227,8 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
                     {leads.length}
                   </Chip>
                 }
-              />
-              <div className="flex-1">
+                />
+                <div className="flex-1">
                 {leads.length === 0 ? (
                   <EmptyState icon={Icon} title="All clear" body={empty} />
                 ) : (
@@ -192,9 +242,9 @@ export function WorkQueue({ onOpenLead }: { onOpenLead: (id: string) => void }) 
                   ))
                 )}
               </div>
-            </Panel>
-          );
-        })}
+              </Panel>
+            );
+          })}
       </div>
     </div>
   );

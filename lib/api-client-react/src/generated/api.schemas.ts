@@ -197,7 +197,48 @@ export interface RecentHandovers {
   handovers: RecentHandover[];
 }
 
+/**
+ * Optional showroom content. Empty values are not presented as factual claims.
+ */
+export interface DealerPresentation {
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  heroImageUrl?: string;
+  /** @maxLength 200 */
+  heroImageAlt?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  showroomImageUrl?: string;
+  /** @maxLength 200 */
+  showroomImageAlt?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  teamImageUrl?: string;
+  /** @maxLength 200 */
+  teamImageAlt?: string;
+  /** @maxLength 1000 */
+  teamIntroduction?: string;
+  /** @maxLength 1000 */
+  visitInstructions?: string;
+  /** @maxLength 1000 */
+  parkingInstructions?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  reviewsUrl?: string;
+  /** @maxLength 1000 */
+  includedInformation?: string;
+}
+
 export interface DealerSettings {
+  presentation?: DealerPresentation;
   identity: DealerIdentity;
   contact: DealerContact;
   address: DealerAddress;

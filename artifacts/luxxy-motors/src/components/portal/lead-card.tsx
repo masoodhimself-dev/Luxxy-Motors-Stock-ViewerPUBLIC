@@ -28,11 +28,11 @@ export function LeadCard({
       type="button"
       onClick={() => onOpen(lead.id)}
       data-testid={`lead-card-${lead.id}`}
-      className="group block w-full border-b border-border bg-card p-4 text-left transition-colors last:border-b-0 hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="group block w-full border-b border-border bg-card px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-           <h3 className="truncate font-display text-lg font-semibold tracking-[-.03em] text-primary transition-colors group-hover:text-accent">
+          <h3 className="truncate font-display text-base font-semibold tracking-[-.03em] text-primary transition-colors group-hover:text-accent">
             {lead.customerName}
           </h3>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-medium text-primary/70">

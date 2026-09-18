@@ -64,13 +64,17 @@ function DetailRow({
 }) {
   if (!value) return null;
   const body = (
-    <span className={`text-[14px] text-foreground ${mono ? 'font-mono' : ''}`}>{value}</span>
+    <span className={`text-[14px] text-foreground ${mono ? 'font-mono' : ''}`}>
+      {value}
+    </span>
   );
   return (
     <div className="flex items-start gap-3 py-2.5">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
       <div className="min-w-0">
-        <span className="font-display text-xs font-semibold text-primary block text-primary/70 font-medium">{label}</span>
+        <span className="font-display text-xs font-semibold text-primary block text-primary/70 font-medium">
+          {label}
+        </span>
         {href ? (
           <a href={href} className="underline-offset-4 hover:underline">
             {body}
@@ -175,7 +179,7 @@ function NextActionBand({
       data-testid="next-action-band"
     >
       <div className="min-w-0">
-         <p className="luxxy-kicker text-[11px] text-primary/70">Next action</p>
+        <p className="luxxy-kicker text-[11px] text-primary/70">Next action</p>
         {closed ? (
           <p className="mt-1 font-display text-lg font-semibold text-primary">
             Closed as {lead.stage === 'won' ? 'won' : 'lost'}
@@ -192,7 +196,8 @@ function NextActionBand({
             {lead.nextAction}
             {lead.nextActionDueAt && (
               <span className="ml-2 font-sans text-[13px] font-normal text-primary/70 font-medium">
-                due {formatDateTime(lead.nextActionDueAt)} · {relativeTime(lead.nextActionDueAt)}
+                due {formatDateTime(lead.nextActionDueAt)} ·{" "}
+                {relativeTime(lead.nextActionDueAt)}
               </span>
             )}
           </p>
@@ -296,7 +301,9 @@ function DealPanel({ deal }: { deal: LeadDeal | null }) {
           ['Balance', deal.balancePence],
         ].map(([label, value]) => (
           <div key={label as string} className="flex items-center justify-between py-3">
-            <dt className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">{label}</dt>
+            <dt className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">
+              {label}
+            </dt>
             <dd className="luxxy-price-inline text-[15px] text-primary">
               {formatPence(value as number)}
             </dd>
@@ -340,7 +347,9 @@ function OutcomePanel({
           {lead.stage === 'won' ? 'Won' : 'Lost'}
         </p>
         {lead.outcomeReason && (
-          <p className="mt-2 text-[14px] text-foreground">{lead.outcomeReason}</p>
+          <p className="mt-2 text-[14px] text-foreground">
+            {lead.outcomeReason}
+          </p>
         )}
         <Button
           type="button"
@@ -509,6 +518,25 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
+      <div
+        className="sticky top-[var(--site-header-height)] z-20 border-y border-border bg-background px-3 py-2"
+        data-testid="lead-context-bar"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-sm">
+          <span className="font-semibold">{lead.customerName}</span>
+          <span className="text-xs text-muted-foreground">
+            {lead.vehicleTitle || lead.vehicleRegistration ||
+              "Vehicle to be confirmed"}
+          </span>
+        </div>
+        <p className="mt-1 truncate text-xs">
+          <span className="text-muted-foreground">Next: </span>
+          {lead.nextAction || "Set a follow-up action"}
+          {lead.nextActionDueAt
+            ? ` · ${formatDateTime(lead.nextActionDueAt)}`
+            : ""}
+        </p>
+      </div>
       <NextActionBand lead={lead} onSave={save} saving={saving} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">

@@ -160,13 +160,13 @@
     font-family: var(--font-display);
     font-size: .72rem;
     font-weight: 700;
-    letter-spacing: .06em;
+    letter-spacing: .025em;
     line-height: 1;
   }
   .luxxy-label {
     font-size: .75rem;
     font-weight: 700;
-    letter-spacing: .06em;
+    letter-spacing: .025em;
     line-height: 1.2;
     font-family: var(--font-display);
   }
@@ -198,3 +198,14 @@
 }
 @keyframes luxxy-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes luxxy-image-settle { from { opacity: 0; } to { opacity: 1; } }
+
+@layer components {
+  .vehicle-card { transition: border-color 180ms ease, box-shadow 180ms ease; }
+  .vehicle-card-heading h3 { min-height: 2.8em; }
+  .vehicle-card-heading > p { min-height: 3em; }
+  .luxxy-price { font-variant-numeric: lining-nums tabular-nums; }
+  .gallery-photo { animation: gallery-photo-in 180ms ease-out both; }
+  .portal-workspace { --border: 40 10% 87%; }
+  .portal-workspace .portal-panel { border-radius: 2px; }
+}
+@keyframes gallery-photo-in { from { opacity: .65; } to { opacity: 1; } }

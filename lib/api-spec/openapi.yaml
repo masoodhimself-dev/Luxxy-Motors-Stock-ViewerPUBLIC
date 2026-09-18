@@ -1743,10 +1743,27 @@ components:
           items:
             $ref: "#/components/schemas/RecentHandover"
       required: [schemaVersion, handovers]
+    DealerPresentation:
+      type: object
+      additionalProperties: false
+      description: Optional showroom content. Empty values are not presented as factual claims.
+      properties:
+        heroImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        heroImageAlt: { type: string, maxLength: 200 }
+        showroomImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        showroomImageAlt: { type: string, maxLength: 200 }
+        teamImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        teamImageAlt: { type: string, maxLength: 200 }
+        teamIntroduction: { type: string, maxLength: 1000 }
+        visitInstructions: { type: string, maxLength: 1000 }
+        parkingInstructions: { type: string, maxLength: 1000 }
+        reviewsUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        includedInformation: { type: string, maxLength: 1000 }
     DealerSettings:
       type: object
       additionalProperties: false
       properties:
+        presentation: { $ref: "#/components/schemas/DealerPresentation" }
         identity: { $ref: "#/components/schemas/DealerIdentity" }
         contact: { $ref: "#/components/schemas/DealerContact" }
         address: { $ref: "#/components/schemas/DealerAddress" }

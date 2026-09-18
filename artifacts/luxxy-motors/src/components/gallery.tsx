@@ -1,3 +1,4 @@
+import { orderVehiclePhotos, photoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { getSafeImageUrl, cn } from '@/lib/utils';
@@ -17,12 +18,10 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [touchStart, setTouchStart] = useState<number | null>(null);
-  const allImages = useMemo(() => {
-    const result = [...images];
-    if (heroImage && !result.some((image) => getSafeImageUrl(image) === heroImage))
-      result.unshift(heroImage);
-    return result;
-  }, [images, heroImage]);
+  const allImages = useMemo(
+    () => orderVehiclePhotos(images, heroImage),
+    [images, heroImage],
+  );
   const index = Math.min(activeIndex, Math.max(0, allImages.length - 1));
   const previous = () => setActiveIndex((index + allImages.length - 1) % allImages.length);
   const next = () => setActiveIndex((index + 1) % allImages.length);
@@ -36,7 +35,11 @@ export function Gallery({ images, heroImage }: GalleryProps) {
       setTouchStart(null);
     },
   };
-  const renderImage = (imageIndex: number, className: string, eager = false) => {
+  const renderImage = (
+    imageIndex: number,
+    className: string,
+    eager = false,
+  ) => {
     const url = getSafeImageUrl(allImages[imageIndex]);
     return failedImages.has(url) ? (
       <div
@@ -50,7 +53,10 @@ export function Gallery({ images, heroImage }: GalleryProps) {
       </div>
     ) : (
       <img
+        key={url}
         src={url}
+        decoding="async"
+        fetchPriority={eager ? "high" : "auto"}
         alt={imageCaption(allImages[imageIndex]) || `Vehicle photograph ${imageIndex + 1}`}
         className={className}
         loading={eager ? 'eager' : 'lazy'}
@@ -75,7 +81,11 @@ export function Gallery({ images, heroImage }: GalleryProps) {
           className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted"
           {...touchHandlers}
         >
-          {renderImage(index, 'absolute inset-0 h-full w-full object-contain', true)}
+          {renderImage(
+            index,
+            "gallery-photo absolute inset-0 h-full w-full object-contain",
+            true,
+          )}
           <DialogTrigger asChild>
             <button
               type="button"
@@ -119,6 +129,39 @@ export function Gallery({ images, heroImage }: GalleryProps) {
             {index + 1} / {allImages.length} photographs
           </span>
         </div>
+        {new Set(allImages.map(photoGroup)).size > 1 && (
+          <div
+            className="mt-3 flex flex-wrap gap-1 border-b border-border"
+            aria-label="Photograph sections"
+          >
+            {(["Exterior", "Interior", "Details", "Other"] as const)
+              .filter((group) =>
+                allImages.some((image) => photoGroup(image) === group),
+              )
+              .map((group) => (
+                <button
+                  type="button"
+                  key={group}
+                  aria-pressed={photoGroup(allImages[index]) === group}
+                  onClick={() => {
+                    const target = allImages.findIndex(
+                      (image) => photoGroup(image) === group,
+                    );
+                    setActiveIndex(target);
+                    thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                  }}
+                  className={cn(
+                    "min-h-11 border-b-2 px-3 text-xs",
+                    photoGroup(allImages[index]) === group
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground",
+                  )}
+                >
+                  {group}
+                </button>
+              ))}
+          </div>
+        )}
         {allImages.length > 1 && (
           <div
             className="mt-3 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-2"
@@ -183,7 +226,9 @@ export function Gallery({ images, heroImage }: GalleryProps) {
           </button>
           <p className="text-center text-sm" aria-live="polite">
             {index + 1} / {allImages.length}
-            <span className="ml-3 text-muted-foreground">{imageCaption(allImages[index])}</span>
+            <span className="ml-3 text-muted-foreground">
+              {imageCaption(allImages[index])}
+            </span>
           </p>
           <button type="button" onClick={next} aria-label="Next photograph" className={arrowClass}>
             <ChevronRight className="h-5 w-5" />

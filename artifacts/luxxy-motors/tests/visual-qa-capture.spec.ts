@@ -9,7 +9,12 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
   test(`capture final visual QA at ${name} size`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width, height });
-    const directory = resolve('../../docs/screenshots/ui-qa');
+    const directory = resolve(
+      "../../docs/screenshots",
+      process.env.LUXXY_QA_SCREENSHOT_SET === "template-refinement"
+        ? "template-refinement"
+        : "ui-qa",
+    );
     await mkdir(directory, { recursive: true });
     const capture = async (screen: string) => {
       await expect(page.locator('#main-content h1')).toBeVisible();
@@ -59,6 +64,13 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.getByTestId('tab-settings').click();
     await expect(page.getByTestId('input-identity-name')).toHaveValue('Luxxy Motors');
     await capture('settings');
+    if (process.env.LUXXY_QA_SCREENSHOT_SET === "template-refinement") {
+      await page.getByTestId("button-settings-nav-presentation").click();
+      await page.locator("#settings-presentation").screenshot({
+        path: resolve(directory, `onboarding-${name}.png`),
+        animations: 'disabled',
+      });
+    }
     await page.goto('/find-my-car');
     for (const choice of ['10000-15000', 'saloon', 'diesel', 'automatic', 'commute']) {
       await page.getByTestId(`option-${choice}`).click();

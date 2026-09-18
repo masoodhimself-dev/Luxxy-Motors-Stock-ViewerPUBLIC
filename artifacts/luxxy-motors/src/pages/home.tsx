@@ -1,3 +1,10 @@
+import { DealershipVisit } from "@/components/dealership-visit";
+import { ShowroomPhoto } from "@/components/showroom-photo";
+import {
+  readBrowseSession,
+  saveBrowseSession,
+  restoreBrowsePosition,
+} from "@/lib/browse-session";
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
@@ -6,7 +13,12 @@ import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle, formatPrice } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { focusHomeTarget, flushPendingHomeTarget, scrollToHomeTarget } from '@/lib/home-navigation';
+import {
+  focusHomeTarget,
+  flushPendingHomeTarget,
+  scrollToHomeTarget,
+  hasPendingHomeTarget,
+} from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
 import { ArrowRight, Grid2X2, List, Search, Check, ArrowUpRight, MapPin } from 'lucide-react';
@@ -38,14 +50,26 @@ export default function Home() {
       enabled: dealerConfig.recentHandovers.enabled,
     },
   });
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(
+    () => readBrowseSession().showAll === true,
+  );
   const [stockView, setStockView] = useState<'cards' | 'compact'>(() =>
     window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards',
   );
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const saved = readBrowseSession().filters;
+    return saved &&
+      Object.keys(defaultFilters).every(
+        (key) =>
+          typeof saved[key as keyof FilterState] ===
+          typeof defaultFilters[key as keyof FilterState],
+      )
+      ? saved
+      : defaultFilters;
+  });
 
   const filteredCars = useMemo(() => {
     if (!stock) return [];
@@ -114,13 +138,22 @@ export default function Home() {
     return result;
   }, [stock, filters]);
 
-  useEffect(() => {
+  const changeFilters = (next: FilterState) => {
+    setFilters(next);
     setShowAll(false);
-  }, [filters]);
+  };
+  useEffect(() => {
+    saveBrowseSession({ filters, showAll });
+  }, [filters, showAll]);
 
   useEffect(() => {
     if (!isLoading) {
-      requestAnimationFrame(flushPendingHomeTarget);
+      requestAnimationFrame(() => {
+        if (hasPendingHomeTarget()) {
+          restoreBrowsePosition(true);
+          flushPendingHomeTarget();
+        } else restoreBrowsePosition();
+      });
     }
   }, [isLoading]);
 
@@ -183,18 +216,18 @@ export default function Home() {
     <div className="luxxy-shell min-h-screen">
       <section className="border-b border-border bg-secondary/40 pt-[var(--site-header-height)]">
         <div className="container mx-auto grid items-stretch lg:grid-cols-2">
-          <div className="flex flex-col justify-center px-4 py-7 sm:px-6 sm:py-10 lg:py-8 lg:pl-8 lg:pr-12">
-            <p className="luxxy-kicker mb-3">
+          <div className="flex flex-col justify-center px-4 py-4 sm:px-6 sm:py-8 lg:py-8 lg:pl-8 lg:pr-12">
+            <p className="luxxy-kicker mb-2 sm:mb-3">
               {dealerConfig.hero.announcement ||
                 `Independent car dealership · ${dealerConfig.address?.city || 'UK'}`}
             </p>
             <h1 id="home-heading" tabIndex={-1} className="heading-1 max-w-xl text-primary">
               {dealerConfig.hero.copy}
             </h1>
-            <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base whitespace-pre-wrap">
+            <p className="mt-3 hidden max-w-lg text-sm sm:block leading-relaxed text-muted-foreground sm:text-base whitespace-pre-wrap">
               {dealerConfig.hero.subcopy}
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               {dealerConfig.hero.primaryCta && (
                 <Button asChild>
                   <a href="#stock">
@@ -210,28 +243,48 @@ export default function Home() {
               )}
             </div>
           </div>
-          {featuredCar && (
+          {(featuredCar || dealerConfig.presentation?.heroImageUrl) && (
             <Link
-              href={`/vehicle/${featuredCar.id}`}
-              className="group relative hidden h-[320px] overflow-hidden bg-muted lg:block"
-              aria-label={`Explore ${vehicleDisplayTitle(featuredCar)}`}
+              href={
+                dealerConfig.presentation?.heroImageUrl
+                  ? "/#stock"
+                  : `/vehicle/${featuredCar!.id}`
+              }
+              className="group relative block overflow-hidden bg-secondary"
+              aria-label={
+                dealerConfig.presentation?.heroImageUrl
+                  ? "Explore the showroom"
+                  : `Explore ${vehicleDisplayTitle(featuredCar)}`
+              }
+              data-testid="showroom-hero-photo"
             >
-              <img
-                src={getThumbnailUrl(featuredCar)}
-                alt={vehicleDisplayTitle(featuredCar)}
-                className="h-full w-full object-cover"
-                fetchPriority="high"
+              <ShowroomPhoto
+                src={
+                  dealerConfig.presentation?.heroImageUrl ||
+                  getThumbnailUrl(featuredCar)
+                }
+                alt={
+                  dealerConfig.presentation?.heroImageAlt ||
+                  vehicleDisplayTitle(featuredCar)
+                }
+                priority
+                className="aspect-[4/3] sm:aspect-[16/9] lg:h-full lg:min-h-[360px] lg:aspect-auto"
               />
-              <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-4 bg-primary/95 px-6 py-4 text-primary-foreground">
+              <div className="absolute bottom-0 inset-x-0 flex items-center justify-between gap-4 bg-primary/95 px-4 py-3 text-primary-foreground sm:px-6">
                 <div>
-                  <span className="text-[11px] tracking-wide text-primary-foreground/75">
-                    In the showroom
+                  <span className="text-[11px] text-primary-foreground/75">
+                    {dealerConfig.presentation?.heroImageUrl
+                      ? dealerConfig.identity.name
+                      : "In the showroom"}
                   </span>
                   <p className="mt-1 text-sm font-medium">
-                    {vehicleDisplayTitle(featuredCar)}
-                    {featuredCar.price
+                    {dealerConfig.presentation?.heroImageUrl
+                      ? "Explore our current stock"
+                      : vehicleDisplayTitle(featuredCar)}
+                    {!dealerConfig.presentation?.heroImageUrl &&
+                    featuredCar?.price != null
                       ? ` · ${formatPrice(featuredCar.price, featuredCar.currency)}`
-                      : ''}
+                      : ""}
                   </p>
                 </div>
                 <ArrowUpRight className="h-5 w-5 shrink-0" />
@@ -254,11 +307,12 @@ export default function Home() {
         </div>
       )}
 
-      <section id="stock" data-home-section className="py-8 md:py-10">
+      <section id="stock" data-home-section className="py-6 md:py-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="mb-3 sm:mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="luxxy-kicker mb-2">Our collection</p>
+              <p className="luxxy-kicker mb-2 hidden sm:inline-flex">
+                Our collection</p>
               <h2 id="vehicle-results-heading" tabIndex={-1} className="section-heading">
                 {showAll ? 'All stock' : 'Latest arrivals'}
               </h2>
@@ -280,7 +334,7 @@ export default function Home() {
           <Filters
             cars={stock?.cars || []}
             filters={filters}
-            setFilters={setFilters}
+            setFilters={changeFilters}
             vehicleCount={stockCount}
             onSearch={() => {
               trackEvent('showroom_filter_applied', {
@@ -448,7 +502,9 @@ export default function Home() {
                     data-testid="recent-handover"
                     className="border-t border-border pt-4"
                   >
-                    <p className="text-xs text-muted-foreground">{handover.handoverMonth}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {handover.handoverMonth}
+                    </p>
                     <h3 className="mt-2 font-semibold">{name}</h3>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {[v.year, v.bodyType, v.fuel, v.transmission].filter(Boolean).join(' · ')}
@@ -469,14 +525,17 @@ export default function Home() {
         >
           <div className="container mx-auto grid gap-8 px-4 sm:px-6 lg:grid-cols-[.85fr_1.15fr] lg:gap-20 lg:px-8">
             <div>
-              <p className="luxxy-kicker mb-3">Why Luxxy Motors</p>
+              <p className="luxxy-kicker mb-3">
+                Why {dealerConfig.identity.name}
+              </p>
               <h2 id="about-heading" tabIndex={-1} className="heading-2">
                 A more considered way
                 <br className="hidden sm:block" /> to buy your next car.
               </h2>
               <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
                 Clear details, straightforward conversations and time to make the right decision.
-                Visit our {dealerConfig.address?.city || 'UK'} showroom and get to know the car
+                Visit our {" "}
+                {dealerConfig.address?.city || 'UK'} showroom and get to know the car
                 before you choose.
               </p>
               <Link href="/enquire?type=viewing" className="text-link mt-4">
@@ -487,8 +546,12 @@ export default function Home() {
             <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
               {dealerConfig.whyBuy.map((item, index) => (
                 <article key={item.title} className="border-t border-border pt-4">
-                  <p className="text-xs tabular-nums text-accent">0{index + 1}</p>
-                  <h3 className="mt-3 font-display text-base font-semibold">{item.title}</h3>
+                  <p className="text-xs tabular-nums text-accent">
+                    0{index + 1}
+                  </p>
+                  <h3 className="mt-3 font-display text-base font-semibold">
+                    {item.title}
+                  </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {item.description}
                   </p>
@@ -548,6 +611,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <DealershipVisit />
     </div>
   );
 }

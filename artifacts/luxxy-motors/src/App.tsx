@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+import { RouteLoading } from "@/components/route-loading";
 import { useEffect, useRef, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ClerkProvider, useClerk } from '@clerk/react';
@@ -18,17 +20,26 @@ import { clerkAppearance } from '@/lib/clerk-appearance';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import Home from '@/pages/home';
-import FindMyCar from '@/pages/find-my-car';
-import CarDetail from '@/pages/car-detail';
-import Saved from '@/pages/saved';
-import Compare from '@/pages/compare';
-import Portal from '@/pages/portal';
-import Enquire from '@/pages/enquire';
-import Signing from '@/pages/signing';
-import CustomerDetails from '@/pages/customer-details';
-import Viewing from '@/pages/viewing';
+const FindMyCar = lazy(() => import('@/pages/find-my-car'));
+const CarDetail = lazy(() => import("@/pages/car-detail"));
+const Saved = lazy(() => import("@/pages/saved"));
+const Compare = lazy(() => import("@/pages/compare"));
+const Portal = lazy(() => import("@/pages/portal"));
+const Enquire = lazy(() => import("@/pages/enquire"));
+const Signing = lazy(() => import("@/pages/signing"));
+const CustomerDetails = lazy(() => import('@/pages/customer-details'));
+const Viewing = lazy(() => import("@/pages/viewing"));
 import NotFound from '@/pages/not-found';
-import { StaffSignIn, StaffSignUp } from '@/pages/staff-access';
+const StaffSignIn = lazy(() =>
+  import('@/pages/staff-access').then((module) => ({
+    default: module.StaffSignIn,
+  })),
+);
+const StaffSignUp = lazy(() =>
+  import('@/pages/staff-access').then((module) => ({
+    default: module.StaffSignUp,
+  })),
+);
 
 const queryClient = new QueryClient();
 
@@ -59,7 +70,8 @@ function Router() {
   return (
     <Layout>
       <RoutedErrorBoundary>
-        <Switch>
+        <Suspense fallback={<RouteLoading />}>
+          <Switch>
           <Route path="/" component={Home} />
           <Route path="/find-my-car" component={FindMyCar} />
           <Route path="/vehicle/:id" component={CarDetail} />
@@ -77,6 +89,7 @@ function Router() {
           <Route path="/sign-up/*?" component={StaffSignUp} />
           <Route component={NotFound} />
         </Switch>
+        </Suspense>
       </RoutedErrorBoundary>
     </Layout>
   );

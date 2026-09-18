@@ -1108,7 +1108,7 @@ export const getGetContactIntentsUrl = (params?: GetContactIntentsParams,) => {
 }
 
 /**
- * Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
+ * Requires authorized staff. Returns the most recent call/WhatsApp taps for the configured dealer, newest first.
  * @summary List recent call and WhatsApp taps
  */
 export const getContactIntents = async (params?: GetContactIntentsParams, options?: Parameters<typeof customFetch>[1]): Promise<ContactIntent[]> => {
@@ -1133,7 +1133,7 @@ export const getGetContactIntentsQueryKey = (params?: GetContactIntentsParams,) 
     }
 
 
-export const getGetContactIntentsQueryOptions = <TData = Awaited<ReturnType<typeof getContactIntents>>, TError = ErrorType<ApiError>>(params?: GetContactIntentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContactIntents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetContactIntentsQueryOptions = <TData = Awaited<ReturnType<typeof getContactIntents>>, TError = ErrorType<void | ApiError>>(params?: GetContactIntentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContactIntents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1152,14 +1152,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetContactIntentsQueryResult = NonNullable<Awaited<ReturnType<typeof getContactIntents>>>
-export type GetContactIntentsQueryError = ErrorType<ApiError>
+export type GetContactIntentsQueryError = ErrorType<void | ApiError>
 
 
 /**
  * @summary List recent call and WhatsApp taps
  */
 
-export function useGetContactIntents<TData = Awaited<ReturnType<typeof getContactIntents>>, TError = ErrorType<ApiError>>(
+export function useGetContactIntents<TData = Awaited<ReturnType<typeof getContactIntents>>, TError = ErrorType<void | ApiError>>(
  params?: GetContactIntentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getContactIntents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

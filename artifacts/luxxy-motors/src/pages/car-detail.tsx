@@ -1,3 +1,4 @@
+import { buyerInformation } from "@/lib/buyer-information";
 import { useState, type MouseEvent } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import {
@@ -146,8 +147,11 @@ export default function CarDetail() {
   const keyFacts: { label: string; value: string; testId?: string }[] = [
     { label: 'Reg Year', value: registrationYear, testId: 'text-registration-year' },
     {
-      label: 'Mileage',
-      value: car.mileage ? formatMileage(car.mileage) : car.mileageText || 'Unknown',
+      label: "Mileage",
+      value:
+        car.mileage != null
+          ? formatMileage(car.mileage)
+          : car.mileageText || 'Unknown',
     },
     {
       label: 'Fuel/Engine',
@@ -202,7 +206,7 @@ export default function CarDetail() {
     <div className="luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-2 py-4">
-          <Link href="/#stock" className="text-link text-muted-foreground">
+          <Link href="/" className="text-link text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
             Back to showroom
           </Link>
@@ -225,11 +229,11 @@ export default function CarDetail() {
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} />
           </div>
-          <aside className="min-w-0 border-y border-border bg-card px-5 py-6 sm:rounded-md sm:border sm:p-7 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <aside className="min-w-0 border-t border-border py-6 lg:border-t-0 lg:py-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
             <p className="luxxy-kicker mb-3">
               {car.registrationBand || car.year || 'Available now'}
             </p>
-            <h1 className="font-display text-[1.9rem] font-semibold leading-tight tracking-tight text-primary">
+            <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">
               {vehicleLabel}
             </h1>
             {(car.variant || car.trim) && (
@@ -239,16 +243,22 @@ export default function CarDetail() {
             )}
             <div className="my-5 border-b border-border pb-5">
               <p className="luxxy-price text-[2rem]">
-                {car.price ? formatPrice(car.price, car.currency) : 'Price on application'}
+                {car.price
+                  ? formatPrice(car.price, car.currency)
+                  : 'Price on application'}
               </p>
               {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-                <p className="mt-1 text-xs text-muted-foreground">{car.priceType}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {car.priceType}
+                </p>
               )}
             </div>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-5">
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
-                  <dt className="text-xs text-muted-foreground">{fact.label}</dt>
+                  <dt className="text-xs text-muted-foreground">
+                    {fact.label}
+                  </dt>
                   <dd className="mt-1 text-sm font-medium" data-testid={fact.testId}>
                     {fact.value}
                   </dd>
@@ -266,8 +276,11 @@ export default function CarDetail() {
                 />
               </div>
             )}
-            {damageDisclosure && <a href="#vehicle-history" className="mt-5 inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">{damageDisclosure.label} recorded · Read vehicle history</a>}
-            <div className="mt-6 flex flex-col gap-3">
+            {damageDisclosure && (
+              <a href="#vehicle-history" className="mt-5 inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">
+                {damageDisclosure.label} recorded · Read vehicle history</a>
+            )}
+            <div className="mt-6 flex flex-col gap-3 border-y border-border bg-card px-4 py-5">
               <Button asChild size="lg">
                 <a
                   href={bookingHref}
@@ -356,6 +369,48 @@ export default function CarDetail() {
                   'Speak to our team for the full vehicle description, service history and preparation details. We’ll be happy to answer your questions before you visit.'}
               </p>
             </section>
+            <section
+              className="mt-8 border-t border-border pt-7"
+              aria-labelledby="buyer-information-heading"
+            >
+              <h2 id="buyer-information-heading" className="section-heading">
+                Before you decide
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                History, condition and what comes with the car. Ask our team
+                about any details still to be confirmed.
+              </p>
+              <dl className="mt-4 divide-y divide-border">
+                {buyerInformation(car).map((item) => (
+                  <div
+                    key={item.label}
+                    className="grid grid-cols-[.8fr_1.2fr] gap-5 py-3 text-sm"
+                  >
+                    <dt className="text-muted-foreground">{item.label}</dt>
+                    <dd
+                      className={
+                        item.value
+                          ? "whitespace-pre-line"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {item.value || "Please ask our team"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {dealerConfig.presentation?.includedInformation && (
+                <p className="mt-4 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+                  {dealerConfig.presentation.includedInformation}
+                </p>
+              )}
+              <Link
+                href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}
+                className="text-link mt-3"
+              >
+                Ask about these details <ArrowRight className="h-4 w-4" />
+              </Link>
+            </section>
             {features.length > 0 && (
               <section
                 className="mt-8 border-t border-border pt-7"
@@ -393,7 +448,7 @@ export default function CarDetail() {
         data-testid="mobile-conversion-bar"
       >
         <p className="luxxy-price hidden shrink-0 px-1 min-[375px]:block">
-          {car.price ? formatPrice(car.price, car.currency) : 'POA'}
+          {car.price ? formatPrice(car.price, car.currency) : "POA"}
         </p>
         <Button asChild className="min-h-12 min-w-0 flex-1">
           <a

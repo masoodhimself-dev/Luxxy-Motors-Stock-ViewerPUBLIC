@@ -163,6 +163,7 @@ vi.mock('@/lib/stock-context', () => ({
 
 vi.mock('@/lib/home-navigation', () => ({
   flushPendingHomeTarget: vi.fn(),
+  hasPendingHomeTarget: () => false,
   scrollToHomeTarget,
   focusHomeTarget,
 }));
@@ -198,6 +199,7 @@ function resultTitles() {
 }
 
 beforeEach(() => {
+  window.sessionStorage.clear();
   vi.clearAllMocks();
   window.localStorage.clear();
   overrideSettings = dealerConfigFixture;

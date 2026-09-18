@@ -1,4 +1,6 @@
+import type { DealerPresentation } from "@workspace/api-client-react";
 export interface DealerConfig {
+  presentation?: DealerPresentation;
   identity: {
     name: string;
     logoText?: string;
