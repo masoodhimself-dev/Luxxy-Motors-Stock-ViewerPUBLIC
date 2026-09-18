@@ -10,6 +10,7 @@ import {
   Info,
   Share2,
   Check,
+  FileText,
 } from 'lucide-react';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -341,6 +342,28 @@ export default function CarDetail() {
               <Link href="/compare" className="text-link text-xs text-muted-foreground">
                 View comparison
               </Link>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4">
+              <a
+                href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-link min-h-11 text-sm"
+                aria-label={`View PDF details and photographs for ${vehicleLabel} (opens in a new tab)`}
+                data-testid="link-vehicle-pdf"
+              >
+                <FileText className="h-4 w-4" />
+                View vehicle PDF
+              </a>
+              <a
+                href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`}
+                download
+                className="text-link min-h-11 text-xs font-normal text-muted-foreground"
+                aria-label={`Download PDF details and photographs for ${vehicleLabel}`}
+                data-testid="link-download-vehicle-pdf"
+              >
+                Download
+              </a>
             </div>
           </aside>
           <div className="min-w-0 pb-10 lg:col-start-1 lg:row-start-2">

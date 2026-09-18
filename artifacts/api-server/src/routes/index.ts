@@ -9,11 +9,13 @@ import customerIntakeRouter from "./customer-intake";
 import leadsRouter from "./leads";
 import viewingsRouter from "./viewings";
 import contactIntentsRouter from "./contact-intents";
+import vehicleBrochureRouter from "./vehicle-brochure";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(stockRouter);
+router.use(vehicleBrochureRouter);
 router.use(recentHandoversRouter);
 router.use(enquiriesRouter);
 router.use(viewingsRouter);

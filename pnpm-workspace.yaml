@@ -4,6 +4,9 @@ packages:
   - lib/integrations/*
   - scripts
 
+allowBuilds:
+  core-js: false
+
 autoInstallPeers: false
 
 catalog:

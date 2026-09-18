@@ -325,6 +325,16 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export type PublicVehicle = Awaited<ReturnType<typeof projectVehicles>>[number];
 
+/** Read-only brochure lookup: match /stock across every import source. */
+export async function findVisibleStockVehicle(id: string): Promise<PublicVehicle | null> {
+  if (!UUID_PATTERN.test(id)) return null;
+  const settings = config();
+  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId)));
+  if (!vehicle || !visible(vehicle, settings)) return null;
+  const [projected] = await projectVehicles([vehicle]);
+  return projected ?? null;
+}
+
 /**
  * A single vehicle exactly as the website is allowed to show it, or null when
  * the id is unknown, malformed or the vehicle is no longer on sale. Shared with

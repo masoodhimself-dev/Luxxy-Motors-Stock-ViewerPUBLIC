@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure",
+    "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
     "test:portal": "node ./test-build.mjs src/portal.integration.test.ts && node --enable-source-maps --test ./dist-test/portal.integration.test.mjs",
     "test:stock": "node ./test-build.mjs src/stock.integration.test.ts && node --enable-source-maps --test ./dist-test/stock.integration.test.mjs",
     "test:sales": "node ./test-build.mjs src/sales.integration.test.ts && node --enable-source-maps --test ./dist-test/sales.integration.test.mjs",
@@ -28,6 +29,7 @@
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
     "http-proxy-middleware": "^4.2.0",
+    "jspdf": "4.2.1",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
     "zod": "catalog:"

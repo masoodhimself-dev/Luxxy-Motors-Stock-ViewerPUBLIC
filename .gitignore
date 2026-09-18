@@ -3,6 +3,7 @@
 # compiled output
 dist
 dist-test
+/output/pdf/
 tmp
 out-tsc
 *.tsbuildinfo
