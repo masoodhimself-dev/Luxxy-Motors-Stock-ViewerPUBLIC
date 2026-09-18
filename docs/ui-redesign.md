@@ -283,3 +283,7 @@ Implemented the six approved homepage changes: complete-frame hero photography w
 See [the homepage refinement report](homepage-polish.md) for the full change inventory, verification and remaining limitations, and [ten fresh screenshots](screenshots/homepage-polish/) for desktop/mobile evidence. The preview photography remains illustrative archived stock; each business can supply genuine photographs using the existing onboarding fields. Existing stored copy is respected and was not overwritten.
 
 Final checks: 123 frontend tests, 55 browser checks, four settings tests, two database-safety tests, workspace typechecking and all workspace builds passed. Existing sourcemap/chunk-size diagnostics remain. Database integration suites and physical-device checks were not run. No backend code, database, API contract, authentication, sales rule or production deployment was changed; no merge, push or deployment was performed.
+
+### Supplied Mercedes hero — 18 September 2026
+
+Replaced the preview's warehouse hero with the user's supplied Luxxy Mercedes brand artwork, optimised to a bundled 1536×1024 JPEG. It links to the stock collection with no individual vehicle price. Custom images and featured selections retain precedence, and other dealership identities retain their own stock imagery. See [the updated report](homepage-polish.md) and [desktop/mobile captures](screenshots/brand-hero/). All 127 frontend tests, 55 browser checks, workspace typechecking and builds passed. This update changes no backend code or production data.

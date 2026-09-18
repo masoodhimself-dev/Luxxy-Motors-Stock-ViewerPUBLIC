@@ -62,7 +62,7 @@ export const previewSettings: DealerSettings = {
     primaryCta: dealerConfig.hero.primaryCta,
     secondaryCta: dealerConfig.hero.secondaryCta,
   },
-  featuredVehicleIds: ["preview-2"],
+  featuredVehicleIds: [],
   warranty: {
     enabled: dealerConfig.warranty?.enabled ?? true,
     title: dealerConfig.warranty?.title || 'Warranty',

@@ -68,3 +68,13 @@ PORT=4175 BASE_PATH=/ NODE_ENV=production pnpm run build
 ```
 
 An initial unit assertion was updated because the filter count intentionally moved from Reset to Filters. The new screenshot collector now locates the make field by its accessible combobox name. A temporary JSX formatting typo was corrected after it interrupted two checks during live reloading; the final complete run used unchanged source and passed all 55 checks. No final test failures remain.
+
+## User-supplied hero artwork — 18 September 2026
+
+The user subsequently provided the dark blue Mercedes image. The homepage now uses an optimised bundled JPEG of that image for the Luxxy identity when no custom hero photograph or featured vehicle is selected. The original artwork and source file are unchanged. The supplied car remains fully framed at the reviewed desktop and phone sizes.
+
+The caption is “Explore our current stock” and links to the collection without attaching a real vehicle's model/price to illustrative artwork. Custom homepage images take precedence, followed by explicit featured-vehicle selections. Other dealership identities retain stock photography, so the Luxxy number plate does not appear automatically on another business's template. Onboarding explains these choices. No backend or storage changes were needed.
+
+Fresh full-page and opening-screen captures are in `docs/screenshots/brand-hero/`. Four additional frontend regressions cover brand artwork without a price, other businesses, featured selections and custom-photo precedence.
+
+Validation for the hero replacement: **127 frontend tests**, **55 browser checks**, full workspace typechecking and all workspace builds passed. Captures use `LUXXY_QA_SCREENSHOT_SET=brand-hero`; they also verify that the bundled image loads at its expected resolution and that clicking the hero reaches the stock heading. Existing build advisories remain. Backend/database integration tests were not rerun for this frontend asset change. No production access, merge, push or deployment was performed.

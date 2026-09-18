@@ -11,7 +11,7 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.setViewportSize({ width, height });
     const directory = resolve(
       "../../docs/screenshots",
-      ["template-refinement", "homepage-polish"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
+      ["template-refinement", "homepage-polish", "brand-hero"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
         ? process.env.LUXXY_QA_SCREENSHOT_SET!
         : "ui-qa",
     );
@@ -36,6 +36,15 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.goto('/');
     await expect(page.getByTestId('card-vehicle-preview-1')).toBeVisible();
     await capture('home');
+    if (process.env.LUXXY_QA_SCREENSHOT_SET === 'brand-hero') {
+      const hero = page.getByTestId('showroom-hero-photo');
+      await expect(hero).toHaveAttribute('href', '/#stock');
+      await expect(hero).not.toContainText('£');
+      await expect(hero.locator('img')).toHaveJSProperty('naturalWidth', 1536);
+      await hero.click();
+      await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeInViewport();
+      return;
+    }
     if (process.env.LUXXY_QA_SCREENSHOT_SET === 'homepage-polish') {
       await page.locator('#about').screenshot({ path: resolve(directory, `introduction-${name}.png`), animations: 'disabled' });
       await page.getByTestId('card-vehicle-preview-1').screenshot({ path: resolve(directory, `vehicle-card-${name}.png`), animations: 'disabled' });

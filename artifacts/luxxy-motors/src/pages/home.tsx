@@ -1,5 +1,6 @@
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
+import luxxyHeroImage from "@/assets/luxxy-hero.jpg";
 import {
   readBrowseSession,
   saveBrowseSession,
@@ -196,6 +197,20 @@ export default function Home() {
       .find((car) => car && getThumbnailUrl(car)) ??
     stock?.cars.find((car) => getThumbnailUrl(car));
 
+  const configuredHeroImage = dealerConfig.presentation?.heroImageUrl;
+  // The supplied brand artwork is not a stock vehicle. Custom imagery and
+  // explicit featured selections take precedence; other dealers keep stock photography.
+  const usesLuxxyBrandImage =
+    !configuredHeroImage &&
+    !dealerConfig.featuredVehicleIds?.length &&
+    /^luxxy\s+motors$/i.test(dealerConfig.identity.name.trim());
+  const heroImage = configuredHeroImage || (usesLuxxyBrandImage ? luxxyHeroImage : undefined);
+  const heroAlt = configuredHeroImage
+    ? dealerConfig.presentation?.heroImageAlt || `${dealerConfig.identity.name} showroom`
+    : usesLuxxyBrandImage
+      ? "Illustrative Luxxy brand image: a dark blue Mercedes-Benz overlooking a lake"
+      : vehicleDisplayTitle(featuredCar);
+
   const dealershipPoints = (
     <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
       {(dealerConfig.whyBuy || []).map((item) => (
@@ -263,16 +278,16 @@ export default function Home() {
               </ul>
             )}
           </div>
-          {(featuredCar || dealerConfig.presentation?.heroImageUrl) && (
+          {(featuredCar || heroImage) && (
             <Link
               href={
-                dealerConfig.presentation?.heroImageUrl
+                heroImage
                   ? "/#stock"
                   : `/vehicle/${featuredCar!.id}`
               }
               className="group block overflow-hidden bg-secondary"
               aria-label={
-                dealerConfig.presentation?.heroImageUrl
+                heroImage
                   ? "Explore the showroom"
                   : `Explore ${vehicleDisplayTitle(featuredCar)}`
               }
@@ -280,29 +295,26 @@ export default function Home() {
             >
               <ShowroomPhoto
                 src={
-                  dealerConfig.presentation?.heroImageUrl ||
+                  heroImage ||
                   getThumbnailUrl(featuredCar)
                 }
-                alt={
-                  dealerConfig.presentation?.heroImageAlt ||
-                  vehicleDisplayTitle(featuredCar)
-                }
+                alt={heroAlt}
                 priority
-                fit="contain"
+                fit={usesLuxxyBrandImage ? "cover" : "contain"}
                 className="aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]"
               />
               <div className="flex items-center justify-between gap-4 bg-primary px-4 py-2 text-primary-foreground">
                 <div>
                   <span className="sr-only">
-                    {dealerConfig.presentation?.heroImageUrl
+                    {heroImage
                       ? dealerConfig.identity.name
                       : "In the showroom"}
                   </span>
                   <p className="text-sm font-medium">
-                    {dealerConfig.presentation?.heroImageUrl
+                    {heroImage
                       ? "Explore our current stock"
                       : vehicleDisplayTitle(featuredCar)}
-                    {!dealerConfig.presentation?.heroImageUrl &&
+                    {!heroImage &&
                     featuredCar?.price != null
                       ? ` · ${formatPrice(featuredCar.price, featuredCar.currency)}`
                       : ""}

@@ -151,7 +151,9 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
   };
 });
 
-let overrideSettings = dealerConfigFixture;
+let overrideSettings: typeof dealerConfigFixture & {
+  presentation?: { heroImageUrl?: string; heroImageAlt?: string };
+} = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
   useDealerSettings: () => ({ settings: overrideSettings, isLoading: false, isError: false }),
@@ -207,6 +209,45 @@ beforeEach(() => {
 });
 
 describe('showroom search filters', () => {
+  it('links Luxxy brand artwork to stock without attaching a vehicle price', () => {
+    overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' } };
+    renderHome();
+    const hero = screen.getByTestId('showroom-hero-photo');
+    expect(hero).toHaveAttribute('href', '/#stock');
+    expect(hero).toHaveTextContent('Explore our current stock');
+    expect(hero).not.toHaveTextContent('£');
+    expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
+  });
+
+  it('keeps other dealerships on their own photographed stock', () => {
+    renderHome();
+    const hero = screen.getByTestId('showroom-hero-photo');
+    expect(hero).toHaveAttribute('href', '/vehicle/bmw-1-series');
+    expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
+  });
+
+  it('lets explicit featured stock replace the bundled Luxxy artwork', () => {
+    overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' }, featuredVehicleIds: ['bmw-3-series'] };
+    renderHome();
+    expect(screen.getByTestId('showroom-hero-photo')).toHaveAttribute('href', '/vehicle/bmw-3-series');
+    expect(screen.getByTestId('showroom-hero-photo')).toHaveTextContent('£10,000');
+  });
+
+  it('respects a configured homepage image ahead of brand artwork and featured stock', () => {
+    overrideSettings = {
+      ...dealerConfigFixture,
+      identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' },
+      featuredVehicleIds: ['bmw-3-series'],
+      presentation: { heroImageUrl: 'https://example.com/showroom.jpg', heroImageAlt: 'Our dealership exterior' },
+    };
+    renderHome();
+    const hero = screen.getByTestId('showroom-hero-photo');
+    expect(hero).toHaveAttribute('href', '/#stock');
+    expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://example.com/showroom.jpg');
+    expect(within(hero).getByRole('img')).toHaveAttribute('alt', 'Our dealership exterior');
+    expect(hero).not.toHaveTextContent('£');
+  });
+
   it('shows anonymised recent handovers before the how-we-work section', () => {
     recentHandoversState.value = {
       schemaVersion: 1,
