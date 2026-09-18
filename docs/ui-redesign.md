@@ -265,3 +265,13 @@ The following source/test inventory supplements the initial redesign inventory a
 - `artifacts/luxxy-motors/tests/redesign-journeys.spec.ts`
 - `artifacts/luxxy-motors/tests/secure-link-showroom.spec.ts`
 - `artifacts/luxxy-motors/tests/visual-qa-capture.spec.ts`
+
+## Template refinement and additional visual QA — 17–18 September 2026
+
+The subsequent request to implement all six product recommendations and visual refinements is documented in [the template refinement report](template-refinement.md), with [42 fresh screenshots](screenshots/template-refinement/). This adds the shared drawn wordmark, mobile homepage photography, consistent stock-card rhythm, buyer information, caption-grouped gallery, return-to-stock state, visit/team content, quieter staff presentation and focused worklists. Staff and secondary customer routes now load separately.
+
+The user clarified that the site is a reusable template and explicitly authorised extending settings storage. The new optional `presentation` content uses the existing dealer-settings JSONB column and API, including compatibility for older settings clients. No migration was required or run. No other backend functionality, authentication or sales rule was changed. No production data was read or written, and nothing was merged, pushed or deployed.
+
+Final validation for this refinement: 123 frontend tests; 55 browser checks; four settings compatibility tests; two database-safety tests; complete workspace typechecking and production builds passed. Full database integration tests were not rerun because there was no prepared disposable local database and migrations were explicitly excluded. See the report for exact commands, scope and remaining verification.
+
+The main website JavaScript chunk is now approximately 528KB / 159KB gzip, down from 796KB / 224KB. A 390px local first load made two image requests instead of eighteen. Vite’s 500KB advisory and existing tooltip sourcemap warning remain. Real device/performance checks and each business’s genuine content and photography are still needed before production acceptance.
