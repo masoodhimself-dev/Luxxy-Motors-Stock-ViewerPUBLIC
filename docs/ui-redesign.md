@@ -287,3 +287,9 @@ Final checks: 123 frontend tests, 55 browser checks, four settings tests, two da
 ### Supplied Mercedes hero — 18 September 2026
 
 Replaced the preview's warehouse hero with the user's supplied Luxxy Mercedes brand artwork, optimised to a bundled 1536×1024 JPEG. It links to the stock collection with no individual vehicle price. Custom images and featured selections retain precedence, and other dealership identities retain their own stock imagery. See [the updated report](homepage-polish.md) and [desktop/mobile captures](screenshots/brand-hero/). All 127 frontend tests, 55 browser checks, workspace typechecking and builds passed. This update changes no backend code or production data.
+
+### Booking-page refinements — 18 September 2026
+
+Implemented the four approved booking refinements: quieter price below the photograph, compact specifications with fine dividers, “Your selected car” / “Change car” labels, and tighter mobile spacing. Change car now opens stock using existing focus-aware navigation on both screen sizes; mobile vehicle names wrap. Desktop no longer duplicates the selected car inside the form. Booking rules and payloads are unchanged.
+
+See [the booking report](booking-polish.md) and [eight desktop/mobile screenshots](screenshots/booking-polish/). All 127 frontend tests, 55 browser checks, workspace typechecking and builds passed; two capture checks and the workspace build were rerun after the final visual adjustment. Existing Vite diagnostics remain. Additional design suggestions are documented for review and have not been implemented. No backend or production changes, migration, merge, push or deployment occurred.

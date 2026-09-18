@@ -113,11 +113,13 @@ export function EnquiryForm({
   vehicle,
   stockCars = [],
   onTypeChange,
+  onChangeCar,
 }: {
   initialType?: EnquiryType;
   vehicle?: Car;
   stockCars?: Car[];
   onTypeChange?: (type: EnquiryType) => void;
+  onChangeCar?: () => void;
 }) {
   const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
@@ -312,14 +314,14 @@ export function EnquiryForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6" data-testid="form-enquiry">
-      <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-6">
+    <form onSubmit={submit} className="space-y-4 sm:space-y-6" data-testid="form-enquiry">
+      <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-4 sm:pb-6">
         <div>
           <p className="luxxy-label text-accent">{isViewing ? `Step ${viewingStep} of 2` : 'Your details'}</p>
-          <h2 id="enquiry-form-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">
+          <h2 id="enquiry-form-heading" className="mt-2 font-display text-xl font-semibold leading-tight tracking-tight text-primary sm:mt-3 sm:text-2xl">
             {isViewing ? (viewingStep === 1 ? 'Choose a date and time' : 'Your contact details') : 'How can we help?'}
           </h2>
-          <p className="mt-3 max-w-md text-sm leading-7 text-primary/70">
+          <p className={`mt-2 max-w-md text-sm leading-6 text-primary/70 sm:mt-3 sm:leading-7 ${isViewing && viewingStep === 1 ? 'hidden sm:block' : ''}`}>
             {isViewing
               ? viewingStep === 1
                 ? 'Pick your date and time first. You can add your details next.'
@@ -330,12 +332,17 @@ export function EnquiryForm({
       </div>
 
       {vehicle && !isPartExchange && (
-        <div className="flex items-center justify-between gap-4 border border-border/70 bg-secondary/35 px-4 py-3.5" data-testid="card-enquiry-vehicle">
+        <div className="flex items-start justify-between gap-3 lg:hidden" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
-            <p className="luxxy-label text-primary/70">{isViewing ? 'Your chosen car' : 'Enquiry about'}</p>
-            <p className="mt-1.5 truncate text-sm font-bold text-primary">{vehicleLabel}</p>
+            <p className="luxxy-label text-primary/70">Your selected car</p>
+            <p className="mt-1.5 text-sm font-semibold leading-5 text-primary">{vehicleLabel}</p>
           </div>
-          {vehicle.price != null && <p className="luxxy-price-inline shrink-0 text-[13px] text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
+          <div className="shrink-0 text-right">
+            {vehicle.price != null && <p className="luxxy-price-inline text-sm font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
+            <Link href="/#stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+              Change car
+            </Link>
+          </div>
         </div>
       )}
 
@@ -513,7 +520,7 @@ export function EnquiryForm({
       {/* min-w-0 stops the browser's default fieldset min-content sizing from letting the
           scrollable date strip push the whole panel wider than the card. */}
       {isViewing && viewingStep === 1 && (
-        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-5 border-t border-border pt-5" data-testid="section-viewing-availability">
+        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-5 border-t border-border pt-5 lg:border-t-0 lg:pt-0" data-testid="section-viewing-availability">
           <legend className="sr-only">Choose a time to visit</legend>
           <p className="text-xs leading-relaxed text-muted-foreground">30-minute visits · Monday to Saturday · 10:00–18:00 · London time</p>
           <label className="block sm:hidden" data-testid="label-viewing-date-mobile">

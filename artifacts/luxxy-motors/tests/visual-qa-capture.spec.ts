@@ -11,7 +11,7 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.setViewportSize({ width, height });
     const directory = resolve(
       "../../docs/screenshots",
-      ["template-refinement", "homepage-polish", "brand-hero"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
+      ["template-refinement", "homepage-polish", "brand-hero", "booking-polish"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
         ? process.env.LUXXY_QA_SCREENSHOT_SET!
         : "ui-qa",
     );
@@ -29,10 +29,23 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
       });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await page.screenshot({ path: resolve(directory, `${screen}-${name}.png`), fullPage: true, animations: 'disabled' });
-      if (['home', 'vehicle', 'staff-desk', 'settings'].includes(screen)) {
+      if (['home', 'vehicle', 'staff-desk', 'settings', 'booking', 'booking-details'].includes(screen)) {
         await page.screenshot({ path: resolve(directory, `${screen}-${name}-viewport.png`), animations: 'disabled' });
       }
     };
+    if (process.env.LUXXY_QA_SCREENSHOT_SET === 'booking-polish') {
+      await page.goto('/enquire?type=viewing&vehicleId=preview-4');
+      await expect(page.getByTestId('group-viewing-slots')).toBeVisible();
+      await capture('booking');
+      await page.getByTestId('group-viewing-slots').getByRole('button').first().click();
+      await page.getByTestId('button-continue-to-details').click();
+      await expect(page.getByTestId('input-customer-name')).toBeFocused();
+      await capture('booking-details');
+      await page.getByRole('link', { name: 'Change car', exact: true }).filter({ visible: true }).click();
+      await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeFocused();
+      await expect(page.getByRole('heading', { name: 'Latest arrivals' })).toBeInViewport();
+      return;
+    }
     await page.goto('/');
     await expect(page.getByTestId('card-vehicle-preview-1')).toBeVisible();
     await capture('home');

@@ -1,5 +1,5 @@
 import { useMemo, useState, type MouseEvent } from 'react';
-import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Camera, Car as CarIcon, CircleAlert, Clock3, Fuel, Gauge, Mail, MapPin, Phone, Settings2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { useStock } from '@/lib/stock-context';
@@ -56,39 +56,40 @@ export default function Enquire() {
   const vehicleImage = vehicle ? getThumbnailUrl(vehicle) : '';
   const vehicleHighlights = vehicle
     ? [
-        { label: 'Year', value: vehicle.year ? String(vehicle.year) : null, icon: CalendarDays },
-        { label: 'Mileage', value: vehicle.mileage ? formatMileage(vehicle.mileage) : vehicle.mileageText, icon: Gauge },
-        { label: 'Fuel', value: vehicle.fuel, icon: Fuel },
-        { label: 'Gearbox', value: vehicle.transmission, icon: Settings2 },
-      ].filter((highlight): highlight is { label: string; value: string; icon: typeof CarIcon } => Boolean(highlight.value))
+        { label: 'Year', value: vehicle.year ? String(vehicle.year) : null },
+        { label: 'Mileage', value: vehicle.mileage ? formatMileage(vehicle.mileage) : vehicle.mileageText },
+        { label: 'Fuel', value: vehicle.fuel },
+        { label: 'Gearbox', value: vehicle.transmission },
+      ].filter((highlight): highlight is { label: string; value: string } => Boolean(highlight.value))
     : [];
+  const changeCar = () => navigateToHomeTarget('stock', location, setLocation);
 
   return (
-    <div className="luxxy-shell min-h-screen bg-background pb-20 pt-8 md:pt-12">
+    <div className="luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
+          className="inline-flex min-h-11 items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Back to showroom
         </Link>
-        <div className="mt-5 grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
+        <div className="mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
           <section className="flex flex-col lg:sticky lg:top-24">
-            <p className="font-display text-[12px] font-semibold tracking-normal text-accent mb-4">
+            <p className="mb-2 font-display text-[12px] font-semibold tracking-normal text-accent sm:mb-4">
               {copy.eyebrow}
             </p>
             <h1 className="heading-2 text-primary">{copy.title}</h1>
-            <p className="mt-6 text-[15px] font-normal leading-relaxed text-primary/70">
+            <p className="mt-3 text-sm font-normal leading-relaxed text-primary/70 sm:mt-6 sm:text-[15px]">
               {copy.description}
             </p>
 
             {vehicle ? (
               <div className="mt-5 hidden flex-col gap-4 lg:flex" data-testid="enquiry-vehicle-summary">
-                <div className="flex items-center justify-between border-b border-primary/10 pb-4">
-                  <p className="font-display text-[13px] font-semibold tracking-normal text-primary">Selected Vehicle</p>
-                  <Link href={`/vehicle/${vehicle.id}`} className="font-display text-[11px] font-normal text-accent hover:text-primary transition-colors">
-                    Change
+                <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+                  <p className="font-display text-[13px] font-semibold text-primary">Your selected car</p>
+                  <Link href="/#stock" onClick={(event) => { event.preventDefault(); changeCar(); }} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+                    Change car
                   </Link>
                 </div>
                 <div className="relative hidden aspect-[4/3] w-full overflow-hidden rounded-md bg-muted lg:block">
@@ -99,25 +100,25 @@ export default function Enquire() {
                       <Camera className="h-8 w-8" />
                     </div>
                   )}
-                  {vehicle.price && (
-                    <div className="absolute bottom-3 right-3 bg-background px-3 py-1 font-display text-lg font-semibold tracking-tight text-primary border border-primary shadow-none">
-                      {formatPrice(vehicle.price, vehicle.currency)}
-                    </div>
-                  )}
                 </div>
                 <div>
-                  <h3 className="font-display text-xl font-semibold tracking-tight text-primary">{selectedVehicleName}</h3>
+                  <h2 className="font-display text-xl font-semibold tracking-tight text-primary">{selectedVehicleName}</h2>
                   <p className="mt-2 text-xs font-normal text-primary/70">{vehicle.variant || vehicle.trim}</p>
+                  {vehicle.price != null && (
+                    <p className="luxxy-price-inline mt-3 text-xl font-semibold text-primary">
+                      {formatPrice(vehicle.price, vehicle.currency)}
+                    </p>
+                  )}
                 </div>
                 {vehicleHighlights.length > 0 && (
-                  <div className="hidden grid-cols-2 gap-4 border-t border-border pt-4 lg:grid">
-                    {vehicleHighlights.map(({ label, value, icon: Icon }) => (
-                      <div key={label} className="flex flex-col gap-1 border border-primary/10 bg-primary/5 p-3" data-testid={`highlight-${label.toLowerCase()}`}>
-                        <span className="font-display text-[10px] font-semibold tracking-normal text-muted-foreground flex items-center gap-2"><Icon className="h-3.5 w-3.5" />{label}</span>
-                        <span className="font-bold text-[13px] tracking-normal text-primary">{value}</span>
+                  <dl className="grid grid-cols-2 gap-x-6">
+                    {vehicleHighlights.map(({ label, value }) => (
+                      <div key={label} className="border-t border-border py-3" data-testid={`highlight-${label.toLowerCase()}`}>
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
+                        <dd className="mt-1 text-sm font-semibold text-primary">{value}</dd>
                       </div>
                     ))}
-                  </div>
+                  </dl>
                 )}
               </div>
             ) : (
@@ -144,7 +145,7 @@ export default function Enquire() {
           </section>
 
           <section className="min-w-0" aria-labelledby="enquiry-form-heading">
-            <div className="surface p-5 sm:p-7">
+            <div className="surface p-4 sm:p-7">
               {isLoading ? (
                 <div className="space-y-6 py-12" data-testid="loading-enquiry-vehicle">
                   <div className="h-4 w-44 animate-pulse bg-primary/20 border border-primary" />
@@ -173,7 +174,7 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              <EnquiryForm onTypeChange={setType} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
+              <EnquiryForm onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
