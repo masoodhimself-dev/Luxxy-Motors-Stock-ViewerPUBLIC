@@ -211,16 +211,22 @@ export default function Home() {
       ? "Illustrative Luxxy brand image: a dark blue Mercedes-Benz overlooking a lake"
       : vehicleDisplayTitle(featuredCar);
 
-  const dealershipPoints = (
-    <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+  const heroPhotoSource = heroImage || getThumbnailUrl(featuredCar);
+  const introductionImage = dealerConfig.presentation?.showroomImageUrl || heroPhotoSource;
+  const introductionAlt = dealerConfig.presentation?.showroomImageUrl
+    ? dealerConfig.presentation.showroomImageAlt || `${dealerConfig.identity.name} showroom`
+    : heroAlt;
+
+  const dealershipPoints = dealerConfig.whyBuy?.length ? (
+    <ul className="divide-y divide-border border-y border-border">
       {(dealerConfig.whyBuy || []).map((item) => (
-        <article key={item.title} className="border-t border-border pt-3">
-          <h3 className="text-sm font-semibold">{item.title}</h3>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
-        </article>
+        <li key={item.title} className="grid gap-1.5 py-4 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)] sm:gap-6">
+          <h3 className="text-sm font-semibold leading-relaxed">{item.title}</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+        </li>
       ))}
-    </div>
-  );
+    </ul>
+  ) : null;
 
   if (isLoading)
     return (
@@ -294,10 +300,7 @@ export default function Home() {
               data-testid="showroom-hero-photo"
             >
               <ShowroomPhoto
-                src={
-                  heroImage ||
-                  getThumbnailUrl(featuredCar)
-                }
+                src={heroPhotoSource}
                 alt={heroAlt}
                 priority
                 fit={usesLuxxyBrandImage ? "cover" : "contain"}
@@ -538,31 +541,32 @@ export default function Home() {
         <section
           id="about"
           data-home-section
+          aria-labelledby="about-heading"
           className="section-space border-t border-border bg-card"
         >
-          <div className={cn("container mx-auto grid gap-6 px-4 sm:px-6 lg:gap-12 lg:px-8", dealerConfig.presentation?.showroomImageUrl ? "lg:grid-cols-[1.1fr_1fr] lg:items-center" : "lg:grid-cols-2")}>
-            {dealerConfig.presentation?.showroomImageUrl && (
+          <div className={cn("container mx-auto grid gap-6 px-4 sm:px-6 lg:gap-x-12 lg:px-8", introductionImage ? "lg:grid-cols-[1.1fr_1fr]" : "lg:grid-cols-2")}>
+            <div className={introductionImage ? "lg:col-start-2" : undefined}>
+              <p className="luxxy-kicker mb-3">Why {dealerConfig.identity.name}</p>
+              <h2 id="about-heading" tabIndex={-1} className="heading-2">Come and see for yourself.</h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+                {dealerConfig.address?.city ? `Visit us in ${dealerConfig.address.city}` : "Visit the showroom"}
+                {" to see the car and talk through the details."}
+              </p>
+            </div>
+            {introductionImage && (
               <ShowroomPhoto
-                src={dealerConfig.presentation.showroomImageUrl}
-                alt={dealerConfig.presentation.showroomImageAlt || dealerConfig.identity.name}
-                className="aspect-[4/3]"
+                src={introductionImage}
+                alt={introductionAlt}
+                fit="contain"
+                className="aspect-[3/2] lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-center"
               />
             )}
-            <div>
-              <p className="luxxy-kicker mb-3">Why {dealerConfig.identity.name}</p>
-              <h2 id="about-heading" tabIndex={-1} className="heading-2">Take a closer look.</h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                {dealerConfig.address?.city ? `Visit us in ${dealerConfig.address.city}. ` : "Visit the showroom. "}
-                See the car, ask your questions and take your time.
-              </p>
-              <Link href="/enquire?type=viewing" className="text-link mt-2">
-                Arrange a visit <ArrowRight className="h-4 w-4" />
+            <div className={introductionImage ? "lg:col-start-2" : undefined}>
+              {dealershipPoints}
+              <Link href="/enquire?type=viewing" className="text-link mt-4 min-h-11">
+                Arrange a viewing <ArrowRight className="h-4 w-4" />
               </Link>
-              {dealerConfig.presentation?.showroomImageUrl && (
-                <div className="mt-4">{dealershipPoints}</div>
-              )}
             </div>
-            {!dealerConfig.presentation?.showroomImageUrl && dealershipPoints}
           </div>
         </section>
       )}

@@ -152,7 +152,7 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
 });
 
 let overrideSettings: typeof dealerConfigFixture & {
-  presentation?: { heroImageUrl?: string; heroImageAlt?: string };
+  presentation?: { heroImageUrl?: string; heroImageAlt?: string; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
@@ -217,6 +217,9 @@ describe('showroom search filters', () => {
     expect(hero).toHaveTextContent('Explore our current stock');
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
+    const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
+    expect(within(introduction).getByRole('img')).toHaveAttribute('src', within(hero).getByRole('img').getAttribute('src'));
+    expect(within(introduction).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
   });
 
   it('keeps other dealerships on their own photographed stock', () => {
@@ -224,6 +227,7 @@ describe('showroom search filters', () => {
     const hero = screen.getByTestId('showroom-hero-photo');
     expect(hero).toHaveAttribute('href', '/vehicle/bmw-1-series');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
+    expect(within(screen.getByRole('region', { name: 'Come and see for yourself.' })).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
   });
 
   it('lets explicit featured stock replace the bundled Luxxy artwork', () => {
@@ -246,6 +250,23 @@ describe('showroom search filters', () => {
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://example.com/showroom.jpg');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', 'Our dealership exterior');
     expect(hero).not.toHaveTextContent('£');
+  });
+
+  it('keeps a configured introduction photo and dealer points instead of replacing them with defaults', () => {
+    overrideSettings = {
+      ...dealerConfigFixture,
+      presentation: {
+        heroImageUrl: 'https://example.com/hero.jpg',
+        showroomImageUrl: 'https://example.com/team.jpg',
+        showroomImageAlt: 'Our team outside the dealership',
+      },
+    };
+    renderHome();
+    const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
+    expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
+    expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
+    expect(within(introduction).getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
+    expect(within(introduction).getByRole('link', { name: 'Arrange a viewing' })).toHaveAttribute('href', '/enquire?type=viewing');
   });
 
   it('shows anonymised recent handovers before the how-we-work section', () => {

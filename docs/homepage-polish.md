@@ -78,3 +78,21 @@ The caption is “Explore our current stock” and links to the collection witho
 Fresh full-page and opening-screen captures are in `docs/screenshots/brand-hero/`. Four additional frontend regressions cover brand artwork without a price, other businesses, featured selections and custom-photo precedence.
 
 Validation for the hero replacement: **127 frontend tests**, **55 browser checks**, full workspace typechecking and all workspace builds passed. Captures use `LUXXY_QA_SCREENSHOT_SET=brand-hero`; they also verify that the bundled image loads at its expected resolution and that clicking the hero reaches the stock heading. Existing build advisories remain. Backend/database integration tests were not rerun for this frontend asset change. No production access, merge, push or deployment was performed.
+
+## Dealership introduction — 18 September 2026
+
+The user requested a more useful introduction and the same Mercedes photograph as the homepage hero. The heading is now “Come and see for yourself.”, with a short location-aware introduction and three practical template points:
+
+- **View it in person:** Choose a viewing time and tell us which car you’d like to see.
+- **The details upfront:** Check the price, mileage and specification before you travel. Ask us about anything you’d like clarified.
+- **Your next steps:** Talk through the paperwork, payment and collection arrangements before you decide.
+
+The previous four benefit blocks are replaced by a simple list with fine horizontal dividers. Desktop shows a full-frame 3:2 photograph alongside the heading, rows and “Arrange a viewing” link. Mobile reads in the order heading, photograph, points, viewing link. Existing type, colours and focus styles are retained; the section now has an accessible region label.
+
+The introduction reuses the resolved hero photo unless a business supplies a separate showroom photograph in onboarding. The read-only preview's old archived MG showroom image override was removed, so it now uses the supplied Mercedes artwork. Other dealership identities retain their own hero/stock imagery, and an explicit showroom photograph and custom why-buy points are respected. The onboarding hint explains the fallback. No new image manipulation or generation was needed, and no stored settings were changed.
+
+Fresh evidence: [desktop section](screenshots/introduction-polish/introduction-desktop.png), [mobile section](screenshots/introduction-polish/introduction-mobile.png), [full desktop homepage](screenshots/introduction-polish/home-desktop.png), and [full mobile homepage](screenshots/introduction-polish/home-mobile.png). The full pages use 1440×1000 and 390×844 viewports. The cropped mobile section uses a taller canvas at the same width so the sticky site header does not obscure its heading.
+
+Validation: **128 frontend tests passed**, **55 browser checks passed**, and complete workspace typechecking/builds passed. Two capture/CTA checks were rerun after adjusting the screenshot canvas. The checks verify identical hero/introduction image sources, successful image decoding, the viewing link, custom showroom-image precedence and retention of custom dealer copy. The introduction and viewing link were also used manually in the in-app browser. Existing Vite tooltip sourcemap and chunk-size advisories remain; physical-device checks and backend/database integration suites were not run for this frontend-only change.
+
+Changed source: `src/pages/home.tsx`, `src/config/dealer.ts`, `src/components/dealer-settings-panel.tsx`, `preview/settings.ts`, `src/pages/home.test.tsx` and `tests/visual-qa-capture.spec.ts`, all under `artifacts/luxxy-motors/`. Documentation and six new images are under `docs/`. Capture command uses `LUXXY_QA_SCREENSHOT_SET=introduction-polish` with the existing browser-suite command above. No merge, push, deployment, migration, backend/API/authentication/sales-rule or production-data change was made.

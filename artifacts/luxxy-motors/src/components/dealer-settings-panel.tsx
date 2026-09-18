@@ -747,7 +747,7 @@ export function DealerSettingsPanel() {
               <div key={subject} className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : "Showroom"} photograph URL`}
-                  hint={subject === "hero" ? "HTTPS · use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · appears beside the dealership introduction" : "HTTPS"}
+                  hint={subject === "hero" ? "HTTPS · use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to reuse the homepage photo" : "HTTPS"}
                   error={validationErrors[`presentation.${subject}ImageUrl`]}
                 >
                   <Input

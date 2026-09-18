@@ -4,8 +4,9 @@ import { dealerConfig } from '../src/config/dealer';
 // Complete API-shaped defaults for the read-only design preview.
 export const previewSettings: DealerSettings = {
   presentation: {
-    showroomImageUrl: "https://m.atcdn.co.uk/a/media/w1024/de0d72d64f95418f8cfa07852510e4e2.jpg",
-    showroomImageAlt: "Sample photography from archived stock: an MG HS photographed indoors. Replace with your own showroom photograph.",
+    // With no separate showroom image, the introduction reuses the homepage photo.
+    showroomImageUrl: "",
+    showroomImageAlt: "",
     visitInstructions:
       "Sample visiting information: viewings by appointment. Choose a date and time online, or call the showroom before travelling.",
     parkingInstructions:

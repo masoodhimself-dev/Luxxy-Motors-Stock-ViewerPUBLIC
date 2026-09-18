@@ -11,7 +11,7 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.setViewportSize({ width, height });
     const directory = resolve(
       "../../docs/screenshots",
-      ["template-refinement", "homepage-polish", "brand-hero", "booking-polish"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
+      ["template-refinement", "homepage-polish", "brand-hero", "booking-polish", "introduction-polish"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
         ? process.env.LUXXY_QA_SCREENSHOT_SET!
         : "ui-qa",
     );
@@ -49,6 +49,25 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.goto('/');
     await expect(page.getByTestId('card-vehicle-preview-1')).toBeVisible();
     await capture('home');
+    if (process.env.LUXXY_QA_SCREENSHOT_SET === 'introduction-polish') {
+      const introduction = page.getByRole('region', { name: 'Come and see for yourself.' });
+      const heroImage = page.getByTestId('showroom-hero-photo').getByRole('img');
+      await expect(introduction.getByRole('img')).toHaveAttribute('src', (await heroImage.getAttribute('src'))!);
+      await expect(introduction.getByRole('img')).toHaveJSProperty('naturalWidth', 1536);
+      // Give a tall mobile section enough canvas that the sticky site header
+      // cannot cover its title in the element capture. Full-page evidence above
+      // retains the standard 390×844 viewport.
+      const sectionBox = await introduction.boundingBox();
+      const headerHeight = await page.locator('[data-site-header]').evaluate((element) => element.getBoundingClientRect().height);
+      await page.setViewportSize({ width, height: Math.max(height, Math.ceil(sectionBox!.height + headerHeight + 48)) });
+      await introduction.evaluate((element, offset) => window.scrollTo({ top: scrollY + element.getBoundingClientRect().top - offset, behavior: 'instant' }), headerHeight + 24);
+      await introduction.screenshot({ path: resolve(directory, `introduction-${name}.png`), animations: 'disabled' });
+      await page.setViewportSize({ width, height });
+      await introduction.getByRole('link', { name: 'Arrange a viewing' }).click();
+      await expect(page.getByRole('heading', { name: 'Book a viewing', exact: true })).toBeVisible();
+      await expect(page.getByTestId('group-viewing-slots')).toBeVisible();
+      return;
+    }
     if (process.env.LUXXY_QA_SCREENSHOT_SET === 'brand-hero') {
       const hero = page.getByTestId('showroom-hero-photo');
       await expect(hero).toHaveAttribute('href', '/#stock');

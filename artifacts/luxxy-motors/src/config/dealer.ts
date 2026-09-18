@@ -141,9 +141,8 @@ export const dealerConfig: DealerConfig = {
     "Straightforward buying",
   ],
   whyBuy: [
-    { title: "Quality Vehicles", description: "Carefully selected used vehicles." },
-    { title: "Transparent Buying", description: "Clear vehicle information and straightforward pricing." },
-    { title: "Warranty Options", description: "Warranty options available on eligible vehicles." },
-    { title: "Customer Support", description: "Support throughout the purchase and handover process." },
+    { title: "View it in person", description: "Choose a viewing time and tell us which car you’d like to see." },
+    { title: "The details upfront", description: "Check the price, mileage and specification before you travel. Ask us about anything you’d like clarified." },
+    { title: "Your next steps", description: "Talk through the paperwork, payment and collection arrangements before you decide." },
   ]
 };
