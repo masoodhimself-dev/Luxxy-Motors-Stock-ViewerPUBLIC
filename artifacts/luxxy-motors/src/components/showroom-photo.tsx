@@ -6,11 +6,13 @@ export function ShowroomPhoto({
   alt,
   className,
   priority = false,
+  fit = "cover",
 }: {
   src: string;
   alt: string;
   className?: string;
   priority?: boolean;
+  fit?: "cover" | "contain";
 }) {
   const [failedSrc, setFailedSrc] = useState("");
   return (
@@ -30,7 +32,7 @@ export function ShowroomPhoto({
           fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           onError={() => setFailedSrc(src)}
-          className="absolute inset-0 h-full w-full object-cover"
+          className={cn("absolute inset-0 h-full w-full", fit === "contain" ? "object-contain" : "object-cover")}
         />
       )}
     </div>

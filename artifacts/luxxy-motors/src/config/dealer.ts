@@ -102,7 +102,7 @@ export const dealerConfig: DealerConfig = {
   social: {},
   hero: {
     copy: "Carefully chosen cars.",
-    subcopy: "Quality used vehicles. Straightforward buying. Exceptional service.",
+    subcopy: "Clear information, straightforward advice and viewings at your pace.",
     primaryCta: "Browse cars",
     secondaryCta: "Find my car",
   },

@@ -11,8 +11,8 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.setViewportSize({ width, height });
     const directory = resolve(
       "../../docs/screenshots",
-      process.env.LUXXY_QA_SCREENSHOT_SET === "template-refinement"
-        ? "template-refinement"
+      ["template-refinement", "homepage-polish"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
+        ? process.env.LUXXY_QA_SCREENSHOT_SET!
         : "ui-qa",
     );
     await mkdir(directory, { recursive: true });
@@ -36,6 +36,14 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
     await page.goto('/');
     await expect(page.getByTestId('card-vehicle-preview-1')).toBeVisible();
     await capture('home');
+    if (process.env.LUXXY_QA_SCREENSHOT_SET === 'homepage-polish') {
+      await page.locator('#about').screenshot({ path: resolve(directory, `introduction-${name}.png`), animations: 'disabled' });
+      await page.getByTestId('card-vehicle-preview-1').screenshot({ path: resolve(directory, `vehicle-card-${name}.png`), animations: 'disabled' });
+      await page.getByRole('button', { name: 'Advanced search' }).click();
+      await expect(page.getByRole('combobox', { name: 'Make', exact: true })).toBeVisible();
+      await page.getByTestId('stock-search-toolbar').screenshot({ path: resolve(directory, `filters-${name}.png`), animations: 'disabled' });
+      return;
+    }
     await page.getByTestId('button-save-preview-1').click();
     await page.getByTestId('button-compare-preview-1').click();
     await page.getByTestId('button-compare-preview-2').click();

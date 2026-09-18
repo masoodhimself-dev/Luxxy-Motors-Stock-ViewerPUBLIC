@@ -9,7 +9,6 @@ export function DealershipVisit() {
   const { settings } = useDealerSettings();
   const { address, contact, hours, presentation: content = {} } = settings;
   const hasStory = Boolean(
-    content.showroomImageUrl ||
     content.teamImageUrl ||
     content.teamIntroduction ||
     content.reviewsUrl,
@@ -102,13 +101,6 @@ export function DealershipVisit() {
           </div>
           {hasStory && (
             <div className="space-y-6">
-              {content.showroomImageUrl && (
-                <ShowroomPhoto
-                  src={content.showroomImageUrl}
-                  alt={content.showroomImageAlt || settings.identity.name}
-                  className="aspect-[4/3]"
-                />
-              )}
               {(content.teamIntroduction || content.teamImageUrl) && (
                 <div className="border-t border-border pt-5">
                   {content.teamImageUrl && (

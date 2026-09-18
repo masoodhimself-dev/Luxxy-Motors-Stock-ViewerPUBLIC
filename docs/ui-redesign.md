@@ -275,3 +275,11 @@ The user clarified that the site is a reusable template and explicitly authorise
 Final validation for this refinement: 123 frontend tests; 55 browser checks; four settings compatibility tests; two database-safety tests; complete workspace typechecking and production builds passed. Full database integration tests were not rerun because there was no prepared disposable local database and migrations were explicitly excluded. See the report for exact commands, scope and remaining verification.
 
 The main website JavaScript chunk is now approximately 528KB / 159KB gzip, down from 796KB / 224KB. A 390px local first load made two image requests instead of eighteen. Vite’s 500KB advisory and existing tooltip sourcemap warning remain. Real device/performance checks and each business’s genuine content and photography are still needed before production acceptance.
+
+## Homepage composition refinement — 18 September 2026
+
+Implemented the six approved homepage changes: complete-frame hero photography with its caption below, earlier stock, compact search/sort/filter controls, tighter vehicle-card spacing, a configurable photographic dealership introduction and more grounded template copy. Dealer assurances now sit alongside the desktop introduction. At 390px the first stock card begins at about 794px, versus the previous recorded 890px; at 1280px desktop it begins at 676px. The narrowest phone layout keeps its results button full width.
+
+See [the homepage refinement report](homepage-polish.md) for the full change inventory, verification and remaining limitations, and [ten fresh screenshots](screenshots/homepage-polish/) for desktop/mobile evidence. The preview photography remains illustrative archived stock; each business can supply genuine photographs using the existing onboarding fields. Existing stored copy is respected and was not overwritten.
+
+Final checks: 123 frontend tests, 55 browser checks, four settings tests, two database-safety tests, workspace typechecking and all workspace builds passed. Existing sourcemap/chunk-size diagnostics remain. Database integration suites and physical-device checks were not run. No backend code, database, API contract, authentication, sales rule or production deployment was changed; no merge, push or deployment was performed.

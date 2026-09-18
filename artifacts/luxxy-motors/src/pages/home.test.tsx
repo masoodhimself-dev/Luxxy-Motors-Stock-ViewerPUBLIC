@@ -357,7 +357,7 @@ describe('showroom search filters', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
 
     expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
-    expect(screen.getByRole('button', { name: /Reset/i })).toHaveTextContent('(2)');
+    expect(screen.getByRole('button', { name: 'Advanced search' })).toHaveTextContent('(2)');
   });
 
   it('sorts the live results and resets every shared filter value', () => {

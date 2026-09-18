@@ -21,7 +21,7 @@ import {
 } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Grid2X2, List, Search, Check, ArrowUpRight, MapPin } from 'lucide-react';
+import { ArrowRight, Grid2X2, List, Search, Check, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
 import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';
@@ -196,6 +196,17 @@ export default function Home() {
       .find((car) => car && getThumbnailUrl(car)) ??
     stock?.cars.find((car) => getThumbnailUrl(car));
 
+  const dealershipPoints = (
+    <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+      {(dealerConfig.whyBuy || []).map((item) => (
+        <article key={item.title} className="border-t border-border pt-3">
+          <h3 className="text-sm font-semibold">{item.title}</h3>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+        </article>
+      ))}
+    </div>
+  );
+
   if (isLoading)
     return (
       <div
@@ -215,11 +226,11 @@ export default function Home() {
   return (
     <div className="luxxy-shell min-h-screen">
       <section className="border-b border-border bg-secondary/40 pt-[var(--site-header-height)]">
-        <div className="container mx-auto grid items-stretch lg:grid-cols-2">
-          <div className="flex flex-col justify-center px-4 py-4 sm:px-6 sm:py-8 lg:py-8 lg:pl-8 lg:pr-12">
+        <div className="container mx-auto grid items-center lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:gap-12 lg:px-8 lg:py-5">
+          <div className="flex flex-col justify-center px-4 py-4 sm:px-6 sm:py-6 lg:p-0">
             <p className="luxxy-kicker mb-2 sm:mb-3">
               {dealerConfig.hero.announcement ||
-                `Independent car dealership · ${dealerConfig.address?.city || 'UK'}`}
+                `Used cars ${dealerConfig.address?.city ? `in ${dealerConfig.address.city}` : "from an independent dealership"}`}
             </p>
             <h1 id="home-heading" tabIndex={-1} className="heading-1 max-w-xl text-primary">
               {dealerConfig.hero.copy}
@@ -242,6 +253,15 @@ export default function Home() {
                 </Link>
               )}
             </div>
+            {dealerConfig.trustItems?.length > 0 && (
+              <ul className="mt-5 hidden max-w-lg grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 sm:grid">
+                {dealerConfig.trustItems.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+                    <Check aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />{item}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           {(featuredCar || dealerConfig.presentation?.heroImageUrl) && (
             <Link
@@ -250,7 +270,7 @@ export default function Home() {
                   ? "/#stock"
                   : `/vehicle/${featuredCar!.id}`
               }
-              className="group relative block overflow-hidden bg-secondary"
+              className="group block overflow-hidden bg-secondary"
               aria-label={
                 dealerConfig.presentation?.heroImageUrl
                   ? "Explore the showroom"
@@ -268,16 +288,17 @@ export default function Home() {
                   vehicleDisplayTitle(featuredCar)
                 }
                 priority
-                className="aspect-[4/3] sm:aspect-[16/9] lg:h-full lg:min-h-[360px] lg:aspect-auto"
+                fit="contain"
+                className="aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]"
               />
-              <div className="absolute bottom-0 inset-x-0 flex items-center justify-between gap-4 bg-primary/95 px-4 py-3 text-primary-foreground sm:px-6">
+              <div className="flex items-center justify-between gap-4 bg-primary px-4 py-2 text-primary-foreground">
                 <div>
-                  <span className="text-[11px] text-primary-foreground/75">
+                  <span className="sr-only">
                     {dealerConfig.presentation?.heroImageUrl
                       ? dealerConfig.identity.name
                       : "In the showroom"}
                   </span>
-                  <p className="mt-1 text-sm font-medium">
+                  <p className="text-sm font-medium">
                     {dealerConfig.presentation?.heroImageUrl
                       ? "Explore our current stock"
                       : vehicleDisplayTitle(featuredCar)}
@@ -294,32 +315,17 @@ export default function Home() {
         </div>
       </section>
 
-      {dealerConfig.trustItems?.length > 0 && (
-        <div className="hidden border-b border-border bg-card sm:block">
-          <ul className="container mx-auto flex flex-wrap justify-between gap-x-6 gap-y-2 px-6 py-4 lg:px-8">
-            {dealerConfig.trustItems.map((item) => (
-              <li key={item} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Check className="h-4 w-4 text-accent" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <section id="stock" data-home-section className="py-6 md:py-10">
+      <section id="stock" data-home-section className="py-5 md:py-6">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-3 sm:mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div>
-              <p className="luxxy-kicker mb-2 hidden sm:inline-flex">
-                Our collection</p>
               <h2 id="vehicle-results-heading" tabIndex={-1} className="section-heading">
                 {showAll ? 'All stock' : 'Latest arrivals'}
               </h2>
             </div>
             {stock && (
               <p
-                className="text-xs text-muted-foreground sm:text-sm"
+                className="col-start-2 row-start-1 text-right text-xs text-muted-foreground sm:text-sm lg:col-start-3"
                 data-testid="text-filtered-stock-count"
                 role="status"
                 aria-live="polite"
@@ -330,6 +336,58 @@ export default function Home() {
                   : `${filteredCars.length} matches`}
               </p>
             )}
+            <div className="col-start-1 row-start-2 flex flex-wrap gap-1 text-xs lg:col-start-2 lg:row-start-1">
+              <button
+                type="button"
+                onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                data-testid="button-quick-automatic"
+              >
+                Automatic
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickFilter({ maxPrice: '5000' })}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                data-testid="button-quick-under-5000"
+              >
+                Under £5k
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                data-testid="button-quick-low-mileage"
+              >
+                Low miles
+              </button>
+            </div>
+            <div className="col-start-2 row-start-2 flex justify-end gap-1 lg:col-start-4 lg:row-start-1" aria-label="Vehicle display">
+              {(['cards', 'compact'] as const).map((view) => {
+                const Icon = view === 'cards' ? Grid2X2 : List;
+                return (
+                  <button
+                    key={view}
+                    type="button"
+                    aria-label={view === 'cards' ? 'Grid' : 'List'}
+                    aria-pressed={stockView === view}
+                    data-testid={`button-stock-view-${view}`}
+                    onClick={() => {
+                      setStockView(view);
+                      trackEvent('stock_view_changed', { view });
+                    }}
+                    className={cn(
+                      'grid h-11 w-11 place-items-center rounded-md border',
+                      stockView === view
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border text-muted-foreground hover:bg-secondary',
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <Filters
             cars={stock?.cars || []}
@@ -359,61 +417,8 @@ export default function Home() {
               revealResults('filter_panel');
             }}
           />
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-            <div className="flex flex-wrap gap-1 text-xs">
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
-                data-testid="button-quick-automatic"
-              >
-                Automatic
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ maxPrice: '5000' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
-                data-testid="button-quick-under-5000"
-              >
-                Under £5k
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
-                data-testid="button-quick-low-mileage"
-              >
-                Low miles
-              </button>
-            </div>
-            <div className="flex gap-1" aria-label="Vehicle display">
-              {(['cards', 'compact'] as const).map((view) => {
-                const Icon = view === 'cards' ? Grid2X2 : List;
-                return (
-                  <button
-                    key={view}
-                    type="button"
-                    aria-label={view === 'cards' ? 'Grid' : 'List'}
-                    aria-pressed={stockView === view}
-                    data-testid={`button-stock-view-${view}`}
-                    onClick={() => {
-                      setStockView(view);
-                      trackEvent('stock_view_changed', { view });
-                    }}
-                    className={cn(
-                      'grid h-11 w-11 place-items-center rounded-md border',
-                      stockView === view
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border text-muted-foreground hover:bg-secondary',
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div id="vehicle-results" data-home-section>
+
+          <div id="vehicle-results" data-home-section className="mt-4">
             {error ? (
               <div className="surface p-8" role="alert">
                 <h3 className="section-heading">Stock is temporarily unavailable</h3>
@@ -517,47 +522,35 @@ export default function Home() {
         </section>
       )}
 
-      {dealerConfig.whyBuy && dealerConfig.whyBuy.length > 0 && (
+      {(dealerConfig.presentation?.showroomImageUrl || dealerConfig.whyBuy?.length > 0) && (
         <section
           id="about"
           data-home-section
           className="section-space border-t border-border bg-card"
         >
-          <div className="container mx-auto grid gap-8 px-4 sm:px-6 lg:grid-cols-[.85fr_1.15fr] lg:gap-20 lg:px-8">
+          <div className={cn("container mx-auto grid gap-6 px-4 sm:px-6 lg:gap-12 lg:px-8", dealerConfig.presentation?.showroomImageUrl ? "lg:grid-cols-[1.1fr_1fr] lg:items-center" : "lg:grid-cols-2")}>
+            {dealerConfig.presentation?.showroomImageUrl && (
+              <ShowroomPhoto
+                src={dealerConfig.presentation.showroomImageUrl}
+                alt={dealerConfig.presentation.showroomImageAlt || dealerConfig.identity.name}
+                className="aspect-[4/3]"
+              />
+            )}
             <div>
-              <p className="luxxy-kicker mb-3">
-                Why {dealerConfig.identity.name}
+              <p className="luxxy-kicker mb-3">Why {dealerConfig.identity.name}</p>
+              <h2 id="about-heading" tabIndex={-1} className="heading-2">Take a closer look.</h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+                {dealerConfig.address?.city ? `Visit us in ${dealerConfig.address.city}. ` : "Visit the showroom. "}
+                See the car, ask your questions and take your time.
               </p>
-              <h2 id="about-heading" tabIndex={-1} className="heading-2">
-                A more considered way
-                <br className="hidden sm:block" /> to buy your next car.
-              </h2>
-              <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Clear details, straightforward conversations and time to make the right decision.
-                Visit our {" "}
-                {dealerConfig.address?.city || 'UK'} showroom and get to know the car
-                before you choose.
-              </p>
-              <Link href="/enquire?type=viewing" className="text-link mt-4">
-                Arrange a visit
-                <ArrowRight className="h-4 w-4" />
+              <Link href="/enquire?type=viewing" className="text-link mt-2">
+                Arrange a visit <ArrowRight className="h-4 w-4" />
               </Link>
+              {dealerConfig.presentation?.showroomImageUrl && (
+                <div className="mt-4">{dealershipPoints}</div>
+              )}
             </div>
-            <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
-              {dealerConfig.whyBuy.map((item, index) => (
-                <article key={item.title} className="border-t border-border pt-4">
-                  <p className="text-xs tabular-nums text-accent">
-                    0{index + 1}
-                  </p>
-                  <h3 className="mt-3 font-display text-base font-semibold">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {item.description}
-                  </p>
-                </article>
-              ))}
-            </div>
+            {!dealerConfig.presentation?.showroomImageUrl && dealershipPoints}
           </div>
         </section>
       )}

@@ -586,7 +586,7 @@ export function DealerSettingsPanel() {
             <Field label="Homepage headline" error={validationErrors['hero.copy']}>
               <Input required className="h-11 rounded-md font-display text-[15px] font-semibold focus-visible:border-accent" value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" />
             </Field>
-            <Field label="Supporting copy" error={validationErrors['hero.subcopy']}>
+            <Field label="Supporting copy" hint="Keep this short and specific. Your town appears above the headline when the announcement is empty." error={validationErrors['hero.subcopy']}>
               <Textarea required rows={3} className="rounded-md text-base focus-visible:border-accent" value={form.hero.subcopy} onChange={(event) => updateNested('hero', 'subcopy', event.target.value)} data-testid="textarea-hero-subcopy" />
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -747,7 +747,7 @@ export function DealerSettingsPanel() {
               <div key={subject} className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : "Showroom"} photograph URL`}
-                  hint="HTTPS"
+                  hint={subject === "hero" ? "HTTPS · use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · appears beside the dealership introduction" : "HTTPS"}
                   error={validationErrors[`presentation.${subject}ImageUrl`]}
                 >
                   <Input

@@ -216,7 +216,7 @@ export function CarCard({
             )}
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-baseline gap-2">
+        <div className="mt-2 flex flex-wrap items-baseline gap-2">
           <p className="luxxy-price text-2xl text-primary">
             {car.price
               ? formatPrice(car.price, car.currency)
@@ -228,7 +228,7 @@ export function CarCard({
             </span>
           )}
         </div>
-        <div className="vehicle-specs mb-4 mt-3">
+        <div className="vehicle-specs mb-3 mt-2">
           {visibleSpecs.map((spec) => (
             <span key={spec.label}>{spec.value}</span>
           ))}

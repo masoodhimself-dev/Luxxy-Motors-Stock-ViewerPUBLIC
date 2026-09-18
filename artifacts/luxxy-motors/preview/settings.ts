@@ -4,6 +4,8 @@ import { dealerConfig } from '../src/config/dealer';
 // Complete API-shaped defaults for the read-only design preview.
 export const previewSettings: DealerSettings = {
   presentation: {
+    showroomImageUrl: "https://m.atcdn.co.uk/a/media/w1024/de0d72d64f95418f8cfa07852510e4e2.jpg",
+    showroomImageAlt: "Sample photography from archived stock: an MG HS photographed indoors. Replace with your own showroom photograph.",
     visitInstructions:
       "Sample visiting information: viewings by appointment. Choose a date and time online, or call the showroom before travelling.",
     parkingInstructions:
@@ -60,7 +62,7 @@ export const previewSettings: DealerSettings = {
     primaryCta: dealerConfig.hero.primaryCta,
     secondaryCta: dealerConfig.hero.secondaryCta,
   },
-  featuredVehicleIds: [...(dealerConfig.featuredVehicleIds || [])],
+  featuredVehicleIds: ["preview-2"],
   warranty: {
     enabled: dealerConfig.warranty?.enabled ?? true,
     title: dealerConfig.warranty?.title || 'Warranty',

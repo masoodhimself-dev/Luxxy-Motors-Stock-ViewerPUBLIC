@@ -201,8 +201,7 @@
 
 @layer components {
   .vehicle-card { transition: border-color 180ms ease, box-shadow 180ms ease; }
-  .vehicle-card-heading h3 { min-height: 2.8em; }
-  .vehicle-card-heading > p { min-height: 3em; }
+  .vehicle-card-heading { @apply sm:min-h-[4.25rem]; }
   .luxxy-price { font-variant-numeric: lining-nums tabular-nums; }
   .gallery-photo { animation: gallery-photo-in 180ms ease-out both; }
   .portal-workspace { --border: 40 10% 87%; }
