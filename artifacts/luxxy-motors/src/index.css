@@ -213,3 +213,13 @@
 @layer utilities {
   .luxxy-control.border-border { border-color: hsl(var(--input)); }
 }
+
+/* Customer copies omit navigation and interactive signing controls. */
+@media print {
+  body:has(.customer-purchase) header, body:has(.customer-purchase) footer,
+  body:has(.customer-purchase) [aria-label="Preview mode"],
+  .customer-purchase .purchase-actions, .customer-purchase .purchase-agreement { display: none !important; }
+  .customer-purchase { padding: 0 !important; background: white !important; color: black !important; }
+  .customer-purchase article { break-inside: auto; }
+  .customer-purchase h2, .customer-purchase h3 { break-after: avoid; }
+}

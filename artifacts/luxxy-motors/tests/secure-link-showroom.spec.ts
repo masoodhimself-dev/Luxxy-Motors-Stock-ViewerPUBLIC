@@ -193,7 +193,7 @@ test.describe('secure customer links keep the showroom system', () => {
           }),
         );
         await page.goto(`/sign/${tokens.signing}`);
-        await expect(page.getByRole('heading', { name: 'The vehicle' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Your purchase', exact: true })).toBeVisible();
         await assertCurrentShowroomVisuals(page);
 
         await page.route(`**/api/customer-intake-sessions/${tokens.customer}`, (route) =>
@@ -313,7 +313,8 @@ test.describe('secure customer links keep the showroom system', () => {
         await page.getByLabel('Signer name').fill('Avery Morgan');
         await page.getByLabel('Signer email').fill('avery@example.com');
         await page.getByRole('button', { name: 'Sign and agree' }).click();
-        await expect(page.getByRole('heading', { name: 'THANK YOU, Avery Morgan' })).toBeVisible();
+        await expect(page.getByTestId('signing-receipt')).toContainText('Thank you, Avery Morgan');
+        await expect(page.getByRole('heading', { name: 'Your confirmation' })).toBeVisible();
         await assertCurrentShowroomVisuals(page);
       });
     });

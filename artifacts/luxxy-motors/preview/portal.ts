@@ -162,6 +162,7 @@ export function previewResponse(path: string, query: URLSearchParams): unknown {
         packHash: 'sample',
         snapshot: {
           vehicle: {
+            id: previewStock.cars[0].id,
             value: previewStock.cars[0].title,
             registration: previewStock.cars[0].registration,
             mileage: previewStock.cars[0].mileage,
