@@ -7,26 +7,35 @@ test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1' || process.env.LUXXY_QA_SCREEN
 
 for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844]] as const) {
   test(`capture final visual QA at ${name} size`, async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     await page.setViewportSize({ width, height });
     const directory = resolve(
       "../../docs/screenshots",
-      ["template-refinement", "homepage-polish", "brand-hero", "booking-polish", "introduction-polish"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
+      ["template-refinement", "homepage-polish", "brand-hero", "booking-polish", "introduction-polish", "design-check-fixes"].includes(process.env.LUXXY_QA_SCREENSHOT_SET || "")
         ? process.env.LUXXY_QA_SCREENSHOT_SET!
         : "ui-qa",
     );
     await mkdir(directory, { recursive: true });
     const capture = async (screen: string) => {
       await expect(page.locator('#main-content h1')).toBeVisible();
-      // Load the visible page's lazy photographs before collecting full-page evidence.
-      await page.evaluate(async () => {
-        for (const image of document.querySelectorAll('img')) {
-          image.loading = 'eager';
-          await image.decode().catch(() => undefined);
-        }
-        await document.fonts.ready;
+      // Request all photographs together. A slow external host must not leave the
+      // collector waiting indefinitely; record unavailable images with the evidence.
+      const unavailableImages = await page.evaluate(async () => {
+        const images = Array.from(document.querySelectorAll('img'));
+        for (const image of images) image.loading = 'eager';
+        await Promise.race([
+          Promise.all([document.fonts.ready, ...images.map(image => image.decode().catch(() => undefined))]),
+          new Promise(resolve => setTimeout(resolve, 5_000)),
+        ]);
         window.scrollTo({ top: 0, behavior: 'instant' });
+        return images.filter(image => !image.complete || image.naturalWidth === 0)
+          .map(image => ({ src: image.currentSrc || image.src, alt: image.alt }));
       });
+      if (unavailableImages.length) {
+        await test.info().attach(`${screen}-${name}-unavailable-images`, {
+          body: JSON.stringify(unavailableImages, null, 2), contentType: 'application/json',
+        });
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await page.screenshot({ path: resolve(directory, `${screen}-${name}.png`), fullPage: true, animations: 'disabled' });
       if (['home', 'vehicle', 'staff-desk', 'settings', 'booking', 'booking-details'].includes(screen)) {

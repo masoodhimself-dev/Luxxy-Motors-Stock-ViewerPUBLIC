@@ -234,9 +234,11 @@ function DealChecklist({ id }: { id: string }) {
 }
 
 function SaleCreateForm({
+  inDialog = false,
   onCreated,
   recentEnquiries,
 }: {
+  inDialog?: boolean;
   onCreated: (saleId: string) => void;
   recentEnquiries: Enquiry[];
 }) {
@@ -381,14 +383,9 @@ function SaleCreateForm({
   };
 
   return (
-    <form onSubmit={submit} className="luxxy-surface rounded-lg border border-border p-6 sm:p-8">
-       <div className="mb-6 flex items-start justify-between gap-4 border-b border-border pb-5">
-        <div>
-           <p className="luxxy-kicker text-[11px]">New development sale</p>
-           <h2 className="mt-2 font-display text-[1.75rem] font-medium leading-[1.1] tracking-[-.03em] text-primary">Start a deal</h2>
-        </div>
-        <span className="font-display text-xs font-semibold text-primary border border-primary px-2 py-1 text-primary/70 font-medium">Demo only</span>
-      </div>
+    <form onSubmit={submit} className={inDialog ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "luxxy-surface rounded-md border border-border"}>
+      <div className={inDialog ? "min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8" : "p-5 sm:p-8"}>
+      {!inDialog && <header className="mb-5 border-b border-border pb-4"><h2 className="section-heading">New sale</h2><p className="mt-2 text-sm text-muted-foreground">Development only. Choose a vehicle and customer to start a draft sale.</p></header>}
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="space-y-2 text-[13px] font-semibold sm:col-span-2">
           <span>Vehicle</span>
@@ -411,17 +408,17 @@ function SaleCreateForm({
             ))}
           </select>
         </label>
-        <div className="border border-primary bg-secondary/20 p-5 sm:col-span-2">
+        <div className="border-y border-border py-5 sm:col-span-2">
           <div className="flex items-start gap-3">
             <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
               <p className="text-[13px] font-semibold text-primary">Customer details</p>
               <p className="mt-1 text-[13px] leading-6 text-primary/70 font-medium">
-                You do not need to type them here. Use a recent enquiry or let the customer enter their own details.
+                Use an enquiry or send a secure link for the customer to enter their details.
               </p>
             </div>
           </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto]">
+          <div className="mt-4 grid items-end gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
             <label className="space-y-2 text-[13px] font-semibold">
               <span>Use a recent enquiry</span>
               <select
@@ -440,7 +437,7 @@ function SaleCreateForm({
             <Button
               type="button"
               variant="outline"
-              className="mt-6 h-11 rounded-md text-[12px] font-medium md:mt-0"
+              className="h-11 rounded-md text-[12px] font-medium"
               onClick={generateCustomerLink}
               disabled={createIntake.isPending || !vehicleId}
             >
@@ -475,7 +472,7 @@ function SaleCreateForm({
           {intakeQuery.isError && <p className="mt-4 text-[13px] font-semibold text-destructive">This customer link is unavailable. Generate a new one.</p>}
           {createIntake.isError && <p className="mt-4 text-[13px] font-semibold text-destructive">{apiMessage(createIntake.error, 'Could not generate a customer link.')}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:col-span-2">
           <label className="space-y-2 text-[13px] font-semibold">
             <span>Total (£)</span>
             <Input required min="0" step="0.01" type="number" className="h-11 rounded-md font-mono focus-visible:border-accent" value={price} onChange={(event) => setPrice(event.target.value)} placeholder={selectedCar?.price != null ? String(selectedCar.price) : '0.00'} />
@@ -504,10 +501,13 @@ function SaleCreateForm({
         </label>
       </div>
       {createSale.isError && <p className="mt-5 text-[13px] font-semibold text-destructive">{apiMessage(createSale.error, 'Could not create this sale.')}</p>}
-      <Button type="submit" className="mt-6 h-12 rounded-md text-[13px] font-medium" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
+      </div>
+      <footer className="shrink-0 border-t border-border bg-card px-5 py-4 sm:px-8">
+      <Button type="submit" className="min-h-11 w-full rounded-md text-[13px] font-medium sm:w-auto" disabled={createSale.isPending || !vehicleId || !selectedCustomer}>
         <Plus className="mr-2 h-4 w-4" /> {createSale.isPending ? 'Creating deal…' : 'Create draft sale'}
       </Button>
-      {!selectedCustomer && <p className="mt-3 text-[13px] text-primary/70 font-medium">Select a recent enquiry or wait for the customer to save their details before creating the draft.</p>}
+      {!selectedCustomer && <p className="mt-2 text-xs text-muted-foreground">Select a customer to create the draft.</p>}
+      </footer>
     </form>
   );
 }
@@ -684,33 +684,16 @@ export function DealsPanel() {
 
   if (showSaleForm && saleFocusMode) {
     return (
-      <Dialog open onOpenChange={open => { if (!open) setSaleFocusMode(false); }}><DialogContent className="max-w-5xl" aria-describedby={undefined} onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLButtonElement>('[data-testid="button-toggle-sale-form"]')?.focus(); }}>
-        <div className="px-0 py-5 sm:px-3">
-          <div className="mx-auto flex max-w-4xl flex-col items-start gap-6 lg:flex-row lg:justify-between lg:items-start">
-            <div>
-              <p className="font-display text-xs font-semibold text-accent text-primary">Development sales</p>
-              <DialogTitle id="focused-sale-title" className="mt-4 max-w-xl font-display text-[1.75rem] font-semibold leading-[1.05] tracking-[-.03em] text-primary sm:text-[2rem]">
-                New sale
-              </DialogTitle>
-              <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-primary/70 font-medium sm:text-[15px]">
-                Choose a vehicle and add the customer from an enquiry or a secure QR link.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0 rounded-md bg-background/80 text-[12px] font-medium shadow-none hover:border-accent hover:text-accent"
-              onClick={() => setSaleFocusMode(false)}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Show full portal</span>
-              <span className="sm:hidden">Portal</span>
-            </Button>
+      <Dialog open onOpenChange={open => { if (!open) setSaleFocusMode(false); }}><DialogContent className="flex max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:p-0" aria-describedby="sale-description" onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLButtonElement>('[data-testid="button-toggle-sale-form"]')?.focus(); }}>
+        <header className="shrink-0 border-b border-border px-5 py-5 pr-16 sm:px-8 sm:pr-20">
+          <DialogTitle>New sale</DialogTitle>
+          <p id="sale-description" className="mt-2 text-sm leading-6 text-muted-foreground">Choose a vehicle and customer to start a draft sale.</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 text-xs">
+            <p className="font-medium text-accent">Development only — demo sales</p>
+            <button type="button" className="inline-flex min-h-11 items-center gap-2 underline underline-offset-4" onClick={() => setSaleFocusMode(false)}><ArrowLeft className="h-4 w-4" /> Show full portal</button>
           </div>
-          <div className="mx-auto mt-5 max-w-4xl pb-4">
-            <SaleCreateForm recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={handleSaleCreated} />
-          </div>
-        </div>
+        </header>
+        <SaleCreateForm inDialog recentEnquiries={recentEnquiriesQuery.data ?? []} onCreated={handleSaleCreated} />
       </DialogContent></Dialog>
     );
   }

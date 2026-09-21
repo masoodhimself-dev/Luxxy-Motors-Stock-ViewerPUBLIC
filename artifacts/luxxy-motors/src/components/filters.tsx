@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   Search,
@@ -89,6 +89,29 @@ function Select({
 
 export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: FiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [budgetNotice, setBudgetNotice] = useState('');
+  useEffect(() => {
+    // Older saved browsing sessions may contain an impossible range.
+    if (filters.minPrice && filters.maxPrice && Number(filters.minPrice) > Number(filters.maxPrice)) {
+      setFilters((current) => ({ ...current, minPrice: '' }));
+      setBudgetNotice('Minimum budget cleared because it exceeded your maximum budget.');
+    }
+  }, [filters.minPrice, filters.maxPrice, setFilters]);
+  const changeBudget = (key: 'minPrice' | 'maxPrice', value: string) => {
+    const other = key === 'minPrice' ? 'maxPrice' : 'minPrice';
+    const conflict = value && filters[other] && (key === 'minPrice' ? Number(value) > Number(filters.maxPrice) : Number(value) < Number(filters.minPrice));
+    setFilters((current) => ({ ...current, [key]: value, ...(conflict ? { [other]: '' } : {}) }));
+    setBudgetNotice(conflict ? `${key === 'minPrice' ? 'Maximum' : 'Minimum'} budget cleared to keep your selected price range valid.` : '');
+  };
+  const appliedFilters: Array<{ key: keyof FilterState; label: string }> = [
+    ...(filters.make ? [{ key: 'make' as const, label: filters.make }] : []),
+    ...(filters.model ? [{ key: 'model' as const, label: filters.model }] : []),
+    ...(filters.minPrice ? [{ key: 'minPrice' as const, label: `From £${Number(filters.minPrice).toLocaleString('en-GB')}` }] : []),
+    ...(filters.maxPrice ? [{ key: 'maxPrice' as const, label: `Up to £${Number(filters.maxPrice).toLocaleString('en-GB')}` }] : []),
+    ...(filters.fuel ? [{ key: 'fuel' as const, label: filters.fuel }] : []),
+    ...(filters.transmission ? [{ key: 'transmission' as const, label: filters.transmission }] : []),
+    ...(['catS', 'catN', 'noWriteOff'] as const).filter((key) => filters[key]).map((key) => ({ key, label: key === 'catS' ? 'Category S' : key === 'catN' ? 'Category N' : 'No recorded write-off' })),
+  ];
 
   const makes = useMemo(() => {
     const makeSet = new Set<string>();
@@ -141,6 +164,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
 
   const resetFilters = () => {
     setFilters(emptyFilters);
+    setBudgetNotice('');
   };
 
   return (
@@ -206,6 +230,15 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <span className="sm:hidden">View cars</span><span className="hidden sm:inline">View matching cars</span>
         </button>
       </div>
+      {appliedFilters.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1" aria-label="Applied filters">
+          {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex min-h-11 items-center gap-2 border-b border-border text-xs font-medium text-primary" onClick={() => {
+            setFilters((current) => ({ ...current, [key]: typeof current[key] === 'boolean' ? false : '', ...(key === 'make' ? { model: '' } : {}) }));
+            setBudgetNotice('');
+          }}>{label}<X className="h-3.5 w-3.5" aria-hidden="true" /></button>)}
+        </div>
+      )}
+      {budgetNotice && <p className="mt-2 text-sm text-muted-foreground" role="status">{budgetNotice}</p>}
       {(activeFilterCount > 0 || filters.sort) && (
         <button type="button" onClick={resetFilters} className="mt-1 flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-primary">
           <X aria-hidden="true" className="h-3.5 w-3.5" /> Reset filters
@@ -236,7 +269,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             <Field label="Min budget">
               <Select
                 value={filters.minPrice}
-                onChange={(minPrice) => setFilters((current) => ({ ...current, minPrice }))}
+                onChange={(value) => changeBudget('minPrice', value)}
               >
                 <option value="">Any</option>
                 {[5000, 10000, 20000, 30000, 40000, 50000, 75000].map((price) => (
@@ -247,7 +280,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             <Field label="Max budget">
               <Select
                 value={filters.maxPrice}
-                onChange={(maxPrice) => setFilters((current) => ({ ...current, maxPrice }))}
+                onChange={(value) => changeBudget('maxPrice', value)}
               >
                 <option value="">Any</option>
                 {[5000, 10000, 20000, 30000, 40000, 50000, 75000, 100000].map((price) => (
@@ -277,7 +310,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <fieldset className="mt-8 border-t border-primary/10 pt-6">
              <legend className="font-display text-[11px] font-semibold tracking-normal text-primary">Insurance history</legend>
              <p className="mt-2 max-w-2xl text-[12px] font-medium leading-relaxed text-primary/65">
-              Choose one or more recorded categories. Category S is repaired structural damage; Category N is repaired non-structural damage.
+              Choose one or more recorded categories. Category S records structural damage; Category N records non-structural damage. Ask for available repair and inspection records.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               {[

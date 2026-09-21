@@ -27,7 +27,7 @@ export function DealershipVisit() {
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div
-          className={`grid items-start gap-8 lg:gap-14 ${hasStory ? "lg:grid-cols-2" : "max-w-3xl"}`}
+          className={`grid items-start gap-8 lg:gap-14 ${content.teamImageUrl ? "lg:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
             <h2 id="visit-heading" className="heading-2">
@@ -100,7 +100,7 @@ export function DealershipVisit() {
             </div>
           </div>
           {hasStory && (
-            <div className="space-y-6">
+            <div className={content.teamImageUrl ? "space-y-6" : "grid gap-6 sm:grid-cols-2"}>
               {(content.teamIntroduction || content.teamImageUrl) && (
                 <div className="border-t border-border pt-5">
                   {content.teamImageUrl && (

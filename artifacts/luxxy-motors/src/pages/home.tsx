@@ -475,6 +475,12 @@ export default function Home() {
                   </div>
                 )}
               </>
+            ) : !stock?.cars.length ? (
+              <div className="surface px-6 py-12 text-center" data-testid="empty-stock">
+                <h3 className="section-heading">No vehicles currently listed</h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Contact the team about upcoming stock or tell us what you’re looking for.</p>
+                <Button asChild className="mt-6"><Link href="/enquire?type=general">Ask about upcoming stock <ArrowRight className="h-4 w-4" /></Link></Button>
+              </div>
             ) : (
               <div className="surface px-6 py-12 text-center">
                 <Search className="mx-auto h-7 w-7 text-muted-foreground" />

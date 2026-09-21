@@ -414,7 +414,7 @@ describe('showroom search filters', () => {
     renderHome();
 
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    expect(screen.getByText(/repaired structural damage/i)).toBeInTheDocument();
+    expect(screen.getByText(/Category S records structural damage/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Category S' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
 

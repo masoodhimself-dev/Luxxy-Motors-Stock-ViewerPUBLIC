@@ -352,7 +352,7 @@ export function EnquiryForm({
             <p className="luxxy-label text-accent">Selected appointment</p>
             <p className="mt-1.5 text-sm font-bold text-primary">{selectedSlotLabel} · {formatDateLabel(selectedDate)}</p>
           </div>
-          <button type="button" onClick={() => setViewingStep(1)} className="shrink-0 text-xs font-bold text-accent underline underline-offset-4">
+          <button type="button" onClick={() => setViewingStep(1)} className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center px-2 text-xs font-bold text-accent underline underline-offset-4">
             Change
           </button>
         </div>
@@ -643,7 +643,7 @@ export function EnquiryForm({
           </Button>
         )}
         {isViewing && viewingStep === 2 && (
-          <button type="button" onClick={() => setViewingStep(1)} className="w-full text-center text-xs font-bold text-primary/70 underline underline-offset-4 hover:text-primary">
+          <button type="button" onClick={() => setViewingStep(1)} className="min-h-11 w-full px-3 text-center text-xs font-bold text-primary/70 underline underline-offset-4 hover:text-primary">
             Back to date and time
           </button>
         )}

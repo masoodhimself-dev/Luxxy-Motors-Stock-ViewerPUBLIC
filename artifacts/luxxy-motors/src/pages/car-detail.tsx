@@ -77,7 +77,7 @@ function getSimilarCars(currentCar: Car, cars: Car[]) {
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
     <div className="flex justify-between items-baseline gap-4 py-3 border-b border-border">
-      <dt className="font-display text-[13px] font-normal tracking-normal text-primary/60">
+      <dt className="font-display text-[13px] font-normal tracking-normal text-muted-foreground">
         {label}
       </dt>
       <dd className="font-medium text-[14px] text-primary text-right" data-testid={testId}>
@@ -167,14 +167,14 @@ export default function CarDetail() {
       return {
         label: 'Category S',
         explanation:
-          'This vehicle previously had structural damage recorded by an insurer and has since been repaired. Ask us for the available repair and inspection details.',
+          'This vehicle previously had structural damage recorded by an insurer. Ask us for the available repair and inspection records before deciding to buy.',
       };
     }
     if (category.includes('N')) {
       return {
         label: 'Category N',
         explanation:
-          'This vehicle previously had non-structural damage recorded by an insurer and has since been repaired. Ask us for the available repair and inspection details.',
+          'This vehicle previously had non-structural damage recorded by an insurer. Ask us for the available repair and inspection records before deciding to buy.',
       };
     }
     return null;

@@ -151,7 +151,7 @@ export function ActivityComposer({
           data-testid="input-activity-body"
         />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Move to stage">
             <SelectField
               value={stage}
@@ -178,7 +178,7 @@ export function ActivityComposer({
             />
           </Field>
 
-          <Field label="Due">
+          <Field label="Due date and time">
             <Input
               type="datetime-local"
               value={nextActionDueAt}

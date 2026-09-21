@@ -41,7 +41,7 @@
   --background: 40 20% 97%;
   --foreground: 170 15% 14%;
   --border: 40 10% 83%;
-  --input: 40 8% 70%;
+  --input: 40 5% 52%;
   --ring: 31 45% 35%;
   --card: 0 0% 100%;
   --card-foreground: 170 15% 14%;
@@ -72,7 +72,7 @@
   --background: 216 25% 12%;
   --foreground: 39 29% 95%;
   --border: 215 16% 28%;
-  --input: 215 16% 28%;
+  --input: 215 12% 54%;
   --ring: 17 73% 58%;
   --card: 216 24% 16%;
   --card-foreground: 39 29% 95%;
@@ -208,3 +208,8 @@
   .portal-workspace .portal-panel { border-radius: 2px; }
 }
 @keyframes gallery-photo-in { from { opacity: .65; } to { opacity: 1; } }
+
+/* Form boundaries need stronger contrast than decorative dividers. */
+@layer utilities {
+  .luxxy-control.border-border { border-color: hsl(var(--input)); }
+}

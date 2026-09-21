@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PageHeading, PageEmptyState } from '@/components/page-ui';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Calendar, MessageCircle, Phone, Plus, Scale, X } from 'lucide-react';
@@ -94,7 +95,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
         {thumbnail ? (
           <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full items-center justify-center font-display text-[11px] font-semibold tracking-normal text-primary/40">No photo</div>
+          <div className="flex h-full items-center justify-center font-display text-[11px] font-semibold tracking-normal text-muted-foreground">No photo</div>
         )}
         <button
           type="button"
@@ -117,7 +118,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
             {label}
           </h3>
           {(car.variant || car.trim) && (
-            <p className="mt-2 text-[11px] font-normal text-primary/70 line-clamp-2">
+            <p className="mt-2 text-xs font-normal text-muted-foreground line-clamp-2">
               {car.variant || car.trim}
             </p>
           )}
@@ -193,10 +194,13 @@ function EmptySlot() {
 export default function Compare() {
   const { stock, isLoading, error } = useStock();
   const { compareIds, removeFromCompare } = useSavedCars();
+  const [differencesOnly, setDifferencesOnly] = useState(false);
 
   const cars = compareIds
     .map((id) => stock?.cars.find((car) => car.id === id))
     .filter((car): car is Car => Boolean(car));
+
+  const visibleRows = differencesOnly && cars.length === 2 ? rows.filter((row) => row.render(cars[0]) !== row.render(cars[1])) : rows;
 
   if (isLoading && compareIds.length > 0) {
     return (
@@ -244,25 +248,28 @@ export default function Compare() {
               {cars.length < MAX_COMPARE && <EmptySlot />}
             </div>
 
+            {cars.length === 2 && <label className="mb-3 inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium"><input type="checkbox" checked={differencesOnly} onChange={(event) => setDifferencesOnly(event.target.checked)} className="h-5 w-5 accent-primary" />Show differences only</label>}
             <div
+              data-testid="compare-sticky-heading"
               className={cn(
                 gridTemplate,
-                'sticky top-[var(--site-header-height,5.5rem)] z-20 items-center border-t border-border border-b border-b-border bg-background/95 py-4 backdrop-blur-md shadow-sm',
+                'sticky top-[var(--site-header-height,5.5rem)] z-20 items-center border-t border-border border-b border-b-border bg-background px-4 py-3 sm:px-8 lg:px-10 shadow-none',
               )}
             >
               <p className="font-display text-[12px] font-semibold tracking-normal hidden text-primary md:block">Specs</p>
               {cars.map((car) => (
-                <p key={car.id} className="truncate font-display text-sm font-semibold tracking-normal text-primary">
+                <p key={car.id} className="min-w-0 break-words font-display text-sm font-semibold leading-5 text-primary">
                   {vehicleLabelFor(car)}
                 </p>
               ))}
               {cars.length < MAX_COMPARE && (
-                <p className="truncate font-bold text-[10px] tracking-normal text-primary/40">Choose another car</p>
+                <p className="truncate font-bold text-[10px] tracking-normal text-muted-foreground">Choose another car</p>
               )}
             </div>
 
             <dl data-testid="compare-table" className="border-x border-b border-border bg-card shadow-none p-4 sm:p-8 lg:p-10 mb-10">
-              {rows.map((row) => {
+              {!visibleRows.length && <p className="py-4 text-sm text-muted-foreground">The listed specifications match. Turn off “Show differences only” to see every detail.</p>}
+              {visibleRows.map((row) => {
                 const best = preferredIndex(row, cars);
 
                 return (
@@ -288,7 +295,7 @@ export default function Compare() {
                         )}
                       </dd>
                     ))}
-                    {cars.length < MAX_COMPARE && <dd className="text-[13px] font-bold text-primary/30">—</dd>}
+                    {cars.length < MAX_COMPARE && <dd className="text-[13px] font-bold text-muted-foreground">—</dd>}
                   </div>
                 );
               })}
