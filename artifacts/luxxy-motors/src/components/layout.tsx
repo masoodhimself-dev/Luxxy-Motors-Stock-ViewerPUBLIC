@@ -54,6 +54,7 @@ export function readableForegroundForHsl(hsl: string) {
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const isStaff = location.startsWith('/portal');
+  const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const { settings: dealerConfig } = useDealerSettings();
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -152,7 +153,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (
       location !== '/' &&
       hasEditedFormRef.current &&
-      document.querySelector('form') &&
+      document.querySelector('form:not([data-preserves-draft])') &&
       !window.confirm('You have unfinished details on this page. Leave them and return to the homepage?')
     ) {
       return;
@@ -181,7 +182,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
-            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find Car</button>
+            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
             <button
               type="button"
               onClick={() => setLocation('/saved')}
@@ -207,7 +208,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav - Full */}
           <nav className="hidden 2xl:flex items-center gap-8">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
-            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find Car</button>
+            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Ex</button>}
             {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={navLinkClass}>Warranty</button>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
@@ -269,7 +270,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
-              Find My Car <ArrowRight className="w-5 h-5 text-accent" />
+              Find my car <ArrowRight className="w-5 h-5 text-accent" />
             </button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
               Browse Stock <ArrowRight className="w-5 h-5 text-accent" />
@@ -326,7 +327,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer hidden={location.startsWith('/portal')} id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-12 pb-8 text-primary-foreground">
+      {isCustomerTask && (
+        <footer className="mt-auto border-t border-border bg-card px-4 py-6 sm:px-6" data-testid="customer-task-footer">
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-8 gap-y-3 text-sm">
+            <div><p className="font-semibold">{dealerConfig.identity.name}</p><p className="mt-1 text-muted-foreground">Need help with your documents or visit? Contact the team.</p></div>
+            <div className="flex flex-wrap items-center gap-x-5">
+              {dealerConfig.contact.phone && <a className="text-link min-h-11" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
+              {dealerConfig.contact.email && <a className="text-link min-h-11 break-all" href={`mailto:${dealerConfig.contact.email}`}>Email the showroom</a>}
+              {dealerConfig.legal.privacyUrl && <a className="text-link min-h-11" href={dealerConfig.legal.privacyUrl}>Privacy</a>}
+            </div>
+          </div>
+        </footer>
+      )}
+      <footer hidden={isStaff || isCustomerTask} id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-12 pb-8 text-primary-foreground">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-10 grid grid-cols-2 gap-6 lg:grid-cols-12 lg:gap-12">
             <div className="col-span-2 lg:col-span-5">
@@ -361,9 +374,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Vehicles</h3>
               <nav className="flex flex-col items-start gap-0">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>All Stock</button>
-                <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find My Car</button>
-                <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part Exchange</button>
+                <button onClick={() => handleNav('stock')} className={footerLinkClass}>All stock</button>
+                <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find my car</button>
+                <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
                 <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
                 <button onClick={() => handleNav('warranty')} className={footerLinkClass}>Warranty</button>
               </nav>
@@ -415,7 +428,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <CalendarDays className="h-4 w-4 shrink-0 text-accent" />
                         <span className="min-w-0">
                           <span className="block font-bold text-primary-foreground">{visit.relativeLabel}</span>
-                          <span className="block text-[12px] text-primary-foreground/60">{visit.dateLabel}</span>
+                          <span className="block text-[12px] text-primary-foreground/60">{visit.relativeLabel === 'Today' || visit.relativeLabel === 'Tomorrow' ? visit.dateLabel : visit.dateLabel.replace(/^\S+\s/, '')}</span>
                         </span>
                       </span>
                       <span className="shrink-0 font-display text-[12px] font-bold tracking-normal text-primary-foreground">{visit.times}</span>
@@ -439,7 +452,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </footer>
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
-      <CompareTray />
+      {!isCustomerTask && <CompareTray />}
     </div>
   );
 }

@@ -168,7 +168,20 @@ export function previewResponse(path: string, query: URLSearchParams): unknown {
           },
           details: sale.customer,
         },
-        documents: [],
+        documents: [{
+          id: 'sample-order',
+          title: 'Development vehicle sale summary',
+          content: `DEVELOPMENT ONLY — NOT A LEGAL CONTRACT
+
+Vehicle: ${previewStock.cars[0].title}
+Customer: ${sale.customer.name}
+
+Review the vehicle, agreed price and disclosures with the dealer before proceeding.
+
+This sample document is for visual review. No signature will be recorded.`,
+          contentHash: 'sample-content',
+          required: true,
+        }],
         acknowledgements: [
           { code: 'vehicle', statement: 'I have checked the vehicle and purchase details.' },
         ],

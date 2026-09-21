@@ -1,3 +1,4 @@
+import { ColourField, isValidHsl } from '@/components/brand/colour-field';
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
@@ -33,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { dealerConfig } from '@/config/dealer';
+import { readSettingsDraft, writeSettingsDraft, clearSettingsDraft } from '@/lib/settings-draft';
 
 type ServiceKey = 'warranty' | 'delivery' | 'partExchange';
 type FormSection =
@@ -283,13 +285,33 @@ export function DealerSettingsPanel() {
   const [activeSection, setActiveSection] = useState<FormSection>('identity');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [saveMessage, setSaveMessage] = useState('');
+  const [savedSnapshot, setSavedSnapshot] = useState('');
+  const [draftStored, setDraftStored] = useState(true);
+  const dirty = initialized && JSON.stringify(form) !== savedSnapshot;
 
   useEffect(() => {
-    if (settingsQuery.data && !initialized) {
-      setForm(copySettings(settingsQuery.data));
+    if ((settingsQuery.data || settingsQuery.isError) && !initialized) {
+      const saved = copySettings(settingsQuery.data ?? fallbackSettings);
+      const draft = readSettingsDraft(saved);
+      setForm(draft ? copySettings(draft.form) : saved);
+      setSavedSnapshot(draft?.saved ?? JSON.stringify(saved));
       setInitialized(true);
     }
-  }, [initialized, settingsQuery.data]);
+  }, [initialized, settingsQuery.data, settingsQuery.isError]);
+
+  useEffect(() => {
+    if (!initialized) return;
+    if (dirty) setDraftStored(writeSettingsDraft(savedSnapshot, form));
+    else clearSettingsDraft();
+  }, [dirty, form, initialized, savedSnapshot]);
+
+  useEffect(() => {
+    if (!dirty || draftStored) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, draftStored]);
+
 
   const completeness = useMemo(() => {
     const checks = [
@@ -325,6 +347,7 @@ export function DealerSettingsPanel() {
 
   const validate = () => {
     const errors: Record<string, string> = {};
+    if (!isValidHsl(form.identity.brandColors.primaryHsl) || !isValidHsl(form.identity.brandColors.accentHsl)) errors['identity.colours'] = 'Use a hue from 0–360 and saturation/lightness from 0–100%, or choose a colour using the picker.';
     for (const [key, value] of Object.entries(form.presentation || {})) {
       if (key.endsWith("Url") && value && !/^https:\/\/[^\s]+$/.test(value))
         errors[`presentation.${key}`] =
@@ -371,6 +394,8 @@ export function DealerSettingsPanel() {
       {
         onSuccess: (saved) => {
           setForm(copySettings(saved));
+          setSavedSnapshot(JSON.stringify(copySettings(saved)));
+          clearSettingsDraft();
           setSaveMessage('Published to the showroom. Your changes are live.');
           queryClient.setQueryData(getGetDealerSettingsQueryKey(), saved);
           queryClient.invalidateQueries({ queryKey: getGetDealerSettingsQueryKey() });
@@ -440,13 +465,28 @@ export function DealerSettingsPanel() {
         </div>
         <div className="flex items-center gap-4 border border-border bg-card px-5 py-4 shadow-none luxxy-surface">
           <p className="text-sm text-muted-foreground">
-            Profile completeness{" "}
+            Basic profile fields{" "}
             <span className="ml-2 font-semibold tabular-nums text-primary">
-              {completeness}%
+              {Math.round(completeness * 6 / 100)} of 6
             </span>
           </p>
         </div>
       </div>
+
+      <details className="mb-6 border-y border-border py-3 text-sm">
+        <summary className="flex min-h-11 cursor-pointer items-center font-semibold">Before you publish: review your dealership information</summary>
+        <p className="my-3 max-w-3xl leading-6 text-muted-foreground">Filled fields are not verified information. Replace template wording and confirm accuracy before publishing. Optional photos and reviews can be left empty.</p>
+        <ul className="divide-y divide-border">
+          {[
+            ['Contact details', Boolean(form.contact.phone || form.contact.email), JSON.stringify(form.contact) === JSON.stringify(fallbackSettings.contact), false],
+            ['Showroom address and postcode', Boolean(form.address.street && form.address.postcode), JSON.stringify(form.address) === JSON.stringify(fallbackSettings.address), false],
+            ['Opening hours', form.hours.length > 0, JSON.stringify(form.hours) === JSON.stringify(fallbackSettings.hours), false],
+            ['Visit and parking instructions', Boolean(form.presentation?.visitInstructions && form.presentation?.parkingInstructions), JSON.stringify(form.presentation) === JSON.stringify(dealerConfig.presentation), false],
+            ['Genuine showroom / team photos', Boolean(form.presentation?.showroomImageUrl || form.presentation?.teamImageUrl), false, true],
+            ['Genuine customer-review link', Boolean(form.presentation?.reviewsUrl), false, true],
+          ].map(([label, present, sample, optional]) => <li key={String(label)} className="flex flex-wrap justify-between gap-2 py-3"><span>{label}</span><span className="text-muted-foreground">{!present ? (optional ? 'Optional — not added' : 'Not added') : sample ? 'Template value — check before publishing' : 'Added — confirm accuracy'}</span></li>)}
+        </ul>
+      </details>
 
       {settingsQuery.isError && (
         <div className="mb-8 flex items-start gap-4 border border-amber-500/30 bg-amber-50/50 p-5 text-[13px] text-amber-900" data-testid="status-settings-load-error">
@@ -478,7 +518,25 @@ export function DealerSettingsPanel() {
         </nav>
       </div>
 
-      <form onSubmit={save} className="space-y-6">
+      {dirty && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
+          <div className="text-sm">
+            <p className="font-semibold">Unpublished changes</p>
+            <p className="mt-1 text-muted-foreground">{draftStored ? 'Your draft stays in this browser tab for 24 hours, including when you view the published showroom.' : 'Your draft stays while this app is open. Browser storage is unavailable; keep this tab open until you publish.'}</p>
+            {settingsQuery.data && savedSnapshot !== JSON.stringify(copySettings(settingsQuery.data)) && <p className="mt-1">Published settings have changed since this draft started. Check them before publishing your draft.</p>}
+          </div>
+          <Button type="button" variant="outline" onClick={() => {
+            if (!window.confirm('Discard your unpublished showroom changes?')) return;
+            const saved = copySettings(settingsQuery.data ?? fallbackSettings);
+            setForm(saved);
+            setSavedSnapshot(JSON.stringify(saved));
+            setValidationErrors({});
+            setSaveMessage('');
+            clearSettingsDraft();
+          }}>Discard draft</Button>
+        </div>
+      )}
+      <form onSubmit={save} data-preserves-draft="true" className="space-y-6">
         <SectionCard id="identity" eyebrow="01 / Brand" title="Brand identity" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Dealership name" error={validationErrors['identity.name']}>
@@ -493,23 +551,18 @@ export function DealerSettingsPanel() {
                 <Input className="h-11 rounded-md pl-10 text-base focus-visible:border-accent" type="url" value={form.identity.logoAsset} onChange={(event) => updateNested('identity', 'logoAsset', event.target.value)} placeholder="https://…" data-testid="input-identity-logo-asset" />
               </div>
             </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Primary HSL">
-                <Input className="h-11 rounded-md font-mono text-base focus-visible:border-accent" value={form.identity.brandColors.primaryHsl} onChange={(event) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl: event.target.value })} placeholder="218 39% 16%" data-testid="input-brand-primary" />
-              </Field>
-              <Field label="Accent HSL">
-                <Input className="h-11 rounded-md font-mono text-base focus-visible:border-accent" value={form.identity.brandColors.accentHsl} onChange={(event) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl: event.target.value })} placeholder="42 82% 49%" data-testid="input-brand-accent" />
-              </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ColourField label="Primary colour" value={form.identity.brandColors.primaryHsl} onChange={(primaryHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl })} testId="input-brand-primary" />
+              <ColourField label="Accent colour" value={form.identity.brandColors.accentHsl} onChange={(accentHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl })} testId="input-brand-accent" />
             </div>
+            {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
             <DealerWordmark {...form.identity} />
             <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.primaryHsl})` }} />
             <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.accentHsl})` }} />
             <p className="text-[12px] text-primary/70">
-              Colour preview. Use space-separated HSL values, for example {" "}
-              <span className="font-mono font-bold text-foreground">218 39% 16%</span>
-              .
+              Colour preview. Choose colours with enough contrast for clear text and controls.
             </p>
           </div>
         </SectionCard>
@@ -827,6 +880,15 @@ export function DealerSettingsPanel() {
                 />
               </Field>
             </div>
+            <details className="border-y border-border py-3 text-sm">
+              <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold">Vehicle photography guide</summary>
+              <ol className="ml-5 mt-3 list-decimal space-y-2 leading-6 text-muted-foreground">
+                <li>Use a front three-quarter view for the first photo. Keep the whole car and its wheels in frame, with similar space around each vehicle.</li>
+                <li>Choose a clean, uncluttered location and soft daylight. Keep the camera level and use the same background and angle across your stock.</li>
+                <li>Photograph all sides, the cabin, dashboard, boot, wheels, keys and relevant service records. Include clear close-ups of any wear or damage.</li>
+                <li>Use sharp landscape originals. Avoid heavy filters, text overlays or editing that hides the vehicle’s condition.</li>
+              </ol>
+            </details>
             <p className="text-sm leading-6 text-muted-foreground">
               Vehicle-specific history, MOT, keys, condition and warranty come
               from each stock record. Dealership-wide wording here does not mark
@@ -959,12 +1021,12 @@ export function DealerSettingsPanel() {
                   <CircleAlert className="h-4 w-4" />A few fields need your attention.</p>
               )}
             {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && (
-                <p className="hidden text-primary/70 sm:block">Changes stay here until you publish them.</p>
+                <p className="text-primary/70">{dirty ? 'Unpublished changes — publish when ready.' : 'Showing published settings.'}</p>
               )}
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 border border-border bg-card px-2 sm:px-6 font-display text-[12px] font-semibold tracking-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="link-preview-showroom">
-              <ExternalLink className="h-3.5 w-3.5" /> Preview showroom</Link>
+              <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
             <Button type="submit" disabled={updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
               <Save className="mr-2 h-4 w-4" />
               {updateSettings.isPending ? 'Publishing…' : 'Publish showroom'}

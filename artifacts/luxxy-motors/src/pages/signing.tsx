@@ -150,7 +150,7 @@ export default function Signing() {
             <ShieldAlert className="mt-1 h-6 w-6 shrink-0" />
             <div>
               <p className="font-display text-[13px] font-semibold tracking-normal">Development mode</p>
-              <p className="mt-2 text-[12px] font-normal leading-relaxed text-accent/80">{warning}</p>
+              <p className="mt-2 text-[12px] font-normal leading-relaxed text-foreground">{warning}</p>
             </div>
           </div>
         )}
@@ -194,7 +194,7 @@ export default function Signing() {
             <section className="border border-border bg-card shadow-none">
               <div className="border-b border-border px-5 sm:px-8 py-6 flex items-center justify-between gap-4">
                 <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Your details</h2>
-                <Link href={`/customer-details/${token}`} className="font-display text-[11px] font-semibold tracking-normal text-accent hover:text-primary transition-colors">Edit</Link>
+                <Link href={`/customer-details/${token}`} className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 font-display text-sm font-semibold text-accent hover:text-primary transition-colors">Edit</Link>
               </div>
               <dl className="grid gap-x-8 gap-y-4 px-8 py-6 sm:grid-cols-2">
                 <div>
@@ -211,11 +211,25 @@ export default function Signing() {
                 </div>
               </dl>
             </section>
+            <section aria-labelledby="pack-heading" className="border border-border bg-card">
+              <div className="border-b border-border px-5 py-5 sm:px-8">
+                <h2 id="pack-heading" tabIndex={-1} className="section-heading scroll-mt-28">Your documents</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Read the complete pack below before agreeing. Revision {revision.revisionNumber}.</p>
+              </div>
+              {revision.documents.length ? revision.documents.map((document) => (
+                <article key={document.id} className="border-b border-border px-5 py-6 last:border-0 sm:px-8">
+                  <h3 className="flex items-start gap-2 text-base font-semibold"><FileText aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />{document.title}</h3>
+                  {document.required && <p className="mt-1 text-xs text-muted-foreground">Part of your agreement</p>}
+                  <div className="mt-4 whitespace-pre-wrap break-words text-sm leading-7" data-testid="signing-document-content">{document.content || 'Document content is unavailable. Contact the dealer before agreeing.'}</div>
+                </article>
+              )) : <p className="px-5 py-6 text-sm leading-6 sm:px-8">No documents were supplied with this pack. Contact the dealer before agreeing.</p>}
+            </section>
           </div>
 
           <form onSubmit={submit} className="sticky top-24 flex flex-col gap-6 border border-border bg-card shadow-none">
             <div className="border-b border-border px-5 sm:px-8 py-6">
               <h2 className="font-display text-2xl font-semibold tracking-tight text-primary">Agreement</h2>
+              <a href="#pack-heading" className="text-link mt-2 min-h-11 text-sm" onClick={() => document.getElementById('pack-heading')?.focus()}><FileText className="h-4 w-4" aria-hidden="true" />Read document pack</a>
               <p className="mt-2 text-[11px] font-normal leading-relaxed text-primary/70">
                 Confirm your agreement below. You cannot sign until you check these boxes.
               </p>
