@@ -632,7 +632,7 @@ export default function Home() {
                     </p>
                     <a
                       className="text-link mt-4"
-                      href={getContactHref(subject)}
+                      href={id === 'warranty' ? '/warranty' : getContactHref(subject)}
                       data-testid={testid}
                     >
                       {service.ctaLabel}

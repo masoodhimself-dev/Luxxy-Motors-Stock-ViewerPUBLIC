@@ -19,6 +19,7 @@ const Compare = lazy(() => import("@/pages/compare"));
 const FindMyCar = lazy(() => import('@/pages/find-my-car'));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
+const Warranty = lazy(() => import('@/pages/warranty'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 const Signing = lazy(() => import("@/pages/signing"));
 const CustomerDetails = lazy(() => import('@/pages/customer-details'));
@@ -47,6 +48,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/find-my-car" component={FindMyCar} />
                   <Route path="/enquire" component={Enquire} />
                   <Route path="/contact" component={Contact} />
+                  <Route path="/warranty" component={Warranty} />
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/sign/:token" component={Signing} />
                   <Route path="/customer-details/:token" component={CustomerDetails} />

@@ -27,6 +27,7 @@ const Compare = lazy(() => import("@/pages/compare"));
 const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
+const Warranty = lazy(() => import('@/pages/warranty'));
 const Signing = lazy(() => import("@/pages/signing"));
 const CustomerDetails = lazy(() => import('@/pages/customer-details'));
 const Viewing = lazy(() => import("@/pages/viewing"));
@@ -82,6 +83,7 @@ function Router() {
           <Route path="/portal/leads/:id" component={Portal} />
           <Route path="/enquire" component={Enquire} />
           <Route path="/contact" component={Contact} />
+          <Route path="/warranty" component={Warranty} />
           <Route path="/viewing/:token" component={Viewing} />
           <Route path="/sign/:token" component={Signing} />
           <Route path="/customer-details/:token" component={CustomerDetails} />

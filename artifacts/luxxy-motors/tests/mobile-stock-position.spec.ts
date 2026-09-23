@@ -64,7 +64,6 @@ const longCopyMobileViewports = [
 const crossRouteHomeDestinations = [
   { label: 'Home', headingId: 'home-heading' },
   { label: 'Why Buy From Us', headingId: 'about-heading' },
-  { label: 'Warranty', headingId: 'warranty-heading' },
   { label: 'Delivery', headingId: 'delivery-heading' },
   { label: 'Part Exchange', headingId: 'part-exchange-heading' },
 ] as const;
@@ -294,6 +293,19 @@ for (const { label, headingId } of crossRouteHomeDestinations) {
     await expect(page.locator(`#${headingId}`)).toBeFocused();
   });
 }
+
+test('opens the warranty page from mobile navigation using the keyboard', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 874 });
+  await mockHomeData(page, stock, longDealerCopySettings);
+  await page.goto('/find-my-car');
+  await page.getByRole('button', { name: 'Open navigation menu' }).press('Enter');
+  const warrantyLink = page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Warranty', exact: true });
+  await expect(warrantyLink).toHaveAttribute('href', '/warranty');
+  await warrantyLink.press('Enter');
+  await expect(page).toHaveURL(/\/warranty$/);
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).not.toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Warranty');
+});
 
 test('scrolls to a homepage section without requiring focus to move on same-page activation', async ({
   page,
