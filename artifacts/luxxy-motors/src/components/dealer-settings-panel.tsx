@@ -47,6 +47,7 @@ type FormSection =
   | "presentation";
 
 const fallbackSettings: DealerSettings = {
+  onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...dealerConfig.onlineReservation },
   identity: {
     name: dealerConfig.identity.name,
     logoText: dealerConfig.identity.logoText || '',
@@ -134,6 +135,7 @@ function copySettings(source: DealerSettings): DealerSettings {
     warranty: { ...source.warranty },
     delivery: { ...source.delivery },
     partExchange: { ...source.partExchange },
+    onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...source.onlineReservation },
     bookViewing: { ...source.bookViewing },
     recentHandovers: { ...source.recentHandovers },
     presentation: { ...source.presentation },
@@ -369,6 +371,9 @@ export function DealerSettingsPanel() {
     if (!form.bookViewing.title.trim()) errors['bookViewing.title'] = 'Add a viewing title.';
     if (!form.bookViewing.description.trim()) errors['bookViewing.description'] = 'Add a viewing description.';
     if (!form.bookViewing.ctaLabel.trim()) errors['bookViewing.ctaLabel'] = 'Add a viewing button label.';
+    const reservation = form.onlineReservation;
+    if (reservation && (!Number.isInteger(reservation.depositPence) || reservation.depositPence < 100 || reservation.depositPence > 1000000)) errors['onlineReservation.depositPence'] = 'Enter a deposit between £1 and £10,000, in pounds and pence.';
+    if (reservation?.enabled && !reservation.terms.trim()) errors['onlineReservation.terms'] = 'Add your reservation terms before enabling online reservations.';
     if (form.hours.some((item) => !item.days.trim() || !item.times.trim())) errors.hours = 'Complete or remove each opening-hours row.';
     if (form.trustItems.some((item) => !item.trim())) errors.trustItems = 'Remove empty trust points or fill them in.';
     if (form.whyBuy.some((item) => !item.title.trim() || !item.description.trim())) errors.whyBuy = 'Complete or remove each why-buy point.';
@@ -379,6 +384,7 @@ export function DealerSettingsPanel() {
       else if (first.startsWith('identity')) setActiveSection('identity');
       else if (first.startsWith('hero') || first.startsWith('bookViewing')) setActiveSection('homepage');
       else if (first === 'hours') setActiveSection('contact');
+      else if (first.startsWith('onlineReservation')) setActiveSection('services');
       else setActiveSection('proof');
       return false;
     }
@@ -918,6 +924,27 @@ export function DealerSettingsPanel() {
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
             <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
             <ServiceEditor label="Part exchange" service={form.partExchange} icon={<Store className="h-5 w-5" />} onChange={(service) => updateGroup('partExchange', service)} />
+            <div className="rounded-md border border-border p-6" data-testid="settings-online-reservation">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-xl">
+                  <h3 className="font-semibold">Reserve car online</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">Let customers reserve an available car with their contact details and your reservation terms. Completed reservations hold the car and appear in the staff portal.</p>
+                </div>
+                <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
+                  <input type="checkbox" className="h-5 w-5 accent-primary" checked={form.onlineReservation?.enabled ?? false} onChange={(event) => updateGroup('onlineReservation', { enabled: event.target.checked, depositPence: form.onlineReservation?.depositPence ?? 10000, terms: form.onlineReservation?.terms ?? '' })} data-testid="checkbox-online-reservation-enabled" />
+                  Enable online reservations
+                </label>
+              </div>
+              <p className="mt-4 border-l-2 border-accent pl-3 text-sm leading-6 text-muted-foreground">Payment is currently simulated. Reservations are real, but no money is collected or recorded as received. Switching this off prevents new online reservations; existing reservations remain in the portal.</p>
+              <div className="mt-6 grid gap-5 sm:grid-cols-[minmax(0,12rem)_1fr]">
+                <Field label="Reservation deposit (£)" hint="£1–£10,000" error={validationErrors['onlineReservation.depositPence']}>
+                  <Input type="number" inputMode="decimal" min={1} max={10000} step="0.01" value={(form.onlineReservation?.depositPence ?? 10000) / 100} onChange={(event) => updateGroup('onlineReservation', { enabled: form.onlineReservation?.enabled ?? false, terms: form.onlineReservation?.terms ?? '', depositPence: Math.round(Number(event.target.value) * 100) })} data-testid="input-online-reservation-deposit" />
+                </Field>
+                <Field label="Reservation terms" hint="Required when enabled" error={validationErrors['onlineReservation.terms']}>
+                  <Textarea rows={5} maxLength={4000} value={form.onlineReservation?.terms ?? ''} onChange={(event) => updateGroup('onlineReservation', { enabled: form.onlineReservation?.enabled ?? false, depositPence: form.onlineReservation?.depositPence ?? 10000, terms: event.target.value })} placeholder="Explain how long you hold a vehicle, what happens next and your cancellation and refund arrangements." data-testid="textarea-online-reservation-terms" />
+                </Field>
+              </div>
+            </div>
           </div>
         </SectionCard>
 

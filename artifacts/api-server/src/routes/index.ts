@@ -10,12 +10,14 @@ import leadsRouter from "./leads";
 import viewingsRouter from "./viewings";
 import contactIntentsRouter from "./contact-intents";
 import vehicleBrochureRouter from "./vehicle-brochure";
+import reservationsRouter from "./reservations";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(stockRouter);
 router.use(vehicleBrochureRouter);
+router.use(reservationsRouter);
 router.use(recentHandoversRouter);
 router.use(enquiriesRouter);
 router.use(viewingsRouter);

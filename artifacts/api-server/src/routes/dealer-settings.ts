@@ -1,4 +1,4 @@
-import { preservePresentation } from "../lib/settings-content";
+import { preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -39,6 +39,7 @@ const defaultSettings = {
   warranty: { enabled: true, title: "Warranty", description: "Warranty options are available on eligible vehicles.", ctaLabel: "Learn About Warranty" },
   delivery: { enabled: true, title: "Nationwide Delivery", description: "Customers may be able to have their vehicle delivered.", ctaLabel: "Ask About Delivery" },
   partExchange: { enabled: true, title: "Looking to part exchange your current car?", description: "Give us your registration and mileage and we’ll help you understand what your current car could be worth.", ctaLabel: "Value My Car" },
+  onlineReservation: { enabled: false, depositPence: 10000, terms: "" },
   bookViewing: { title: "Seen something you like?", description: "Arrange a viewing at a time that suits you.", ctaLabel: "Book a Viewing" },
   // Disabled until the dealer opts into publishing anonymised completed-sales proof.
   recentHandovers: { enabled: false, count: 3 },
@@ -126,7 +127,12 @@ router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> =
     return;
   }
   const [previous] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId()));
-  const compatible = UpdateDealerSettingsBody.parse(preservePresentation(parsed.data, previous?.config));
+  const compatible = UpdateDealerSettingsBody.parse(preserveOnlineReservation(preservePresentation(parsed.data, previous?.config), previous?.config));
+  const reservationError = reservationSettingsError(compatible.onlineReservation);
+  if (reservationError) {
+    res.status(400).json({ error: reservationError });
+    return;
+  }
   const cleaned = await cleanFeaturedVehicles(compatible);
   const [settings] = await db
     .insert(dealerSettingsTable)

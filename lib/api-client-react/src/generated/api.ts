@@ -52,6 +52,9 @@ import type {
   LeadStageUpdate,
   LeadTouchInput,
   LeadUpdate,
+  OnlineReservation,
+  OnlineReservationInput,
+  OnlineReservations,
   PortalSession,
   PortalWorklist,
   RecentHandovers,
@@ -555,6 +558,228 @@ export function useGetVehicle<TData = Awaited<ReturnType<typeof getVehicle>>, TE
 
 
 
+
+export const getCreateReservationUrl = () => {
+
+
+
+
+  return `/api/reservations`
+}
+
+/**
+ * Creates a real reservation and lead for an available vehicle. Payment is simulated; no money is received. Repeating the same idempotency key returns the original reservation.
+ * @summary Reserve a vehicle online
+ */
+export const createReservation = async (onlineReservationInput: OnlineReservationInput, options?: Parameters<typeof customFetch>[1]): Promise<OnlineReservation> => {
+
+  return customFetch<OnlineReservation>(getCreateReservationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(onlineReservationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateReservationMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<OnlineReservationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<OnlineReservationInput>}, TContext> => {
+
+const mutationKey = ['createReservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReservation>>, {data: BodyType<OnlineReservationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReservation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReservationMutationResult = NonNullable<Awaited<ReturnType<typeof createReservation>>>
+    export type CreateReservationMutationBody = BodyType<OnlineReservationInput>
+    export type CreateReservationMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Reserve a vehicle online
+ */
+export const useCreateReservation = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<OnlineReservationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReservation>>,
+        TError,
+        {data: BodyType<OnlineReservationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReservationMutationOptions(options));
+    }
+
+export const getListReservationsUrl = () => {
+
+
+
+
+  return `/api/reservations`
+}
+
+/**
+ * Requires an authenticated staff member and returns only the configured dealership's reservations.
+ * @summary List online reservations for staff
+ */
+export const listReservations = async ( options?: Parameters<typeof customFetch>[1]): Promise<OnlineReservations> => {
+
+  return customFetch<OnlineReservations>(getListReservationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReservationsQueryKey = () => {
+    return [
+    `/api/reservations`
+    ] as const;
+    }
+
+
+export const getListReservationsQueryOptions = <TData = Awaited<ReturnType<typeof listReservations>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReservationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReservations>>> = ({ signal }) => listReservations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReservations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReservationsQueryResult = NonNullable<Awaited<ReturnType<typeof listReservations>>>
+export type ListReservationsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary List online reservations for staff
+ */
+
+export function useListReservations<TData = Awaited<ReturnType<typeof listReservations>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReservationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCancelReservationUrl = (id: string,) => {
+
+
+
+
+  return `/api/reservations/${id}/cancel`
+}
+
+/**
+ * Requires staff access. Releases the vehicle only when this reservation owns its current hold.
+ * @summary Cancel an online reservation
+ */
+export const cancelReservation = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<OnlineReservation> => {
+
+  return customFetch<OnlineReservation>(getCancelReservationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelReservationMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelReservation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelReservation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelReservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelReservation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelReservation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelReservationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelReservation>>>
+
+    export type CancelReservationMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Cancel an online reservation
+ */
+export const useCancelReservation = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelReservation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelReservation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelReservationMutationOptions(options));
+    }
 
 export const getGetEnquiriesUrl = (params?: GetEnquiriesParams,) => {
   const normalizedParams = new URLSearchParams();

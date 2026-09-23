@@ -16,6 +16,8 @@ tags:
     description: Anonymised completed handovers shown on the public showroom
   - name: enquiries
     description: Customer enquiries and viewing requests
+  - name: reservations
+    description: Online vehicle reservations with simulated payment
   - name: viewings
     description: Customer self-service management of a booked viewing
   - name: leads
@@ -224,6 +226,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /reservations:
+    post:
+      operationId: createReservation
+      tags: [reservations]
+      summary: Reserve a vehicle online
+      description: Creates a real reservation and lead for an available vehicle. Payment is simulated; no money is received. Repeating the same idempotency key returns the original reservation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnlineReservationInput"
+      responses:
+        "201":
+          description: Reservation created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnlineReservation" }
+        "200":
+          description: Previously created reservation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnlineReservation" }
+        "400":
+          description: Invalid reservation details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Vehicle not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          description: Vehicle unavailable, reservations disabled, or price or terms changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "500":
+          description: Unable to reserve vehicle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    get:
+      operationId: listReservations
+      tags: [reservations]
+      summary: List online reservations for staff
+      description: Requires an authenticated staff member and returns only the configured dealership's reservations.
+      responses:
+        "200":
+          description: Online reservations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnlineReservations" }
+        "401":
+          description: Staff sign-in required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          description: Staff access required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "500":
+          description: Unable to load reservations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /reservations/{id}/cancel:
+    post:
+      operationId: cancelReservation
+      tags: [reservations]
+      summary: Cancel an online reservation
+      description: Requires staff access. Releases the vehicle only when this reservation owns its current hold.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+      responses:
+        "200":
+          description: Cancelled reservation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnlineReservation" }
+        "401":
+          description: Staff sign-in required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "403":
+          description: Staff access required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "404":
+          description: Reservation not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          description: Reservation cannot be cancelled in its current state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "500":
+          description: Unable to cancel reservation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /enquiries:
     get:
       operationId: getEnquiries
@@ -1593,6 +1706,69 @@ paths:
 
 components:
   schemas:
+    OnlineReservationPartExchange:
+      type: object
+      additionalProperties: false
+      properties:
+        registration: { type: string, minLength: 2, maxLength: 16 }
+        mileage: { type: number, multipleOf: 1, minimum: 0, maximum: 1000000 }
+      required: [registration, mileage]
+    OnlineReservationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleId: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        idempotencyKey: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        customerName: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, maxLength: 254, pattern: '^[^\s@]+@[^\s@]+\.[^\s@]+$' }
+        phone: { type: string, minLength: 5, maxLength: 40 }
+        expectedPricePence: { type: number, multipleOf: 1, minimum: 1, maximum: 2147483647 }
+        expectedDepositPence: { type: number, multipleOf: 1, minimum: 100, maximum: 1000000 }
+        termsAccepted: { type: boolean, enum: [true] }
+        terms: { type: string, minLength: 1, maxLength: 4000 }
+        partExchange: { $ref: "#/components/schemas/OnlineReservationPartExchange" }
+      required: [vehicleId, idempotencyKey, customerName, email, phone, expectedPricePence, expectedDepositPence, termsAccepted, terms]
+    OnlineReservation:
+      type: object
+      additionalProperties: false
+      properties: &onlineReservationProperties
+        id: { type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' }
+        reference: { type: string }
+        vehicleId: { type: string }
+        vehicleTitle: { type: string }
+        depositPence: { type: number, multipleOf: 1, minimum: 100, maximum: 1000000 }
+        amountReceivedPence: { type: number, multipleOf: 1, enum: [0] }
+        paymentStatus: { type: string, enum: [simulated] }
+        status: { type: string, enum: [reserved, cancelled] }
+        createdAt: { type: string, format: date-time }
+      required: [id, reference, vehicleId, vehicleTitle, depositPence, amountReceivedPence, paymentStatus, status, createdAt]
+    StaffOnlineReservation:
+      type: object
+      additionalProperties: false
+      properties:
+        <<: *onlineReservationProperties
+        customerName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        leadId: { type: [string, "null"] }
+      required: [id, reference, vehicleId, vehicleTitle, depositPence, amountReceivedPence, paymentStatus, status, createdAt, customerName, email, phone, leadId]
+    OnlineReservations:
+      type: object
+      additionalProperties: false
+      properties:
+        reservations:
+          type: array
+          items: { $ref: "#/components/schemas/StaffOnlineReservation" }
+      required: [reservations]
+    DealerOnlineReservation:
+      type: object
+      additionalProperties: false
+      description: Online reservations are disabled until the dealership explicitly enables them and supplies its reservation terms. Payment is currently simulated.
+      properties:
+        enabled: { type: boolean }
+        depositPence: { type: number, multipleOf: 1, minimum: 100, maximum: 1000000 }
+        terms: { type: string, maxLength: 4000 }
+      required: [enabled, depositPence, terms]
     DealerBrandColors:
       type: object
       additionalProperties: false
@@ -1782,6 +1958,7 @@ components:
         warranty: { $ref: "#/components/schemas/DealerService" }
         delivery: { $ref: "#/components/schemas/DealerService" }
         partExchange: { $ref: "#/components/schemas/DealerService" }
+        onlineReservation: { $ref: "#/components/schemas/DealerOnlineReservation" }
         bookViewing: { $ref: "#/components/schemas/DealerBookViewing" }
         recentHandovers: { $ref: "#/components/schemas/DealerRecentHandovers" }
         trustItems:
@@ -1960,6 +2137,10 @@ components:
         id:
           type: string
           minLength: 1
+        inventoryStatus:
+          type: string
+          readOnly: true
+          enum: [available, reserved, sold, hidden, archived]
       required:
         - id
         - advertId

@@ -480,3 +480,17 @@ Validation: **172 frontend tests and 36 browser checks passed**. Browser checks 
 - Dialog keyboard focus, Escape/Cancel/Done, mobile scrolling and reopen/reset behaviour use the shared accessible dialog. All actions use non-submit buttons so a deposit demo cannot accidentally submit an enquiry.
 - Validation: 172 frontend tests passed; 6 focused browser tests passed at 390px and 1440px, including zero-write assertions, retained viewing details, and normal mocked booking submission afterwards. Full workspace typechecking and builds passed. Existing Vite chunk-size advisory remains.
 - Manually reviewed the desktop flow and desktop/mobile screenshots in docs/screenshots/demo-deposit. No deployment, merge or production database access.
+
+### Reserve car online: persisted reservation, simulated payment — 23 September 2026
+
+This supersedes the demo-deposit implementation above.
+
+- Renamed the customer action to **Reserve car online**. Collects/reuses contact details, displays dealership deposit amount and terms, requires acceptance, then creates a reservation while simulating only payment. Existing viewing forms retain their entries and submit separately.
+- Added Settings → Services controls for enable/disable, deposit amount and reservation terms. Production defaults to disabled. The server also enforces the off switch, price/terms checks and vehicle eligibility.
+- Real API reservations atomically mark stock reserved, create a reserved lead and append reservation metadata/reference/terms to the existing audit history. Simulated payments never become money received or sales-ledger payments. Retry and concurrency protection prevent duplicate reservations; cancelled retries cannot display a confirmed hold.
+- Added staff Reservations with customer/vehicle/reference, explicit £0 received, open-lead and guarded cancellation/release. Public cards display Reserved and remove the reservation action for unavailable stock.
+- Local preview saves settings and reservations in a gitignored local file across refreshes/restarts, using the same policy as the backend. No production database or payment provider is contacted.
+- Validation passed: **177 frontend tests; 16 backend policy tests; 8 actual PostgreSQL route/transaction tests** in the existing disposable loopback `luxxy_test_milestone1` database; **6 settings tests; 2 database-guard tests; 14 distinct browser checks** across customer, settings, staff and viewing/part-exchange regressions. Final workspace typechecking and all builds passed. Existing Vite chunk-size advisory remains.
+- The database tests cover rollback, racing buyers, idempotent retries, staff access, dealer isolation, settings-off enforcement and cancellation/payment safeguards. The local test database was stopped afterwards. **No migrations were run; no production changes, merge or deployment.**
+- Fresh desktop/mobile screenshots: `docs/screenshots/reserve-car-online/`, `docs/screenshots/online-reservations/`.
+- Remaining integration work: Stripe account routing/verified payment webhooks, automatic expiry if desired, customer confirmation email and receipt retrieval. Holds currently remain until staff cancels or processes them; simulation is blocked in production. Details: [online-reservations.md](online-reservations.md).

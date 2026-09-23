@@ -1,4 +1,4 @@
-import { DepositDemo } from '@/components/deposit-demo';
+import { ReserveCar } from '@/components/reserve-car';
 import { questionKeyForLabel } from "@/lib/vehicle-questions";
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
@@ -282,7 +282,7 @@ export default function CarDetail() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <DepositDemo key={car.id} car={car} className="min-h-12 w-full" />
+              <ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
               <div className="grid grid-cols-2 gap-2">
                 {phoneHref && (
                   <a

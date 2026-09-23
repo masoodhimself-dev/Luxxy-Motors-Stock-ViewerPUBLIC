@@ -13,3 +13,23 @@ export function preservePresentation<
     presentation: { ...content, ...incoming.presentation },
   };
 }
+
+type ReservationSettings = { enabled: boolean; depositPence: number; terms: string };
+
+/** Older settings clients must not silently switch off or reset reservations. */
+export function preserveOnlineReservation<T extends { onlineReservation?: ReservationSettings }>(incoming: T, previous: unknown): T {
+  if (incoming.onlineReservation !== undefined) return incoming;
+  const reservation = previous && typeof previous === "object" && "onlineReservation" in previous
+    ? previous.onlineReservation
+    : undefined;
+  return reservation && typeof reservation === "object" && !Array.isArray(reservation)
+    ? { ...incoming, onlineReservation: reservation as ReservationSettings }
+    : incoming;
+}
+
+export function reservationSettingsError(settings?: ReservationSettings): string | null {
+  if (settings?.enabled && !settings.terms.trim()) {
+    return "Add your dealership's reservation terms before enabling Reserve car online.";
+  }
+  return null;
+}

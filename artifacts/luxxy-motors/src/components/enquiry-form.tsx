@@ -1,4 +1,4 @@
-import { DepositDemo } from '@/components/deposit-demo';
+import { ReserveCar } from '@/components/reserve-car';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
@@ -341,8 +341,8 @@ export function EnquiryForm({
             <CalendarPlus className="h-4 w-4" /> Add to calendar
           </a>
         )}
-        {vehicle && <div className="mx-auto mt-6 max-w-sm border-t border-border pt-5">
-          <DepositDemo key={vehicle.id} car={vehicle} className="w-full" />
+        {vehicle && dealerConfig.onlineReservation?.enabled && <div className="mx-auto mt-6 max-w-sm border-t border-border pt-5">
+          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
         </div>}
         <Button
           type="button"
@@ -585,10 +585,10 @@ export function EnquiryForm({
         </>
       )}
 
-      {vehicle && (!isViewing || viewingStep === 2) && (
+      {vehicle && dealerConfig.onlineReservation?.enabled && (!isViewing || viewingStep === 2) && (
         <div className="border-t border-border pt-4">
-          <p className="mb-3 text-xs text-muted-foreground">Optional · try the deposit demo separately from your enquiry.</p>
-          <DepositDemo key={vehicle.id} car={vehicle} className="w-full" />
+          <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry or viewing is submitted separately.</p>
+          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
         </div>
       )}
 

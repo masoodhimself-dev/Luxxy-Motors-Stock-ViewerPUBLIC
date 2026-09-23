@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VehicleImage } from './vehicleImage';
+import type { VehicleInventoryStatus } from './vehicleInventoryStatus';
 import type { VehicleSourceExtras } from './vehicleSourceExtras';
 import type { VehicleSpecifications } from './vehicleSpecifications';
 
@@ -83,4 +84,5 @@ export interface Vehicle {
   sourceExtras: VehicleSourceExtras | null;
   /** @minLength 1 */
   id: string;
+  readonly inventoryStatus?: VehicleInventoryStatus;
 }

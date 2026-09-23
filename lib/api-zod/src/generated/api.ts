@@ -90,7 +90,8 @@ export const GetStockResponse = zod.object({
 })),
   "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
-  "id": zod.string().min(1)
+  "id": zod.string().min(1),
+  "inventoryStatus": zod.enum(['available', 'reserved', 'sold', 'hidden', 'archived']).optional()
 }))
 })
 
@@ -479,7 +480,139 @@ export const GetVehicleResponse = zod.object({
 })),
   "specifications": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "sourceExtras": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
-  "id": zod.string().min(1)
+  "id": zod.string().min(1),
+  "inventoryStatus": zod.enum(['available', 'reserved', 'sold', 'hidden', 'archived']).optional()
+})
+
+
+/**
+ * Creates a real reservation and lead for an available vehicle. Payment is simulated; no money is received. Repeating the same idempotency key returns the original reservation.
+ * @summary Reserve a vehicle online
+ */
+export const createReservationBodyVehicleIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createReservationBodyIdempotencyKeyRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createReservationBodyCustomerNameMin = 2;
+export const createReservationBodyCustomerNameMax = 120;
+
+export const createReservationBodyEmailMax = 254;
+
+
+export const createReservationBodyEmailRegExp = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+export const createReservationBodyPhoneMin = 5;
+export const createReservationBodyPhoneMax = 40;
+
+export const createReservationBodyExpectedPricePenceMax = 2147483647;
+export const createReservationBodyExpectedPricePenceMultipleOf = 1;
+
+export const createReservationBodyExpectedDepositPenceMin = 100;
+export const createReservationBodyExpectedDepositPenceMax = 1000000;
+export const createReservationBodyExpectedDepositPenceMultipleOf = 1;
+
+export const createReservationBodyTermsMax = 4000;
+
+export const createReservationBodyPartExchangeRegistrationMin = 2;
+export const createReservationBodyPartExchangeRegistrationMax = 16;
+
+export const createReservationBodyPartExchangeMileageMin = 0;
+export const createReservationBodyPartExchangeMileageMax = 1000000;
+export const createReservationBodyPartExchangeMileageMultipleOf = 1;
+
+
+
+export const CreateReservationBody = zod.object({
+  "vehicleId": zod.string().regex(createReservationBodyVehicleIdRegExp),
+  "idempotencyKey": zod.string().regex(createReservationBodyIdempotencyKeyRegExp),
+  "customerName": zod.string().min(createReservationBodyCustomerNameMin).max(createReservationBodyCustomerNameMax),
+  "email": zod.string().max(createReservationBodyEmailMax).regex(createReservationBodyEmailRegExp),
+  "phone": zod.string().min(createReservationBodyPhoneMin).max(createReservationBodyPhoneMax),
+  "expectedPricePence": zod.number().min(1).max(createReservationBodyExpectedPricePenceMax).multipleOf(createReservationBodyExpectedPricePenceMultipleOf),
+  "expectedDepositPence": zod.number().min(createReservationBodyExpectedDepositPenceMin).max(createReservationBodyExpectedDepositPenceMax).multipleOf(createReservationBodyExpectedDepositPenceMultipleOf),
+  "termsAccepted": zod.literal(true),
+  "terms": zod.string().min(1).max(createReservationBodyTermsMax),
+  "partExchange": zod.object({
+  "registration": zod.string().min(createReservationBodyPartExchangeRegistrationMin).max(createReservationBodyPartExchangeRegistrationMax),
+  "mileage": zod.number().min(createReservationBodyPartExchangeMileageMin).max(createReservationBodyPartExchangeMileageMax).multipleOf(createReservationBodyPartExchangeMileageMultipleOf)
+}).optional()
+})
+
+export const createReservationResponseIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const createReservationResponseDepositPenceMin = 100;
+export const createReservationResponseDepositPenceMax = 1000000;
+export const createReservationResponseDepositPenceMultipleOf = 1;
+
+
+
+export const CreateReservationResponse = zod.object({
+  "id": zod.string().regex(createReservationResponseIdRegExp),
+  "reference": zod.string(),
+  "vehicleId": zod.string(),
+  "vehicleTitle": zod.string(),
+  "depositPence": zod.number().min(createReservationResponseDepositPenceMin).max(createReservationResponseDepositPenceMax).multipleOf(createReservationResponseDepositPenceMultipleOf),
+  "amountReceivedPence": zod.literal(0),
+  "paymentStatus": zod.enum(['simulated']),
+  "status": zod.enum(['reserved', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Requires an authenticated staff member and returns only the configured dealership's reservations.
+ * @summary List online reservations for staff
+ */
+export const listReservationsResponseReservationsItemIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const listReservationsResponseReservationsItemDepositPenceMin = 100;
+export const listReservationsResponseReservationsItemDepositPenceMax = 1000000;
+export const listReservationsResponseReservationsItemDepositPenceMultipleOf = 1;
+
+
+
+export const ListReservationsResponse = zod.object({
+  "reservations": zod.array(zod.object({
+  "id": zod.string().regex(listReservationsResponseReservationsItemIdRegExp),
+  "reference": zod.string(),
+  "vehicleId": zod.string(),
+  "vehicleTitle": zod.string(),
+  "depositPence": zod.number().min(listReservationsResponseReservationsItemDepositPenceMin).max(listReservationsResponseReservationsItemDepositPenceMax).multipleOf(listReservationsResponseReservationsItemDepositPenceMultipleOf),
+  "amountReceivedPence": zod.literal(0),
+  "paymentStatus": zod.enum(['simulated']),
+  "status": zod.enum(['reserved', 'cancelled']),
+  "createdAt": zod.coerce.date(),
+  "customerName": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string(),
+  "leadId": zod.string().nullable()
+}))
+})
+
+
+/**
+ * Requires staff access. Releases the vehicle only when this reservation owns its current hold.
+ * @summary Cancel an online reservation
+ */
+export const cancelReservationPathIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const CancelReservationParams = zod.object({
+  "id": zod.coerce.string().regex(cancelReservationPathIdRegExp)
+})
+
+export const cancelReservationResponseIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const cancelReservationResponseDepositPenceMin = 100;
+export const cancelReservationResponseDepositPenceMax = 1000000;
+export const cancelReservationResponseDepositPenceMultipleOf = 1;
+
+
+
+export const CancelReservationResponse = zod.object({
+  "id": zod.string().regex(cancelReservationResponseIdRegExp),
+  "reference": zod.string(),
+  "vehicleId": zod.string(),
+  "vehicleTitle": zod.string(),
+  "depositPence": zod.number().min(cancelReservationResponseDepositPenceMin).max(cancelReservationResponseDepositPenceMax).multipleOf(cancelReservationResponseDepositPenceMultipleOf),
+  "amountReceivedPence": zod.literal(0),
+  "paymentStatus": zod.enum(['simulated']),
+  "status": zod.enum(['reserved', 'cancelled']),
+  "createdAt": zod.coerce.date()
 })
 
 
@@ -2446,6 +2579,12 @@ export const getDealerSettingsResponsePartExchangeDescriptionMax = 300;
 
 export const getDealerSettingsResponsePartExchangeCtaLabelMax = 80;
 
+export const getDealerSettingsResponseOnlineReservationDepositPenceMin = 100;
+export const getDealerSettingsResponseOnlineReservationDepositPenceMax = 1000000;
+export const getDealerSettingsResponseOnlineReservationDepositPenceMultipleOf = 1;
+
+export const getDealerSettingsResponseOnlineReservationTermsMax = 4000;
+
 export const getDealerSettingsResponseBookViewingTitleMax = 160;
 
 export const getDealerSettingsResponseBookViewingDescriptionMax = 300;
@@ -2545,6 +2684,11 @@ export const GetDealerSettingsResponse = zod.object({
   "description": zod.string().min(1).max(getDealerSettingsResponsePartExchangeDescriptionMax),
   "ctaLabel": zod.string().min(1).max(getDealerSettingsResponsePartExchangeCtaLabelMax)
 }),
+  "onlineReservation": zod.object({
+  "enabled": zod.boolean(),
+  "depositPence": zod.number().min(getDealerSettingsResponseOnlineReservationDepositPenceMin).max(getDealerSettingsResponseOnlineReservationDepositPenceMax).multipleOf(getDealerSettingsResponseOnlineReservationDepositPenceMultipleOf),
+  "terms": zod.string().max(getDealerSettingsResponseOnlineReservationTermsMax)
+}).optional().describe('Online reservations are disabled until the dealership explicitly enables them and supplies its reservation terms. Payment is currently simulated.'),
   "bookViewing": zod.object({
   "title": zod.string().min(1).max(getDealerSettingsResponseBookViewingTitleMax),
   "description": zod.string().min(1).max(getDealerSettingsResponseBookViewingDescriptionMax),
@@ -2676,6 +2820,12 @@ export const updateDealerSettingsBodyOnePartExchangeDescriptionMax = 300;
 
 export const updateDealerSettingsBodyOnePartExchangeCtaLabelMax = 80;
 
+export const updateDealerSettingsBodyOneOnlineReservationDepositPenceMin = 100;
+export const updateDealerSettingsBodyOneOnlineReservationDepositPenceMax = 1000000;
+export const updateDealerSettingsBodyOneOnlineReservationDepositPenceMultipleOf = 1;
+
+export const updateDealerSettingsBodyOneOnlineReservationTermsMax = 4000;
+
 export const updateDealerSettingsBodyOneBookViewingTitleMax = 160;
 
 export const updateDealerSettingsBodyOneBookViewingDescriptionMax = 300;
@@ -2775,6 +2925,11 @@ export const UpdateDealerSettingsBody = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsBodyOnePartExchangeDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOnePartExchangeCtaLabelMax)
 }),
+  "onlineReservation": zod.object({
+  "enabled": zod.boolean(),
+  "depositPence": zod.number().min(updateDealerSettingsBodyOneOnlineReservationDepositPenceMin).max(updateDealerSettingsBodyOneOnlineReservationDepositPenceMax).multipleOf(updateDealerSettingsBodyOneOnlineReservationDepositPenceMultipleOf),
+  "terms": zod.string().max(updateDealerSettingsBodyOneOnlineReservationTermsMax)
+}).optional().describe('Online reservations are disabled until the dealership explicitly enables them and supplies its reservation terms. Payment is currently simulated.'),
   "bookViewing": zod.object({
   "title": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingTitleMax),
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingDescriptionMax),
@@ -2901,6 +3056,12 @@ export const updateDealerSettingsResponsePartExchangeDescriptionMax = 300;
 
 export const updateDealerSettingsResponsePartExchangeCtaLabelMax = 80;
 
+export const updateDealerSettingsResponseOnlineReservationDepositPenceMin = 100;
+export const updateDealerSettingsResponseOnlineReservationDepositPenceMax = 1000000;
+export const updateDealerSettingsResponseOnlineReservationDepositPenceMultipleOf = 1;
+
+export const updateDealerSettingsResponseOnlineReservationTermsMax = 4000;
+
 export const updateDealerSettingsResponseBookViewingTitleMax = 160;
 
 export const updateDealerSettingsResponseBookViewingDescriptionMax = 300;
@@ -3000,6 +3161,11 @@ export const UpdateDealerSettingsResponse = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsResponsePartExchangeDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponsePartExchangeCtaLabelMax)
 }),
+  "onlineReservation": zod.object({
+  "enabled": zod.boolean(),
+  "depositPence": zod.number().min(updateDealerSettingsResponseOnlineReservationDepositPenceMin).max(updateDealerSettingsResponseOnlineReservationDepositPenceMax).multipleOf(updateDealerSettingsResponseOnlineReservationDepositPenceMultipleOf),
+  "terms": zod.string().max(updateDealerSettingsResponseOnlineReservationTermsMax)
+}).optional().describe('Online reservations are disabled until the dealership explicitly enables them and supplies its reservation terms. Payment is currently simulated.'),
   "bookViewing": zod.object({
   "title": zod.string().min(1).max(updateDealerSettingsResponseBookViewingTitleMax),
   "description": zod.string().min(1).max(updateDealerSettingsResponseBookViewingDescriptionMax),

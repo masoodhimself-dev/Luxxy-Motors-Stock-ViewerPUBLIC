@@ -19,6 +19,10 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
     if (raw) draft = JSON.parse(raw);
   } catch { /* Storage may be disabled; retain the in-memory draft. */ }
   if (!draft || !Number.isFinite(draft.updatedAt) || Date.now() - draft.updatedAt > 86_400_000) return null;
+  // Retain unpublished changes made before online-reservation settings existed.
+  if (draft.form && typeof draft.form === 'object' && !Array.isArray(draft.form) && draft.form.onlineReservation === undefined && saved.onlineReservation !== undefined) {
+    draft = { ...draft, form: { ...draft.form, onlineReservation: { ...saved.onlineReservation } } };
+  }
   if (typeof draft.saved !== 'string' || !matchesShape(draft.form, saved)) return null;
   return draft;
 }

@@ -7,6 +7,7 @@ import {
 } from '@workspace/api-client-react';
 import {
   BarChart3,
+  BookmarkCheck,
   ClipboardCheck,
   LoaderCircle,
   Lock,
@@ -23,12 +24,14 @@ import { LeadCapture } from '@/components/portal/lead-capture';
 import { LeadDetail } from '@/components/portal/lead-detail';
 import { LeadList } from '@/components/portal/lead-list';
 import { WorkQueue } from '@/components/portal/work-queue';
+import { ReservationsPanel } from '@/components/portal/reservations-panel';
 
-type TabKey = 'today' | 'leads' | 'deals' | 'channels' | 'settings';
+type TabKey = 'today' | 'leads' | 'reservations' | 'deals' | 'channels' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Sun }> = [
   { key: 'today', label: 'Today', icon: Sun },
   { key: 'leads', label: 'Leads', icon: Users },
+  { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
   { key: 'deals', label: 'Deals', icon: ClipboardCheck },
   { key: 'channels', label: 'Channels', icon: BarChart3 },
   { key: 'settings', label: 'Settings', icon: Settings2 },
@@ -158,7 +161,7 @@ function PortalDesk() {
         ) : (
           <div className="min-w-0">
             <nav
-              className="mb-5 grid grid-cols-5 sm:flex max-w-full gap-0.5 overflow-x-auto border-b border-border"
+              className="mb-5 flex max-w-full gap-0.5 overflow-x-auto border-b border-border"
               aria-label="Portal sections"
             >
               {tabs.map(({ key, label, icon: Icon }) => {
@@ -170,7 +173,7 @@ function PortalDesk() {
                     onClick={() => setTab(key)}
                     aria-current={active ? 'page' : undefined}
                     data-testid={`tab-${key}`}
-                    className={`inline-flex items-center justify-center gap-2 rounded-sm border px-1 sm:px-5 py-3 font-display text-[11px] font-semibold tracking-normal transition-all ${
+                    className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-sm border px-3 sm:px-5 py-3 font-display text-[11px] font-semibold tracking-normal transition-all ${
                       active
                         ? 'border-primary text-primary'
                         : 'border-transparent text-muted-foreground hover:bg-secondary hover:text-primary'
@@ -186,6 +189,7 @@ function PortalDesk() {
             <div className="min-h-[50vh]">
               {tab === 'today' && <WorkQueue onOpenLead={openLead} />}
               {tab === 'leads' && <LeadList onOpenLead={openLead} />}
+              {tab === 'reservations' && <ReservationsPanel onOpenLead={openLead} />}
               {tab === 'deals' && <DealsPanel />}
               {tab === 'channels' && <ChannelSummary />}
               {tab === 'settings' && <DealerSettingsPanel />}

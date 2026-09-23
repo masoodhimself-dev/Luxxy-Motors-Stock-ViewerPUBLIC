@@ -1,3 +1,4 @@
+import { reservationPreview } from './preview/reservations';
 import { defineConfig, mergeConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { previewResponse } from './preview/portal';
@@ -39,6 +40,7 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (await reservationPreview(req, res, url)) return;
             if (req.method !== 'GET') {
               res.statusCode = 405;
               res.end(

@@ -30,4 +30,13 @@ describe('unpublished showroom drafts', () => {
     expect(writeSettingsDraft('{}', previewSettings)).toBe(false);
     expect(readSettingsDraft(previewSettings)?.form.identity.name).toBe(previewSettings.identity.name);
   });
+  it('retains old unpublished drafts and inherits the current reservation settings', () => {
+    const form = structuredClone(previewSettings);
+    delete form.onlineReservation;
+    form.identity.name = 'Older unpublished name';
+    writeSettingsDraft('{}', form);
+    const restored = readSettingsDraft(previewSettings);
+    expect(restored?.form.identity.name).toBe('Older unpublished name');
+    expect(restored?.form.onlineReservation).toEqual(previewSettings.onlineReservation);
+  });
 });

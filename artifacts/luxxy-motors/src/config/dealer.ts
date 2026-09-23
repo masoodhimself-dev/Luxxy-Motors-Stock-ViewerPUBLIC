@@ -1,6 +1,7 @@
-import type { DealerPresentation } from "@workspace/api-client-react";
+import type { DealerOnlineReservation, DealerPresentation } from "@workspace/api-client-react";
 export interface DealerConfig {
   presentation?: DealerPresentation;
+  onlineReservation?: DealerOnlineReservation;
   identity: {
     name: string;
     logoText?: string;
@@ -80,6 +81,7 @@ export interface DealerConfig {
 }
 
 export const dealerConfig: DealerConfig = {
+  onlineReservation: { enabled: false, depositPence: 10000, terms: "" },
   identity: {
     name: "Luxxy Motors",
     logoText: "LUXXY MOTORS",

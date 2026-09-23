@@ -30,6 +30,7 @@ export function CarCard({
   badges?: string[];
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
+  const displayBadges = car.inventoryStatus === 'reserved' ? ['Reserved', ...badges] : badges;
   const isRow = layout === 'row';
   const isCompact = layout === 'compact';
 
@@ -167,9 +168,9 @@ export function CarCard({
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
         )}
-        {badges.length > 0 && (
+        {displayBadges.length > 0 && (
           <span className="absolute left-3 top-3 max-w-[70%] rounded-sm bg-primary px-2 py-1 text-xs text-primary-foreground">
-            {badges[0]}
+            {displayBadges[0]}
           </span>
         )}
       </div>

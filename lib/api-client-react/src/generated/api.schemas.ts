@@ -5,6 +5,159 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface OnlineReservationPartExchange {
+  /**
+     * @minLength 2
+     * @maxLength 16
+     */
+  registration: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  mileage: number;
+}
+
+export interface OnlineReservationInput {
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  vehicleId: string;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  idempotencyKey: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  customerName: string;
+  /**
+     * @maxLength 254
+     * @pattern ^[^\s@]+@[^\s@]+\.[^\s@]+$
+     */
+  email: string;
+  /**
+     * @minLength 5
+     * @maxLength 40
+     */
+  phone: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  expectedPricePence: number;
+  /**
+     * @minimum 100
+     * @maximum 1000000
+     */
+  expectedDepositPence: number;
+  termsAccepted: true;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  terms: string;
+  partExchange?: OnlineReservationPartExchange;
+}
+
+export type OnlineReservationAmountReceivedPence = typeof OnlineReservationAmountReceivedPence[keyof typeof OnlineReservationAmountReceivedPence];
+
+
+export const OnlineReservationAmountReceivedPence = {
+  NUMBER_0: 0,
+} as const;
+
+export type OnlineReservationPaymentStatus = typeof OnlineReservationPaymentStatus[keyof typeof OnlineReservationPaymentStatus];
+
+
+export const OnlineReservationPaymentStatus = {
+  simulated: 'simulated',
+} as const;
+
+export type OnlineReservationStatus = typeof OnlineReservationStatus[keyof typeof OnlineReservationStatus];
+
+
+export const OnlineReservationStatus = {
+  reserved: 'reserved',
+  cancelled: 'cancelled',
+} as const;
+
+export interface OnlineReservation {
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  id: string;
+  reference: string;
+  vehicleId: string;
+  vehicleTitle: string;
+  /**
+     * @minimum 100
+     * @maximum 1000000
+     */
+  depositPence: number;
+  amountReceivedPence: OnlineReservationAmountReceivedPence;
+  paymentStatus: OnlineReservationPaymentStatus;
+  status: OnlineReservationStatus;
+  createdAt: string;
+}
+
+export type StaffOnlineReservationAmountReceivedPence = typeof StaffOnlineReservationAmountReceivedPence[keyof typeof StaffOnlineReservationAmountReceivedPence];
+
+
+export const StaffOnlineReservationAmountReceivedPence = {
+  NUMBER_0: 0,
+} as const;
+
+export type StaffOnlineReservationPaymentStatus = typeof StaffOnlineReservationPaymentStatus[keyof typeof StaffOnlineReservationPaymentStatus];
+
+
+export const StaffOnlineReservationPaymentStatus = {
+  simulated: 'simulated',
+} as const;
+
+export type StaffOnlineReservationStatus = typeof StaffOnlineReservationStatus[keyof typeof StaffOnlineReservationStatus];
+
+
+export const StaffOnlineReservationStatus = {
+  reserved: 'reserved',
+  cancelled: 'cancelled',
+} as const;
+
+export interface StaffOnlineReservation {
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  id: string;
+  reference: string;
+  vehicleId: string;
+  vehicleTitle: string;
+  /**
+     * @minimum 100
+     * @maximum 1000000
+     */
+  depositPence: number;
+  amountReceivedPence: StaffOnlineReservationAmountReceivedPence;
+  paymentStatus: StaffOnlineReservationPaymentStatus;
+  status: StaffOnlineReservationStatus;
+  createdAt: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  /** @nullable */
+  leadId: string | null;
+}
+
+export interface OnlineReservations {
+  reservations: StaffOnlineReservation[];
+}
+
+/**
+ * Online reservations are disabled until the dealership explicitly enables them and supplies its reservation terms. Payment is currently simulated.
+ */
+export interface DealerOnlineReservation {
+  enabled: boolean;
+  /**
+     * @minimum 100
+     * @maximum 1000000
+     */
+  depositPence: number;
+  /** @maxLength 4000 */
+  terms: string;
+}
+
 export interface DealerBrandColors {
   /** @minLength 1 */
   primaryHsl: string;
@@ -256,6 +409,7 @@ export interface DealerSettings {
   warranty: DealerService;
   delivery: DealerService;
   partExchange: DealerService;
+  onlineReservation?: DealerOnlineReservation;
   bookViewing: DealerBookViewing;
   recentHandovers: DealerRecentHandovers;
   /**
@@ -359,6 +513,17 @@ export interface ImportedVehicle {
   sourceExtras: VehicleSourceExtras | null;
 }
 
+export type VehicleInventoryStatus = typeof VehicleInventoryStatus[keyof typeof VehicleInventoryStatus];
+
+
+export const VehicleInventoryStatus = {
+  available: 'available',
+  reserved: 'reserved',
+  sold: 'sold',
+  hidden: 'hidden',
+  archived: 'archived',
+} as const;
+
 export interface Vehicle {
   /** @minLength 1 */
   advertId: string;
@@ -433,6 +598,7 @@ export interface Vehicle {
   sourceExtras: VehicleSourceExtras | null;
   /** @minLength 1 */
   id: string;
+  readonly inventoryStatus?: VehicleInventoryStatus;
 }
 
 export type StockImportEnvelopeSchemaVersion = typeof StockImportEnvelopeSchemaVersion[keyof typeof StockImportEnvelopeSchemaVersion];
