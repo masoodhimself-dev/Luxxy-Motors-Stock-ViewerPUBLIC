@@ -467,3 +467,8 @@ Validation: **172 frontend tests and 36 browser checks passed**. Browser checks 
 - Large Yes/No choices show a clear selected state. Optional notes are collapsed until requested; condition, keys and paperwork can be discussed later.
 - Existing enquiry storage retained; unknown condition sent as null.
 - Validation: 172 frontend tests, two mobile/desktop mocked submission checks, workspace typechecking and builds passed.
+
+### UK plate input in viewing enquiries — 23 September 2026
+- Reused the shared yellow UK number-plate input for inline part-exchange registration, with uppercase entry and the existing validation.
+- Kept mileage as the only other required car detail.
+- Mobile/desktop mocked submission tests (2), workspace typechecking and builds passed.

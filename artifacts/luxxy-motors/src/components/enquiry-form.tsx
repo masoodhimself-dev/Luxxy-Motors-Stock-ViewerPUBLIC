@@ -1,3 +1,4 @@
+import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
@@ -544,16 +545,20 @@ export function EnquiryForm({
           </div>
           {hasPartExchange && <div className="space-y-4" data-testid="enquiry-part-exchange-details">
             <p className="text-sm text-muted-foreground">Just your registration and approximate mileage for now. We can discuss condition, keys and paperwork when we speak.</p>
-            {[
-              ['registration', 'Registration', 16],
-              ['mileage', 'Current mileage (miles)', 7],
-            ].map(([key, label, max]) => <label className="block" key={key}>
-              <span className={labelClass}>{label}</span>
-              <Input required maxLength={Number(max)} type={key === 'mileage' ? 'number' : 'text'}
-                min={key === 'mileage' ? 0 : undefined} max={key === 'mileage' ? 1000000 : undefined} step={key === 'mileage' ? 1 : undefined}
-                value={exchange[key as 'registration' | 'mileage']}
-                onChange={event => setExchange(current => ({ ...current, [key]: event.target.value }))} />
-            </label>)}
+            <div className="max-w-sm">
+              <label className="block">
+                <span className={labelClass}>Registration</span>
+                <UKNumberPlate value={exchange.registration} editable
+                  onChange={registration => setExchange(current => ({ ...current, registration }))}
+                  testId="enquiry-part-exchange-plate" />
+              </label>
+            </div>
+            <label className="block max-w-sm">
+              <span className={labelClass}>Current mileage (miles)</span>
+              <Input required type="number" min={0} max={1000000} step={1} inputMode="numeric"
+                value={exchange.mileage}
+                onChange={event => setExchange(current => ({ ...current, mileage: event.target.value }))} />
+            </label>
             <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary">Anything to mention? (optional)</summary><label className="block"><span className={labelClass}>Anything we should know about your car?</span>
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
             </label></details>

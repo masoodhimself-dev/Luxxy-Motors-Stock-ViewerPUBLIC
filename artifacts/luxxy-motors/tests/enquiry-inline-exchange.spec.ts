@@ -12,7 +12,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByText('Questions about this car')).toHaveCount(0);
     await page.getByRole('radio', { name: 'Yes', exact: true }).check();
     const details = page.getByTestId('enquiry-part-exchange-details');
-    await details.getByLabel('Registration', { exact: true }).fill('AB12 CDE');
+    await details.getByLabel('Your car’s UK registration number', { exact: true }).fill('AB12 CDE');
     await details.getByLabel('Current mileage (miles)', { exact: true }).fill('42000');
     await expect(details.locator('input')).toHaveCount(2);
     await page.getByRole('radio', { name: 'No', exact: true }).check();
