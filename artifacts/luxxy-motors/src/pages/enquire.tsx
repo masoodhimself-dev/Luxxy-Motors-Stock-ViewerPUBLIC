@@ -17,7 +17,7 @@ const headings: Record<EnquiryType, { eyebrow: string; title: string; descriptio
   general: { eyebrow: 'Talk to the team', title: 'How can we help?', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We will confirm delivery options and costs.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
-  part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us a little about your car and we will help you understand your options.' },
+  part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us about your car. Choose your next one. Send the details through WhatsApp.' },
 };
 
 const metaHeadings: Record<EnquiryType, string> = {
@@ -85,7 +85,18 @@ export default function Enquire() {
               {copy.description}
             </p>
 
-            {vehicle ? (
+            {type === 'part_exchange' ? (
+              <div className="mt-6 hidden space-y-5 border-t border-border pt-5 text-sm leading-6 text-muted-foreground lg:block">
+                <p>Tell us about your car, choose one from our stock, then send the details through WhatsApp.</p>
+                <ol className="hidden space-y-3 lg:block">
+                  <li><span className="mr-3 text-accent">01</span>Your car and mileage</li>
+                  <li><span className="mr-3 text-accent">02</span>Condition, keys and V5C</li>
+                  <li><span className="mr-3 text-accent">03</span>Your next car</li>
+                  <li><span className="mr-3 text-accent">04</span>Contact details and review</li>
+                </ol>
+                <p className="text-xs">Have photos ready to attach in the WhatsApp chat. No obligation to proceed.</p>
+              </div>
+            ) : vehicle ? (
               <div className="mt-5 hidden flex-col gap-4 lg:flex" data-testid="enquiry-vehicle-summary">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
                   <p className="font-display text-[13px] font-semibold text-primary">Your selected car</p>
@@ -162,7 +173,7 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-[hsl(var(--accent))]" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-[hsl(var(--accent))]">We could not load the showroom details.</p>
-                    <p className="mt-2 text-primary/70">You can still send an enquiry and our team will help match it to the right vehicle.</p>
+                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Please reload to choose a current stock vehicle, or call the showroom.' : 'You can still send an enquiry and our team will help match it to the right vehicle.'}</p>
                   </div>
                 </div>
               ) : vehicleId && !vehicle ? (
@@ -170,7 +181,7 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-accent" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-accent">This vehicle has just left the showroom.</p>
-                    <p className="mt-2 text-primary/70">You can still send a general enquiry below and we will help find a close alternative.</p>
+                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
                   </div>
                 </div>
               ) : null}

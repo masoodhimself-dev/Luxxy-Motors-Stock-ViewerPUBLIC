@@ -186,7 +186,7 @@ test('gallery thumbnails use one tab stop and support arrow, Home and End keys',
 });
 
 test('service enquiry headings track the selected type without discarding typed details', async ({ page }) => {
-  await page.goto('/enquire?type=part_exchange');
+  await page.goto('/enquire?type=general');
   await page.getByTestId('input-customer-name').fill('Test Customer');
   await page.getByTestId('select-enquiry-type').selectOption('warranty');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Warranty enquiries');

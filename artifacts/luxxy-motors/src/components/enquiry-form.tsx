@@ -1,16 +1,16 @@
+import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
 import { getGetEnquiryAvailabilityQueryKey, useCreateEnquiry, useGetEnquiryAvailability, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CalendarDays, CalendarPlus, CarFront, Check, CheckCircle2, CircleAlert, Clock3, Gauge, Mail, MessageSquare, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CalendarDays, CalendarPlus, Check, CheckCircle2, CircleAlert, Clock3, Mail, MessageSquare, Phone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
-import { formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
+import { formatPrice } from '@/lib/utils';
 import { getPhoneHref, getWhatsAppHref, type EnquiryType } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { UKNumberPlate } from '@/components/uk-number-plate';
 import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
 
@@ -26,19 +26,11 @@ const bookingTimezone = 'Europe/London';
 
 const labelClass = 'field-label flex items-center gap-2';
 type PreferredContact = 'email' | 'phone' | 'whatsapp';
-type PartExchangeCondition = 'excellent' | 'good' | 'fair' | 'poor';
 
 const contactOptions: Array<{ value: PreferredContact; label: string; hint: string }> = [
   { value: 'email', label: 'Email', hint: 'Written confirmation' },
   { value: 'phone', label: 'Phone call', hint: 'Talk to the team' },
   { value: 'whatsapp', label: 'WhatsApp', hint: 'Photos and questions' },
-];
-
-const conditionOptions: Array<{ value: PartExchangeCondition; label: string; hint: string }> = [
-  { value: 'excellent', label: 'Excellent', hint: 'Like new, no marks' },
-  { value: 'good', label: 'Good', hint: 'Light wear for its age' },
-  { value: 'fair', label: 'Fair', hint: 'Some marks or work needed' },
-  { value: 'poor', label: 'Poor', hint: 'Needs attention' },
 ];
 
 function normalisePhone(value: string) {
@@ -136,10 +128,6 @@ export function EnquiryForm({
   useEffect(() => {
     if (!messageTouched.current && initialMessage) setMessage(initialMessage);
   }, [initialMessage]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState(vehicle?.id ?? '');
-  const [partExchangeRegistration, setPartExchangeRegistration] = useState('');
-  const [partExchangeMileage, setPartExchangeMileage] = useState('');
-  const [partExchangeCondition, setPartExchangeCondition] = useState<PartExchangeCondition>('good');
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [viewingStep, setViewingStep] = useState<1 | 2>(initialType === 'viewing' ? 1 : 2);
@@ -158,18 +146,13 @@ export function EnquiryForm({
   );
 
   const isPartExchange = type === 'part_exchange';
-  const selectedStockVehicle = stockCars.find((car) => car.id === selectedVehicleId);
-  const selectedVehicle = isPartExchange ? selectedStockVehicle ?? vehicle : vehicle;
+  const selectedVehicle = vehicle;
   const vehicleLabel = selectedVehicle?.title || [selectedVehicle?.make, selectedVehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
   const availableSlots = availabilityQuery.data?.slots.filter((slot) => slot.available) ?? [];
   const selectedSlotLabel = availabilityQuery.data?.slots.find((slot) => slot.startAt === selectedSlot)?.label;
   const phoneRequired = isViewing || preferredContact !== 'email';
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
-
-  useEffect(() => {
-    if (vehicle?.id) setSelectedVehicleId(vehicle.id);
-  }, [vehicle?.id]);
 
   useEffect(() => {
     setSelectedSlot(null);
@@ -188,7 +171,6 @@ export function EnquiryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isViewing && !selectedSlot) return;
-    if (isPartExchange && !selectedVehicleId) return;
     const normalizedPhone = normalisePhone(phone);
     if (phone.trim() && !normalizedPhone) {
       setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
@@ -199,7 +181,7 @@ export function EnquiryForm({
       return;
     }
     const data: EnquiryInput = {
-      vehicleId: isPartExchange ? selectedVehicleId || null : vehicle?.id ?? null,
+      vehicleId: vehicle?.id ?? null,
       type,
       customerName: customerName.trim(),
       email: email.trim(),
@@ -207,13 +189,7 @@ export function EnquiryForm({
       preferredContact,
       message: message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''),
       appointmentAt: isViewing ? selectedSlot : null,
-      partExchange: isPartExchange
-        ? {
-            registration: partExchangeRegistration.trim().toUpperCase() || null,
-            mileage: Number(partExchangeMileage),
-            condition: partExchangeCondition,
-          }
-        : null,
+      partExchange: null,
       visitorId: getVisitorId(),
     };
     trackEvent('enquiry_submitted', {
@@ -234,6 +210,8 @@ export function EnquiryForm({
       },
     );
   };
+
+  if (isPartExchange) return <PartExchangeForm vehicle={vehicle} stockCars={stockCars} />;
 
   if (mutation.isSuccess) {
     return (
@@ -413,114 +391,6 @@ export function EnquiryForm({
             </label>
           )}
         </>
-      )}
-
-      {isPartExchange && (
-        <fieldset className="luxxy-reveal luxxy-reveal-1 min-w-0 space-y-5 border-t border-border pt-5" data-testid="section-part-exchange-details">
-          <div className="border-b border-border/70 pb-5">
-            <legend className="flex items-center gap-2.5 font-display text-xl font-semibold tracking-[-.02em] text-primary">
-              <CarFront className="h-5 w-5 text-accent" /> Let’s work out the difference
-            </legend>
-            <p className="mt-3 text-[13px] leading-6 text-primary/70">Choose the {dealerConfig.identity.name} car you’re considering, then tell us about your current car.</p>
-          </div>
-          <div className="space-y-4" data-testid="section-part-exchange-target-vehicle">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="luxxy-label text-accent">Step 1 · Your next car</p>
-                <p className="mt-2 text-sm font-bold text-primary">Which car are you considering?</p>
-              </div>
-              <span className="luxxy-label shrink-0 border border-border bg-background px-2.5 py-1.5 text-primary/70">{stockCars.length} available</span>
-            </div>
-            <NativeSelect
-              required
-              value={selectedVehicleId}
-              onChange={(event) => setSelectedVehicleId(event.target.value)}
-              disabled={stockCars.length === 0}
-              className="h-12"
-              aria-label="Vehicle to part-exchange against"
-              data-testid="select-part-exchange-target-vehicle"
-            >
-              <option value="">Choose a car from our current stock</option>
-              {stockCars.map((car) => {
-                const label = car.title || [car.make, car.model].filter(Boolean).join(' ') || 'Selected vehicle';
-                const price = car.price != null ? ` · ${formatPrice(car.price, car.currency)}` : '';
-                return <option key={car.id} value={car.id}>{label}{price}</option>;
-              })}
-            </NativeSelect>
-            {selectedVehicle && (
-              <div className="border border-border/70 bg-background p-4" data-testid="card-part-exchange-target-vehicle">
-                <div className="flex items-center gap-4">
-                  {getThumbnailUrl(selectedVehicle) ? (
-                    <img src={getThumbnailUrl(selectedVehicle)} alt="" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 object-cover" />
-                  ) : (
-                    <div className="grid h-14 w-20 shrink-0 place-items-center bg-secondary text-primary"><CarFront className="h-5 w-5" /></div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-primary">{vehicleLabel}</p>
-                    <p className="mt-1 text-[12px] font-semibold text-primary/70">
-                      {selectedVehicle.year ? `${selectedVehicle.year} · ` : ''}
-                      {selectedVehicle.price != null ? <span className="luxxy-price-inline text-foreground">{formatPrice(selectedVehicle.price, selectedVehicle.currency)}</span> : 'Price on request'}
-                    </p>
-                  </div>
-                  <Check className="ml-auto h-5 w-5 shrink-0 text-accent" />
-                </div>
-                {vehicleRegistration(selectedVehicle) && (
-                  <div className="mt-4 border-t border-border/70 pt-4">
-                    <div className="mb-2.5 flex items-center justify-between gap-3">
-                      <span className="luxxy-label text-accent">Actual registration</span>
-                      <span className="luxxy-label text-primary/70">From stock record</span>
-                    </div>
-                    <UKNumberPlate value={vehicleRegistration(selectedVehicle)} testId="visual-target-uk-number-plate" />
-                  </div>
-                )}
-              </div>
-            )}
-            {stockCars.length === 0 && <p className="border border-[#c9a49c] bg-[#f7ece9] p-3 text-[13px] leading-6 text-[#8d3e34]">Our current stock is unavailable right now. Please call us and we’ll help match your part exchange to a car.</p>}
-          </div>
-          <div className="border-t border-border/70 pt-5">
-            <p className="luxxy-label text-accent">Step 2 · Your current car</p>
-            <p className="mt-2 text-sm font-bold text-primary">Tell us about the car you’d like to exchange</p>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <span className={`${labelClass} justify-between`}>
-                <span>Your car’s registration</span>
-                <span className="text-primary/70">UK plate</span>
-              </span>
-              <UKNumberPlate
-                value={partExchangeRegistration}
-                editable
-                onChange={setPartExchangeRegistration}
-                testId="visual-uk-number-plate"
-                inputTestId="input-part-exchange-registration"
-                helpId="part-exchange-registration-help"
-              />
-              <span id="part-exchange-registration-help" className="mt-2 block text-[13px] leading-6 text-primary/70">Enter the registration exactly as it appears on the plate.</span>
-            </label>
-            <label className="block">
-              <span className={labelClass}><Gauge className="h-3.5 w-3.5 text-accent" />Current mileage</span>
-              <Input
-                required
-                type="number"
-                min={0}
-                max={2000000}
-                step={1}
-                inputMode="numeric"
-                value={partExchangeMileage}
-                onChange={(event) => setPartExchangeMileage(event.target.value)}
-                placeholder="45,000"
-                className="h-11"
-                data-testid="input-part-exchange-mileage"
-              />
-            </label>
-          </div>
-          <label className="block border-t border-border/70 pt-5">
-            <span className={labelClass}>Condition</span>
-            <NativeSelect required value={partExchangeCondition} onChange={(event) => setPartExchangeCondition(event.target.value as PartExchangeCondition)} className="h-11" data-testid="select-part-exchange-condition">
-              {conditionOptions.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.hint}</option>)}
-            </NativeSelect>
-          </label>
-        </fieldset>
       )}
 
       {/* min-w-0 stops the browser's default fieldset min-content sizing from letting the
