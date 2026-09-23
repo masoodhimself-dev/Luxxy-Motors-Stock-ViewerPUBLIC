@@ -1,6 +1,6 @@
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
@@ -183,6 +183,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
             <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
+            <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Contact us</Link>
             <button
               type="button"
               onClick={() => setLocation('/saved')}
@@ -212,7 +213,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Ex</button>}
             {dealerConfig.warranty?.enabled && <button onClick={() => handleNav('warranty')} className={navLinkClass}>Warranty</button>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
-            <button onClick={() => handleNav('visit')} className={navLinkClass}>Contact</button>
+            <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Contact us</Link>
 
             <div className="flex items-center gap-6 ml-4 pl-8 border-l-2 border-primary/10">
               {dealerConfig.contact.phone && (
@@ -295,7 +296,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Heart className={`w-5 h-5 text-accent ${savedCount > 0 ? 'fill-current' : ''}`} />
             </button>
             <button onClick={() => handleNav('about')} className={mobileNavRowClass}>Why Buy From Us <ArrowRight className="w-5 h-5 opacity-40" /></button>
-            <button onClick={() => handleNav('visit')} className={mobileNavRowClass}>Contact & Location <ArrowRight className="w-5 h-5 opacity-40" /></button>
+            <Link href="/contact" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/contact' ? 'page' : undefined} className={mobileNavRowClass}>Contact us <ArrowRight className="w-5 h-5 opacity-40" /></Link>
 
             <div className="mt-8 flex flex-col gap-4 pb-4">
               {dealerConfig.contact.phone && (
@@ -384,6 +385,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Visit</h3>
+              <Link href="/contact" className={`mb-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Contact & directions <ArrowRight className="h-4 w-4 shrink-0" /></Link>
               <div className="space-y-5 text-sm text-primary-foreground/80 font-medium">
                 {dealerConfig.contact.phone && (
                   <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-3 transition-colors hover:text-accent">

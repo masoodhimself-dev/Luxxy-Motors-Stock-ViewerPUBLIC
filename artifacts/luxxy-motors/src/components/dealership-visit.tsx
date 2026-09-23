@@ -88,6 +88,11 @@ export function DealershipVisit() {
                   Arrange a viewing <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link href="/contact">
+                  Contact & directions <MapPin className="h-4 w-4" />
+                </Link>
+              </Button>
               {contact.phone && (
                 <a
                   className="text-link"
