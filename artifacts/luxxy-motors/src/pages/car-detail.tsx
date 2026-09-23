@@ -1,3 +1,4 @@
+import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useState, type MouseEvent } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
@@ -38,41 +39,6 @@ import {
 } from '@/lib/cta-helpers';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 
-function getSimilarCars(currentCar: Car, cars: Car[]) {
-  const priceRange = currentCar.price ? Math.max(2500, currentCar.price * 0.25) : null;
-
-  return cars
-    .filter((candidate) => candidate.id !== currentCar.id)
-    .map((candidate) => {
-      let score = 0;
-      const priceDistance =
-        currentCar.price != null && candidate.price != null
-          ? Math.abs(currentCar.price - candidate.price)
-          : Number.MAX_SAFE_INTEGER;
-
-      if (currentCar.make && candidate.make === currentCar.make) score += 5;
-      if (currentCar.model && candidate.model === currentCar.model) score += 5;
-      if (currentCar.bodyType && candidate.bodyType === currentCar.bodyType) score += 3;
-      if (currentCar.fuel && candidate.fuel === currentCar.fuel) score += 2;
-      if (currentCar.transmission && candidate.transmission === currentCar.transmission) score += 2;
-      if (
-        currentCar.year != null &&
-        candidate.year != null &&
-        Math.abs(currentCar.year - candidate.year) <= 2
-      )
-        score += 1;
-      if (priceRange != null && candidate.price != null && priceDistance <= priceRange) score += 2;
-
-      return { candidate, score, priceDistance };
-    })
-    .filter(({ score }) => score > 0)
-    .sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score;
-      return left.priceDistance - right.priceDistance;
-    })
-    .slice(0, 4)
-    .map(({ candidate }) => candidate);
-}
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
@@ -277,6 +243,7 @@ export default function CarDetail() {
                 />
               </div>
             )}
+            <a href="#buyer-information-heading" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4" onClick={() => document.getElementById('buyer-information-heading')?.focus()}>History, MOT, keys & warranty <ArrowRight className="h-4 w-4" /></a>
             {damageDisclosure && (
               <a href="#vehicle-history" className="mt-5 inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">
                 {damageDisclosure.label} recorded · Read vehicle history</a>
@@ -296,7 +263,7 @@ export default function CarDetail() {
               </Button>
               <Button asChild variant="outline" size="lg">
                 <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
-                  Enquire about this car
+                  Ask a question
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -396,8 +363,8 @@ export default function CarDetail() {
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="buyer-information-heading"
             >
-              <h2 id="buyer-information-heading" className="section-heading">
-                Before you decide
+              <h2 id="buyer-information-heading" tabIndex={-1} className="section-heading scroll-mt-28">
+                What to know about this car
               </h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 History, condition and what comes with the car. Ask our team
@@ -417,7 +384,7 @@ export default function CarDetail() {
                           : "text-muted-foreground"
                       }
                     >
-                      {item.value || "Please ask our team"}
+                      {item.value || "Not supplied — please ask our team"}
                     </dd>
                   </div>
                 ))}
@@ -520,7 +487,7 @@ export default function CarDetail() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="grid grid-flow-col auto-cols-[85%] gap-4 overflow-x-auto overscroll-x-contain pb-3 sm:grid-flow-row sm:auto-cols-auto sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+            <div className="grid grid-flow-col auto-cols-[85%] gap-4 overflow-x-auto overscroll-x-contain pb-3 sm:grid-flow-row sm:auto-cols-auto sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
               {similarCars.map((similarCar) => (
                 <CarCard
                   key={similarCar.id}

@@ -17,7 +17,8 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
-  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swiped = useRef(false);
   const allImages = useMemo(
     () => orderVehiclePhotos(images, heroImage),
     [images, heroImage],
@@ -26,15 +27,39 @@ export function Gallery({ images, heroImage }: GalleryProps) {
   const previous = () => setActiveIndex((index + allImages.length - 1) % allImages.length);
   const next = () => setActiveIndex((index + 1) % allImages.length);
   const touchHandlers = {
-    onTouchStart: (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX),
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (touchStart !== null && Math.abs(touchStart - e.changedTouches[0].clientX) > 50) {
-        if (touchStart > e.changedTouches[0].clientX) next();
-        else previous();
-      }
-      setTouchStart(null);
+    onTouchStart: (event: React.TouchEvent) => {
+      touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      swiped.current = false;
     },
+    onTouchEnd: (event: React.TouchEvent) => {
+      const start = touchStart.current;
+      if (start) {
+        const dx = event.changedTouches[0].clientX - start.x;
+        const dy = event.changedTouches[0].clientY - start.y;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2 && allImages.length > 1) {
+          swiped.current = true;
+          if (dx < 0) next(); else previous();
+        }
+      }
+      touchStart.current = null;
+    },
+    onTouchCancel: () => { touchStart.current = null; swiped.current = false; },
   };
+  const groups = (["Exterior", "Interior", "Details", "Other"] as const)
+    .filter(group => allImages.some(image => photoGroup(image) === group));
+  const groupNavigation = (fullscreen = false) => groups.length > 1 && (
+    <div className="mt-3 flex flex-wrap gap-1 border-b border-border" aria-label="Photograph sections">
+      {groups.map(group => <button type="button" key={group} aria-pressed={photoGroup(allImages[index]) === group}
+        onClick={() => {
+          const target = allImages.findIndex(image => photoGroup(image) === group);
+          setActiveIndex(target);
+          if (!fullscreen) thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }}
+        className={cn('min-h-11 border-b-2 px-3 text-xs', photoGroup(allImages[index]) === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
+        {group}
+      </button>)}
+    </div>
+  );
   const renderImage = (
     imageIndex: number,
     className: string,
@@ -90,6 +115,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
             <button
               type="button"
               aria-label="View gallery fullscreen"
+              onClick={(event) => { if (swiped.current) { event.preventDefault(); swiped.current = false; } }}
               className="absolute inset-0 cursor-zoom-in focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-sm bg-black/70 px-3 py-2 text-xs text-white">
@@ -129,39 +155,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
             {index + 1} / {allImages.length} photographs
           </span>
         </div>
-        {new Set(allImages.map(photoGroup)).size > 1 && (
-          <div
-            className="mt-3 flex flex-wrap gap-1 border-b border-border"
-            aria-label="Photograph sections"
-          >
-            {(["Exterior", "Interior", "Details", "Other"] as const)
-              .filter((group) =>
-                allImages.some((image) => photoGroup(image) === group),
-              )
-              .map((group) => (
-                <button
-                  type="button"
-                  key={group}
-                  aria-pressed={photoGroup(allImages[index]) === group}
-                  onClick={() => {
-                    const target = allImages.findIndex(
-                      (image) => photoGroup(image) === group,
-                    );
-                    setActiveIndex(target);
-                    thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                  }}
-                  className={cn(
-                    "min-h-11 border-b-2 px-3 text-xs",
-                    photoGroup(allImages[index]) === group
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground",
-                  )}
-                >
-                  {group}
-                </button>
-              ))}
-          </div>
-        )}
+        {groupNavigation()}
         {allImages.length > 1 && (
           <div
             className="mt-3 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-2"
@@ -212,6 +206,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
         }}
       >
         <DialogTitle className="sr-only">Vehicle image gallery</DialogTitle>
+        {groupNavigation(true)}
         <div className="flex min-w-0 items-center justify-center" {...touchHandlers}>
           {renderImage(index, 'max-h-[65dvh] w-full object-contain', true)}
         </div>

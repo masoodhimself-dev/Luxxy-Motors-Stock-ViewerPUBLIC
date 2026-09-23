@@ -28,6 +28,7 @@ describe("buyer information preserves the source of a claim", () => {
       "0 keys",
       null,
       null,
+      null,
       "V5C · Handbook",
     ]);
   });

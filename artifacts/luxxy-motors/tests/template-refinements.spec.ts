@@ -77,12 +77,12 @@ test("gallery section controls and buyer information retain real selection and m
     page.getByRole("button", { name: "Interior", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
-    page.getByRole("heading", { name: "Before you decide" }),
+    page.getByRole("heading", { name: "What to know about this car" }),
   ).toBeVisible();
   await expect(page.getByText("2 keys", { exact: true })).toBeVisible();
   await page.goto("/vehicle/preview-2");
   await expect(
-    page.getByText("Please ask our team", { exact: true }),
+    page.getByText("Not supplied — please ask our team", { exact: true }),
   ).toHaveCount(6);
 });
 

@@ -108,7 +108,7 @@ export function CarCard({
         ? { label: 'Mileage', value: car.mileageText }
         : null,
     car.fuel ? { label: 'Fuel', value: car.fuel } : null,
-    car.transmission ? { label: 'Trans', value: car.transmission } : null,
+    car.transmission ? { label: 'Gearbox', value: car.transmission } : null,
     car.engineSize ? { label: 'Engine', value: car.engineSize } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -230,7 +230,7 @@ export function CarCard({
         </div>
         <div className="vehicle-specs mb-3 mt-2">
           {visibleSpecs.map((spec) => (
-            <span key={spec.label}>{spec.value}</span>
+            <span key={spec.label} aria-label={`${spec.label}: ${spec.value}`}>{spec.value}</span>
           ))}
         </div>
         {registration && isRow && (

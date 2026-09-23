@@ -601,6 +601,18 @@ export function EnquiryForm({
       )}
 
       {(!isViewing || viewingStep === 2) && (
+        <>
+        {selectedVehicle && !isPartExchange && <fieldset className="border-t border-border pt-4" data-testid="enquiry-question-prompts">
+          <legend className="text-sm font-semibold">Questions about this car</legend>
+          <p className="mt-2 text-xs text-muted-foreground">Add a question to your message, then edit it as you like.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[
+              ['Service history', 'Could you tell me about the service history and available records?'],
+              ['Vehicle condition', 'Are there any condition details or known faults I should be aware of?'],
+              ['Part-exchange', 'Can we discuss a part-exchange against this vehicle?'],
+            ].map(([label, question]) => <button key={label} type="button" className="min-h-11 rounded-sm border border-input px-3 text-sm hover:bg-secondary disabled:opacity-50" disabled={message.includes(question) || message.length + question.length + 2 > 2000} onClick={() => setMessage(current => current.trim() ? `${current.trim()}\n\n${question}` : question)}>{label}</button>)}
+          </div>
+        </fieldset>}
         <label className="block">
           <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
           <Textarea
@@ -614,6 +626,7 @@ export function EnquiryForm({
             data-testid="textarea-enquiry-message"
           />
         </label>
+        </>
       )}
 
       {mutation.isError && (
