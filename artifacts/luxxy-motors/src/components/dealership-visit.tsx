@@ -22,16 +22,16 @@ export function DealershipVisit() {
   return (
     <section
       id="visit"
-      className="section-space border-t border-border bg-card"
+      className="border-t border-border bg-card py-8 md:py-10"
       aria-labelledby="visit-heading"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div
-          className={`grid items-start gap-8 lg:gap-14 ${content.teamImageUrl ? "lg:grid-cols-2" : "max-w-4xl"}`}
+          className={`grid items-start gap-6 lg:gap-10 ${content.teamImageUrl ? "lg:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
-            <h2 id="visit-heading" className="heading-2">
-              Come and see the car
+            <h2 id="visit-heading" className="section-heading">
+              Plan your visit
             </h2>
             <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">
               {content.visitInstructions ||

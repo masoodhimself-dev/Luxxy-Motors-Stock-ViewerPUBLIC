@@ -1,3 +1,4 @@
+import { questionMessage } from "@/lib/vehicle-questions";
 import { useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
@@ -174,7 +175,7 @@ export default function Enquire() {
                 </div>
               ) : null}
 
-              <EnquiryForm onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
+              <EnquiryForm initialMessage={vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">

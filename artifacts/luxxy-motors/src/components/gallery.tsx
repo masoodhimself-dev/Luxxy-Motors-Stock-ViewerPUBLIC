@@ -120,7 +120,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
             >
               <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-sm bg-black/70 px-3 py-2 text-xs text-white">
                 <Maximize2 className="h-4 w-4" />
-                View gallery
+                View all {allImages.length} photos
               </span>
             </button>
           </DialogTrigger>
@@ -161,7 +161,9 @@ export function Gallery({ images, heroImage }: GalleryProps) {
             className="mt-3 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-2"
             aria-label="Choose photograph"
           >
-            {allImages.map((image, i) => (
+            {allImages.slice(Math.floor(index / 6) * 6, Math.floor(index / 6) * 6 + 6).map((image, offset) => {
+              const i = Math.floor(index / 6) * 6 + offset;
+              return (
               <button
                 key={`${getSafeImageUrl(image)}-${i}`}
                 type="button"
@@ -176,8 +178,10 @@ export function Gallery({ images, heroImage }: GalleryProps) {
                   if (target === null) return;
                   event.preventDefault();
                   setActiveIndex(target);
-                  thumbnailRefs.current[target]?.focus({ preventScroll: true });
-                  thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                  requestAnimationFrame(() => {
+                    thumbnailRefs.current[target]?.focus({ preventScroll: true });
+                    thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                  });
                 }}
                 onClick={() => setActiveIndex(i)}
                 className={cn(
@@ -187,7 +191,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
               >
                 {renderImage(i, 'h-full w-full object-cover')}
               </button>
-            ))}
+            ); })}
           </div>
         )}
       </div>

@@ -337,6 +337,7 @@ export default function Home() {
               <h2 id="vehicle-results-heading" tabIndex={-1} className="section-heading">
                 {showAll ? 'All stock' : 'Latest arrivals'}
               </h2>
+              {!showAll && stockCount > 3 && <button type="button" onClick={() => { setFilters({ ...defaultFilters }); revealResults('view_all'); }} className="text-link min-h-11 text-sm" data-testid="button-header-all-stock">View all stock <ArrowRight className="h-4 w-4" /></button>}
             </div>
             {stock && (
               <p

@@ -112,10 +112,12 @@ export function EnquiryForm({
   initialType = 'general',
   vehicle,
   stockCars = [],
+  initialMessage = '',
   onTypeChange,
   onChangeCar,
 }: {
   initialType?: EnquiryType;
+  initialMessage?: string;
   vehicle?: Car;
   stockCars?: Car[];
   onTypeChange?: (type: EnquiryType) => void;
@@ -129,7 +131,11 @@ export function EnquiryForm({
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialMessage);
+  const messageTouched = useRef(false);
+  useEffect(() => {
+    if (!messageTouched.current && initialMessage) setMessage(initialMessage);
+  }, [initialMessage]);
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicle?.id ?? '');
   const [partExchangeRegistration, setPartExchangeRegistration] = useState('');
   const [partExchangeMileage, setPartExchangeMileage] = useState('');
@@ -610,7 +616,7 @@ export function EnquiryForm({
               ['Service history', 'Could you tell me about the service history and available records?'],
               ['Vehicle condition', 'Are there any condition details or known faults I should be aware of?'],
               ['Part-exchange', 'Can we discuss a part-exchange against this vehicle?'],
-            ].map(([label, question]) => <button key={label} type="button" className="min-h-11 rounded-sm border border-input px-3 text-sm hover:bg-secondary disabled:opacity-50" disabled={message.includes(question) || message.length + question.length + 2 > 2000} onClick={() => setMessage(current => current.trim() ? `${current.trim()}\n\n${question}` : question)}>{label}</button>)}
+            ].map(([label, question]) => <button key={label} type="button" className="min-h-11 rounded-sm border border-input px-3 text-sm hover:bg-secondary disabled:opacity-50" disabled={message.includes(question) || message.length + question.length + 2 > 2000} onClick={() => { messageTouched.current = true; setMessage(current => current.trim() ? `${current.trim()}\n\n${question}` : question); }}>{label}</button>)}
           </div>
         </fieldset>}
         <label className="block">
@@ -621,7 +627,7 @@ export function EnquiryForm({
             maxLength={2000}
             rows={4}
             value={message}
-            onChange={(event) => setMessage(event.target.value)}
+            onChange={(event) => { messageTouched.current = true; setMessage(event.target.value); }}
             placeholder={isViewing ? 'Anything you would like us to prepare?' : `How can the ${dealerConfig.identity.name} team help?`}
             data-testid="textarea-enquiry-message"
           />

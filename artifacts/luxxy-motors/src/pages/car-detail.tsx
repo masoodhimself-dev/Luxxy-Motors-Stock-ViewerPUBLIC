@@ -1,3 +1,4 @@
+import { questionKeyForLabel } from "@/lib/vehicle-questions";
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useState, type MouseEvent } from 'react';
@@ -196,7 +197,7 @@ export default function CarDetail() {
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} />
           </div>
-          <aside className="min-w-0 border-t border-border py-6 lg:border-t-0 lg:py-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <aside className="min-w-0 border-t border-border py-6 lg:border-t-0 lg:py-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-stretch">
             <p className="luxxy-kicker mb-3">
               {car.registrationBand || car.year || 'Available now'}
             </p>
@@ -248,7 +249,9 @@ export default function CarDetail() {
               <a href="#vehicle-history" className="mt-5 inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4">
                 {damageDisclosure.label} recorded · Read vehicle history</a>
             )}
+            <div className="lg:sticky lg:top-[calc(var(--site-header-height,5rem)+1rem)]" data-testid="desktop-purchase-panel">
             <div className="mt-6 flex flex-col gap-3 border-y border-border bg-card px-4 py-5">
+              <p className="hidden lg:block text-sm font-semibold">{car.price ? formatPrice(car.price, car.currency) : "Price on application"} · Arrange a viewing</p>
               <Button asChild size="lg">
                 <a
                   href={bookingHref}
@@ -332,6 +335,7 @@ export default function CarDetail() {
                 Download
               </a>
             </div>
+            </div>
           </aside>
           <div className="min-w-0 pb-10 lg:col-start-1 lg:row-start-2">
             <section
@@ -354,6 +358,8 @@ export default function CarDetail() {
               <h2 id="vehicle-description-heading" className="section-heading">
                 About this vehicle
               </h2>
+              <p className="mt-4 text-sm font-medium leading-7">{[vehicleLabel, car.year, car.mileage != null ? formatMileage(car.mileage) : car.mileageText, car.fuel, car.transmission].filter(Boolean).join(' · ')}</p>
+              {features.length > 0 && <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2" aria-label="Supplied vehicle highlights">{features.slice(0, 4).map(feature => <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{feature}</li>)}</ul>}
               <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
                 {description ||
                   'Speak to our team for the full vehicle description, service history and preparation details. We’ll be happy to answer your questions before you visit.'}
@@ -384,7 +390,7 @@ export default function CarDetail() {
                           : "text-muted-foreground"
                       }
                     >
-                      {item.value || "Not supplied — please ask our team"}
+                      {item.value || <><span className="block">Not supplied — please ask our team</span><Link className="text-link min-h-11 text-sm" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=${questionKeyForLabel(item.label) || ''}`}>Ask about {item.label.toLowerCase()} <ArrowRight className="h-3.5 w-3.5" /></Link></>}
                     </dd>
                   </div>
                 ))}

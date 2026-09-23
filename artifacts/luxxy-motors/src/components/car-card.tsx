@@ -11,16 +11,8 @@ import {
   vehicleDisplayTitle,
   vehicleRegistration,
 } from '@/lib/utils';
-import {
-  getPhoneHref,
-  getVehicleBookingHref,
-  getVehicleWhatsAppHref,
-  recordBookingIntent,
-  recordContactIntent,
-} from '@/lib/cta-helpers';
-import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
-import { ArrowRight, Calendar, Camera, MessageCircle, Phone } from 'lucide-react';
+import { ArrowRight, Camera } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 
 const MAX_PREVIEW_IMAGES = 6;
@@ -38,7 +30,6 @@ export function CarCard({
   badges?: string[];
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
-  const { settings: dealerConfig } = useDealerSettings();
   const isRow = layout === 'row';
   const isCompact = layout === 'compact';
 
@@ -70,13 +61,6 @@ export function CarCard({
   const vehicleLabel = vehicleDisplayTitle(car);
   const registration = vehicleRegistration(car);
   const detailHref = `/vehicle/${car.id}`;
-  const phoneHref = getPhoneHref(dealerConfig);
-  const whatsappHref = getVehicleWhatsAppHref(
-    car,
-    'get more information about this vehicle',
-    dealerConfig,
-  );
-  const bookingHref = getVehicleBookingHref(car);
   const recordVehicleOpen = () => {
     rememberStockPosition(car.id);
     trackEvent('vehicle_opened', {
@@ -253,38 +237,7 @@ export function CarCard({
             className="min-h-11 px-2 text-xs font-medium text-muted-foreground"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-x-1 border-t border-border/60 text-xs text-muted-foreground">
-          <a
-            href={bookingHref}
-            onClick={() => recordBookingIntent({ source: 'car_card', vehicleContext: true })}
-            className="flex min-h-11 items-center gap-1.5 hover:text-primary"
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            Book a viewing
-          </a>
-          {phoneHref && (
-            <a
-              href={phoneHref}
-              aria-label={`Call about ${vehicleLabel}`}
-              onClick={() => recordContactIntent({ channel: 'call', car, source: 'car-card' })}
-              className="ml-auto grid h-11 w-11 place-items-center hover:text-primary"
-            >
-              <Phone className="h-4 w-4" />
-            </a>
-          )}
-          {whatsappHref && (
-            <a
-              href={whatsappHref}
-              aria-label={`WhatsApp about ${vehicleLabel}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-card' })}
-              className="grid h-11 w-11 place-items-center text-[hsl(var(--contact))]"
-            >
-              <MessageCircle className="h-4 w-4" />
-            </a>
-          )}
-        </div>
+
       </div>
     </article>
   );

@@ -171,7 +171,7 @@ test('staff dialogs return keyboard focus after closing', async ({ page }) => {
 test('gallery thumbnails use one tab stop and support arrow, Home and End keys', async ({ page }) => {
   await page.goto('/vehicle/preview-1');
   const thumbnails = page.getByRole('button', { name: /^Show photograph/ });
-  await expect(thumbnails).toHaveCount(70);
+  await expect(thumbnails).toHaveCount(6);
   await expect(thumbnails.first()).toHaveAttribute('tabindex', '0');
   await thumbnails.first().focus();
   await page.keyboard.press('ArrowRight');

@@ -28,11 +28,13 @@ export function buyerInformation(car: Car) {
       break;
     }
   }
+  const history = text(["writeOffCategory"]);
+  const category = history?.match(/^(?:cat(?:egory)?\s*)?([SN])$/i)?.[1]?.toUpperCase();
   return [
     { label: "Service history", value: text(["serviceHistory"]) },
     { label: "MOT expiry", value: text(["motExpiry", "motExpiryDate"]) },
     { label: "Keys", value: keyCount || text(["keys"]) },
-    { label: "Insurance history", value: text(["writeOffCategory"]) },
+    { label: "Insurance history", value: category ? `Category ${category} recorded` : history },
     { label: "Condition", value: text(["conditionNotes", "condition"]) },
     { label: "Warranty", value: text(["warrantyDetails", "warranty"]) },
     {
