@@ -38,6 +38,7 @@ for (const width of [390, 1440]) {
     await page.getByTestId('select-part-exchange-target-vehicle').selectOption('preview-1');
     await expect(page.getByTestId('card-part-exchange-target-vehicle')).toBeVisible();
     await next.click();
+    await page.getByRole('radio', { name: /Send everything on WhatsApp/ }).check();
     await page.getByTestId('input-customer-name').fill('Test Buyer');
     await page.getByTestId('input-customer-phone').fill('07700 900123');
     await page.getByTestId('input-customer-email').fill('buyer@example.com');
@@ -73,4 +74,47 @@ test('stock vehicle link preselects a current car', async ({ page }) => {
   await page.getByTestId('select-part-exchange-history').selectOption('Not sure');
   await page.getByTestId('button-part-exchange-continue').click();
   await expect(page.getByTestId('select-part-exchange-target-vehicle')).toHaveValue('preview-1');
+});
+
+test('save details first, recover from failure, then offer photos with the enquiry reference', async ({ page }) => {
+  let payload: any;
+  let requests = 0;
+  await page.route('**/api/enquiries', async route => {
+    requests++;
+    payload = route.request().postDataJSON();
+    await route.fulfill(requests === 1 ? { status: 503, json: { error: 'Unavailable' } } : { json: { reference: 'PX-TEST-42', customerNotificationStatus: 'sent' } });
+  });
+  await page.goto('/enquire?type=part_exchange&vehicleId=preview-1');
+  const next = page.getByTestId('button-part-exchange-continue');
+  await page.getByTestId('input-part-exchange-registration').fill('AB12 CDE');
+  await page.getByTestId('input-part-exchange-model').fill('Ford Focus');
+  await page.getByTestId('input-part-exchange-mileage').fill('42000');
+  await next.click();
+  await page.getByTestId('select-part-exchange-condition').selectOption({ label: 'Good — normal wear for its age' });
+  await page.getByTestId('select-part-exchange-keys').selectOption('2 keys');
+  await page.getByTestId('select-part-exchange-v5').selectOption('Yes');
+  await page.getByTestId('select-part-exchange-history').selectOption('Full history');
+  await next.click();
+  await next.click();
+  await expect(page.getByRole('radio', { name: /Send details here/ })).toBeChecked();
+  await page.getByTestId('input-customer-name').fill('Test Buyer');
+  await page.getByTestId('input-customer-phone').fill('07700 900123');
+  await page.getByRole('checkbox').check();
+  await next.click();
+  expect(requests).toBe(0); // Email is required for the existing enquiry API.
+  await page.getByTestId('input-customer-email').fill('buyer@example.com');
+  await page.getByRole('checkbox').check();
+  await next.click();
+  await expect(page.getByRole('alert')).toContainText('Your details are still here');
+  await expect(page.getByTestId('input-customer-email')).toHaveValue('buyer@example.com');
+  await next.click();
+  await expect(page.getByTestId('status-part-exchange-success')).toBeVisible();
+  await expect(page.locator('#enquiry-form-heading')).toBeFocused();
+  expect(payload).toMatchObject({ type: 'part_exchange', vehicleId: 'preview-1', customerName: 'Test Buyer', email: 'buyer@example.com', phone: '07700900123', preferredContact: 'whatsapp', partExchange: { registration: 'AB12 CDE', mileage: 42000, condition: 'good' } });
+  for (const value of ['Ford Focus', 'Keys: 2 keys', 'V5C logbook: Yes', 'Service history: Full history']) expect(payload.message).toContain(value);
+  const photoLink = await page.getByTestId('link-part-exchange-photos').getAttribute('href');
+  const text = new URL(photoLink!).searchParams.get('text');
+  expect(text).toContain('PX-TEST-42');
+  expect(text).toContain('AB12 CDE');
+  expect(requests).toBe(2);
 });

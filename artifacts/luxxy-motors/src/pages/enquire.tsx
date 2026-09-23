@@ -17,7 +17,7 @@ const headings: Record<EnquiryType, { eyebrow: string; title: string; descriptio
   general: { eyebrow: 'Talk to the team', title: 'How can we help?', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We will confirm delivery options and costs.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
-  part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us about your car. Choose your next one. Send the details through WhatsApp.' },
+  part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us about your car. Choose your next one. Choose how to send your details.' },
 };
 
 const metaHeadings: Record<EnquiryType, string> = {
@@ -87,7 +87,7 @@ export default function Enquire() {
 
             {type === 'part_exchange' ? (
               <div className="mt-6 hidden space-y-5 border-t border-border pt-5 text-sm leading-6 text-muted-foreground lg:block">
-                <p>Tell us about your car, choose one from our stock, then send the details through WhatsApp.</p>
+                <p>Tell us about your car, choose one from our stock, then send your details here or through WhatsApp.</p>
                 <ol className="hidden space-y-3 lg:block">
                   <li><span className="mr-3 text-accent">01</span>Your car and mileage</li>
                   <li><span className="mr-3 text-accent">02</span>Condition, keys and V5C</li>
