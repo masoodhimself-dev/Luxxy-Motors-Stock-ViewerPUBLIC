@@ -1,3 +1,4 @@
+import { DepositDemo } from '@/components/deposit-demo';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
@@ -340,6 +341,9 @@ export function EnquiryForm({
             <CalendarPlus className="h-4 w-4" /> Add to calendar
           </a>
         )}
+        {vehicle && <div className="mx-auto mt-6 max-w-sm border-t border-border pt-5">
+          <DepositDemo key={vehicle.id} car={vehicle} className="w-full" />
+        </div>}
         <Button
           type="button"
           variant="outline"
@@ -579,6 +583,13 @@ export function EnquiryForm({
         </label>
         {message.length > messageLimit && <p role="alert" className="text-sm text-destructive">Please shorten your message by {message.length - messageLimit} characters to include your part-exchange details.</p>}
         </>
+      )}
+
+      {vehicle && (!isViewing || viewingStep === 2) && (
+        <div className="border-t border-border pt-4">
+          <p className="mb-3 text-xs text-muted-foreground">Optional · try the deposit demo separately from your enquiry.</p>
+          <DepositDemo key={vehicle.id} car={vehicle} className="w-full" />
+        </div>
       )}
 
       {mutation.isError && (

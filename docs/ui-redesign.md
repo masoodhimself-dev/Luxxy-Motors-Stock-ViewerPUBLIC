@@ -472,3 +472,11 @@ Validation: **172 frontend tests and 36 browser checks passed**. Browser checks 
 - Reused the shared yellow UK number-plate input for inline part-exchange registration, with uppercase entry and the existing validation.
 - Kept mileage as the only other required car detail.
 - Mobile/desktop mocked submission tests (2), workspace typechecking and builds passed.
+
+### Demo vehicle deposits — 23 September 2026
+- Added a shared “Leave a deposit · demo” action alongside vehicle booking/contact actions, during the enquiry/viewing contact step, and after enquiry confirmation.
+- The dialog shows the selected car’s photo, year, transmission and price, a clearly labelled £100 example deposit and illustrative remaining balance where applicable. “Pretend pay £100” opens an explicit demo completion screen.
+- No card entry, real charge, reservation, payment receipt, notification, database write or sales-stage change. £100 is an illustrative amount only; production payment handling, dealership-specific amounts and actual deposit terms remain future work.
+- Dialog keyboard focus, Escape/Cancel/Done, mobile scrolling and reopen/reset behaviour use the shared accessible dialog. All actions use non-submit buttons so a deposit demo cannot accidentally submit an enquiry.
+- Validation: 172 frontend tests passed; 6 focused browser tests passed at 390px and 1440px, including zero-write assertions, retained viewing details, and normal mocked booking submission afterwards. Full workspace typechecking and builds passed. Existing Vite chunk-size advisory remains.
+- Manually reviewed the desktop flow and desktop/mobile screenshots in docs/screenshots/demo-deposit. No deployment, merge or production database access.
