@@ -118,6 +118,15 @@ export function EnquiryForm({
   const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [hasPartExchange, setHasPartExchange] = useState(false);
+  const [exchange, setExchange] = useState({ registration: '', model: '', mileage: '', condition: '', keys: '', v5: '', notes: '' });
+  const exchangeSummary = hasPartExchange && vehicle ? [
+    'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
+    `Make / model: ${exchange.model.trim()}`, `Mileage: ${exchange.mileage} miles`,
+    `Condition: ${exchange.condition}`, `Keys: ${exchange.keys}`,
+    `V5C logbook: ${exchange.v5}`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
+  ].join('\n') : '';
+  const messageLimit = 2000 - (exchangeSummary ? exchangeSummary.length + 2 : 0);
   const [viewingVehicleId, setViewingVehicleId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
@@ -176,6 +185,7 @@ export function EnquiryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isViewing && (!vehicle || !selectedSlot)) return;
+    if (message.trim().length > messageLimit) return;
     const normalizedPhone = normalisePhone(phone);
     if (phone.trim() && !normalizedPhone) {
       setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
@@ -192,9 +202,13 @@ export function EnquiryForm({
       email: email.trim(),
       phone: normalizedPhone,
       preferredContact,
-      message: message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''),
+      message: [message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''), exchangeSummary].filter(Boolean).join('\n\n'),
       appointmentAt: isViewing ? selectedSlot : null,
-      partExchange: null,
+      partExchange: hasPartExchange && vehicle ? {
+        registration: exchange.registration.trim().toUpperCase(),
+        mileage: Number(exchange.mileage),
+        condition: exchange.condition as 'excellent' | 'good' | 'fair' | 'poor',
+      } : null,
       visitorId: getVisitorId(),
     };
     trackEvent('enquiry_submitted', {
@@ -522,23 +536,49 @@ export function EnquiryForm({
 
       {(!isViewing || viewingStep === 2) && (
         <>
-        {selectedVehicle && !isPartExchange && <fieldset className="border-t border-border pt-4" data-testid="enquiry-question-prompts">
-          <legend className="text-sm font-semibold">Questions about this car</legend>
-          <p className="mt-2 text-xs text-muted-foreground">Add a question to your message, then edit it as you like.</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {[
-              ['Service history', 'Could you tell me about the service history and available records?'],
-              ['Vehicle condition', 'Are there any condition details or known faults I should be aware of?'],
-              ['Part-exchange', 'Can we discuss a part-exchange against this vehicle?'],
-            ].map(([label, question]) => <button key={label} type="button" className="min-h-11 rounded-sm border border-input px-3 text-sm hover:bg-secondary disabled:opacity-50" disabled={message.includes(question) || message.length + question.length + 2 > 2000} onClick={() => { messageTouched.current = true; setMessage(current => current.trim() ? `${current.trim()}\n\n${question}` : question); }}>{label}</button>)}
+        {selectedVehicle && <fieldset className="space-y-4 border-t border-border pt-4">
+          <legend className="text-sm font-semibold">Do you have a car to part-exchange?</legend>
+          <div className="flex gap-3">
+            {[false, true].map(value => <label key={String(value)} className="flex min-h-11 cursor-pointer items-center gap-2 border border-input px-4">
+              <input type="radio" name="has-part-exchange" checked={hasPartExchange === value} onChange={() => setHasPartExchange(value)} className="accent-primary" />
+              {value ? 'Yes' : 'No'}
+            </label>)}
           </div>
+          {hasPartExchange && <div className="space-y-4" data-testid="enquiry-part-exchange-details">
+            <p className="text-sm text-muted-foreground">Tell us about your current car. These details will be included with your enquiry.</p>
+            {[
+              ['registration', 'Registration', 16],
+              ['model', 'Make and model', 100],
+              ['mileage', 'Current mileage (miles)', 7],
+            ].map(([key, label, max]) => <label className="block" key={key}>
+              <span className={labelClass}>{label}</span>
+              <Input required maxLength={Number(max)} type={key === 'mileage' ? 'number' : 'text'}
+                min={key === 'mileage' ? 0 : undefined} max={key === 'mileage' ? 1000000 : undefined} step={key === 'mileage' ? 1 : undefined}
+                value={exchange[key as 'registration' | 'model' | 'mileage']}
+                onChange={event => setExchange(current => ({ ...current, [key]: event.target.value }))} />
+            </label>)}
+            {([
+              ['condition', 'Overall condition', [['excellent', 'Excellent'], ['good', 'Good'], ['fair', 'Fair'], ['poor', 'Poor']]],
+              ['keys', 'Number of keys', [['0', 'No keys'], ['1', '1 key'], ['2', '2 keys'], ['3+', '3 or more keys']]],
+              ['v5', 'Do you have the V5C logbook?', [['Yes', 'Yes'], ['No', 'No'], ['Replacement requested', 'Replacement requested']]],
+            ] as const).map(([key, label, options]) => <label className="block" key={key} htmlFor={`enquiry-exchange-${key}`}>
+              <span className={labelClass}>{label}</span>
+              <NativeSelect id={`enquiry-exchange-${key}`} aria-label={label} required value={exchange[key]} onChange={event => setExchange(current => ({ ...current, [key]: event.target.value }))}>
+                <option value="">Select an answer</option>
+                {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
+              </NativeSelect>
+            </label>)}
+            <label className="block"><span className={labelClass}>Damage, faults or other details (optional)</span>
+              <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
+            </label>
+          </div>}
         </fieldset>}
         <label className="block">
           <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
           <Textarea
-            required={!isViewing}
+            required={!isViewing && !hasPartExchange}
             minLength={isViewing ? undefined : 1}
-            maxLength={2000}
+            maxLength={messageLimit}
             rows={4}
             value={message}
             onChange={(event) => { messageTouched.current = true; setMessage(event.target.value); }}
@@ -546,6 +586,7 @@ export function EnquiryForm({
             data-testid="textarea-enquiry-message"
           />
         </label>
+        {message.length > messageLimit && <p role="alert" className="text-sm text-destructive">Please shorten your message by {message.length - messageLimit} characters to include your part-exchange details.</p>}
         </>
       )}
 

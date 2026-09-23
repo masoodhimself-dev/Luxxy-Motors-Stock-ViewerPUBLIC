@@ -20,9 +20,9 @@ for (const width of [390, 1440]) {
     await expect(page).toHaveURL(/vehicleId=preview-1/);
     const message = page.getByTestId('textarea-enquiry-message');
     await message.fill('I would like to visit on Saturday.');
-    await page.getByTestId('enquiry-question-prompts').getByRole('button', { name: 'Service history' }).click();
-    await expect(message).toHaveValue('I would like to visit on Saturday.\n\nCould you tell me about the service history and available records?');
-    await expect(page.getByTestId('enquiry-question-prompts').getByRole('button', { name: 'Service history' })).toBeDisabled();
+    await page.getByRole('radio', { name: 'Yes', exact: true }).check();
+    await expect(page.getByTestId('enquiry-part-exchange-details')).toBeVisible();
+    await expect(message).toHaveValue('I would like to visit on Saturday.');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const directory = resolve('../../docs/screenshots/customer-stock-polish');
     await mkdir(directory, { recursive: true });

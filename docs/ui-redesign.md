@@ -455,3 +455,9 @@ Validation: **172 frontend tests and 36 browser checks passed**. Browser checks 
 - Replaced the viewing vehicle dropdown with keyboard-accessible radio rows showing a photograph, model, year, transmission and price. Selected styling and the existing required-car gate remain.
 - Removed the repeated bottom “Not sure which car yet?” stock prompt.
 - Verified 172 frontend tests, 26 browser checks, workspace typechecking and builds. Updated mobile/desktop screenshots under docs/screenshots/stock-photo-viewing. Existing bundle-size advisory only; no backend or database changes.
+
+### Part exchange within vehicle enquiries — 23 September 2026
+- Replaced suggested question chips with a Yes/No part-exchange choice.
+- Yes reveals registration, make/model, mileage, condition, keys, V5C and optional fault notes. No hides the fields and omits the part-exchange payload.
+- Reuses existing enquiry API fields for registration, mileage and condition; additional details accompany the enquiry message with its existing length limit. No API/schema or production changes.
+- Validation: 172 frontend tests passed; two desktop/mobile browser submission tests passed using mocked writes; full workspace typechecking/build passed. Corrected explicit dropdown accessible names during browser testing.
