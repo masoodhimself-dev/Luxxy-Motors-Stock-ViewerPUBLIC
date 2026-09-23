@@ -287,6 +287,10 @@ router.post("/enquiries", async (req, res): Promise<void> => {
     return;
   }
 
+  if (input.type === "viewing" && !input.vehicleId) {
+    res.status(400).json(errorResponse("Please select a vehicle before booking a viewing."));
+    return;
+  }
   if (input.type === "viewing" && !input.appointmentAt) {
     res.status(400).json(errorResponse("Please choose a viewing date and time."));
     return;

@@ -12,10 +12,10 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
-import { ArrowRight, Camera } from 'lucide-react';
+import { ArrowRight, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 
-const MAX_PREVIEW_IMAGES = 6;
+
 
 export function CarCard({
   car,
@@ -51,10 +51,9 @@ export function CarCard({
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
-  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const visibleImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url));
-  const galleryUrls = visibleImageUrls.slice(0, MAX_PREVIEW_IMAGES);
+  const galleryUrls = visibleImageUrls;
   const activeIndex = galleryUrls.length > 0 ? activeImageIndex % galleryUrls.length : 0;
   const photoCount = car.imageCount || car.images?.length || visibleImageUrls.length;
 
@@ -73,16 +72,7 @@ export function CarCard({
   useEffect(() => {
     setActiveImageIndex(0);
     setFailedImageUrls(new Set());
-    setIsPreviewing(false);
   }, [car.id, imageSignature]);
-
-  useEffect(() => {
-    if (!isPreviewing || galleryUrls.length < 2) return;
-    const timer = window.setInterval(() => {
-      setActiveImageIndex((current) => (current + 1) % galleryUrls.length);
-    }, 2200);
-    return () => window.clearInterval(timer);
-  }, [isPreviewing, galleryUrls.length]);
 
   const specs = [
     car.year ? { label: 'Year', value: String(car.year) } : null,
@@ -114,13 +104,6 @@ export function CarCard({
           'relative shrink-0 overflow-hidden bg-muted',
           isRow ? 'w-full md:w-[38%]' : isCompact ? 'w-full min-[480px]:w-[40%]' : 'w-full',
         )}
-        onMouseEnter={() => {
-          if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setIsPreviewing(true);
-        }}
-        onMouseLeave={() => {
-          setIsPreviewing(false);
-          setActiveImageIndex(0);
-        }}
       >
         <Link
           href={detailHref}
@@ -133,7 +116,7 @@ export function CarCard({
             galleryUrls
               .filter(
                 (_, index) =>
-                  index === 0 || isPreviewing || index === activeIndex,
+                  index === activeIndex,
               )
               .map((url) => (
                 <img
@@ -160,6 +143,20 @@ export function CarCard({
             </div>
           )}
         </Link>
+        {galleryUrls.length > 1 && (
+          <div className="stock-photo-controls">
+            <button type="button" className="stock-photo-arrow left-2"
+              aria-label={`Previous photo of ${vehicleLabel}`}
+              onClick={() => setActiveImageIndex((activeIndex + galleryUrls.length - 1) % galleryUrls.length)}>
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <button type="button" className="stock-photo-arrow right-2"
+              aria-label={`Next photo of ${vehicleLabel}`}
+              onClick={() => setActiveImageIndex((activeIndex + 1) % galleryUrls.length)}>
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
         <SaveCarButton
           car={car}
           className="absolute right-3 top-3 h-11 w-11 rounded-full border-white bg-white text-primary shadow-none"
@@ -167,7 +164,7 @@ export function CarCard({
         {photoCount > 0 && (
           <span className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white">
             <Camera className="h-3.5 w-3.5" />
-            {photoCount}
+            {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
         )}
         {badges.length > 0 && (

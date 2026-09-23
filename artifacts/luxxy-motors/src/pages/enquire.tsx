@@ -175,7 +175,7 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-[hsl(var(--accent))]" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-[hsl(var(--accent))]">We could not load the showroom details.</p>
-                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Please reload to choose a current stock vehicle, or call the showroom.' : 'You can still send an enquiry and our team will help match it to the right vehicle.'}</p>
+                    <p className="mt-2 text-primary/70">{(type === 'part_exchange' || type === 'viewing') ? 'Please reload to choose a current stock vehicle, or call the showroom.' : 'You can still send an enquiry and our team will help match it to the right vehicle.'}</p>
                   </div>
                 </div>
               ) : vehicleId && !vehicle ? (
@@ -183,7 +183,7 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-accent" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-accent">This vehicle has just left the showroom.</p>
-                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
+                    <p className="mt-2 text-primary/70">{type === 'viewing' ? 'Choose another available car below before booking your viewing.' : type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
                   </div>
                 </div>
               ) : null}

@@ -118,6 +118,7 @@ export function EnquiryForm({
   const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [viewingVehicleId, setViewingVehicleId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -143,7 +144,7 @@ export function EnquiryForm({
     {
       query: {
         queryKey: getGetEnquiryAvailabilityQueryKey({ date: selectedDate }),
-        enabled: isViewing && Boolean(selectedDate),
+        enabled: isViewing && Boolean(vehicle) && Boolean(selectedDate),
         staleTime: 30_000,
       },
     },
@@ -174,7 +175,7 @@ export function EnquiryForm({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isViewing && !selectedSlot) return;
+    if (isViewing && (!vehicle || !selectedSlot)) return;
     const normalizedPhone = normalisePhone(phone);
     if (phone.trim() && !normalizedPhone) {
       setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
@@ -216,6 +217,28 @@ export function EnquiryForm({
   };
 
   if (isPartExchange) return <PartExchangeForm vehicle={vehicle} stockCars={stockCars} />;
+
+  if (isViewing && !vehicle) {
+    const choice = stockCars.find(car => car.id === viewingVehicleId);
+    return (
+      <section aria-labelledby="enquiry-form-heading" data-testid="viewing-vehicle-required">
+        <p className="luxxy-label text-accent">Your viewing</p>
+        <h2 id="enquiry-form-heading" className="mt-3 font-display text-2xl font-semibold text-primary">Choose a car to view</h2>
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">Select a vehicle before choosing your appointment. This helps us prepare the right car for your visit.</p>
+        <label htmlFor="viewing-vehicle" className="field-label mt-6 block">Which car would you like to see?</label>
+        <NativeSelect id="viewing-vehicle" value={viewingVehicleId} onChange={event => setViewingVehicleId(event.target.value)}>
+          <option value="">Select a vehicle</option>
+          {stockCars.map(car => <option key={car.id} value={car.id}>{car.title || [car.year, car.make, car.model].filter(Boolean).join(' ')}{car.price ? ` — ${formatPrice(car.price, car.currency)}` : ''}</option>)}
+        </NativeSelect>
+        {choice ? (
+          <Button asChild className="mt-5 w-full"><Link href={`/enquire?type=viewing&vehicleId=${encodeURIComponent(choice.id)}`}>Choose date and time <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+        ) : (
+          <Button type="button" disabled className="mt-5 w-full">Select a car to continue</Button>
+        )}
+        {!stockCars.length && <p className="mt-4 text-sm text-muted-foreground">No vehicles are available to select here. Browse current stock or contact the team for help.</p>}
+      </section>
+    );
+  }
 
   if (mutation.isSuccess) {
     return (
