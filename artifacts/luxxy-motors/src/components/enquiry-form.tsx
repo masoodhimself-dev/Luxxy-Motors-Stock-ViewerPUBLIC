@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getPhoneHref, getWhatsAppHref, type EnquiryType } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getVisitorId } from '@/lib/visitor';
@@ -225,11 +225,28 @@ export function EnquiryForm({
         <p className="luxxy-label text-accent">Your viewing</p>
         <h2 id="enquiry-form-heading" className="mt-3 font-display text-2xl font-semibold text-primary">Choose a car to view</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">Select a vehicle before choosing your appointment. This helps us prepare the right car for your visit.</p>
-        <label htmlFor="viewing-vehicle" className="field-label mt-6 block">Which car would you like to see?</label>
-        <NativeSelect id="viewing-vehicle" value={viewingVehicleId} onChange={event => setViewingVehicleId(event.target.value)}>
-          <option value="">Select a vehicle</option>
-          {stockCars.map(car => <option key={car.id} value={car.id}>{car.title || [car.year, car.make, car.model].filter(Boolean).join(' ')}{car.price ? ` — ${formatPrice(car.price, car.currency)}` : ''}</option>)}
-        </NativeSelect>
+        <fieldset className="mt-6">
+          <legend className="field-label mb-3">Which car would you like to see?</legend>
+          <div className="max-h-[32rem] space-y-3 overflow-y-auto p-1">
+            {stockCars.map(car => (
+              <label key={car.id} className={`relative flex cursor-pointer items-center gap-3 border p-3 transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-accent ${viewingVehicleId === car.id ? 'border-accent bg-accent/5' : 'border-border hover:border-primary/50'}`}>
+                <input type="radio" name="viewing-vehicle" value={car.id}
+                  checked={viewingVehicleId === car.id}
+                  onChange={() => setViewingVehicleId(car.id)}
+                  className="h-4 w-4 shrink-0 accent-primary"
+                  aria-label={`Select ${vehicleDisplayTitle(car)}`} />
+                <div className="aspect-[4/3] w-20 shrink-0 overflow-hidden bg-muted sm:w-32">
+                  {getThumbnailUrl(car) ? <img src={getThumbnailUrl(car)} alt="" loading="lazy" width={160} height={120} className="h-full w-full object-cover" /> : <span className="flex h-full items-center p-2 text-xs text-muted-foreground">Photo to follow</span>}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-snug text-primary">{vehicleDisplayTitle(car)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{[car.year, car.transmission].filter(Boolean).join(' · ')}</p>
+                  <p className="mt-2 font-semibold text-primary">{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         {choice ? (
           <Button asChild className="mt-5 w-full"><Link href={`/enquire?type=viewing&vehicleId=${encodeURIComponent(choice.id)}`}>Choose date and time <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
         ) : (

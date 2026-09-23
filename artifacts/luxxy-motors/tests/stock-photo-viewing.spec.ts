@@ -27,7 +27,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole('button', { name: 'Select a car to continue' })).toBeDisabled();
     await expect(page.getByTestId('button-submit-enquiry')).toHaveCount(0);
     await page.getByTestId('viewing-vehicle-required').screenshot({ path: resolve(screenshots, `vehicle-required-${width}.png`) });
-    await page.locator('#viewing-vehicle').selectOption('preview-1');
+    await page.locator('input[name="viewing-vehicle"][value="preview-1"]').check();
+    await expect(page.getByText('Not sure which car yet? Browse current stock')).toHaveCount(0);
     await page.getByRole('link', { name: 'Choose date and time' }).click();
     await expect(page).toHaveURL(/vehicleId=preview-1/);
     await expect(page.getByRole('heading', { name: 'Choose a date and time', exact: true })).toBeVisible();

@@ -450,3 +450,8 @@ Validation: **172 frontend tests and 36 browser checks passed**. Browser checks 
 - The enquiry endpoint now rejects viewing requests without a vehicle ID before database access. Existing vehicle ownership/availability validation remains in place. No schema, migrations, sales or production changes.
 - Validation: 172 frontend tests passed; 26 targeted browser checks passed across stock navigation and new mobile/desktop interactions. Two screenshot checks passed again after the final copy update. Full workspace typechecking and builds passed; existing bundle-size advisory remains. Database integration tests were not run.
 - Screenshots: docs/screenshots/stock-photo-viewing (390px and 1440px).
+
+### Visual viewing vehicle picker — 23 September 2026
+- Replaced the viewing vehicle dropdown with keyboard-accessible radio rows showing a photograph, model, year, transmission and price. Selected styling and the existing required-car gate remain.
+- Removed the repeated bottom “Not sure which car yet?” stock prompt.
+- Verified 172 frontend tests, 26 browser checks, workspace typechecking and builds. Updated mobile/desktop screenshots under docs/screenshots/stock-photo-viewing. Existing bundle-size advisory only; no backend or database changes.

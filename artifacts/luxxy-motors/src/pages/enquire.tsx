@@ -195,20 +195,7 @@ export default function Enquire() {
               Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call the showroom</a>.
             </p>}
 
-            {type === 'viewing' && !vehicle && (
-              <Link
-                href="/#stock"
-                onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                  event.preventDefault();
-                  navigateToHomeTarget('stock', location, setLocation);
-                }}
-                className="font-display text-[11px] font-semibold tracking-normal group mt-8 inline-flex items-center gap-3 text-primary transition-colors hover:text-accent bg-primary/5 px-4 py-3 border border-primary/20 hover:border-accent"
-                data-testid="link-browse-stock-from-enquiry"
-              >
-                Not sure which car yet? Browse current stock
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            )}
+
           </section>
         </div>
       </div>

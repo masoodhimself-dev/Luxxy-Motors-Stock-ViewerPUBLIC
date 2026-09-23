@@ -260,12 +260,12 @@ test('moves keyboard focus to results after stock-opening controls use Enter or 
   }
 });
 
-test('moves keyboard focus to the stock heading after cross-route navigation', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 874 });
+test('moves keyboard focus to the stock heading from the desktop enquiry summary', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 874 });
   await mockHomeData(page, stock);
   await page.goto('/enquire?type=viewing');
 
-  const enquiryStockLink = page.getByTestId('link-browse-stock-from-enquiry');
+  const enquiryStockLink = page.getByRole('link', { name: 'Browse showroom stock' });
   await expect(enquiryStockLink).toHaveAttribute('href', '/#stock');
   await enquiryStockLink.focus();
   await page.keyboard.press('Enter');
