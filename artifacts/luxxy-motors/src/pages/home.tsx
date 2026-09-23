@@ -13,6 +13,7 @@ import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle, formatPrice } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
+import { hasExplicitClearHistory, recordedWriteOffCategory } from '@/lib/vehicle-history';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import {
   focusHomeTarget,
@@ -54,9 +55,13 @@ export default function Home() {
   const [showAll, setShowAll] = useState(
     () => readBrowseSession().showAll === true,
   );
-  const [stockView, setStockView] = useState<'cards' | 'compact'>(() =>
-    window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards',
-  );
+  const [stockView, setStockView] = useState<'cards' | 'compact'>(() => {
+    try {
+      return window.localStorage.getItem(STOCK_VIEW_KEY) === 'compact' ? 'compact' : 'cards';
+    } catch {
+      return 'cards';
+    }
+  });
 
   usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
 
@@ -77,15 +82,17 @@ export default function Home() {
 
     let result = [...stock.cars];
 
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
+    const q = filters.search.trim().toLowerCase();
+    if (q) {
+      const compactRegistration = q.replace(/[\s-]/g, '');
       result = result.filter(
         (c) =>
           (c.title && c.title.toLowerCase().includes(q)) ||
           (c.make && c.make.toLowerCase().includes(q)) ||
           (c.model && c.model.toLowerCase().includes(q)) ||
-          (c.plate && c.plate.toLowerCase().includes(q)) ||
-          (c.registration && c.registration.toLowerCase().includes(q)),
+          [c.plate, c.vrm, c.registration].some((registration) =>
+            compactRegistration && registration?.toLowerCase().replace(/[\s-]/g, '').includes(compactRegistration),
+          ),
       );
     }
 
@@ -106,10 +113,10 @@ export default function Home() {
 
     if (filters.noWriteOff || filters.catS || filters.catN) {
       result = result.filter((c) => {
-        const cat = (c.writeOffCategory || '').toUpperCase();
-        const isS = cat.includes('S') || cat === 'CAT S';
-        const isN = cat.includes('N') || cat === 'CAT N';
-        const isClear = !isS && !isN;
+        const cat = recordedWriteOffCategory(c.writeOffCategory);
+        const isS = cat === 'S';
+        const isN = cat === 'N';
+        const isClear = hasExplicitClearHistory(c.writeOffCategory);
 
         if (filters.noWriteOff && isClear) return true;
         if (filters.catS && isS) return true;
@@ -121,15 +128,19 @@ export default function Home() {
 
     if (filters.sort) {
       result.sort((a, b) => {
+        const field = filters.sort.startsWith('price') ? 'price' : 'mileage';
+        const first = a[field];
+        const second = b[field];
+        // Unknown values belong after known values in either direction.
+        if (first == null || !Number.isFinite(first)) return second == null || !Number.isFinite(second) ? 0 : 1;
+        if (second == null || !Number.isFinite(second)) return -1;
         switch (filters.sort) {
           case 'price-asc':
-            return (a.price || 0) - (b.price || 0);
-          case 'price-desc':
-            return (b.price || 0) - (a.price || 0);
           case 'mileage-asc':
-            return (a.mileage || 0) - (b.mileage || 0);
+            return first - second;
+          case 'price-desc':
           case 'mileage-desc':
-            return (b.mileage || 0) - (a.mileage || 0);
+            return second - first;
           default:
             return 0;
         }
@@ -163,7 +174,11 @@ export default function Home() {
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
 
   useEffect(() => {
-    window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
+    try {
+      window.localStorage.setItem(STOCK_VIEW_KEY, stockView);
+    } catch {
+      // Keep the selected view usable when storage is unavailable or full.
+    }
   }, [stockView]);
 
   const revealResults = (source: 'quick_filter' | 'filter_panel' | 'view_all') => {

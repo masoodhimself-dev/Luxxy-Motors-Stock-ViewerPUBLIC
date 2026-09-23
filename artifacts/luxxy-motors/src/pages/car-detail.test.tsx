@@ -1,12 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import CarDetail from '@/pages/car-detail';
 import { DEFAULT_PAGE_META } from '@/lib/page-meta';
 
-const { stockFixture } = vi.hoisted(() => {
+const { stockFixture, stockStatus } = vi.hoisted(() => {
   const baseCar = {
     id: '',
     advertId: '',
@@ -51,6 +51,7 @@ const { stockFixture } = vi.hoisted(() => {
   const car = (overrides: Record<string, unknown>) => ({ ...baseCar, ...overrides });
 
   return {
+    stockStatus: { error: null as string | null },
     stockFixture: {
       schemaVersion: 1,
       dealerName: 'Test Motors',
@@ -86,7 +87,7 @@ const { stockFixture } = vi.hoisted(() => {
 });
 
 vi.mock('@/lib/stock-context', () => ({
-  useStock: () => ({ stock: stockFixture, isLoading: false, error: null }),
+  useStock: () => ({ stock: stockFixture, isLoading: false, error: stockStatus.error }),
 }));
 
 vi.mock('@/components/car-card', () => ({
@@ -102,6 +103,27 @@ function renderVehicle(id: string) {
     </QueryClientProvider>,
   );
 }
+
+beforeEach(() => { stockStatus.error = null; });
+afterEach(() => vi.unstubAllGlobals());
+
+it('reports a temporary stock error instead of calling the vehicle missing', () => {
+  stockStatus.error = 'Network unavailable';
+  renderVehicle('with-plate');
+  expect(screen.getByRole('heading', { name: 'Vehicle details could not be loaded' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /not found/i })).not.toBeInTheDocument();
+});
+
+it('shares the server-rendered vehicle preview link', async () => {
+  const share = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('navigator', Object.create(window.navigator, { share: { value: share } }));
+  renderVehicle('with-plate');
+  fireEvent.click(screen.getByRole('button', { name: 'Share this vehicle' }));
+  await waitFor(() => expect(share).toHaveBeenCalledWith({
+    title: 'BMW 3 Series', url: `${window.location.origin}/share/vehicle/with-plate`,
+  }));
+});
 
 describe('vehicle detail registration', () => {
   it('shows the registration band as ordinary metadata rather than a plate', () => {

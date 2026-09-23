@@ -94,7 +94,7 @@ function NextActionBand({
   saving,
 }: {
   lead: Lead;
-  onSave: (update: LeadUpdate) => void;
+  onSave: (update: LeadUpdate) => Promise<boolean>;
   saving: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -102,9 +102,10 @@ function NextActionBand({
   const [due, setDue] = useState(toLocalInput(lead.nextActionDueAt));
 
   useEffect(() => {
+    if (editing) return;
     setAction(lead.nextAction ?? '');
     setDue(toLocalInput(lead.nextActionDueAt));
-  }, [lead.nextAction, lead.nextActionDueAt]);
+  }, [editing, lead.nextAction, lead.nextActionDueAt]);
 
   const overdue = isOverdue(lead.nextActionDueAt);
   const closed = lead.stage === 'won' || lead.stage === 'lost';
@@ -116,6 +117,7 @@ function NextActionBand({
           <Field label="Next action">
             <Input
               value={action}
+              disabled={saving}
               onChange={(event) => setAction(event.target.value)}
               placeholder="Ring back with a part-ex figure"
               className="rounded-md"
@@ -127,6 +129,7 @@ function NextActionBand({
             <Input
               type="datetime-local"
               value={due}
+              disabled={saving}
               onChange={(event) => setDue(event.target.value)}
               className="rounded-md font-mono"
               data-testid="input-edit-next-due"
@@ -138,7 +141,12 @@ function NextActionBand({
             type="button"
             variant="ghost"
             className="rounded-md"
-            onClick={() => setEditing(false)}
+            disabled={saving}
+            onClick={() => {
+              setAction(lead.nextAction ?? '');
+              setDue(toLocalInput(lead.nextActionDueAt));
+              setEditing(false);
+            }}
           >
             Cancel
           </Button>
@@ -146,12 +154,12 @@ function NextActionBand({
             type="button"
             className="rounded-md text-[12px] font-medium"
             disabled={saving}
-            onClick={() => {
-              onSave({
+            onClick={async () => {
+              const saved = await onSave({
                 nextAction: orNull(action),
                 nextActionDueAt: fromLocalInput(due),
               });
-              setEditing(false);
+              if (saved) setEditing(false);
             }}
             data-testid="button-save-next-action"
           >
@@ -211,7 +219,12 @@ function NextActionBand({
         type="button"
         variant="outline"
         className="shrink-0 rounded-md text-[12px] font-medium"
-        onClick={() => setEditing(true)}
+        disabled={saving}
+        onClick={() => {
+          setAction(lead.nextAction ?? '');
+          setDue(toLocalInput(lead.nextActionDueAt));
+          setEditing(true);
+        }}
         data-testid="button-edit-next-action"
       >
         <CalendarClock className="mr-2 h-4 w-4" />
@@ -443,15 +456,27 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const cache = useQueryClient();
   const leadQuery = useGetLead(id);
   const updateLead = useUpdateLead();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveInProgress, setSaveInProgress] = useState(false);
 
   const save = async (data: LeadUpdate) => {
-    await updateLead.mutateAsync({ id, data });
-    await Promise.all([
-      cache.invalidateQueries({ queryKey: getGetLeadQueryKey(id) }),
-      cache.invalidateQueries({ queryKey: getGetLeadsQueryKey() }),
-      cache.invalidateQueries({ queryKey: getGetPortalWorklistQueryKey() }),
-      cache.invalidateQueries({ queryKey: getGetLeadChannelSummaryQueryKey() }),
-    ]);
+    setSaveError(null);
+    setSaveInProgress(true);
+    try {
+      await updateLead.mutateAsync({ id, data });
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: getGetLeadQueryKey(id) }),
+        cache.invalidateQueries({ queryKey: getGetLeadsQueryKey() }),
+        cache.invalidateQueries({ queryKey: getGetPortalWorklistQueryKey() }),
+        cache.invalidateQueries({ queryKey: getGetLeadChannelSummaryQueryKey() }),
+      ]);
+      return true;
+    } catch {
+      setSaveError('Your changes could not be saved. Check your connection and try again.');
+      return false;
+    } finally {
+      setSaveInProgress(false);
+    }
   };
 
   if (leadQuery.isLoading) {
@@ -482,7 +507,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
   }
 
   const { lead, activities, deal, enquiryMessage } = leadQuery.data;
-  const saving = updateLead.isPending;
+  const saving = updateLead.isPending || saveInProgress;
 
   return (
     <div className="space-y-6" data-testid="lead-detail">
@@ -538,6 +563,11 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </p>
       </div>
       <NextActionBand lead={lead} onSave={save} saving={saving} />
+      {saveError && (
+        <p role="alert" className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {saveError}
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-6">

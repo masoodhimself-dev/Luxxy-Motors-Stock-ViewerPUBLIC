@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { SelectField, activityIcons, stageLabels } from './portal-ui';
-import { Field, fromLocalInput, orNull } from './lead-form-fields';
+import { Field, fromLocalInput } from './lead-form-fields';
 
 /** Only the kinds a person actually logs by hand. */
 const loggableKinds: LeadActivityInputKind[] = [
@@ -82,12 +82,23 @@ export function ActivityComposer({
       return;
     }
 
+    if (nextActionDueAt && !nextAction.trim()) {
+      setError('Add the next action that this due date is for.');
+      return;
+    }
+
     const payload: LeadActivityInput = {
       kind,
       body: body.trim(),
       ...(stage ? { stage: stage as LeadActivityInputStage } : {}),
-      nextAction: orNull(nextAction),
-      nextActionDueAt: fromLocalInput(nextActionDueAt),
+      // A note alone must not clear a follow-up already on the lead. The
+      // dedicated next-action editor handles changing or clearing that record.
+      ...(nextAction.trim()
+        ? {
+            nextAction: nextAction.trim(),
+            nextActionDueAt: fromLocalInput(nextActionDueAt),
+          }
+        : {}),
     };
 
     try {
@@ -167,7 +178,7 @@ export function ActivityComposer({
             </SelectField>
           </Field>
 
-          <Field label="Next action">
+          <Field label="Next action" hint="Leave blank to keep the current follow-up.">
             <Input
               value={nextAction}
               onChange={(event) => setNextAction(event.target.value)}

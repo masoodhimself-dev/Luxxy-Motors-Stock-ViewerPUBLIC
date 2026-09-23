@@ -290,14 +290,14 @@ export function DealerSettingsPanel() {
   const dirty = initialized && JSON.stringify(form) !== savedSnapshot;
 
   useEffect(() => {
-    if ((settingsQuery.data || settingsQuery.isError) && !initialized) {
-      const saved = copySettings(settingsQuery.data ?? fallbackSettings);
+    if (settingsQuery.data && !initialized) {
+      const saved = copySettings(settingsQuery.data);
       const draft = readSettingsDraft(saved);
       setForm(draft ? copySettings(draft.form) : saved);
       setSavedSnapshot(draft?.saved ?? JSON.stringify(saved));
       setInitialized(true);
     }
-  }, [initialized, settingsQuery.data, settingsQuery.isError]);
+  }, [initialized, settingsQuery.data]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -387,6 +387,7 @@ export function DealerSettingsPanel() {
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!initialized || !settingsQuery.data) return;
     setSaveMessage('');
     if (!validate()) return;
     updateSettings.mutate(
@@ -434,7 +435,19 @@ export function DealerSettingsPanel() {
     updateGroup('featuredVehicleIds', next);
   };
 
-  if (settingsQuery.isLoading && !initialized) {
+  if (settingsQuery.isError && !initialized) {
+    return (
+      <section role="alert" className="border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive" data-testid="status-settings-load-error">
+        <h2 className="font-display text-xl font-semibold">Could not load showroom settings</h2>
+        <p className="mt-2">Your published settings must load before you can edit them. Any draft in this browser tab is still saved.</p>
+        <Button type="button" variant="outline" className="mt-4" onClick={() => void settingsQuery.refetch()} disabled={settingsQuery.isFetching}>
+          {settingsQuery.isFetching ? 'Retrying…' : 'Try again'}
+        </Button>
+      </section>
+    );
+  }
+
+  if (!initialized) {
     return (
       <section className="mb-12 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8" data-testid="settings-loading">
         <div className="animate-pulse space-y-5">
@@ -492,8 +505,11 @@ export function DealerSettingsPanel() {
         <div className="mb-8 flex items-start gap-4 border border-amber-500/30 bg-amber-50/50 p-5 text-[13px] text-amber-900" data-testid="status-settings-load-error">
           <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
           <div>
-            <p className="font-bold">Using the current showroom defaults</p>
-            <p className="mt-1.5 leading-relaxed text-amber-900/80">We could not load saved settings. You can still edit this profile and try publishing it.</p>
+            <p className="font-bold">Could not refresh showroom settings</p>
+            <p className="mt-1.5 leading-relaxed text-amber-900/80">Your draft and the last loaded settings are still here. Retry to check for more recent changes before publishing.</p>
+            <Button type="button" variant="outline" className="mt-3" onClick={() => void settingsQuery.refetch()} disabled={settingsQuery.isFetching}>
+              {settingsQuery.isFetching ? 'Retrying…' : 'Try again'}
+            </Button>
           </div>
         </div>
       )}

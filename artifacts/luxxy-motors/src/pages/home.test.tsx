@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/home';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
+import type { Car } from '@/lib/stock-context';
 
 const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTarget, focusHomeTarget } = vi.hoisted(() => {
-  const baseCar = {
+  const baseCar: Car = {
     id: '',
     advertId: '',
     title: '',
@@ -46,7 +47,7 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
     sourceExtras: null,
   };
 
-  const car = (overrides: Record<string, unknown>) => ({ ...baseCar, ...overrides });
+  const car = (overrides: Partial<Car>) => ({ ...baseCar, ...overrides });
   const cars = [
     car({
       id: 'bmw-1-series',
@@ -200,12 +201,61 @@ function resultTitles() {
     .map((heading) => heading.textContent);
 }
 
+const originalCars = stockFixture.cars.map((car) => ({ ...car }));
+
+afterEach(() => vi.restoreAllMocks());
+
 beforeEach(() => {
   window.sessionStorage.clear();
   vi.clearAllMocks();
   window.localStorage.clear();
   overrideSettings = dealerConfigFixture;
   recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: false, isError: false };
+  stockFixture.cars = originalCars.map((car) => ({ ...car }));
+});
+
+describe('showroom data resilience', () => {
+  it('keeps browsing and view controls usable when browser storage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError'); });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Blocked', 'QuotaExceededError'); });
+    renderHome();
+    expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('button-stock-view-compact'));
+    expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
+  });
+
+  it.each(['price-asc', 'price-desc', 'mileage-asc', 'mileage-desc'])('puts missing values last for %s', (sort) => {
+    stockFixture.cars = [
+      { ...originalCars[0], price: null, mileage: null },
+      { ...originalCars[1], price: 10000, mileage: 20000 },
+      { ...originalCars[2], price: 5000, mileage: 0 },
+    ];
+    renderHome();
+    fireEvent.change(screen.getByLabelText('Sort results'), { target: { value: sort } });
+    expect(resultTitles()).toEqual(sort.endsWith('asc')
+      ? ['Ford Fiesta', 'BMW 3 Series', 'BMW 1 Series']
+      : ['BMW 3 Series', 'Ford Fiesta', 'BMW 1 Series']);
+  });
+
+  it('normalises pasted search whitespace and finds compact plates and VRMs', () => {
+    stockFixture.cars[0] = { ...originalCars[0], registration: null, plate: null, vrm: 'AB12 BMW' };
+    renderHome();
+    fireEvent.change(screen.getByTestId('input-showroom-search'), { target: { value: '  ab12bmw  ' } });
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    fireEvent.change(screen.getByTestId('input-showroom-search'), { target: { value: '  fiesta  ' } });
+    expect(resultTitles()).toEqual(['Ford Fiesta']);
+  });
+
+  it('does not include unknown insurance history in the clear-history filter', () => {
+    stockFixture.cars[0] = { ...originalCars[0], writeOffCategory: 'None' };
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'No recorded write-off' }));
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'No recorded write-off' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
+    expect(resultTitles()).toEqual(['Ford Fiesta']);
+  });
 });
 
 describe('showroom search filters', () => {

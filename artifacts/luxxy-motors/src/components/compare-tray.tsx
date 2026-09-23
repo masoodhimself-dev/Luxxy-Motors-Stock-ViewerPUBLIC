@@ -13,7 +13,7 @@ export function routeAllowsCompareTray(location: string) {
 
 export function CompareTray() {
   const [location] = useLocation();
-  const { stock, isLoading } = useStock();
+  const { stock, isLoading, error } = useStock();
   const { compareIds, removeFromCompare, clearCompare, pruneCompare } = useSavedCars();
   const [collapsed, setCollapsed] = useState(true);
   const [dismissed, setDismissed] = useState(false);
@@ -21,9 +21,9 @@ export function CompareTray() {
   const [announcement, setAnnouncement] = useState('');
 
   useEffect(() => {
-    if (isLoading || !stock?.cars.length) return;
+    if (isLoading || error || !stock) return;
     pruneCompare(stock.cars.map((car) => car.id));
-  }, [isLoading, stock, pruneCompare]);
+  }, [isLoading, error, stock, pruneCompare]);
 
   useEffect(() => {
     const before = previousIds.current;

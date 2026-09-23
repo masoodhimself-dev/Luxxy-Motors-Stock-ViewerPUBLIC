@@ -11,6 +11,7 @@ import { UKNumberPlate } from '@/components/uk-number-plate';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
 import { trackEvent } from '@/lib/analytics';
 import { Button } from '@/components/ui/button';
+import { insuranceHistoryLabel } from '@/lib/vehicle-history';
 
 type CompareRow = {
   label: string;
@@ -26,7 +27,7 @@ type CompareRow = {
 const rows: CompareRow[] = [
   {
     label: 'Price',
-    render: (car) => (car.price ? formatPrice(car.price, car.currency) : 'POA'),
+    render: (car) => (car.price != null ? formatPrice(car.price, car.currency) : 'POA'),
     preference: { pick: 'lower', value: (car) => car.price, hint: 'Lower price' },
   },
   {
@@ -36,7 +37,7 @@ const rows: CompareRow[] = [
   },
   {
     label: 'Mileage',
-    render: (car) => (car.mileage ? formatMileage(car.mileage) : car.mileageText || '—'),
+    render: (car) => (car.mileage != null ? formatMileage(car.mileage) : car.mileageText || '—'),
     preference: { pick: 'lower', value: (car) => car.mileage, hint: 'Fewer miles' },
   },
   { label: 'Fuel', render: (car) => car.fuel || '—' },
@@ -49,18 +50,13 @@ const rows: CompareRow[] = [
   { label: 'Drivetrain', render: (car) => car.drivetrain || '—' },
   {
     label: 'Owners',
-    render: (car) => (car.owners ? String(car.owners) : '—'),
+    render: (car) => (car.owners != null ? String(car.owners) : '—'),
     preference: { pick: 'lower', value: (car) => car.owners, hint: 'Fewer owners' },
   },
   { label: 'Emissions', render: (car) => car.emissionClass || '—' },
   {
     label: 'History',
-    render: (car) => {
-      const category = (car.writeOffCategory || '').toUpperCase();
-      if (category.includes('S')) return 'Cat S recorded';
-      if (category.includes('N')) return 'Cat N recorded';
-      return 'No write-off recorded';
-    },
+    render: (car) => insuranceHistoryLabel(car.writeOffCategory),
   },
   { label: 'Registration', render: (car) => vehicleRegistration(car) || '—' },
 ];

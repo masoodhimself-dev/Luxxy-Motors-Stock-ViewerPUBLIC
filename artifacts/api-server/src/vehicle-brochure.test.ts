@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inflateSync } from 'node:zlib';
+import { deflateSync, inflateSync } from 'node:zlib';
 import { brochureDetails, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureVehicle } from './lib/vehicle-brochure';
 import { brochureOrigin, createBrochureHandler } from './lib/vehicle-brochure-handler';
 import { imageDimensions, isPublicImageAddress, permittedBrochureImage } from './lib/vehicle-brochure-images';
@@ -14,12 +14,28 @@ const vehicle: BrochureVehicle = {
 
 function contentStreams(pdf: Buffer) {
   const source = pdf.toString('latin1');
-  return [...source.matchAll(/<<([\s\S]*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g)]
+  return [...source.matchAll(/<<((?:(?!endobj)[\s\S])*?)>>\s*stream\r?\n/g)]
     .map((match) => {
-      try { return match[1].includes('/FlateDecode') ? inflateSync(Buffer.from(match[2], 'latin1')).toString('latin1') : match[2]; }
-      catch { return ''; }
+      // Compressed data may itself end in CR. Read the PDF's byte length rather
+      // than consuming that byte as part of a guessed CRLF before endstream.
+      const length = /\/Length\s+(\d+)\b/.exec(match[1]);
+      assert.ok(length, 'Generated PDF streams declare their byte length');
+      const start = match.index! + match[0].length;
+      const bytes = pdf.subarray(start, start + Number(length[1]));
+      return (match[1].includes('/FlateDecode') ? inflateSync(bytes) : bytes).toString('latin1');
     }).join('\n');
 }
+
+test('PDF text inspection preserves a compressed stream whose final byte is CR', () => {
+  const compressed = deflateSync(Buffer.from('\f'));
+  assert.equal(compressed.at(-1), 13);
+  const pdf = Buffer.concat([
+    Buffer.from(`1 0 obj\n<< /Length ${compressed.length} /Filter /FlateDecode >>\nstream\n`),
+    compressed,
+    Buffer.from('\nendstream\nendobj'),
+  ]);
+  assert.equal(contentStreams(pdf), '\f');
+});
 
 test('public details preserve zero values, supplied history and missing buyer information', () => {
   const details = brochureDetails({ ...vehicle, mileage: 0, owners: 0, writeOffCategory: 'CAT S', specifications: { numberOfKeys: 0, description: 'Supplied description', features: ['Heated seats'] } });

@@ -132,6 +132,10 @@ export function EnquiryForm({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [viewingStep, setViewingStep] = useState<1 | 2>(initialType === 'viewing' ? 1 : 2);
   const mutation = useCreateEnquiry();
+  useEffect(() => {
+    setType(initialType);
+    mutation.reset();
+  }, [initialType, mutation.reset]);
   const isViewing = type === 'viewing';
   const dates = useMemo(() => bookingDates(), []);
   const availabilityQuery = useGetEnquiryAvailability(

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'wouter';
 import {
@@ -68,6 +69,7 @@ function apiMessage(error: unknown, fallback: string) {
 }
 
 export default function Viewing() {
+  const queryClient = useQueryClient();
   const { token = '' } = useParams<{ token: string }>();
   const { settings: dealerConfig } = useDealerSettings();
   const [selectedDate, setSelectedDate] = useState(() => bookingDates()[0] ?? dateString(new Date()));
@@ -81,7 +83,7 @@ export default function Viewing() {
   const reschedule = useRescheduleViewing();
   const cancel = useCancelViewing();
 
-  const booking = reschedule.data ?? cancel.data ?? query.data;
+  const booking = query.data;
   const availabilityQuery = useGetEnquiryAvailability(
     { date: selectedDate },
     {
@@ -96,6 +98,10 @@ export default function Viewing() {
   useEffect(() => {
     setSelectedSlot(null);
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (selectedSlot && availabilityQuery.data && !availabilityQuery.data.slots.some(slot => slot.startAt === selectedSlot && slot.available)) setSelectedSlot(null);
+  }, [availabilityQuery.data, selectedSlot]);
 
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
@@ -123,15 +129,17 @@ export default function Viewing() {
   }
 
   if (query.isError || !booking) {
-    const errorMsg = apiMessage(query.error, 'We could not find your booking. The link may have expired.');
+    const unavailable = ![404, 410].includes(query.error?.status ?? 0);
+    const errorMsg = apiMessage(query.error, unavailable ? 'Your booking could not be loaded just now. Please try again.' : 'We could not find your booking. The link may have expired.');
     return shell(
       <div className="p-8 text-center sm:p-12">
         <span className="mx-auto grid h-16 w-16 place-items-center bg-accent/10 border border-accent text-accent shadow-none mb-6">
           <CircleAlert className="h-8 w-8" />
         </span>
-        <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">Cannot find booking</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">{unavailable ? 'Booking temporarily unavailable' : 'Cannot find booking'}</h1>
         <p className="mx-auto mt-4 max-w-md text-[13px] font-normal leading-relaxed text-primary/70" data-testid="status-viewing-error">{errorMsg}</p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          {unavailable && <Button onClick={() => void query.refetch()} disabled={query.isFetching}>Try again</Button>}
           <Button asChild size="lg" className="w-full sm:w-auto h-14 rounded-md bg-primary font-display text-[12px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none">
             <Link href="/">Back to Showroom</Link>
           </Button>
@@ -225,7 +233,7 @@ export default function Viewing() {
           )}
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-            <Button type="button" variant="destructive" disabled={busy} onClick={() => cancel.mutate({ token, data: {} })} className="h-14 flex-1 rounded-md font-display text-[12px] font-normal shadow-none transition-all" data-testid="button-confirm-cancel">
+            <Button type="button" variant="destructive" disabled={busy} onClick={() => cancel.mutate({ token, data: {} }, { onSuccess: updated => queryClient.setQueryData(getGetViewingBookingQueryKey(token), updated) })} className="h-14 flex-1 rounded-md font-display text-[12px] font-normal shadow-none transition-all" data-testid="button-confirm-cancel">
               {cancel.isPending ? 'Cancelling…' : 'Yes, cancel it'}
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={() => setMode('idle')} className="h-14 flex-1 rounded-md border border-primary font-display text-[12px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="button-abort-cancel">
@@ -241,6 +249,7 @@ export default function Viewing() {
               <button
                 key={date}
                 type="button"
+                disabled={busy}
                 onClick={() => setSelectedDate(date)}
                 aria-pressed={selectedDate === date}
                 className={`flex h-12 flex-col items-center justify-center border border-border bg-card px-2 transition-all duration-200 shadow-none  shadow-none ${selectedDate === date ? 'border-accent shadow-none translate-y-[-2px]' : ''}`}
@@ -269,7 +278,7 @@ export default function Viewing() {
                   <button
                     key={slot.startAt}
                     type="button"
-                    disabled={!slot.available}
+                    disabled={busy || !slot.available}
                     onClick={() => setSelectedSlot(slot.startAt)}
                     aria-pressed={selectedSlot === slot.startAt}
                     className={`flex h-12 items-center justify-center gap-2 border text-[12px] font-normal transition-all duration-200 ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground shadow-none' : slot.available ? 'border-border bg-card shadow-none  shadow-none' : 'cursor-not-allowed border-primary/20 bg-background text-primary/30 line-through shadow-none'}`}
@@ -292,12 +301,12 @@ export default function Viewing() {
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <Button
               type="button"
-              disabled={busy || !selectedSlot}
+              disabled={busy || !selectedSlot || availabilityQuery.isFetching || availabilityQuery.isError}
               onClick={() => {
                 if (!selectedSlot) return;
                 reschedule.mutate(
                   { token, data: { appointmentAt: selectedSlot } },
-                  { onSuccess: () => setMode('idle') },
+                  { onSuccess: updated => { queryClient.setQueryData(getGetViewingBookingQueryKey(token), updated); setMode('idle'); setSelectedSlot(null); } },
                 );
               }}
               className="h-14 flex-1 rounded-md font-display text-[12px] font-normal shadow-none transition-all"

@@ -1,6 +1,7 @@
 import { useGetLeadChannelSummary } from '@workspace/api-client-react';
 import { LoaderCircle, TrendingUp } from 'lucide-react';
 import { EmptyState, Panel, SourceIcon, sourceLabels } from './portal-ui';
+import { Button } from '@/components/ui/button';
 
 /**
  * What each channel actually produced. Won versus lost is the only column the
@@ -13,6 +14,18 @@ export function ChannelSummary() {
     return (
       <div className="flex min-h-32 items-center justify-center border border-border bg-card text-primary/70 font-medium">
         <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-accent" /> Counting…
+      </div>
+    );
+  }
+
+  if (summaryQuery.isError) {
+    return (
+      <div role="alert" className="border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        <h2 className="font-display text-lg font-semibold">Could not load channel results</h2>
+        <p className="mt-2">Please try again to see the latest figures.</p>
+        <Button type="button" variant="outline" className="mt-4" onClick={() => void summaryQuery.refetch()} disabled={summaryQuery.isFetching}>
+          {summaryQuery.isFetching ? 'Retrying…' : 'Try again'}
+        </Button>
       </div>
     );
   }

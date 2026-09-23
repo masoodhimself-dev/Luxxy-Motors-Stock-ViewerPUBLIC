@@ -1,7 +1,7 @@
 import { questionMessage } from "@/lib/vehicle-questions";
-import { useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
@@ -36,9 +36,11 @@ export default function Enquire() {
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
-  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const search = useSearch();
+  const params = useMemo(() => new URLSearchParams(search), [search]);
   const requestedType = params.get('type') as EnquiryType | null;
   const [type, setType] = useState<EnquiryType>(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general');
+  useEffect(() => { setType(requestedType && enquiryTypes.includes(requestedType) ? requestedType : 'general'); }, [requestedType]);
   const vehicleId = params.get('vehicleId');
   const vehicle = stock?.cars.find((car) => car.id === vehicleId);
   const copy = {

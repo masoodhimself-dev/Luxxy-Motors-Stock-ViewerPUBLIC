@@ -35,10 +35,12 @@ import {
   getPhoneHref,
   getVehicleBookingHref,
   getVehicleWhatsAppHref,
+  getVehicleShareUrl,
   recordBookingIntent,
   recordContactIntent,
 } from '@/lib/cta-helpers';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
+import { recordedWriteOffCategory } from '@/lib/vehicle-history';
 
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
@@ -58,7 +60,7 @@ export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
-  const { stock, isLoading } = useStock();
+  const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
@@ -84,6 +86,15 @@ export default function CarDetail() {
         </div>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="luxxy-shell min-h-[70vh] px-5 py-16"><div className="mx-auto max-w-xl" role="alert">
+      <p className="luxxy-kicker">Vehicle details</p>
+      <h1 className="mt-4 font-display text-3xl font-semibold">Vehicle details could not be loaded</h1>
+      <p className="mt-4 text-muted-foreground">We could not check this vehicle’s current details. Please try again.</p>
+      <Button className="mt-6" onClick={() => window.location.reload()}>Try again</Button>
+    </div></div>;
   }
 
   if (!stock || !stock.cars || !car) return <NotFound />;
@@ -129,15 +140,15 @@ export default function CarDetail() {
   ];
 
   const damageDisclosure = (() => {
-    const category = (car.writeOffCategory || '').toUpperCase();
-    if (category.includes('S')) {
+    const category = recordedWriteOffCategory(car.writeOffCategory);
+    if (category === 'S') {
       return {
         label: 'Category S',
         explanation:
           'This vehicle previously had structural damage recorded by an insurer. Ask us for the available repair and inspection records before deciding to buy.',
       };
     }
-    if (category.includes('N')) {
+    if (category === 'N') {
       return {
         label: 'Category N',
         explanation:
@@ -158,7 +169,7 @@ export default function CarDetail() {
     : [];
   const share = async () => {
     try {
-      const url = window.location.href;
+      const url = getVehicleShareUrl(car);
       if (navigator.share) await navigator.share({ title: vehicleLabel, url });
       else {
         await navigator.clipboard.writeText(url);

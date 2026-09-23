@@ -3,6 +3,7 @@ import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
+import { vehicleRegistration } from '@/lib/utils';
 
 type DealerContactDetails = {
   contact: {
@@ -61,9 +62,10 @@ export function getVehicleShareUrl(car: Car) {
 }
 
 export function getVehicleContactMessage(car: Car, request: string, config: DealerContactDetails = dealerConfig) {
+  const registration = vehicleRegistration(car);
   const details = [
     getVehicleLabel(car),
-    car.registration || car.plate ? `Registration: ${car.registration || car.plate}` : null,
+    registration ? `Registration: ${registration}` : car.registrationBand || car.year ? `Registration year: ${car.registrationBand || car.year}` : null,
     car.price ? `Price: ${car.currency || 'GBP'} ${car.price.toLocaleString('en-GB')}` : null,
   ].filter(Boolean);
 
