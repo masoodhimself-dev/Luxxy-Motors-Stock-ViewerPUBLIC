@@ -4,10 +4,13 @@ import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { formatPhoneDisplay } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { ShowroomPhoto } from "./showroom-photo";
+import { DealershipPhotograph } from './dealership-photograph';
+import { dealershipPhotography } from '@/lib/dealership-photography';
 
 export function DealershipVisit() {
   const { settings } = useDealerSettings();
   const { address, contact, hours, presentation: content = {} } = settings;
+  const visitPhoto = dealershipPhotography(settings).visit;
   const hasStory = Boolean(
     content.teamImageUrl ||
     content.teamIntroduction ||
@@ -27,7 +30,7 @@ export function DealershipVisit() {
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div
-          className={`grid items-start gap-6 lg:gap-10 ${content.teamImageUrl ? "lg:grid-cols-2" : "max-w-4xl"}`}
+          className={`grid items-start gap-6 lg:gap-10 ${content.teamImageUrl || visitPhoto ? "lg:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
             <h2 id="visit-heading" className="section-heading">
@@ -104,8 +107,9 @@ export function DealershipVisit() {
               )}
             </div>
           </div>
-          {hasStory && (
-            <div className={content.teamImageUrl ? "space-y-6" : "grid gap-6 sm:grid-cols-2"}>
+          {(hasStory || visitPhoto) && (
+            <div className={content.teamImageUrl || visitPhoto ? "space-y-6" : "grid gap-6 sm:grid-cols-2"}>
+              {visitPhoto && <DealershipPhotograph photo={visitPhoto} />}
               {(content.teamIntroduction || content.teamImageUrl) && (
                 <div className="border-t border-border pt-5">
                   {content.teamImageUrl && (

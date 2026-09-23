@@ -1,5 +1,7 @@
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
+import { DealershipPhotograph } from '@/components/dealership-photograph';
+import { dealershipPhotography } from '@/lib/dealership-photography';
 import luxxyHeroImage from "@/assets/luxxy-hero.jpg";
 import {
   readBrowseSession,
@@ -227,10 +229,8 @@ export default function Home() {
       : vehicleDisplayTitle(featuredCar);
 
   const heroPhotoSource = heroImage || getThumbnailUrl(featuredCar);
-  const introductionImage = dealerConfig.presentation?.showroomImageUrl || heroPhotoSource;
-  const introductionAlt = dealerConfig.presentation?.showroomImageUrl
-    ? dealerConfig.presentation.showroomImageAlt || `${dealerConfig.identity.name} showroom`
-    : heroAlt;
+  const introductionPhoto = dealershipPhotography(dealerConfig).introduction;
+  const introductionImage = introductionPhoto?.src || heroPhotoSource;
 
   const dealershipPoints = dealerConfig.whyBuy?.length ? (
     <ul className="divide-y divide-border border-y border-border">
@@ -575,10 +575,12 @@ export default function Home() {
                 {" to see the car and talk through the details."}
               </p>
             </div>
-            {introductionImage && (
+            {introductionPhoto ? (
+              <DealershipPhotograph photo={introductionPhoto} className="lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-center" />
+            ) : introductionImage && (
               <ShowroomPhoto
                 src={introductionImage}
-                alt={introductionAlt}
+                alt={heroAlt}
                 fit="contain"
                 className="aspect-[3/2] lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-center"
               />

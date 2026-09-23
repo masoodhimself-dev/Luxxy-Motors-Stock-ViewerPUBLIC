@@ -3,7 +3,8 @@ import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EnquiryForm } from '@/components/enquiry-form';
-import { ShowroomPhoto } from '@/components/showroom-photo';
+import { DealershipPhotograph } from '@/components/dealership-photograph';
+import { dealershipPhotography } from '@/lib/dealership-photography';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useStock } from '@/lib/stock-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
@@ -19,6 +20,7 @@ export default function Contact() {
   const phoneHref = getPhoneHref(settings);
   const whatsAppHref = getWhatsAppHref(`Hello ${settings.identity.name}, I’d like to ask about a car or arrange a visit.`, settings);
   const content = settings.presentation;
+  const photos = dealershipPhotography(settings);
   const email = settings.contact.email?.trim();
   usePageMeta({
     title: `Contact us & directions | ${settings.identity.name}`,
@@ -62,6 +64,7 @@ export default function Contact() {
         </section>
 
         <section aria-labelledby="find-us-heading" className="min-w-0" data-testid="contact-location">
+          {photos.contact && !isLoading && !isError && <DealershipPhotograph photo={photos.contact} className="mb-5" />}
           <div className="bg-primary px-5 py-6 text-primary-foreground sm:p-7">
             <p className="flex items-center gap-2 text-xs text-primary-foreground/75"><MapPin className="h-4 w-4" aria-hidden="true" />Plan your visit</p>
             <h2 id="find-us-heading" tabIndex={-1} className="mt-3 scroll-mt-28 font-display text-2xl font-semibold outline-none">How to find us</h2>
@@ -84,10 +87,9 @@ export default function Contact() {
         <div><h2 className="font-display text-xl font-semibold">Before you set off</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.visitInstructions || 'Contact us to confirm the car is available and arrange a viewing time. We’ll help with any questions before you travel.'}</p></div>
         <div><h2 className="font-display text-xl font-semibold">Parking & arrival</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.parkingInstructions || 'Ask the team about parking, the entrance and any access requirements when arranging your visit.'}</p></div>
       </section>}
-      {content?.showroomImageUrl && !isError && <ShowroomPhoto src={content.showroomImageUrl} alt={content.showroomImageAlt || 'The dealership'} className="mt-8 aspect-[16/7] max-h-96" />}
 
       <section id="contact-message" aria-labelledby="contact-message-heading" className="mt-10 grid scroll-mt-28 items-start gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
-        <div><p className="luxxy-kicker">Send a message</p><h2 id="contact-message-heading" tabIndex={-1} className="mt-3 font-display text-2xl font-semibold tracking-tight outline-none">What would you like to know?</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Tell us which car you’re considering, ask about a part exchange, or leave a question for the team.</p><p className="mt-4 text-xs leading-6 text-muted-foreground">Your message goes to the dealership enquiry inbox. We’ll show a reference when it has been received.</p></div>
+        <div><p className="luxxy-kicker">Send a message</p><h2 id="contact-message-heading" tabIndex={-1} className="mt-3 font-display text-2xl font-semibold tracking-tight outline-none">What would you like to know?</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Tell us which car you’re considering, ask about a part exchange, or leave a question for the team.</p><p className="mt-4 text-xs leading-6 text-muted-foreground">Your message goes to the dealership enquiry inbox. We’ll show a reference when it has been received.</p>{photos.reception && !isLoading && !isError && <DealershipPhotograph photo={photos.reception} className="mt-6" />}</div>
         <div className="min-w-0 border border-border bg-card p-4 sm:p-6"><EnquiryForm initialType="general" stockCars={stock?.cars ?? []} /></div>
       </section>
     </div>

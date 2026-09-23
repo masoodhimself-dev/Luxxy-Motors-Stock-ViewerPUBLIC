@@ -268,8 +268,8 @@ describe('showroom search filters', () => {
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
     const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
-    expect(within(introduction).getByRole('img')).toHaveAttribute('src', within(hero).getByRole('img').getAttribute('src'));
-    expect(within(introduction).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
+    expect(within(introduction).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-showroom.jpg'));
+    expect(within(introduction).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy Motors showroom'));
   });
 
   it('keeps other dealerships on their own photographed stock', () => {
