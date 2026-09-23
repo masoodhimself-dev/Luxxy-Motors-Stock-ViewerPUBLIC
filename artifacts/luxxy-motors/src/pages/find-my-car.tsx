@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Grid2X2, List, RotateCcw, Rows3, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, RotateCcw } from 'lucide-react';
 import { CarCard } from '@/components/car-card';
 import { Button } from '@/components/ui/button';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -38,6 +38,8 @@ type Question = {
   options: QuestionOption[];
 };
 
+const stepLabels = ['Budget', 'Body style', 'Fuel', 'Gearbox', 'Everyday use'];
+
 const questions: Question[] = [
   {
     key: 'budget',
@@ -45,10 +47,10 @@ const questions: Question[] = [
     title: 'What would feel comfortable?',
     description: 'A guide price is enough. We will keep a little flexibility for the right car.',
     options: [
-      { value: 'under-10000', label: 'Up to £10,000', detail: 'Thoughtful, well-priced used cars' },
-      { value: '10000-15000', label: '£10,000 – £15,000', detail: 'A broad choice of everyday cars' },
-      { value: '15000-22000', label: '£15,000 – £22,000', detail: 'More recent cars and extra comfort' },
-      { value: 'over-22000', label: '£22,000 or more', detail: 'The newest and most specified stock' },
+      { value: 'under-10000', label: 'Up to £10,000', detail: 'Browse within a £10,000 guide price' },
+      { value: '10000-15000', label: '£10,000 – £15,000', detail: 'Browse within this guide price' },
+      { value: '15000-22000', label: '£15,000 – £22,000', detail: 'Browse within this guide price' },
+      { value: 'over-22000', label: '£22,000 or more', detail: 'Start your search from £22,000' },
     ],
   },
   {
@@ -70,8 +72,8 @@ const questions: Question[] = [
     description: 'Not sure? Choose “Open to options” and we will keep the door open.',
     options: [
       { value: 'petrol', label: 'Petrol', detail: 'Familiar, flexible and easy to live with' },
-      { value: 'diesel', label: 'Diesel', detail: 'A sensible choice for higher mileage' },
-      { value: 'hybrid', label: 'Hybrid or electric', detail: 'Quieter running and modern efficiency' },
+      { value: 'diesel', label: 'Diesel', detail: 'Include diesel vehicles' },
+      { value: 'hybrid', label: 'Hybrid or electric', detail: 'Include hybrid and electric vehicles' },
       { value: 'any', label: 'Open to options', detail: 'Include all fuel types' },
     ],
   },
@@ -92,7 +94,7 @@ const questions: Question[] = [
     title: 'What will it mostly do?',
     description: 'This helps us weigh the details that matter when two cars look alike on paper.',
     options: [
-      { value: 'city', label: 'City and short trips', detail: 'Compact, easy and economical to run' },
+      { value: 'city', label: 'City and short trips', detail: 'Mostly local journeys and shorter drives' },
       { value: 'family', label: 'Family life', detail: 'Space for people, bags and busy days' },
       { value: 'commute', label: 'Regular commuting', detail: 'Comfortable and settled on longer drives' },
       { value: 'leisure', label: 'Weekends and getting away', detail: 'A little more character for the open road' },
@@ -127,19 +129,6 @@ const formatPrice = (price: number) => `£${price.toLocaleString('en-GB')}`;
 
 const answerLabel = (key: AnswerKey, value: string) =>
   questions.find((question) => question.key === key)?.options.find((option) => option.value === value)?.label ?? value;
-
-const useCaseMatches = (car: Car, answer: string) => {
-  const body = normalise(car.bodyType);
-  const fuel = normalise(car.fuel);
-  const mileage = typeof car.mileage === 'number' ? car.mileage : null;
-
-  return (
-    (answer === 'city' && (body.includes('hatch') || body.includes('city') || (mileage !== null && mileage < 45000))) ||
-    (answer === 'family' && ((car.seats || 0) >= 5 || body.includes('suv') || body.includes('estate'))) ||
-    (answer === 'commute' && (body.includes('saloon') || body.includes('estate') || fuel.includes('diesel') || fuel.includes('hybrid'))) ||
-    (answer === 'leisure' && (body.includes('coupe') || body.includes('convertible') || body.includes('suv')))
-  );
-};
 
 const formatMileage = (mileage: number) => `${mileage.toLocaleString('en-GB')} miles`;
 
@@ -295,14 +284,6 @@ function scoreCar(car: Car, answers: Answers) {
   return { score, matches, misses };
 }
 
-function matchSummary(matches: RecommendationMatch[]) {
-  if (matches.length === 0) return 'A sensible starting point from the cars currently on the forecourt.';
-  const explanations = matches.map((match) => match.explanation.toLowerCase());
-  if (matches.length === 1) return `A sensible fit for you, especially for ${explanations[0]}.`;
-  if (matches.length === 2) return `A strong fit for ${explanations[0]} and ${explanations[1]}.`;
-  return `A strong all-round fit: ${explanations.slice(0, 3).join(', ')}.`;
-}
-
 function OptionButton({
   option,
   selected,
@@ -319,12 +300,12 @@ function OptionButton({
       aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        'group flex min-h-[4.5rem] w-full items-center justify-between gap-5 rounded-md border bg-card px-5 py-4 text-left transition-[border-color,background-color,transform] duration-200  hover:border-primary/50  focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'group flex min-h-[5rem] w-full items-center justify-between gap-5 rounded-sm border bg-card px-5 py-4 text-left transition-[border-color,background-color,transform] duration-200  hover:border-primary/50  focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         selected ? 'border-accent bg-accent/10 shadow-none' : 'border-border/80',
       )}
     >
       <span className="min-w-0">
-        <span className="block font-display text-[1.18rem] font-semibold leading-tight text-primary">{option.label}</span>
+        <span className="block font-display text-base sm:text-lg font-semibold leading-tight text-primary">{option.label}</span>
         <span className="mt-1 block text-sm leading-5 text-muted-foreground">{option.detail}</span>
       </span>
       <span
@@ -344,6 +325,8 @@ export default function FindMyCar() {
   const { stock, isLoading, error } = useStock();
   const [answers, setAnswers] = useState<Answers>({});
   const [step, setStep] = useState(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const hasNavigated = useRef(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [recommendationView, setRecommendationView] = useState<'cards' | 'compact' | 'shortlist'>('cards');
@@ -367,8 +350,9 @@ export default function FindMyCar() {
   const hasStrongMatch = topScore >= 7;
 
   useEffect(() => {
-    if (showResults) window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [showResults]);
+    if (hasNavigated.current) headingRef.current?.focus();
+    hasNavigated.current = true;
+  }, [step, showResults]);
 
   const choose = (value: string) => {
     setHasStarted(true);
@@ -438,8 +422,8 @@ export default function FindMyCar() {
         <div className="mx-auto flex min-h-[70dvh] max-w-3xl flex-col justify-center px-5 py-16 sm:px-8 lg:px-12">
           <p className="luxxy-kicker">Find My Car</p>
           <h1 className="mt-5 max-w-2xl font-display text-2xl font-semibold leading-tight text-primary sm:text-3xl">No vehicles available to match</h1>
-          <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground">There are no cars available to match at this moment. Our stock changes regularly, so please check back soon or speak with the Harrow team about what is arriving.</p>
-          <div className="mt-9 border-l-2 border-accent pl-5 text-sm font-semibold leading-6 text-primary">Speak to the team about the car you are looking for.</div>
+          <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground">There are no cars available to match at this moment. Our stock changes regularly, so please check back soon or speak with the team about what is arriving.</p>
+          <a href="/enquire?type=general" className="mt-6 inline-flex min-h-11 items-center font-semibold text-accent underline underline-offset-4">Tell us what you are looking for</a>
           <Button type="button" onClick={() => window.location.reload()} data-testid="button-refresh-empty-stock" className="mt-9 w-fit">
             Check live stock again
           </Button>
@@ -451,70 +435,55 @@ export default function FindMyCar() {
   return (
     <div className="luxxy-shell min-h-[70dvh] overflow-hidden">
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-12">
-        <header className="border-b border-border pb-6">
-          <p className="luxxy-kicker">Find my car</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-primary">Find the car that fits.</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Answer five questions to narrow down our {stockCount} available cars. You can change your answers at any time.</p>
+        <header className="flex flex-wrap items-end justify-between gap-5 border-b border-border pb-7">
+          <div>
+            <p className="luxxy-kicker">Find my car</p>
+            <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-primary sm:text-4xl">A little guidance. A shorter shortlist.</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">Five questions to help you explore our {stockCount} available {stockCount === 1 ? 'car' : 'cars'}. No contact details needed.</p>
+          </div>
+          <a href="/#stock" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary underline underline-offset-4">Browse all stock <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
         </header>
 
         {!showResults ? (
-          <section className="luxxy-reveal luxxy-reveal-3 mt-6 max-w-5xl" aria-labelledby="question-title">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                {hasStarted && (
-                  <button type="button" onClick={back} data-testid="button-back-question" className="inline-flex h-9 items-center gap-2 px-2 text-sm font-semibold text-primary transition-colors hover:text-accent focus-visible:ring-2 focus-visible:ring-accent">
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </button>
-                )}
-                <span className="luxxy-label text-muted-foreground">Question {step + 1} of {questions.length}</span>
-                <span className="hidden text-xs text-muted-foreground sm:inline">{answeredCount} of {questions.length} answered</span>
-              </div>
-              <button type="button" onClick={restart} data-testid="button-restart-quiz" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-accent">
-                <RotateCcw className="h-3.5 w-3.5" />
-                Start over
-              </button>
-            </div>
-            <div className="mb-8" aria-label={`Step ${step + 1} of ${questions.length}`} role="progressbar" aria-valuemin={1} aria-valuemax={questions.length} aria-valuenow={step + 1}>
-              <div className="grid grid-cols-5 gap-1.5">
-                {questions.map((item, index) => (
-                  <div key={item.key} className="min-w-0">
-                    <div className={cn('h-1.5 transition-colors', index <= step ? 'bg-accent' : 'bg-border')} />
-                    <span className={cn('mt-2 hidden truncate text-[10px] font-bold  tracking-normal sm:block', index === step ? 'text-primary' : 'text-muted-foreground')}>
-                      {item.key === 'bodyType' ? 'Shape' : item.key === 'transmission' ? 'Gearbox' : item.key === 'use' ? 'Use' : item.key}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="overflow-hidden border border-border/80 bg-card">
-              <div className="border-b border-border/70 bg-secondary/35 px-5 py-6 sm:px-9 sm:py-8">
-                <p className="luxxy-label text-accent">{question.eyebrow}</p>
-                <h2 id="question-title" className="mt-3 max-w-2xl font-display text-2xl font-semibold leading-tight text-primary sm:text-3xl">{question.title}</h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{question.description}</p>
-              </div>
-              <div className="p-5 sm:p-9">
-                <fieldset className="grid gap-3 sm:grid-cols-2">
-                  <legend className="sr-only">{question.title}</legend>
-                  {question.options.map((option) => (
-                    <OptionButton key={option.value} option={option} selected={answers[question.key] === option.value} onSelect={() => choose(option.value)} />
-                  ))}
-                </fieldset>
-                <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-6">
-                  <p className="text-xs leading-5 text-muted-foreground">Choose the closest answer. You can go back and change it.</p>
-                  <Button type="button" onClick={next} disabled={!answers[question.key]} data-testid={step === questions.length - 1 ? 'button-see-matches' : 'button-next-question'}>
-                    {step === questions.length - 1 ? 'See my matches' : 'Next question'}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+          <div className="grid gap-10 pt-7 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-16 lg:pt-10">
+          <section className="min-w-0" aria-labelledby="question-title">
+            <nav aria-label="Your car preferences" className="mb-8 grid grid-cols-5 gap-2">
+              {questions.map((item, index) => (
+                <button key={item.key} type="button" disabled={!answers[item.key] && index !== step} onClick={() => setStep(index)} aria-current={index === step ? 'step' : undefined} aria-label={`${stepLabels[index]}${answers[item.key] ? ': ' + answerLabel(item.key, answers[item.key]!) : ''}`} className={cn('min-h-11 border-t-2 pt-2 text-left text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50', index === step ? 'border-accent text-primary' : answers[item.key] ? 'border-primary text-primary' : 'border-border text-muted-foreground')}>
+                  <span className="block">0{index + 1}</span><span className="mt-1 hidden sm:block">{stepLabels[index]}</span>
+                </button>
+              ))}
+            </nav>
+            <p className="luxxy-kicker text-accent">Question {step + 1} of 5 · {stepLabels[step]}</p>
+            <h2 ref={headingRef} tabIndex={-1} id="question-title" className="mt-3 font-display text-2xl font-semibold leading-tight text-primary outline-none sm:text-3xl">{question.title}</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">{question.description}</p>
+            <fieldset className="mt-6 grid gap-3 sm:grid-cols-2">
+              <legend className="sr-only">{question.title}</legend>
+              {question.options.map((option) => <OptionButton key={option.value} option={option} selected={answers[question.key] === option.value} onSelect={() => choose(option.value)} />)}
+            </fieldset>
+            <div className="mt-7 flex items-center justify-between gap-3 border-t border-border pt-5">
+              {hasStarted ? <button type="button" onClick={back} data-testid="button-back-question" className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-accent"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button> : <span className="text-xs text-muted-foreground">Choose one option</span>}
+              <Button type="button" onClick={next} disabled={!answers[question.key]} data-testid={step === questions.length - 1 ? 'button-see-matches' : 'button-next-question'}>
+                {step === questions.length - 1 ? 'See my matches' : 'Continue'}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
             </div>
           </section>
+          <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0" aria-label="Your preferences">
+            <div className="flex items-baseline justify-between gap-2"><h2 className="font-display text-xl font-semibold">Your brief</h2><span className="text-xs text-muted-foreground" aria-live="polite">{answeredCount} of 5 answered</span></div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Your answers guide the shortlist. Edit any selection as you go.</p>
+            <dl className="mt-4 grid grid-cols-2 gap-x-5 lg:block">
+              {questions.map((item, index) => <div key={item.key} className="border-b border-border py-3"><dt className="text-xs text-muted-foreground">{stepLabels[index]}</dt><dd className="mt-1 text-sm font-medium">{answers[item.key] ? <button type="button" onClick={() => setStep(index)} className="flex min-h-11 w-full items-center justify-between gap-3 text-left underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-accent" aria-label={`Edit ${stepLabels[index]}: ${answerLabel(item.key, answers[item.key]!)}`}>{answerLabel(item.key, answers[item.key]!)}<span className="text-xs text-accent">Edit</span></button> : <span className="text-muted-foreground">Not selected</span>}</dd></div>)}
+            </dl>
+            <button type="button" onClick={restart} data-testid="button-restart-quiz" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary focus-visible:ring-2 focus-visible:ring-accent"><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />Start over</button>
+            {answeredCount === questions.length && <Button type="button" variant="outline" className="mt-3 w-full" onClick={() => setShowResults(true)}>Update my matches</Button>}
+            <div className="mt-5 border-t border-border pt-5"><p className="text-sm leading-6 text-muted-foreground">Prefer to talk it through?</p><a href="/enquire?type=general" className="inline-flex min-h-11 items-center text-sm font-semibold text-accent underline underline-offset-4">Ask the team</a></div>
+          </aside>
+          </div>
         ) : (
           <section className="mt-6" aria-labelledby="results-title">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div>
-                <h2 id="results-title" className="font-display text-2xl font-semibold tracking-tight">Your matches</h2>
+                <h2 ref={headingRef} tabIndex={-1} id="results-title" className="font-display text-2xl font-semibold tracking-tight">Your matches</h2>
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground" aria-live="polite" data-testid="text-results-announcement">
                   {hasStrongMatch ? 'The closest matches for your answers, with any differences explained below.' : 'No close match in current stock. These are the nearest alternatives.'}
                 </p>
@@ -531,9 +500,8 @@ export default function FindMyCar() {
 
             {!hasStrongMatch && (
               <div className="mt-7 flex gap-4 border border-accent/40 bg-accent/10 p-5 sm:p-6" data-testid="state-no-perfect-match">
-                <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
                 <div>
-                  <h3 className="font-display text-xl font-semibold text-primary">No exact match today</h3>
+                  <h3 className="font-display text-xl font-semibold text-primary">Some preferences may need a compromise</h3>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Try changing an answer, or contact the team about upcoming stock.</p>
                 </div>
               </div>
@@ -541,7 +509,7 @@ export default function FindMyCar() {
 
             <div
               className={cn(
-                'mt-8 grid gap-6',
+                'mt-8 grid items-start gap-6',
                 recommendationView === 'cards' ? 'lg:grid-cols-3' : 'lg:grid-cols-2',
               )}
               data-testid="list-recommendations"
@@ -606,9 +574,13 @@ export default function FindMyCar() {
                       </div>
                     )}
                   </div>
-                  <p className="px-1 text-sm leading-6 text-muted-foreground">{matchSummary(matches)}</p>
+
                 </div>
               ))}
+            </div>
+            <div className="mt-10 flex flex-wrap items-center justify-between gap-5 border-y border-border py-7">
+              <div><h3 className="font-display text-xl font-semibold">Still looking for the right car?</h3><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">These suggestions use the stock details available. Check each vehicle and speak to us about anything important to you.</p></div>
+              <a href="/enquire?type=general" className="inline-flex min-h-11 items-center gap-2 font-semibold text-accent underline underline-offset-4">Talk to the team<ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
             </div>
           </section>
         )}
