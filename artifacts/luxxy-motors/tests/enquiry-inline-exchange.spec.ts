@@ -13,11 +13,8 @@ for (const width of [390, 1440]) {
     await page.getByRole('radio', { name: 'Yes', exact: true }).check();
     const details = page.getByTestId('enquiry-part-exchange-details');
     await details.getByLabel('Registration', { exact: true }).fill('AB12 CDE');
-    await details.getByLabel('Make and model', { exact: true }).fill('Ford Focus');
     await details.getByLabel('Current mileage (miles)', { exact: true }).fill('42000');
-    await details.getByLabel('Overall condition', { exact: true }).selectOption('good');
-    await details.getByLabel('Number of keys', { exact: true }).selectOption('2');
-    await details.getByLabel('Do you have the V5C logbook?', { exact: true }).selectOption('Yes');
+    await expect(details.locator('input')).toHaveCount(2);
     await page.getByRole('radio', { name: 'No', exact: true }).check();
     await expect(details).toHaveCount(0);
     await page.getByRole('radio', { name: 'Yes', exact: true }).check();
@@ -25,9 +22,6 @@ for (const width of [390, 1440]) {
     await page.getByTestId('input-customer-email').fill('local@example.com');
     await page.getByTestId('button-submit-enquiry').click();
     await expect(page.getByTestId('status-enquiry-success')).toBeVisible();
-    expect(payload.partExchange).toEqual({ registration: 'AB12 CDE', mileage: 42000, condition: 'good' });
-    expect(payload.message).toContain('Make / model: Ford Focus');
-    expect(payload.message).toContain('Keys: 2');
-    expect(payload.message).toContain('V5C logbook: Yes');
+    expect(payload.partExchange).toEqual({ registration: 'AB12 CDE', mileage: 42000, condition: null });
   });
 }

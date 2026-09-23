@@ -461,3 +461,9 @@ Validation: **172 frontend tests and 36 browser checks passed**. Browser checks 
 - Yes reveals registration, make/model, mileage, condition, keys, V5C and optional fault notes. No hides the fields and omits the part-exchange payload.
 - Reuses existing enquiry API fields for registration, mileage and condition; additional details accompany the enquiry message with its existing length limit. No API/schema or production changes.
 - Validation: 172 frontend tests passed; two desktop/mobile browser submission tests passed using mocked writes; full workspace typechecking/build passed. Corrected explicit dropdown accessible names during browser testing.
+
+### Simplified inline part exchange — 23 September 2026
+- Replaced the extended inline car questionnaire with two fields: registration and approximate mileage.
+- Large Yes/No choices show a clear selected state. Optional notes are collapsed until requested; condition, keys and paperwork can be discussed later.
+- Existing enquiry storage retained; unknown condition sent as null.
+- Validation: 172 frontend tests, two mobile/desktop mocked submission checks, workspace typechecking and builds passed.

@@ -119,12 +119,10 @@ export function EnquiryForm({
   const [type, setType] = useState<EnquiryType>(initialType);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [hasPartExchange, setHasPartExchange] = useState(false);
-  const [exchange, setExchange] = useState({ registration: '', model: '', mileage: '', condition: '', keys: '', v5: '', notes: '' });
+  const [exchange, setExchange] = useState({ registration: '', mileage: '', notes: '' });
   const exchangeSummary = hasPartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
-    `Make / model: ${exchange.model.trim()}`, `Mileage: ${exchange.mileage} miles`,
-    `Condition: ${exchange.condition}`, `Keys: ${exchange.keys}`,
-    `V5C logbook: ${exchange.v5}`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
+    `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
   ].join('\n') : '';
   const messageLimit = 2000 - (exchangeSummary ? exchangeSummary.length + 2 : 0);
   const [viewingVehicleId, setViewingVehicleId] = useState('');
@@ -207,7 +205,7 @@ export function EnquiryForm({
       partExchange: hasPartExchange && vehicle ? {
         registration: exchange.registration.trim().toUpperCase(),
         mileage: Number(exchange.mileage),
-        condition: exchange.condition as 'excellent' | 'good' | 'fair' | 'poor',
+        condition: null,
       } : null,
       visitorId: getVisitorId(),
     };
@@ -539,38 +537,26 @@ export function EnquiryForm({
         {selectedVehicle && <fieldset className="space-y-4 border-t border-border pt-4">
           <legend className="text-sm font-semibold">Do you have a car to part-exchange?</legend>
           <div className="flex gap-3">
-            {[false, true].map(value => <label key={String(value)} className="flex min-h-11 cursor-pointer items-center gap-2 border border-input px-4">
+            {[false, true].map(value => <label key={String(value)} className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm border px-4 text-sm transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-accent ${hasPartExchange === value ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-secondary"}`}>
               <input type="radio" name="has-part-exchange" checked={hasPartExchange === value} onChange={() => setHasPartExchange(value)} className="accent-primary" />
               {value ? 'Yes' : 'No'}
             </label>)}
           </div>
           {hasPartExchange && <div className="space-y-4" data-testid="enquiry-part-exchange-details">
-            <p className="text-sm text-muted-foreground">Tell us about your current car. These details will be included with your enquiry.</p>
+            <p className="text-sm text-muted-foreground">Just your registration and approximate mileage for now. We can discuss condition, keys and paperwork when we speak.</p>
             {[
               ['registration', 'Registration', 16],
-              ['model', 'Make and model', 100],
               ['mileage', 'Current mileage (miles)', 7],
             ].map(([key, label, max]) => <label className="block" key={key}>
               <span className={labelClass}>{label}</span>
               <Input required maxLength={Number(max)} type={key === 'mileage' ? 'number' : 'text'}
                 min={key === 'mileage' ? 0 : undefined} max={key === 'mileage' ? 1000000 : undefined} step={key === 'mileage' ? 1 : undefined}
-                value={exchange[key as 'registration' | 'model' | 'mileage']}
+                value={exchange[key as 'registration' | 'mileage']}
                 onChange={event => setExchange(current => ({ ...current, [key]: event.target.value }))} />
             </label>)}
-            {([
-              ['condition', 'Overall condition', [['excellent', 'Excellent'], ['good', 'Good'], ['fair', 'Fair'], ['poor', 'Poor']]],
-              ['keys', 'Number of keys', [['0', 'No keys'], ['1', '1 key'], ['2', '2 keys'], ['3+', '3 or more keys']]],
-              ['v5', 'Do you have the V5C logbook?', [['Yes', 'Yes'], ['No', 'No'], ['Replacement requested', 'Replacement requested']]],
-            ] as const).map(([key, label, options]) => <label className="block" key={key} htmlFor={`enquiry-exchange-${key}`}>
-              <span className={labelClass}>{label}</span>
-              <NativeSelect id={`enquiry-exchange-${key}`} aria-label={label} required value={exchange[key]} onChange={event => setExchange(current => ({ ...current, [key]: event.target.value }))}>
-                <option value="">Select an answer</option>
-                {options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-              </NativeSelect>
-            </label>)}
-            <label className="block"><span className={labelClass}>Damage, faults or other details (optional)</span>
+            <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary">Anything to mention? (optional)</summary><label className="block"><span className={labelClass}>Anything we should know about your car?</span>
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
-            </label>
+            </label></details>
           </div>}
         </fieldset>}
         <label className="block">
