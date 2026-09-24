@@ -8,7 +8,6 @@ import {
 import {
   BarChart3,
   BookmarkCheck,
-  ClipboardCheck,
   LoaderCircle,
   Lock,
   Plus,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
-import { DealsPanel } from '@/components/portal/deals-panel';
 import { ChannelSummary } from '@/components/portal/channel-summary';
 import { LeadCapture } from '@/components/portal/lead-capture';
 import { LeadDetail } from '@/components/portal/lead-detail';
@@ -26,13 +24,12 @@ import { LeadList } from '@/components/portal/lead-list';
 import { WorkQueue } from '@/components/portal/work-queue';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 
-type TabKey = 'today' | 'leads' | 'reservations' | 'deals' | 'channels' | 'settings';
+type TabKey = 'today' | 'leads' | 'reservations' | 'channels' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Sun }> = [
   { key: 'today', label: 'Today', icon: Sun },
   { key: 'leads', label: 'Leads', icon: Users },
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
-  { key: 'deals', label: 'Deals', icon: ClipboardCheck },
   { key: 'channels', label: 'Channels', icon: BarChart3 },
   { key: 'settings', label: 'Settings', icon: Settings2 },
 ];
@@ -136,7 +133,7 @@ function PortalDesk() {
               <Settings2 className="h-4 w-4" /> Staff portal
             </p>
             <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">
-              Sales desk
+              Dealership workspace
             </h1>
             <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
               Signed in as {staffName}
@@ -190,7 +187,6 @@ function PortalDesk() {
               {tab === 'today' && <WorkQueue onOpenLead={openLead} />}
               {tab === 'leads' && <LeadList onOpenLead={openLead} />}
               {tab === 'reservations' && <ReservationsPanel onOpenLead={openLead} />}
-              {tab === 'deals' && <DealsPanel />}
               {tab === 'channels' && <ChannelSummary />}
               {tab === 'settings' && <DealerSettingsPanel />}
             </div>
@@ -236,8 +232,8 @@ export default function Portal() {
     return (
       <PortalFrame
         kicker="Staff portal"
-        title="Sign in to your sales desk"
-        blurb="Sign in with your Luxxy Motors staff account to see enquiries, viewings and deals."
+        title="Sign in to your staff portal"
+        blurb="Sign in with your Luxxy Motors staff account to see enquiries, viewings and reservations."
       >
         <SignInButton mode="redirect">
           <Button data-testid="button-portal-sign-in">

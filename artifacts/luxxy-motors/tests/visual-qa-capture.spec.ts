@@ -110,9 +110,6 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
       await capture(screen);
     }
     await page.goto('/portal');
-    await page.getByTestId('tab-deals').click();
-    await page.getByRole('button').filter({ hasText: 'Amelia Clarke' }).click();
-    await capture('deal');
     await page.getByTestId('tab-leads').click();
     await expect(page.getByText('Amelia Clarke').first()).toBeVisible();
     await capture('leads');

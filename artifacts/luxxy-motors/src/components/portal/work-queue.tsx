@@ -61,14 +61,7 @@ const queues: Array<{
     empty: 'Every enquiry has had a first response.',
     icon: Inbox,
   },
-  {
-    key: 'depositsWithoutDeal',
-    kicker: 'Paperwork',
-    title: 'Deposits without a deal',
-    blurb: 'Deposits received without a linked deal.',
-    empty: 'Every deposit has a deal behind it.',
-    icon: PoundSterling,
-  },
+
 ];
 
 function highlightFor(key: QueueKey, lead: Lead) {

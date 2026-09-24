@@ -9,7 +9,6 @@ import {
   useUpdateLead,
   type Lead,
   type LeadActivity,
-  type LeadDeal,
   type LeadUpdate,
 } from '@workspace/api-client-react';
 import { Link } from 'wouter';
@@ -282,57 +281,6 @@ function Timeline({ activities }: { activities: LeadActivity[] }) {
   );
 }
 
-function DealPanel({ deal }: { deal: LeadDeal | null }) {
-  if (!deal) {
-    return (
-      <Panel>
-        <header className="border-b border-primary px-5 py-4">
-          <p className="flex items-center gap-2 font-display text-xs font-semibold text-accent">Paperwork</p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-primary">Deal</h2>
-        </header>
-        <p className="px-5 py-6 text-[13px] text-primary/70 font-medium">
-          No deal raised against this lead yet. Start one from the Deals tab when the
-          customer commits.
-        </p>
-      </Panel>
-    );
-  }
-
-  return (
-    <Panel data-testid="lead-deal">
-      <header className="flex items-start justify-between gap-3 border-b border-primary px-5 py-4">
-        <div>
-          <p className="flex items-center gap-2 font-display text-xs font-semibold text-accent">Paperwork</p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-primary">Deal</h2>
-        </div>
-        <Chip tone="primary">{deal.status.replace(/_/g, ' ')}</Chip>
-      </header>
-      <dl className="divide-y divide-border px-5">
-        {[
-          ['Agreed price', deal.agreedPricePence],
-          ['Deposit', deal.depositPence],
-          ['Balance', deal.balancePence],
-        ].map(([label, value]) => (
-          <div key={label as string} className="flex items-center justify-between py-3">
-            <dt className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">
-              {label}
-            </dt>
-            <dd className="luxxy-price-inline text-[15px] text-primary">
-              {formatPence(value as number)}
-            </dd>
-          </div>
-        ))}
-        <div className="flex items-center justify-between py-3">
-          <dt className="font-display text-xs font-semibold text-primary text-primary/70 font-medium">Raised</dt>
-          <dd className="font-mono text-[13px] text-primary/70 font-medium">
-            {formatDate(deal.createdAt)}
-          </dd>
-        </div>
-      </dl>
-    </Panel>
-  );
-}
-
 /** Won/lost always demands a reason — that is the whole point of the record. */
 function OutcomePanel({
   lead,
@@ -506,7 +454,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
     );
   }
 
-  const { lead, activities, deal, enquiryMessage } = leadQuery.data;
+  const { lead, activities, enquiryMessage } = leadQuery.data;
   const saving = updateLead.isPending || saveInProgress;
 
   return (
@@ -654,7 +602,6 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
             </Panel>
           )}
 
-          <DealPanel deal={deal} />
           <OutcomePanel lead={lead} onSave={save} saving={saving} />
 
           {lead.enquiryId && (

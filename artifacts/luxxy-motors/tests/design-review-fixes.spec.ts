@@ -4,39 +4,6 @@ import { previewSettings } from '../preview/settings';
 // All writes in this file are intercepted; no signing or publishing reaches a server.
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Uses local preview fixtures.');
 
-for (const width of [390, 1440]) {
-  test(`document pack and mobile sale form remain readable at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await page.route('**/api/signing/sample', async (route) => {
-      const response = await route.fetch();
-      const data = await response.json();
-      data.revision.documents = [{ id: 'review-document', title: 'Vehicle order details', content: 'The complete supplied document.\n<script>document.title="Unsafe"</script>\nFinal declaration.', contentHash: 'fixture', required: true }];
-      await route.fulfill({ json: data });
-    });
-    await page.goto('/sign/sample');
-    await expect(page.getByRole('heading', { name: 'Vehicle order details' })).toBeVisible();
-    await expect(page.getByTestId('signing-document-content')).toContainText('Final declaration.');
-    await expect(page.getByTestId('signing-document-content')).toContainText('<script>');
-    await expect(page).not.toHaveTitle('Unsafe');
-    expect(await page.getByTestId('signing-document-content').evaluate((element) => Boolean(element.compareDocumentPosition(document.querySelector('form')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
-    await expect(page.getByTestId('customer-task-footer')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sign and agree', exact: true })).toBeDisabled();
-    await page.goto('/portal');
-    await page.getByTestId('tab-deals').click();
-    await page.getByTestId('button-toggle-sale-form').click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('heading')).toHaveCount(1);
-    await expect(dialog.getByRole('combobox', { name: 'Vehicle', exact: true })).toBeInViewport();
-    await expect(dialog.getByRole('button', { name: 'Create draft sale' })).toBeInViewport();
-    await dialog.getByRole('combobox', { name: 'Vehicle', exact: true }).selectOption('preview-1');
-    await dialog.getByRole('combobox', { name: /^Fulfilment/ }).selectOption('delivery');
-    await expect(dialog.getByRole('button', { name: 'Create draft sale' })).toBeInViewport();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.keyboard.press('Escape');
-    await expect(dialog).toHaveCount(0);
-  });
-}
-
 test('settings drafts survive navigation and reload without publishing, with explicit discard', async ({ page }) => {
   let writes = 0;
   await page.route('**/api/dealer-settings', async (route) => {

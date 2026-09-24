@@ -143,15 +143,6 @@ test('manual lead capture retains fields and traps focus', async ({ page }) => {
   });
 });
 
-test('sales readiness and development warnings remain visible', async ({ page }) => {
-  await page.goto('/portal');
-  await page.getByTestId('tab-deals').click();
-  await expect(page.getByText('DEVELOPMENT ONLY', { exact: true })).toBeVisible();
-  await page.getByRole('button').filter({ hasText: 'Amelia Clarke' }).click();
-  await expect(page.getByRole('button', { name: 'Complete checklist to prepare' })).toBeDisabled();
-  await expect(page.getByRole('heading', { name: 'Sales readiness checklist' })).toBeVisible();
-});
-
 test('staff dialogs return keyboard focus after closing', async ({ page }) => {
   await page.goto('/portal');
   const leadButton = page.getByTestId('button-new-lead');
@@ -159,11 +150,7 @@ test('staff dialogs return keyboard focus after closing', async ({ page }) => {
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(leadButton).toBeFocused();
-  await page.getByTestId('tab-deals').click();
-  await page.getByTestId('button-toggle-sale-form').click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByTestId('button-toggle-sale-form')).toBeFocused();
+
 });
 
 

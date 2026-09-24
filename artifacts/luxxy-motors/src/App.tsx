@@ -1,3 +1,4 @@
+import RetiredSalesPage from '@/pages/retired-sales';
 import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
 import { useEffect, useRef, type ReactNode } from 'react';
@@ -26,8 +27,6 @@ const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
-const Signing = lazy(() => import("@/pages/signing"));
-const CustomerDetails = lazy(() => import('@/pages/customer-details'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
@@ -77,8 +76,8 @@ function Router() {
           <Route path="/contact" component={Contact} />
           <Route path="/warranty" component={Warranty} />
           <Route path="/viewing/:token" component={Viewing} />
-          <Route path="/sign/:token" component={Signing} />
-          <Route path="/customer-details/:token" component={CustomerDetails} />
+          <Route path="/sign/:token" component={RetiredSalesPage} />
+          <Route path="/customer-details/:token" component={RetiredSalesPage} />
           {/* REQUIRED — the /*? optional wildcard is the only wouter syntax
               matching both the bare URL and Clerk's OAuth sub-paths. */}
           <Route path="/sign-in/*?" component={StaffSignIn} />
@@ -133,13 +132,13 @@ function ClerkProviderWithRoutes() {
         signIn: {
           start: {
             title: 'Sign in',
-            subtitle: 'Staff access to the Luxxy Motors sales desk',
+            subtitle: 'Staff access to the Luxxy Motors staff portal',
           },
         },
         signUp: {
           start: {
             title: 'Create your staff account',
-            subtitle: 'Staff access to the Luxxy Motors sales desk',
+            subtitle: 'Staff access to the Luxxy Motors staff portal',
           },
         },
       }}

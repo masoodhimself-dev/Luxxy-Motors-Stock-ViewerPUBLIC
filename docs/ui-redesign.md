@@ -578,3 +578,11 @@ Validation: all 168 remaining frontend tests passed; workspace typechecking/buil
 ### Ivory, green-charcoal and bronze palette
 
 Applied the approved palette to shared light-theme tokens and dealership defaults: ivory #F7F6F2, white cards, charcoal #202D29, secondary text #626B66, bronze #805B36 and stone borders #DEDFD8. Header uses the ivory surface; footer and primary actions inherit charcoal. Dealer brand overrides remain configurable. Input borders retain their stronger contrast, and WhatsApp retains its channel colour. Verified text colour pairs exceed 4.5:1. Frontend suite (168 tests) and workspace typechecking/build passed; existing bundle-size warning remains. No production settings changed.
+
+## Retire the original sales process — 24 September 2026
+
+Removed the Deals tab, draft sale form, checklist/prepare/completion UI, lead deal panel, deposit-without-deal queue section, customer-intake screen and document signing screen. Portal wording now refers to the dealership workspace. Old customer-details and signing links show a service-withdrawn page with a contact link.
+
+The application no longer mounts the sales or customer-intake routers. A dedicated retirement router returns HTTP 410 for every method beneath /sales, /signing and /customer-intake-sessions, before any legacy handler can execute. Local preview has the same behaviour. Legacy server source, schemas and historical data remain for compatibility/reference when designing the replacement; no old sales endpoints are executable through the application router. Leads, reservations and historical stock safeguards retain their existing data relationships. No replacement process was introduced.
+
+Stock, enquiries, lead management, viewings, reservations, settings and authentication remain active. No database migrations, record deletions, production changes or deployment were performed. Validation: 168 frontend unit tests, a database-free server route test covering retired methods and unrelated route passthrough, seven desktop/mobile browser regression checks, and full workspace typechecking/build passed. Existing large-bundle warning remains. Removed obsolete browser cases for the deleted process; historical screenshots remain as documentation of the previous design.

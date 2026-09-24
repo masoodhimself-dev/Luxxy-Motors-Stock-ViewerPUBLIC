@@ -36,6 +36,11 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {
+              res.statusCode = 410;
+              res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
+              return;
+            }
             if (await reservationPreview(req, res, url)) return;
             if (req.method !== 'GET') {
               res.statusCode = 405;
