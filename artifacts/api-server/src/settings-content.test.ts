@@ -4,7 +4,7 @@ import {
   UpdateDealerSettingsBody,
   GetDealerSettingsResponse,
 } from "@workspace/api-zod";
-import { preserveOnlineReservation, preservePresentation, reservationSettingsError } from "./lib/settings-content";
+import { preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "./lib/settings-content";
 
 const service = {
   enabled: false,
@@ -125,4 +125,16 @@ test("new link and image fields reject executable and non-HTTPS URLs", () => {
       false,
     );
   }
+});
+
+
+test('brochure settings accept legacy records, preserve omitted options and validate limits', () => {
+  assert.equal(GetDealerSettingsResponse.parse(legacy).brochure, undefined);
+  const brochure = { title: 'Your car', includeGallery: false, photoLimit: 6, accentColour: '#123456' };
+  assert.deepEqual(preserveBrochure(UpdateDealerSettingsBody.parse(legacy), {brochure}).brochure, brochure);
+  assert.deepEqual(preserveBrochure({brochure:{title:''}}, {brochure}).brochure, {...brochure,title:''});
+  for (const photoLimit of [0, 81, 2.5]) assert.equal(UpdateDealerSettingsBody.safeParse({...legacy,brochure:{photoLimit}}).success,false);
+  for (const accentColour of ['red','#fff','url(test)']) assert.equal(UpdateDealerSettingsBody.safeParse({...legacy,brochure:{accentColour}}).success,false);
+  assert.equal(UpdateDealerSettingsBody.safeParse({...legacy,brochure:{title:'a'.repeat(61)}}).success,false);
+  assert.deepEqual(GetDealerSettingsResponse.parse({...legacy,brochure}).brochure,brochure);
 });

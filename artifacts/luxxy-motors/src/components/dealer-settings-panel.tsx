@@ -19,6 +19,7 @@ import {
   CircleAlert,
   Clock3,
   ExternalLink,
+  FileText,
   Image,
   Link2,
   MapPin,
@@ -44,7 +45,8 @@ type FormSection =
   | "services"
   | "proof"
   | "legal"
-  | "presentation";
+  | "presentation"
+  | "brochure";
 
 const fallbackSettings: DealerSettings = {
   onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...dealerConfig.onlineReservation },
@@ -139,6 +141,7 @@ function copySettings(source: DealerSettings): DealerSettings {
     bookViewing: { ...source.bookViewing },
     recentHandovers: { ...source.recentHandovers },
     presentation: { ...source.presentation },
+    brochure: { ...source.brochure },
     trustItems: [...source.trustItems],
     whyBuy: source.whyBuy.map((item) => ({ ...item })),
   };
@@ -349,6 +352,8 @@ export function DealerSettingsPanel() {
 
   const validate = () => {
     const errors: Record<string, string> = {};
+    if (form.brochure?.accentColour && !/^#[0-9a-fA-F]{6}$/.test(form.brochure.accentColour)) errors['brochure.accentColour'] = 'Use a six-digit colour such as #835b33.';
+    if (form.brochure?.photoLimit !== undefined && (!Number.isInteger(form.brochure.photoLimit) || form.brochure.photoLimit < 1 || form.brochure.photoLimit > 80)) errors['brochure.photoLimit'] = 'Choose between 1 and 80 photographs.';
     if (!isValidHsl(form.identity.brandColors.primaryHsl) || !isValidHsl(form.identity.brandColors.accentHsl)) errors['identity.colours'] = 'Use a hue from 0–360 and saturation/lightness from 0–100%, or choose a colour using the picker.';
     for (const [key, value] of Object.entries(form.presentation || {})) {
       if (key.endsWith("Url") && value && !/^https:\/\/[^\s]+$/.test(value))
@@ -380,7 +385,8 @@ export function DealerSettingsPanel() {
     setValidationErrors(errors);
     if (Object.keys(errors).length > 0) {
       const first = Object.keys(errors)[0];
-      if (first.startsWith("presentation")) setActiveSection("presentation");
+      if (first.startsWith("brochure")) setActiveSection("brochure");
+      else if (first.startsWith("presentation")) setActiveSection("presentation");
       else if (first.startsWith('identity')) setActiveSection('identity');
       else if (first.startsWith('hero') || first.startsWith('bookViewing')) setActiveSection('homepage');
       else if (first === 'hours') setActiveSection('contact');
@@ -528,6 +534,7 @@ export function DealerSettingsPanel() {
               ['contact', 'Contact & hours'],
               ['homepage', 'Homepage copy'],
               ["presentation", "Photos & visit"],
+              ["brochure", "Vehicle brochure"],
               ['services', 'Services'],
               ['proof', 'Trust & why buy'],
               ['legal', 'Social & legal'],
@@ -917,6 +924,19 @@ export function DealerSettingsPanel() {
               individual cars as checked or covered.
             </p>
           </div>
+        </SectionCard>
+
+        <SectionCard id="brochure" eyebrow="Customer downloads" title="Vehicle brochure" description="A printed companion to each car. Your dealership name, address and contact details come from Identity and Contact & hours. Vehicle facts and supplied insurance history are always included." icon={<FileText className="h-5 w-5" />}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Brochure cover heading" hint="Up to 60 characters"><Input maxLength={60} value={form.brochure?.title ?? ''} placeholder="Your next car, in detail" onChange={e=>updateGroup('brochure',{...form.brochure,title:e.target.value})} /></Field>
+            <Field label="Brochure accent colour" hint="Rules and decorative details" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#835b33'} onChange={e=>updateGroup('brochure',{...form.brochure,accentColour:e.target.value})} /></Field>
+            <Field label="Showroom introduction" hint="Up to 300 characters"><Textarea maxLength={300} rows={3} value={form.brochure?.introduction ?? ''} placeholder="A short invitation to visit or speak to your team." onChange={e=>updateGroup('brochure',{...form.brochure,introduction:e.target.value})} /></Field>
+            <Field label="Closing note" hint="Up to 500 characters"><Textarea maxLength={500} rows={3} value={form.brochure?.footerNote ?? ''} placeholder="Your appointment instructions or other useful information." onChange={e=>updateGroup('brochure',{...form.brochure,footerNote:e.target.value})} /></Field>
+            <Field label="Photo layout"><select className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.brochure?.galleryLayout ?? 'grid'} onChange={e=>updateGroup('brochure',{...form.brochure,galleryLayout:e.target.value as 'grid'|'large'})}><option value="grid">Gallery - four photos per page</option><option value="large">Large photos - two per page</option></select></Field>
+            <Field label="Maximum photos" hint="Includes the cover photo" error={validationErrors['brochure.photoLimit']}><Input type="number" min={1} max={80} step={1} value={form.brochure?.photoLimit ?? 12} onChange={e=>updateGroup('brochure',{...form.brochure,photoLimit:Number(e.target.value)})} /></Field>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2">{([['includeDescription','Include vehicle description'],['includeFeatures','Include features and equipment'],['includeGallery','Include photo gallery']] as const).map(([key,label])=><label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" checked={form.brochure?.[key] !== false} onChange={e=>updateGroup('brochure',{...form.brochure,[key]:e.target.checked})} />{label}</label>)}</div>
+          <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-5"><p className="max-w-lg text-sm text-muted-foreground">Publish your settings, then open a brochure to check the final PDF. Previously downloaded copies will keep their original design.</p>{stock?.cars[0] && <a className="text-link min-h-11 text-sm" href={`/api/vehicles/${encodeURIComponent(stock.cars[0].id)}/brochure.pdf`} target="_blank" rel="noopener noreferrer">Open saved brochure <ExternalLink className="h-4 w-4" /><span className="sr-only"> (opens in a new tab)</span></a>}</div>
         </SectionCard>
 
         <SectionCard id="services" eyebrow="05 / Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>

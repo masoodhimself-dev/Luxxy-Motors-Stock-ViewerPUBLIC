@@ -348,28 +348,7 @@ export default function CarDetail() {
                 View comparison
               </Link>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4">
-              <a
-                href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-link min-h-11 text-sm"
-                aria-label={`View PDF details and photographs for ${vehicleLabel} (opens in a new tab)`}
-                data-testid="link-vehicle-pdf"
-              >
-                <FileText className="h-4 w-4" />
-                View vehicle PDF
-              </a>
-              <a
-                href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`}
-                download
-                className="text-link min-h-11 text-xs font-normal text-muted-foreground"
-                aria-label={`Download PDF details and photographs for ${vehicleLabel}`}
-                data-testid="link-download-vehicle-pdf"
-              >
-                Download
-              </a>
-            </div>
+
             </div>
           </aside>
           <div className="min-w-0 pb-10 lg:col-start-1 lg:row-start-3">
@@ -398,6 +377,12 @@ export default function CarDetail() {
                 {description ||
                   'Speak to our team for the full vehicle description, service history and preparation details. We’ll be happy to answer your questions before you visit.'}
               </p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-3">
+                <a href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`} download className="text-link min-h-11 text-sm" data-testid="link-vehicle-pdf" aria-label={`Download car brochure for ${vehicleLabel}`}>
+                  <FileText className="h-4 w-4" /> Download car brochure
+                </a>
+                <button type="button" onClick={share} className="text-link min-h-11 text-sm"><Share2 className="h-4 w-4" /> Share this car</button>
+              </div>
             </section>
             <section
               className="mt-8 border-t border-border pt-7"

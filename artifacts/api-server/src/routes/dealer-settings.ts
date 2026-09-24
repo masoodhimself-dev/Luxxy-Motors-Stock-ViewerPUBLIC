@@ -1,4 +1,4 @@
-import { preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
+import { preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -127,7 +127,7 @@ router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> =
     return;
   }
   const [previous] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId()));
-  const compatible = UpdateDealerSettingsBody.parse(preserveOnlineReservation(preservePresentation(parsed.data, previous?.config), previous?.config));
+  const compatible = UpdateDealerSettingsBody.parse(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data, previous?.config), previous?.config), previous?.config));
   const reservationError = reservationSettingsError(compatible.onlineReservation);
   if (reservationError) {
     res.status(400).json({ error: reservationError });

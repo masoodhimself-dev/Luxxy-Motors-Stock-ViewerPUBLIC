@@ -390,8 +390,40 @@ export interface DealerPresentation {
   includedInformation?: string;
 }
 
+export type DealerBrochureGalleryLayout = typeof DealerBrochureGalleryLayout[keyof typeof DealerBrochureGalleryLayout];
+
+
+export const DealerBrochureGalleryLayout = {
+  grid: 'grid',
+  large: 'large',
+} as const;
+
+/**
+ * Optional PDF presentation settings. Vehicle facts and insurance history are always included.
+ */
+export interface DealerBrochure {
+  /** @maxLength 60 */
+  title?: string;
+  /** @maxLength 300 */
+  introduction?: string;
+  /** @pattern ^#[0-9a-fA-F]{6}$ */
+  accentColour?: string;
+  /** @maxLength 500 */
+  footerNote?: string;
+  includeDescription?: boolean;
+  includeFeatures?: boolean;
+  includeGallery?: boolean;
+  /**
+     * @minimum 1
+     * @maximum 80
+     */
+  photoLimit?: number;
+  galleryLayout?: DealerBrochureGalleryLayout;
+}
+
 export interface DealerSettings {
   presentation?: DealerPresentation;
+  brochure?: DealerBrochure;
   identity: DealerIdentity;
   contact: DealerContact;
   address: DealerAddress;

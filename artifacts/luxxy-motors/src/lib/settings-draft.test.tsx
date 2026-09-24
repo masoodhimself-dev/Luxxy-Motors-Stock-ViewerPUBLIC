@@ -39,4 +39,13 @@ describe('unpublished showroom drafts', () => {
     expect(restored?.form.identity.name).toBe('Older unpublished name');
     expect(restored?.form.onlineReservation).toEqual(previewSettings.onlineReservation);
   });
+  it('retains old drafts when optional brochure settings are introduced', () => {
+    const form = structuredClone(previewSettings);
+    form.identity.name = 'Draft dealership';
+    writeSettingsDraft('{}', form);
+    const restored = readSettingsDraft({...previewSettings,brochure:{title:'Saved brochure'}});
+    expect(restored?.form.identity.name).toBe('Draft dealership');
+    expect(restored?.form.brochure?.title).toBe('Saved brochure');
+  });
+
 });

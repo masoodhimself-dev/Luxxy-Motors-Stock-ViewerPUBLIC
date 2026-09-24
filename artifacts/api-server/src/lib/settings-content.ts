@@ -33,3 +33,10 @@ export function reservationSettingsError(settings?: ReservationSettings): string
   }
   return null;
 }
+
+/** Merge brochure options so older clients do not erase a dealer's PDF design. */
+export function preserveBrochure<T extends { brochure?: object }>(incoming: T, previous: unknown): T {
+  const brochure = previous && typeof previous === 'object' && 'brochure' in previous ? previous.brochure : undefined;
+  if (!brochure || typeof brochure !== 'object' || Array.isArray(brochure)) return incoming;
+  return { ...incoming, brochure: { ...brochure, ...incoming.brochure } };
+}

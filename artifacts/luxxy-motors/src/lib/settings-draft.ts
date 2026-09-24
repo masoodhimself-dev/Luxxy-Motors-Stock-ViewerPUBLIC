@@ -23,6 +23,9 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
   if (draft.form && typeof draft.form === 'object' && !Array.isArray(draft.form) && draft.form.onlineReservation === undefined && saved.onlineReservation !== undefined) {
     draft = { ...draft, form: { ...draft.form, onlineReservation: { ...saved.onlineReservation } } };
   }
+  if (draft.form && typeof draft.form === 'object' && draft.form.brochure === undefined && saved.brochure !== undefined) {
+    draft = { ...draft, form: { ...draft.form, brochure: { ...saved.brochure } } };
+  }
   if (typeof draft.saved !== 'string' || !matchesShape(draft.form, saved)) return null;
   return draft;
 }

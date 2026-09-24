@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync, inflateSync } from 'node:zlib';
-import { brochureDetails, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureVehicle } from './lib/vehicle-brochure';
+import { brochureOptions, selectBrochurePhotos, brochureDetails, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureVehicle } from './lib/vehicle-brochure';
 import { brochureOrigin, createBrochureHandler } from './lib/vehicle-brochure-handler';
 import { imageDimensions, isPublicImageAddress, permittedBrochureImage } from './lib/vehicle-brochure-images';
 
@@ -137,4 +137,27 @@ test('concurrent document work is bounded and an invalid host is never put in a 
   assert.equal(brochureOrigin('evil.com/path'), '');
   assert.equal(brochureOrigin('example.com'), 'https://example.com');
   assert.equal(brochureOrigin('127.0.0.1:4175'), 'http://127.0.0.1:4175');
+});
+
+
+test('brochure options control optional content without removing supplied facts or history', () => {
+  const pdf=renderVehicleBrochure({vehicle:{...vehicle,description:'OPTIONAL DESCRIPTION',features:['OPTIONAL FEATURE'],writeOffCategory:'S'},dealer:{name:'Example Motors',brochure:{title:'A closer look at your car',introduction:'Visit our showroom',footerNote:'Appointments welcome',includeDescription:false,includeFeatures:false,includeGallery:false,accentColour:'#123456'}},photos:brochurePhotos(vehicle),totalPhotos:2,vehicleUrl:''});
+  const text=contentStreams(pdf);
+  for(const value of ['A CLOSER LOOK AT YOUR CAR','Visit our showroom','Appointments welcome','Category S','71,600 miles']) assert.ok(text.includes(value),value);
+  assert.ok(!text.includes('OPTIONAL DESCRIPTION'));assert.ok(!text.includes('OPTIONAL FEATURE'));
+  assert.equal(brochureOptions({accentColour:'bad',photoLimit:999}).accentColour,'#835b33');
+  assert.equal(brochureOptions({photoLimit:999}).photoLimit,80);
+  assert.equal(brochureDetails({...vehicle,title:'MG MG HS',make:'MG',year:2026}).name,'2026 MG HS');
+});
+test('photo selection keeps the hero and a mix of supplied interior and condition views',()=>{
+  const photos=[{url:'hero',caption:'Front'},...Array.from({length:12},(_,i)=>({url:String(i),caption:'Exterior'})),{url:'interior',caption:'Interior'},{url:'wear',caption:'Wheel scratch'}];
+  const selected=selectBrochurePhotos(photos,6);
+  assert.equal(selected.length,6);assert.equal(selected[0].url,'hero');assert.ok(selected.some(p=>p.url==='interior'));assert.ok(selected.some(p=>p.url==='wear'));
+  assert.deepEqual(selectBrochurePhotos(photos,1),[photos[0]]);
+});
+test('changing saved brochure settings invalidates the cache and limits image fetching',async()=>{
+  let includeGallery=true;const counts:number[]=[];
+  const generate=createBrochureHandler({findVehicle:async()=>vehicle,readDealer:async()=>({name:'Test Motors',brochure:{includeGallery}}),loadPhotos:async photos=>{counts.push(photos.length);return photos;}});
+  const first=await generate(vehicle.id,'');includeGallery=false;const second=await generate(vehicle.id,'');
+  assert.deepEqual(counts,[2,1]);assert.notDeepEqual(first.body,second.body);
 });

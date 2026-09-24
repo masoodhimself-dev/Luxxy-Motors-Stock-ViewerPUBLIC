@@ -2499,6 +2499,16 @@ export const getDealerSettingsResponsePresentationReviewsUrlMax = 2048;
 export const getDealerSettingsResponsePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
 export const getDealerSettingsResponsePresentationIncludedInformationMax = 1000;
 
+export const getDealerSettingsResponseBrochureTitleMax = 60;
+
+export const getDealerSettingsResponseBrochureIntroductionMax = 300;
+
+export const getDealerSettingsResponseBrochureAccentColourRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getDealerSettingsResponseBrochureFooterNoteMax = 500;
+
+export const getDealerSettingsResponseBrochurePhotoLimitMax = 80;
+export const getDealerSettingsResponseBrochurePhotoLimitMultipleOf = 1;
+
 export const getDealerSettingsResponseIdentityNameMax = 120;
 
 export const getDealerSettingsResponseIdentityLogoTextMax = 120;
@@ -2620,6 +2630,17 @@ export const GetDealerSettingsResponse = zod.object({
   "reviewsUrl": zod.string().max(getDealerSettingsResponsePresentationReviewsUrlMax).regex(getDealerSettingsResponsePresentationReviewsUrlRegExp).optional(),
   "includedInformation": zod.string().max(getDealerSettingsResponsePresentationIncludedInformationMax).optional()
 }).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
+  "brochure": zod.object({
+  "title": zod.string().max(getDealerSettingsResponseBrochureTitleMax).optional(),
+  "introduction": zod.string().max(getDealerSettingsResponseBrochureIntroductionMax).optional(),
+  "accentColour": zod.string().regex(getDealerSettingsResponseBrochureAccentColourRegExp).optional(),
+  "footerNote": zod.string().max(getDealerSettingsResponseBrochureFooterNoteMax).optional(),
+  "includeDescription": zod.boolean().optional(),
+  "includeFeatures": zod.boolean().optional(),
+  "includeGallery": zod.boolean().optional(),
+  "photoLimit": zod.number().min(1).max(getDealerSettingsResponseBrochurePhotoLimitMax).multipleOf(getDealerSettingsResponseBrochurePhotoLimitMultipleOf).optional(),
+  "galleryLayout": zod.enum(['grid', 'large']).optional()
+}).optional().describe('Optional PDF presentation settings. Vehicle facts and insurance history are always included.'),
   "identity": zod.object({
   "name": zod.string().min(1).max(getDealerSettingsResponseIdentityNameMax),
   "logoText": zod.string().max(getDealerSettingsResponseIdentityLogoTextMax),
@@ -2739,6 +2760,16 @@ export const updateDealerSettingsBodyOnePresentationReviewsUrlMax = 2048;
 
 export const updateDealerSettingsBodyOnePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
 export const updateDealerSettingsBodyOnePresentationIncludedInformationMax = 1000;
+
+export const updateDealerSettingsBodyOneBrochureTitleMax = 60;
+
+export const updateDealerSettingsBodyOneBrochureIntroductionMax = 300;
+
+export const updateDealerSettingsBodyOneBrochureAccentColourRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const updateDealerSettingsBodyOneBrochureFooterNoteMax = 500;
+
+export const updateDealerSettingsBodyOneBrochurePhotoLimitMax = 80;
+export const updateDealerSettingsBodyOneBrochurePhotoLimitMultipleOf = 1;
 
 export const updateDealerSettingsBodyOneIdentityNameMax = 120;
 
@@ -2861,6 +2892,17 @@ export const UpdateDealerSettingsBody = zod.object({
   "reviewsUrl": zod.string().max(updateDealerSettingsBodyOnePresentationReviewsUrlMax).regex(updateDealerSettingsBodyOnePresentationReviewsUrlRegExp).optional(),
   "includedInformation": zod.string().max(updateDealerSettingsBodyOnePresentationIncludedInformationMax).optional()
 }).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
+  "brochure": zod.object({
+  "title": zod.string().max(updateDealerSettingsBodyOneBrochureTitleMax).optional(),
+  "introduction": zod.string().max(updateDealerSettingsBodyOneBrochureIntroductionMax).optional(),
+  "accentColour": zod.string().regex(updateDealerSettingsBodyOneBrochureAccentColourRegExp).optional(),
+  "footerNote": zod.string().max(updateDealerSettingsBodyOneBrochureFooterNoteMax).optional(),
+  "includeDescription": zod.boolean().optional(),
+  "includeFeatures": zod.boolean().optional(),
+  "includeGallery": zod.boolean().optional(),
+  "photoLimit": zod.number().min(1).max(updateDealerSettingsBodyOneBrochurePhotoLimitMax).multipleOf(updateDealerSettingsBodyOneBrochurePhotoLimitMultipleOf).optional(),
+  "galleryLayout": zod.enum(['grid', 'large']).optional()
+}).optional().describe('Optional PDF presentation settings. Vehicle facts and insurance history are always included.'),
   "identity": zod.object({
   "name": zod.string().min(1).max(updateDealerSettingsBodyOneIdentityNameMax),
   "logoText": zod.string().max(updateDealerSettingsBodyOneIdentityLogoTextMax),
@@ -2975,6 +3017,16 @@ export const updateDealerSettingsResponsePresentationReviewsUrlMax = 2048;
 
 export const updateDealerSettingsResponsePresentationReviewsUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
 export const updateDealerSettingsResponsePresentationIncludedInformationMax = 1000;
+
+export const updateDealerSettingsResponseBrochureTitleMax = 60;
+
+export const updateDealerSettingsResponseBrochureIntroductionMax = 300;
+
+export const updateDealerSettingsResponseBrochureAccentColourRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const updateDealerSettingsResponseBrochureFooterNoteMax = 500;
+
+export const updateDealerSettingsResponseBrochurePhotoLimitMax = 80;
+export const updateDealerSettingsResponseBrochurePhotoLimitMultipleOf = 1;
 
 export const updateDealerSettingsResponseIdentityNameMax = 120;
 
@@ -3097,6 +3149,17 @@ export const UpdateDealerSettingsResponse = zod.object({
   "reviewsUrl": zod.string().max(updateDealerSettingsResponsePresentationReviewsUrlMax).regex(updateDealerSettingsResponsePresentationReviewsUrlRegExp).optional(),
   "includedInformation": zod.string().max(updateDealerSettingsResponsePresentationIncludedInformationMax).optional()
 }).optional().describe('Optional showroom content. Empty values are not presented as factual claims.'),
+  "brochure": zod.object({
+  "title": zod.string().max(updateDealerSettingsResponseBrochureTitleMax).optional(),
+  "introduction": zod.string().max(updateDealerSettingsResponseBrochureIntroductionMax).optional(),
+  "accentColour": zod.string().regex(updateDealerSettingsResponseBrochureAccentColourRegExp).optional(),
+  "footerNote": zod.string().max(updateDealerSettingsResponseBrochureFooterNoteMax).optional(),
+  "includeDescription": zod.boolean().optional(),
+  "includeFeatures": zod.boolean().optional(),
+  "includeGallery": zod.boolean().optional(),
+  "photoLimit": zod.number().min(1).max(updateDealerSettingsResponseBrochurePhotoLimitMax).multipleOf(updateDealerSettingsResponseBrochurePhotoLimitMultipleOf).optional(),
+  "galleryLayout": zod.enum(['grid', 'large']).optional()
+}).optional().describe('Optional PDF presentation settings. Vehicle facts and insurance history are always included.'),
   "identity": zod.object({
   "name": zod.string().min(1).max(updateDealerSettingsResponseIdentityNameMax),
   "logoText": zod.string().max(updateDealerSettingsResponseIdentityLogoTextMax),

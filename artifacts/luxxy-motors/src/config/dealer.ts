@@ -1,5 +1,6 @@
-import type { DealerOnlineReservation, DealerPresentation } from "@workspace/api-client-react";
+import type { DealerBrochure, DealerOnlineReservation, DealerPresentation } from "@workspace/api-client-react";
 export interface DealerConfig {
+  brochure?: DealerBrochure;
   presentation?: DealerPresentation;
   onlineReservation?: DealerOnlineReservation;
   identity: {

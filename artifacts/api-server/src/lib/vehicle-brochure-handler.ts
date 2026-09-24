@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureDealer, type BrochureVehicle, type LoadedPhoto, type BrochurePhoto } from './vehicle-brochure';
+import { selectBrochurePhotos, brochureOptions, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureDealer, type BrochureVehicle, type LoadedPhoto, type BrochurePhoto } from './vehicle-brochure';
 import { loadBrochurePhotos } from './vehicle-brochure-images';
 
 export type BrochureResult = { status: number; headers: Record<string, string>; body: Buffer | string };
@@ -27,7 +27,8 @@ export function createBrochureHandler(dependencies: {
       let bytes = cached && cached.expires > Date.now() ? cached.bytes : undefined;
       if (!bytes) {
         const photos = brochurePhotos(vehicle);
-        const loaded = await (dependencies.loadPhotos ?? ((items) => loadBrochurePhotos(items, process.env.VEHICLE_PDF_IMAGE_HOSTS)))(photos.slice(0, 80));
+        const options = brochureOptions(dealer.brochure);
+        const loaded = await (dependencies.loadPhotos ?? ((items) => loadBrochurePhotos(items, process.env.VEHICLE_PDF_IMAGE_HOSTS)))(selectBrochurePhotos(photos, options.includeGallery ? options.photoLimit : 1));
         bytes = renderVehicleBrochure({ vehicle, dealer, vehicleUrl, photos: loaded, totalPhotos: photos.length, preview: dependencies.preview });
         for (const [oldKey, value] of cache) if (value.expires <= Date.now()) cache.delete(oldKey);
         let size = [...cache.values()].reduce((sum, entry) => sum + entry.bytes.length, 0);

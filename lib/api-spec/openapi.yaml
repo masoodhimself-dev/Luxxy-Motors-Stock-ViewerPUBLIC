@@ -1935,11 +1935,26 @@ components:
         parkingInstructions: { type: string, maxLength: 1000 }
         reviewsUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
         includedInformation: { type: string, maxLength: 1000 }
+    DealerBrochure:
+      type: object
+      additionalProperties: false
+      description: Optional PDF presentation settings. Vehicle facts and insurance history are always included.
+      properties:
+        title: { type: string, maxLength: 60 }
+        introduction: { type: string, maxLength: 300 }
+        accentColour: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        footerNote: { type: string, maxLength: 500 }
+        includeDescription: { type: boolean }
+        includeFeatures: { type: boolean }
+        includeGallery: { type: boolean }
+        photoLimit: { type: number, multipleOf: 1, minimum: 1, maximum: 80 }
+        galleryLayout: { type: string, enum: [grid, large] }
     DealerSettings:
       type: object
       additionalProperties: false
       properties:
         presentation: { $ref: "#/components/schemas/DealerPresentation" }
+        brochure: { $ref: "#/components/schemas/DealerBrochure" }
         identity: { $ref: "#/components/schemas/DealerIdentity" }
         contact: { $ref: "#/components/schemas/DealerContact" }
         address: { $ref: "#/components/schemas/DealerAddress" }

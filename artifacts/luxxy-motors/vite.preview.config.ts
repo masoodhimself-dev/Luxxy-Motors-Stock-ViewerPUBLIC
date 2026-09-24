@@ -1,4 +1,5 @@
-import { reservationPreview } from './preview/reservations';
+import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
+import { reservationPreview, readPreviewSettings } from './preview/reservations';
 import { defineConfig, mergeConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { previewResponse } from './preview/portal';
@@ -10,12 +11,7 @@ import { brochureOrigin, createBrochureHandler } from '../api-server/src/lib/veh
 // The same PDF renderer as production, supplied only with archived preview records.
 const previewBrochure = createBrochureHandler({
   findVehicle: async (id) => previewStock.cars.find((car) => car.id === id) ?? null,
-  readDealer: async () => ({
-    name: previewSettings.identity.name,
-    phone: previewSettings.contact.phone,
-    email: previewSettings.contact.email,
-    address: [previewSettings.address.street, previewSettings.address.city, previewSettings.address.postcode].filter(Boolean).join(', '),
-  }),
+  readDealer: async () => brochureDealer(await readPreviewSettings()),
   preview: true,
 });
 

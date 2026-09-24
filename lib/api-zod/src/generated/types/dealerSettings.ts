@@ -7,6 +7,7 @@
  */
 import type { DealerAddress } from './dealerAddress';
 import type { DealerBookViewing } from './dealerBookViewing';
+import type { DealerBrochure } from './dealerBrochure';
 import type { DealerContact } from './dealerContact';
 import type { DealerHero } from './dealerHero';
 import type { DealerHoursItem } from './dealerHoursItem';
@@ -21,6 +22,7 @@ import type { DealerWhyBuyItem } from './dealerWhyBuyItem';
 
 export interface DealerSettings {
   presentation?: DealerPresentation;
+  brochure?: DealerBrochure;
   identity: DealerIdentity;
   contact: DealerContact;
   address: DealerAddress;

@@ -25,6 +25,8 @@ async function load(): Promise<State> {
   try { return JSON.parse(await readFile(filename, 'utf8')); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { reservations: [] }; throw error; }
 }
+export async function readPreviewSettings() { return (await load()).settings ?? previewSettings; }
+
 async function save(state: State) {
   await mkdir(dirname(filename), { recursive: true });
   await writeFile(`${filename}.tmp`, JSON.stringify(state, null, 2), { mode: 0o600 });

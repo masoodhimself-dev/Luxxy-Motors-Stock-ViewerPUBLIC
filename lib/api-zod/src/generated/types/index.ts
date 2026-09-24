@@ -20,6 +20,8 @@ export * from './customerIntakeSessionStatus';
 export * from './dealerAddress';
 export * from './dealerBookViewing';
 export * from './dealerBrandColors';
+export * from './dealerBrochure';
+export * from './dealerBrochureGalleryLayout';
 export * from './dealerContact';
 export * from './dealerHero';
 export * from './dealerHoursItem';
