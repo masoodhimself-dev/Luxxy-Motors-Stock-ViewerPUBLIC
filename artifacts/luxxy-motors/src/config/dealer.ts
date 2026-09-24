@@ -107,7 +107,7 @@ export const dealerConfig: DealerConfig = {
     copy: "Carefully chosen cars.",
     subcopy: "Clear information, straightforward advice and viewings at your pace.",
     primaryCta: "Browse cars",
-    secondaryCta: "Find my car",
+    secondaryCta: "Enquire",
   },
   featuredVehicleIds: [],
   warranty: {

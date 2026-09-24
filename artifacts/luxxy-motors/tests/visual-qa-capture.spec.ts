@@ -129,17 +129,6 @@ for (const [name, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 84
         animations: 'disabled',
       });
     }
-    await page.goto('/find-my-car');
-    for (const choice of ['10000-15000', 'saloon', 'diesel', 'automatic', 'commute']) {
-      await page.getByTestId(`option-${choice}`).click();
-      await page.getByTestId(choice === 'commute' ? 'button-see-matches' : 'button-next-question').click();
-    }
-    await capture('finder');
-    await page.getByTestId('button-recommendation-view-compact').click();
-    await expect(page.getByTestId('list-recommendations')).toHaveAttribute('data-recommendation-view', 'compact');
-    await page.getByTestId('button-recommendation-view-shortlist').click();
-    await expect(page.getByTestId('list-recommendations')).toHaveAttribute('data-recommendation-view', 'shortlist');
-    await page.getByTestId('button-change-answers').click();
-    await expect(page.getByTestId('option-10000-15000')).toHaveAttribute('aria-pressed', 'true');
+
   });
 }

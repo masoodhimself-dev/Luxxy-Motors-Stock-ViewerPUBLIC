@@ -284,11 +284,6 @@ export default function Home() {
                   </a>
                 </Button>
               )}
-              {dealerConfig.hero.secondaryCta && (
-                <Link href="/find-my-car" className="text-link px-2">
-                  {dealerConfig.hero.secondaryCta}
-                </Link>
-              )}
             </div>
             {dealerConfig.trustItems?.length > 0 && (
               <ul className="mt-5 hidden max-w-lg grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 sm:grid">

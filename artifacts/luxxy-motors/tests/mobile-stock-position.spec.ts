@@ -278,7 +278,7 @@ for (const { label, headingId } of crossRouteHomeDestinations) {
   }) => {
     await page.setViewportSize({ width: 375, height: 874 });
     await mockHomeData(page, stock);
-    await page.goto('/find-my-car');
+    await page.goto('/saved');
 
     const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
     await expect(menuButton).toBeVisible();
@@ -297,7 +297,7 @@ for (const { label, headingId } of crossRouteHomeDestinations) {
 test('opens the warranty page from mobile navigation using the keyboard', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 874 });
   await mockHomeData(page, stock, longDealerCopySettings);
-  await page.goto('/find-my-car');
+  await page.goto('/saved');
   await page.getByRole('button', { name: 'Open navigation menu' }).press('Enter');
   const warrantyLink = page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Warranty', exact: true });
   await expect(warrantyLink).toHaveAttribute('href', '/warranty');

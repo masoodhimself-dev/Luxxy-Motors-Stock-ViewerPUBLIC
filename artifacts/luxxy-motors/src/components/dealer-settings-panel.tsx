@@ -372,7 +372,6 @@ export function DealerSettingsPanel() {
     if (!form.hero.copy.trim()) errors['hero.copy'] = 'Add a homepage headline.';
     if (!form.hero.subcopy.trim()) errors['hero.subcopy'] = 'Add a short supporting line.';
     if (!form.hero.primaryCta.trim()) errors['hero.primaryCta'] = 'Add a primary button label.';
-    if (!form.hero.secondaryCta.trim()) errors['hero.secondaryCta'] = 'Add a secondary button label.';
     if (!form.bookViewing.title.trim()) errors['bookViewing.title'] = 'Add a viewing title.';
     if (!form.bookViewing.description.trim()) errors['bookViewing.description'] = 'Add a viewing description.';
     if (!form.bookViewing.ctaLabel.trim()) errors['bookViewing.ctaLabel'] = 'Add a viewing button label.';
@@ -674,9 +673,6 @@ export function DealerSettingsPanel() {
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Browse cars button" error={validationErrors['hero.primaryCta']}>
                 <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.hero.primaryCta} onChange={(event) => updateNested('hero', 'primaryCta', event.target.value)} data-testid="input-hero-primary-cta" />
-              </Field>
-              <Field label="Find my car button" error={validationErrors['hero.secondaryCta']}>
-                <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.hero.secondaryCta} onChange={(event) => updateNested('hero', 'secondaryCta', event.target.value)} data-testid="input-hero-secondary-cta" />
               </Field>
             </div>
           </div>

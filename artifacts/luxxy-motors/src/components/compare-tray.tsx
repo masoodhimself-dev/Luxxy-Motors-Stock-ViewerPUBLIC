@@ -8,7 +8,7 @@ import { vehicleLabelFor } from '@/components/saved-car-controls';
 import { trackEvent } from '@/lib/analytics';
 
 export function routeAllowsCompareTray(location: string) {
-  return ['/', '/saved', '/find-my-car'].includes(location);
+  return ['/', '/saved'].includes(location);
 }
 
 export function CompareTray() {

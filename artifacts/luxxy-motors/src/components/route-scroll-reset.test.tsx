@@ -24,7 +24,7 @@ describe('RouteScrollReset', () => {
       behavior: 'auto',
     });
 
-    currentLocation = '/find-my-car';
+    currentLocation = '/saved';
     view.rerender(<RouteScrollReset />);
 
     expect(window.scrollTo).toHaveBeenCalledTimes(2);

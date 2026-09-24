@@ -16,7 +16,6 @@ import Home from '@/pages/home';
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const Compare = lazy(() => import("@/pages/compare"));
-const FindMyCar = lazy(() => import('@/pages/find-my-car'));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
@@ -45,7 +44,6 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/vehicle/:id" component={CarDetail} />
                   <Route path="/saved" component={Saved} />
                   <Route path="/compare" component={Compare} />
-                  <Route path="/find-my-car" component={FindMyCar} />
                   <Route path="/enquire" component={Enquire} />
                   <Route path="/contact" component={Contact} />
                   <Route path="/warranty" component={Warranty} />

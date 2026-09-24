@@ -182,7 +182,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
-            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Contact us</Link>
             <button
@@ -210,7 +209,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav - Full */}
           <nav className="hidden 2xl:flex items-center gap-8" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
-            <button onClick={() => setLocation('/find-my-car')} className={navLinkClass}>Find my car</button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Ex</button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
@@ -271,9 +269,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {mobileMenuOpen && (
           <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
-            <button onClick={() => { setMobileMenuOpen(false); setLocation('/find-my-car'); }} className={mobileNavRowClass}>
-              Find my car <ArrowRight className="w-5 h-5 text-accent" />
-            </button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
               Browse Stock <ArrowRight className="w-5 h-5 text-accent" />
             </button>
@@ -377,7 +372,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <h3 className={footerHeadingClass}>Vehicles</h3>
               <nav className="flex flex-col items-start gap-0">
                 <button onClick={() => handleNav('stock')} className={footerLinkClass}>All stock</button>
-                <button onClick={() => setLocation('/find-my-car')} className={footerLinkClass}>Find my car</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
                 <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
                 {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex items-center ${footerLinkClass}`}>Warranty</Link>}

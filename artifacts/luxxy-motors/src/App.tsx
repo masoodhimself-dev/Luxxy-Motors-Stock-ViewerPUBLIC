@@ -19,7 +19,6 @@ import { clerkAppearance } from '@/lib/clerk-appearance';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import Home from '@/pages/home';
-const FindMyCar = lazy(() => import('@/pages/find-my-car'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const Compare = lazy(() => import("@/pages/compare"));
@@ -69,7 +68,6 @@ function Router() {
         <Suspense fallback={<RouteLoading />}>
           <Switch>
           <Route path="/" component={Home} />
-          <Route path="/find-my-car" component={FindMyCar} />
           <Route path="/vehicle/:id" component={CarDetail} />
           <Route path="/saved" component={Saved} />
           <Route path="/compare" component={Compare} />

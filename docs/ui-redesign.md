@@ -557,3 +557,9 @@ Validation: 187 frontend tests passed; workspace typechecking and all builds pas
 Validation: 13 backend brochure tests, 7 settings tests, 188 frontend tests, full workspace typechecking/builds and five desktop/mobile PDF/settings browser checks passed. Browser tests saved/reloaded real local settings, checked generated PDF text and restored the original local settings. Default six-page and custom five-page PDFs were rendered and every page visually reviewed. Existing bundle-size warning remains. PDF generation uses standard text/vector content and embedded photos; it is not a tagged accessible PDF. The accessible vehicle web page remains available.
 
 Evidence: `docs/screenshots/brochure-redesign/`; sample PDF in `output/pdf/luxxy-vehicle-brochure.pdf` (local output, excluded from Git). Settings screenshots show the editable controls; the fixed publish bar remains available while scrolling. One initial browser run used an overly strict label locator for the native select; the corrected accessible combobox locator passed.
+
+### Remove Find My Car — 24 September 2026
+
+Removed the finder quiz/page, production and preview routes, homepage secondary action, desktop/mobile navigation and footer entries, and the associated settings field. Removed feature-specific tests and updated shared navigation/comparison checks to use Saved cars. The legacy `hero.secondaryCta` property remains in the settings payload for compatibility but is no longer displayed or editable; no API contract, backend, data or migration changes. Old finder URLs use the normal not-found page.
+
+Validation: all 168 remaining frontend tests passed; workspace typechecking/builds passed (existing bundle warning only). Browser checks at 390px and 1440px verified the homepage/navigation, removed route, part exchange and settings. The temporary Wi-Fi preview also serves the updated homepage. Saved cars and comparisons remain available.

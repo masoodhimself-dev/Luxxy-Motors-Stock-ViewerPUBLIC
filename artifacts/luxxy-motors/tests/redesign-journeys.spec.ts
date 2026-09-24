@@ -17,7 +17,6 @@ for (const width of [320, 390, 768, 1440]) {
       '/vehicle/preview-1',
       '/saved',
       '/compare',
-      '/find-my-car',
       '/enquire?type=viewing&vehicleId=preview-1',
       '/enquire?type=part_exchange',
       '/viewing/sample',
@@ -201,7 +200,7 @@ test('mobile comparison stays compact and shows prices alongside vehicle names',
     await page.goto(`/vehicle/${id}`);
     await page.getByTestId(`button-compare-${id}`).click();
   }
-  await page.goto('/find-my-car');
+  await page.goto('/saved');
   const tray = page.getByTestId('compare-tray');
   await expect(tray).toBeVisible();
   expect((await tray.boundingBox())!.height).toBeLessThan(90);
