@@ -1,3 +1,4 @@
+import { SiWhatsapp } from 'react-icons/si';
 import { useState } from 'react';
 import { PageHeading, PageEmptyState } from '@/components/page-ui';
 import { Link } from 'wouter';
@@ -157,7 +158,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
                 className="min-w-0 h-11 px-0 sm:px-3 rounded-md border border-[hsl(var(--contact))] bg-background font-display text-[11px] font-normal text-[hsl(var(--contact))] shadow-none transition-all hover:bg-[hsl(var(--contact))] hover:text-white"
               >
                 <a aria-label={`WhatsApp about ${label}`} href={whatsappHref} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'compare' })}>
-                  <MessageCircle className="h-4 w-4" /><span className="sr-only sm:not-sr-only">Msg</span>
+                  <SiWhatsapp className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only">WhatsApp</span>
                 </a>
               </Button>
             )}

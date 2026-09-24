@@ -244,3 +244,16 @@
   .vehicle-card:hover .stock-photo-controls,
   .vehicle-card:focus-within .stock-photo-controls { opacity: 1; }
 }
+
+/* Shared direct-contact controls: quiet call action, recognisable WhatsApp. */
+.vehicle-contact-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 48px; padding: .65rem .75rem; border: 1px solid hsl(var(--border));
+  border-radius: .375rem; background: hsl(var(--background)); color: hsl(var(--foreground));
+  font-size: .875rem; font-weight: 600; text-decoration: none;
+  transition: background-color .15s, border-color .15s;
+}
+.vehicle-contact-action:hover { background: hsl(var(--secondary)); border-color: hsl(var(--foreground) / .4); }
+.vehicle-contact-action:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.vehicle-contact-action-whatsapp { background: hsl(var(--contact)); color: hsl(var(--contact-foreground)); border-color: hsl(var(--contact)); }
+.vehicle-contact-action-whatsapp:hover { background: hsl(var(--contact) / .9); border-color: hsl(var(--contact)); }

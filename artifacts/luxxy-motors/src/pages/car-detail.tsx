@@ -1,3 +1,4 @@
+import { SiWhatsapp } from 'react-icons/si';
 import { ReserveCar } from '@/components/reserve-car';
 import { questionKeyForLabel } from "@/lib/vehicle-questions";
 import { getSimilarCars } from "@/lib/similar-cars";
@@ -283,11 +284,11 @@ export default function CarDetail() {
                 </Link>
               </Button>
               <ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
                 {phoneHref && (
                   <a
                     href={phoneHref}
-                    className="text-link justify-center text-sm"
+                    className="vehicle-contact-action"
                     aria-label={`Call about ${vehicleLabel}`}
                     onClick={() =>
                       recordContactIntent({ channel: 'call', car, source: 'car-detail' })
@@ -295,13 +296,13 @@ export default function CarDetail() {
                     data-vehicle-contact="call"
                   >
                     <Phone className="h-4 w-4" />
-                    Call us
+                    Call showroom
                   </a>
                 )}
                 {whatsappHref && (
                   <a
                     href={whatsappHref}
-                    className="text-link justify-center text-sm text-[hsl(var(--contact))]"
+                    className="vehicle-contact-action vehicle-contact-action-whatsapp"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`WhatsApp about ${vehicleLabel}`}
@@ -310,8 +311,8 @@ export default function CarDetail() {
                     }
                     data-vehicle-contact="whatsapp"
                   >
-                    <MessageCircle className="h-4 w-4" />
-                    WhatsApp
+                    <SiWhatsapp className="h-4 w-4" aria-hidden="true" />
+                    WhatsApp us
                   </a>
                 )}
               </div>
@@ -456,7 +457,7 @@ export default function CarDetail() {
         className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-border bg-card p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] lg:hidden"
         data-testid="mobile-conversion-bar"
       >
-        <p className="luxxy-price hidden shrink-0 px-1 min-[375px]:block">
+        <p className="luxxy-price hidden shrink-0 px-1 min-[440px]:block">
           {car.price ? formatPrice(car.price, car.currency) : "POA"}
         </p>
         <Button asChild className="min-h-12 min-w-0 flex-1">
@@ -470,6 +471,14 @@ export default function CarDetail() {
             {dealerConfig.bookViewing.ctaLabel}
           </a>
         </Button>
+        {whatsappHref && (
+          <a href={whatsappHref} target="_blank" rel="noopener noreferrer"
+            className="vehicle-contact-action vehicle-contact-action-whatsapp h-12 w-12 shrink-0 p-0"
+            aria-label={`WhatsApp about ${vehicleLabel}`} title="WhatsApp us"
+            onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail-mobile' })}>
+            <SiWhatsapp className="h-5 w-5" aria-hidden="true" />
+          </a>
+        )}
         {phoneHref && (
           <Button asChild variant="outline" size="icon" className="h-12 w-12">
             <a

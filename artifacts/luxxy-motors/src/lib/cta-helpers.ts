@@ -3,7 +3,7 @@ import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
-import { vehicleRegistration } from '@/lib/utils';
+import { formatPrice, vehicleRegistration } from '@/lib/utils';
 
 type DealerContactDetails = {
   contact: {
@@ -63,13 +63,18 @@ export function getVehicleShareUrl(car: Car) {
 
 export function getVehicleContactMessage(car: Car, request: string, config: DealerContactDetails = dealerConfig) {
   const registration = vehicleRegistration(car);
-  const details = [
-    getVehicleLabel(car),
-    registration ? `Registration: ${registration}` : car.registrationBand || car.year ? `Registration year: ${car.registrationBand || car.year}` : null,
-    car.price ? `Price: ${car.currency || 'GBP'} ${car.price.toLocaleString('en-GB')}` : null,
-  ].filter(Boolean);
-
-  return `Hello ${config.identity.name}, I would like to ${request}:\n${details.join('\n')}\nVehicle link: ${getVehicleShareUrl(car)}`;
+  const price = car.price != null ? formatPrice(car.price, car.currency) : null;
+  const summary = [getVehicleLabel(car), price].filter(Boolean).join(' · ');
+  const registrationLine = registration ? `Registration: ${registration}` : car.registrationBand ? `Year / plate: ${car.registrationBand}` : car.year ? `Year: ${car.year}` : null;
+  const opening = request === 'get more information about this vehicle'
+    ? 'Is it still available? I’d like to know a little more.'
+    : `I’d like to ${request}.`;
+  const isLocal = typeof window === 'undefined' || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  return [
+    `Hi ${config.identity.name}, I’m interested in this car:`,
+    '', summary, registrationLine, '', opening, '',
+    isLocal ? `Vehicle reference: ${car.id}` : getVehicleShareUrl(car),
+  ].filter(line => line !== null).join('\n');
 }
 
 export function getVehicleWhatsAppHref(car: Car, request: string, config: DealerContactDetails = dealerConfig) {

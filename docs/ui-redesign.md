@@ -494,3 +494,11 @@ This supersedes the demo-deposit implementation above.
 - The database tests cover rollback, racing buyers, idempotent retries, staff access, dealer isolation, settings-off enforcement and cancellation/payment safeguards. The local test database was stopped afterwards. **No migrations were run; no production changes, merge or deployment.**
 - Fresh desktop/mobile screenshots: `docs/screenshots/reserve-car-online/`, `docs/screenshots/online-reservations/`.
 - Remaining integration work: Stripe account routing/verified payment webhooks, automatic expiry if desired, customer confirmation email and receipt retrieval. Holds currently remain until staff cancels or processes them; simulation is blocked in production. Details: [online-reservations.md](online-reservations.md).
+
+### Vehicle contact actions — 24 September 2026
+
+- Vehicle WhatsApp enquiries now use a conversational greeting, a compact vehicle/price summary with the currency symbol, and a clear availability question. Registration remains explicitly distinguished from a year/plate band.
+- Local previews include a vehicle reference instead of an unreachable localhost link; live websites retain the vehicle-specific share link. Warranty-specific message intent is preserved.
+- Vehicle pages use matched 48px contact buttons: an outlined “Call showroom” action and a restrained green “WhatsApp us” action with the WhatsApp mark. The mobile action bar now offers both channels alongside booking; its duplicate price is hidden below 440px to keep all controls usable.
+- Comparison pages label the message action “WhatsApp” instead of “Msg”. Contact tracking and actual tel/WhatsApp destinations are unchanged.
+- Verification: 178 frontend tests passed; full workspace typechecking/builds passed (existing chunk-size warning). Chrome checks passed at 320px, 390px and 1440px for message contents, contact targets and horizontal overflow. Visually inspected the mobile contact panel. No messages sent or calls placed.
