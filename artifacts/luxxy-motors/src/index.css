@@ -38,24 +38,24 @@
 
 :root {
   --site-header-height: 4.75rem;
-  --background: 40 20% 97%;
-  --foreground: 170 15% 14%;
-  --border: 40 10% 83%;
+  --background: 48.000 23.810% 95.882%;
+  --foreground: 161.538 16.883% 15.098%;
+  --border: 68.571 9.859% 86.078%;
   --input: 40 5% 52%;
-  --ring: 31 45% 35%;
+  --ring: 30.000 40.659% 35.686%;
   --card: 0 0% 100%;
-  --card-foreground: 170 15% 14%;
-  --card-border: 40 10% 83%;
+  --card-foreground: 161.538 16.883% 15.098%;
+  --card-border: 68.571 9.859% 86.078%;
   --popover: 0 0% 100%;
-  --popover-foreground: 170 15% 14%;
-  --popover-border: 40 10% 83%;
-  --primary: 170 15% 14%;
+  --popover-foreground: 161.538 16.883% 15.098%;
+  --popover-border: 68.571 9.859% 86.078%;
+  --primary: 161.538 16.883% 15.098%;
   --primary-foreground: 0 0% 100%;
   --secondary: 40 14% 92%;
-  --secondary-foreground: 170 15% 14%;
+  --secondary-foreground: 161.538 16.883% 15.098%;
   --muted: 40 14% 92%;
-  --muted-foreground: 165 5% 39%;
-  --accent: 31 45% 35%;
+  --muted-foreground: 146.667 4.390% 40.196%;
+  --accent: 30.000 40.659% 35.686%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 60% 38%;
   --destructive-foreground: 0 0% 100%;
@@ -64,8 +64,8 @@
   --app-font-sans: 'DM Sans', Arial, sans-serif;
   --font-display: 'Manrope', Arial, sans-serif;
   --radius: .25rem;
-  --shadow-soft: 0 2px 8px hsl(170 15% 14% / .05);
-  --shadow-lift: 0 12px 40px hsl(170 15% 14% / .12);
+  --shadow-soft: 0 2px 8px hsl(161.538 16.883% 15.098% / .05);
+  --shadow-lift: 0 12px 40px hsl(161.538 16.883% 15.098% / .12);
 }
 
 .dark {

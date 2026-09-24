@@ -169,8 +169,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         data-site-header
         className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${
           scrolled
-            ? 'border-primary/15 bg-card shadow-none'
-            : 'border-primary/10 bg-card'
+            ? 'border-primary/15 bg-background shadow-none'
+            : 'border-primary/10 bg-background'
         }`}
       >
         <div className="container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">

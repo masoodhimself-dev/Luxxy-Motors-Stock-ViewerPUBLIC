@@ -574,3 +574,7 @@ Validation: all 168 remaining frontend tests passed; workspace typechecking/buil
 - Brand colours and brochure colour/photo layout/count controls are grouped in native keyboard-accessible Advanced disclosures. Reservations retain their existing per-dealer toggle; handovers retain their existing opt-in and empty-data hiding.
 - Validation: 168 frontend unit tests, 8 backend settings tests; desktop/mobile comparison and customer-page checks plus saved-car, draft, enquiry and brochure-settings browser regression tests. Workspace typechecking/build run after changes. No production access, migrations, payment or sales-rule changes.
 - Screenshots: `docs/screenshots/customer-simplification/`. Comparison usage instrumentation remains available; no additional permanent feature deletions were made.
+
+### Ivory, green-charcoal and bronze palette
+
+Applied the approved palette to shared light-theme tokens and dealership defaults: ivory #F7F6F2, white cards, charcoal #202D29, secondary text #626B66, bronze #805B36 and stone borders #DEDFD8. Header uses the ivory surface; footer and primary actions inherit charcoal. Dealer brand overrides remain configurable. Input borders retain their stronger contrast, and WhatsApp retains its channel colour. Verified text colour pairs exceed 4.5:1. Frontend suite (168 tests) and workspace typechecking/build passed; existing bundle-size warning remains. No production settings changed.
