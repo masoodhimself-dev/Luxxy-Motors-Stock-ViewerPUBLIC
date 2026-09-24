@@ -1,3 +1,5 @@
+import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
+import { vehicleAvailability } from '@/lib/customer-convenience';
 import { rememberStockPosition } from "@/lib/browse-session";
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
@@ -30,7 +32,7 @@ export function CarCard({
   badges?: string[];
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
-  const displayBadges = car.inventoryStatus === 'reserved' ? ['Reserved', ...badges] : badges;
+  const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
   const isRow = layout === 'row';
   const isCompact = layout === 'compact';
 
@@ -123,6 +125,7 @@ export function CarCard({
                 <img
                   key={url}
                   src={url}
+                  {...responsiveVehicleImage(url, "(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 440px")}
                   alt={url === galleryUrls[activeIndex] ? vehicleLabel : ""}
                   decoding="async"
                   width={800}
@@ -134,7 +137,7 @@ export function CarCard({
                       ? "opacity-100"
                       : "opacity-0",
                   )}
-                  onError={() => setFailedImageUrls((prev) => new Set(prev).add(url))}
+                  onError={(event) => {if (!retryOriginalImage(event.currentTarget)) setFailedImageUrls((prev) => new Set(prev).add(url));}}
                 />
               ))
           ) : (

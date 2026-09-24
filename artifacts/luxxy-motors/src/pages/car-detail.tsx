@@ -1,3 +1,4 @@
+import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleHighlights, VehiclePartExchange, VehicleVisit } from '@/components/vehicle-buying-guide';
 import { SiWhatsapp } from 'react-icons/si';
 import { ReserveCar } from '@/components/reserve-car';
@@ -76,6 +77,8 @@ export default function CarDetail() {
     return () => observer.disconnect();
   }, [car?.id]);
 
+  useEffect(() => { if (car?.id) rememberVehicle(car.id); }, [car?.id]);
+
   usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : null);
 
   if (isLoading) {
@@ -109,7 +112,8 @@ export default function CarDetail() {
     </div></div>;
   }
 
-  if (!stock || !stock.cars || !car) return <NotFound />;
+  if (!stock || !stock.cars) return <NotFound />;
+  if (!car) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{stock.cars.slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
@@ -220,7 +224,7 @@ export default function CarDetail() {
         <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)] lg:gap-10">
           <header className="min-w-0 lg:col-start-2 lg:row-start-1">
             <p className="luxxy-kicker mb-3">
-              {car.inventoryStatus === 'reserved' ? 'Reserved' : 'Vehicle details'}
+              {vehicleAvailability(car.inventoryStatus)}
             </p>
             <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">
               {vehicleLabel}

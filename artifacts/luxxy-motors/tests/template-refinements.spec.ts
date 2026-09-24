@@ -79,7 +79,7 @@ test("gallery section controls and buyer information retain real selection and m
   await expect(
     page.getByRole("heading", { name: "What to know about this car" }),
   ).toBeVisible();
-  await expect(page.getByText("2 keys", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "What to know about this car" }).getByText("2 keys", { exact: true })).toBeVisible();
   await page.goto("/vehicle/preview-2");
   await expect(
     page.getByText("Not supplied — please ask our team", { exact: true }),

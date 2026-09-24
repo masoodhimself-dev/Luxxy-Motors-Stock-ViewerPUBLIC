@@ -523,3 +523,24 @@ Fresh full-page and viewport evidence: `docs/screenshots/vehicle-buying-guide/ve
 ### Understated insurance-history presentation
 
 Following dealer feedback, the Category S/N disclosure beside the key facts is now a readable 12px neutral text line with an insurance-history link. Removed the amber backgrounds, accent border and warning icon. The full explanation remains in a plain, small-print history section; recorded categories, data and enquiry functionality are unchanged. Frontend typechecking and the three vehicle-guide browser checks at 320, 390 and 1440px passed; screenshots refreshed.
+
+### Customer convenience pass — 24 September 2026
+
+Implemented the accepted ten improvements while retaining existing customer API contracts:
+
+1. Verified existing search, sort, scroll and keyboard-focus restoration when returning from a vehicle to stock; no duplicate state system added.
+2. Added device-local recently viewed cars (eight stored, four displayed, 30-day reuse limit), with an explicit clear action and storage disclosure.
+3. Saved cars can be shared using the device share sheet or a copied link. A selectable-link fallback handles blocked clipboard access. Shared shortlists use current stock data, preserve the recipient's own saved cars and explain unavailable vehicles. Links contain vehicle IDs only; sharing is capped at 12 cars with an explicit button label above that limit.
+4. Quick budget/automatic filters now reflect the available stock; added an under-£15k shortcut when relevant. Disabled filters are visually distinct.
+5. Consistent vehicle availability labels and a useful unavailable-vehicle page with contact actions and other current cars.
+6. Enquiry contact/message/part-exchange drafts can be restored within the same tab for 30 minutes. Time slots are deliberately selected again. Discard and successful submission clear the draft. Storage failures do not block enquiries.
+7. Name/email/phone validation now provides linked inline feedback and focus handling. Server errors receive focus while preserving entered details for retry.
+8. Viewing confirmations retain existing calendar downloads and secure reschedule/cancel links, with an additional directions/parking/hours link and larger calendar touch target. No booking rules changed.
+9. Recognised unsigned stock CDN URLs now supply responsive 340/600/original-width images. Unknown hosts and signed URLs remain untouched. Responsive failures retry the supplied original before the existing unavailable-photo state. Gallery thumbnails have low fetch priority; original gallery functionality and reserved image space remain.
+10. Added header-aware scroll offsets for focused inputs/anchors and checked keyboard focus, reduced-motion behaviour and reflow at a 640px viewport (equivalent layout space to a 1280px browser at 200% zoom). This is a targeted check, not a full accessibility certification.
+
+New automated coverage checks shortlist isolation, recent-history bounds/expiry, draft restoration/discard/expiry, failed submissions, successful booking next steps, responsive-image fallback, keyboard focus and reduced motion. Existing gallery/history test scoped to the history region because the same supplied key count also appears in the vehicle summary.
+
+Fresh desktop/mobile screenshots: `docs/screenshots/customer-convenience/`. Local fixtures and intercepted enquiry submissions only. No deployment, migrations, production data access, real messages or payments.
+
+Validation: 187 frontend tests passed; workspace typechecking and all builds passed. Final relevant browser run: 19 passed, plus the separately verified reschedule/cancel regression. Desktop/mobile screenshots reviewed. Earlier run had a Chrome context-start timeout and the outdated duplicate-key selector; both passed on the final run after the selector correction. Existing main-bundle size warning remains; the full unrelated browser suite was not rerun.

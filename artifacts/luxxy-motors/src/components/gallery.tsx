@@ -1,3 +1,4 @@
+import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
@@ -81,13 +82,14 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
       <img
         key={url}
         src={url}
+        {...responsiveVehicleImage(url, eager ? "(max-width: 1023px) 100vw, 900px" : "120px")}
         decoding="async"
-        fetchPriority={eager ? "high" : "auto"}
+        fetchPriority={eager ? "high" : "low"}
         alt={imageCaption(allImages[imageIndex]) || `${vehicleLabel} — photograph ${imageIndex + 1}`}
         className={className}
         loading={eager ? 'eager' : 'lazy'}
         referrerPolicy="no-referrer"
-        onError={() => setFailedImages((prev) => new Set(prev).add(url))}
+        onError={(event) => {if (!retryOriginalImage(event.currentTarget)) setFailedImages((prev) => new Set(prev).add(url));}}
       />
     );
   };

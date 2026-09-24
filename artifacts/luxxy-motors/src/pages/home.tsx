@@ -1,3 +1,4 @@
+import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
 import { DealershipPhotograph } from '@/components/dealership-photograph';
@@ -371,27 +372,30 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-automatic"
+                disabled={!stock?.cars.some(car => /automatic/i.test(car.transmission || ""))}
               >
                 Automatic
               </button>
               <button
                 type="button"
                 onClick={() => applyQuickFilter({ maxPrice: '5000' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-under-5000"
+                disabled={!stock?.cars.some(car => car.price != null && car.price <= 5000)}
               >
                 Under £5k
               </button>
               <button
                 type="button"
                 onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-low-mileage"
               >
                 Low miles
               </button>
+              {stock?.cars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
             </div>
             <div className="col-start-2 row-start-2 flex justify-end gap-1 lg:col-start-4 lg:row-start-1" aria-label="Vehicle display">
               {(['cards', 'compact'] as const).map((view) => {
@@ -521,6 +525,7 @@ export default function Home() {
         </div>
       </section>
 
+      <RecentlyViewed />
       {dealerConfig.recentHandovers.enabled && recentHandovers.length > 0 && (
         <section
           id="recent-handovers"

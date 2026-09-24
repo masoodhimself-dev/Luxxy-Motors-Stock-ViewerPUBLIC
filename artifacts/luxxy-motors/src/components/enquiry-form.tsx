@@ -1,3 +1,4 @@
+import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { ReserveCar } from '@/components/reserve-car';
 import { UKNumberPlate } from '@/components/uk-number-plate';
@@ -137,6 +138,11 @@ export function EnquiryForm({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [nameError,setNameError] = useState('');
+  const [emailError,setEmailError] = useState('');
+  const [draftSaved,setDraftSaved] = useState(false);
+  const skipDraftSave = useRef(false);
+  const draftKey = enquiryDraftKey(vehicle?.id, initialType);
   const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
   const [message, setMessage] = useState(initialMessage);
   const messageTouched = useRef(false);
@@ -151,6 +157,33 @@ export function EnquiryForm({
     setType(initialType);
     mutation.reset();
   }, [initialType, mutation.reset]);
+  useEffect(() => {
+    skipDraftSave.current = true;
+    const draft=readEnquiryDraft(draftKey);
+    if (draft) {
+      setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
+      setMessage(draft.message); messageTouched.current=Boolean(draft.message);
+      setPreferredContact(draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
+      setDraftSaved(true);
+    } else setDraftSaved(false);
+  }, [draftKey]);
+  useEffect(() => {
+    if(skipDraftSave.current) {skipDraftSave.current=false;return;}
+    if(mutation.data) return;
+    if(customerName || email || phone || message || exchange.registration) {
+      setDraftSaved(saveEnquiryDraft(draftKey,{customerName,email,phone,message,preferredContact,hasPartExchange,exchange}));
+    } else {discardEnquiryDraft(draftKey);setDraftSaved(false);}
+  }, [draftKey,customerName,email,phone,message,preferredContact,hasPartExchange,exchange,mutation.data]);
+  useEffect(() => {
+    if(mutation.isError) document.querySelector<HTMLElement>('[data-testid="status-enquiry-error"]')?.focus();
+  }, [mutation.isError]);
+  const discardDraft = () => {
+    discardEnquiryDraft(draftKey);setDraftSaved(false);
+    setCustomerName('');setEmail('');setPhone('');setMessage('');messageTouched.current=true;
+    setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});
+    setPhoneError('');setNameError('');setEmailError('');
+  };
+  const focusPhone = () => document.querySelector<HTMLInputElement>('[data-testid="input-customer-phone"]')?.focus();
   const isViewing = type === 'viewing';
   const dates = useMemo(() => bookingDates(), []);
   const availabilityQuery = useGetEnquiryAvailability(
@@ -194,10 +227,12 @@ export function EnquiryForm({
     const normalizedPhone = normalisePhone(phone);
     if (phone.trim() && !normalizedPhone) {
       setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
+      focusPhone();
       return;
     }
     if (!normalizedPhone && phoneRequired) {
       setPhoneError(preferredContact === 'whatsapp' ? 'Enter a mobile number so we can WhatsApp you.' : 'Enter a phone number so we can reach you.');
+      focusPhone();
       return;
     }
     const data: EnquiryInput = {
@@ -225,6 +260,7 @@ export function EnquiryForm({
       { data },
       {
         onSuccess: () => {
+          discardEnquiryDraft(draftKey);setDraftSaved(false);
           trackEvent('enquiry_completed', {
             enquiry_type: type,
             vehicle_context: Boolean(data.vehicleId),
@@ -340,12 +376,13 @@ export function EnquiryForm({
           <a
             href={`data:text/calendar;charset=utf-8,${encodeURIComponent(mutation.data.calendarIcs)}`}
             download={`luxxy-viewing-${mutation.data.reference}.ics`}
-            className="mx-auto mt-4 inline-flex items-center gap-2 text-xs font-bold text-accent underline underline-offset-4"
+            className="mx-auto mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent underline underline-offset-4"
             data-testid="link-download-calendar"
           >
             <CalendarPlus className="h-4 w-4" /> Add to calendar
           </a>
         )}
+        {isViewing && <p className="mt-4"><Link href="/contact" className="text-link min-h-11">Directions, parking & opening hours</Link></p>}
         {vehicle && dealerConfig.onlineReservation?.enabled && <div className="mx-auto mt-6 max-w-sm border-t border-border pt-5">
           <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
         </div>}
@@ -365,6 +402,7 @@ export function EnquiryForm({
 
   return (
     <form onSubmit={submit} className="space-y-4 sm:space-y-6" data-testid="form-enquiry">
+      {draftSaved && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>You can restore these unfinished details in this tab for 30 minutes. Viewing times must be selected again after returning.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
       <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-4 sm:pb-6">
         <div>
           <p className="luxxy-label text-accent">{isViewing ? `Step ${viewingStep} of 2` : 'Your details'}</p>
@@ -413,11 +451,13 @@ export function EnquiryForm({
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block">
               <span className={labelClass}>Your name</span>
-              <Input ref={nameInputRef} required minLength={2} maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
+              <Input ref={nameInputRef} required minLength={2} maxLength={120} value={customerName} onChange={(event) => {setCustomerName(event.target.value);setNameError('');}} onInvalid={()=>{setNameError("Please enter your name (at least two characters).");}} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "customer-name-help" : undefined} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
+              {nameError && <span id="customer-name-help" role="alert" className="mt-2 block text-sm text-destructive">{nameError}</span>}
             </label>
             <label className="block">
               <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
-              <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+              <Input required type="email" value={email} onChange={(event) => {setEmail(event.target.value);setEmailError('');}} onInvalid={()=>setEmailError("Enter an email address such as name@example.com.")} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-help" : undefined} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+              {emailError && <span id="customer-email-help" role="alert" className="mt-2 block text-sm text-destructive">{emailError}</span>}
             </label>
           </div>
 
@@ -431,7 +471,7 @@ export function EnquiryForm({
                 autoComplete="tel"
                 value={phone}
                 onChange={(event) => { setPhone(event.target.value); setPhoneError(''); }}
-                onInvalid={(event) => { event.preventDefault(); setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
+                onInvalid={() => { setPhoneError('Enter a valid phone number, including at least 7 digits.'); }}
                 placeholder="07700 900 123"
                 aria-invalid={Boolean(phoneError)}
                 aria-describedby={phoneError ? 'customer-phone-help' : undefined}
@@ -598,7 +638,7 @@ export function EnquiryForm({
       )}
 
       {mutation.isError && (
-        <div role="alert" className="flex items-start gap-3 border border-destructive/50 bg-background p-4 text-[13px] font-normal text-destructive" data-testid="status-enquiry-error">
+        <div role="alert" className="flex items-start gap-3 border border-destructive/50 bg-background p-4 text-[13px] font-normal text-destructive" data-testid="status-enquiry-error" tabIndex={-1}>
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{apiErrorMessage(mutation.error)}</span>
         </div>
