@@ -24,7 +24,7 @@ export function RecentlyViewed() {
       aria-labelledby="recent-vehicles-heading"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="recent-vehicles-heading" className="section-heading">
+        <h2 id="recent-vehicles-heading" className="text-lg font-semibold">
           Recently viewed
         </h2>
         <button

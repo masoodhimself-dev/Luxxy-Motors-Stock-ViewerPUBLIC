@@ -1,6 +1,6 @@
 /** Preserve optional onboarding content when an older settings client omits it. Explicit empty strings clear fields. */
 export function preservePresentation<
-  T extends { presentation?: Record<string, string | undefined> },
+  T extends { presentation?: Record<string, string | boolean | undefined> },
 >(incoming: T, previous: unknown): T {
   const content =
     previous && typeof previous === "object" && "presentation" in previous

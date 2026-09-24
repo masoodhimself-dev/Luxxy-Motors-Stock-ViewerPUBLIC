@@ -242,7 +242,7 @@ export default function Home() {
         </li>
       ))}
     </ul>
-  ) : null;
+  ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
 
   if (isLoading)
     return (
@@ -285,15 +285,7 @@ export default function Home() {
                 </Button>
               )}
             </div>
-            {dealerConfig.trustItems?.length > 0 && (
-              <ul className="mt-5 hidden max-w-lg grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 sm:grid">
-                {dealerConfig.trustItems.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-                    <Check aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />{item}
-                  </li>
-                ))}
-              </ul>
-            )}
+
           </div>
           {(featuredCar || heroImage) && (
             <Link
@@ -520,7 +512,6 @@ export default function Home() {
         </div>
       </section>
 
-      <RecentlyViewed />
       {dealerConfig.recentHandovers.enabled && recentHandovers.length > 0 && (
         <section
           id="recent-handovers"
@@ -559,7 +550,7 @@ export default function Home() {
         </section>
       )}
 
-      {(dealerConfig.presentation?.showroomImageUrl || dealerConfig.whyBuy?.length > 0) && (
+      {(dealerConfig.presentation?.showroomImageUrl || dealerConfig.whyBuy?.length > 0 || dealerConfig.trustItems?.length > 0) && (
         <section
           id="about"
           data-home-section
@@ -645,6 +636,7 @@ export default function Home() {
         </div>
       </section>
       <DealershipVisit />
+      <RecentlyViewed />
     </div>
   );
 }

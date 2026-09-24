@@ -76,7 +76,7 @@ export default function Saved() {
             description={
               sharedIds
                 ? "Someone shared these cars with you. Prices and availability reflect the latest stock. Your own saved cars are unchanged."
-                : "Kept on this device. Pick up where you left off and compare your favourites."
+                : "Kept on this device. Pick up where you left off with your favourites."
             }
             action={
               shownIds.length > 0 && (

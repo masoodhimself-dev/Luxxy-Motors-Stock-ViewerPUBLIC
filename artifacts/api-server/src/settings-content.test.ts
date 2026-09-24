@@ -138,3 +138,10 @@ test('brochure settings accept legacy records, preserve omitted options and vali
   assert.equal(UpdateDealerSettingsBody.safeParse({...legacy,brochure:{title:'a'.repeat(61)}}).success,false);
   assert.deepEqual(GetDealerSettingsResponse.parse({...legacy,brochure}).brochure,brochure);
 });
+
+ test("comparison settings survive older clients and accept explicit off", () => {
+  const previous = { presentation: { comparisonEnabled: true } };
+  assert.deepEqual(preservePresentation({ presentation: {} }, previous).presentation, { comparisonEnabled: true });
+  const disabled = preservePresentation({ ...legacy, presentation: { comparisonEnabled: false } }, previous);
+  assert.equal(UpdateDealerSettingsBody.parse(disabled).presentation?.comparisonEnabled, false);
+ });

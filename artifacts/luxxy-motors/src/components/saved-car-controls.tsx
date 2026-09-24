@@ -1,3 +1,4 @@
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { Check, Heart, Scale } from 'lucide-react';
 import { Car } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
@@ -53,6 +54,7 @@ export function SaveCarButton({
 }
 
 export function CompareCarButton({ car, className, variant = 'default' }: { car: Car; className?: string; variant?: 'default' | 'compact' }) {
+  const { settings } = useDealerSettings();
   const { isComparing, toggleCompare } = useSavedCars();
   const { toast } = useToast();
   const comparing = isComparing(car.id);
@@ -72,6 +74,8 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
       });
     }
   };
+
+  if (!settings.presentation?.comparisonEnabled) return null;
 
   if (variant === 'compact') {
     return (

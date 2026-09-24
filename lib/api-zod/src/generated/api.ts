@@ -2618,6 +2618,7 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "comparisonEnabled": zod.boolean().optional().describe('Show customer vehicle comparison. Off when omitted.'),
   "heroImageUrl": zod.string().max(getDealerSettingsResponsePresentationHeroImageUrlMax).regex(getDealerSettingsResponsePresentationHeroImageUrlRegExp).optional(),
   "heroImageAlt": zod.string().max(getDealerSettingsResponsePresentationHeroImageAltMax).optional(),
   "showroomImageUrl": zod.string().max(getDealerSettingsResponsePresentationShowroomImageUrlMax).regex(getDealerSettingsResponsePresentationShowroomImageUrlRegExp).optional(),
@@ -2880,6 +2881,7 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
+  "comparisonEnabled": zod.boolean().optional().describe('Show customer vehicle comparison. Off when omitted.'),
   "heroImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationHeroImageUrlMax).regex(updateDealerSettingsBodyOnePresentationHeroImageUrlRegExp).optional(),
   "heroImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationHeroImageAltMax).optional(),
   "showroomImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationShowroomImageUrlMax).regex(updateDealerSettingsBodyOnePresentationShowroomImageUrlRegExp).optional(),
@@ -3137,6 +3139,7 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "comparisonEnabled": zod.boolean().optional().describe('Show customer vehicle comparison. Off when omitted.'),
   "heroImageUrl": zod.string().max(updateDealerSettingsResponsePresentationHeroImageUrlMax).regex(updateDealerSettingsResponsePresentationHeroImageUrlRegExp).optional(),
   "heroImageAlt": zod.string().max(updateDealerSettingsResponsePresentationHeroImageAltMax).optional(),
   "showroomImageUrl": zod.string().max(updateDealerSettingsResponsePresentationShowroomImageUrlMax).regex(updateDealerSettingsResponsePresentationShowroomImageUrlRegExp).optional(),

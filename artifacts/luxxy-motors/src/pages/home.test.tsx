@@ -395,7 +395,7 @@ describe('showroom search filters', () => {
     expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByTestId('card-vehicle-bmw-1-series')).not.toBeInTheDocument();
     expect(window.localStorage.getItem('luxxy.stock-view.v1')).toBe('compact');
-    expect(screen.getByTestId('button-compare-bmw-1-series')).toBeInTheDocument();
+    expect(screen.queryByTestId('button-compare-bmw-1-series')).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /view/i }).length).toBeGreaterThan(0);
     expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('flex-wrap');
     expect(screen.getByTestId('compact-actions-bmw-1-series')).toHaveClass('justify-between');

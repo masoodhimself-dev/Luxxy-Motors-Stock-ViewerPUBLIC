@@ -189,6 +189,7 @@ function EmptySlot() {
 }
 
 export default function Compare() {
+  const { settings } = useDealerSettings();
   const { stock, isLoading, error } = useStock();
   const { compareIds, removeFromCompare } = useSavedCars();
   const [differencesOnly, setDifferencesOnly] = useState(false);
@@ -198,6 +199,8 @@ export default function Compare() {
     .filter((car): car is Car => Boolean(car));
 
   const visibleRows = differencesOnly && cars.length === 2 ? rows.filter((row) => row.render(cars[0]) !== row.render(cars[1])) : rows;
+
+  if (!settings.presentation?.comparisonEnabled) return <div className="container mx-auto px-4 py-16"><h1 className="heading-2">Browse your next car</h1><p className="mt-3 text-muted-foreground">Save the cars you like and ask our team for help choosing.</p><Link href="/saved" className="text-link mt-5 min-h-11">View saved cars</Link><Link href="/#stock" className="text-link ml-6 min-h-11">Browse stock</Link></div>;
 
   if (isLoading && compareIds.length > 0) {
     return (

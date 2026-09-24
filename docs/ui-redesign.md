@@ -563,3 +563,14 @@ Evidence: `docs/screenshots/brochure-redesign/`; sample PDF in `output/pdf/luxxy
 Removed the finder quiz/page, production and preview routes, homepage secondary action, desktop/mobile navigation and footer entries, and the associated settings field. Removed feature-specific tests and updated shared navigation/comparison checks to use Saved cars. The legacy `hero.secondaryCta` property remains in the settings payload for compatibility but is no longer displayed or editable; no API contract, backend, data or migration changes. Old finder URLs use the normal not-found page.
 
 Validation: all 168 remaining frontend tests passed; workspace typechecking/builds passed (existing bundle warning only). Browser checks at 390px and 1440px verified the homepage/navigation, removed route, part exchange and settings. The temporary Wi-Fi preview also serves the updated homepage. Saved cars and comparisons remain available.
+
+## Customer simplification — 24 September 2026
+
+- Vehicle comparison is optional and off when `presentation.comparisonEnabled` is absent. Services settings can enable it; cards, detail-page links, tray and direct comparison URLs respect the setting. Existing saved cars and comparison selections are retained. The optional boolean uses existing settings JSON storage, with generated schema/client support and preservation for older clients; no migration is required or run.
+- Recently viewed stays compact and moves below the showroom/visit information. Shortlist sharing remains confined to Saved cars, with neutral copy when comparison is unavailable.
+- Removed repeated hero trust points; the dealership section remains the main trust section, falling back to the configured trust points if no detailed dealership points exist.
+- Kept the brochure as a secondary description link, removed its neighbouring duplicate share button (header sharing remains), and reduced the secondary enquiry action to a text link. Contextual call/WhatsApp, viewing and mobile actions remain available.
+- Optional enquiry messages use an expandable section. Required general messages and restored messages remain open. Existing conditional part-exchange fields are unchanged.
+- Brand colours and brochure colour/photo layout/count controls are grouped in native keyboard-accessible Advanced disclosures. Reservations retain their existing per-dealer toggle; handovers retain their existing opt-in and empty-data hiding.
+- Validation: 168 frontend unit tests, 8 backend settings tests; desktop/mobile comparison and customer-page checks plus saved-car, draft, enquiry and brochure-settings browser regression tests. Workspace typechecking/build run after changes. No production access, migrations, payment or sales-rule changes.
+- Screenshots: `docs/screenshots/customer-simplification/`. Comparison usage instrumentation remains available; no additional permanent feature deletions were made.

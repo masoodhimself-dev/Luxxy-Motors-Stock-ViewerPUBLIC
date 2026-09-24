@@ -613,6 +613,8 @@ export function EnquiryForm({
             </label></details>
           </div>}
         </fieldset>}
+        <details open={(!isViewing && !hasPartExchange) || Boolean(message) || undefined} className="border-t border-border pt-2">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{isViewing || hasPartExchange ? 'Add a message (optional)' : 'Your message'}</summary>
         <label className="block">
           <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
           <Textarea
@@ -626,6 +628,7 @@ export function EnquiryForm({
             data-testid="textarea-enquiry-message"
           />
         </label>
+        </details>
         {message.length > messageLimit && <p role="alert" className="text-sm text-destructive">Please shorten your message by {message.length - messageLimit} characters to include your part-exchange details.</p>}
         </>
       )}

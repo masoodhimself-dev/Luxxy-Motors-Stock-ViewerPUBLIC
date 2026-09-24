@@ -7,7 +7,7 @@ vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ isLoading: false, err
   { id: 'zero', title: 'Zero mileage car', mileage: 0, price: 12000, owners: 0, images: [], writeOffCategory: null },
   { id: 'known', title: 'Known history car', mileage: 1000, price: 12500, owners: 1, images: [], writeOffCategory: 'None' },
 ] } }) }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Test Motors' }, contact: {} } }) }));
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Test Motors' }, contact: {}, presentation: { comparisonEnabled: true } } }) }));
 
 beforeEach(() => {
   window.localStorage.clear();

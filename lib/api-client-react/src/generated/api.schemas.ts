@@ -354,6 +354,8 @@ export interface RecentHandovers {
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  /** Show customer vehicle comparison. Off when omitted. */
+  comparisonEnabled?: boolean;
   /**
      * @maxLength 2048
      * @pattern ^(https://[^\s]+)?$

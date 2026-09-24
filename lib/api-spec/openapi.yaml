@@ -1924,6 +1924,7 @@ components:
       additionalProperties: false
       description: Optional showroom content. Empty values are not presented as factual claims.
       properties:
+        comparisonEnabled: { type: boolean, description: "Show customer vehicle comparison. Off when omitted." }
         heroImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
         heroImageAlt: { type: string, maxLength: 200 }
         showroomImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }

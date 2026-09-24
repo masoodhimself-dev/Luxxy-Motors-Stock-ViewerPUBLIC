@@ -21,6 +21,7 @@ for (const width of [390, 1440])
       await page.getByTestId("tab-settings").click();
       await page.getByTestId("button-settings-nav-brochure").click();
       const section = page.locator("#settings-brochure");
+      await section.getByText("Advanced brochure design", { exact: true }).click();
       await section
         .getByLabel("Brochure cover heading", { exact: false })
         .fill("Your chosen car");

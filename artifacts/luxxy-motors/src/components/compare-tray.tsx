@@ -1,3 +1,4 @@
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, ChevronDown, ChevronUp, Scale, X } from 'lucide-react';
@@ -12,6 +13,7 @@ export function routeAllowsCompareTray(location: string) {
 }
 
 export function CompareTray() {
+  const { settings } = useDealerSettings();
   const [location] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { compareIds, removeFromCompare, clearCompare, pruneCompare } = useSavedCars();
@@ -39,7 +41,7 @@ export function CompareTray() {
     .map((id) => stock?.cars.find((car) => car.id === id))
     .filter((car): car is NonNullable<typeof car> => Boolean(car));
 
-  if (!routeAllowsCompareTray(location) || cars.length === 0 || dismissed) return null;
+  if (!settings.presentation?.comparisonEnabled || !routeAllowsCompareTray(location) || cars.length === 0 || dismissed) return null;
 
   const readyToCompare = cars.length === MAX_COMPARE;
 

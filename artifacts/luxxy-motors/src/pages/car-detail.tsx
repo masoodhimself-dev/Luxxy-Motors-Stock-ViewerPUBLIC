@@ -291,12 +291,9 @@ export default function CarDetail() {
                   {dealerConfig.bookViewing.ctaLabel}
                 </a>
               </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
-                  Ask a question
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              <Link className="text-link min-h-11 justify-center text-sm" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
+                  Ask a question <ArrowRight className="h-4 w-4" />
+              </Link>
               <ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a viewing separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
@@ -342,12 +339,12 @@ export default function CarDetail() {
               {dealerConfig.identity.name || stock.dealerName} · Viewings by appointment. Take your
               time with the car and ask us anything.
             </p>
-            <div className="mt-3 flex items-center justify-between">
+            {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex items-center justify-between">
               <CompareCarButton car={car} variant="compact" className="min-h-11" />
               <Link href="/compare" className="text-link text-xs text-muted-foreground">
                 View comparison
               </Link>
-            </div>
+            </div>}
 
             </div>
           </aside>
@@ -381,7 +378,6 @@ export default function CarDetail() {
                 <a href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`} download className="text-link min-h-11 text-sm" data-testid="link-vehicle-pdf" aria-label={`Download car brochure for ${vehicleLabel}`}>
                   <FileText className="h-4 w-4" /> Download car brochure
                 </a>
-                <button type="button" onClick={share} className="text-link min-h-11 text-sm"><Share2 className="h-4 w-4" /> Share this car</button>
               </div>
             </section>
             <section

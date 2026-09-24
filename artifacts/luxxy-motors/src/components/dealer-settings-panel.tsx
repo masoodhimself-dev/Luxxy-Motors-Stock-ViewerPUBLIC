@@ -347,7 +347,7 @@ export function DealerSettingsPanel() {
     setSaveMessage('');
   };
 
-  const updatePresentation = (key: keyof DealerPresentation, value: string) =>
+  const updatePresentation = (key: keyof DealerPresentation, value: string | boolean) =>
     updateGroup("presentation", { ...form.presentation, [key]: value });
 
   const validate = () => {
@@ -356,7 +356,7 @@ export function DealerSettingsPanel() {
     if (form.brochure?.photoLimit !== undefined && (!Number.isInteger(form.brochure.photoLimit) || form.brochure.photoLimit < 1 || form.brochure.photoLimit > 80)) errors['brochure.photoLimit'] = 'Choose between 1 and 80 photographs.';
     if (!isValidHsl(form.identity.brandColors.primaryHsl) || !isValidHsl(form.identity.brandColors.accentHsl)) errors['identity.colours'] = 'Use a hue from 0–360 and saturation/lightness from 0–100%, or choose a colour using the picker.';
     for (const [key, value] of Object.entries(form.presentation || {})) {
-      if (key.endsWith("Url") && value && !/^https:\/\/[^\s]+$/.test(value))
+      if (key.endsWith("Url") && typeof value === "string" && value && !/^https:\/\/[^\s]+$/.test(value))
         errors[`presentation.${key}`] =
           "Use a full HTTPS address, or leave this empty.";
     }
@@ -579,10 +579,10 @@ export function DealerSettingsPanel() {
                 <Input className="h-11 rounded-md pl-10 text-base focus-visible:border-accent" type="url" value={form.identity.logoAsset} onChange={(event) => updateNested('identity', 'logoAsset', event.target.value)} placeholder="https://…" data-testid="input-identity-logo-asset" />
               </div>
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Advanced design settings</summary><p className="mb-4 text-xs text-muted-foreground">Optional brand colour overrides. The defaults are ready to use.</p>            <div className="grid gap-4 sm:grid-cols-2">
               <ColourField label="Primary colour" value={form.identity.brandColors.primaryHsl} onChange={(primaryHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl })} testId="input-brand-primary" />
               <ColourField label="Accent colour" value={form.identity.brandColors.accentHsl} onChange={(accentHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl })} testId="input-brand-accent" />
-            </div>
+            </div></details>
             {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
@@ -925,17 +925,21 @@ export function DealerSettingsPanel() {
         <SectionCard id="brochure" eyebrow="Customer downloads" title="Vehicle brochure" description="A printed companion to each car. Your dealership name, address and contact details come from Identity and Contact & hours. Vehicle facts and supplied insurance history are always included." icon={<FileText className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Brochure cover heading" hint="Up to 60 characters"><Input maxLength={60} value={form.brochure?.title ?? ''} placeholder="Your next car, in detail" onChange={e=>updateGroup('brochure',{...form.brochure,title:e.target.value})} /></Field>
-            <Field label="Brochure accent colour" hint="Rules and decorative details" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#835b33'} onChange={e=>updateGroup('brochure',{...form.brochure,accentColour:e.target.value})} /></Field>
+
             <Field label="Showroom introduction" hint="Up to 300 characters"><Textarea maxLength={300} rows={3} value={form.brochure?.introduction ?? ''} placeholder="A short invitation to visit or speak to your team." onChange={e=>updateGroup('brochure',{...form.brochure,introduction:e.target.value})} /></Field>
             <Field label="Closing note" hint="Up to 500 characters"><Textarea maxLength={500} rows={3} value={form.brochure?.footerNote ?? ''} placeholder="Your appointment instructions or other useful information." onChange={e=>updateGroup('brochure',{...form.brochure,footerNote:e.target.value})} /></Field>
+            <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Advanced brochure design</summary><div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Brochure accent colour" hint="Rules and decorative details" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#835b33'} onChange={e=>updateGroup('brochure',{...form.brochure,accentColour:e.target.value})} /></Field>
             <Field label="Photo layout"><select className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.brochure?.galleryLayout ?? 'grid'} onChange={e=>updateGroup('brochure',{...form.brochure,galleryLayout:e.target.value as 'grid'|'large'})}><option value="grid">Gallery - four photos per page</option><option value="large">Large photos - two per page</option></select></Field>
             <Field label="Maximum photos" hint="Includes the cover photo" error={validationErrors['brochure.photoLimit']}><Input type="number" min={1} max={80} step={1} value={form.brochure?.photoLimit ?? 12} onChange={e=>updateGroup('brochure',{...form.brochure,photoLimit:Number(e.target.value)})} /></Field>
+            </div></details>
           </div>
           <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2">{([['includeDescription','Include vehicle description'],['includeFeatures','Include features and equipment'],['includeGallery','Include photo gallery']] as const).map(([key,label])=><label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" checked={form.brochure?.[key] !== false} onChange={e=>updateGroup('brochure',{...form.brochure,[key]:e.target.checked})} />{label}</label>)}</div>
           <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-5"><p className="max-w-lg text-sm text-muted-foreground">Publish your settings, then open a brochure to check the final PDF. Previously downloaded copies will keep their original design.</p>{stock?.cars[0] && <a className="text-link min-h-11 text-sm" href={`/api/vehicles/${encodeURIComponent(stock.cars[0].id)}/brochure.pdf`} target="_blank" rel="noopener noreferrer">Open saved brochure <ExternalLink className="h-4 w-4" /><span className="sr-only"> (opens in a new tab)</span></a>}</div>
         </SectionCard>
 
         <SectionCard id="services" eyebrow="05 / Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
+          <label className="mb-6 flex items-start gap-3 border-b border-border pb-5"><input type="checkbox" className="mt-1 h-5 w-5" checked={form.presentation?.comparisonEnabled ?? false} onChange={event => updatePresentation('comparisonEnabled', event.target.checked)} data-testid="checkbox-vehicle-comparison" /><span><span className="block text-sm font-semibold">Vehicle comparison</span><span className="mt-1 block text-sm text-muted-foreground">Optional. Allow customers to compare two cars side by side. Saved cars remain available when this is off.</span></span></label>
           <div className="grid gap-5">
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
             <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
