@@ -15,7 +15,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('[data-testid^="card-vehicle-"]')).toHaveCount(6);
     await page.goto('/vehicle/preview-1');
     await expect(page.getByRole('button',{name:/^Show photograph/})).toHaveCount(6);
-    await expect(page.getByText('Category S recorded', {exact:true})).toBeVisible();
+    await expect(page.getByRole('paragraph').filter({hasText:/^Category S recorded$/})).toBeVisible();
     if(width === 1440) {
       await page.getByRole('heading',{name:'What to know about this car'}).scrollIntoViewIfNeeded();
       const panel = page.getByTestId('desktop-purchase-panel');

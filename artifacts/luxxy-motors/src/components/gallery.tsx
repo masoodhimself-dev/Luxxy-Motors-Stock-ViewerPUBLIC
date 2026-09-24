@@ -8,12 +8,13 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/
 interface GalleryProps {
   images: CarImage[];
   heroImage?: string | null;
+  vehicleLabel?: string;
 }
 function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
 }
 
-export function Gallery({ images, heroImage }: GalleryProps) {
+export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: GalleryProps) {
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -49,14 +50,14 @@ export function Gallery({ images, heroImage }: GalleryProps) {
     .filter(group => allImages.some(image => photoGroup(image) === group));
   const groupNavigation = (fullscreen = false) => groups.length > 1 && (
     <div className="mt-3 flex flex-wrap gap-1 border-b border-border" aria-label="Photograph sections">
-      {groups.map(group => <button type="button" key={group} aria-pressed={photoGroup(allImages[index]) === group}
+      {groups.map(group => <button type="button" key={group} aria-label={group} aria-pressed={photoGroup(allImages[index]) === group}
         onClick={() => {
           const target = allImages.findIndex(image => photoGroup(image) === group);
           setActiveIndex(target);
           if (!fullscreen) thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }}
         className={cn('min-h-11 border-b-2 px-3 text-xs', photoGroup(allImages[index]) === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
-        {group}
+        {group} ({allImages.filter(image => photoGroup(image) === group).length})
       </button>)}
     </div>
   );
@@ -82,7 +83,7 @@ export function Gallery({ images, heroImage }: GalleryProps) {
         src={url}
         decoding="async"
         fetchPriority={eager ? "high" : "auto"}
-        alt={imageCaption(allImages[imageIndex]) || `Vehicle photograph ${imageIndex + 1}`}
+        alt={imageCaption(allImages[imageIndex]) || `${vehicleLabel} — photograph ${imageIndex + 1}`}
         className={className}
         loading={eager ? 'eager' : 'lazy'}
         referrerPolicy="no-referrer"

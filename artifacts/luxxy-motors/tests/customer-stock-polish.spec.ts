@@ -8,7 +8,7 @@ for (const width of [390, 1440]) {
     await page.goto('/vehicle/preview-1');
     await page.getByRole('link', { name: 'History, MOT, keys & warranty' }).click();
     await expect(page.getByRole('heading', { name: 'What to know about this car' })).toBeFocused();
-    await expect(page.getByText('2 keys', { exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'What to know about this car' }).getByText('2 keys', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View gallery fullscreen' }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('button', { name: 'Interior', exact: true }).click();

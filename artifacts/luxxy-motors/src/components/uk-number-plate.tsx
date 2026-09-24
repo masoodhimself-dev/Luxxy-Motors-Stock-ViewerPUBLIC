@@ -7,6 +7,7 @@ export function UKNumberPlate({
   onChange,
   testId,
   inputTestId,
+  inputId,
   helpId,
   size = 'md',
   variant = 'rear',
@@ -17,6 +18,7 @@ export function UKNumberPlate({
   onChange?: (value: string) => void;
   testId: string;
   inputTestId?: string;
+  inputId?: string;
   helpId?: string;
   size?: 'sm' | 'md';
   variant?: 'front' | 'rear';
@@ -44,6 +46,7 @@ export function UKNumberPlate({
     >
       {editable ? (
         <Input
+          id={inputId}
           required
           minLength={2}
           maxLength={12}

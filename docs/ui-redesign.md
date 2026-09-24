@@ -502,3 +502,20 @@ This supersedes the demo-deposit implementation above.
 - Vehicle pages use matched 48px contact buttons: an outlined “Call showroom” action and a restrained green “WhatsApp us” action with the WhatsApp mark. The mobile action bar now offers both channels alongside booking; its duplicate price is hidden below 440px to keep all controls usable.
 - Comparison pages label the message action “WhatsApp” instead of “Msg”. Contact tracking and actual tel/WhatsApp destinations are unchanged.
 - Verification: 178 frontend tests passed; full workspace typechecking/builds passed (existing chunk-size warning). Chrome checks passed at 320px, 390px and 1440px for message contents, contact targets and horizontal overflow. Visually inspected the mobile contact panel. No messages sent or calls placed.
+
+### Vehicle buying guide — 24 September 2026
+
+Implemented the eight agreed vehicle-page improvements without backend, sales-rule or API changes:
+
+1. A responsive opening places the single vehicle heading, derivative and price above the gallery on phones and alongside it on desktop. Four key facts remain easy to scan; engine information is explicit in the specification.
+2. Existing swipe/fullscreen/keyboard gallery behaviour is retained. Caption-derived categories now show counts, fallback image descriptions name the vehicle, and a vehicle-specific WhatsApp action requests a walkaround including any damage. Unclassified photos are never labelled interior/exterior by assumption.
+3. A compact history summary surfaces supplied service, MOT, key, condition and warranty details, with enquiry links for missing information. Category S/N explanations sit beside the price/facts before the purchase actions, with full records further down.
+4. A dedicated highlights component uses only supplied equipment, practicality, service history or powertrain details. It renders only when at least two useful groups exist; repetitive introductory facts were removed.
+5. Eligible reservations display the configured deposit and expandable process/cancellation terms before the reservation form. Simulation remains explicit, settings-off behaviour is preserved and no new refund promise is introduced.
+6. A two-field part-exchange starter carries registration and mileage to the existing enquiry form, tied to the selected vehicle. Session-only drafts expire for reuse after 30 minutes, handle blocked storage and never place the registration in the URL. Existing enquiry payloads are unchanged.
+7. A visit section uses dealership settings, configured photography, appointment/parking instructions and selected-vehicle booking. Template imagery and sample addresses remain labelled; directions and hours lead to Contact.
+8. The mobile action bar retains booking, WhatsApp and calling but hides when the main contact panel is sufficiently visible. Safe-area spacing and touch targets remain intact.
+
+Validation: 180 frontend tests passed; full workspace typecheck and builds passed. Seventeen distinct relevant browser checks passed across the gallery, buyer information, part-exchange handoff, enquiry submission, reservations/settings-off behaviour and mobile/desktop layouts. Existing selectors were scoped to distinguish the new summary from the full history section. Final layout rechecks passed at 320, 390 and 1440px, including desktop sticky actions. The existing large-bundle build warning remains. Broader unrelated browser-suite issues documented in deployment.md were outside this change.
+
+Fresh full-page and viewport evidence: `docs/screenshots/vehicle-buying-guide/vehicle-{320,390,1440}[-viewport].png`. Desktop and mobile viewport screenshots were visually inspected. No real WhatsApp messages, calls, payments, migrations or production writes were made.

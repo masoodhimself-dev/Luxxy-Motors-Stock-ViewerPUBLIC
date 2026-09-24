@@ -1,3 +1,4 @@
+import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { ReserveCar } from '@/components/reserve-car';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
@@ -120,8 +121,12 @@ export function EnquiryForm({
   const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const [hasPartExchange, setHasPartExchange] = useState(false);
-  const [exchange, setExchange] = useState({ registration: '', mileage: '', notes: '' });
+  const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
+  const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
+  useEffect(() => {
+    const draft = readVehicleExchange(vehicle?.id);
+    if (draft) { setExchange(draft); setHasPartExchange(true); }
+  }, [vehicle?.id]);
   const exchangeSummary = hasPartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
     `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
