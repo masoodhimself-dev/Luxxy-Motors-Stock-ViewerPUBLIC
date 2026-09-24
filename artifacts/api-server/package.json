@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -18,7 +18,8 @@
     "test:leads": "node ./test-build.mjs src/leads.integration.test.ts && node --enable-source-maps --test ./dist-test/leads.integration.test.mjs",
     "test:migrations": "node ./test-build.mjs src/migrations.integration.test.ts && node --enable-source-maps --test ./dist-test/migrations.integration.test.mjs",
     "test:safety": "node ./test-build.mjs src/test/database-guard.test.ts && node --enable-source-maps --test ./dist-test/database-guard.test.mjs",
-    "test:settings": "node ./test-build.mjs src/settings-content.test.ts && node --enable-source-maps --test ./dist-test/settings-content.test.mjs"
+    "test:settings": "node ./test-build.mjs src/settings-content.test.ts && node --enable-source-maps --test ./dist-test/settings-content.test.mjs",
+    "test:portability": "node ./test-build.mjs src/portability.test.ts && node --test ./dist-test/portability.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

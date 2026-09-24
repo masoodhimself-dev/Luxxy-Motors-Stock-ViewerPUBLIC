@@ -1,9 +1,13 @@
+import { siteOrigin } from "./lib/enquiry-links";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startReminderWorker } from "./lib/enquiry-notifications";
 import { backfillLeadsFromEnquiries } from "./lib/leads";
 
-const rawPort = process.env["PORT"];
+// Validate public links before listening or starting background database work.
+siteOrigin();
+
+const rawPort = process.env["PORT"] ?? "8080";
 
 if (!rawPort) {
   throw new Error(

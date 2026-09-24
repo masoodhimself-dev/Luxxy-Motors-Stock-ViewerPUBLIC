@@ -3,7 +3,7 @@ name: Single-dealer architecture
 description: Permanent project boundary separating dealership isolation from multi-source stock support.
 ---
 
-This project represents exactly one dealership. Each additional dealership must use a separate Replit project/remix, PostgreSQL database, secrets/configuration, and deployment. Do not reintroduce organizations, tenants, tenant-scoped keys, or shared-database multi-tenancy.
+This project represents exactly one dealership. Each additional dealership must use a separate application deployment, PostgreSQL database, and secrets/configuration. Do not reintroduce organizations, tenants, tenant-scoped keys, or shared-database multi-tenancy.
 
 **Why:** The multi-tenant SaaS direction was explicitly cancelled in favor of operational and data isolation per dealership.
 

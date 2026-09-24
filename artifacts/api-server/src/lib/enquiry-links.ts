@@ -50,11 +50,20 @@ export function viewingManagePath(token: string) {
   return `/viewing/${token}`;
 }
 
-function siteOrigin() {
-  const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
-  const domain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-  return domain ? `https://${domain}` : "";
+export function siteOrigin() {
+  const configured = process.env.PUBLIC_SITE_URL?.trim();
+  if (configured) {
+    const url = new URL(configured);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') {
+      throw new Error('PUBLIC_SITE_URL must be an HTTP(S) origin without credentials, path, query or fragment');
+    }
+    if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+      throw new Error('PUBLIC_SITE_URL must use HTTPS in production');
+    }
+    return url.origin;
+  }
+  if (process.env.NODE_ENV === "production") throw new Error("PUBLIC_SITE_URL is required in production");
+  return "http://127.0.0.1:4175";
 }
 
 /** Absolute URL for a page on the customer-facing site. */

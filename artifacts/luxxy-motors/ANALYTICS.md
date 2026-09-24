@@ -1,6 +1,6 @@
 # Showroom analytics
 
-Replit injects analytics into the published website when analytics is enabled in Publishing settings. Development builds safely ignore these events.
+Analytics is optional and disabled by default. The event adapter supports an independently installed Umami script (`window.umami`). No hosting provider injects analytics for this application. Configure a provider and the appropriate privacy/consent policy before enabling collection.
 
 No event includes a registration number, vehicle ID, search term, customer detail, message, appointment time, or other free-form value.
 

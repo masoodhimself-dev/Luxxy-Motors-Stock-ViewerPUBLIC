@@ -1,4 +1,4 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { sendEmail } from "./email-provider";
 import {
   and,
   eq,
@@ -105,61 +105,8 @@ export async function dealerProfile(): Promise<DealerProfile> {
   return getDealerProfile();
 }
 
-function safeHeaderName(value: string) {
-  return value.replace(/[\r\n<>]/g, "").trim().slice(0, 120) || "Used Car Showroom";
-}
-
 function vehicleLabel(enquiry: Enquiry, dealerName: string) {
   return enquiry.vehicleTitle || `your ${dealerName} enquiry`;
-}
-
-function providerError(body: string, status: number) {
-  try {
-    const parsed = JSON.parse(body) as { message?: string; error?: string };
-    if (parsed.message || parsed.error) {
-      return String(parsed.message || parsed.error).slice(0, 300);
-    }
-  } catch {
-    // The provider may return a non-JSON error body.
-  }
-  return `Email provider returned HTTP ${status}.`;
-}
-
-async function sendEmail(
-  to: string,
-  subject: string,
-  html: string,
-  idempotencyKey: string,
-  dealerName: string,
-  attachments?: Array<{ filename: string; content: string }>,
-) {
-  const response = await new ReplitConnectors().proxy("resend", "/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Idempotency-Key": idempotencyKey,
-    },
-    body: JSON.stringify({
-      from:
-        process.env.RESEND_FROM_EMAIL?.trim() ||
-        `${safeHeaderName(dealerName)} <onboarding@resend.dev>`,
-      to: [to],
-      subject,
-      html,
-      ...(attachments?.length ? { attachments } : {}),
-    }),
-  });
-
-  const body = await response.text();
-  if (!response.ok) {
-    throw new Error(providerError(body, response.status));
-  }
-  try {
-    const parsed = JSON.parse(body) as { id?: string };
-    return parsed.id ?? null;
-  } catch {
-    return null;
-  }
 }
 
 async function attemptEmail({

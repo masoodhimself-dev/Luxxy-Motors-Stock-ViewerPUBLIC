@@ -9,8 +9,8 @@ declare global {
 }
 
 /**
- * Sends a privacy-safe custom event when Replit analytics is available.
- * Analytics is injected only in published builds and must never affect the journey.
+ * Sends a privacy-safe custom event when an optional Umami integration is available.
+ * Analytics is configured by the deployment owner and must never affect the journey.
  */
 export function trackEvent(name: string, data?: AnalyticsData): void {
   if (typeof window === 'undefined') return;

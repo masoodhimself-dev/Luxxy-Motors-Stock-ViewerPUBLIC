@@ -13,7 +13,7 @@ pnpm dev:preview
 
 Open http://127.0.0.1:4175. The preview renders the actual customer and staff components with six vehicles and matching photographs from the repository’s archived stock snapshot. These are not current stock. Search, filters, galleries, vehicle details, saved cars and comparisons work locally. Staff records are synthetic. See [the redesign review](docs/ui-redesign.md) for routes and screenshots.
 
-The preview has a separate Vite config and entry point. It requires no database or Clerk credentials, rejects all API writes, and does not start the API server. The read-only staff preview uses a development-only identity shim. Real enquiries, bookings, staff sign-in and signing transactions need the full application. The normal production build continues to use `src/main.tsx` and the existing authentication.
+The preview has a separate Vite config and entry point. It requires no database or Clerk credentials, rejects normal production API writes (reservation/settings demonstrations use a local sandbox), and does not start the API server. The read-only staff preview uses a development-only identity shim. Real enquiries, bookings, staff sign-in and signing transactions need the full application. The normal production build continues to use `src/main.tsx` and the existing authentication.
 
 The workspace enables native macOS dependencies as well as the original Linux dependencies. The original runtime is Node.js 24; this checkout was also verified with Node.js 25.5 and pnpm 11.19.
 
@@ -35,7 +35,7 @@ Run `PORT=4175 BASE_PATH=/ pnpm build` for full workspace typechecking and build
 
 The original Replit database and credentials are not stored in GitHub. Full local operation needs a development PostgreSQL database (`DATABASE_URL`), Clerk development keys (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, and frontend `VITE_CLERK_PUBLISHABLE_KEY`), and `SESSION_SECRET`. Configure staff access, stock-import credentials and notifications for the intended environment before using those services.
 
-See `replit.md` for API commands and `.replit` for the original runtime configuration. The normal frontend expects `PORT` and `BASE_PATH` in its process environment and `/api` and `/share` to route to the API server.
+See [independent deployment](docs/deployment.md) and [.env.example](.env.example). `pnpm build` builds the workspace; `pnpm start` serves the website and API together. No database migration runs automatically.
 
 ## Project map
 

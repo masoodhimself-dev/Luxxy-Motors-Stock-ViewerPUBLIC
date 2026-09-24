@@ -20,17 +20,12 @@ if (
 process.env.DATABASE_URL = target;
 process.env.NODE_ENV = "test";
 process.env.LOG_LEVEL = "fatal";
-// Synthetic keys only: never use a real Clerk tenant or Replit connector.
+// Synthetic keys only: never use a real Clerk tenant or email credentials.
 process.env.CLERK_PUBLISHABLE_KEY = `pk_test_${Buffer.from("clerk.luxxy.test$").toString("base64")}`;
 process.env.CLERK_SECRET_KEY = "sk_test_luxxy_integration_only";
 process.env.PUBLIC_SITE_URL = "http://127.0.0.1";
-for (const key of [
-  "REPL_IDENTITY",
-  "WEB_REPL_RENEWAL",
-  "REPLIT_CLI",
-  "REPLIT_DOMAINS",
-])
-  delete process.env[key];
+delete process.env.RESEND_API_KEY;
+delete process.env.RESEND_FROM_EMAIL;
 
 // Tests may call the local HTTP app. All external fetches, including email and
 // identity providers, fail closed so test fixtures cannot trigger real sends.

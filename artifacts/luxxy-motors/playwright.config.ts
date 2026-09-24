@@ -1,11 +1,7 @@
-import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
 const port = 4175;
-const replitChromium = '/repl/tools/bin/chromium';
-const executablePath =
-  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
-  (existsSync(replitChromium) ? replitChromium : undefined);
+const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: './tests',
