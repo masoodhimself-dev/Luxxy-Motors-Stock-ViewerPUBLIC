@@ -519,3 +519,7 @@ Implemented the eight agreed vehicle-page improvements without backend, sales-ru
 Validation: 180 frontend tests passed; full workspace typecheck and builds passed. Seventeen distinct relevant browser checks passed across the gallery, buyer information, part-exchange handoff, enquiry submission, reservations/settings-off behaviour and mobile/desktop layouts. Existing selectors were scoped to distinguish the new summary from the full history section. Final layout rechecks passed at 320, 390 and 1440px, including desktop sticky actions. The existing large-bundle build warning remains. Broader unrelated browser-suite issues documented in deployment.md were outside this change.
 
 Fresh full-page and viewport evidence: `docs/screenshots/vehicle-buying-guide/vehicle-{320,390,1440}[-viewport].png`. Desktop and mobile viewport screenshots were visually inspected. No real WhatsApp messages, calls, payments, migrations or production writes were made.
+
+### Understated insurance-history presentation
+
+Following dealer feedback, the Category S/N disclosure beside the key facts is now a readable 12px neutral text line with an insurance-history link. Removed the amber backgrounds, accent border and warning icon. The full explanation remains in a plain, small-print history section; recorded categories, data and enquiry functionality are unchanged. Frontend typechecking and the three vehicle-guide browser checks at 320, 390 and 1440px passed; screenshots refreshed.

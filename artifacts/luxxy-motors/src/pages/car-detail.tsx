@@ -271,7 +271,7 @@ export default function CarDetail() {
                 />
               </div>
             )}
-              {damageDisclosure && <div className="mt-3 border-l-2 border-amber-700 bg-amber-50 px-3 py-3 text-amber-950"><p className="text-sm font-semibold">{damageDisclosure.label} recorded</p><p className="mt-1 text-xs leading-5">{damageDisclosure.explanation}</p><a href="#vehicle-history" className="text-link min-h-11 text-xs">Read vehicle history <ArrowRight className="h-3.5 w-3.5" /></a></div>}
+              {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
             <div className="lg:sticky lg:top-[calc(var(--site-header-height,5rem)+1rem)]" data-testid="desktop-purchase-panel">
             <div ref={purchasePanel} className="mt-4 flex flex-col gap-3 border-y border-border bg-card px-4 py-5">
               <p className="hidden lg:block text-sm font-semibold">{car.price ? formatPrice(car.price, car.currency) : "Price on application"} · Arrange a viewing</p>
@@ -456,12 +456,11 @@ export default function CarDetail() {
               </section>
             )}
             {damageDisclosure && (
-              <div id="vehicle-history" className="mt-7 scroll-mt-24 rounded-md border border-amber-700/30 bg-amber-50 p-5">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-950">
-                  <Info className="h-5 w-5" />
+              <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
+                <h3 className="text-xs font-medium text-muted-foreground">
                   Insurance history: {damageDisclosure.label}
                 </h3>
-                <p className="mt-3 text-sm leading-relaxed text-amber-950">
+                <p className="mt-2 text-xs leading-6 text-muted-foreground">
                   {damageDisclosure.explanation}
                 </p>
               </div>
