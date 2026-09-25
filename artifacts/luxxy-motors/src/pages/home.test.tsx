@@ -206,6 +206,7 @@ const originalCars = stockFixture.cars.map((car) => ({ ...car }));
 afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false });
   window.sessionStorage.clear();
   vi.clearAllMocks();
   window.localStorage.clear();

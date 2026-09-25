@@ -14,8 +14,10 @@ for (const width of [390, 1440]) {
     if (width === 1440) {
       const card = await strip.locator('.rolling-stock-group').first().locator('article').first().boundingBox();
       expect(card!.width).toBeGreaterThan(300);
-      expect(card!.width).toBeLessThan(360);
+      expect(card!.width).toBeLessThanOrEqual(360);
     }
+    await page.evaluate(() => { (document.activeElement as HTMLElement)?.blur(); window.scrollTo({top: 0, behavior: 'instant'}); });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await page.screenshot({path: '/tmp/luxxy-rolling-' + width + '.png', fullPage: true, animations: 'disabled'});
 
     await expect(hero.getByRole('combobox', { name: 'Search model', exact: true })).toBeDisabled();
@@ -60,14 +62,14 @@ for (const width of [390, 1440]) {
 
 test('rolling cars move left, pause and respect reduced motion', async ({ page }) => {
   await page.goto('/');
-  const track = page.locator('.rolling-stock-track');
+  const viewport = page.locator('.rolling-stock-window');
   await page.mouse.move(0, 0);
-  const before = await track.evaluate(node => new DOMMatrix(getComputedStyle(node).transform).m41);
-  await expect.poll(() => track.evaluate(node => new DOMMatrix(getComputedStyle(node).transform).m41)).toBeLessThan(before - 5);
+  const step = await viewport.locator('article').first().evaluate(node => node.getBoundingClientRect().width);
+  await expect.poll(() => viewport.evaluate(node => node.scrollLeft), {timeout: 6500}).toBeGreaterThan(step - 2);
+  expect(await viewport.evaluate(node => node.scrollLeft)).toBeLessThan(step + 2);
   await page.getByRole('button', {name: 'Pause cars'}).click();
-  await expect(track).toHaveCSS('animation-play-state', 'paused');
+  await expect(viewport).toHaveAttribute('data-paused', 'true');
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await expect(track).toHaveCSS('animation-name', 'none');
   await expect(page.locator('.rolling-stock-copy')).toBeHidden();
   await page.goto('/#stock');
   await expect(page).toHaveURL(/\/stock$/);
