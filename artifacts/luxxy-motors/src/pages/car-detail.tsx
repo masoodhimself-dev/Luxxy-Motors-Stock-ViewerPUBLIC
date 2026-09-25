@@ -1,3 +1,4 @@
+import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleHighlights, VehiclePartExchange, VehicleVisit } from '@/components/vehicle-buying-guide';
 import { SiWhatsapp } from 'react-icons/si';
@@ -16,7 +17,6 @@ import {
   Info,
   Share2,
   Check,
-  FileText,
 } from 'lucide-react';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -372,9 +372,7 @@ export default function CarDetail() {
                   'Speak to our team for the full vehicle description, service history and preparation details. We’ll be happy to answer your questions before you visit.'}
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-3">
-                <a href={`/api/vehicles/${encodeURIComponent(car.id)}/brochure.pdf`} download className="text-link min-h-11 text-sm" data-testid="link-vehicle-pdf" aria-label={`Download car brochure for ${vehicleLabel}`}>
-                  <FileText className="h-4 w-4" /> Download car brochure
-                </a>
+                <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
               </div>
             </section>
             <section

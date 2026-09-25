@@ -15,7 +15,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('[data-testid^="card-vehicle-"]').first()).toBeVisible();
     await expect(page.locator('[data-testid^="button-compare-"]')).toHaveCount(0);
     await page.goto('/vehicle/preview-1');
-    await expect(page.getByTestId('link-vehicle-pdf')).toBeVisible();
+    await expect(page.getByTestId('button-print-vehicle')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Share this vehicle', exact: true })).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await mkdir('../../docs/screenshots/customer-simplification', { recursive: true });

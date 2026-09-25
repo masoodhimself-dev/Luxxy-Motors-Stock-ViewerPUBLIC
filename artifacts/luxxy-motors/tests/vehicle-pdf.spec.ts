@@ -2,44 +2,42 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 
-test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Uses archived stock in the read-only local preview.');
-
+test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Uses read-only local preview stock.');
 for (const width of [390, 1440]) {
-  test(`vehicle PDF opens from the ${width}px detail page with real embedded photographs`, async ({ page }) => {
-    test.setTimeout(60_000);
-    await page.setViewportSize({ width, height: width < 600 ? 844 : 1000 });
+  test(`vehicle print sheet at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => { window.print = () => { document.documentElement.dataset.printRequested = 'true'; }; });
     await page.goto('/vehicle/preview-4');
-    const link = page.getByTestId('link-vehicle-pdf');
-    await expect(link).toBeVisible();
-    await expect(link).toHaveAccessibleName(/Download car brochure for .*Jeep Renegade/);
-    await link.scrollIntoViewIfNeeded();
-    await link.focus();
-    await expect(link).toBeFocused();
-    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const button = page.getByTestId('button-print-vehicle');
+    await expect(button).toHaveAccessibleName(/Print vehicle details for .*Jeep Renegade/);
+    await button.scrollIntoViewIfNeeded();
+    await button.focus();
+    await expect(button).toBeFocused();
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await button.press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-print-requested', 'true');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (process.env.CAPTURE_VEHICLE_PDF === '1') {
-      const directory = resolve('../../docs/screenshots/vehicle-pdf');
-      await mkdir(directory, { recursive: true });
-      await page.screenshot({ path: resolve(directory, `vehicle-${width}.png`), animations: 'disabled' });
-    }
-    // Inspect the bytes independently of browser PDF-plugin internals.
-    const pdf = await page.request.get('/api/vehicles/preview-4/brochure.pdf');
-    expect(pdf.ok()).toBe(true);
-    const bytes = await pdf.body();
-    expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
-    expect((bytes.toString('latin1').match(/\/Subtype \/Image\b/g) ?? []).length).toBeGreaterThan(0);
-    const downloadPromise = page.waitForEvent('download');
-    await link.press('Enter');
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toBe('2015-Jeep-Renegade-details.pdf');
-    expect(await download.failure()).toBeNull();
-    expect(page.url()).toContain('/vehicle/preview-4');
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.locator('.vehicle-print-sheet')).toBeVisible();
+    await expect(page.locator('#root')).toBeHidden();
+    const images = page.locator('.vehicle-print-sheet img');
+    expect(await images.count()).toBeGreaterThan(0);
+    expect(await images.evaluateAll(images => images.every(img => (img as HTMLImageElement).naturalWidth > 0))).toBe(true);
+    const directory = resolve('../../output/pdf');
+    await mkdir(directory, { recursive: true });
+    await page.pdf({ path: resolve(directory, `luxxy-vehicle-print-${width}.pdf`), preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
   });
 }
 
-test('a missing vehicle returns an honest unavailable response instead of a PDF', async ({ request }) => {
-  const response = await request.get('/api/vehicles/no-such-car/brochure.pdf');
-  expect(response.status()).toBe(404);
-  expect(response.headers()['content-type']).toContain('text/plain');
-  expect(await response.text()).toContain('no longer available');
+test('long print summaries remain within one printable sheet', async ({ page }) => {
+  await page.goto('/vehicle/preview-2');
+  await page.emulateMedia({ media: 'print' });
+  await page.locator('.vehicle-print-sheet').evaluate(sheet => {
+    sheet.querySelector('h1')!.textContent = 'A long vehicle make and model with a detailed trim specification '.repeat(2).slice(0, 110);
+    sheet.querySelector('.vehicle-print-description p')!.textContent = 'Detailed vehicle description and supplied maintenance information. '.repeat(12).slice(0, 650);
+    sheet.querySelector('.vehicle-print-features')!.innerHTML = '<h2>Features & equipment</h2><ul>' + Array.from({length: 15}, () => '<li>' + 'Long equipment description with additional specification information.'.slice(0, 68) + '</li>').join('') + '</ul><p>+ 25 more features on the vehicle page.</p>';
+  });
+  const dimensions = await page.locator('.vehicle-print-sheet').evaluate(sheet => ({ height: sheet.clientHeight, scroll: sheet.scrollHeight }));
+  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.height + 1);
+  await page.pdf({ path: resolve('../../output/pdf/luxxy-vehicle-print-long.pdf'), preferCSSPageSize: true, printBackground: true, displayHeaderFooter: false });
 });

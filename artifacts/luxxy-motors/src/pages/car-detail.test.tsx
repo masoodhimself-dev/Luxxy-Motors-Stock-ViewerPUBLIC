@@ -164,10 +164,9 @@ describe('vehicle detail link preview', () => {
   });
 });
 
-it('downloads the selected car brochure from beneath the description', () => {
+it('offers printing beneath the selected vehicle description', () => {
   renderVehicle('with-plate');
-  const link = screen.getByRole('link', { name: 'Download car brochure for BMW 3 Series' });
-  expect(link).toHaveAttribute('href', '/api/vehicles/with-plate/brochure.pdf');
-  expect(link).toHaveAttribute('download');
+  const link = screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' });
+  expect(link).toHaveAttribute('type', 'button');
   expect(link.closest('section')).toHaveAttribute('aria-labelledby', 'vehicle-description-heading');
 });
