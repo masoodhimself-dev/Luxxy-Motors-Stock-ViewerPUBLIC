@@ -161,11 +161,10 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         {groupNavigation()}
         {allImages.length > 1 && (
           <div
-            className="mt-3 flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-2"
+            className="vehicle-thumbnail-grid mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-6"
             aria-label="Choose photograph"
           >
-            {allImages.slice(Math.floor(index / 6) * 6, Math.floor(index / 6) * 6 + 6).map((image, offset) => {
-              const i = Math.floor(index / 6) * 6 + offset;
+            {allImages.map((image, i) => {
               return (
               <button
                 key={`${getSafeImageUrl(image)}-${i}`}
@@ -188,7 +187,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
                 }}
                 onClick={() => setActiveIndex(i)}
                 className={cn(
-                  'h-16 w-24 shrink-0 overflow-hidden rounded-sm border-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  'aspect-[4/3] w-full overflow-hidden rounded-sm border-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   i === index ? 'border-accent' : 'border-transparent opacity-70 hover:opacity-100',
                 )}
               >

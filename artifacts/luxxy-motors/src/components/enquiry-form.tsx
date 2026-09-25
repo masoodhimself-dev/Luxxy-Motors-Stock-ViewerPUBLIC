@@ -106,6 +106,7 @@ function apiErrorMessage(error: unknown) {
 
 export function EnquiryForm({
   initialType = 'general',
+  embedded = false,
   vehicle,
   stockCars = [],
   initialMessage = '',
@@ -113,6 +114,7 @@ export function EnquiryForm({
   onChangeCar,
 }: {
   initialType?: EnquiryType;
+  embedded?: boolean;
   initialMessage?: string;
   vehicle?: Car;
   stockCars?: Car[];
@@ -419,7 +421,7 @@ export function EnquiryForm({
         </div>
       </div>
 
-      {vehicle && !isPartExchange && (
+      {vehicle && !isPartExchange && !embedded && (
         <div className="flex items-start justify-between gap-3 lg:hidden" data-testid="card-enquiry-vehicle">
           <div className="min-w-0">
             <p className="luxxy-label text-primary/70">Your selected car</p>

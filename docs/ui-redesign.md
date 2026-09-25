@@ -647,3 +647,8 @@ Homepage featured boxes now omit the photo-count badge, save-heart button and pr
 - Saving a car shows a five-second confirmation with a View saved cars link.
 
 Validation: 172 frontend tests, desktop/mobile stock browser checks and shared-URL/save/recovery checks pass; workspace typechecking/build pass with the existing chunk-size warning. Fresh desktop/mobile stock screenshots inspected. No backend, API or database changes.
+
+### Vehicle detail redesign inspired by supplied reference
+Rebuilt the vehicle layout around a large left gallery and a bordered right summary with price, six key facts, viewing/enquiry/reservation/part-exchange/contact actions and print/share utilities. Added the existing working enquiry form below the summary, keeping its vehicle context and API contract. Expanded desktop thumbnails into a bounded six-column grid; mobile uses a horizontal thumbnail strip. Retained fullscreen/keyboard/gallery controls, mobile booking actions, history disclosures, complete specifications and the one-page print sheet. No finance or monthly-payment presentation was introduced.
+
+Validation: 172 frontend tests; seven browser checks covering 320px, 390px and 1440px, fullscreen and thumbnail selection, inline form entry, intercepted (not real) enquiry submission and print generation; workspace typechecking/build pass with existing bundle-size warning. Screenshots in docs/screenshots/vehicle-redesign. No backend, database, API, authentication, payment-rule or deployment changes.

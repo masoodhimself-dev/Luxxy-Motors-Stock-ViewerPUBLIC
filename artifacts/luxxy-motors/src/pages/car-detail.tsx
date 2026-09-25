@@ -1,3 +1,4 @@
+import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleHighlights, VehiclePartExchange, VehicleVisit } from '@/components/vehicle-buying-guide';
@@ -154,6 +155,8 @@ export default function CarDetail() {
       value: car.fuel || 'Ask us',
     },
     { label: 'Transmission', value: car.transmission || '-' },
+    { label: 'Engine', value: car.engineSize || (car.engineCC ? String(car.engineCC) + ' cc' : 'Ask us') },
+    { label: 'Body', value: car.bodyType || 'Ask us' },
   ];
 
   const damageDisclosure = (() => {
@@ -212,19 +215,22 @@ export default function CarDetail() {
               variant="inline"
               className="border-transparent bg-transparent"
             />
-            <Button variant="ghost" onClick={share} aria-label="Share this vehicle">
-              <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Share</span>
-            </Button>
+
             <span className="text-xs text-muted-foreground" role="status">
               {shareMessage}
             </span>
           </div>
         </div>
-        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)] lg:gap-10">
-          <header className="min-w-0 lg:col-start-2 lg:row-start-1">
+        <div className="grid min-w-0 items-start gap-6 vehicle-detail-grid lg:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)] lg:gap-7">
+          <div className="vehicle-detail-gallery min-w-0 lg:col-start-1 lg:row-start-1">
+            <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
+            {whatsappHref && <a className="text-link mt-2 min-h-11 text-sm" href={getVehicleWhatsAppHref(car, 'request a walkaround video, including the interior and any marks or damage', dealerConfig)} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({channel:'whatsapp',car,source:'vehicle_walkaround'})}>Request a walkaround video <ArrowRight className="h-4 w-4" /></a>}
+          </div>
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <div className="vehicle-summary min-w-0">
+          <header className="min-w-0">
             <p className="luxxy-kicker mb-3">
-              {vehicleAvailability(car.inventoryStatus)}
+              {vehicleAvailability(car.inventoryStatus)} · {dealerConfig.address?.city || dealerConfig.identity.name}
             </p>
             <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">
               {vehicleLabel}
@@ -244,12 +250,8 @@ export default function CarDetail() {
 
             </div>
           </header>
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
-            <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
-            {whatsappHref && <a className="text-link mt-2 min-h-11 text-sm" href={getVehicleWhatsAppHref(car, 'request a walkaround video, including the interior and any marks or damage', dealerConfig)} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({channel:'whatsapp',car,source:'vehicle_walkaround'})}>Request a walkaround video <ArrowRight className="h-4 w-4" /></a>}
-          </div>
-          <aside className="min-w-0 border-t border-border py-4 lg:border-t-0 lg:py-0 lg:col-start-2 lg:row-start-2 lg:row-span-2 lg:self-stretch">
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-5">
+          <aside className="min-w-0 pt-5">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 xl:grid-cols-3">
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="text-xs text-muted-foreground">
@@ -273,9 +275,9 @@ export default function CarDetail() {
               </div>
             )}
               {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
-            <div className="lg:sticky lg:top-[calc(var(--site-header-height,5rem)+1rem)]" data-testid="desktop-purchase-panel">
-            <div ref={purchasePanel} className="mt-4 flex flex-col gap-3 border-y border-border bg-card px-4 py-5">
-              <p className="hidden lg:block text-sm font-semibold">{car.price ? formatPrice(car.price, car.currency) : "Price on application"} · Arrange a viewing</p>
+            <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
+            <div ref={purchasePanel} className="mt-4 flex flex-col gap-3 border-t border-border pt-5">
+
               <Button asChild size="lg">
                 <a
                   href={bookingHref}
@@ -288,10 +290,11 @@ export default function CarDetail() {
                   {dealerConfig.bookViewing.ctaLabel}
                 </a>
               </Button>
-              <Link className="text-link min-h-11 justify-center text-sm" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
-                  Ask a question <ArrowRight className="h-4 w-4" />
-              </Link>
-              <ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
+              <a className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}>
+                  Enquire about this car <ArrowRight className="h-4 w-4" />
+              </a>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
+              {dealerConfig.partExchange?.enabled && <a href="#vehicle-exchange-heading" className="vehicle-contact-action">Part exchange <ArrowRight className="h-4 w-4" /></a>}</div>
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a viewing separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
                 {phoneHref && (
@@ -326,16 +329,6 @@ export default function CarDetail() {
                 )}
               </div>
             </div>
-            <section aria-labelledby="vehicle-quick-history" className="mt-5 border-t border-border pt-4">
-              <h2 id="vehicle-quick-history" className="text-sm font-semibold">What you should know</h2>
-
-              <dl className="mt-2 divide-y divide-border">{buyerInformation(car).filter(item => ['Service history','MOT expiry','Keys','Warranty','Condition'].includes(item.label)).map(item => <div key={item.label} className="flex items-start justify-between gap-4 py-2 text-xs leading-5"><dt className="shrink-0 text-muted-foreground">{item.label}</dt><dd className="min-w-0 text-right">{item.value ? <span className="line-clamp-2">{item.value}</span> : <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=${questionKeyForLabel(item.label) || ''}`} className="underline underline-offset-4">Ask us</Link>}</dd></div>)}</dl>
-              <a href="#buyer-information-heading" className="inline-flex min-h-11 items-center gap-2 text-xs underline underline-offset-4" onClick={() => document.getElementById('buyer-information-heading')?.focus()}>History, MOT, keys & warranty <ArrowRight className="h-3.5 w-3.5" /></a>
-            </section>
-            <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
-              {dealerConfig.identity.name || stock.dealerName} · Viewings by appointment. Take your
-              time with the car and ask us anything.
-            </p>
             {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex items-center justify-between">
               <CompareCarButton car={car} variant="compact" className="min-h-11" />
               <Link href="/compare" className="text-link text-xs text-muted-foreground">
@@ -345,7 +338,15 @@ export default function CarDetail() {
 
             </div>
           </aside>
-          <div className="min-w-0 pb-10 lg:col-start-1 lg:row-start-3">
+<div className="mt-5 flex flex-wrap items-center gap-x-5 border-t border-border pt-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
+          </div>
+          <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6" aria-labelledby="vehicle-enquiry-heading">
+            <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
+            <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
+          </section>
+          </div>
+          <div className="min-w-0 pb-10 lg:col-start-1 lg:row-start-2">
             <VehicleHighlights car={car} features={features} />
             <section
               aria-labelledby="vehicle-overview-heading"
@@ -371,9 +372,7 @@ export default function CarDetail() {
                 {description ||
                   'Speak to our team for the full vehicle description, service history and preparation details. We’ll be happy to answer your questions before you visit.'}
               </p>
-              <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-3">
-                <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
-              </div>
+
             </section>
             <section
               className="mt-8 border-t border-border pt-7"
@@ -448,6 +447,7 @@ export default function CarDetail() {
             <VehiclePartExchange key={car.id} car={car} />
             <VehicleVisit car={car} />
           </div>
+
         </div>
       </div>
       {!purchaseVisible && <div

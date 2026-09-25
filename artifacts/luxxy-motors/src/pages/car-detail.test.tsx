@@ -164,9 +164,9 @@ describe('vehicle detail link preview', () => {
   });
 });
 
-it('offers printing beneath the selected vehicle description', () => {
+it('offers printing in the vehicle summary', () => {
   renderVehicle('with-plate');
   const link = screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' });
   expect(link).toHaveAttribute('type', 'button');
-  expect(link.closest('section')).toHaveAttribute('aria-labelledby', 'vehicle-description-heading');
+  expect(link.closest('.vehicle-summary')).not.toBeNull();
 });
