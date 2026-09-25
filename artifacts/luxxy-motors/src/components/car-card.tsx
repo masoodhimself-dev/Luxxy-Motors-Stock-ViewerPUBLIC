@@ -177,7 +177,7 @@ export function CarCard({
           </span>
         )}
       </div>
-      <div className={cn('flex min-w-0 flex-1 flex-col p-4', isRow && 'md:p-6')}>
+      <div className={cn('vehicle-card-details flex min-w-0 flex-1 flex-col p-4', isRow && 'md:p-6')}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div
             className={cn(
@@ -222,7 +222,7 @@ export function CarCard({
           </p>
         )}
         <div
-          className="mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
+          className="vehicle-card-actions mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
           data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
         >
           <Link href={detailHref} onClick={recordVehicleOpen} className="text-link text-xs">

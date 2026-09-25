@@ -351,3 +351,29 @@
  .browse-stock .stock-toolbar { position: sticky; top: var(--site-header-height); z-index: 30; }
  .stock-toolbar-expanded { max-height: calc(100dvh - var(--site-header-height) - 190px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
 }
+
+/* Homepage feature boxes: photography above a quiet name-and-price panel. */
+.rolling-stock .vehicle-card {
+ border: 0;
+ border-right: 6px solid white;
+ border-radius: 0;
+ background: #dededc;
+ box-sizing: border-box;
+}
+.rolling-stock .vehicle-card-details {
+ flex: 1;
+ justify-content: center;
+ min-height: 132px;
+ padding: 22px 16px;
+ background: #dededc;
+ text-align: center;
+}
+.rolling-stock .vehicle-card-heading h3 { font-size: 1rem; font-weight: 500; }
+.rolling-stock .vehicle-card-details > div:nth-child(2) { justify-content: center; margin-top: 8px; }
+.rolling-stock .luxxy-price { font-size: 1.875rem; line-height: 1.2; }
+.rolling-stock .vehicle-specs { display: none; }
+.rolling-stock .vehicle-card-actions { display: none; }
+@media (max-width: 639px) {
+ .rolling-stock .vehicle-card { border-right-width: 4px; }
+ .rolling-stock .vehicle-card-details { min-height: 112px; padding: 18px 14px; }
+}
