@@ -1,3 +1,4 @@
+import customerReviews from './customer-reviews.json';
 import type { DealerSettings } from '@workspace/api-client-react';
 import { dealerConfig } from '../src/config/dealer';
 
@@ -9,6 +10,8 @@ export const previewSettings: DealerSettings = {
     terms: "Sample reservation terms: we will hold your chosen car while our team contacts you to discuss the purchase and next steps. Contact the dealership if you wish to cancel. Replace these sample terms with your dealership's reservation policy before publishing. Payment is simulated and no money is taken.",
   },
   presentation: {
+    reviewsEnabled: true,
+    reviews: customerReviews.map(review => ({ ...review, rating: 5 as const })),
     // With no separate showroom image, the introduction reuses the homepage photo.
     showroomImageUrl: "",
     showroomImageAlt: "",

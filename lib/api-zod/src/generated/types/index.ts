@@ -17,6 +17,8 @@ export * from './customerIntakeCustomer';
 export * from './customerIntakeSession';
 export * from './customerIntakeSessionInput';
 export * from './customerIntakeSessionStatus';
+export * from './customerReview';
+export * from './customerReviewRating';
 export * from './dealerAddress';
 export * from './dealerBookViewing';
 export * from './dealerBrandColors';

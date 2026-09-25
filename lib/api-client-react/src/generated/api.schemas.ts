@@ -350,10 +350,42 @@ export interface RecentHandovers {
   handovers: RecentHandover[];
 }
 
+export type CustomerReviewRating = typeof CustomerReviewRating[keyof typeof CustomerReviewRating];
+
+
+export const CustomerReviewRating = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+  NUMBER_3: 3,
+  NUMBER_4: 4,
+  NUMBER_5: 5,
+} as const;
+
+export interface CustomerReview {
+  rating: CustomerReviewRating;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  review: string;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  name: string;
+  /** @maxLength 100 */
+  date: string;
+  /** @maxLength 100 */
+  source: string;
+}
+
 /**
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  reviewsEnabled?: boolean;
+  /** @maxItems 100 */
+  reviews?: CustomerReview[];
   /** Show customer vehicle comparison. Off when omitted. */
   comparisonEnabled?: boolean;
   /**

@@ -2469,6 +2469,16 @@ export const CompleteSigningSessionResponse = zod.record(zod.string(), zod.unkno
  * Returns the configured dealer identity, contact details, showroom copy, services, and legal links.
  * @summary Get the public dealer profile
  */
+export const getDealerSettingsResponsePresentationReviewsItemReviewMax = 5000;
+
+export const getDealerSettingsResponsePresentationReviewsItemNameMax = 150;
+
+export const getDealerSettingsResponsePresentationReviewsItemDateMax = 100;
+
+export const getDealerSettingsResponsePresentationReviewsItemSourceMax = 100;
+
+export const getDealerSettingsResponsePresentationReviewsMax = 100;
+
 export const getDealerSettingsResponsePresentationHeroImageUrlMax = 2048;
 
 
@@ -2618,6 +2628,14 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "reviewsEnabled": zod.boolean().optional(),
+  "reviews": zod.array(zod.object({
+  "rating": zod.union([zod.literal(1),zod.literal(2),zod.literal(3),zod.literal(4),zod.literal(5)]),
+  "review": zod.string().min(1).max(getDealerSettingsResponsePresentationReviewsItemReviewMax),
+  "name": zod.string().min(1).max(getDealerSettingsResponsePresentationReviewsItemNameMax),
+  "date": zod.string().max(getDealerSettingsResponsePresentationReviewsItemDateMax),
+  "source": zod.string().max(getDealerSettingsResponsePresentationReviewsItemSourceMax)
+})).max(getDealerSettingsResponsePresentationReviewsMax).optional(),
   "comparisonEnabled": zod.boolean().optional().describe('Show customer vehicle comparison. Off when omitted.'),
   "heroImageUrl": zod.string().max(getDealerSettingsResponsePresentationHeroImageUrlMax).regex(getDealerSettingsResponsePresentationHeroImageUrlRegExp).optional(),
   "heroImageAlt": zod.string().max(getDealerSettingsResponsePresentationHeroImageAltMax).optional(),
@@ -2732,6 +2750,16 @@ export const GetDealerSettingsResponse = zod.object({
  * Saves the complete dealer profile used by the public showroom and dealer portal.
  * @summary Replace the dealer profile
  */
+export const updateDealerSettingsBodyOnePresentationReviewsItemReviewMax = 5000;
+
+export const updateDealerSettingsBodyOnePresentationReviewsItemNameMax = 150;
+
+export const updateDealerSettingsBodyOnePresentationReviewsItemDateMax = 100;
+
+export const updateDealerSettingsBodyOnePresentationReviewsItemSourceMax = 100;
+
+export const updateDealerSettingsBodyOnePresentationReviewsMax = 100;
+
 export const updateDealerSettingsBodyOnePresentationHeroImageUrlMax = 2048;
 
 
@@ -2881,6 +2909,14 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
+  "reviewsEnabled": zod.boolean().optional(),
+  "reviews": zod.array(zod.object({
+  "rating": zod.union([zod.literal(1),zod.literal(2),zod.literal(3),zod.literal(4),zod.literal(5)]),
+  "review": zod.string().min(1).max(updateDealerSettingsBodyOnePresentationReviewsItemReviewMax),
+  "name": zod.string().min(1).max(updateDealerSettingsBodyOnePresentationReviewsItemNameMax),
+  "date": zod.string().max(updateDealerSettingsBodyOnePresentationReviewsItemDateMax),
+  "source": zod.string().max(updateDealerSettingsBodyOnePresentationReviewsItemSourceMax)
+})).max(updateDealerSettingsBodyOnePresentationReviewsMax).optional(),
   "comparisonEnabled": zod.boolean().optional().describe('Show customer vehicle comparison. Off when omitted.'),
   "heroImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationHeroImageUrlMax).regex(updateDealerSettingsBodyOnePresentationHeroImageUrlRegExp).optional(),
   "heroImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationHeroImageAltMax).optional(),
@@ -2989,6 +3025,16 @@ export const UpdateDealerSettingsBody = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneWhyBuyItemDescriptionMax)
 })).max(updateDealerSettingsBodyOneWhyBuyMax)
 })
+
+export const updateDealerSettingsResponsePresentationReviewsItemReviewMax = 5000;
+
+export const updateDealerSettingsResponsePresentationReviewsItemNameMax = 150;
+
+export const updateDealerSettingsResponsePresentationReviewsItemDateMax = 100;
+
+export const updateDealerSettingsResponsePresentationReviewsItemSourceMax = 100;
+
+export const updateDealerSettingsResponsePresentationReviewsMax = 100;
 
 export const updateDealerSettingsResponsePresentationHeroImageUrlMax = 2048;
 
@@ -3139,6 +3185,14 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "reviewsEnabled": zod.boolean().optional(),
+  "reviews": zod.array(zod.object({
+  "rating": zod.union([zod.literal(1),zod.literal(2),zod.literal(3),zod.literal(4),zod.literal(5)]),
+  "review": zod.string().min(1).max(updateDealerSettingsResponsePresentationReviewsItemReviewMax),
+  "name": zod.string().min(1).max(updateDealerSettingsResponsePresentationReviewsItemNameMax),
+  "date": zod.string().max(updateDealerSettingsResponsePresentationReviewsItemDateMax),
+  "source": zod.string().max(updateDealerSettingsResponsePresentationReviewsItemSourceMax)
+})).max(updateDealerSettingsResponsePresentationReviewsMax).optional(),
   "comparisonEnabled": zod.boolean().optional().describe('Show customer vehicle comparison. Off when omitted.'),
   "heroImageUrl": zod.string().max(updateDealerSettingsResponsePresentationHeroImageUrlMax).regex(updateDealerSettingsResponsePresentationHeroImageUrlRegExp).optional(),
   "heroImageAlt": zod.string().max(updateDealerSettingsResponsePresentationHeroImageAltMax).optional(),

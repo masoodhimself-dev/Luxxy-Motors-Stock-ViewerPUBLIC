@@ -145,3 +145,14 @@ test('brochure settings accept legacy records, preserve omitted options and vali
   const disabled = preservePresentation({ ...legacy, presentation: { comparisonEnabled: false } }, previous);
   assert.equal(UpdateDealerSettingsBody.parse(disabled).presentation?.comparisonEnabled, false);
  });
+
+test("review settings validate and survive older-client updates", () => {
+  const reviews = [{ rating: 5, review: "Helpful service.", name: "J.", date: "September 2026", source: "Google" }];
+  const settings = { ...legacy, presentation: { reviewsEnabled: true, reviews } };
+  assert.equal(UpdateDealerSettingsBody.safeParse(settings).success, true);
+  assert.equal(UpdateDealerSettingsBody.safeParse({ ...settings, presentation: { reviews: [{ ...reviews[0], rating: 6 }] } }).success, false);
+  const preserved = preservePresentation({ ...legacy, presentation: {} }, settings);
+  assert.deepEqual(preserved.presentation, settings.presentation);
+  const cleared = preservePresentation({ ...legacy, presentation: { reviews: [] } }, settings);
+  assert.deepEqual(cleared.presentation.reviews, []);
+});

@@ -683,3 +683,13 @@ Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscr
 - Reduced service-section spacing while preserving aligned actions.
 - Shortened the homepage footer to today's opening information and a Full opening hours link; other pages retain their upcoming-day list.
 - Verification: 172 frontend tests and four desktop/mobile Playwright checks passed. Workspace typechecking and builds passed; the existing bundle-size advisory remains. Fresh full-page desktop/mobile screenshots inspected and saved in docs/screenshots/homepage-refinement.
+
+
+## Customer reviews — 25 September 2026
+- Added What our customers say between featured stock/editorial content and Plan your visit.
+- Imported the 20 user-confirmed genuine reviews into local preview settings, preserving their wording, dates, names and sources. No overall rating, verification claim or invented Google link is displayed.
+- Three review panels on desktop, two on tablet and a swipeable row on mobile; manual previous/next controls, keyboard scrolling and reduced-motion support.
+- Long text can be expanded. Empty or disabled sections are hidden.
+- Added an enable switch and validated JSON editor under dealership presentation settings. Apply JSON, then Save settings. The existing optional reviews-page link can be added later.
+- Extended the existing settings JSON contract with reviewsEnabled and up to 100 validated reviews; omitted fields survive older-client saves. No database schema/migration or production changes.
+- Validation: 176 frontend tests, nine backend settings tests, four homepage browser checks and two review browser checks passed. Workspace typechecking/build passed (existing chunk-size warning). Desktop/mobile review screenshots saved under docs/screenshots/customer-reviews.

@@ -1919,11 +1919,27 @@ components:
           items:
             $ref: "#/components/schemas/RecentHandover"
       required: [schemaVersion, handovers]
+    CustomerReview:
+      type: object
+      additionalProperties: false
+      required: [rating, review, name, date, source]
+      properties:
+        rating: { type: number, enum: [1, 2, 3, 4, 5] }
+        review: { type: string, minLength: 1, maxLength: 5000 }
+        name: { type: string, minLength: 1, maxLength: 150 }
+        date: { type: string, maxLength: 100 }
+        source: { type: string, maxLength: 100 }
     DealerPresentation:
       type: object
       additionalProperties: false
       description: Optional showroom content. Empty values are not presented as factual claims.
       properties:
+        reviewsEnabled: { type: boolean }
+        reviews:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/CustomerReview"
         comparisonEnabled: { type: boolean, description: "Show customer vehicle comparison. Off when omitted." }
         heroImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
         heroImageAlt: { type: string, maxLength: 200 }

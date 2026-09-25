@@ -5,11 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CustomerReview } from './customerReview';
 
 /**
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  reviewsEnabled?: boolean;
+  /** @maxItems 100 */
+  reviews?: CustomerReview[];
   /** Show customer vehicle comparison. Off when omitted. */
   comparisonEnabled?: boolean;
   /**

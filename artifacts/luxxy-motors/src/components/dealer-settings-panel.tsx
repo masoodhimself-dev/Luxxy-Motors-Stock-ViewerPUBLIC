@@ -1,3 +1,4 @@
+import { ReviewsSettings } from './reviews-settings';
 import { ColourField, isValidHsl } from '@/components/brand/colour-field';
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
@@ -905,6 +906,7 @@ export function DealerSettingsPanel() {
                 />
               </Field>
             </div>
+            <ReviewsSettings value={form.presentation} onChange={value => updateGroup("presentation", value)} />
             <details className="border-y border-border py-3 text-sm">
               <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold">Vehicle photography guide</summary>
               <ol className="ml-5 mt-3 list-decimal space-y-2 leading-6 text-muted-foreground">

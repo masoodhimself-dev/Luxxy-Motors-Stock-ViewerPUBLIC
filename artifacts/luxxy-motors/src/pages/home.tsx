@@ -1,3 +1,4 @@
+import { CustomerReviews } from '@/components/customer-reviews';
 import { arrivalTime } from '@/lib/stock-presentation';
 import { RollingStock } from '@/components/rolling-stock';
 import { HeroStockSearch } from '@/components/hero-stock-search';
@@ -530,6 +531,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </section>
       )}
 
+      <CustomerReviews />
       <DealershipVisit>{dealershipPoints}</DealershipVisit>
 
       <section className="home-services section-space border-t border-border bg-secondary/40">

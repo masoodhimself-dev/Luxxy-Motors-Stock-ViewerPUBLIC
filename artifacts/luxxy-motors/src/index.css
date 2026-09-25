@@ -431,3 +431,9 @@ body:has(.homepage-refined) footer#contact > div > div:last-child { margin-top: 
  .homepage-refined #visit > div > div { align-items: center; }
  .homepage-refined .visit-story > figure > div { aspect-ratio: 2 / 1; }
 }
+
+.review-track { display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 12px; scrollbar-width: thin; }
+.review-track:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; }
+.review-panel { display: flex; flex-direction: column; flex: 0 0 calc((100% - 40px) / 3); scroll-snap-align: start; border: 1px solid hsl(var(--border)); padding: 24px; }
+@media (max-width: 1023px) { .review-panel { flex-basis: calc((100% - 20px) / 2); } }
+@media (max-width: 639px) { .review-panel { flex-basis: 88%; padding: 20px; } }
