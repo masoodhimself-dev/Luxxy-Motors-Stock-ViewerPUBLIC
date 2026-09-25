@@ -1,3 +1,4 @@
+import { RollingStock } from '@/components/rolling-stock';
 import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
@@ -11,7 +12,7 @@ import {
   restoreBrowsePosition,
 } from "@/lib/browse-session";
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
@@ -47,7 +48,16 @@ const defaultFilters: FilterState = {
 };
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
-export default function Home() {
+export default function Home({ browseStock = false }: { browseStock?: boolean }) {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    const redirectStock = () => {
+      if (!browseStock && ['#stock', '#vehicle-results'].includes(window.location.hash)) setLocation('/stock');
+    };
+    redirectStock();
+    window.addEventListener('hashchange', redirectStock);
+    return () => window.removeEventListener('hashchange', redirectStock);
+  }, [browseStock, setLocation]);
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const recentHandoversQuery = useGetRecentHandovers({
@@ -57,7 +67,7 @@ export default function Home() {
     },
   });
   const [showAll, setShowAll] = useState(
-    () => readBrowseSession().showAll === true,
+    () => browseStock || readBrowseSession().showAll === true,
   );
   const [stockView, setStockView] = useState<'cards' | 'compact'>(() => {
     try {
@@ -67,7 +77,7 @@ export default function Home() {
     }
   });
 
-  usePageMeta(showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }));
+  usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
 
   const [filters, setFilters] = useState<FilterState>(() => {
     const saved = readBrowseSession().filters;
@@ -168,12 +178,12 @@ export default function Home() {
         if (hasPendingHomeTarget()) {
           restoreBrowsePosition(true);
           flushPendingHomeTarget();
-        } else restoreBrowsePosition();
+        } else if (browseStock) restoreBrowsePosition();
       });
     }
-  }, [isLoading]);
+  }, [isLoading, browseStock]);
 
-  const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
+  const displayedCars = filteredCars;
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
 
@@ -188,6 +198,11 @@ export default function Home() {
   const revealResults = (source: 'quick_filter' | 'filter_panel' | 'view_all') => {
     trackEvent('stock_results_opened', { source, result_count: filteredCars.length });
     setShowAll(true);
+    if (!browseStock) {
+      saveBrowseSession({ filters, showAll: true, scrollY: 0 });
+      setLocation('/stock');
+      return;
+    }
     requestAnimationFrame(() => {
       if (scrollToHomeTarget('vehicle-results')) {
         focusHomeTarget('vehicle-results-heading');
@@ -258,7 +273,7 @@ export default function Home() {
 
   return (
     <div className="luxxy-shell min-h-screen">
-      <section className="stock-search-hero" aria-labelledby="home-heading">
+      {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
@@ -268,16 +283,18 @@ export default function Home() {
             <HeroStockSearch cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onSearch={() => revealResults('filter_panel')} />
           </div>
         </div>
-      </section>
+      </section>}
 
-      <section id="stock" data-home-section className="homepage-stock py-5 md:py-8">
+      {!browseStock && <RollingStock cars={stock?.cars ?? []} unavailable={Boolean(error)} />}
+
+      {browseStock && <section id="stock" data-home-section className="homepage-stock py-8 md:py-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div>
-              <h2 id="vehicle-results-heading" tabIndex={-1} className="section-heading">
-                {showAll ? 'All stock' : 'Latest arrivals'}
-              </h2>
-              {!showAll && stockCount > 3 && <button type="button" onClick={() => { setFilters({ ...defaultFilters }); revealResults('view_all'); }} className="text-link min-h-11 text-sm" data-testid="button-header-all-stock">View all stock <ArrowRight className="h-4 w-4" /></button>}
+              <h1 id="vehicle-results-heading" tabIndex={-1} className="section-heading">
+                Browse Stock
+              </h1>
+
             </div>
             {stock && (
               <p
@@ -405,19 +422,7 @@ export default function Home() {
                     />
                   ))}
                 </div>
-                {filteredCars.length > 3 && !showAll && (
-                  <div className="mt-8 text-center">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={() => revealResults('view_all')}
-                      data-testid="button-view-all-vehicles"
-                    >
-                      View all {filteredCars.length} vehicles
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+
               </>
             ) : !stock?.cars.length ? (
               <div className="surface px-6 py-12 text-center" data-testid="empty-stock">
@@ -447,8 +452,9 @@ export default function Home() {
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
+      {!browseStock && <>
       {dealerConfig.recentHandovers.enabled && recentHandovers.length > 0 && (
         <section
           id="recent-handovers"
@@ -573,6 +579,7 @@ export default function Home() {
         </div>
       </section>
       <DealershipVisit />
+      </>}
       <RecentlyViewed />
     </div>
   );

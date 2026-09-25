@@ -28,7 +28,7 @@ export function saveBrowseSession(value: BrowseSession) {
 export function rememberStockPosition(vehicleId: string) {
   if (
     window.location.pathname.replace(/\/$/, "") ===
-    import.meta.env.BASE_URL.replace(/\/$/, "")
+    import.meta.env.BASE_URL.replace(/\/$/, "") + "/stock"
   ) {
     saveBrowseSession({ scrollY: window.scrollY, vehicleId });
   }

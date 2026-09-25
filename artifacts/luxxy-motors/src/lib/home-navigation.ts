@@ -75,6 +75,12 @@ export function navigateToHomeTarget(
   currentLocation: string,
   setLocation: SetLocation,
 ) {
+  if (target === 'stock' || target === 'vehicle-results') {
+    pendingTarget = null;
+    if (currentLocation !== '/stock') setLocation('/stock');
+    else scrollToHomeTarget('stock');
+    return;
+  }
   pendingTarget = target;
 
   if (currentLocation !== '/') {

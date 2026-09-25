@@ -102,7 +102,7 @@ export default function Enquire() {
               <div className="mt-5 hidden flex-col gap-4 lg:flex" data-testid="enquiry-vehicle-summary">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
                   <p className="font-display text-[13px] font-semibold text-primary">Your selected car</p>
-                  <Link href="/#stock" onClick={(event) => { event.preventDefault(); changeCar(); }} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+                  <Link href="/stock" onClick={(event) => { event.preventDefault(); changeCar(); }} className="inline-flex min-h-11 shrink-0 items-center font-display text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
                     Change car
                   </Link>
                 </div>
@@ -145,7 +145,7 @@ export default function Enquire() {
                   </p>
                 </div>
                 <Link
-                  href="/#stock"
+                  href="/stock"
                   onClick={(event: MouseEvent<HTMLAnchorElement>) => {
                     event.preventDefault();
                     navigateToHomeTarget('stock', location, setLocation);

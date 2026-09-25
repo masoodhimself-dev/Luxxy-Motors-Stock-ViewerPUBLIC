@@ -7,7 +7,7 @@ export function RouteScrollReset() {
 
   const previous = useRef(location);
   useLayoutEffect(() => {
-    if (location === "/" && previous.current !== "/") requestBrowseRestore();
+    if (location === "/stock" && previous.current.startsWith("/vehicle/")) requestBrowseRestore();
     previous.current = location;
     window.history.scrollRestoration = 'manual';
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });

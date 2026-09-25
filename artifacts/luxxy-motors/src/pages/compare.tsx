@@ -182,7 +182,7 @@ function EmptySlot() {
         </p>
       </div>
       <Button asChild variant="outline" className="mt-6 w-full h-12 rounded-md border border-border bg-card font-display text-[11px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground hover:shadow-none">
-        <Link href="/">Browse stock</Link>
+        <Link href="/stock">Browse stock</Link>
       </Button>
     </div>
   );
@@ -200,7 +200,7 @@ export default function Compare() {
 
   const visibleRows = differencesOnly && cars.length === 2 ? rows.filter((row) => row.render(cars[0]) !== row.render(cars[1])) : rows;
 
-  if (!settings.presentation?.comparisonEnabled) return <div className="container mx-auto px-4 py-16"><h1 className="heading-2">Browse your next car</h1><p className="mt-3 text-muted-foreground">Save the cars you like and ask our team for help choosing.</p><Link href="/saved" className="text-link mt-5 min-h-11">View saved cars</Link><Link href="/#stock" className="text-link ml-6 min-h-11">Browse stock</Link></div>;
+  if (!settings.presentation?.comparisonEnabled) return <div className="container mx-auto px-4 py-16"><h1 className="heading-2">Browse your next car</h1><p className="mt-3 text-muted-foreground">Save the cars you like and ask our team for help choosing.</p><Link href="/saved" className="text-link mt-5 min-h-11">View saved cars</Link><Link href="/stock" className="text-link ml-6 min-h-11">Browse stock</Link></div>;
 
   if (isLoading && compareIds.length > 0) {
     return (
@@ -219,7 +219,7 @@ export default function Compare() {
     <div className="luxxy-shell min-h-screen bg-background pb-24 pt-8 md:pt-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
-          href="/"
+          href="/stock"
           className="inline-flex items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
@@ -233,7 +233,7 @@ export default function Compare() {
             Your selections are still saved on this device. Try again to check current availability.
           </PageEmptyState></div>
         ) : cars.length === 0 ? (
-          <PageEmptyState title="Choose cars to compare" action={<Button asChild><Link href="/">Browse stock <ArrowRight className="h-4 w-4" /></Link></Button>}>
+          <PageEmptyState title="Choose cars to compare" action={<Button asChild><Link href="/stock">Browse stock <ArrowRight className="h-4 w-4" /></Link></Button>}>
             Choose Compare on any {MAX_COMPARE} cars to see their details side by side.
           </PageEmptyState>
         ) : (

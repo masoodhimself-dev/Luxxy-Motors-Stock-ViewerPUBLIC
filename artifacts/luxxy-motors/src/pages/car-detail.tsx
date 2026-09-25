@@ -113,7 +113,7 @@ export default function CarDetail() {
   }
 
   if (!stock || !stock.cars) return <NotFound />;
-  if (!car) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{stock.cars.slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{stock.cars.slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
@@ -202,9 +202,9 @@ export default function CarDetail() {
     <div className="luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-2 py-4">
-          <Link href="/" className="text-link text-muted-foreground">
+          <Link href="/stock" className="text-link text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
-            Back to showroom
+            Back to Browse Stock
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <SaveCarButton
@@ -501,7 +501,7 @@ export default function CarDetail() {
                 You may also like
               </h2>
               <Link
-                href="/#stock"
+                href="/stock"
                 onClick={(event: MouseEvent<HTMLAnchorElement>) => {
                   event.preventDefault();
                   navigateToHomeTarget('stock', location, setLocation);

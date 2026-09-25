@@ -66,7 +66,8 @@ function Router() {
       <RoutedErrorBoundary>
         <Suspense fallback={<RouteLoading />}>
           <Switch>
-          <Route path="/" component={Home} />
+          <Route path="/"><Home key="home" /></Route>
+          <Route path="/stock"><Home key="stock" browseStock /></Route>
           <Route path="/vehicle/:id" component={CarDetail} />
           <Route path="/saved" component={Saved} />
           <Route path="/compare" component={Compare} />

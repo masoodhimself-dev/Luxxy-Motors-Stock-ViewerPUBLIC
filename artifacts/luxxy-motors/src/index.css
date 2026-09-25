@@ -329,3 +329,20 @@
  .vehicle-print-footer { margin-top: auto; border-top: 1px solid #ccc; padding-top: 2mm; font-size: 8pt; overflow-wrap: anywhere; }
  .vehicle-print-footer small { display: block; margin-top: 1mm; font-size: 7pt; color: #555; }
 }
+
+/* Four visible vehicles on desktop, with an accessible, pausable continuous strip. */
+.rolling-stock-window { overflow-x: auto; scrollbar-width: thin; padding: 0 16px 8px; }
+.rolling-stock-track { display: flex; width: max-content; animation: stock-roll 65s linear infinite; }
+.rolling-stock-group { display: flex; gap: 20px; padding-right: 20px; }
+.rolling-stock-group > * { width: calc((100vw - 92px) / 4); flex: none; }
+.rolling-stock-window[data-paused="true"] .rolling-stock-track,
+.rolling-stock-window:hover .rolling-stock-track,
+.rolling-stock-window:focus-within .rolling-stock-track { animation-play-state: paused; }
+.rolling-stock-window:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
+@keyframes stock-roll { to { transform: translateX(-50%); } }
+@media (max-width: 1023px) { .rolling-stock-group > * { width: calc((100vw - 52px) / 2); } }
+@media (max-width: 639px) { .rolling-stock-group > * { width: calc(100vw - 64px); } }
+@media (prefers-reduced-motion: reduce) {
+ .rolling-stock-track { animation: none; }
+ .rolling-stock-copy, .rolling-stock-toggle { display: none; }
+}

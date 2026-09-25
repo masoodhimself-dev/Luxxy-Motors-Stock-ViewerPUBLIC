@@ -181,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {isStaff ? <Button variant="outline" className="shrink-0 px-3 text-xs" onClick={() => handleNav('top')}>View showroom <ArrowRight className="h-4 w-4" /></Button> : <>
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
-            <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
+            <button onClick={() => handleNav('stock')} className={navLinkClass}>Browse Stock</button>
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Contact us</Link>
             <button
@@ -208,7 +208,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav - Full */}
           <nav className="hidden 2xl:flex items-center gap-8" aria-label="Primary navigation">
-            <button onClick={() => handleNav('stock')} className={navLinkClass}>Stock</button>
+            <button onClick={() => handleNav('stock')} className={navLinkClass}>Browse Stock</button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Ex</button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
@@ -371,7 +371,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Vehicles</h3>
               <nav className="flex flex-col items-start gap-0">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>All stock</button>
+                <button onClick={() => handleNav('stock')} className={footerLinkClass}>Browse Stock</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
                 <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
                 {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex items-center ${footerLinkClass}`}>Warranty</Link>}

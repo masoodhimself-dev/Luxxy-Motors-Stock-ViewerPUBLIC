@@ -176,14 +176,14 @@ vi.mock('@workspace/api-client-react', () => ({
   getGetRecentHandoversQueryKey: () => ['/api/recent-handovers'],
 }));
 
-function renderHome() {
+function renderHome(browseStock = true) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queryClient}>
       <SavedCarsProvider>
-        <Home />
+        <Home browseStock={browseStock} />
       </SavedCarsProvider>
     </QueryClientProvider>,
   );
@@ -261,7 +261,7 @@ describe('showroom data resilience', () => {
 describe('showroom search filters', () => {
   it('uses Luxxy brand artwork behind search without attaching a vehicle price', () => {
     overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' } };
-    renderHome();
+    renderHome(false);
     const hero = screen.getByTestId('showroom-hero-photo');
     expect(hero.textContent).toBe('');
     expect(hero).not.toHaveTextContent('£');
@@ -272,7 +272,7 @@ describe('showroom search filters', () => {
   });
 
   it('keeps other dealerships on their own photographed stock', () => {
-    renderHome();
+    renderHome(false);
     const hero = screen.getByTestId('showroom-hero-photo');
     expect(hero).not.toHaveTextContent('BMW 1 Series');
     expect(hero).not.toHaveTextContent('£');
@@ -282,7 +282,7 @@ describe('showroom search filters', () => {
 
   it('keeps the bundled Luxxy artwork independent of featured stock', () => {
     overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' }, featuredVehicleIds: ['bmw-3-series'] };
-    renderHome();
+    renderHome(false);
     const hero = screen.getByTestId('showroom-hero-photo');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-hero.jpg'));
     expect(hero).not.toHaveTextContent('BMW');
@@ -296,7 +296,7 @@ describe('showroom search filters', () => {
       featuredVehicleIds: ['bmw-3-series'],
       presentation: { heroImageUrl: 'https://example.com/showroom.jpg', heroImageAlt: 'Our dealership exterior' },
     };
-    renderHome();
+    renderHome(false);
     const hero = screen.getByTestId('showroom-hero-photo');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://example.com/showroom.jpg');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', 'Our dealership exterior');
@@ -312,7 +312,7 @@ describe('showroom search filters', () => {
         showroomImageAlt: 'Our team outside the dealership',
       },
     };
-    renderHome();
+    renderHome(false);
     const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
     expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
@@ -332,7 +332,7 @@ describe('showroom search filters', () => {
       isLoading: false,
       isError: false,
     };
-    renderHome();
+    renderHome(false);
 
     const section = screen.getByTestId('recent-handovers-section');
     expect(within(section).getByRole('heading', { name: 'Recently handed over' })).toBeInTheDocument();
@@ -342,7 +342,7 @@ describe('showroom search filters', () => {
   });
 
   it('keeps recent handovers absent when the dealer disables them or none qualify', () => {
-    renderHome();
+    renderHome(false);
     expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
 
     recentHandoversState.value = {
@@ -357,31 +357,31 @@ describe('showroom search filters', () => {
       isError: false,
     };
     overrideSettings = { ...dealerConfigFixture, recentHandovers: { enabled: false, count: 3 } };
-    renderHome();
+    renderHome(false);
     expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
   });
 
   it('keeps stock browsing available while handover data is loading or unavailable', () => {
     recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: true, isError: false };
     renderHome();
-    expect(screen.getByTestId('button-view-all-vehicles')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Browse Stock'})).toBeInTheDocument();
     expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
 
     cleanup();
     recentHandoversState.value = { schemaVersion: 1, handovers: [], isLoading: false, isError: true };
     renderHome();
-    expect(screen.getByTestId('button-view-all-vehicles')).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Browse Stock'})).toBeInTheDocument();
     expect(screen.queryByTestId('recent-handovers-section')).not.toBeInTheDocument();
   });
 
-  it('starts with a short welcome and puts stock search before any editorial sections', () => {
-    renderHome();
-
+  it('keeps the homepage carousel separate from stock filters', () => {
+    renderHome(false);
     expect(screen.getByRole('heading', { name: /Find your next car/i })).toBeInTheDocument();
-    expect(screen.getByTestId('input-showroom-search')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Latest arrivals' })).toBeInTheDocument();
-    expect(screen.queryByTestId('featured-forecourt-carousel')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('button-hero-primary')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Browse Stock' })).toHaveAttribute('href', '/stock');
+    fireEvent.click(screen.getByRole('button', { name: 'Pause cars' }));
+    expect(screen.getByRole('button', { name: 'Resume cars' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('switches between full cards and the compact stock list', () => {
@@ -493,7 +493,7 @@ describe('showroom search filters', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
 
-    expect(resultTitles()).toHaveLength(4);
+    expect(resultTitles()).toHaveLength(5);
     expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
     expect((screen.getByTestId('input-showroom-search') as HTMLInputElement).value).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
@@ -513,15 +513,10 @@ describe('showroom search filters', () => {
     });
   });
 
-  it('reveals all results and scrolls when clicking View All Vehicles', async () => {
+  it('shows the full stock without a second reveal action', () => {
     renderHome();
-    expect(resultTitles()).toHaveLength(4); // latest arrivals shows one desktop row
-    fireEvent.click(screen.getByTestId('button-view-all-vehicles'));
     expect(resultTitles()).toHaveLength(5);
-    await waitFor(() => {
-      expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
-      expect(focusHomeTarget).toHaveBeenCalledWith('vehicle-results-heading');
-    });
+    expect(screen.queryByTestId('button-view-all-vehicles')).not.toBeInTheDocument();
   });
 
   it.each([

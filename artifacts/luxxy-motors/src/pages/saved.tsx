@@ -62,7 +62,7 @@ export default function Saved() {
     <div className="luxxy-shell min-h-screen bg-background pb-24 pt-8 md:pt-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
-          href="/"
+          href="/stock"
           className="inline-flex items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
@@ -181,7 +181,7 @@ export default function Saved() {
             }
             action={
               <Button asChild>
-                <Link href="/">
+                <Link href="/stock">
                   Browse stock <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>

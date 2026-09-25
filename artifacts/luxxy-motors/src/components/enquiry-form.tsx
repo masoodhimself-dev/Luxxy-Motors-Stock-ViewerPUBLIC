@@ -427,7 +427,7 @@ export function EnquiryForm({
           </div>
           <div className="shrink-0 text-right">
             {vehicle.price != null && <p className="luxxy-price-inline text-sm font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
-            <Link href="/#stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+            <Link href="/stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
               Change car
             </Link>
           </div>

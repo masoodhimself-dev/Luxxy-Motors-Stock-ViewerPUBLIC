@@ -39,7 +39,8 @@ createRoot(document.getElementById('root')!).render(
                   <Switch>
                   <Route path="/portal" component={Portal} />
                   <Route path="/portal/leads/:id" component={Portal} />
-                  <Route path="/" component={Home} />
+                  <Route path="/"><Home key="home" /></Route>
+                  <Route path="/stock"><Home key="stock" browseStock /></Route>
                   <Route path="/vehicle/:id" component={CarDetail} />
                   <Route path="/saved" component={Saved} />
                   <Route path="/compare" component={Compare} />
