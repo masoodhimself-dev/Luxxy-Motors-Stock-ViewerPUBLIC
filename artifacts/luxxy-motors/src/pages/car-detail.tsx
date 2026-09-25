@@ -1,7 +1,7 @@
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
-import { VehicleHighlights, VehiclePartExchange, VehicleVisit } from '@/components/vehicle-buying-guide';
+import { VehicleHighlights, VehicleVisit } from '@/components/vehicle-buying-guide';
 import { SiWhatsapp } from 'react-icons/si';
 import { ReserveCar } from '@/components/reserve-car';
 import { questionKeyForLabel } from "@/lib/vehicle-questions";
@@ -226,7 +226,7 @@ export default function CarDetail() {
             <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
             {whatsappHref && <a className="text-link mt-2 min-h-11 text-sm" href={getVehicleWhatsAppHref(car, 'request a walkaround video, including the interior and any marks or damage', dealerConfig)} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({channel:'whatsapp',car,source:'vehicle_walkaround'})}>Request a walkaround video <ArrowRight className="h-4 w-4" /></a>}
           </div>
-          <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <div className="vehicle-summary min-w-0">
           <header className="min-w-0">
             <p className="luxxy-kicker mb-3">
@@ -278,7 +278,7 @@ export default function CarDetail() {
             <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
             <div ref={purchasePanel} className="mt-4 flex flex-col gap-3 border-t border-border pt-5">
 
-              <Button asChild size="lg">
+              <Button asChild size="lg" variant="outline">
                 <a
                   href={bookingHref}
                   onClick={() =>
@@ -294,7 +294,7 @@ export default function CarDetail() {
                   Enquire about this car <ArrowRight className="h-4 w-4" />
               </a>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
-              {dealerConfig.partExchange?.enabled && <a href="#vehicle-exchange-heading" className="vehicle-contact-action">Part exchange <ArrowRight className="h-4 w-4" /></a>}</div>
+              {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a viewing separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
                 {phoneHref && (
@@ -340,13 +340,14 @@ export default function CarDetail() {
           </aside>
 <div className="mt-5 flex flex-wrap items-center gap-x-5 border-t border-border pt-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
           </div>
-          <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6" aria-labelledby="vehicle-enquiry-heading">
+
+          </div>
+          <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
             <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
           </section>
-          </div>
-          <div className="min-w-0 pb-10 lg:col-start-1 lg:row-start-2">
+          <div className="vehicle-details-content min-w-0 pb-10 lg:col-span-2">
             <VehicleHighlights car={car} features={features} />
             <section
               aria-labelledby="vehicle-overview-heading"
@@ -444,9 +445,10 @@ export default function CarDetail() {
                 </p>
               </div>
             )}
-            <VehiclePartExchange key={car.id} car={car} />
+
             <VehicleVisit car={car} />
           </div>
+
 
         </div>
       </div>

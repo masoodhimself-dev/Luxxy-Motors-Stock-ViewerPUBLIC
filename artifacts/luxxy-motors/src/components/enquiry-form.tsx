@@ -232,7 +232,7 @@ export function EnquiryForm({
       focusPhone();
       return;
     }
-    if (!normalizedPhone && phoneRequired) {
+    if (!embedded && !normalizedPhone && phoneRequired) {
       setPhoneError(preferredContact === 'whatsapp' ? 'Enter a mobile number so we can WhatsApp you.' : 'Enter a phone number so we can reach you.');
       focusPhone();
       return;
@@ -243,10 +243,10 @@ export function EnquiryForm({
       customerName: customerName.trim(),
       email: email.trim(),
       phone: normalizedPhone,
-      preferredContact,
-      message: [message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''), exchangeSummary].filter(Boolean).join('\n\n'),
+      preferredContact: embedded ? 'email' : preferredContact,
+      message: [message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''), embedded ? '' : exchangeSummary].filter(Boolean).join('\n\n'),
       appointmentAt: isViewing ? selectedSlot : null,
-      partExchange: hasPartExchange && vehicle ? {
+      partExchange: !embedded && hasPartExchange && vehicle ? {
         registration: exchange.registration.trim().toUpperCase(),
         mileage: Number(exchange.mileage),
         condition: null,
@@ -401,6 +401,18 @@ export function EnquiryForm({
       </div>
     );
   }
+
+  if (embedded) return <form onSubmit={submit} className="space-y-4" data-testid="form-enquiry">
+    <div className="grid gap-4 sm:grid-cols-2">
+      <label className="block"><span className={labelClass}>Your name</span><Input required minLength={2} maxLength={120} autoComplete="name" value={customerName} onChange={event => setCustomerName(event.target.value)} data-testid="input-customer-name" /></label>
+      <label className="block"><span className={labelClass}>Email address</span><Input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} data-testid="input-customer-email" /></label>
+    </div>
+    <label className="block"><span className={labelClass}>Phone number <span className="font-normal text-muted-foreground">(optional)</span></span><Input type="tel" autoComplete="tel" value={phone} onChange={event => {setPhone(event.target.value);setPhoneError('');}} aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'inline-phone-error' : undefined} data-testid="input-customer-phone" />{phoneError && <span id="inline-phone-error" role="alert" className="text-sm text-destructive">{phoneError}</span>}</label>
+    <label className="block"><span className={labelClass}>Your message</span><Textarea required rows={4} maxLength={messageLimit} value={message} onChange={event => {messageTouched.current = true;setMessage(event.target.value);}} placeholder="What would you like to know about this car?" data-testid="textarea-enquiry-message" /></label>
+    {mutation.isError && <p role="alert" className="text-sm text-destructive">{apiErrorMessage(mutation.error)}</p>}
+    <Button type="submit" disabled={mutation.isPending} className="min-h-12 w-full" data-testid="button-submit-enquiry">{mutation.isPending ? 'Sending…' : 'Send enquiry'}<ArrowRight className="h-4 w-4" /></Button>
+    <p className="text-xs leading-5 text-muted-foreground">We’ll reply by email. Your enquiry is about {vehicleLabel}.</p>
+  </form>;
 
   return (
     <form onSubmit={submit} className="space-y-4 sm:space-y-6" data-testid="form-enquiry">
