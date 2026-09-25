@@ -681,7 +681,7 @@ export function DealerSettingsPanel() {
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
                   <Image className="h-4 w-4 text-accent" /> Featured vehicles</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-primary/70">Select up to 8 vehicles. The first available photographed vehicle leads the homepage; a custom homepage photograph takes priority. If selected vehicles sell out, photographed stock is shown automatically. With no selection, Luxxy uses its supplied brand image; other dealerships use photographed stock.</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-primary/70">Select up to 8 vehicles to lead the stock list. These selections do not change your homepage photograph. Choose that separately in Photos & visit.</p>
               </div>
             </div>
 
@@ -825,7 +825,7 @@ export function DealerSettingsPanel() {
               <div key={subject} className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : "Showroom"} photograph URL`}
-                  hint={subject === "hero" ? "HTTPS · use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to reuse the homepage photo" : "HTTPS"}
+                  hint={subject === "hero" ? "HTTPS · independent of featured stock; use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to reuse the homepage photo" : "HTTPS"}
                   error={validationErrors[`presentation.${subject}ImageUrl`]}
                 >
                   <Input

@@ -104,8 +104,8 @@ export const dealerConfig: DealerConfig = {
   },
   social: {},
   hero: {
-    copy: "Carefully chosen cars.",
-    subcopy: "Clear information, straightforward advice and viewings at your pace.",
+    copy: "Find your next car.",
+    subcopy: "Independent used-car dealership in Harrow. Browse our stock and arrange a viewing.",
     primaryCta: "Browse cars",
     secondaryCta: "Enquire",
   },

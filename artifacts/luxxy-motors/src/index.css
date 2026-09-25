@@ -258,3 +258,25 @@
 .vehicle-contact-action:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
 .vehicle-contact-action-whatsapp { background: hsl(var(--contact)); color: hsl(var(--contact-foreground)); border-color: hsl(var(--contact)); }
 .vehicle-contact-action-whatsapp:hover { background: hsl(var(--contact) / .9); border-color: hsl(var(--contact)); }
+
+/* A single balanced masthead; text and imagery share one edge on desktop. */
+.showroom-hero { display: grid; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.showroom-hero-copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 1.5rem 1rem; min-width: 0; }
+.showroom-hero-heading { font-family: var(--font-display); font-size: clamp(1.875rem, 4vw, 3rem); line-height: 1.12; font-weight: 600; letter-spacing: -.035em; margin-top: .75rem; max-width: 12ch; text-wrap: balance; overflow-wrap: anywhere; }
+.showroom-hero-introduction { font-size: .875rem; line-height: 1.65; margin-top: .875rem; max-width: 34ch; color: hsl(var(--primary-foreground) / .85); white-space: pre-wrap; overflow-wrap: anywhere; }
+.showroom-hero-button { display: inline-flex; align-items: center; justify-content: center; gap: .875rem; min-height: 48px; padding: .75rem 1.25rem; margin-top: 1.25rem; background: hsl(var(--background)); color: hsl(var(--foreground)); border: 1px solid transparent; border-radius: .25rem; font-size: .875rem; font-weight: 600; transition: background-color 150ms; }
+.showroom-hero-button:hover { background: hsl(var(--secondary)); }
+.showroom-hero-button:focus-visible, .showroom-hero-photo:focus-visible { outline: 3px solid hsl(var(--primary-foreground)); outline-offset: -5px; }
+.showroom-hero-button:focus-visible { outline-color: hsl(var(--foreground)); }
+.showroom-hero-photo { display: block; min-width: 0; position: relative; }
+.showroom-hero-image { aspect-ratio: 16 / 9; }
+@media (min-width: 640px) {
+  .showroom-hero-copy { padding: 2rem; }
+}
+@media (min-width: 1024px) {
+  .showroom-hero { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+  .showroom-hero-copy { padding: 2.5rem; min-height: 420px; }
+  .showroom-hero-introduction { font-size: 1rem; }
+  .showroom-hero-image { position: absolute; inset: 0; height: 100%; aspect-ratio: auto; }
+  .showroom-hero-without-photo { grid-template-columns: 1fr; }
+}

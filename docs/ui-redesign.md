@@ -592,3 +592,11 @@ Stock, enquiries, lead management, viewings, reservations, settings and authenti
 Removed Today/work queue, Leads, Channels, New lead, lead detail navigation and reservation-to-lead links from the active portal. Settings is now the default tab, with Reservations retained. Old lead bookmarks show the remaining authenticated workspace and do not load lead data. Lead components are no longer imported into the portal; existing backend ingestion, data and authentication remain unchanged so public enquiries and reservations continue working during the rebuild. No records deleted or migrations run.
 
 Validation: 168 frontend tests, desktop/mobile portal checks (including zero lead/worklist API requests and old bookmarks), workspace typechecking and builds passed. Existing bundle-size warning remains. No merge or deployment.
+
+## Balanced homepage hero — 25 September 2026
+
+Replaced the narrow stock-card hero with an integrated green-charcoal text panel and scenic Mercedes photograph. Desktop uses aligned 40/60 columns with a 420px minimum height, restrained heading and one browse action. Mobile uses compact copy over a 16:9 photograph, showing the whole car and bringing Latest arrivals into the initial viewport. Removed the vehicle/price caption. Existing shared palette remains unchanged.
+
+Homepage photography is now independent of featured-stock ordering. Luxxy uses the approved scenic brand image even with featured cars selected; a configured homepage photograph still takes precedence. Other dealers retain a stock-photo fallback until their own image is configured. All hero photo links lead to stock. Updated settings guidance and Luxxy sample copy; no backend/API changes. The local-only preview notice is in document flow after the footer instead of covering the hero.
+
+Validation: 168 frontend tests; two browser checks at 390px and 1440px covering featured selections, actual image loading, balanced geometry, mobile height, no overflow and both browse links; workspace typechecking and builds passed. Visually reviewed desktop/mobile. Fresh screenshots: `docs/screenshots/homepage-hero/home-390.png` and `home-1440.png`. Existing bundle-size warning remains. No deployment, merge, migrations or production settings changes.

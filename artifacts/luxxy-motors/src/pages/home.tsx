@@ -14,7 +14,7 @@ import { Link } from 'wouter';
 import { useStock } from '@/lib/stock-context';
 import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
-import { cn, getThumbnailUrl, vehicleDisplayTitle, formatPrice } from '@/lib/utils';
+import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { hasExplicitClearHistory, recordedWriteOffCategory } from '@/lib/vehicle-history';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -26,7 +26,7 @@ import {
 } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Grid2X2, List, Search, Check, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, Grid2X2, List, Search, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
 import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';
@@ -209,27 +209,22 @@ export default function Home() {
     revealResults('quick_filter');
   };
 
-  const featuredCar =
-    dealerConfig.featuredVehicleIds
-      ?.map((id) => stock?.cars.find((car) => car.id === id))
-      .find((car) => car && getThumbnailUrl(car)) ??
-    stock?.cars.find((car) => getThumbnailUrl(car));
+  // The hero is a dealership introduction; featured stock only orders the stock list.
+  const heroFallbackCar = stock?.cars.find((car) => getThumbnailUrl(car));
 
   const configuredHeroImage = dealerConfig.presentation?.heroImageUrl;
-  // The supplied brand artwork is not a stock vehicle. Custom imagery and
-  // explicit featured selections take precedence; other dealers keep stock photography.
+  // Custom homepage photography is independent of featured stock selections.
   const usesLuxxyBrandImage =
     !configuredHeroImage &&
-    !dealerConfig.featuredVehicleIds?.length &&
     /^luxxy\s+motors$/i.test(dealerConfig.identity.name.trim());
   const heroImage = configuredHeroImage || (usesLuxxyBrandImage ? luxxyHeroImage : undefined);
   const heroAlt = configuredHeroImage
     ? dealerConfig.presentation?.heroImageAlt || `${dealerConfig.identity.name} showroom`
     : usesLuxxyBrandImage
       ? "Illustrative Luxxy brand image: a dark blue Mercedes-Benz overlooking a lake"
-      : vehicleDisplayTitle(featuredCar);
+      : vehicleDisplayTitle(heroFallbackCar);
 
-  const heroPhotoSource = heroImage || getThumbnailUrl(featuredCar);
+  const heroPhotoSource = heroImage || getThumbnailUrl(heroFallbackCar);
   const introductionPhoto = dealershipPhotography(dealerConfig).introduction;
   const introductionImage = introductionPhoto?.src || heroPhotoSource;
 
@@ -262,74 +257,32 @@ export default function Home() {
 
   return (
     <div className="luxxy-shell min-h-screen">
-      <section className="border-b border-border bg-secondary/40 pt-[var(--site-header-height)]">
-        <div className="container mx-auto grid items-center lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:gap-12 lg:px-8 lg:py-5">
-          <div className="flex flex-col justify-center px-4 py-4 sm:px-6 sm:py-6 lg:p-0">
-            <p className="luxxy-kicker mb-2 sm:mb-3">
-              {dealerConfig.hero.announcement ||
-                `Used cars ${dealerConfig.address?.city ? `in ${dealerConfig.address.city}` : "from an independent dealership"}`}
-            </p>
-            <h1 id="home-heading" tabIndex={-1} className="heading-1 max-w-xl text-primary">
-              {dealerConfig.hero.copy}
-            </h1>
-            <p className="mt-3 hidden max-w-lg text-sm sm:block leading-relaxed text-muted-foreground sm:text-base whitespace-pre-wrap">
-              {dealerConfig.hero.subcopy}
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+      <section className="pt-[var(--site-header-height)]" aria-labelledby="home-heading">
+        <div className="container mx-auto sm:px-6 sm:pt-6 lg:px-8">
+          <div className={cn("showroom-hero", !heroPhotoSource && "showroom-hero-without-photo")}>
+            <div className="showroom-hero-copy" data-testid="showroom-hero-copy">
+              <p className="text-xs font-medium tracking-wide text-primary-foreground/80">
+                {dealerConfig.hero.announcement ||
+                  `Used cars ${dealerConfig.address?.city ? `in ${dealerConfig.address.city}` : "from an independent dealership"}`}
+              </p>
+              <h1 id="home-heading" tabIndex={-1} className="showroom-hero-heading">
+                {dealerConfig.hero.copy}
+              </h1>
+              {dealerConfig.hero.subcopy && <p className="showroom-hero-introduction">
+                {dealerConfig.hero.subcopy}
+              </p>}
               {dealerConfig.hero.primaryCta && (
-                <Button asChild>
-                  <a href="#stock">
-                    {dealerConfig.hero.primaryCta}
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                </Button>
+                <a href="#stock" className="showroom-hero-button">
+                  {dealerConfig.hero.primaryCta} <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </a>
               )}
             </div>
-
+            {heroPhotoSource && (
+              <Link href="/#stock" className="showroom-hero-photo" aria-label="Explore our current stock" data-testid="showroom-hero-photo">
+                <ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="showroom-hero-image" />
+              </Link>
+            )}
           </div>
-          {(featuredCar || heroImage) && (
-            <Link
-              href={
-                heroImage
-                  ? "/#stock"
-                  : `/vehicle/${featuredCar!.id}`
-              }
-              className="group block overflow-hidden bg-secondary"
-              aria-label={
-                heroImage
-                  ? "Explore the showroom"
-                  : `Explore ${vehicleDisplayTitle(featuredCar)}`
-              }
-              data-testid="showroom-hero-photo"
-            >
-              <ShowroomPhoto
-                src={heroPhotoSource}
-                alt={heroAlt}
-                priority
-                fit={usesLuxxyBrandImage ? "cover" : "contain"}
-                className="aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]"
-              />
-              <div className="flex items-center justify-between gap-4 bg-primary px-4 py-2 text-primary-foreground">
-                <div>
-                  <span className="sr-only">
-                    {heroImage
-                      ? dealerConfig.identity.name
-                      : "In the showroom"}
-                  </span>
-                  <p className="text-sm font-medium">
-                    {heroImage
-                      ? "Explore our current stock"
-                      : vehicleDisplayTitle(featuredCar)}
-                    {!heroImage &&
-                    featuredCar?.price != null
-                      ? ` · ${formatPrice(featuredCar.price, featuredCar.currency)}`
-                      : ""}
-                  </p>
-                </div>
-                <ArrowUpRight className="h-5 w-5 shrink-0" />
-              </div>
-            </Link>
-          )}
         </div>
       </section>
 

@@ -53,7 +53,7 @@ createRoot(document.getElementById('root')!).render(
                 </Switch>
                 </Suspense>
               </Layout>
-              <aside className="pointer-events-none fixed right-3 top-[4.9rem] z-30 rounded-full bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground shadow-sm" aria-label="Preview mode">Local preview · Reservations saved locally · Payments simulated</aside>
+              <aside className="border-t border-border bg-secondary px-4 py-3 text-center text-xs leading-5 text-muted-foreground" aria-label="Preview mode">Local preview · Reservations saved locally · Payments simulated</aside>
             </SavedCarsProvider>
           </StockProvider>
           <Toaster />

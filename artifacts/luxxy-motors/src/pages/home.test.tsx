@@ -264,7 +264,8 @@ describe('showroom search filters', () => {
     renderHome();
     const hero = screen.getByTestId('showroom-hero-photo');
     expect(hero).toHaveAttribute('href', '/#stock');
-    expect(hero).toHaveTextContent('Explore our current stock');
+    expect(hero).toHaveAccessibleName('Explore our current stock');
+    expect(hero.textContent).toBe('');
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
     const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
@@ -275,16 +276,22 @@ describe('showroom search filters', () => {
   it('keeps other dealerships on their own photographed stock', () => {
     renderHome();
     const hero = screen.getByTestId('showroom-hero-photo');
-    expect(hero).toHaveAttribute('href', '/vehicle/bmw-1-series');
+    expect(hero).toHaveAttribute('href', '/#stock');
+    expect(hero).toHaveAccessibleName('Explore our current stock');
+    expect(hero).not.toHaveTextContent('BMW 1 Series');
+    expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
     expect(within(screen.getByRole('region', { name: 'Come and see for yourself.' })).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
   });
 
-  it('lets explicit featured stock replace the bundled Luxxy artwork', () => {
+  it('keeps the bundled Luxxy artwork independent of featured stock', () => {
     overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' }, featuredVehicleIds: ['bmw-3-series'] };
     renderHome();
-    expect(screen.getByTestId('showroom-hero-photo')).toHaveAttribute('href', '/vehicle/bmw-3-series');
-    expect(screen.getByTestId('showroom-hero-photo')).toHaveTextContent('£10,000');
+    const hero = screen.getByTestId('showroom-hero-photo');
+    expect(hero).toHaveAttribute('href', '/#stock');
+    expect(within(hero).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-hero.jpg'));
+    expect(hero).not.toHaveTextContent('BMW');
+    expect(hero).not.toHaveTextContent('£');
   });
 
   it('respects a configured homepage image ahead of brand artwork and featured stock', () => {
