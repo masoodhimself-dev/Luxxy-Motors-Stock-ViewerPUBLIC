@@ -660,3 +660,15 @@ Validation: 172 frontend tests, workspace typechecks/build, four vehicle/gallery
 
 ### Smooth vehicle photo changes
 Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscreen gallery images. Thumbnail controls remain immediate. Reduced-motion preference disables the transition. Workspace typechecking/build and three gallery browser checks at 320px, 390px and 1440px passed.
+
+
+## Homepage refinement — 25 September 2026
+- Renamed the rolling stock strip Featured cars; removed routine Available badges while keeping meaningful vehicle statuses.
+- Made the entire featured card clickable, including the price panel, with a visible keyboard focus outline.
+- Reduced mobile hero search to make and maximum price. Model, minimum price, fuel and transmission remain available under More filters; desktop retains its fuller search.
+- Unified homepage, header and footer accent colours around cyan with charcoal secondary actions.
+- Combined the dealership introduction and visiting information into one Plan your visit section, retaining configured showroom photography and dealer points.
+- Standardised service headings to Warranty, Part exchange and Delivery.
+- Hid incomplete team introductions unless both an image and non-placeholder introduction exist. Sample visiting details remain clearly labelled.
+- Updated the About navigation focus target to the merged visit heading.
+- Validation: 172 frontend tests passed; workspace typechecking and builds passed (existing bundle-size advisory remains). Four local Playwright checks passed, covering desktop/mobile search, navigation, carousel/reduced motion and full-card interaction. Full-page desktop/mobile screenshots reviewed.

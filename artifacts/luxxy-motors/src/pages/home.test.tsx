@@ -268,8 +268,8 @@ describe('showroom search filters', () => {
     expect(hero.textContent).toBe('');
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
-    const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
-    expect(within(introduction).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-showroom.jpg'));
+    const introduction = screen.getByRole('region', { name: 'Plan your visit' });
+    expect(within(introduction).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-forecourt.jpg'));
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy Motors showroom'));
   });
 
@@ -279,7 +279,7 @@ describe('showroom search filters', () => {
     expect(hero).not.toHaveTextContent('BMW 1 Series');
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
-    expect(within(screen.getByRole('region', { name: 'Come and see for yourself.' })).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
+    expect(within(screen.getByRole('region', { name: 'Plan your visit' })).queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('keeps the bundled Luxxy artwork independent of featured stock', () => {
@@ -315,7 +315,7 @@ describe('showroom search filters', () => {
       },
     };
     renderHome(false);
-    const introduction = screen.getByRole('region', { name: 'Come and see for yourself.' });
+    const introduction = screen.getByRole('region', { name: 'Plan your visit' });
     expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
     expect(within(introduction).getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
@@ -379,7 +379,7 @@ describe('showroom search filters', () => {
   it('keeps the homepage carousel separate from stock filters', () => {
     renderHome(false);
     expect(screen.getByRole('heading', { name: /Find your next car/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Latest arrivals' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Featured cars' })).toBeInTheDocument();
     expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse Stock' })).toHaveAttribute('href', '/stock');
     fireEvent.click(screen.getByRole('button', { name: 'Pause cars' }));

@@ -5,7 +5,7 @@ let pendingTarget: string | null = null;
 const homeTargetFocusIds: Record<string, string> = {
   top: 'home-heading',
   stock: 'vehicle-results-heading',
-  about: 'about-heading',
+  about: 'visit-heading',
   warranty: 'warranty-heading',
   'part-exchange': 'part-exchange-heading',
   delivery: 'delivery-heading',

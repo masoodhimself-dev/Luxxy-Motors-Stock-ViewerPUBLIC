@@ -407,3 +407,11 @@
  .vehicle-details-content > * { margin-top: 0; }
  .vehicle-details-content > :first-child { grid-column: 1 / -1; }
 }
+
+/* Homepage accent system: cyan controls, charcoal secondary actions. */
+body:has(.homepage-refined) header,
+body:has(.homepage-refined) footer,
+.homepage-refined { --accent: 190 100% 45%; --accent-foreground: 194 64% 9%; --ring: 190 100% 32%; }
+.homepage-refined .luxxy-kicker { color: hsl(var(--foreground)); }
+.homepage-refined .text-link { color: hsl(var(--foreground)); }
+.homepage-refined .text-link:hover { text-decoration: underline; text-decoration-color: #00c2e8; text-underline-offset: 5px; }

@@ -96,7 +96,7 @@ export function CarCard({
   return (
     <article
       className={cn(
-        'vehicle-card group flex',
+        'vehicle-card group flex relative',
         isRow
           ? 'flex-col md:flex-row'
           : isCompact
@@ -174,7 +174,7 @@ export function CarCard({
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
         )}
-        {displayBadges.length > 0 && (
+        {displayBadges.length > 0 && (photoControls || displayBadges[0] !== 'Available') && (
           <span className="absolute left-3 top-3 max-w-[70%] rounded-sm bg-primary px-2 py-1 text-xs text-primary-foreground">
             {displayBadges[0]}
           </span>
@@ -192,7 +192,7 @@ export function CarCard({
               <Link
                 href={detailHref}
                 onClick={recordVehicleOpen}
-                className="hover:underline underline-offset-4"
+                className={cn("hover:underline underline-offset-4", stretchedLink && !photoControls && "after:absolute after:inset-0 after:z-10 focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-ring")}
               >
                 {vehicleLabel}
               </Link>

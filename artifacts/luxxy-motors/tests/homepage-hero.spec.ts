@@ -20,6 +20,7 @@ for (const width of [390, 1440]) {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await page.screenshot({path: '/tmp/luxxy-rolling-' + width + '.png', fullPage: true, animations: 'disabled'});
 
+    if (width === 390) await hero.getByText('More filters', { exact: true }).click();
     await expect(hero.getByRole('combobox', { name: 'Search model', exact: true })).toBeDisabled();
     await expect(page.getByTestId('showroom-hero-photo').locator('img')).toHaveJSProperty('complete', true);
     await expect(page.getByRole('button', { name: /^Search \d+ used cars$/ })).toBeVisible();
@@ -42,7 +43,7 @@ for (const width of [390, 1440]) {
 
     await page.goto('/');
     await hero.getByRole('combobox', { name: 'Search maximum price', exact: true }).selectOption('');
-    await hero.getByText('Advanced options', { exact: true }).click();
+    await hero.getByText('More filters', { exact: true }).click();
     await hero.getByRole('combobox', { name: 'Search transmission', exact: true }).selectOption('Automatic');
     await hero.getByRole('button', { name: /^Search/ }).click();
     await expect(page.locator('[data-testid^="card-vehicle-"]').first()).toBeVisible();
@@ -74,4 +75,22 @@ test('rolling cars move left, pause and respect reduced motion', async ({ page }
   await page.goto('/#stock');
   await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
   await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeVisible();
+});
+
+test('homepage has one visit section and a clickable featured price panel', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const hero = page.getByRole('form', { name: 'Search used cars' });
+  await expect(hero.getByRole('combobox')).toHaveCount(2);
+  await expect(page.getByRole('heading', { name: 'Plan your visit' })).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Meet the team' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Featured cars' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pause cars' }).click();
+  const card = page.locator('.rolling-stock-group').first().locator('article').first();
+  await expect(card.getByText('Available', { exact: true })).toHaveCount(0);
+  const link = card.locator('h3 a');
+  const href = await link.getAttribute('href');
+  const bounds = await card.boundingBox();
+  await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height - 12);
+  await expect(page).toHaveURL(new RegExp(href! + '$'));
 });

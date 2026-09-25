@@ -7,13 +7,14 @@ import { ShowroomPhoto } from "./showroom-photo";
 import { DealershipPhotograph } from './dealership-photograph';
 import { dealershipPhotography } from '@/lib/dealership-photography';
 
-export function DealershipVisit() {
+export function DealershipVisit({ children }: { children?: React.ReactNode }) {
   const { settings } = useDealerSettings();
   const { address, contact, hours, presentation: content = {} } = settings;
-  const visitPhoto = dealershipPhotography(settings).visit;
+  const photography = dealershipPhotography(settings);
+  const visitPhoto = photography.visit || photography.introduction;
+  const hasTeam = Boolean(content.teamImageUrl && content.teamIntroduction?.trim() && !/^sample|tell customers|replace this/i.test(content.teamIntroduction.trim()));
   const hasStory = Boolean(
-    content.teamImageUrl ||
-    content.teamIntroduction ||
+    hasTeam ||
     content.reviewsUrl,
   );
   const addressLines = [
@@ -28,12 +29,12 @@ export function DealershipVisit() {
       className="border-t border-border bg-card py-8 md:py-10"
       aria-labelledby="visit-heading"
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <div id="about" className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div
-          className={`grid items-start gap-6 lg:gap-10 ${content.teamImageUrl || visitPhoto ? "lg:grid-cols-2" : "max-w-4xl"}`}
+          className={`grid items-start gap-6 lg:gap-10 ${hasStory || visitPhoto || children ? "lg:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
-            <h2 id="visit-heading" className="section-heading">
+            <h2 id="visit-heading" tabIndex={-1} className="section-heading">
               Plan your visit
             </h2>
             <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">
@@ -107,10 +108,11 @@ export function DealershipVisit() {
               )}
             </div>
           </div>
-          {(hasStory || visitPhoto) && (
-            <div className={content.teamImageUrl || visitPhoto ? "space-y-6" : "grid gap-6 sm:grid-cols-2"}>
+          {(hasStory || visitPhoto || children) && (
+            <div className={hasStory || visitPhoto || children ? "space-y-6" : "grid gap-6 sm:grid-cols-2"}>
               {visitPhoto && <DealershipPhotograph photo={visitPhoto} />}
-              {(content.teamIntroduction || content.teamImageUrl) && (
+              {children}
+              {hasTeam && (
                 <div className="border-t border-border pt-5">
                   {content.teamImageUrl && (
                     <ShowroomPhoto

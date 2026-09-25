@@ -4,8 +4,6 @@ import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
-import { DealershipPhotograph } from '@/components/dealership-photograph';
-import { dealershipPhotography } from '@/lib/dealership-photography';
 import luxxyHeroImage from "@/assets/luxxy-hero.jpg";
 import {
   readBrowseSession,
@@ -277,8 +275,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       : vehicleDisplayTitle(heroFallbackCar);
 
   const heroPhotoSource = heroImage || getThumbnailUrl(heroFallbackCar);
-  const introductionPhoto = dealershipPhotography(dealerConfig).introduction;
-  const introductionImage = introductionPhoto?.src || heroPhotoSource;
 
   const dealershipPoints = dealerConfig.whyBuy?.length ? (
     <ul className="divide-y divide-border border-y border-border">
@@ -308,7 +304,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     );
 
   return (
-    <div className="luxxy-shell min-h-screen">
+    <div className={browseStock ? "luxxy-shell min-h-screen" : "luxxy-shell homepage-refined min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
@@ -534,41 +530,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </section>
       )}
 
-      {(dealerConfig.presentation?.showroomImageUrl || dealerConfig.whyBuy?.length > 0 || dealerConfig.trustItems?.length > 0) && (
-        <section
-          id="about"
-          data-home-section
-          aria-labelledby="about-heading"
-          className="section-space border-t border-border bg-card"
-        >
-          <div className={cn("container mx-auto grid gap-6 px-4 sm:px-6 lg:gap-x-12 lg:px-8", introductionImage ? "lg:grid-cols-[1.1fr_1fr]" : "lg:grid-cols-2")}>
-            <div className={introductionImage ? "lg:col-start-2" : undefined}>
-              <p className="luxxy-kicker mb-3">Why {dealerConfig.identity.name}</p>
-              <h2 id="about-heading" tabIndex={-1} className="heading-2">Come and see for yourself.</h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-                {dealerConfig.address?.city ? `Visit us in ${dealerConfig.address.city}` : "Visit the showroom"}
-                {" to see the car and talk through the details."}
-              </p>
-            </div>
-            {introductionPhoto ? (
-              <DealershipPhotograph photo={introductionPhoto} className="lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-center" />
-            ) : introductionImage && (
-              <ShowroomPhoto
-                src={introductionImage}
-                alt={heroAlt}
-                fit="contain"
-                className="aspect-[3/2] lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-center"
-              />
-            )}
-            <div className={introductionImage ? "lg:col-start-2" : undefined}>
-              {dealershipPoints}
-              <Link href="/enquire?type=viewing" className="text-link mt-4 min-h-11">
-                Arrange a viewing <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
+      <DealershipVisit>{dealershipPoints}</DealershipVisit>
 
       <section className="section-space border-t border-border bg-secondary/40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -600,7 +562,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       tabIndex={-1}
                       className="font-display text-xl font-semibold leading-snug"
                     >
-                      {service.title}
+                      {id === 'part-exchange' ? 'Part exchange' : id === 'delivery' ? 'Delivery' : 'Warranty'}
                     </h3>
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {service.description}
@@ -619,7 +581,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           </div>
         </div>
       </section>
-      <DealershipVisit />
+
       </>}
       <RecentlyViewed />
     </div>
