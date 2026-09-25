@@ -1,3 +1,4 @@
+import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
@@ -172,7 +173,7 @@ export default function Home() {
     }
   }, [isLoading]);
 
-  const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 3);
+  const displayedCars = showAll ? filteredCars : filteredCars.slice(0, 4);
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
 
@@ -257,36 +258,19 @@ export default function Home() {
 
   return (
     <div className="luxxy-shell min-h-screen">
-      <section className="pt-[var(--site-header-height)]" aria-labelledby="home-heading">
-        <div className="container mx-auto sm:px-6 sm:pt-6 lg:px-8">
-          <div className={cn("showroom-hero", !heroPhotoSource && "showroom-hero-without-photo")}>
-            <div className="showroom-hero-copy" data-testid="showroom-hero-copy">
-              <p className="text-xs font-medium tracking-wide text-primary-foreground/80">
-                {dealerConfig.hero.announcement ||
-                  `Used cars ${dealerConfig.address?.city ? `in ${dealerConfig.address.city}` : "from an independent dealership"}`}
-              </p>
-              <h1 id="home-heading" tabIndex={-1} className="showroom-hero-heading">
-                {dealerConfig.hero.copy}
-              </h1>
-              {dealerConfig.hero.subcopy && <p className="showroom-hero-introduction">
-                {dealerConfig.hero.subcopy}
-              </p>}
-              {dealerConfig.hero.primaryCta && (
-                <a href="#stock" className="showroom-hero-button">
-                  {dealerConfig.hero.primaryCta} <ArrowRight aria-hidden="true" className="h-4 w-4" />
-                </a>
-              )}
-            </div>
-            {heroPhotoSource && (
-              <Link href="/#stock" className="showroom-hero-photo" aria-label="Explore our current stock" data-testid="showroom-hero-photo">
-                <ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="showroom-hero-image" />
-              </Link>
-            )}
+      <section className="stock-search-hero" aria-labelledby="home-heading">
+        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
+        <div className="stock-search-shade" aria-hidden="true" />
+        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="stock-search-panel">
+            <p className="text-xs font-medium tracking-wide text-white/80">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
+            <h1 id="home-heading" tabIndex={-1} className="mt-2 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{dealerConfig.hero.copy}</h1>
+            <HeroStockSearch cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onSearch={() => revealResults('filter_panel')} />
           </div>
         </div>
       </section>
 
-      <section id="stock" data-home-section className="py-5 md:py-6">
+      <section id="stock" data-home-section className="homepage-stock py-5 md:py-8">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div>
@@ -409,7 +393,7 @@ export default function Home() {
                 <div
                   className={cn(
                     'grid gap-5',
-                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3',
+                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-4',
                   )}
                 >
                   {displayedCars.map((car) => (

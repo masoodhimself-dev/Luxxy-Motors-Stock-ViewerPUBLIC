@@ -167,7 +167,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header
         ref={headerRef}
         data-site-header
-        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${location === "/" && !scrolled && !mobileMenuOpen ? "stock-home-header" : ""} ${
           scrolled
             ? 'border-primary/15 bg-background shadow-none'
             : 'border-primary/10 bg-background'

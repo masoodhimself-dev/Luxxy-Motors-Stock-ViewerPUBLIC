@@ -240,11 +240,8 @@ export default function CarDetail() {
                   ? formatPrice(car.price, car.currency)
                   : 'Price on application'}
               </p>
-              {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {car.priceType}
-                </p>
-              )}
+              {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
+
             </div>
           </header>
           <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">

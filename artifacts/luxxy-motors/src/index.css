@@ -259,24 +259,39 @@
 .vehicle-contact-action-whatsapp { background: hsl(var(--contact)); color: hsl(var(--contact-foreground)); border-color: hsl(var(--contact)); }
 .vehicle-contact-action-whatsapp:hover { background: hsl(var(--contact) / .9); border-color: hsl(var(--contact)); }
 
-/* A single balanced masthead; text and imagery share one edge on desktop. */
-.showroom-hero { display: grid; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.showroom-hero-copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 1.5rem 1rem; min-width: 0; }
-.showroom-hero-heading { font-family: var(--font-display); font-size: clamp(1.875rem, 4vw, 3rem); line-height: 1.12; font-weight: 600; letter-spacing: -.035em; margin-top: .75rem; max-width: 12ch; text-wrap: balance; overflow-wrap: anywhere; }
-.showroom-hero-introduction { font-size: .875rem; line-height: 1.65; margin-top: .875rem; max-width: 34ch; color: hsl(var(--primary-foreground) / .85); white-space: pre-wrap; overflow-wrap: anywhere; }
-.showroom-hero-button { display: inline-flex; align-items: center; justify-content: center; gap: .875rem; min-height: 48px; padding: .75rem 1.25rem; margin-top: 1.25rem; background: hsl(var(--background)); color: hsl(var(--foreground)); border: 1px solid transparent; border-radius: .25rem; font-size: .875rem; font-weight: 600; transition: background-color 150ms; }
-.showroom-hero-button:hover { background: hsl(var(--secondary)); }
-.showroom-hero-button:focus-visible, .showroom-hero-photo:focus-visible { outline: 3px solid hsl(var(--primary-foreground)); outline-offset: -5px; }
-.showroom-hero-button:focus-visible { outline-color: hsl(var(--foreground)); }
-.showroom-hero-photo { display: block; min-width: 0; position: relative; }
-.showroom-hero-image { aspect-ratio: 16 / 9; }
-@media (min-width: 640px) {
-  .showroom-hero-copy { padding: 2rem; }
+
+/* Photograph-led used-car search. Outright prices only. */
+.stock-search-hero { position: relative; isolation: isolate; overflow: hidden; background: #202729; padding: calc(var(--site-header-height) + 3rem) 0 3rem; min-height: 670px; display: flex; align-items: center; }
+.stock-search-backdrop { position: absolute; inset: 0 0 0 20%; z-index: -3; }
+.stock-search-backdrop img { object-position: 68% 55%; filter: saturate(.65); }
+.stock-search-shade { position: absolute; inset: 0; z-index: -2; background: linear-gradient(90deg, rgba(10,16,19,.94), rgba(10,16,19,.7) 38%, rgba(10,16,19,.15) 75%); }
+.stock-search-panel { width: 100%; max-width: 390px; }
+.hero-stock-search { display: grid; gap: 1rem; margin-top: 1.75rem; }
+.hero-search-field { display: block; position: relative; min-width: 0; }
+.hero-search-field select { width: 100%; min-height: 52px; appearance: none; border: 1px solid #d1d7da; border-radius: 0; padding: .75rem 2rem .75rem .875rem; background: rgba(17,24,28,.8); color: white; font-size: 1rem; }
+.hero-search-field select:disabled { opacity: .65; }
+.hero-search-field select option { background: #202729; color: white; }
+.hero-search-field svg { position: absolute; right: .75rem; top: 1rem; width: 18px; height: 18px; color: #00c2e8; pointer-events: none; }
+.hero-search-submit { display: flex; justify-content: center; align-items: center; gap: .75rem; width: 100%; min-height: 54px; background: #00c2e8; color: #08252c; font-weight: 700; padding: .875rem; transition: background 150ms; }
+.hero-search-submit:hover { background: #52dbf5; }
+.hero-stock-search :is(select,button,summary):focus-visible { outline: 3px solid #52dbf5; outline-offset: 3px; }
+.hero-search-advanced summary { cursor: pointer; min-height: 44px; padding: .5rem; text-align: center; color: white; font-size: .875rem; }
+.homepage-stock .vehicle-card { border-radius: 0; border-color: transparent; background: #eee; }
+.homepage-stock .vehicle-card-heading h3 { font-size: 1rem; font-weight: 500; }
+.homepage-stock .vehicle-card .luxxy-price { font-size: 1.75rem; }
+.homepage-stock .vehicle-card:hover { border-color: hsl(var(--primary) / .35); }
+@media (max-width: 639px) {
+ .stock-search-hero { min-height: 0; padding: calc(var(--site-header-height) + 1.5rem) 0 1.5rem; }
+ .stock-search-panel { max-width: none; }
+ .stock-search-shade { background: rgba(10,16,19,.72); }
+ .stock-search-backdrop img { object-position: 62% center; }
 }
-@media (min-width: 1024px) {
-  .showroom-hero { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
-  .showroom-hero-copy { padding: 2.5rem; min-height: 420px; }
-  .showroom-hero-introduction { font-size: 1rem; }
-  .showroom-hero-image { position: absolute; inset: 0; height: 100%; aspect-ratio: auto; }
-  .showroom-hero-without-photo { grid-template-columns: 1fr; }
-}
+
+.stock-home-header { --primary: 0 0% 100%; --primary-foreground: 195 28% 12%; background: #172126 !important; color: white; border-color: #ffffff26; }
+@media (max-width: 639px) { .stock-search-backdrop { left: 0; } }
+
+.homepage-stock .vehicle-card-grid .vehicle-card-heading { text-align: center; min-height: 0; }
+.homepage-stock .vehicle-card-grid .vehicle-card-heading p { display: none; }
+.homepage-stock .vehicle-card-grid .vehicle-card-heading + div { justify-content: center; }
+.homepage-stock .vehicle-card-grid .luxxy-price { width: 100%; text-align: center; }
+.homepage-stock .vehicle-card-grid .vehicle-specs { text-align: center; font-size: .75rem; }

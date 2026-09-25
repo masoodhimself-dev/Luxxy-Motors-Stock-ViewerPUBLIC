@@ -259,12 +259,10 @@ describe('showroom data resilience', () => {
 });
 
 describe('showroom search filters', () => {
-  it('links Luxxy brand artwork to stock without attaching a vehicle price', () => {
+  it('uses Luxxy brand artwork behind search without attaching a vehicle price', () => {
     overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' } };
     renderHome();
     const hero = screen.getByTestId('showroom-hero-photo');
-    expect(hero).toHaveAttribute('href', '/#stock');
-    expect(hero).toHaveAccessibleName('Explore our current stock');
     expect(hero.textContent).toBe('');
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
@@ -276,8 +274,6 @@ describe('showroom search filters', () => {
   it('keeps other dealerships on their own photographed stock', () => {
     renderHome();
     const hero = screen.getByTestId('showroom-hero-photo');
-    expect(hero).toHaveAttribute('href', '/#stock');
-    expect(hero).toHaveAccessibleName('Explore our current stock');
     expect(hero).not.toHaveTextContent('BMW 1 Series');
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://cdn.example.com/bmw-1.jpg');
@@ -288,7 +284,6 @@ describe('showroom search filters', () => {
     overrideSettings = { ...dealerConfigFixture, identity: { ...dealerConfigFixture.identity, name: 'Luxxy Motors' }, featuredVehicleIds: ['bmw-3-series'] };
     renderHome();
     const hero = screen.getByTestId('showroom-hero-photo');
-    expect(hero).toHaveAttribute('href', '/#stock');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-hero.jpg'));
     expect(hero).not.toHaveTextContent('BMW');
     expect(hero).not.toHaveTextContent('£');
@@ -303,7 +298,6 @@ describe('showroom search filters', () => {
     };
     renderHome();
     const hero = screen.getByTestId('showroom-hero-photo');
-    expect(hero).toHaveAttribute('href', '/#stock');
     expect(within(hero).getByRole('img')).toHaveAttribute('src', 'https://example.com/showroom.jpg');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', 'Our dealership exterior');
     expect(hero).not.toHaveTextContent('£');
@@ -499,7 +493,7 @@ describe('showroom search filters', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
 
-    expect(resultTitles()).toHaveLength(3);
+    expect(resultTitles()).toHaveLength(4);
     expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
     expect((screen.getByTestId('input-showroom-search') as HTMLInputElement).value).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
@@ -521,7 +515,7 @@ describe('showroom search filters', () => {
 
   it('reveals all results and scrolls when clicking View All Vehicles', async () => {
     renderHome();
-    expect(resultTitles()).toHaveLength(3); // latest arrivals shows one desktop row
+    expect(resultTitles()).toHaveLength(4); // latest arrivals shows one desktop row
     fireEvent.click(screen.getByTestId('button-view-all-vehicles'));
     expect(resultTitles()).toHaveLength(5);
     await waitFor(() => {

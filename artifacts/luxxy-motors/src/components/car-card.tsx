@@ -98,7 +98,7 @@ export function CarCard({
           ? 'flex-col md:flex-row'
           : isCompact
             ? 'flex-col min-[480px]:flex-row'
-            : 'h-full flex-col',
+            : 'vehicle-card-grid h-full flex-col',
       )}
       data-testid={`${isCompact ? 'compact' : isRow ? 'row' : 'card'}-vehicle-${car.id}`}
     >
@@ -207,11 +207,8 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
-          {car.priceType && car.priceType.toLowerCase() !== 'cash' && (
-            <span className="text-xs text-muted-foreground">
-              {car.priceType}
-            </span>
-          )}
+          {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
+
         </div>
         <div className="vehicle-specs mb-3 mt-2">
           {visibleSpecs.map((spec) => (
