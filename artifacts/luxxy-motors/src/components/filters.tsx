@@ -1,3 +1,4 @@
+import { arrivalTime } from '@/lib/stock-presentation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
@@ -19,7 +20,7 @@ export interface FilterState {
   catS: boolean;
   catN: boolean;
   noWriteOff: boolean;
-  sort: 'price-asc' | 'price-desc' | 'mileage-asc' | 'mileage-desc' | '';
+  sort: 'price-asc' | 'price-desc' | 'mileage-asc' | 'mileage-desc' | 'year-desc' | 'arrival-desc' | '';
 }
 
 interface FiltersProps {
@@ -217,6 +218,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           className="h-11 min-w-0 w-full border-input bg-card pl-3 pr-6 text-base shadow-none lg:text-sm"
         >
           <option value="">Stock order</option>
+          {cars.some(car => arrivalTime(car) !== null) && <option value="arrival-desc">Newest arrivals</option>}
+          <option value="year-desc">Newest registration year</option>
           <option value="price-asc">Lowest price</option>
           <option value="price-desc">Highest price</option>
           <option value="mileage-asc">Lowest mileage</option>
@@ -261,7 +264,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                 onChange={(value) => changeBudget('minPrice', value)}
               >
                 <option value="">Any</option>
-                {[5000, 10000, 20000, 30000, 40000, 50000, 75000].map((price) => (
+                {Array.from(new Set([5000, 10000, 20000, 30000, 40000, 50000, 75000, ...(filters.minPrice && Number.isFinite(Number(filters.minPrice)) ? [Number(filters.minPrice)] : [])])).sort((a,b) => a-b).map((price) => (
                   <option key={price} value={String(price)}>£{price.toLocaleString()}</option>
                 ))}
               </Select>
@@ -272,7 +275,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
                 onChange={(value) => changeBudget('maxPrice', value)}
               >
                 <option value="">Any</option>
-                {[5000, 10000, 20000, 30000, 40000, 50000, 75000, 100000].map((price) => (
+                {Array.from(new Set([5000, 10000, 20000, 30000, 40000, 50000, 75000, 100000, ...(filters.maxPrice && Number.isFinite(Number(filters.maxPrice)) ? [Number(filters.maxPrice)] : [])])).sort((a,b) => a-b).map((price) => (
                   <option key={price} value={String(price)}>£{price.toLocaleString()}</option>
                 ))}
               </Select>

@@ -1,3 +1,4 @@
+import { Link } from 'wouter';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { Check, Heart, Scale } from 'lucide-react';
 import { Car } from '@/lib/stock-context';
@@ -21,6 +22,7 @@ export function SaveCarButton({
 }) {
   const { isSaved, toggleSaved } = useSavedCars();
   const saved = isSaved(car.id);
+  const { toast } = useToast();
   const label = vehicleLabelFor(car);
 
   return (
@@ -29,6 +31,7 @@ export function SaveCarButton({
       onClick={(e) => {
         e.preventDefault();
         toggleSaved(car.id);
+        if (!saved) toast({title: 'Car saved', description: <Link href="/saved" className="underline underline-offset-4">View saved cars</Link>, duration: 5000});
       }}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${label} from your saved cars` : `Save ${label} to your saved cars`}

@@ -1,0 +1,21 @@
+import {expect, test} from '@playwright/test';
+test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Local fixtures');
+test('shared search, year sorting, save feedback and narrower recovery', async ({page}) => {
+  await page.goto('/stock?make=MG&sort=year-desc');
+  const cards = page.locator('.browse-stock .vehicle-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first()).toContainText('MG HS');
+  await expect(page.getByRole('combobox', {name:'Sort results'})).toHaveValue('year-desc');
+  await page.reload();
+  await expect(cards).toHaveCount(2);
+  await cards.first().getByRole('button', {name:/^Save .* to your saved cars/}).click();
+  await expect(page.getByText('Car saved', {exact:true})).toBeVisible();
+  await page.getByRole('link', {name:'View saved cars', exact:true}).click();
+  await expect(page).toHaveURL(/\/saved$/);
+  await page.goto('/stock?make=MG&maxPrice=5000&transmission=Automatic');
+  await expect(page.getByRole('heading', {name:'No matches'})).toBeVisible();
+  await page.getByRole('button', {name:'Search all transmissions'}).click();
+  await expect(page).toHaveURL(/make=MG&maxPrice=5000$/);
+  await page.getByRole('button', {name:'Increase maximum price to £6,500'}).click();
+  await expect(page).toHaveURL(/make=MG&maxPrice=6500$/);
+});

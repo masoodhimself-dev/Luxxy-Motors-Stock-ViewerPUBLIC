@@ -207,6 +207,7 @@ afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
+  window.history.replaceState({}, '', '/');
   window.sessionStorage.clear();
   vi.clearAllMocks();
   window.localStorage.clear();

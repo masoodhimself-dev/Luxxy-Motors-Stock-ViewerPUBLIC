@@ -1,3 +1,4 @@
+import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { rememberStockPosition } from "@/lib/browse-session";
@@ -80,7 +81,7 @@ export function CarCard({
   }, [car.id, imageSignature]);
 
   const specs = [
-    car.year ? { label: 'Year', value: String(car.year) } : null,
+    car.year ? { label: 'Year', value: stockRegistrationYear(car) } : null,
     car.mileage != null
       ? { label: 'Mileage', value: formatMileage(car.mileage) }
       : car.mileageText
@@ -198,7 +199,7 @@ export function CarCard({
             </h3>
             {(car.variant || car.trim) && (
               <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {car.variant || car.trim}
+                {shortTrim(car)}
               </p>
             )}
           </div>
@@ -217,6 +218,7 @@ export function CarCard({
             <span key={spec.label} aria-label={`${spec.label}: ${spec.value}`}>{spec.value}</span>
           ))}
         </div>
+        {stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
         {registration && isRow && (
           <p className="mb-4 text-xs text-muted-foreground">
             Registration{" "}

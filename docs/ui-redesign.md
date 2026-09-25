@@ -635,3 +635,15 @@ Validation: all 168 frontend tests, both new 390px/1440px browser scenarios, ful
 Matched the supplied reference with individual square car boxes, narrow white vertical separators, large photography and grey centred name/price panels. Simplified only the homepage boxes by omitting specification/action rows; photographs and names still link to details, with save and photo controls retained. Four desktop boxes, mobile swiping, stepped motion and the flush hero join remain. Browse Stock styling is unchanged. Workspace typechecking/build and three desktop/mobile carousel/search browser checks passed; fresh homepage screenshots inspected.
 
 Homepage featured boxes now omit the photo-count badge, save-heart button and previous/next photo controls. Shared CarCard uses an explicit photoControls prop, defaulting on elsewhere, so Browse Stock retains those actions. Vehicle links and stepped carousel movement remain. Workspace build/typechecks and desktop/mobile browser checks passed.
+
+### Eight stock browsing improvements
+- Stock photos use contain within the consistent 4:3 area, avoiding additional crop of supplied photography.
+- Card trim text prefers supplied concise trim, removing emissions/door boilerplate from the fallback variant.
+- Year/registration band is normalised without repeating the year, followed by mileage and fuel/transmission.
+- Up to two supplied equipment highlights are shown; no inferred features.
+- Added registration-year sorting and conditional newest-arrivals sorting from listedAt/firstListedAt/dateAdded. Import timestamps are not used; current fixtures do not provide arrival dates, so that option stays hidden.
+- Current filters/sort are represented in the URL, restored on direct load/reload and browser history navigation.
+- Empty results can widen transmission, make or maximum budget without clearing other criteria.
+- Saving a car shows a five-second confirmation with a View saved cars link.
+
+Validation: 172 frontend tests, desktop/mobile stock browser checks and shared-URL/save/recovery checks pass; workspace typechecking/build pass with the existing chunk-size warning. Fresh desktop/mobile stock screenshots inspected. No backend, API or database changes.

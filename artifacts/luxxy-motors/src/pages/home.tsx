@@ -1,3 +1,4 @@
+import { arrivalTime } from '@/lib/stock-presentation';
 import { RollingStock } from '@/components/rolling-stock';
 import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
@@ -80,6 +81,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
 
   const [filters, setFilters] = useState<FilterState>(() => {
+    if (browseStock && window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      const next = { ...defaultFilters };
+      for (const key of Object.keys(next) as (keyof FilterState)[]) {
+        const value = params.get(key);
+        if (value !== null) Object.assign(next, { [key]: typeof next[key] === 'boolean' ? value === 'true' : value });
+      }
+      return next;
+    }
     const saved = readBrowseSession().filters;
     return saved &&
       Object.keys(defaultFilters).every(
@@ -90,6 +100,30 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       ? saved
       : defaultFilters;
   });
+
+  useEffect(() => {
+    if (!browseStock) return;
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
+    const query = params.toString();
+    const url = window.location.pathname + (query ? '?' + query : '');
+    if (url !== window.location.pathname + window.location.search) window.history.replaceState(window.history.state, '', url);
+  }, [filters, browseStock]);
+
+  useEffect(() => {
+    if (!browseStock) return;
+    const restoreQuery = () => {
+      const params = new URLSearchParams(window.location.search);
+      const next = {...defaultFilters};
+      for (const key of Object.keys(next) as (keyof FilterState)[]) {
+        const value = params.get(key);
+        if (value !== null) Object.assign(next, {[key]: typeof next[key] === 'boolean' ? value === 'true' : value});
+      }
+      setFilters(next);
+    };
+    window.addEventListener('popstate', restoreQuery);
+    return () => window.removeEventListener('popstate', restoreQuery);
+  }, [browseStock]);
 
   const filteredCars = useMemo(() => {
     if (!stock) return [];
@@ -142,9 +176,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
     if (filters.sort) {
       result.sort((a, b) => {
-        const field = filters.sort.startsWith('price') ? 'price' : 'mileage';
-        const first = a[field];
-        const second = b[field];
+        const field = filters.sort.startsWith('price') ? 'price' : filters.sort === 'year-desc' ? 'year' : 'mileage';
+        const first = filters.sort === 'arrival-desc' ? arrivalTime(a) : a[field];
+        const second = filters.sort === 'arrival-desc' ? arrivalTime(b) : b[field];
         // Unknown values belong after known values in either direction.
         if (first == null || !Number.isFinite(first)) return second == null || !Number.isFinite(second) ? 0 : 1;
         if (second == null || !Number.isFinite(second)) return -1;
@@ -152,6 +186,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           case 'price-asc':
           case 'mileage-asc':
             return first - second;
+          case 'year-desc':
+          case 'arrival-desc':
           case 'price-desc':
           case 'mileage-desc':
             return second - first;
@@ -437,6 +473,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 <p className="mt-3 text-sm text-muted-foreground">
                   Try widening your budget or clearing the filters.
                 </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                  {filters.transmission && <Button variant="outline" onClick={() => setFilters(current => ({...current, transmission: ''}))}>Search all transmissions</Button>}
+                  {filters.make && <Button variant="outline" onClick={() => setFilters(current => ({...current, make: '', model: ''}))}>Search all makes</Button>}
+                  {filters.maxPrice && <Button variant="outline" onClick={() => setFilters(current => ({...current, maxPrice: String(Math.ceil(Number(current.maxPrice) * 1.25 / 500) * 500)}))}>Increase maximum price to £{(Math.ceil(Number(filters.maxPrice) * 1.25 / 500) * 500).toLocaleString('en-GB')}</Button>}
+                </div>
                 <Button
                   variant="outline"
                   className="mt-6"

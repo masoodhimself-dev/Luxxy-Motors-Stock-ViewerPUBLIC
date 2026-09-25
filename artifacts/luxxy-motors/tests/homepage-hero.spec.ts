@@ -30,7 +30,7 @@ for (const width of [390, 1440]) {
     await hero.getByRole('combobox', { name: 'Search make', exact: true }).selectOption('MG');
     await hero.getByRole('combobox', { name: 'Search model', exact: true }).selectOption('MG HS');
     await hero.getByRole('button', { name: 'Search 1 used car', exact: true }).click();
-    await expect(page).toHaveURL(/\/stock$/);
+    await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
     await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeVisible();
     await expect(page.locator('[data-testid^="card-vehicle-"]')).toHaveCount(1);
     await expect(page.getByTestId('card-vehicle-preview-2')).toBeVisible();
@@ -55,7 +55,7 @@ for (const width of [390, 1440]) {
     await first.getByRole('link', {name: /View vehicle/}).click();
     await expect(page).toHaveURL(/\/vehicle\//);
     await page.getByRole('link', {name: 'Back to Browse Stock'}).click();
-    await expect(page).toHaveURL(/\/stock$/);
+    await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
     await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeAttached();
   });
 }
@@ -72,6 +72,6 @@ test('rolling cars move left, pause and respect reduced motion', async ({ page }
   await page.emulateMedia({reducedMotion: 'reduce'});
   await expect(page.locator('.rolling-stock-copy')).toBeHidden();
   await page.goto('/#stock');
-  await expect(page).toHaveURL(/\/stock$/);
+  await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
   await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeVisible();
 });
