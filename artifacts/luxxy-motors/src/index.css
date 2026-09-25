@@ -437,3 +437,29 @@ body:has(.homepage-refined) footer#contact > div > div:last-child { margin-top: 
 .review-panel { display: flex; flex-direction: column; flex: 0 0 calc((100% - 40px) / 3); scroll-snap-align: start; border: 1px solid hsl(var(--border)); padding: 24px; }
 @media (max-width: 1023px) { .review-panel { flex-basis: calc((100% - 20px) / 2); } }
 @media (max-width: 639px) { .review-panel { flex-basis: 88%; padding: 20px; } }
+
+/* Balanced homepage palette: cool charcoal, clean white and restrained cyan. */
+body:has(.homepage-refined) header,
+body:has(.homepage-refined) footer,
+.homepage-refined {
+ --primary: 195 22% 13%;
+ --foreground: 195 22% 13%;
+ --card-foreground: 195 22% 13%;
+ --muted-foreground: 195 7% 36%;
+ --background: 195 14% 97%;
+ --secondary: 195 14% 94%;
+ --border: 195 10% 85%;
+ --accent: 190 86% 44%;
+ --accent-foreground: 195 35% 10%;
+}
+.homepage-refined .customer-reviews { background: #f3f6f6; }
+.homepage-refined .review-panel { background: #fff; }
+.homepage-refined .rolling-stock .vehicle-card,
+.homepage-refined .rolling-stock .vehicle-card-details { background: #eef2f2; }
+.homepage-refined .home-services { background: #f3f6f6; }
+.homepage-refined .hero-search-submit { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.homepage-refined .hero-search-submit:hover { background: #25c4dc; }
+.homepage-refined .text-link:hover { text-decoration-color: hsl(var(--accent)); }
+.review-verification { display: inline-flex; align-items: center; gap: 4px; color: #285e66; font-size: 12px; font-weight: 500; }
+.review-invited { border-left: 1px solid hsl(var(--border)); padding-left: 8px; color: hsl(var(--muted-foreground)); font-size: 12px; }
+body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --primary-foreground: 195 22% 13%; }

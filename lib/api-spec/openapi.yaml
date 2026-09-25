@@ -1924,6 +1924,8 @@ components:
       additionalProperties: false
       required: [rating, review, name, date, source]
       properties:
+        verified: { type: boolean, description: "Verification confirmed by the dealership; not a Google certification." }
+        invited: { type: boolean, description: "Customer was invited to leave this review." }
         rating: { type: number, enum: [1, 2, 3, 4, 5] }
         review: { type: string, minLength: 1, maxLength: 5000 }
         name: { type: string, minLength: 1, maxLength: 150 }

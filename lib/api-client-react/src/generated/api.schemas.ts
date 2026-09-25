@@ -362,6 +362,10 @@ export const CustomerReviewRating = {
 } as const;
 
 export interface CustomerReview {
+  /** Verification confirmed by the dealership; not a Google certification. */
+  verified?: boolean;
+  /** Customer was invited to leave this review. */
+  invited?: boolean;
   rating: CustomerReviewRating;
   /**
      * @minLength 1

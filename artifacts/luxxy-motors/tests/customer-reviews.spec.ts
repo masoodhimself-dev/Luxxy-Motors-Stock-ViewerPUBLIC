@@ -8,6 +8,8 @@ for (const width of [390, 1440]) {
     const section = page.getByRole('region', { name: 'What our customers say' });
     await section.scrollIntoViewIfNeeded();
     await expect(section.getByRole('listitem')).toHaveCount(20);
+    await expect(section.getByText('Verified review', { exact: true })).toHaveCount(20);
+    await expect(section.getByText('Invited', { exact: true })).toHaveCount(4);
     await expect(section.getByText('James W.', { exact: true })).toBeVisible();
     await expect(section.getByRole('link')).toHaveCount(0);
     const list = section.getByRole('list');

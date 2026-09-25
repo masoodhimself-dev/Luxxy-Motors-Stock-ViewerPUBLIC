@@ -693,3 +693,12 @@ Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscr
 - Added an enable switch and validated JSON editor under dealership presentation settings. Apply JSON, then Save settings. The existing optional reviews-page link can be added later.
 - Extended the existing settings JSON contract with reviewsEnabled and up to 100 validated reviews; omitted fields survive older-client saves. No database schema/migration or production changes.
 - Validation: 176 frontend tests, nine backend settings tests, four homepage browser checks and two review browser checks passed. Workspace typechecking/build passed (existing chunk-size warning). Desktop/mobile review screenshots saved under docs/screenshots/customer-reviews.
+
+
+## Review badges and homepage colour balance — 25 September 2026
+- Added optional verified/invited boolean fields to review settings and preserved them through JSON import and generated API validation.
+- All 20 reviews marked verified following the owner's confirmation. Only Sarah K. (3), Adam P. (7), Aisha N. (12), and David J. (19) marked invited.
+- Compact verification icon/label beside reviewer names; invitation status remains separate. Verification is dealership-confirmed, not presented as Google certification.
+- Balanced homepage colours around cool charcoal, white panels, consistent pale grey supporting sections and restrained cyan controls. Kept the dark header's inverse text colours for readability.
+- Updated local preview settings only; no production data, deployment or migrations touched.
+- Passed 176 frontend tests, nine backend settings tests, six browser checks, workspace typechecking and builds. Existing bundle-size advisory remains. Reviewed fresh desktop/mobile screenshots.

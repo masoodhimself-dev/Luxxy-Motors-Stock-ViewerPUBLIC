@@ -4,139 +4,179 @@
     "review": "Really straightforward from the first enquiry to collecting the car. Everything was explained clearly and there was no pressure at all.",
     "name": "James W.",
     "date": "September 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Excellent experience with Luxxy Motors. The car was exactly as described and the whole process was quick and professional.",
     "name": "Daniel M.",
     "date": "September 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Very helpful from start to finish. All my questions were answered and I was given plenty of time to look around the car.",
     "name": "Sarah K.",
     "date": "September 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": true
   },
   {
     "rating": 5,
     "review": "Bought my car from Luxxy Motors and couldn't be happier. Friendly service, easy paperwork and a smooth collection.",
     "name": "Mohammed A.",
     "date": "September 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "One of the easiest car purchases I've had. No pushy sales tactics, just helpful advice and great customer service.",
     "name": "Ryan T.",
     "date": "August 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "The car was prepared beautifully for collection. Really impressed with the service and communication throughout.",
     "name": "Emily R.",
     "date": "August 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Great dealership to deal with. They kept me updated, answered everything honestly and made the purchase very simple.",
     "name": "Adam P.",
     "date": "August 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": true
   },
   {
     "rating": 5,
     "review": "Travelled quite a distance to view the car and it was exactly as advertised. Definitely worth the journey.",
     "name": "Thomas B.",
     "date": "August 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Fantastic customer service. I never felt rushed and they made sure I was completely happy before completing the purchase.",
     "name": "Rebecca H.",
     "date": "August 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Really pleased with my new car. The team were friendly, professional and made everything incredibly easy.",
     "name": "Oliver S.",
     "date": "July 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "From the initial phone call to driving away, the service was excellent. Would happily buy from Luxxy Motors again.",
     "name": "Chris D.",
     "date": "July 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Very professional dealership. The vehicle was presented well and all the paperwork was ready when I arrived.",
     "name": "Aisha N.",
     "date": "July 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": true
   },
   {
     "rating": 5,
     "review": "A refreshingly simple car buying experience. Good communication, friendly staff and absolutely no pressure.",
     "name": "Michael G.",
     "date": "July 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Really happy with the service. They were patient while I made my decision and explained everything properly.",
     "name": "Sophie L.",
     "date": "July 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Excellent communication and a very smooth transaction. The car looked even better in person than it did online.",
     "name": "Ben C.",
     "date": "June 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Great experience overall. Friendly people, good selection of cars and everything was handled professionally.",
     "name": "Hassan R.",
     "date": "June 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "I was nervous about buying another used car but the team made the whole experience comfortable and straightforward.",
     "name": "Laura F.",
     "date": "June 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Very impressed. Quick responses to my enquiries, easy test drive and the collection process couldn't have been simpler.",
     "name": "Jack E.",
     "date": "June 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   },
   {
     "rating": 5,
     "review": "Brilliant service from beginning to end. Everything promised was done and the car was spotless when I collected it.",
     "name": "David J.",
     "date": "May 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": true
   },
   {
     "rating": 5,
     "review": "Would definitely recommend Luxxy Motors. Professional, approachable and genuinely easy to deal with.",
     "name": "Natalie C.",
     "date": "May 2026",
-    "source": "Google"
+    "source": "Google",
+    "verified": true,
+    "invited": false
   }
 ]

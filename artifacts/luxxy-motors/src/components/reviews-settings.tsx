@@ -12,8 +12,9 @@ export function parseReviews(text: string): Review[] {
       typeof item.review !== 'string' || !item.review.trim() || item.review.length > 5000 ||
       typeof item.name !== 'string' || !item.name.trim() || item.name.length > 150 ||
       typeof item.date !== 'string' || item.date.length > 100 ||
-      typeof item.source !== 'string' || item.source.length > 100) throw new Error(`Review ${index + 1}: supply a rating from 1–5, review text, name, date and source.`);
-    return { rating: item.rating, review: item.review, name: item.name, date: item.date, source: item.source };
+      typeof item.source !== 'string' || item.source.length > 100 ||
+      (item.verified !== undefined && typeof item.verified !== 'boolean') || (item.invited !== undefined && typeof item.invited !== 'boolean')) throw new Error(`Review ${index + 1}: supply a rating from 1–5, review text, name, date and source.`);
+    return { rating: item.rating, review: item.review, name: item.name, date: item.date, source: item.source, ...(item.verified !== undefined ? { verified: item.verified } : {}), ...(item.invited !== undefined ? { invited: item.invited } : {}) };
   });
 }
 export function ReviewsSettings({ value, onChange }: { value?: DealerPresentation; onChange: (value: DealerPresentation) => void }) {
@@ -25,7 +26,7 @@ export function ReviewsSettings({ value, onChange }: { value?: DealerPresentatio
     <h3 className="font-semibold">Customer reviews</h3>
     <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={value?.reviewsEnabled === true} onChange={event => onChange({ ...value, reviewsEnabled: event.target.checked })} />Show customer reviews on the homepage</label>
     <label htmlFor="customer-reviews-json" className="block text-sm font-medium">Reviews JSON</label>
-    <p id="reviews-json-help" className="text-sm text-muted-foreground">Paste an array containing rating, review, name, date and source. Reviews display in this order. Apply the JSON, then save settings. Use [] to clear them.</p>
+    <p id="reviews-json-help" className="text-sm text-muted-foreground">Paste an array containing rating, review, name, date and source. Reviews display in this order. Optional verified and invited fields accept true or false. Only mark verified when confirmed. Apply the JSON, then save settings. Use [] to clear them.</p>
     <Textarea id="customer-reviews-json" aria-describedby="reviews-json-help" rows={8} value={text} onChange={event => { setText(event.target.value); setMessage(''); }} className="font-mono text-xs" />
     <Button type="button" variant="outline" onClick={() => { try { const reviews = parseReviews(text); onChange({ ...value, reviews }); setMessage(`${reviews.length} reviews applied. Save settings to keep your changes.`); } catch (error) { setMessage(error instanceof SyntaxError ? 'Invalid JSON. Check quotation marks and commas.' : (error as Error).message); } }}>Apply reviews JSON</Button>
     {message && <p role="status" className="text-sm">{message}</p>}

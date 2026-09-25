@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Star } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Star, BadgeCheck } from 'lucide-react';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 
 export function CustomerReviews() {
@@ -31,7 +31,7 @@ export function CustomerReviews() {
           </div>
           <blockquote className={`mt-4 text-[15px] leading-7 ${expanded.has(index) || review.review.length <= 180 ? '' : 'line-clamp-4'}`}>{review.review}</blockquote>
           {review.review.length > 180 && <button type="button" aria-expanded={expanded.has(index)} className="mt-1 min-h-11 self-start text-sm underline underline-offset-4" onClick={() => setExpanded(current => {const next = new Set(current); next.has(index) ? next.delete(index) : next.add(index); return next;})}>{expanded.has(index) ? 'Show less' : 'Read full review'}</button>}
-          <div className="mt-auto pt-6"><p className="text-sm font-semibold">{review.name}</p><p className="mt-1 text-sm text-muted-foreground">{review.date}{review.source && ` · ${review.source}`}</p></div>
+          <div className="mt-auto pt-6"><div className="flex flex-wrap items-center gap-x-3 gap-y-2"><p className="text-sm font-semibold">{review.name}</p>{review.verified && <span className="review-verification" title="Verification confirmed by the dealership"><BadgeCheck size={14} aria-hidden="true" />Verified review</span>}{review.invited && <span className="review-invited">Invited</span>}</div><p className="mt-1 text-sm text-muted-foreground">{review.date}{review.source && ` · ${review.source}`}</p></div>
         </li>)}
       </ul>
       {content.reviewsUrl && <a href={content.reviewsUrl} target="_blank" rel="noopener noreferrer" className="text-link mt-5">Read all reviews <ArrowRight size={16} /></a>}

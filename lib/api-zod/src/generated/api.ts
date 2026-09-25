@@ -2630,6 +2630,8 @@ export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
   "reviewsEnabled": zod.boolean().optional(),
   "reviews": zod.array(zod.object({
+  "verified": zod.boolean().optional().describe('Verification confirmed by the dealership; not a Google certification.'),
+  "invited": zod.boolean().optional().describe('Customer was invited to leave this review.'),
   "rating": zod.union([zod.literal(1),zod.literal(2),zod.literal(3),zod.literal(4),zod.literal(5)]),
   "review": zod.string().min(1).max(getDealerSettingsResponsePresentationReviewsItemReviewMax),
   "name": zod.string().min(1).max(getDealerSettingsResponsePresentationReviewsItemNameMax),
@@ -2911,6 +2913,8 @@ export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
   "reviewsEnabled": zod.boolean().optional(),
   "reviews": zod.array(zod.object({
+  "verified": zod.boolean().optional().describe('Verification confirmed by the dealership; not a Google certification.'),
+  "invited": zod.boolean().optional().describe('Customer was invited to leave this review.'),
   "rating": zod.union([zod.literal(1),zod.literal(2),zod.literal(3),zod.literal(4),zod.literal(5)]),
   "review": zod.string().min(1).max(updateDealerSettingsBodyOnePresentationReviewsItemReviewMax),
   "name": zod.string().min(1).max(updateDealerSettingsBodyOnePresentationReviewsItemNameMax),
@@ -3187,6 +3191,8 @@ export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
   "reviewsEnabled": zod.boolean().optional(),
   "reviews": zod.array(zod.object({
+  "verified": zod.boolean().optional().describe('Verification confirmed by the dealership; not a Google certification.'),
+  "invited": zod.boolean().optional().describe('Customer was invited to leave this review.'),
   "rating": zod.union([zod.literal(1),zod.literal(2),zod.literal(3),zod.literal(4),zod.literal(5)]),
   "review": zod.string().min(1).max(updateDealerSettingsResponsePresentationReviewsItemReviewMax),
   "name": zod.string().min(1).max(updateDealerSettingsResponsePresentationReviewsItemNameMax),
