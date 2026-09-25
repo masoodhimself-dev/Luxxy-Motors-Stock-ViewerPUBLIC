@@ -24,8 +24,8 @@ export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unava
   return <section className="rolling-stock homepage-stock" aria-labelledby="rolling-stock-heading">
     {cars.length ? <div ref={viewport} className="rolling-stock-window" tabIndex={0} aria-label="Latest vehicles; pause to browse" data-paused={paused || cars.length <= 1}>
       <div className="rolling-stock-track">
-        <div className="rolling-stock-group">{cars.map(car => <CarCard key={car.id} car={car} stretchedLink />)}</div>
-        {cars.length > 1 && <div className="rolling-stock-group rolling-stock-copy" aria-hidden="true" ref={node => { node?.querySelectorAll<HTMLElement>('a, button, [tabindex]').forEach(element => { element.tabIndex = -1; }); }}>{cars.map(car => <CarCard key={car.id} car={car} stretchedLink />)}</div>}
+        <div className="rolling-stock-group">{cars.map(car => <CarCard key={car.id} car={car} photoControls={false} stretchedLink />)}</div>
+        {cars.length > 1 && <div className="rolling-stock-group rolling-stock-copy" aria-hidden="true" ref={node => { node?.querySelectorAll<HTMLElement>('a, button, [tabindex]').forEach(element => { element.tabIndex = -1; }); }}>{cars.map(car => <CarCard key={car.id} car={car} photoControls={false} stretchedLink />)}</div>}
       </div>
     </div> : <p className="container mx-auto px-4 text-muted-foreground">{unavailable ? 'Stock is temporarily unavailable. Please contact the team for current availability.' : 'No vehicles currently listed. Contact the team about upcoming stock.'}</p>}
     <div className="container mx-auto py-4 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">

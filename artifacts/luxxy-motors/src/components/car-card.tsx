@@ -24,12 +24,14 @@ export function CarCard({
   layout = 'card',
   stretchedLink = false,
   badges = [],
+  photoControls = true,
   analyticsSource = 'showroom',
 }: {
   car: Car;
   layout?: 'row' | 'card' | 'compact';
   stretchedLink?: boolean;
   badges?: string[];
+  photoControls?: boolean;
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -147,7 +149,7 @@ export function CarCard({
             </div>
           )}
         </Link>
-        {galleryUrls.length > 1 && (
+        {photoControls && galleryUrls.length > 1 && (
           <div className="stock-photo-controls">
             <button type="button" className="stock-photo-arrow left-2"
               aria-label={`Previous photo of ${vehicleLabel}`}
@@ -161,11 +163,11 @@ export function CarCard({
             </button>
           </div>
         )}
-        <SaveCarButton
+        {photoControls && <SaveCarButton
           car={car}
           className="absolute right-3 top-3 h-11 w-11 rounded-full border-white bg-white text-primary shadow-none"
-        />
-        {photoCount > 0 && (
+        />}
+        {photoControls && photoCount > 0 && (
           <span className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white">
             <Camera className="h-3.5 w-3.5" />
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}

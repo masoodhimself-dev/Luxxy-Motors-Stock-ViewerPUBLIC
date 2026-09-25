@@ -633,3 +633,5 @@ Validation: all 168 frontend tests, both new 390px/1440px browser scenarios, ful
 
 ### Homepage feature boxes
 Matched the supplied reference with individual square car boxes, narrow white vertical separators, large photography and grey centred name/price panels. Simplified only the homepage boxes by omitting specification/action rows; photographs and names still link to details, with save and photo controls retained. Four desktop boxes, mobile swiping, stepped motion and the flush hero join remain. Browse Stock styling is unchanged. Workspace typechecking/build and three desktop/mobile carousel/search browser checks passed; fresh homepage screenshots inspected.
+
+Homepage featured boxes now omit the photo-count badge, save-heart button and previous/next photo controls. Shared CarCard uses an explicit photoControls prop, defaulting on elsewhere, so Browse Stock retains those actions. Vehicle links and stepped carousel movement remain. Workspace build/typechecks and desktop/mobile browser checks passed.
