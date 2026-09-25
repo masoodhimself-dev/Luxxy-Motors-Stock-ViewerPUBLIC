@@ -419,7 +419,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   Contact us before travelling to arrange a viewing.
                 </p>
                 <ul className="space-y-3">
-                  {upcomingVisitDates.map((visit) => (
+                  {(location === '/' ? upcomingVisitDates.slice(0, 1) : upcomingVisitDates).map((visit) => (
                     <li key={visit.date} className="flex items-center justify-between gap-4 border-b border-primary-foreground/10 pb-3 text-[14px]">
                       <span className="flex min-w-0 items-center gap-3">
                         <CalendarDays className="h-4 w-4 shrink-0 text-accent" />
@@ -432,6 +432,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </li>
                   ))}
                 </ul>
+                {location === '/' && <Link href="/contact" className={`mt-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Full opening hours <ArrowRight className="h-4 w-4" /></Link>}
               </div>
             )}
           </div>

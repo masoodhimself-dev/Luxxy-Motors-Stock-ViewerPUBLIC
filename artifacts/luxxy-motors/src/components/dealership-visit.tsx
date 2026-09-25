@@ -109,7 +109,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
             </div>
           </div>
           {(hasStory || visitPhoto || children) && (
-            <div className={hasStory || visitPhoto || children ? "space-y-6" : "grid gap-6 sm:grid-cols-2"}>
+            <div className="visit-story grid gap-5">
               {visitPhoto && <DealershipPhotograph photo={visitPhoto} />}
               {children}
               {hasTeam && (

@@ -532,7 +532,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       <DealershipVisit>{dealershipPoints}</DealershipVisit>
 
-      <section className="section-space border-t border-border bg-secondary/40">
+      <section className="home-services section-space border-t border-border bg-secondary/40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <p className="luxxy-kicker mb-3">Along the way</p>
           <h2 className="section-heading">The details, taken care of.</h2>

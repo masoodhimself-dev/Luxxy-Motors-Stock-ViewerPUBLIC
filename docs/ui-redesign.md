@@ -672,3 +672,14 @@ Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscr
 - Hid incomplete team introductions unless both an image and non-placeholder introduction exist. Sample visiting details remain clearly labelled.
 - Updated the About navigation focus target to the merged visit heading.
 - Validation: 172 frontend tests passed; workspace typechecking and builds passed (existing bundle-size advisory remains). Four local Playwright checks passed, covering desktop/mobile search, navigation, carousel/reduced motion and full-card interaction. Full-page desktop/mobile screenshots reviewed.
+
+
+## Homepage visual polish — 25 September 2026
+- Extended the hero photograph across the full width, replacing the visible dark seam with localised shading and restoring more colour/detail to the vehicle.
+- Enforced full-height, cover-fit featured photographs; reviewed the first vehicle for the previously observed blank band.
+- Lightened and shortened individual price panels, with stronger model names and retained bold prices.
+- Balanced the visit columns using a shallower desktop photograph, tighter information rows and vertically centred content.
+- Increased visit and service body text to 15px.
+- Reduced service-section spacing while preserving aligned actions.
+- Shortened the homepage footer to today's opening information and a Full opening hours link; other pages retain their upcoming-day list.
+- Verification: 172 frontend tests and four desktop/mobile Playwright checks passed. Workspace typechecking and builds passed; the existing bundle-size advisory remains. Fresh full-page desktop/mobile screenshots inspected and saved in docs/screenshots/homepage-refinement.
