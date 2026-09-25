@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef } from 'react';
@@ -16,6 +17,7 @@ function imageCaption(image: CarImage | string | undefined) {
 }
 
 export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: GalleryProps) {
+  const reduceMotion = useReducedMotion();
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -68,7 +70,8 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
     eager = false,
   ) => {
     const url = getSafeImageUrl(allImages[imageIndex]);
-    return failedImages.has(url) ? (
+    const ImageElement = eager ? motion.img : 'img';
+    const content = failedImages.has(url) ? (
       <div
         className={cn(
           'flex items-center justify-center gap-3 bg-muted text-muted-foreground',
@@ -79,7 +82,8 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         <span className="text-xs">Photograph unavailable</span>
       </div>
     ) : (
-      <img
+      <ImageElement
+        {...(eager ? { initial: { opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 1.025 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1 }, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } : {})}
         key={url}
         src={url}
         {...responsiveVehicleImage(url, eager ? "(max-width: 1023px) 100vw, 900px" : "120px")}
@@ -92,6 +96,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         onError={(event) => {if (!retryOriginalImage(event.currentTarget)) setFailedImages((prev) => new Set(prev).add(url));}}
       />
     );
+    return eager ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
   };
   const arrowClass =
     'grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 bg-white text-black shadow-sm hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';

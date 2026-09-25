@@ -657,3 +657,6 @@ Validation: 172 frontend tests; seven browser checks covering 320px, 390px and 1
 The vehicle summary's Value my car action opens /enquire?type=part_exchange with the interested vehicle ID. Removed the duplicate in-page part-exchange mini-form. Embedded enquiry now asks only name, email, optional phone and message; hidden part-exchange draft data is not submitted, and email is the explicit reply method. Existing validation, API submission and error/success states remain. Rebalanced the page into gallery/summary, a full-width short enquiry section, then two-column desktop vehicle information. Viewing remains available as a quieter action; finance is absent.
 
 Validation: 172 frontend tests, workspace typechecks/build, four vehicle/gallery/enquiry browser scenarios and a direct valuation-route check. Tested submission intercepted in browser; no real enquiry sent. Fresh screenshots inspected.
+
+### Smooth vehicle photo changes
+Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscreen gallery images. Thumbnail controls remain immediate. Reduced-motion preference disables the transition. Workspace typechecking/build and three gallery browser checks at 320px, 390px and 1440px passed.
