@@ -342,3 +342,12 @@
 @media (prefers-reduced-motion: reduce) {
  .rolling-stock-copy, .rolling-stock-toggle { display: none; }
 }
+
+.browse-stock .vehicle-card-grid .vehicle-card-heading { text-align: left; }
+.browse-stock .vehicle-card-grid .vehicle-card-heading h3 { font-size: 1.125rem; line-height: 1.4; }
+.browse-stock .vehicle-card-grid .luxxy-price { font-size: 1.875rem; text-align: left; }
+.browse-stock .vehicle-card-grid .vehicle-specs { font-size: .8125rem; color: hsl(var(--muted-foreground)); }
+@media (max-width: 1023px) {
+ .browse-stock .stock-toolbar { position: sticky; top: var(--site-header-height); z-index: 30; }
+ .stock-toolbar-expanded { max-height: calc(100dvh - var(--site-header-height) - 190px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
+}

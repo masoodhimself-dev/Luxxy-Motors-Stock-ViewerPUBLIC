@@ -287,7 +287,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {!browseStock && <RollingStock cars={stock?.cars ?? []} unavailable={Boolean(error)} />}
 
-      {browseStock && <section id="stock" data-home-section className="homepage-stock py-8 md:py-10">
+      {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div>
@@ -410,7 +410,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 <div
                   className={cn(
                     'grid gap-5',
-                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-4',
+                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3',
                   )}
                 >
                   {displayedCars.map((car) => (

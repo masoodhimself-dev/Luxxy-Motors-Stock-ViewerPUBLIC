@@ -625,3 +625,8 @@ Validation: 168 frontend tests, three desktop/mobile browser scenarios covering 
 
 ### Stepped, flush homepage carousel
 Changed the continuous marquee to one-card smooth advances every four seconds, retaining hover/focus pause, pause/resume and reduced-motion support. Removed the spacing between hero and vehicle photographs, all carousel card borders and inter-card gutters. Moved the arrivals heading and controls underneath. Desktop retains four cars across; smaller screens remain horizontally browsable. Browser checks verify a single-card increment and desktop/mobile search/return journeys.
+
+### Browse Stock refinement — 25 September 2026
+Applied the five agreed improvements: three larger desktop cards per row; a single search/filter/sort toolbar without the redundant View matching cars action; one horizontally scrollable applied-filter row with Clear all; left-aligned names and prominent prices with muted specifications; and a sticky mobile toolbar below the site header. Expanded mobile filters have a bounded scroll area so all fields remain reachable. Kept Enter-to-results keyboard behaviour and existing live filtering, stock/list controls, photos and saved-car actions.
+
+Validation: all 168 frontend tests, both new 390px/1440px browser scenarios, full workspace typechecking and builds passed. Browser coverage checks the three-column arrangement, mobile sticky position, live make filtering, price sorting and clearing all filters. Fresh screenshots reviewed in docs/screenshots/browse-stock-refinement. Existing bundle-size warning remains. No backend or production changes.

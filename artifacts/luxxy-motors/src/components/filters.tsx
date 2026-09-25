@@ -104,6 +104,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
     setBudgetNotice(conflict ? `${key === 'minPrice' ? 'Maximum' : 'Minimum'} budget cleared to keep your selected price range valid.` : '');
   };
   const appliedFilters: Array<{ key: keyof FilterState; label: string }> = [
+    ...(filters.search ? [{ key: 'search' as const, label: filters.search }] : []),
     ...(filters.make ? [{ key: 'make' as const, label: filters.make }] : []),
     ...(filters.model ? [{ key: 'model' as const, label: filters.model }] : []),
     ...(filters.minPrice ? [{ key: 'minPrice' as const, label: `From £${Number(filters.minPrice).toLocaleString('en-GB')}` }] : []),
@@ -168,9 +169,9 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
   };
 
   return (
-    <div className="border-y border-border py-3" data-testid="stock-search-toolbar">
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] min-[375px]:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_200px_auto] lg:gap-3">
-        <label className="relative col-span-2 min-[375px]:col-span-3 block min-w-0 lg:col-span-1">
+    <div className="stock-toolbar border-y border-border bg-background py-3" data-testid="stock-search-toolbar">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_200px] lg:gap-3">
+        <label className="relative col-span-2 block min-w-0 lg:col-span-1">
           <span className="sr-only">Find your next car</span>
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -221,31 +222,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <option value="mileage-asc">Lowest mileage</option>
           <option value="mileage-desc">Highest mileage</option>
         </NativeSelect>
-        <button
-          type="button"
-          onClick={handleSearchClick}
-          aria-label="View matching cars"
-          className="col-span-2 min-[375px]:col-span-1 flex min-h-11 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:px-5"
-        >
-          <span className="sm:hidden">View cars</span><span className="hidden sm:inline">View matching cars</span>
-        </button>
       </div>
-      {appliedFilters.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1" aria-label="Applied filters">
-          {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex min-h-11 items-center gap-2 border-b border-border text-xs font-medium text-primary" onClick={() => {
+      {(activeFilterCount > 0 || filters.sort) && (
+        <div className="mt-2 flex items-center gap-4 overflow-x-auto whitespace-nowrap" aria-label="Applied filters">
+          {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex shrink-0 min-h-11 items-center gap-2 text-xs font-medium text-primary" onClick={() => {
             setFilters((current) => ({ ...current, [key]: typeof current[key] === 'boolean' ? false : '', ...(key === 'make' ? { model: '' } : {}) }));
             setBudgetNotice('');
           }}>{label}<X className="h-3.5 w-3.5" aria-hidden="true" /></button>)}
+          <button type="button" onClick={resetFilters} className="ml-auto min-h-11 shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-primary">Clear all</button>
         </div>
       )}
       {budgetNotice && <p className="mt-2 text-sm text-muted-foreground" role="status">{budgetNotice}</p>}
-      {(activeFilterCount > 0 || filters.sort) && (
-        <button type="button" onClick={resetFilters} className="mt-1 flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-primary">
-          <X aria-hidden="true" className="h-3.5 w-3.5" /> Reset filters
-        </button>
-      )}
       {showAdvanced && (
-         <section id="advanced-stock-filters" className="mt-3 border-t border-border pt-4 animate-in fade-in duration-200">
+         <section id="advanced-stock-filters" className="stock-toolbar-expanded mt-3 border-t border-border pt-4 animate-in fade-in duration-200">
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             <Field label="Make">
               <Select

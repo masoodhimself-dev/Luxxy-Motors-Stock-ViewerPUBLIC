@@ -442,7 +442,7 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByLabelText('Min budget'), {
       target: { value: '5000' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
+    fireEvent.keyDown(screen.getByTestId('input-showroom-search'), { key: 'Enter' });
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Ford Fiesta', 'Audi A3']);
 
     fireEvent.change(screen.getByLabelText('Min budget'), { target: { value: '' } });
@@ -480,7 +480,7 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByLabelText('Sort results'), {
       target: { value: 'price-asc' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
+    fireEvent.keyDown(screen.getByTestId('input-showroom-search'), { key: 'Enter' });
     expect(resultTitles()).toEqual([
       'VW Golf',
       'BMW 1 Series',
@@ -492,7 +492,7 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByTestId('input-showroom-search'), {
       target: { value: 'BMW' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Reset/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Clear all/i }));
 
     expect(resultTitles()).toHaveLength(5);
     expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
@@ -506,7 +506,7 @@ describe('showroom search filters', () => {
   it('invokes the existing results-scroll callback when viewing matching cars', async () => {
     renderHome();
 
-    fireEvent.click(screen.getByRole('button', { name: 'View matching cars' }));
+    fireEvent.keyDown(screen.getByTestId('input-showroom-search'), { key: 'Enter' });
 
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
