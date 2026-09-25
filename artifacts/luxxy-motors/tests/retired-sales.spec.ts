@@ -4,7 +4,7 @@ for (const width of [390, 1440]) {
   test(`old sales workflow is unavailable at ${width}px`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/portal');
-    await expect(page.getByTestId('work-queue')).toBeVisible();
+    await expect(page.getByTestId('input-identity-name')).toBeVisible();
     await expect(page.getByTestId('tab-deals')).toHaveCount(0);
     await expect(page.getByText('Deposits without a deal')).toHaveCount(0);
     await page.getByTestId('tab-reservations').click();

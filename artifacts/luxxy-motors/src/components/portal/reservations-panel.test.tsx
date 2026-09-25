@@ -37,19 +37,17 @@ beforeEach(() => {
 
 afterEach(() => { cache.clear(); vi.unstubAllGlobals(); });
 
-function renderPanel(onOpenLead = vi.fn()) {
-  render(<QueryClientProvider client={cache}><ReservationsPanel onOpenLead={onOpenLead} /></QueryClientProvider>);
-  return onOpenLead;
+function renderPanel() {
+  render(<QueryClientProvider client={cache}><ReservationsPanel /></QueryClientProvider>);
 }
 
-it('separates the expected deposit from money received and opens the linked lead', async () => {
-  const openLead = renderPanel();
+it('separates the expected deposit from money received without linking to the retired lead portal', async () => {
+  renderPanel();
   const row = await screen.findByTestId('staff-reservation-reservation-1');
   expect(within(row).getByText('Payment simulated · £0 received')).toBeInTheDocument();
   expect(within(row).getByText('£100')).toBeInTheDocument();
   expect(within(row).getByText('LM-RES-0001')).toBeInTheDocument();
-  fireEvent.click(within(row).getByRole('button', { name: 'Open lead' }));
-  expect(openLead).toHaveBeenCalledWith('lead-1');
+  expect(within(row).queryByRole('button', { name: 'Open lead' })).not.toBeInTheDocument();
 });
 
 it('requires confirmation, releases the reservation, and refreshes stock and lead records', async () => {

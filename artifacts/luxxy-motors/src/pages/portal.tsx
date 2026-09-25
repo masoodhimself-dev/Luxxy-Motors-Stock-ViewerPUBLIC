@@ -1,36 +1,24 @@
 import { useState } from 'react';
-import { Link, useLocation, useRoute } from 'wouter';
+import { Link } from 'wouter';
 import { SignInButton, UserButton, useAuth, useUser } from '@clerk/react';
 import {
   getGetPortalSessionQueryKey,
   useGetPortalSession,
 } from '@workspace/api-client-react';
 import {
-  BarChart3,
   BookmarkCheck,
   LoaderCircle,
   Lock,
-  Plus,
   Settings2,
-  Sun,
-  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
-import { ChannelSummary } from '@/components/portal/channel-summary';
-import { LeadCapture } from '@/components/portal/lead-capture';
-import { LeadDetail } from '@/components/portal/lead-detail';
-import { LeadList } from '@/components/portal/lead-list';
-import { WorkQueue } from '@/components/portal/work-queue';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 
-type TabKey = 'today' | 'leads' | 'reservations' | 'channels' | 'settings';
+type TabKey = 'reservations' | 'settings';
 
-const tabs: Array<{ key: TabKey; label: string; icon: typeof Sun }> = [
-  { key: 'today', label: 'Today', icon: Sun },
-  { key: 'leads', label: 'Leads', icon: Users },
+const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
-  { key: 'channels', label: 'Channels', icon: BarChart3 },
   { key: 'settings', label: 'Settings', icon: Settings2 },
 ];
 
@@ -83,10 +71,7 @@ function AccessDenied({ email }: { email: string | null }) {
 }
 
 function PortalDesk() {
-  const [, setLocation] = useLocation();
-  const [matchesLead, leadParams] = useRoute('/portal/leads/:id');
-  const [tab, setTab] = useState<TabKey>('today');
-  const [capturing, setCapturing] = useState(false);
+  const [tab, setTab] = useState<TabKey>('settings');
   const { user } = useUser();
 
   const sessionQuery = useGetPortalSession({
@@ -97,8 +82,6 @@ function PortalDesk() {
     },
   });
 
-  const openLead = (id: string) => setLocation(`/portal/leads/${id}`);
-  const closeLead = () => setLocation('/portal');
 
   if (sessionQuery.isLoading) {
     return (
@@ -140,22 +123,12 @@ function PortalDesk() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              onClick={() => setCapturing(true)}
-              data-testid="button-new-lead"
-            >
-              <Plus className="hidden h-4 w-4 sm:block" /> New lead
-            </Button>
             <div className="rounded-md border border-border bg-card p-1 shadow-none">
               <UserButton />
             </div>
           </div>
         </header>
 
-        {matchesLead && leadParams?.id ? (
-          <LeadDetail id={leadParams.id} onBack={closeLead} />
-        ) : (
           <div className="min-w-0">
             <nav
               className="mb-5 flex max-w-full gap-0.5 overflow-x-auto border-b border-border"
@@ -184,14 +157,10 @@ function PortalDesk() {
             </nav>
 
             <div className="min-h-[50vh]">
-              {tab === 'today' && <WorkQueue onOpenLead={openLead} />}
-              {tab === 'leads' && <LeadList onOpenLead={openLead} />}
-              {tab === 'reservations' && <ReservationsPanel onOpenLead={openLead} />}
-              {tab === 'channels' && <ChannelSummary />}
+              {tab === 'reservations' && <ReservationsPanel />}
               {tab === 'settings' && <DealerSettingsPanel />}
             </div>
           </div>
-        )}
 
         <div className="mt-12 flex justify-between border-t border-primary/20 pt-6">
           <Link
@@ -203,15 +172,7 @@ function PortalDesk() {
         </div>
       </div>
 
-      {capturing && (
-        <LeadCapture
-          onClose={() => setCapturing(false)}
-          onCreated={(id) => {
-            setCapturing(false);
-            openLead(id);
-          }}
-        />
-      )}
+
     </div>
   );
 }
@@ -233,7 +194,7 @@ export default function Portal() {
       <PortalFrame
         kicker="Staff portal"
         title="Sign in to your staff portal"
-        blurb="Sign in with your Luxxy Motors staff account to see enquiries, viewings and reservations."
+        blurb="Sign in with your Luxxy Motors staff account to see dealership settings and reservations."
       >
         <SignInButton mode="redirect">
           <Button data-testid="button-portal-sign-in">

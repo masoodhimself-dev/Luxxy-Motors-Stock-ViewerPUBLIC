@@ -40,9 +40,8 @@ function cancellationError(error: unknown) {
   return 'The reservation could not be cancelled. Please try again.';
 }
 
-function ReservationRow({ reservation, onOpenLead }: {
+function ReservationRow({ reservation }: {
   reservation: StaffOnlineReservation;
-  onOpenLead: (id: string) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const leadId = reservation.leadId;
@@ -80,7 +79,6 @@ function ReservationRow({ reservation, onOpenLead }: {
         <p className="mt-1 text-muted-foreground">Payment simulated · {money(reservation.amountReceivedPence)} received</p>
       </div>
       <div className="flex flex-wrap gap-2 lg:flex-col">
-        {leadId && <Button type="button" variant="outline" onClick={() => onOpenLead(leadId)}>Open lead</Button>}
         {reservation.status === 'reserved' && (
           <AlertDialog open={confirming} onOpenChange={(open) => {
             if (!cancel.isPending) {
@@ -117,7 +115,7 @@ function ReservationRow({ reservation, onOpenLead }: {
   );
 }
 
-export function ReservationsPanel({ onOpenLead }: { onOpenLead: (id: string) => void }) {
+export function ReservationsPanel() {
   const [status, setStatus] = useState('reserved');
   const query = useListReservations({ query: { queryKey: getListReservationsQueryKey(), refetchInterval: 60_000 } });
   const reservations = (query.data?.reservations ?? []).filter((reservation) => status === 'all' || reservation.status === status);
@@ -148,7 +146,7 @@ export function ReservationsPanel({ onOpenLead }: { onOpenLead: (id: string) => 
           <Button type="button" variant="outline" onClick={() => query.refetch()}>Try again</Button>
         </div>
       ) : reservations.length ? (
-        <ul className="divide-y divide-border">{reservations.map((reservation) => <ReservationRow key={reservation.id} reservation={reservation} onOpenLead={onOpenLead} />)}</ul>
+        <ul className="divide-y divide-border">{reservations.map((reservation) => <ReservationRow key={reservation.id} reservation={reservation} />)}</ul>
       ) : (
         <div className="p-4"><EmptyState icon={BookmarkCheck} title={status === 'cancelled' ? 'No cancelled reservations' : 'No reservations to show'} body={status === 'reserved' ? 'New online reservations will appear here with the car and customer details.' : 'Choose another status to see other reservations.'} /></div>
       )}
