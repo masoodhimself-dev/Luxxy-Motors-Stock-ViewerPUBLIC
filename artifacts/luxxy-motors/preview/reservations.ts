@@ -70,9 +70,16 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
   const handles = path === '/api/reservations' || /^\/api\/reservations\/[^/]+\/cancel$/.test(path)
     || path === '/api/stock' || path === '/api/dealer-settings' || path === '/api/leads' || /^\/api\/leads\/[0-9a-f-]{36}(\/events)?$/.test(path);
   if (!handles) return false;
-  // Preview fixtures have no real authentication. Keep their writable sandbox on loopback only.
-  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')
-    || !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(`http://${req.headers.host}`).hostname)) {
+  // LAN access is explicitly enabled for a local preview session, never production.
+  const remote = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+  const host = new URL(`http://${req.headers.host}`).hostname;
+  const loopback = ['127.0.0.1', '::1'].includes(remote)
+    && ['127.0.0.1', 'localhost', '[::1]'].includes(host);
+  const lanHost = process.env.LUXXY_PREVIEW_LAN_HOST;
+  const privateIpv4 = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/;
+  const lan = Boolean(lanHost && privateIpv4.test(lanHost) && host === lanHost
+    && (privateIpv4.test(remote) || remote === '127.0.0.1'));
+  if (!loopback && !lan) {
     send(res, 403, { error: 'This reservation sandbox is local only.' }); return true;
   }
   if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) {
