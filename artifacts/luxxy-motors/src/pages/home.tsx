@@ -446,10 +446,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3',
                   )}
                 >
-                  {displayedCars.map((car) => (
+                  {displayedCars.map((car, index) => (
                     <CarCard
                       key={car.id}
                       car={car}
+                      priority={index < 2}
                       layout={stockView === 'compact' ? 'compact' : 'card'}
                       stretchedLink
                     />

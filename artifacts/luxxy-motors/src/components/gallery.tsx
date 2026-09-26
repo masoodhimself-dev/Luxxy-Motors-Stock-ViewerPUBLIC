@@ -32,6 +32,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
   const next = () => setActiveIndex((index + 1) % allImages.length);
   const touchHandlers = {
     onTouchStart: (event: React.TouchEvent) => {
+      if (event.touches.length !== 1) { touchStart.current = null; return; }
       touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       swiped.current = false;
     },
@@ -111,7 +112,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
     <Dialog>
       <div className="min-w-0">
         <div
-          className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted"
+          className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted touch-pan-y"
           {...touchHandlers}
         >
           {renderImage(
@@ -218,7 +219,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
       >
         <DialogTitle className="sr-only">Vehicle image gallery</DialogTitle>
         {groupNavigation(true)}
-        <div className="flex min-w-0 items-center justify-center" {...touchHandlers}>
+        <div className="flex min-w-0 items-center justify-center touch-pan-y" {...touchHandlers}>
           {renderImage(index, 'max-h-[65dvh] w-full object-contain', true)}
         </div>
         <div className="flex items-center justify-between gap-3">

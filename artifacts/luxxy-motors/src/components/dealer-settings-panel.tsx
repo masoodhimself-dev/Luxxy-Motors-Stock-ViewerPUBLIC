@@ -1,3 +1,5 @@
+import { LaunchReadiness, SettingsPreview } from './settings-preview';
+import { ShowroomPhoto } from './showroom-photo';
 import { ReviewsSettings } from './reviews-settings';
 import { ColourField, isValidHsl } from '@/components/brand/colour-field';
 import { DealerWordmark } from "@/components/brand/wordmark";
@@ -498,20 +500,8 @@ export function DealerSettingsPanel() {
         </div>
       </div>
 
-      <details className="mb-6 border-y border-border py-3 text-sm">
-        <summary className="flex min-h-11 cursor-pointer items-center font-semibold">Before you publish: review your dealership information</summary>
-        <p className="my-3 max-w-3xl leading-6 text-muted-foreground">Filled fields are not verified information. Replace template wording and confirm accuracy before publishing. Optional photos and reviews can be left empty.</p>
-        <ul className="divide-y divide-border">
-          {[
-            ['Contact details', Boolean(form.contact.phone || form.contact.email), JSON.stringify(form.contact) === JSON.stringify(fallbackSettings.contact), false],
-            ['Showroom address and postcode', Boolean(form.address.street && form.address.postcode), JSON.stringify(form.address) === JSON.stringify(fallbackSettings.address), false],
-            ['Opening hours', form.hours.length > 0, JSON.stringify(form.hours) === JSON.stringify(fallbackSettings.hours), false],
-            ['Visit and parking instructions', Boolean(form.presentation?.visitInstructions && form.presentation?.parkingInstructions), JSON.stringify(form.presentation) === JSON.stringify(dealerConfig.presentation), false],
-            ['Genuine showroom / team photos', Boolean(form.presentation?.showroomImageUrl || form.presentation?.teamImageUrl), false, true],
-            ['Genuine customer-review link', Boolean(form.presentation?.reviewsUrl), false, true],
-          ].map(([label, present, sample, optional]) => <li key={String(label)} className="flex flex-wrap justify-between gap-2 py-3"><span>{label}</span><span className="text-muted-foreground">{!present ? (optional ? 'Optional — not added' : 'Not added') : sample ? 'Template value — check before publishing' : 'Added — confirm accuracy'}</span></li>)}
-        </ul>
-      </details>
+      <LaunchReadiness settings={form} />
+      <SettingsPreview settings={form} />
 
       {settingsQuery.isError && (
         <div className="mb-8 flex items-start gap-4 border border-amber-500/30 bg-amber-50/50 p-5 text-[13px] text-amber-900" data-testid="status-settings-load-error">
@@ -859,6 +849,7 @@ export function DealerSettingsPanel() {
                     data-testid={`input-${subject}-image-alt`}
                   />
                 </Field>
+                {form.presentation?.[`${subject}ImageUrl`]?.startsWith('https://') && <ShowroomPhoto src={form.presentation[`${subject}ImageUrl`]!} alt={form.presentation[`${subject}ImageAlt`] || `${subject} photo preview`} className="aspect-video max-w-sm sm:col-span-2" />}
               </div>
             ))}
             <p className="border-l-2 border-accent pl-4 text-sm leading-6 text-muted-foreground">

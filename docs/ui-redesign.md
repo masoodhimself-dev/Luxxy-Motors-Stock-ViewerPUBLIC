@@ -702,3 +702,15 @@ Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscr
 - Balanced homepage colours around cool charcoal, white panels, consistent pale grey supporting sections and restrained cyan controls. Kept the dark header's inverse text colours for readability.
 - Updated local preview settings only; no production data, deployment or migrations touched.
 - Passed 176 frontend tests, nine backend settings tests, six browser checks, workspace typechecking and builds. Existing bundle-size advisory remains. Reviewed fresh desktop/mobile screenshots.
+
+
+## Customer usability and launch preparation — 26 September 2026
+- Kept the existing two-column tablet stock layout and improved card spacing and touch-target sizing.
+- Retained swipe galleries, image-position indicators and reduced-motion transitions; improved vertical scrolling and ignored multi-touch starts.
+- Mobile vehicle bar now shows price at all phone widths and Enquire. It hides while the enquiry form or purchase panel is visible.
+- Stock browsing retains filters/sort and restores position; when viewport width changes (tablet rotation), restores relative to the selected vehicle.
+- Added settings photo thumbnails and a draft content/colour/review preview.
+- Replaced the basic publication checklist with draft launch-readiness checks for missing contacts, sample address/hours/visit copy, missing genuine imagery and simulated reservation payments.
+- Prioritised the first two stock images while retaining lazy loading, responsive sources and reserved aspect ratios for remaining photos.
+- Validation: 178 frontend tests, nine browser checks including phone/tablet browsing, gallery swipes, enquiry, valuation, settings and tablet rotation. Workspace typechecking/build passed; existing bundle-size warning remains.
+- These checks use local fixtures and emulated widths; physical iPad Safari and mobile-data speed remain useful real-device checks.

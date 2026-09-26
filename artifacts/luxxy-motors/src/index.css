@@ -463,3 +463,13 @@ body:has(.homepage-refined) footer,
 .review-verification { display: inline-flex; align-items: center; gap: 4px; color: #285e66; font-size: 12px; font-weight: 500; }
 .review-invited { border-left: 1px solid hsl(var(--border)); padding-left: 8px; color: hsl(var(--muted-foreground)); font-size: 12px; }
 body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --primary-foreground: 195 22% 13%; }
+
+/* Touch-first tablet browsing: generous photos without a cramped third column. */
+@media (min-width: 768px) and (max-width: 1199px) {
+ .browse-stock .vehicle-card-grid .vehicle-card-details { padding: 20px; }
+ .vehicle-details-content { gap: 24px; }
+ .stock-toolbar button, .stock-toolbar select { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .vehicle-card img { transition: none; }
+}

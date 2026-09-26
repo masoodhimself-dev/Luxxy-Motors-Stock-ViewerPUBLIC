@@ -65,6 +65,8 @@ export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
   const purchasePanel = useRef<HTMLDivElement>(null);
   const [purchaseVisible, setPurchaseVisible] = useState(false);
+  const enquiryPanel = useRef<HTMLElement>(null);
+  const [enquiryVisible, setEnquiryVisible] = useState(false);
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
@@ -75,6 +77,13 @@ export default function CarDetail() {
     if (!purchasePanel.current || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(([entry]) => setPurchaseVisible(entry.intersectionRatio >= .45), {threshold: [0, .45, 1], rootMargin: '-90px 0px -80px 0px'});
     observer.observe(purchasePanel.current);
+    return () => observer.disconnect();
+  }, [car?.id]);
+
+  useEffect(() => {
+    if (!enquiryPanel.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setEnquiryVisible(entry.isIntersecting), { rootMargin: '-90px 0px -80px 0px' });
+    observer.observe(enquiryPanel.current);
     return () => observer.disconnect();
   }, [car?.id]);
 
@@ -342,7 +351,7 @@ export default function CarDetail() {
           </div>
 
           </div>
-          <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
+          <section ref={enquiryPanel} id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
             <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
@@ -452,22 +461,19 @@ export default function CarDetail() {
 
         </div>
       </div>
-      {!purchaseVisible && <div
+      {!purchaseVisible && !enquiryVisible && <div
         className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-border bg-card p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] lg:hidden"
         data-testid="mobile-conversion-bar"
       >
-        <p className="luxxy-price hidden shrink-0 px-1 min-[440px]:block">
+        <p className="luxxy-price shrink-0 px-1 text-lg">
           {car.price ? formatPrice(car.price, car.currency) : "POA"}
         </p>
         <Button asChild className="min-h-12 min-w-0 flex-1">
           <a
-            href={bookingHref}
-            onClick={() =>
-              recordBookingIntent({ source: 'car_detail_mobile', vehicleContext: true })
-            }
+            href="#vehicle-enquiry"
+            onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}
           >
-            <Calendar className="h-4 w-4 shrink-0" />
-            {dealerConfig.bookViewing.ctaLabel}
+            Enquire
           </a>
         </Button>
         {whatsappHref && (

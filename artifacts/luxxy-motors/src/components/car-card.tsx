@@ -22,6 +22,7 @@ import { trackEvent } from '@/lib/analytics';
 
 export function CarCard({
   car,
+  priority = false,
   layout = 'card',
   stretchedLink = false,
   badges = [],
@@ -29,6 +30,7 @@ export function CarCard({
   analyticsSource = 'showroom',
 }: {
   car: Car;
+  priority?: boolean;
   layout?: 'row' | 'card' | 'compact';
   stretchedLink?: boolean;
   badges?: string[];
@@ -133,7 +135,8 @@ export function CarCard({
                   decoding="async"
                   width={800}
                   height={600}
-                  loading="lazy"
+                  loading={priority ? "eager" : "lazy"}
+                  fetchPriority={priority ? "high" : "auto"}
                   className={cn(
                     'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
                     url === galleryUrls[activeIndex]
