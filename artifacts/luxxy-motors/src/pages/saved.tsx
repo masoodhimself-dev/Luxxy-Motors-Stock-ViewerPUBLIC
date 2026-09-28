@@ -59,7 +59,7 @@ export default function Saved() {
   }
 
   return (
-    <div className="luxxy-shell min-h-screen bg-background pb-24 pt-8 md:pt-12">
+    <div className="friendly-page friendly-saved luxxy-shell min-h-screen bg-background pb-24 pt-8 md:pt-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           href="/stock"

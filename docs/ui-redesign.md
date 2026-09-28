@@ -777,3 +777,9 @@ Validation: 186 unit tests, workspace builds/typechecks and four browser tests p
 Vehicle-page WhatsApp actions (desktop, mobile and walkaround requests) now preview an editable short message before opening WhatsApp. The confirmation shows dealership recipient and vehicle details. Closed-hours messaging uses the shared London-time schedule, with next-opening guidance and an eligible reservation or enquiry alternative. Contact intent is recorded only on continuing to WhatsApp, which still requires the customer to send their message. Blank messages cannot continue.
 
 Validation: 186 unit tests, workspace typechecks/builds and two desktop/mobile browser checks passed. Browser tests inspect encoded links without sending messages.
+
+### Friendlier supporting-page colour
+
+Introduced page-scoped teal contact panels, blue warranty/booking surfaces and warm sand saved/comparison accents. Customer forms retain white working surfaces against tinted backgrounds; contact methods have distinct icon backgrounds. Vehicle summary/enquiry areas use soft teal and the review card uses warm paper tones. Typography and controls remain high-contrast; no workflow changes.
+
+Validation: 186 unit tests, workspace typecheck/build and desktop/mobile page sweeps passed. Visually inspected Contact desktop and booking mobile. Existing build-size warning remains.

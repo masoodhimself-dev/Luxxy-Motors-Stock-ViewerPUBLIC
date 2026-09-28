@@ -581,3 +581,30 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
  .stock-refined .vehicle-card-heading { min-height: 0; }
  .stock-refined #vehicle-results { margin-top: 8px; }
 }
+
+/* Welcoming supporting pages: sea-glass, soft blue and warm paper accents. */
+.friendly-page { --friendly-tint: #e3f1f0; --friendly-ink: #174b50; background: #f4f8f7; }
+.friendly-warranty { --friendly-tint: #e8edf9; --friendly-ink: #334d75; background: #f6f7fb; }
+.friendly-enquire { --friendly-tint: #e1f1f4; --friendly-ink: #195466; background: #f1f7f8; }
+.friendly-saved, .friendly-compare { --friendly-tint: #f3ebdf; --friendly-ink: #684c2d; background: #faf7f2; }
+.friendly-page h1 { color: var(--friendly-ink); }
+.friendly-page .luxxy-kicker { color: var(--friendly-ink); }
+.friendly-contact header, .friendly-warranty header { max-width: none; background: var(--friendly-tint); border-left: 4px solid var(--friendly-ink); padding: 28px; border-radius: 4px; margin-block: 16px 28px; }
+.friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { background: #fff; border: 1px solid #c9dedb; border-radius: 6px; padding-inline: 20px; }
+.friendly-contact [data-testid^="contact-"] > svg:first-child { box-sizing: content-box; padding: 10px; background: #e3f1f0; border-radius: 50%; color: #225c60; }
+.friendly-contact [data-testid="contact-whatsapp"] > svg:first-child { background: #e2f1e6; color: #236243; }
+.friendly-warranty #warranty-enquiry { background: #e8edf9; border: 1px solid #cbd5e9; border-radius: 6px; }
+.friendly-warranty [aria-labelledby="warranty-details-heading"] { border-top: 0; }
+.friendly-warranty [aria-labelledby="warranty-faq-heading"] { border-bottom: 1px solid #d4dced; }
+.friendly-enquire .container > .grid > section:first-child { background: var(--friendly-tint); padding: 24px; border-top: 4px solid #397783; border-radius: 6px; }
+.friendly-page form { background: #fff; border: 1px solid #d3e0e1; padding: 24px; border-radius: 6px; }
+.friendly-saved h1, .friendly-compare h1 { border-left: 4px solid #a48052; padding-left: 16px; }
+.vehicle-summary { background: #f1f7f8; border-top: 3px solid #43808b; }
+.vehicle-inline-enquiry { background: #eaf3f4; }
+.vehicle-review-card { background: #f5f0e8; border-color: #dfd5c5; border-top: 3px solid #a48052; }
+@media(max-width:639px) {
+ .friendly-contact header, .friendly-warranty header { padding: 20px; margin-bottom: 20px; }
+ .friendly-page form { padding: 18px; }
+ .friendly-enquire .container > .grid > section:first-child { padding: 18px; }
+ .friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { padding-inline: 14px; }
+}

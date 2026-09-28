@@ -35,7 +35,7 @@ export default function Contact() {
     }
   };
 
-  return <div className="luxxy-shell bg-background pb-14 sm:pb-20">
+  return <div className="friendly-page friendly-contact luxxy-shell bg-background pb-14 sm:pb-20">
     <div className="container mx-auto px-4 pt-5 sm:px-6 sm:pt-8 lg:px-8">
       <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to showroom</Link>
       <header className="mt-4 max-w-3xl pb-7 sm:pb-10">
