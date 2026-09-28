@@ -23,7 +23,15 @@ import {
   emptyDraft,
   totals,
   errors,
+  exchanges,
+  payments,
+  pence,
 } from "@/components/sales-demo/model";
+
+import {
+  useGetEnquiries,
+  useListReservations,
+} from "@workspace/api-client-react";
 
 const KEY = "luxxy.sales-workspace-demo.v1";
 const tabs = [
@@ -61,6 +69,32 @@ export default function SalesDemo() {
   const [, navigate] = useLocation();
   const { stock } = useStock();
   const { settings } = useDealerSettings();
+  const enquiries = useGetEnquiries();
+  const reservations = useListReservations();
+  const [customerSearch, setCustomerSearch] = useState("");
+  const recentCustomers = [
+    ...(enquiries.data ?? []).map((item) => ({
+      id: "Enquiry " + item.reference,
+      name: item.customerName,
+      email: item.email ?? "",
+      phone: item.phone ?? "",
+      date: item.createdAt,
+    })),
+    ...(reservations.data?.reservations ?? []).map((item) => ({
+      id: "Reservation " + item.reference,
+      name: item.customerName,
+      email: item.email,
+      phone: item.phone,
+      date: item.createdAt,
+    })),
+  ]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .filter((item) =>
+      `${item.name} ${item.email} ${item.phone} ${item.id}`
+        .toLowerCase()
+        .includes(customerSearch.toLowerCase()),
+    )
+    .slice(0, 20);
   const [sales, setSales] = useState<SaleDraft[]>(readDrafts);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [snapshot, setSnapshot] = useState("");
@@ -293,6 +327,68 @@ export default function SalesDemo() {
               )}
               {tab === 0 && (
                 <div className="sales-form-panel">
+                  <details className="mb-6 border-b pb-5">
+                    <summary className="cursor-pointer py-3 font-medium">
+                      Use a recent enquiry or reservation
+                    </summary>
+                    <Input
+                      aria-label="Search recent customers"
+                      placeholder="Search name, telephone or reference"
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                    <p className="my-3 text-sm text-muted-foreground">
+                      Selecting a customer replaces name, email and telephone
+                      only. Payments are never imported.
+                    </p>
+                    {(enquiries.isLoading || reservations.isLoading) && (
+                      <p role="status">Loading recent customers…</p>
+                    )}
+                    {(enquiries.isError || reservations.isError) && (
+                      <p role="alert">
+                        Some recent records could not be loaded. You can enter
+                        details below.
+                      </p>
+                    )}
+                    <div className="max-h-64 overflow-auto divide-y">
+                      {recentCustomers.map((item) => (
+                        <button
+                          key={item.id}
+                          className="block w-full py-3 text-left hover:bg-secondary"
+                          onClick={() => {
+                            setDraft({
+                              ...draft,
+                              customer: item.name,
+                              email: item.email,
+                              phone: item.phone,
+                              customerSource: item.id,
+                            });
+                            setMessage(
+                              "Customer details copied. Please check them below.",
+                            );
+                          }}
+                        >
+                          <strong>{item.name}</strong>
+                          <span className="block text-sm text-muted-foreground">
+                            {item.id} ·{" "}
+                            {new Date(item.date).toLocaleDateString("en-GB")}
+                          </span>
+                        </button>
+                      ))}
+                      {!recentCustomers.length &&
+                        !enquiries.isLoading &&
+                        !reservations.isLoading && (
+                          <p className="py-4 text-sm">
+                            No matching recent customers.
+                          </p>
+                        )}
+                    </div>
+                  </details>
+                  {draft.customerSource && (
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Copied from {draft.customerSource}
+                    </p>
+                  )}
                   <div className="grid gap-6 sm:grid-cols-2">
                     {field("customer", "Customer name")}
                     {field("phone", "Telephone", "tel")}
@@ -356,56 +452,258 @@ export default function SalesDemo() {
                 </div>
               )}
               {tab === 2 && (
-                <div className="sales-form-panel">
-                  <label className="flex min-h-12 items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={draft.partExchange}
-                      onChange={(e) => update("partExchange", e.target.checked)}
-                    />
-                    Customer has a part exchange
-                  </label>
-                  {draft.partExchange ? (
-                    <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                      {field("pxRegistration", "Part-exchange registration")}
-                      {field("pxDescription", "Make and model")}
-                      {field("pxValue", "Agreed allowance (£)")}
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      No part-exchange allowance will be deducted.
-                    </p>
-                  )}
+                <div className="sales-form-panel space-y-6">
+                  {exchanges(draft).map((row, index) => (
+                    <fieldset key={index} className="border-b pb-6">
+                      <legend className="mb-4 font-semibold">
+                        Part exchange {index + 1}
+                      </legend>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {(
+                          [
+                            ["registration", "Registration"],
+                            ["description", "Make and model"],
+                            ["value", "Allowance (£)"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <label key={key} className="grid gap-2 text-sm">
+                            {label}
+                            <Input
+                              aria-label={`${label} ${index + 1}`}
+                              value={row[key]}
+                              onChange={(e) =>
+                                update(
+                                  "exchanges",
+                                  exchanges(draft).map((r, i) =>
+                                    i === index
+                                      ? { ...r, [key]: e.target.value }
+                                      : r,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <Button
+                        className="mt-3"
+                        variant="ghost"
+                        onClick={() =>
+                          update(
+                            "exchanges",
+                            exchanges(draft).filter((_, i) => i !== index),
+                          )
+                        }
+                      >
+                        Remove part exchange {index + 1}
+                      </Button>
+                    </fieldset>
+                  ))}
+                  <Button
+                    variant="outline"
+                    disabled={exchanges(draft).length >= 3}
+                    onClick={() =>
+                      update("exchanges", [
+                        ...exchanges(draft),
+                        { registration: "", description: "", value: "" },
+                      ])
+                    }
+                  >
+                    Add part-exchange car
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Up to three cars. Total allowance:{" "}
+                    {money(amount!.allowance)}
+                  </p>
                 </div>
               )}
               {tab === 3 && (
-                <div className="sales-form-panel">
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    {field("deposit", "Illustrative deposit (£)")}
-                    <label className="grid gap-2 text-sm font-medium">
-                      Expected payment method
-                      <select
-                        aria-label="Expected payment method"
-                        className="h-12 border border-input bg-white px-3"
-                        value={draft.paymentMethod}
-                        onChange={(e) =>
-                          update("paymentMethod", e.target.value)
+                <div className="sales-form-panel space-y-6">
+                  <h2 className="text-lg font-semibold">Fees and discounts</h2>
+                  {(draft.adjustments ?? []).map((row, index) => (
+                    <fieldset
+                      key={index}
+                      className="grid gap-3 border-b pb-4 sm:grid-cols-2"
+                    >
+                      <legend className="mb-2 font-medium">
+                        Adjustment {index + 1}
+                      </legend>
+                      <label>
+                        Type
+                        <select
+                          className="block h-12 w-full border bg-white px-3"
+                          value={row.kind}
+                          onChange={(e) =>
+                            update(
+                              "adjustments",
+                              draft.adjustments!.map((r, i) =>
+                                i === index
+                                  ? {
+                                      ...r,
+                                      kind: e.target.value as
+                                        "fee" | "discount",
+                                    }
+                                  : r,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="fee">Add fee</option>
+                          <option value="discount">Subtract discount</option>
+                        </select>
+                      </label>
+                      {(
+                        [
+                          ["description", "Description"],
+                          ["amount", "Amount (£)"],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <label key={key}>
+                          {label}
+                          <Input
+                            aria-label={`${label} adjustment ${index + 1}`}
+                            value={row[key]}
+                            onChange={(e) =>
+                              update(
+                                "adjustments",
+                                draft.adjustments!.map((r, i) =>
+                                  i === index
+                                    ? { ...r, [key]: e.target.value }
+                                    : r,
+                                ),
+                              )
+                            }
+                          />
+                        </label>
+                      ))}
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          update(
+                            "adjustments",
+                            draft.adjustments!.filter((_, i) => i !== index),
+                          )
                         }
                       >
-                        {["Bank transfer", "Card", "Cash"].map((method) => (
-                          <option key={method}>{method}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <dl className="mt-8 divide-y divide-border">
+                        Remove adjustment {index + 1}
+                      </Button>
+                    </fieldset>
+                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      update("adjustments", [
+                        ...(draft.adjustments ?? []),
+                        { description: "", amount: "", kind: "fee" },
+                      ])
+                    }
+                  >
+                    Add fee or discount
+                  </Button>
+                  <h2 className="text-lg font-semibold">Payment entries</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Record each instalment separately. Entries are illustrative
+                    in this demo.
+                  </p>
+                  {payments(draft).map((row, index) => (
+                    <fieldset
+                      key={index}
+                      className="grid gap-3 border-b pb-4 sm:grid-cols-2"
+                    >
+                      <legend className="mb-2 font-medium">
+                        Payment {index + 1}
+                      </legend>
+                      {(
+                        [
+                          ["amount", "Amount (£)", "text"],
+                          ["date", "Date", "date"],
+                          ["reference", "Reference / note", "text"],
+                        ] as const
+                      ).map(([key, label, type]) => (
+                        <label key={key}>
+                          {label}
+                          <Input
+                            aria-label={`${label} payment ${index + 1}`}
+                            type={type}
+                            value={row[key]}
+                            onChange={(e) =>
+                              update(
+                                "payments",
+                                payments(draft).map((r, i) =>
+                                  i === index
+                                    ? { ...r, [key]: e.target.value }
+                                    : r,
+                                ),
+                              )
+                            }
+                          />
+                        </label>
+                      ))}
+                      <label>
+                        Method
+                        <select
+                          aria-label={`Method payment ${index + 1}`}
+                          className="block h-12 w-full border bg-white px-3"
+                          value={row.method}
+                          onChange={(e) =>
+                            update(
+                              "payments",
+                              payments(draft).map((r, i) =>
+                                i === index
+                                  ? { ...r, method: e.target.value }
+                                  : r,
+                              ),
+                            )
+                          }
+                        >
+                          {["Bank transfer", "Cash", "Card", "Other"].map(
+                            (method) => (
+                              <option key={method}>{method}</option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          update(
+                            "payments",
+                            payments(draft).filter((_, i) => i !== index),
+                          )
+                        }
+                      >
+                        Remove payment {index + 1}
+                      </Button>
+                    </fieldset>
+                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      update("payments", [
+                        ...payments(draft),
+                        {
+                          amount: "",
+                          method: "Bank transfer",
+                          date: new Date().toISOString().slice(0, 10),
+                          reference: "",
+                        },
+                      ])
+                    }
+                  >
+                    Add payment
+                  </Button>
+                  <dl className="divide-y">
                     {[
                       ["Vehicle price", amount!.price],
+                      ["Fees less discounts", amount!.adjustments],
                       ["Part-exchange allowance", -amount!.allowance],
-                      ["Illustrative deposit", -amount!.deposit],
+                      ["Illustrative payments", -amount!.deposit],
                       ["Illustrative balance", amount!.balance],
                     ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between py-4">
+                      <div
+                        key={label}
+                        className="flex justify-between gap-4 py-4"
+                      >
                         <dt>{label}</dt>
                         <dd className="font-semibold">
                           {money(Number(value))}
@@ -413,7 +711,7 @@ export default function SalesDemo() {
                       </div>
                     ))}
                   </dl>
-                  <p className="mt-3 text-sm text-amber-800">
+                  <p className="text-sm text-amber-800">
                     No payment has been received. This screen does not reserve
                     or sell the vehicle.
                   </p>
@@ -501,25 +799,41 @@ export default function SalesDemo() {
                             {money(amount!.price)}
                           </td>
                         </tr>
-                        {draft.partExchange && (
-                          <tr>
+                        {(draft.adjustments ?? []).map((row, i) => (
+                          <tr key={`a${i}`}>
                             <td className="p-3">
-                              Part exchange · {draft.pxDescription} ·{" "}
-                              {draft.pxRegistration}
+                              {row.description || "Adjustment"}
                             </td>
                             <td className="p-3 text-right">
-                              {money(-amount!.allowance)}
+                              {money(
+                                pence(row.amount) *
+                                  (row.kind === "discount" ? -1 : 1),
+                              )}
                             </td>
                           </tr>
-                        )}
-                        <tr>
-                          <td className="p-3">
-                            Illustrative deposit · {draft.paymentMethod}
-                          </td>
-                          <td className="p-3 text-right">
-                            {money(-amount!.deposit)}
-                          </td>
-                        </tr>
+                        ))}
+                        {exchanges(draft).map((row, i) => (
+                          <tr key={`x${i}`}>
+                            <td className="p-3">
+                              Part exchange · {row.description} ·{" "}
+                              {row.registration}
+                            </td>
+                            <td className="p-3 text-right">
+                              {money(-pence(row.value))}
+                            </td>
+                          </tr>
+                        ))}
+                        {payments(draft).map((row, i) => (
+                          <tr key={`p${i}`}>
+                            <td className="p-3">
+                              Illustrative payment · {row.method} · {row.date}
+                              <span className="block">{row.reference}</span>
+                            </td>
+                            <td className="p-3 text-right">
+                              {money(-pence(row.amount))}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 border-slate-800">

@@ -725,3 +725,11 @@ Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscr
 - All documents clearly labelled demo/not issued/no payment received. No payment collection, stock mutation, email, signing, issued numbering or tax configuration.
 - Drafts are device-local: sample customers only; no cross-device sync or production authentication changes.
 - Validation: 180 frontend tests passed; workspace typechecking/build passed (existing chunk warning); two browser scenarios passed at 390/1194px, covering sale entry, part exchange, totals, save/reopen, unsaved warnings and print layout. Screenshots reviewed in docs/screenshots/sales-workspace.
+
+### Sales workspace: itemised balance and recent customers
+
+Extended the local-only `/portal/sales-demo` workspace with removable fees and discounts, multiple dated payment entries (cash, bank transfer, card or other, with references), and up to three part-exchange vehicles. Integer-pence totals and document previews include every entry. Invalid amounts and overpayment block printing; incomplete drafts can still be saved. Existing single-deposit/single-exchange drafts remain readable, and explicit empty arrays prevent removed legacy entries returning.
+
+Customer selection reads existing enquiry and reservation endpoints, supports search and newest-first ordering, and copies only name, email and telephone. It does not import reservation deposits as money received. Loading, unavailable and empty states allow manual entry. All sales drafts and illustrative entries remain browser-local; no production schema, payment, stock, authentication or sales API changes.
+
+Validation: 181 frontend unit tests passed; workspace typechecking and frontend/backend builds passed (existing main bundle size warning). Browser coverage includes desktop/mobile draft persistence and print previews, split payment totals, recent customer imports and the three-car limit. Refreshed document screenshots in `docs/screenshots/sales-workspace/`.
