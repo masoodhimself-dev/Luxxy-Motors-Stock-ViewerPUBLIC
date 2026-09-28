@@ -1,3 +1,4 @@
+import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
@@ -234,7 +235,7 @@ export default function CarDetail() {
         <div className="grid min-w-0 items-start gap-6 vehicle-detail-grid lg:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)] lg:gap-7">
           <div className="vehicle-detail-gallery min-w-0 lg:col-start-1 lg:row-start-1">
             <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
-            {whatsappHref && <a className="text-link mt-2 min-h-11 text-sm" href={getVehicleWhatsAppHref(car, 'request a walkaround video, including the interior and any marks or damage', dealerConfig)} target="_blank" rel="noopener noreferrer" onClick={() => recordContactIntent({channel:'whatsapp',car,source:'vehicle_walkaround'})}>Request a walkaround video <ArrowRight className="h-4 w-4" /></a>}
+            <VehicleWhatsApp car={car} walkaround />
           </div>
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <div className="vehicle-summary min-w-0">
@@ -308,22 +309,7 @@ export default function CarDetail() {
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
                 <VehicleCall car={car} />
-                {whatsappHref && (
-                  <a
-                    href={whatsappHref}
-                    className="vehicle-contact-action vehicle-contact-action-whatsapp"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`WhatsApp about ${vehicleLabel}`}
-                    onClick={() =>
-                      recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail' })
-                    }
-                    data-vehicle-contact="whatsapp"
-                  >
-                    <SiWhatsapp className="h-4 w-4" aria-hidden="true" />
-                    WhatsApp us
-                  </a>
-                )}
+                <VehicleWhatsApp car={car} />
               </div>
             </div>
             {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex items-center justify-between">
@@ -464,14 +450,7 @@ export default function CarDetail() {
             Enquire
           </a>
         </Button>
-        {whatsappHref && (
-          <a href={whatsappHref} target="_blank" rel="noopener noreferrer"
-            className="vehicle-contact-action vehicle-contact-action-whatsapp h-12 w-12 shrink-0 p-0"
-            aria-label={`WhatsApp about ${vehicleLabel}`} title="WhatsApp us"
-            onClick={() => recordContactIntent({ channel: 'whatsapp', car, source: 'car-detail-mobile' })}>
-            <SiWhatsapp className="h-5 w-5" aria-hidden="true" />
-          </a>
-        )}
+        <VehicleWhatsApp car={car} compact />
         <VehicleCall car={car} compact />
       </div>}
       {similarCars.length > 0 && (

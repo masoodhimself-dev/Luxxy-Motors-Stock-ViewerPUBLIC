@@ -771,3 +771,9 @@ Validation: 184 unit tests and workspace builds passed; final frontend typecheck
 Call actions now evaluate configured hours in Europe/London at click time. Known closed periods offer a name/telephone/email callback form using the existing general-enquiry endpoint, with vehicle and next-opening request attached. Success is shown only after the API accepts the request. Closed mobile actions do not automatically invoke the dialler. Closed days are skipped; appointment-only/unparseable schedules do not claim a known open/closed status. Existing free-text hours support standard 24-hour ranges; special dates and overnight ranges are not inferred. Callback language asks for first contact at reopening without guaranteeing a staff response time.
 
 Validation: 186 unit tests, workspace builds/typechecks and four browser tests passed, including an intercepted callback submission. No production or schema changes.
+
+### WhatsApp confirmation and opening-hours guidance
+
+Vehicle-page WhatsApp actions (desktop, mobile and walkaround requests) now preview an editable short message before opening WhatsApp. The confirmation shows dealership recipient and vehicle details. Closed-hours messaging uses the shared London-time schedule, with next-opening guidance and an eligible reservation or enquiry alternative. Contact intent is recorded only on continuing to WhatsApp, which still requires the customer to send their message. Blank messages cannot continue.
+
+Validation: 186 unit tests, workspace typechecks/builds and two desktop/mobile browser checks passed. Browser tests inspect encoded links without sending messages.
