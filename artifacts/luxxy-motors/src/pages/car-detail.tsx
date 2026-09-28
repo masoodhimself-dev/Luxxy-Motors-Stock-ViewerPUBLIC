@@ -1,3 +1,4 @@
+import { VehicleReviews } from '@/components/vehicle-reviews';
 import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
@@ -322,6 +323,7 @@ export default function CarDetail() {
             </div>
           </aside>
 <div className="mt-5 flex flex-wrap items-center gap-x-5 border-t border-border pt-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
+            <VehicleReviews />
           </div>
 
           </div>
