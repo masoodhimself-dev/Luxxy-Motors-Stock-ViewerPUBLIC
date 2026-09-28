@@ -457,7 +457,7 @@ body:has(.homepage-refined) footer,
 .homepage-refined .customer-reviews { background: #f3f6f6; }
 .homepage-refined .review-panel { background: #fff; }
 .homepage-refined .rolling-stock .vehicle-card,
-.homepage-refined .rolling-stock .vehicle-card-details { background: #eef2f2; }
+.homepage-refined .rolling-stock .vehicle-card-details { background: #fff; }
 .homepage-refined .home-services { background: #f3f6f6; }
 .homepage-refined .hero-search-submit { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
 .homepage-refined .hero-search-submit:hover { background: #25c4dc; }
@@ -499,21 +499,22 @@ body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --p
 .hero-search-secondary button:hover, .hero-search-secondary a:hover { text-decoration:underline; }
 .hero-search-secondary button:focus-visible, .hero-search-secondary a:focus-visible { outline:2px solid #fff; outline-offset:4px; }
 
-/* Stock browsing uses the same charcoal, cyan and cool-grey surfaces as home. */
-.stock-refined { background: #dfebe9; }
-.stock-page-intro { background: #18545b; color: #fff; padding-block: 32px 36px; border-bottom: 3px solid hsl(var(--accent)); }
-.stock-home-link { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; font-size: 12px; color: #d4dfe2; }
-.stock-home-link:hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
-.stock-refined .stock-toolbar { background: #c7dfdb; border: 1px solid #98beba; border-top: 3px solid #28747b; padding: 16px; border-radius: 6px; }
+/* Stock browsing: neutral surfaces and a restrained blue selection accent. */
+.stock-refined { background: #f5f5f4; }
+.stock-page-intro { background: #fff; color: #202428; padding-block: 20px; border-bottom: 1px solid #dedfdf; }
+.stock-page-intro p { color: #5c6267; }
+.stock-home-link { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; font-size: 12px; color: #5c6267; }
+.stock-home-link:hover { color: #202428; text-decoration: underline; text-underline-offset: 4px; }
+.stock-refined .stock-toolbar { background: #fff; border: 1px solid #d7dadd; padding: 12px; border-radius: 4px; }
 .stock-refined .vehicle-card { border-radius: 2px; border-color: #d4dddd; box-shadow: none; overflow: hidden; }
 
 .stock-refined .vehicle-card-grid .vehicle-card-heading h3 { font-weight: 600; }
-.stock-refined .vehicle-card .luxxy-price { color: #18545b; }
-.stock-refined .vehicle-card:hover { border-color: #8babad; }
+.stock-refined .vehicle-card .luxxy-price { color: #202428; }
+.stock-refined .vehicle-card:hover { border-color: #939a9f; }
 .stock-refined .stock-toolbar input, .stock-refined .stock-toolbar select, .stock-refined .stock-toolbar button { border-radius: 2px; }
 @media (max-width: 639px) { .stock-page-intro { padding-block: 16px 24px; } }
-/* Keep the mobile stock header legible above the dark introduction. */
-body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
+/* Neutral navigation above the catalogue. */
+body:has(.stock-refined) header { background: #fff; color: #202428; }
 
 /* Homepage rhythm: shared section spacing and balanced enabled services. */
 .homepage-art-directed { --home-section-space: clamp(36px, 4.5vw, 64px); background: #fff; }
@@ -521,8 +522,8 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
 .homepage-art-directed #visit,
 .homepage-art-directed .home-services { padding-block: var(--home-section-space); }
 .homepage-art-directed .customer-reviews { background: #fff; border-color: #e0e6e6; }
-.homepage-art-directed .review-panel { background: #f6f8f8; border-color: #e0e6e6; padding: 24px; }
-.homepage-art-directed #visit { background: #f0f4f4; }
+.homepage-art-directed .review-panel { background: #f6f6f5; border-color: #e0e6e6; padding: 24px; }
+.homepage-art-directed #visit { background: #f4f4f3; }
 .homepage-art-directed .home-services { background: #fff; }
 .home-service-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
 .homepage-art-directed .section-heading { line-height: 1.2; letter-spacing: -.035em; }
@@ -544,9 +545,9 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
 }
 
 /* Shared customer/portal surfaces. Status and WhatsApp colours remain semantic. */
-.vehicle-card-details { background: #eef2f2; }
+.vehicle-card-details { background: #fff; }
 .vehicle-card { box-shadow: none; }
-.luxxy-shell .text-accent { color: #176574; }
+.luxxy-shell .text-accent { color: #254e77; }
 .luxxy-shell .text-link { color: hsl(var(--foreground)); }
 .luxxy-shell .text-link:hover { text-decoration-color: hsl(var(--accent)); }
 .dark .luxxy-shell .text-accent { color: #63d6e7; }
@@ -556,15 +557,15 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
 .browse-stock .vehicle-card-heading { min-height: 3.2rem; }
 @media(max-width:639px) { .stock-filter-dialog { width:100vw!important; max-width:100vw!important; height:100dvh; max-height:100dvh!important; border-radius:0; } }
 
-/* Catalogue: clear white information panels against a sea-glass canvas. */
-.stock-refined .stock-page-intro { padding-block: 16px 24px; }
+/* Catalogue: photography-led cards and restrained controls. */
+.stock-refined .stock-page-intro { padding-block: 8px 20px; }
 .stock-refined .stock-page-intro h1 { margin-top: 4px; }
 .stock-refined .browse-stock { padding-top: 24px; }
-.stock-refined .vehicle-card-details { background: #fff; border-top: 3px solid #71aaa5; }
-.stock-refined .vehicle-card-actions > a { color: #164d52; background: #dceeea; padding-inline: 14px; border-radius: 4px; }
-.stock-refined .vehicle-card-actions > a:hover { background: #c5e2dc; }
+.stock-refined .vehicle-card-details { background: #fff; border-top: 1px solid #e1e2e3; }
+.stock-refined .vehicle-card-actions > a { color: #254e77; background: transparent; padding-inline: 0; border-radius: 2px; }
+.stock-refined .vehicle-card-actions > a:hover { color: #163552; text-decoration: underline; }
 .stock-refined .vehicle-card { transition: border-color 160ms; transform: none; }
-.stock-refined .vehicle-card:hover { transform: none; border-color: #809497; box-shadow: none; }
+.stock-refined .vehicle-card:hover { transform: none; border-color: #939a9f; box-shadow: none; }
 .stock-refined .vehicle-card:hover h3 a { text-decoration: underline; text-underline-offset: 4px; }
 .stock-refined .vehicle-card-heading { min-height: 4.3rem; }
 .stock-refined .vehicle-card-heading h3 { line-height: 1.4; }
@@ -575,7 +576,7 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
 .stock-refined .vehicle-card [data-testid^="button-save"] { border-radius: 50%; width: 44px; height: 44px; color: #26383e; }
 .stock-refined .vehicle-card [data-testid^="button-save"] svg { width: 16px; height: 16px; color: inherit; }
 .stock-refined [aria-label="Applied filters"] { flex-wrap: wrap; gap: 8px; }
-.stock-refined [aria-label="Applied filters"] button { padding-inline: 10px; background: #d4e9e5; border: 1px solid #88afaa; color: #174b50; border-radius: 4px; white-space: normal; }
+.stock-refined [aria-label="Applied filters"] button { padding-inline: 10px; background: #edf2f7; border: 1px solid #bac9d7; color: #254e77; border-radius: 4px; white-space: normal; }
 .stock-results-end { padding-block: 24px; border-bottom: 1px solid hsl(var(--border)); }
 .stock-empty { max-width: 720px; }
 @media(max-width:639px) {
@@ -585,52 +586,41 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
  .stock-refined #vehicle-results { margin-top: 8px; }
 }
 
-/* Customer pages: confident colour blocks, warm accents and clear form surfaces. */
-.friendly-page { --friendly-tint: #cde5df; --friendly-ink: #18545b; background: #e7f0ed; }
-.friendly-warranty { --friendly-tint: #d9e5f1; --friendly-ink: #294e71; background: #eaf0f6; }
-.friendly-enquire { --friendly-tint: #cde5e6; --friendly-ink: #195466; background: #e1eeed; }
-.friendly-saved, .friendly-compare { --friendly-tint: #edddc4; --friendly-ink: #654925; background: #f4ede1; }
-.friendly-page h1, .friendly-page .luxxy-kicker { color: var(--friendly-ink); }
-.friendly-banner { background: var(--friendly-ink); color: #fff; border-bottom: 5px solid #7fbab2; border-radius: 6px; padding: clamp(24px, 3.5vw, 44px); }
-.friendly-page .friendly-banner h1 { color: #fff; }
-.friendly-page .friendly-banner .luxxy-kicker, .friendly-banner > p:first-child { color: #cce8e4; }
-.friendly-page .friendly-banner p:not(.luxxy-kicker), .friendly-banner figcaption { color: #e0eded; }
-.friendly-page .friendly-banner .text-link { color: #fff; }
-.friendly-banner a:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+/* Customer pages share one neutral palette; colour identifies actions, not page types. */
+.friendly-page { background: #f6f6f5; }
+.friendly-page h1 { color: #202428; }
+.friendly-page .luxxy-kicker { color: #5c6267; }
+.friendly-banner { background: transparent; color: #202428; padding: 0 0 24px; border-bottom: 1px solid #d7dadd; }
+.friendly-page .friendly-banner h1 { color: #202428; }
+.friendly-page .friendly-banner p, .friendly-banner figcaption { color: #5c6267; }
+.friendly-page .friendly-banner .text-link { color: #254e77; }
+.friendly-banner a:focus-visible { outline: 2px solid #254e77; outline-offset: 4px; }
 .friendly-contact header, .friendly-warranty header { max-width: none; margin-block: 16px 28px; }
-.friendly-warranty .friendly-banner { border-bottom-color: #8bb4d6; }
-.friendly-warranty .friendly-banner a.bg-primary { background: #d9eaf7; color: #1d405f; }
-.friendly-warranty .friendly-banner a.bg-primary:hover { background: #fff; }
-.friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { background: #fff; border: 1px solid #a7c9c2; border-radius: 6px; padding-inline: 20px; }
-.friendly-contact [data-testid^="contact-"] > svg:first-child { box-sizing: content-box; padding: 12px; background: #cfe7e1; border-radius: 50%; color: #18545b; }
-.friendly-contact [data-testid="contact-whatsapp"] > svg:first-child { background: #d6eadb; color: #236243; }
-.friendly-contact [aria-label="Before your visit"] { background: #efdfc5; border: 1px solid #d5bc94; border-left: 5px solid #9b753e; border-radius: 6px; padding: 28px; }
-.friendly-contact [aria-label="Before your visit"] h2 { color: #654925; }
-.friendly-contact [data-testid="contact-location"] > .bg-primary { background: #18545b; border-bottom: 4px solid #7fbab2; }
-.friendly-warranty #warranty-enquiry { background: #ccdeee; border: 1px solid #9cb8d0; border-radius: 6px; }
+.friendly-contact .friendly-banner { border-bottom: 0; padding-bottom: 0; }
+.friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { background: #fff; border: 1px solid #d7dadd; border-radius: 4px; padding-inline: 20px; }
+.friendly-contact [data-testid^="contact-"] > svg:first-child { box-sizing: content-box; padding: 10px; background: #f1f2f2; border-radius: 50%; color: #434b52; }
+.friendly-contact [data-testid="contact-whatsapp"] > svg:first-child { background: #edf4ef; color: #236243; }
+.friendly-contact [aria-label="Before your visit"] { background: #eeefef; border: 1px solid #d7dadd; border-radius: 4px; padding: 28px; }
+.friendly-contact [data-testid="contact-location"] > .bg-primary { background: #22272b; }
+.friendly-warranty #warranty-enquiry { background: #eef0f1; border: 1px solid #d7dadd; border-radius: 4px; }
 .friendly-warranty [aria-labelledby="warranty-details-heading"] { border-top: 0; }
-.friendly-warranty [aria-labelledby="warranty-details-heading"] dl { background: #fff; padding-inline: 24px; border: 1px solid #bdcfdf; border-radius: 6px; }
-.friendly-warranty [aria-labelledby="warranty-faq-heading"] { border-bottom: 1px solid #bdcfdf; }
-.friendly-enquire .enquiry-introduction { background: var(--friendly-tint); padding: 24px; border: 1px solid #a7c7c7; border-radius: 6px; }
-.friendly-enquire .friendly-banner { margin: -24px -24px 0; padding: 24px; border-radius: 6px 6px 0 0; }
-.friendly-page form { background: #fff; border: 1px solid #b3ccc8; border-top: 4px solid #4c918d; padding: 24px; border-radius: 6px; }
-.enquiry-form-panel > section, .enquiry-form-panel > [data-testid="status-enquiry-success"] { background: #fff; padding: 24px; border: 1px solid #b3ccc8; border-radius: 6px; }
-.friendly-shortlist-intro { background: var(--friendly-tint); border-left: 5px solid #96713c; border-radius: 6px; padding: 28px; margin-bottom: 28px; }
+.friendly-warranty [aria-labelledby="warranty-details-heading"] dl { background: #fff; padding-inline: 24px; border: 1px solid #d7dadd; border-radius: 4px; }
+.friendly-warranty [aria-labelledby="warranty-faq-heading"] { border-bottom: 1px solid #d7dadd; }
+.friendly-enquire .enquiry-introduction { background: transparent; padding: 0; }
+.friendly-enquire .friendly-banner { margin: 0; padding: 0 0 24px; }
+.friendly-page form { background: #fff; border: 1px solid #d7dadd; padding: 24px; border-radius: 4px; }
+.enquiry-form-panel > section, .enquiry-form-panel > [data-testid="status-enquiry-success"] { background: #fff; padding: 24px; border: 1px solid #d7dadd; border-radius: 4px; }
+.friendly-shortlist-intro { border-bottom: 1px solid #d7dadd; padding: 0 0 24px; margin-bottom: 28px; }
 .friendly-shortlist-intro header { margin-bottom: 0; padding-bottom: 0; border: 0; background: transparent; }
-.friendly-saved .vehicle-card-details { background: #fffdf8; }
-.vehicle-summary { background: #deeceb; border-color: #a9c8c6; border-top: 4px solid #28747b; }
-.vehicle-inline-enquiry { background: #cfe5e3; border-color: #9abeb9; }
-.vehicle-review-card { background: #eee0c9; border-color: #d4be9a; border-top: 4px solid #95723e; }
+.friendly-saved .vehicle-card-details { background: #fff; }
+.vehicle-summary { background: #fff; border: 1px solid #d7dadd; }
+.vehicle-inline-enquiry { background: #f3f4f4; border-color: #d7dadd; }
+.vehicle-review-card { background: #f5f5f4; border: 1px solid #d7dadd; }
 @media(max-width:639px) {
- .stock-refined .stock-toolbar { padding: 12px; }
- .friendly-contact header, .friendly-warranty header { padding: 24px; margin-bottom: 20px; }
+ .stock-refined .stock-toolbar { padding: 10px; }
+ .friendly-contact header, .friendly-warranty header { padding: 0 0 20px; margin-bottom: 20px; }
  .friendly-page form { padding: 18px; }
- .friendly-enquire .enquiry-introduction { padding: 18px; }
- .friendly-enquire .friendly-banner { margin: -18px -18px 0; padding: 22px 18px; }
+ .friendly-enquire .friendly-banner { padding-bottom: 20px; }
  .friendly-contact [aria-labelledby="talk-heading"] > div:first-of-type { padding-inline: 14px; }
- .friendly-contact [aria-label="Before your visit"], .friendly-shortlist-intro { padding: 22px; }
-}
-@media(max-width:1023px) {
- .friendly-enquire .enquiry-introduction { padding-bottom: 0; }
- .friendly-enquire .friendly-banner { border-radius: 6px; }
+ .friendly-contact [aria-label="Before your visit"] { padding: 22px; }
 }
