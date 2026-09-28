@@ -194,7 +194,7 @@ export default function Portal() {
       <PortalFrame
         kicker="Staff portal"
         title="Sign in to your staff portal"
-        blurb="Sign in with your Luxxy Motors staff account to see dealership settings and reservations."
+        blurb="Sign in with your dealership staff account to see dealership settings and reservations."
       >
         <SignInButton mode="redirect">
           <Button data-testid="button-portal-sign-in">

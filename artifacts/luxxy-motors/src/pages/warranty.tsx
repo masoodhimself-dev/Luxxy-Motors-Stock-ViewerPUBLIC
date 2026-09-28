@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { useEffect, useState } from 'react';
 import { Link, useSearch } from 'wouter';
 import { ArrowLeft, ArrowRight, MessageCircle, Phone } from 'lucide-react';
@@ -79,10 +80,10 @@ export default function Warranty() {
         ) : <>
           <header className={`friendly-banner grid items-center gap-7 py-7 sm:py-10 lg:gap-14 ${photo ? 'lg:grid-cols-2' : 'max-w-3xl'}`}>
             <div className="min-w-0">
-              <p className="luxxy-kicker">Owning your next car</p>
+              <p className="luxxy-kicker">{websiteText(settings, "warrantyEyebrow")}</p>
               <h1 className="mt-3 max-w-lg font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem]">{title}</h1>
               <p className="mt-5 max-w-lg whitespace-pre-line text-base leading-7 text-muted-foreground">{settings.warranty.description || 'Speak to the team about warranty options for the car you are considering.'}</p>
-              <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">Know the cover, the cost and the conditions before you decide. Ask us for the details that apply to your chosen car.</p>
+              <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">{websiteText(settings, "warrantySupportingCopy")}</p>
               <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                 <Button asChild><a href="#warranty-enquiry" onClick={goToEnquiry}>Ask about warranty<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button>
                 {phoneHref && <a href={phoneHref} className="text-link inline-flex min-h-11 items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(settings.contact.phone!)}</a>}
@@ -94,8 +95,8 @@ export default function Warranty() {
           <section className="grid gap-7 border-t border-border py-8 sm:py-12 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-16" aria-labelledby="warranty-details-heading">
             <div>
               <p className="luxxy-kicker">Before you decide</p>
-              <h2 id="warranty-details-heading" className="mt-3 font-display text-2xl font-semibold tracking-tight">The details worth checking.</h2>
-              <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">A useful warranty conversation starts with the policy wording. These are the points to confirm for the car and cover you are considering.</p>
+              <h2 id="warranty-details-heading" className="mt-3 font-display text-2xl font-semibold tracking-tight">{websiteText(settings, "warrantyDetailsHeading")}</h2>
+              <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">{websiteText(settings, "warrantyDetailsIntroduction")}</p>
               <p className="mt-5 max-w-md border-l-2 border-accent pl-4 text-sm leading-6">The provider, duration and level of cover need to be confirmed for your vehicle.</p>
             </div>
             <dl className="min-w-0 divide-y divide-border border-y border-border">
@@ -109,7 +110,7 @@ export default function Warranty() {
           <section id="warranty-enquiry" className="grid scroll-mt-28 items-start gap-7 border-y border-border bg-card p-5 sm:p-8 lg:grid-cols-2 lg:gap-14" aria-labelledby="warranty-enquiry-heading">
             <div>
               <p className="luxxy-kicker">Start with the car</p>
-              <h2 id="warranty-enquiry-heading" tabIndex={-1} className="mt-3 scroll-mt-28 font-display text-2xl font-semibold tracking-tight outline-none">Ask about your chosen vehicle.</h2>
+              <h2 id="warranty-enquiry-heading" tabIndex={-1} className="mt-3 scroll-mt-28 font-display text-2xl font-semibold tracking-tight outline-none">{websiteText(settings, "warrantyEnquiryHeading")}</h2>
               <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Choose a car below and we’ll include it with your enquiry. Still looking, or asking about a car you already own? You can send a general warranty question.</p>
               <Link href="/contact" className="text-link mt-4 inline-flex min-h-11 items-center gap-2">Contact & directions<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
             </div>

@@ -1,9 +1,10 @@
+import { WebsiteContentEditor } from "./website-content-editor";
 import { LaunchReadiness, SettingsPreview } from './settings-preview';
 import { ShowroomPhoto } from './showroom-photo';
 import { ReviewsSettings } from './reviews-settings';
 import { ColourField, isValidHsl } from '@/components/brand/colour-field';
 import { DealerWordmark } from "@/components/brand/wordmark";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   getGetDealerSettingsQueryKey,
   type DealerSettings,
@@ -49,7 +50,23 @@ type FormSection =
   | "proof"
   | "legal"
   | "presentation"
-  | "brochure";
+  | "brochure"
+  | "pages"
+  | "review";
+
+const ActiveSettingsSection = createContext<FormSection | null>(null);
+const setupSteps: Array<[FormSection, string, string]> = [
+  ["identity", "Your brand", "Name, logo & colours"],
+  ["contact", "Your showroom", "Contact, address & hours"],
+  ["presentation", "Photographs & visits", "Images, directions & reviews"],
+  ["homepage", "Homepage", "Headline & featured cars"],
+  ["pages", "Page wording", "Navigation & customer pages"],
+  ["services", "Services", "Reservations & feature switches"],
+  ["proof", "Why buy from you", "Dealership selling points"],
+  ["brochure", "Printed details", "Vehicle print design"],
+  ["legal", "Business details", "Company, social & policy links"],
+  ["review", "Review & publish", "Check the draft before publishing"],
+];
 
 const fallbackSettings: DealerSettings = {
   onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...dealerConfig.onlineReservation },
@@ -143,7 +160,7 @@ function copySettings(source: DealerSettings): DealerSettings {
     onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...source.onlineReservation },
     bookViewing: { ...source.bookViewing },
     recentHandovers: { ...source.recentHandovers },
-    presentation: { ...source.presentation },
+    presentation: { ...source.presentation, ...(source.presentation?.websiteCopy ? { websiteCopy: { ...source.presentation.websiteCopy } } : {}) },
     brochure: { ...source.brochure },
     trustItems: [...source.trustItems],
     whyBuy: source.whyBuy.map((item) => ({ ...item })),
@@ -204,8 +221,10 @@ function SectionCard({
   icon: ReactNode;
   children: ReactNode;
 }) {
+  const active = useContext(ActiveSettingsSection);
+  if (active && active !== id) return null;
   return (
-    <section id={`settings-${id}`} className="scroll-mt-28 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
+    <section tabIndex={-1} id={`settings-${id}`} className="scroll-mt-28 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
       <div className="mb-8 flex flex-col items-start gap-4 border-b border-border pb-6 sm:flex-row">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-secondary/20 text-primary">
           {icon}
@@ -291,6 +310,8 @@ export function DealerSettingsPanel() {
   const [form, setForm] = useState<DealerSettings>(fallbackSettings);
   const [initialized, setInitialized] = useState(false);
   const [activeSection, setActiveSection] = useState<FormSection>('identity');
+  const [guided, setGuided] = useState(true);
+  const stepIndex = setupSteps.findIndex(([id]) => id === activeSection);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [saveMessage, setSaveMessage] = useState('');
   const [savedSnapshot, setSavedSnapshot] = useState('');
@@ -359,11 +380,12 @@ export function DealerSettingsPanel() {
     if (form.brochure?.photoLimit !== undefined && (!Number.isInteger(form.brochure.photoLimit) || form.brochure.photoLimit < 1 || form.brochure.photoLimit > 80)) errors['brochure.photoLimit'] = 'Choose between 1 and 80 photographs.';
     if (!isValidHsl(form.identity.brandColors.primaryHsl) || !isValidHsl(form.identity.brandColors.accentHsl)) errors['identity.colours'] = 'Use a hue from 0–360 and saturation/lightness from 0–100%, or choose a colour using the picker.';
     for (const [key, value] of Object.entries(form.presentation || {})) {
+      if (key.endsWith("Colour") && value && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) errors[`presentation.${key}`] = "Use a six-digit hex colour, or leave blank.";
       if (key.endsWith("Url") && typeof value === "string" && value && !/^https:\/\/[^\s]+$/.test(value))
         errors[`presentation.${key}`] =
           "Use a full HTTPS address, or leave this empty.";
     }
-    for (const subject of ["hero", "showroom", "team"] as const) {
+    for (const subject of ["hero", "showroom", "team", "visit", "contact", "reception"] as const) {
       if (
         form.presentation?.[`${subject}ImageUrl`] &&
         !form.presentation?.[`${subject}ImageAlt`]?.trim()
@@ -371,6 +393,10 @@ export function DealerSettingsPanel() {
         errors[`presentation.${subject}ImageAlt`] =
           "Describe the photograph for customers using a screen reader.";
     }
+    for (const [group, fields] of Object.entries({ identity: { logoAsset: form.identity.logoAsset }, contact: { email: '' }, address: { mapsUrl: form.address.mapsUrl }, legal: { termsUrl: form.legal.termsUrl, privacyUrl: form.legal.privacyUrl, cookieUrl: form.legal.cookieUrl }, social: form.social })) {
+      for (const [key, value] of Object.entries(fields)) if (value && !/^https?:\/\/[^\s]+$/.test(value)) errors[`${group}.${key}`] = 'Use a full HTTP or HTTPS address.';
+    }
+    if (form.contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact.email)) errors['contact.email'] = 'Enter a valid email address.';
     if (!form.identity.name.trim()) errors['identity.name'] = 'Add the dealership name.';
     if (!form.hero.copy.trim()) errors['hero.copy'] = 'Add a homepage headline.';
     if (!form.hero.subcopy.trim()) errors['hero.subcopy'] = 'Add a short supporting line.';
@@ -388,10 +414,12 @@ export function DealerSettingsPanel() {
     if (Object.keys(errors).length > 0) {
       const first = Object.keys(errors)[0];
       if (first.startsWith("brochure")) setActiveSection("brochure");
+      else if (/^presentation\.(footerLogoUrl|faviconUrl|.*Colour)$/.test(first)) setActiveSection("identity");
       else if (first.startsWith("presentation")) setActiveSection("presentation");
       else if (first.startsWith('identity')) setActiveSection('identity');
       else if (first.startsWith('hero') || first.startsWith('bookViewing')) setActiveSection('homepage');
-      else if (first === 'hours') setActiveSection('contact');
+      else if (first === 'hours' || first.startsWith('contact') || first.startsWith('address')) setActiveSection('contact');
+      else if (first.startsWith('legal') || first.startsWith('social')) setActiveSection('legal');
       else if (first.startsWith('onlineReservation')) setActiveSection('services');
       else setActiveSection('proof');
       return false;
@@ -404,6 +432,7 @@ export function DealerSettingsPanel() {
     if (!initialized || !settingsQuery.data) return;
     setSaveMessage('');
     if (!validate()) return;
+    if (guided && activeSection !== 'review') { scrollToSection('review'); return; }
     updateSettings.mutate(
       { data: copySettings(form) },
       {
@@ -421,7 +450,7 @@ export function DealerSettingsPanel() {
 
   const scrollToSection = (section: FormSection) => {
     setActiveSection(section);
-    document.getElementById(`settings-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    requestAnimationFrame(() => { const panel = document.getElementById(`settings-${section}`); panel?.scrollIntoView({ block: 'start' }); panel?.focus({ preventScroll: true }); });
   };
 
   const addHour = () => updateGroup('hours', [...form.hours, { days: '', times: '' }]);
@@ -478,12 +507,12 @@ export function DealerSettingsPanel() {
   }
 
   return (
-    <section className="mb-12" aria-labelledby="settings-heading">
+    <section className="settings-studio mb-12" aria-labelledby="settings-heading">
       <div className="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="luxxy-kicker text-primary">
             <Store className="h-3.5 w-3.5" /> Showroom settings</p>
-          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Showroom settings</h2>
+          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Make this website yours.</h2>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70">
             Set up your dealership: branding, contact details, photographs,
             visiting information and services. Publish when the information is
@@ -500,8 +529,10 @@ export function DealerSettingsPanel() {
         </div>
       </div>
 
-      <LaunchReadiness settings={form} />
-      <SettingsPreview settings={form} />
+      <div className="settings-setup-bar">
+        <div><p className="text-sm font-semibold">{guided ? `Step ${stepIndex + 1} of ${setupSteps.length} · ${setupSteps[stepIndex][1]}` : 'All website settings'}</p><p className="mt-1 text-xs text-muted-foreground">Your draft is private until you publish. You can move between sections at any time.</p></div>
+        <Button type="button" variant="outline" onClick={() => setGuided(!guided)}>{guided ? 'Show all sections' : 'Use step-by-step setup'}</Button>
+      </div>
 
       {settingsQuery.isError && (
         <div className="mb-8 flex items-start gap-4 border border-amber-500/30 bg-amber-50/50 p-5 text-[13px] text-amber-900" data-testid="status-settings-load-error">
@@ -516,26 +547,12 @@ export function DealerSettingsPanel() {
         </div>
       )}
 
-      <div className="sticky top-[var(--site-header-height)] z-20 mb-8 overflow-x-auto border-b border-border bg-background/95 shadow-sm backdrop-blur">
-        <nav className="flex min-w-max gap-6 px-1" aria-label="Settings sections">
-          {(
-            [
-              ['identity', 'Identity'],
-              ['contact', 'Contact & hours'],
-              ['homepage', 'Homepage copy'],
-              ["presentation", "Photos & visit"],
-              ["brochure", "Vehicle brochure"],
-              ['services', 'Services'],
-              ['proof', 'Trust & why buy'],
-              ['legal', 'Social & legal'],
-            ] as Array<[FormSection, string]>
-          ).map(([section, label]) => (
-            <button key={section} type="button" onClick={() => scrollToSection(section)} className={`border-b px-1 pb-4 pt-5 text-[12px] font-medium transition-colors ${activeSection === section ? 'border-primary text-primary' : 'border-transparent text-primary/70 hover:text-foreground hover:border-border'}`} data-testid={`button-settings-nav-${section}`}>
-              {label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <div className="settings-workspace">
+      <nav className="settings-step-nav" aria-label="Settings sections">
+        {setupSteps.map(([section, label, hint], index) => <button key={section} type="button" aria-current={activeSection === section ? 'step' : undefined} onClick={() => scrollToSection(section)} data-testid={`button-settings-nav-${section}`}>
+          <span className="settings-step-number">{String(index + 1).padStart(2, '0')}</span><span><span className="block font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{hint}</span></span>
+        </button>)}
+      </nav>
 
       {dirty && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
@@ -555,8 +572,9 @@ export function DealerSettingsPanel() {
           }}>Discard draft</Button>
         </div>
       )}
-      <form onSubmit={save} data-preserves-draft="true" className="space-y-6">
-        <SectionCard id="identity" eyebrow="01 / Brand" title="Brand identity" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
+      <ActiveSettingsSection.Provider value={guided ? activeSection : null}>
+      <form onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate>
+        <SectionCard id="identity" eyebrow="Brand" title="Brand identity" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Dealership name" error={validationErrors['identity.name']}>
               <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.identity.name} onChange={(event) => updateNested('identity', 'name', event.target.value)} data-testid="input-identity-name" />
@@ -570,10 +588,12 @@ export function DealerSettingsPanel() {
                 <Input className="h-11 rounded-md pl-10 text-base focus-visible:border-accent" type="url" value={form.identity.logoAsset} onChange={(event) => updateNested('identity', 'logoAsset', event.target.value)} placeholder="https://…" data-testid="input-identity-logo-asset" />
               </div>
             </Field>
+            {([['footerLogoUrl', 'Logo for the dark footer'], ['faviconUrl', 'Browser-tab icon']] as const).map(([key, label]) => <Field key={key} label={label} hint="Optional HTTPS image URL" error={validationErrors[`presentation.${key}`]}><Input type="url" maxLength={2048} value={form.presentation?.[key] || ''} onChange={event => updatePresentation(key, event.target.value)} data-testid={`input-${key}`} /></Field>)}
             <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Advanced design settings</summary><p className="mb-4 text-xs text-muted-foreground">Optional brand colour overrides. The defaults are ready to use.</p>            <div className="grid gap-4 sm:grid-cols-2">
               <ColourField label="Primary colour" value={form.identity.brandColors.primaryHsl} onChange={(primaryHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl })} testId="input-brand-primary" />
               <ColourField label="Accent colour" value={form.identity.brandColors.accentHsl} onChange={(accentHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl })} testId="input-brand-accent" />
             </div></details>
+            <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Page and text colours</summary><p className="mb-4 text-xs text-muted-foreground">Keep text dark enough to read on your chosen backgrounds. Blank values retain the neutral design.</p><div className="grid gap-4 sm:grid-cols-2">{([['pageColour', 'Page background', '#f6f6f5'], ['panelColour', 'Cards and forms', '#ffffff'], ['headingColour', 'Headings and prices', '#202428'], ['linkColour', 'Links and accents', '#254e77']] as const).map(([key, label, fallback]) => <Field key={key} label={label} error={validationErrors[`presentation.${key}`]}><div className="flex gap-2"><input aria-label={`${label} colour picker`} type="color" value={form.presentation?.[key] || fallback} onChange={event => updatePresentation(key, event.target.value)} className="h-11 w-14" /><Input aria-label={`${label} hex value`} value={form.presentation?.[key] || ''} placeholder={fallback} maxLength={7} onChange={event => updatePresentation(key, event.target.value)} /></div></Field>)}</div></details>
             {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
@@ -586,7 +606,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="contact" eyebrow="02 / Visit" title="Contact and opening hours" description="Give shoppers the details they need to call, message or find the forecourt with confidence." icon={<MapPin className="h-5 w-5" />}>
+        <SectionCard id="contact" eyebrow="Visit" title="Contact and opening hours" description="Give shoppers the details they need to call, message or find the forecourt with confidence." icon={<MapPin className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="Phone">
               <Input type="tel" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.phone} onChange={(event) => updateNested('contact', 'phone', event.target.value)} data-testid="input-contact-phone" />
@@ -650,7 +670,8 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="homepage" eyebrow="03 / First impression" title="Homepage content" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
+        <SectionCard id="homepage" eyebrow="First impression" title="Homepage content" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
+          <div className="mb-6 grid gap-3 sm:grid-cols-2">{([['featuredEnabled', 'Show featured cars', true], ['visitEnabled', 'Show visit and dealership section', true], ['servicesEnabled', 'Show services section', true], ['showHeroDescription', 'Show introduction below hero headline', false]] as const).map(([key, label, fallback]) => <label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5" checked={form.presentation?.[key] ?? fallback} onChange={event => updatePresentation(key, event.target.checked)} />{label}</label>)}</div>
           <div className="grid gap-5">
             <Field label="Announcement strip" hint="Optional">
               <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.hero.announcement} onChange={(event) => updateNested('hero', 'announcement', event.target.value)} placeholder="New stock added this week" data-testid="input-hero-announcement" />
@@ -658,7 +679,7 @@ export function DealerSettingsPanel() {
             <Field label="Homepage headline" error={validationErrors['hero.copy']}>
               <Input required className="h-11 rounded-md font-display text-[15px] font-semibold focus-visible:border-accent" value={form.hero.copy} onChange={(event) => updateNested('hero', 'copy', event.target.value)} data-testid="input-hero-copy" />
             </Field>
-            <Field label="Supporting copy" hint="Keep this short and specific. Your town appears above the headline when the announcement is empty." error={validationErrors['hero.subcopy']}>
+            <Field label="Dealership introduction" hint="Used in the footer. Optionally show it below the homepage headline too." error={validationErrors['hero.subcopy']}>
               <Textarea required rows={3} className="rounded-md text-base focus-visible:border-accent" value={form.hero.subcopy} onChange={(event) => updateNested('hero', 'subcopy', event.target.value)} data-testid="textarea-hero-subcopy" />
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -806,17 +827,17 @@ export function DealerSettingsPanel() {
 
         <SectionCard
           id="presentation"
-          eyebrow="04 / Photography & visits"
+          eyebrow="Photography & visits"
           title="Make the dealership your own"
           description="Add genuine dealership photos, practical visiting details and your customer-review page. Leave anything unconfirmed empty."
           icon={<Image className="h-5 w-5" />}
         >
           <div className="space-y-6">
-            {(["hero", "showroom", "team"] as const).map((subject) => (
+            {(["hero", "showroom", "team", "visit", "contact", "reception"] as const).map((subject) => (
               <div key={subject} className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : "Showroom"} photograph URL`}
-                  hint={subject === "hero" ? "HTTPS · independent of featured stock; use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to reuse the homepage photo" : "HTTPS"}
+                  label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : subject === "visit" ? "Visit / forecourt" : subject === "contact" ? "Contact page" : subject === "reception" ? "Reception" : "Showroom"} photograph URL`}
+                  hint={subject === "hero" ? "HTTPS · independent of featured stock; use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to omit the showroom photo" : "HTTPS"}
                   error={validationErrors[`presentation.${subject}ImageUrl`]}
                 >
                   <Input
@@ -834,7 +855,7 @@ export function DealerSettingsPanel() {
                   />
                 </Field>
                 <Field
-                  label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : "Showroom"} photograph description`}
+                  label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : subject === "visit" ? "Visit / forecourt" : subject === "contact" ? "Contact page" : subject === "reception" ? "Reception" : "Showroom"} photograph description`}
                   error={validationErrors[`presentation.${subject}ImageAlt`]}
                 >
                   <Input
@@ -852,6 +873,8 @@ export function DealerSettingsPanel() {
                 {form.presentation?.[`${subject}ImageUrl`]?.startsWith('https://') && <ShowroomPhoto src={form.presentation[`${subject}ImageUrl`]!} alt={form.presentation[`${subject}ImageAlt`] || `${subject} photo preview`} className="aspect-video max-w-sm sm:col-span-2" />}
               </div>
             ))}
+            <Field label="Homepage photo focus" hint="Choose which part stays in view when the image is cropped"><select className="h-11 w-full rounded border border-input bg-card px-3" value={form.presentation?.heroImagePosition || 'center'} onChange={event => updatePresentation('heroImagePosition', event.target.value)}>{['center', 'left', 'right', 'top', 'bottom'].map(position => <option key={position} value={position}>{position[0].toUpperCase() + position.slice(1)}</option>)}</select></Field>
+            <p className="text-sm leading-6 text-muted-foreground">Use a hosted HTTPS image address. Uploading files directly is not available in this installation. Use a transparent PNG or SVG logo and a wide, clear homepage photograph. Stock photos are managed by your stock feed.</p>
             <p className="border-l-2 border-accent pl-4 text-sm leading-6 text-muted-foreground">
               For stock photography, start with a clear front three-quarter
               view, followed by exterior, cabin, boot, wheels and condition
@@ -931,7 +954,7 @@ export function DealerSettingsPanel() {
           <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-5"><p className="max-w-lg text-sm text-muted-foreground">Publish your settings, then open a brochure to check the final PDF. Previously downloaded copies will keep their original design.</p>{stock?.cars[0] && <a className="text-link min-h-11 text-sm" href={`/api/vehicles/${encodeURIComponent(stock.cars[0].id)}/brochure.pdf`} target="_blank" rel="noopener noreferrer">Open saved brochure <ExternalLink className="h-4 w-4" /><span className="sr-only"> (opens in a new tab)</span></a>}</div>
         </SectionCard>
 
-        <SectionCard id="services" eyebrow="05 / Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
+        <SectionCard id="services" eyebrow="Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
           <label className="mb-6 flex items-start gap-3 border-b border-border pb-5"><input type="checkbox" className="mt-1 h-5 w-5" checked={form.presentation?.comparisonEnabled ?? false} onChange={event => updatePresentation('comparisonEnabled', event.target.checked)} data-testid="checkbox-vehicle-comparison" /><span><span className="block text-sm font-semibold">Vehicle comparison</span><span className="mt-1 block text-sm text-muted-foreground">Optional. Allow customers to compare two cars side by side. Saved cars remain available when this is off.</span></span></label>
           <div className="grid gap-5">
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
@@ -961,7 +984,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="proof" eyebrow="06 / Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book the viewing." icon={<Check className="h-5 w-5" />}>
+        <SectionCard id="proof" eyebrow="Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book the viewing." icon={<Check className="h-5 w-5" />}>
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
               <div className="mb-4 flex items-end justify-between gap-4">
@@ -1021,7 +1044,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="legal" eyebrow="07 / Details" title="Social and company details" description="Keep social profiles and company details in one place so the footer stays current." icon={<ExternalLink className="h-5 w-5" />}>
+        <SectionCard id="legal" eyebrow="Details" title="Social and company details" description="Keep social profiles and company details in one place so the footer stays current." icon={<ExternalLink className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="Instagram">
               <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" type="url" value={form.social.instagram} onChange={(event) => updateNested('social', 'instagram', event.target.value)} placeholder="https://instagram.com/…" data-testid="input-social-instagram" />
@@ -1058,6 +1081,15 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
+        <SectionCard id="pages" eyebrow="Your words" title="Edit your customer pages" description="Change the wording without changing how the website works." icon={<FileText className="h-5 w-5" />}>
+          <WebsiteContentEditor value={form.presentation || {}} onChange={value => updateGroup('presentation', value)} />
+        </SectionCard>
+        <SectionCard id="review" eyebrow="Ready when you are" title="Review your website" description="Check the content, preview your branding, then publish the complete draft." icon={<Check className="h-5 w-5" />}>
+          <LaunchReadiness settings={form} /><SettingsPreview settings={form} />
+          <p className="text-sm leading-6 text-muted-foreground">Stock credentials, email keys, payment connections and your domain are private deployment settings. They are never stored in the public website settings. Stock photographs and prices come from your dealership’s stock feed.</p>
+        </SectionCard>
+        {guided && <div className="flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={stepIndex === 0} onClick={() => scrollToSection(setupSteps[stepIndex - 1][0])}>Previous</Button>{stepIndex < setupSteps.length - 1 && <Button type="button" onClick={() => scrollToSection(setupSteps[stepIndex + 1][0])}>Continue to {setupSteps[stepIndex + 1][1]}</Button>}</div>}
+
         <div className="sticky bottom-0 z-20 flex flex-col gap-2 border border-border bg-card p-3 sm:p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
           <div className="text-[13px]">
             {saveMessage && (
@@ -1074,7 +1106,7 @@ export function DealerSettingsPanel() {
             )}
             {Object.keys(validationErrors).length > 0 && !saveMessage && !updateSettings.isError && (
                 <p className="flex items-center gap-2 font-bold text-destructive" data-testid="status-settings-validation">
-                  <CircleAlert className="h-4 w-4" />A few fields need your attention.</p>
+                  <CircleAlert className="h-4 w-4" />{Object.values(validationErrors)[0]}</p>
               )}
             {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && (
                 <p className="text-primary/70">{dirty ? 'Unpublished changes — publish when ready.' : 'Showing published settings.'}</p>
@@ -1085,11 +1117,13 @@ export function DealerSettingsPanel() {
               <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
             <Button type="submit" disabled={updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
               <Save className="mr-2 h-4 w-4" />
-              {updateSettings.isPending ? 'Publishing…' : 'Publish showroom'}
+              {updateSettings.isPending ? 'Publishing…' : guided && activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
             </Button>
           </div>
         </div>
       </form>
+      </ActiveSettingsSection.Provider>
+      </div>
     </section>
   );
 }

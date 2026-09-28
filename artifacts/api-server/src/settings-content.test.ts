@@ -156,3 +156,18 @@ test("review settings validate and survive older-client updates", () => {
   const cleared = preservePresentation({ ...legacy, presentation: { reviews: [] } }, settings);
   assert.deepEqual(cleared.presentation.reviews, []);
 });
+
+test('onboarding appearance and page copy round-trip without a migration', () => {
+  const presentation = { footerLogoUrl: 'https://example.com/logo.svg', faviconUrl: 'https://example.com/icon.png', contactImageUrl: 'https://example.com/contact.jpg', contactImageAlt: 'Our entrance', heroImagePosition: 'right', pageColour: '#fafafa', featuredEnabled: false, websiteCopy: { stockTitle: 'Our used cars', contactTitle: 'Meet our team' } };
+  const parsed = UpdateDealerSettingsBody.parse({ ...legacy, presentation });
+  assert.deepEqual(GetDealerSettingsResponse.parse(parsed).presentation, presentation);
+  assert.equal(UpdateDealerSettingsBody.safeParse({ ...legacy, presentation: { faviconUrl: 'javascript:alert(1)' } }).success, false);
+  assert.equal(UpdateDealerSettingsBody.safeParse({ ...legacy, presentation: { pageColour: 'red;display:none' } }).success, false);
+  assert.equal(UpdateDealerSettingsBody.safeParse({ ...legacy, presentation: { websiteCopy: { stockTitle: 'x'.repeat(1001) } } }).success, false);
+});
+
+test('partial page edits preserve other pages and allow explicit reset', () => {
+  const previous = { presentation: { heroImagePosition: 'right', websiteCopy: { stockTitle: 'Stock', contactTitle: 'Visit' } } };
+  const updated = preservePresentation({ presentation: { websiteCopy: { stockTitle: '' } } }, previous);
+  assert.deepEqual(updated.presentation, { heroImagePosition: 'right', websiteCopy: { stockTitle: '', contactTitle: 'Visit' } });
+});

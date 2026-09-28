@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -313,25 +314,26 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   return (
     <div className={browseStock ? "luxxy-shell homepage-refined stock-refined min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
-        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
+        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="stock-search-panel">
             <p className="text-xs font-medium tracking-wide text-white/80">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
             <h1 id="home-heading" tabIndex={-1} className="mt-2 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{dealerConfig.hero.copy}</h1>
-            <HeroStockSearch cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
+            {dealerConfig.presentation?.showHeroDescription && <p className="mt-4 max-w-lg text-sm leading-6 text-white/85">{dealerConfig.hero.subcopy}</p>}
+            <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
           {!error && filteredCars.length < 4 && <p className="mt-8 border-t pt-5 text-sm">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
-      {!browseStock && <RollingStock cars={stock?.cars ?? []} unavailable={Boolean(error)} />}
+      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={stock?.cars ?? []} unavailable={Boolean(error)} />}
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <Link href="/" className="stock-home-link">Home <span aria-hidden="true">/</span> Used cars</Link>
-          <h1 id="vehicle-results-heading" tabIndex={-1} className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Browse Stock</h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">Find your next used car.</p>
+          <h1 id="vehicle-results-heading" tabIndex={-1} className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{websiteText(dealerConfig, "stockTitle")}</h1>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">{websiteText(dealerConfig, "stockIntroduction")}</p>
         </div>
       </section>}
 
@@ -555,12 +557,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       )}
 
       <CustomerReviews />
-      <DealershipVisit>{dealershipPoints}</DealershipVisit>
+      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit>{dealershipPoints}</DealershipVisit>}
 
-      <section className="home-services section-space border-t border-border bg-secondary/40">
+      {dealerConfig.presentation?.servicesEnabled !== false && <section className="home-services section-space border-t border-border bg-secondary/40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="luxxy-kicker mb-3">Along the way</p>
-          <h2 className="section-heading">The details, taken care of.</h2>
+          <p className="luxxy-kicker mb-3">{websiteText(dealerConfig, "servicesEyebrow")}</p>
+          <h2 className="section-heading">{websiteText(dealerConfig, "servicesHeading")}</h2>
           <div className="home-service-grid mt-8 grid gap-8">
             {(
               [
@@ -605,7 +607,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
       </>}
       <RecentlyViewed />

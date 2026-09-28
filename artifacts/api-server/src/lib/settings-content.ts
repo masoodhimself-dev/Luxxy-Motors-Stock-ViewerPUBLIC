@@ -8,9 +8,14 @@ export function preservePresentation<
       : undefined;
   if (!content || typeof content !== "object" || Array.isArray(content))
     return incoming;
+  const oldCopy = 'websiteCopy' in content ? content.websiteCopy : undefined;
+  const newCopy = incoming.presentation?.websiteCopy;
+  const websiteCopy = oldCopy && typeof oldCopy === 'object' && !Array.isArray(oldCopy)
+    ? { ...oldCopy, ...(newCopy && typeof newCopy === 'object' ? newCopy : {}) }
+    : newCopy;
   return {
     ...incoming,
-    presentation: { ...content, ...incoming.presentation },
+    presentation: { ...content, ...incoming.presentation, ...(websiteCopy ? { websiteCopy } : {}) },
   };
 }
 

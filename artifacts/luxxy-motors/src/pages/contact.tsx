@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
@@ -40,16 +41,16 @@ export default function Contact() {
       <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to showroom</Link>
       <header className="friendly-banner mt-4 max-w-3xl pb-7 sm:pb-10">
         <p className="luxxy-kicker">{settings.identity.name}{settings.address?.city ? ` · ${settings.address.city}` : ''}</p>
-        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Contact us.</h1>
-        <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us.</p>
-        <a href="#find-us-heading" onClick={event => { event.preventDefault(); const heading = document.getElementById('find-us-heading'); heading?.scrollIntoView({ block: 'start' }); heading?.focus({ preventScroll: true }); }} className="text-link mt-3 inline-flex min-h-11 items-center gap-2 lg:hidden">How to find us<MapPin className="h-4 w-4" aria-hidden="true" /></a>
+        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{websiteText(settings, "contactTitle")}</h1>
+        <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">{websiteText(settings, "contactIntroduction")}</p>
+        <a href="#find-us-heading" onClick={event => { event.preventDefault(); const heading = document.getElementById('find-us-heading'); heading?.scrollIntoView({ block: 'start' }); heading?.focus({ preventScroll: true }); }} className="text-link mt-3 inline-flex min-h-11 items-center gap-2 lg:hidden">{websiteText(settings, "contactDirectionsHeading")}<MapPin className="h-4 w-4" aria-hidden="true" /></a>
       </header>
 
       {isLoading ? <div role="status" aria-busy="true" className="mb-8 border-y border-border py-8 text-sm text-muted-foreground">Loading contact and visiting details…</div> : isError ? <div role="alert" className="mb-8 flex flex-wrap items-center justify-between gap-4 border-y border-border py-5"><p className="max-w-xl text-sm leading-6">We couldn’t load the latest dealership details. Please confirm the address and opening hours before travelling.</p><Button variant="outline" onClick={() => window.location.reload()}>Try again</Button></div> : null}
 
       <div className="grid items-start gap-8 border-t border-border pt-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16 lg:pt-10">
         <section aria-labelledby="talk-heading" className="min-w-0">
-          <h2 id="talk-heading" className="font-display text-2xl font-semibold tracking-tight">Talk to the showroom</h2>
+          <h2 id="talk-heading" className="font-display text-2xl font-semibold tracking-tight">{websiteText(settings, "contactTalkHeading")}</h2>
           <div className="mt-5 divide-y divide-border border-y border-border">
             {phoneHref && <a href={phoneHref} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-phone"><Phone className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Call the team</span><span className="mt-1 block font-display text-xl font-semibold group-hover:text-accent">{formatPhoneDisplay(settings.contact.phone!)}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
             {whatsAppHref && <a href={whatsAppHref} target="_blank" rel="noopener noreferrer" className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-whatsapp"><MessageCircle className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Prefer a message?</span><span className="mt-1 block font-display text-lg font-semibold group-hover:text-accent">Chat on WhatsApp</span><span className="mt-1 block text-xs text-muted-foreground">Opens WhatsApp with a message ready to edit.</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
@@ -57,8 +58,8 @@ export default function Contact() {
           </div>
           <a href="#contact-message" onClick={event => { event.preventDefault(); document.getElementById('contact-message')?.scrollIntoView({ block: 'start' }); document.getElementById('contact-message-heading')?.focus({ preventScroll: true }); }} className="text-link mt-4 inline-flex min-h-11 items-center gap-2">Send an enquiry online<ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
           <div className="mt-7 border-t border-border pt-6">
-            <h3 className="font-display text-xl font-semibold">Come and see the car.</h3>
-            <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">Choose the car you’re interested in and book a test drive. We’ll confirm the details so you can plan your visit.</p>
+            <h3 className="font-display text-xl font-semibold">{websiteText(settings, "contactVisitHeading")}</h3>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">{websiteText(settings, "contactVisitDescription")}</p>
             <Button asChild className="mt-5"><Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
           </div>
         </section>
@@ -67,7 +68,7 @@ export default function Contact() {
           {photos.contact && !isLoading && !isError && <DealershipPhotograph photo={photos.contact} className="mb-5" />}
           <div className="bg-primary px-5 py-6 text-primary-foreground sm:p-7">
             <p className="flex items-center gap-2 text-xs text-primary-foreground/75"><MapPin className="h-4 w-4" aria-hidden="true" />Plan your visit</p>
-            <h2 id="find-us-heading" tabIndex={-1} className="mt-3 scroll-mt-28 font-display text-2xl font-semibold outline-none">How to find us</h2>
+            <h2 id="find-us-heading" tabIndex={-1} className="mt-3 scroll-mt-28 font-display text-2xl font-semibold outline-none">{websiteText(settings, "contactDirectionsHeading")}</h2>
             {!isLoading && !isError && <>
               <p className="mt-5 text-sm font-semibold">{settings.identity.name}</p>
               <address className="mt-2 not-italic text-base leading-7 text-primary-foreground/85" data-testid="contact-address">{location.lines.length ? location.lines.map((line, index) => <div key={index}>{line}</div>) : 'Contact us for the showroom address.'}</address>
@@ -84,12 +85,12 @@ export default function Contact() {
       </div>
 
       {!isLoading && !isError && <section className="mt-10 grid gap-7 border-y border-border py-7 sm:grid-cols-2 lg:gap-16" aria-label="Before your visit">
-        <div><h2 className="font-display text-xl font-semibold">Before you set off</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.visitInstructions || 'Contact us to confirm the car is available and book a test drive time. We’ll help with any questions before you travel.'}</p></div>
-        <div><h2 className="font-display text-xl font-semibold">Parking & arrival</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.parkingInstructions || 'Ask the team about parking, the entrance and any access requirements when arranging your visit.'}</p></div>
+        <div><h2 className="font-display text-xl font-semibold">{websiteText(settings, "contactBeforeHeading")}</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.visitInstructions || 'Contact us to confirm the car is available and book a test drive time. We’ll help with any questions before you travel.'}</p></div>
+        <div><h2 className="font-display text-xl font-semibold">{websiteText(settings, "contactParkingHeading")}</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.parkingInstructions || 'Ask the team about parking, the entrance and any access requirements when arranging your visit.'}</p></div>
       </section>}
 
       <section id="contact-message" aria-labelledby="contact-message-heading" className="mt-10 grid scroll-mt-28 items-start gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
-        <div><p className="luxxy-kicker">Send a message</p><h2 id="contact-message-heading" tabIndex={-1} className="mt-3 font-display text-2xl font-semibold tracking-tight outline-none">What would you like to know?</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Tell us which car you’re considering, ask about a part exchange, or leave a question for the team.</p><p className="mt-4 text-xs leading-6 text-muted-foreground">Your message goes to the dealership enquiry inbox. We’ll show a reference when it has been received.</p>{photos.reception && !isLoading && !isError && <DealershipPhotograph photo={photos.reception} className="mt-6" />}</div>
+        <div><p className="luxxy-kicker">Send a message</p><h2 id="contact-message-heading" tabIndex={-1} className="mt-3 font-display text-2xl font-semibold tracking-tight outline-none">{websiteText(settings, "contactMessageHeading")}</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">{websiteText(settings, "contactMessageDescription")}</p><p className="mt-4 text-xs leading-6 text-muted-foreground">Your message goes to the dealership enquiry inbox. We’ll show a reference when it has been received.</p>{photos.reception && !isLoading && !isError && <DealershipPhotograph photo={photos.reception} className="mt-6" />}</div>
         <div className="min-w-0"><EnquiryForm initialType="general" stockCars={stock?.cars ?? []} /></div>
       </section>
     </div>

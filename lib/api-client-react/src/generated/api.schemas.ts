@@ -384,9 +384,163 @@ export interface CustomerReview {
 }
 
 /**
+ * Optional plain-text dealership page copy. Blank values use the standard wording.
+ */
+export interface DealerWebsiteCopy {
+  /** @maxLength 1000 */
+  navigationStock?: string;
+  /** @maxLength 1000 */
+  navigationContact?: string;
+  /** @maxLength 1000 */
+  navigationPartExchange?: string;
+  /** @maxLength 1000 */
+  stockTitle?: string;
+  /** @maxLength 1000 */
+  stockIntroduction?: string;
+  /** @maxLength 1000 */
+  servicesEyebrow?: string;
+  /** @maxLength 1000 */
+  servicesHeading?: string;
+  /** @maxLength 1000 */
+  featuredHeading?: string;
+  /** @maxLength 1000 */
+  visitHeading?: string;
+  /** @maxLength 1000 */
+  teamHeading?: string;
+  /** @maxLength 1000 */
+  reviewsHeading?: string;
+  /** @maxLength 1000 */
+  contactTitle?: string;
+  /** @maxLength 1000 */
+  contactIntroduction?: string;
+  /** @maxLength 1000 */
+  contactTalkHeading?: string;
+  /** @maxLength 1000 */
+  contactVisitHeading?: string;
+  /** @maxLength 1000 */
+  contactVisitDescription?: string;
+  /** @maxLength 1000 */
+  contactDirectionsHeading?: string;
+  /** @maxLength 1000 */
+  contactBeforeHeading?: string;
+  /** @maxLength 1000 */
+  contactParkingHeading?: string;
+  /** @maxLength 1000 */
+  contactMessageHeading?: string;
+  /** @maxLength 1000 */
+  contactMessageDescription?: string;
+  /** @maxLength 1000 */
+  warrantyEyebrow?: string;
+  /** @maxLength 1000 */
+  warrantySupportingCopy?: string;
+  /** @maxLength 1000 */
+  warrantyDetailsHeading?: string;
+  /** @maxLength 1000 */
+  warrantyDetailsIntroduction?: string;
+  /** @maxLength 1000 */
+  warrantyEnquiryHeading?: string;
+  /** @maxLength 1000 */
+  savedEyebrow?: string;
+  /** @maxLength 1000 */
+  savedTitle?: string;
+  /** @maxLength 1000 */
+  savedDescription?: string;
+  /** @maxLength 1000 */
+  compareTitle?: string;
+  /** @maxLength 1000 */
+  compareDescription?: string;
+  /** @maxLength 1000 */
+  viewingTitle?: string;
+  /** @maxLength 1000 */
+  viewingDescription?: string;
+  /** @maxLength 1000 */
+  generalTitle?: string;
+  /** @maxLength 1000 */
+  generalDescription?: string;
+  /** @maxLength 1000 */
+  deliveryTitle?: string;
+  /** @maxLength 1000 */
+  deliveryDescription?: string;
+  /** @maxLength 1000 */
+  warrantyTitle?: string;
+  /** @maxLength 1000 */
+  warrantyDescription?: string;
+  /** @maxLength 1000 */
+  part_exchangeTitle?: string;
+  /** @maxLength 1000 */
+  part_exchangeDescription?: string;
+  /** @maxLength 1000 */
+  vehicleSpecificationHeading?: string;
+  /** @maxLength 1000 */
+  vehicleDescriptionHeading?: string;
+  /** @maxLength 1000 */
+  vehicleInformationHeading?: string;
+  /** @maxLength 1000 */
+  vehicleFeaturesHeading?: string;
+  /** @maxLength 1000 */
+  vehicleSimilarHeading?: string;
+}
+
+export type DealerPresentationHeroImagePosition = typeof DealerPresentationHeroImagePosition[keyof typeof DealerPresentationHeroImagePosition];
+
+
+export const DealerPresentationHeroImagePosition = {
+  center: 'center',
+  left: 'left',
+  right: 'right',
+  top: 'top',
+  bottom: 'bottom',
+} as const;
+
+/**
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  pageColour?: string;
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  panelColour?: string;
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  headingColour?: string;
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  linkColour?: string;
+  featuredEnabled?: boolean;
+  visitEnabled?: boolean;
+  servicesEnabled?: boolean;
+  showHeroDescription?: boolean;
+  websiteCopy?: DealerWebsiteCopy;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  footerLogoUrl?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  faviconUrl?: string;
+  heroImagePosition?: DealerPresentationHeroImagePosition;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  visitImageUrl?: string;
+  /** @maxLength 200 */
+  visitImageAlt?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  contactImageUrl?: string;
+  /** @maxLength 200 */
+  contactImageAlt?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  receptionImageUrl?: string;
+  /** @maxLength 200 */
+  receptionImageAlt?: string;
   reviewsEnabled?: boolean;
   /** @maxItems 100 */
   reviews?: CustomerReview[];

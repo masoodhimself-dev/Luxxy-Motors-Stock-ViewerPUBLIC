@@ -319,7 +319,7 @@ describe('showroom search filters', () => {
     expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
     expect(within(introduction).getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
-    expect(within(introduction).getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', '/enquire?type=viewing');
+    expect(within(introduction).getByRole('link', { name: dealerConfigFixture.bookViewing.ctaLabel })).toHaveAttribute('href', '/enquire?type=viewing');
   });
 
   it('shows anonymised recent handovers before the how-we-work section', () => {

@@ -6,8 +6,8 @@ import type { Car } from '@/lib/stock-context';
 import type { FilterState } from '@/components/filters';
 import { formatPrice } from '@/lib/utils';
 
-export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, count }: {
-  cars: Car[]; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>;
+export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, count, buttonLabel }: {
+  buttonLabel?: string; cars: Car[]; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>;
   onSearch: () => void; onReset: () => void; count: number;
 }) {
   const [mobile, setMobile] = useState(() => window.matchMedia?.('(max-width: 639px)').matches ?? false);
@@ -26,7 +26,7 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, 
   return <form className="hero-stock-search" aria-label="Search used cars" onSubmit={event => { event.preventDefault(); onSearch(); }}>
     {select('make', 'Make')}{!mobile && select('model', 'Model')}
     {mobile ? budget('maxPrice') : <fieldset><legend className="mb-2 text-xs text-white/80">Vehicle price</legend><div className="grid grid-cols-2 gap-3">{budget('minPrice')}{budget('maxPrice')}</div></fieldset>}
-    <button type="submit" className="hero-search-submit"><Search aria-hidden="true" className="h-4 w-4" />Search {count} used {count === 1 ? 'car' : 'cars'}</button>
+    <button type="submit" className="hero-search-submit"><Search aria-hidden="true" className="h-4 w-4" />{buttonLabel ? `${buttonLabel} (${count})` : `Search ${count} used ${count === 1 ? 'car' : 'cars'}`}</button>
     <div className="hero-search-secondary">
       <button type="button" onClick={onReset}><RotateCcw aria-hidden="true" size={15} />Reset</button>
       <Link href="/stock?all=1">See all cars<ArrowRight aria-hidden="true" size={15} /></Link>

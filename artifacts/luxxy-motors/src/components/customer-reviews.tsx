@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Star, BadgeCheck } from 'lucide-react';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -18,7 +19,7 @@ export function CustomerReviews() {
   return <section aria-labelledby="reviews-heading" className="customer-reviews border-t border-border bg-card py-10">
     <div className="container mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 id="reviews-heading" className="section-heading">What our customers say</h2>
+        <h2 id="reviews-heading" className="section-heading">{websiteText(settings, "reviewsHeading")}</h2>
         {reviews.length > 1 && <div className="flex shrink-0 gap-2">
           <button type="button" onClick={() => move(-1)} aria-label="Previous reviews" className="grid size-11 place-items-center border border-border hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"><ArrowLeft size={18} /></button>
           <button type="button" onClick={() => move(1)} aria-label="Next reviews" className="grid size-11 place-items-center border border-border hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"><ArrowRight size={18} /></button>

@@ -7,12 +7,14 @@ export function ShowroomPhoto({
   className,
   priority = false,
   fit = "cover",
+  position = "center",
 }: {
   src: string;
   alt: string;
   className?: string;
   priority?: boolean;
   fit?: "cover" | "contain";
+  position?: "center" | "left" | "right" | "top" | "bottom";
 }) {
   const [failedSrc, setFailedSrc] = useState("");
   return (
@@ -25,6 +27,7 @@ export function ShowroomPhoto({
       ) : (
         <img
           src={src}
+          style={{ objectPosition: position }}
           alt={alt}
           width={1200}
           height={900}

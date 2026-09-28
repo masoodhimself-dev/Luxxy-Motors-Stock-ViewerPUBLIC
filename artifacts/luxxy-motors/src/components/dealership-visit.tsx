@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { Link } from "wouter";
 import { ArrowRight, MapPin, Phone } from "lucide-react";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
@@ -34,8 +35,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
           className={`grid items-start gap-6 lg:gap-10 ${hasStory || visitPhoto || children ? "lg:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
-            <h2 id="visit-heading" tabIndex={-1} className="section-heading">
-              Plan your visit
+            <h2 id="visit-heading" tabIndex={-1} className="section-heading">{websiteText(settings, "visitHeading")}
             </h2>
             <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">
               {content.visitInstructions ||
@@ -87,9 +87,10 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
               </div>
             )}
             <div className="mt-6 flex flex-wrap gap-3">
+              <div className="w-full"><h3 className="text-lg font-semibold">{settings.bookViewing.title}</h3><p className="mt-2 text-sm text-muted-foreground">{settings.bookViewing.description}</p></div>
               <Button asChild>
                 <Link href="/enquire?type=viewing">
-                  Book a test drive <ArrowRight className="h-4 w-4" />
+                  {settings.bookViewing.ctaLabel} <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline">
@@ -121,7 +122,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
                       className="mb-5 aspect-[16/9]"
                     />
                   )}
-                  <h3 className="section-heading">Meet the team</h3>
+                  <h3 className="section-heading">{websiteText(settings, "teamHeading")}</h3>
                   {content.teamIntroduction && (
                     <p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">
                       {content.teamIntroduction}

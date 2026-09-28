@@ -6,11 +6,58 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CustomerReview } from './customerReview';
+import type { DealerPresentationHeroImagePosition } from './dealerPresentationHeroImagePosition';
+import type { DealerWebsiteCopy } from './dealerWebsiteCopy';
 
 /**
  * Optional showroom content. Empty values are not presented as factual claims.
  */
 export interface DealerPresentation {
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  pageColour?: string;
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  panelColour?: string;
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  headingColour?: string;
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  linkColour?: string;
+  featuredEnabled?: boolean;
+  visitEnabled?: boolean;
+  servicesEnabled?: boolean;
+  showHeroDescription?: boolean;
+  websiteCopy?: DealerWebsiteCopy;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  footerLogoUrl?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  faviconUrl?: string;
+  heroImagePosition?: DealerPresentationHeroImagePosition;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  visitImageUrl?: string;
+  /** @maxLength 200 */
+  visitImageAlt?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  contactImageUrl?: string;
+  /** @maxLength 200 */
+  contactImageAlt?: string;
+  /**
+     * @maxLength 2048
+     * @pattern ^(https://[^\s]+)?$
+     */
+  receptionImageUrl?: string;
+  /** @maxLength 200 */
+  receptionImageAlt?: string;
   reviewsEnabled?: boolean;
   /** @maxItems 100 */
   reviews?: CustomerReview[];

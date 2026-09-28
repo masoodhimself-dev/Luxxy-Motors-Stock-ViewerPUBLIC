@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation } from 'wouter';
@@ -68,19 +69,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl === '161.538 16.883% 15.098%' ? '195 22% 13%' : dealerConfig.identity.brandColors?.primaryHsl;
   const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
   const brandStyle = {
+    ...Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })),
     ...(brandPrimary
       ? {
+          '--dealer-primary': brandPrimary,
+          '--dealer-primary-foreground': readableForegroundForHsl(brandPrimary),
           '--primary': brandPrimary,
           '--primary-foreground': readableForegroundForHsl(brandPrimary),
         }
       : {}),
     ...(brandAccent
       ? {
+          '--dealer-accent': brandAccent,
+          '--dealer-accent-foreground': readableForegroundForHsl(brandAccent),
           '--accent': brandAccent,
           '--accent-foreground': readableForegroundForHsl(brandAccent),
         }
       : {}),
   } as CSSProperties;
+
+  useEffect(() => {
+    const url = dealerConfig.presentation?.faviconUrl;
+    if (!url || !/^https:\/\//.test(url)) return;
+    const icon = document.createElement('link'); icon.rel = 'icon'; icon.href = url;
+    document.head.appendChild(icon);
+    return () => icon.remove();
+  }, [dealerConfig.presentation?.faviconUrl]);
 
   const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(' · ');
   const upcomingVisitDates = getUpcomingVisitDates(dealerConfig.hours ?? []);
@@ -184,9 +198,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {isStaff ? <Button variant="outline" className="shrink-0 px-3 text-xs" onClick={() => handleNav('top')}>View showroom <ArrowRight className="h-4 w-4" /></Button> : <>
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
-            <button onClick={() => handleNav('stock')} className={navLinkClass}>Browse Stock</button>
+            <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
-            <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Contact us</Link>
+            <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
             <button
               type="button"
               onClick={() => setLocation('/saved')}
@@ -211,11 +225,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav - Full */}
           <nav className="hidden 2xl:flex items-center gap-8" aria-label="Primary navigation">
-            <button onClick={() => handleNav('stock')} className={navLinkClass}>Browse Stock</button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>Part Ex</button>}
+            <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>{websiteText(dealerConfig, "navigationPartExchange")}</button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
-            <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Contact us</Link>
+            <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
 
             <div className="flex items-center gap-6 ml-4 pl-8 border-l-2 border-primary/10">
               {dealerConfig.contact.phone && (
@@ -272,11 +286,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {mobileMenuOpen && (
           <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
-            <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
-              Browse Stock <ArrowRight className="w-5 h-5 text-accent" />
+            <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationStock")} <ArrowRight className="w-5 h-5 text-accent" />
             </button>
-            <button onClick={() => { setMobileMenuOpen(false); setLocation(getEnquiryHref('viewing')); }} className={mobileNavRowClass}>Book a test drive <CalendarDays className="h-5 w-5 text-accent" /></button>
-            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>Part Exchange <ArrowRight className="w-5 h-5 opacity-40" /></button>}
+            <button onClick={() => { setMobileMenuOpen(false); setLocation(getEnquiryHref('viewing')); }} className={mobileNavRowClass}>{dealerConfig.bookViewing.ctaLabel} <CalendarDays className="h-5 w-5 text-accent" /></button>
+            {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationPartExchange")} <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/warranty' ? 'page' : undefined} className={mobileNavRowClass}>Warranty <ArrowRight className="w-5 h-5 opacity-40" /></Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             <button
@@ -295,7 +308,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Heart className={`w-5 h-5 text-accent ${savedCount > 0 ? 'fill-current' : ''}`} />
             </button>
             <button onClick={() => handleNav('about')} className={mobileNavRowClass}>Why Buy From Us <ArrowRight className="w-5 h-5 opacity-40" /></button>
-            <Link href="/contact" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/contact' ? 'page' : undefined} className={mobileNavRowClass}>Contact us <ArrowRight className="w-5 h-5 opacity-40" /></Link>
+            <Link href="/contact" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/contact' ? 'page' : undefined} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationContact")} <ArrowRight className="w-5 h-5 opacity-40" /></Link>
 
             <div className="mt-8 flex flex-col gap-4 pb-4">
               {dealerConfig.contact.phone && (
@@ -343,7 +356,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-10 grid grid-cols-2 gap-6 lg:grid-cols-12 lg:gap-12">
             <div className="col-span-2 lg:col-span-5">
-               <DealerWordmark {...dealerConfig.identity} className="mb-4 text-primary-foreground" />
+               <DealerWordmark {...dealerConfig.identity} logoAsset={dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset} className="mb-4 text-primary-foreground" />
               {locationLabel && (
                  <p className="mb-6 font-display text-xs font-medium tracking-normal text-primary-foreground/75">{locationLabel}</p>
               )}
@@ -374,7 +387,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="lg:col-span-2">
               <h3 className={footerHeadingClass}>Vehicles</h3>
               <nav className="flex flex-col items-start gap-0">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>Browse Stock</button>
+                <button onClick={() => handleNav('stock')} className={footerLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
                 <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
                 {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex items-center ${footerLinkClass}`}>Warranty</Link>}

@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, BadgeCheck, Star } from 'lucide-react';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -11,7 +12,7 @@ export function VehicleReviews() {
  const current=index % reviews.length;
  const review=reviews[current];
  return <section className="vehicle-review-card mt-5 border border-border bg-white p-5 sm:p-6" aria-label="Customer reviews">
-  <div className="flex items-center justify-between gap-3"><h2 className="font-display text-lg font-semibold tracking-tight">What our customers say</h2><span className="shrink-0 text-xs text-muted-foreground">{current+1} / {reviews.length}</span></div>
+  <div className="flex items-center justify-between gap-3"><h2 className="font-display text-lg font-semibold tracking-tight">{websiteText(settings, "reviewsHeading")}</h2><span className="shrink-0 text-xs text-muted-foreground">{current+1} / {reviews.length}</span></div>
   <div className="mt-5" aria-live="polite" aria-atomic="true">
    <div className="flex gap-1 text-primary" role="img" aria-label={`${review.rating} out of 5 stars`}>{Array.from({length:5},(_,i)=><Star key={i} size={15} aria-hidden="true" fill={i<review.rating?'currentColor':'none'}/>)}</div>
    <blockquote className="mt-3 text-base leading-7 text-foreground">“{review.review}”</blockquote>

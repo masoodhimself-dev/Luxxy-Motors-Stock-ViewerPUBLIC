@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { VehicleReviews } from '@/components/vehicle-reviews';
 import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
 import { VehicleCall } from '@/components/vehicle-call';
@@ -339,7 +340,7 @@ export default function CarDetail() {
               className="border-t border-border pt-7"
             >
               <h2 id="vehicle-overview-heading" className="section-heading">
-                Vehicle specification
+                {websiteText(dealerConfig, "vehicleSpecificationHeading")}
               </h2>
               <dl className="mt-5 grid gap-x-8 sm:grid-cols-2">
                 {overviewSpecs.map((spec) => (
@@ -352,7 +353,7 @@ export default function CarDetail() {
               aria-labelledby="vehicle-description-heading"
             >
               <h2 id="vehicle-description-heading" className="section-heading">
-                About this vehicle
+                {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
               <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
                 {description ||
@@ -365,7 +366,7 @@ export default function CarDetail() {
               aria-labelledby="buyer-information-heading"
             >
               <h2 id="buyer-information-heading" tabIndex={-1} className="section-heading scroll-mt-28">
-                What to know about this car
+                {websiteText(dealerConfig, "vehicleInformationHeading")}
               </h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 History, condition and what comes with the car. Ask our team
@@ -408,7 +409,7 @@ export default function CarDetail() {
                 aria-labelledby="features-heading"
               >
                 <h2 id="features-heading" className="section-heading">
-                  Features & equipment
+                  {websiteText(dealerConfig, "vehicleFeaturesHeading")}
                 </h2>
                 <ul className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
                   {features.map((feature) => (
@@ -463,7 +464,7 @@ export default function CarDetail() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <h2 id="similar-cars-heading" className="section-heading">
-                You may also like
+                {websiteText(dealerConfig, "vehicleSimilarHeading")}
               </h2>
               <Link
                 href="/stock"

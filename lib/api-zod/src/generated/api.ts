@@ -2469,6 +2469,128 @@ export const CompleteSigningSessionResponse = zod.record(zod.string(), zod.unkno
  * Returns the configured dealer identity, contact details, showroom copy, services, and legal links.
  * @summary Get the public dealer profile
  */
+export const getDealerSettingsResponsePresentationPageColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const getDealerSettingsResponsePresentationPanelColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const getDealerSettingsResponsePresentationHeadingColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const getDealerSettingsResponsePresentationLinkColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const getDealerSettingsResponsePresentationWebsiteCopyNavigationStockMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyNavigationContactMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyNavigationPartExchangeMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyStockTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyStockIntroductionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyServicesEyebrowMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyServicesHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyFeaturedHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyVisitHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyTeamHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyReviewsHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactIntroductionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactTalkHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactVisitHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactVisitDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactDirectionsHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactBeforeHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactParkingHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactMessageHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyContactMessageDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantyEyebrowMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantySupportingCopyMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsIntroductionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantyEnquiryHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopySavedEyebrowMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopySavedTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopySavedDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyCompareTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyCompareDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyViewingTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyViewingDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyGeneralTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyGeneralDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyDeliveryTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyDeliveryDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantyTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyWarrantyDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyPartExchangeTitleMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyPartExchangeDescriptionMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyVehicleSpecificationHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyVehicleDescriptionHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyVehicleInformationHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyVehicleFeaturesHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationWebsiteCopyVehicleSimilarHeadingMax = 1000;
+
+export const getDealerSettingsResponsePresentationFooterLogoUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationFooterLogoUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationFaviconUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationFaviconUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationVisitImageUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationVisitImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationVisitImageAltMax = 200;
+
+export const getDealerSettingsResponsePresentationContactImageUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationContactImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationContactImageAltMax = 200;
+
+export const getDealerSettingsResponsePresentationReceptionImageUrlMax = 2048;
+
+
+export const getDealerSettingsResponsePresentationReceptionImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const getDealerSettingsResponsePresentationReceptionImageAltMax = 200;
+
 export const getDealerSettingsResponsePresentationReviewsItemReviewMax = 5000;
 
 export const getDealerSettingsResponsePresentationReviewsItemNameMax = 150;
@@ -2628,6 +2750,71 @@ export const getDealerSettingsResponseWhyBuyMax = 8;
 
 export const GetDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "pageColour": zod.string().regex(getDealerSettingsResponsePresentationPageColourRegExp).optional(),
+  "panelColour": zod.string().regex(getDealerSettingsResponsePresentationPanelColourRegExp).optional(),
+  "headingColour": zod.string().regex(getDealerSettingsResponsePresentationHeadingColourRegExp).optional(),
+  "linkColour": zod.string().regex(getDealerSettingsResponsePresentationLinkColourRegExp).optional(),
+  "featuredEnabled": zod.boolean().optional(),
+  "visitEnabled": zod.boolean().optional(),
+  "servicesEnabled": zod.boolean().optional(),
+  "showHeroDescription": zod.boolean().optional(),
+  "websiteCopy": zod.object({
+  "navigationStock": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyNavigationStockMax).optional(),
+  "navigationContact": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyNavigationContactMax).optional(),
+  "navigationPartExchange": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyNavigationPartExchangeMax).optional(),
+  "stockTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyStockTitleMax).optional(),
+  "stockIntroduction": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyStockIntroductionMax).optional(),
+  "servicesEyebrow": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyServicesEyebrowMax).optional(),
+  "servicesHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyServicesHeadingMax).optional(),
+  "featuredHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyFeaturedHeadingMax).optional(),
+  "visitHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyVisitHeadingMax).optional(),
+  "teamHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyTeamHeadingMax).optional(),
+  "reviewsHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyReviewsHeadingMax).optional(),
+  "contactTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactTitleMax).optional(),
+  "contactIntroduction": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactIntroductionMax).optional(),
+  "contactTalkHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactTalkHeadingMax).optional(),
+  "contactVisitHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactVisitHeadingMax).optional(),
+  "contactVisitDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactVisitDescriptionMax).optional(),
+  "contactDirectionsHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactDirectionsHeadingMax).optional(),
+  "contactBeforeHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactBeforeHeadingMax).optional(),
+  "contactParkingHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactParkingHeadingMax).optional(),
+  "contactMessageHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactMessageHeadingMax).optional(),
+  "contactMessageDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyContactMessageDescriptionMax).optional(),
+  "warrantyEyebrow": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantyEyebrowMax).optional(),
+  "warrantySupportingCopy": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantySupportingCopyMax).optional(),
+  "warrantyDetailsHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsHeadingMax).optional(),
+  "warrantyDetailsIntroduction": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsIntroductionMax).optional(),
+  "warrantyEnquiryHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantyEnquiryHeadingMax).optional(),
+  "savedEyebrow": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopySavedEyebrowMax).optional(),
+  "savedTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopySavedTitleMax).optional(),
+  "savedDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopySavedDescriptionMax).optional(),
+  "compareTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyCompareTitleMax).optional(),
+  "compareDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyCompareDescriptionMax).optional(),
+  "viewingTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyViewingTitleMax).optional(),
+  "viewingDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyViewingDescriptionMax).optional(),
+  "generalTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyGeneralTitleMax).optional(),
+  "generalDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyGeneralDescriptionMax).optional(),
+  "deliveryTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyDeliveryTitleMax).optional(),
+  "deliveryDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyDeliveryDescriptionMax).optional(),
+  "warrantyTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantyTitleMax).optional(),
+  "warrantyDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyWarrantyDescriptionMax).optional(),
+  "part_exchangeTitle": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyPartExchangeTitleMax).optional(),
+  "part_exchangeDescription": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyPartExchangeDescriptionMax).optional(),
+  "vehicleSpecificationHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyVehicleSpecificationHeadingMax).optional(),
+  "vehicleDescriptionHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyVehicleDescriptionHeadingMax).optional(),
+  "vehicleInformationHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyVehicleInformationHeadingMax).optional(),
+  "vehicleFeaturesHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyVehicleFeaturesHeadingMax).optional(),
+  "vehicleSimilarHeading": zod.string().max(getDealerSettingsResponsePresentationWebsiteCopyVehicleSimilarHeadingMax).optional()
+}).optional().describe('Optional plain-text dealership page copy. Blank values use the standard wording.'),
+  "footerLogoUrl": zod.string().max(getDealerSettingsResponsePresentationFooterLogoUrlMax).regex(getDealerSettingsResponsePresentationFooterLogoUrlRegExp).optional(),
+  "faviconUrl": zod.string().max(getDealerSettingsResponsePresentationFaviconUrlMax).regex(getDealerSettingsResponsePresentationFaviconUrlRegExp).optional(),
+  "heroImagePosition": zod.enum(['center', 'left', 'right', 'top', 'bottom']).optional(),
+  "visitImageUrl": zod.string().max(getDealerSettingsResponsePresentationVisitImageUrlMax).regex(getDealerSettingsResponsePresentationVisitImageUrlRegExp).optional(),
+  "visitImageAlt": zod.string().max(getDealerSettingsResponsePresentationVisitImageAltMax).optional(),
+  "contactImageUrl": zod.string().max(getDealerSettingsResponsePresentationContactImageUrlMax).regex(getDealerSettingsResponsePresentationContactImageUrlRegExp).optional(),
+  "contactImageAlt": zod.string().max(getDealerSettingsResponsePresentationContactImageAltMax).optional(),
+  "receptionImageUrl": zod.string().max(getDealerSettingsResponsePresentationReceptionImageUrlMax).regex(getDealerSettingsResponsePresentationReceptionImageUrlRegExp).optional(),
+  "receptionImageAlt": zod.string().max(getDealerSettingsResponsePresentationReceptionImageAltMax).optional(),
   "reviewsEnabled": zod.boolean().optional(),
   "reviews": zod.array(zod.object({
   "verified": zod.boolean().optional().describe('Verification confirmed by the dealership; not a Google certification.'),
@@ -2752,6 +2939,128 @@ export const GetDealerSettingsResponse = zod.object({
  * Saves the complete dealer profile used by the public showroom and dealer portal.
  * @summary Replace the dealer profile
  */
+export const updateDealerSettingsBodyOnePresentationPageColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsBodyOnePresentationPanelColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsBodyOnePresentationHeadingColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsBodyOnePresentationLinkColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyNavigationStockMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyNavigationContactMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyNavigationPartExchangeMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyStockTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyStockIntroductionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyServicesEyebrowMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyServicesHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyFeaturedHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyVisitHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyTeamHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyReviewsHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactIntroductionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactTalkHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactVisitHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactVisitDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactDirectionsHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactBeforeHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactParkingHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactMessageHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyContactMessageDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyEyebrowMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantySupportingCopyMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyDetailsHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyDetailsIntroductionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyEnquiryHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopySavedEyebrowMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopySavedTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopySavedDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyCompareTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyCompareDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyViewingTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyViewingDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyGeneralTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyGeneralDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyDeliveryTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyDeliveryDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyPartExchangeTitleMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyPartExchangeDescriptionMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleSpecificationHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleDescriptionHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleInformationHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleFeaturesHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleSimilarHeadingMax = 1000;
+
+export const updateDealerSettingsBodyOnePresentationFooterLogoUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationFooterLogoUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationFaviconUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationFaviconUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationVisitImageUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationVisitImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationVisitImageAltMax = 200;
+
+export const updateDealerSettingsBodyOnePresentationContactImageUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationContactImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationContactImageAltMax = 200;
+
+export const updateDealerSettingsBodyOnePresentationReceptionImageUrlMax = 2048;
+
+
+export const updateDealerSettingsBodyOnePresentationReceptionImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsBodyOnePresentationReceptionImageAltMax = 200;
+
 export const updateDealerSettingsBodyOnePresentationReviewsItemReviewMax = 5000;
 
 export const updateDealerSettingsBodyOnePresentationReviewsItemNameMax = 150;
@@ -2911,6 +3220,71 @@ export const updateDealerSettingsBodyOneWhyBuyMax = 8;
 
 export const UpdateDealerSettingsBody = zod.object({
   "presentation": zod.object({
+  "pageColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPageColourRegExp).optional(),
+  "panelColour": zod.string().regex(updateDealerSettingsBodyOnePresentationPanelColourRegExp).optional(),
+  "headingColour": zod.string().regex(updateDealerSettingsBodyOnePresentationHeadingColourRegExp).optional(),
+  "linkColour": zod.string().regex(updateDealerSettingsBodyOnePresentationLinkColourRegExp).optional(),
+  "featuredEnabled": zod.boolean().optional(),
+  "visitEnabled": zod.boolean().optional(),
+  "servicesEnabled": zod.boolean().optional(),
+  "showHeroDescription": zod.boolean().optional(),
+  "websiteCopy": zod.object({
+  "navigationStock": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyNavigationStockMax).optional(),
+  "navigationContact": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyNavigationContactMax).optional(),
+  "navigationPartExchange": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyNavigationPartExchangeMax).optional(),
+  "stockTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyStockTitleMax).optional(),
+  "stockIntroduction": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyStockIntroductionMax).optional(),
+  "servicesEyebrow": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyServicesEyebrowMax).optional(),
+  "servicesHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyServicesHeadingMax).optional(),
+  "featuredHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyFeaturedHeadingMax).optional(),
+  "visitHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyVisitHeadingMax).optional(),
+  "teamHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyTeamHeadingMax).optional(),
+  "reviewsHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyReviewsHeadingMax).optional(),
+  "contactTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactTitleMax).optional(),
+  "contactIntroduction": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactIntroductionMax).optional(),
+  "contactTalkHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactTalkHeadingMax).optional(),
+  "contactVisitHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactVisitHeadingMax).optional(),
+  "contactVisitDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactVisitDescriptionMax).optional(),
+  "contactDirectionsHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactDirectionsHeadingMax).optional(),
+  "contactBeforeHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactBeforeHeadingMax).optional(),
+  "contactParkingHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactParkingHeadingMax).optional(),
+  "contactMessageHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactMessageHeadingMax).optional(),
+  "contactMessageDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyContactMessageDescriptionMax).optional(),
+  "warrantyEyebrow": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyEyebrowMax).optional(),
+  "warrantySupportingCopy": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantySupportingCopyMax).optional(),
+  "warrantyDetailsHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyDetailsHeadingMax).optional(),
+  "warrantyDetailsIntroduction": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyDetailsIntroductionMax).optional(),
+  "warrantyEnquiryHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyEnquiryHeadingMax).optional(),
+  "savedEyebrow": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopySavedEyebrowMax).optional(),
+  "savedTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopySavedTitleMax).optional(),
+  "savedDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopySavedDescriptionMax).optional(),
+  "compareTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyCompareTitleMax).optional(),
+  "compareDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyCompareDescriptionMax).optional(),
+  "viewingTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyViewingTitleMax).optional(),
+  "viewingDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyViewingDescriptionMax).optional(),
+  "generalTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyGeneralTitleMax).optional(),
+  "generalDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyGeneralDescriptionMax).optional(),
+  "deliveryTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyDeliveryTitleMax).optional(),
+  "deliveryDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyDeliveryDescriptionMax).optional(),
+  "warrantyTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyTitleMax).optional(),
+  "warrantyDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyWarrantyDescriptionMax).optional(),
+  "part_exchangeTitle": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyPartExchangeTitleMax).optional(),
+  "part_exchangeDescription": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyPartExchangeDescriptionMax).optional(),
+  "vehicleSpecificationHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleSpecificationHeadingMax).optional(),
+  "vehicleDescriptionHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleDescriptionHeadingMax).optional(),
+  "vehicleInformationHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleInformationHeadingMax).optional(),
+  "vehicleFeaturesHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleFeaturesHeadingMax).optional(),
+  "vehicleSimilarHeading": zod.string().max(updateDealerSettingsBodyOnePresentationWebsiteCopyVehicleSimilarHeadingMax).optional()
+}).optional().describe('Optional plain-text dealership page copy. Blank values use the standard wording.'),
+  "footerLogoUrl": zod.string().max(updateDealerSettingsBodyOnePresentationFooterLogoUrlMax).regex(updateDealerSettingsBodyOnePresentationFooterLogoUrlRegExp).optional(),
+  "faviconUrl": zod.string().max(updateDealerSettingsBodyOnePresentationFaviconUrlMax).regex(updateDealerSettingsBodyOnePresentationFaviconUrlRegExp).optional(),
+  "heroImagePosition": zod.enum(['center', 'left', 'right', 'top', 'bottom']).optional(),
+  "visitImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationVisitImageUrlMax).regex(updateDealerSettingsBodyOnePresentationVisitImageUrlRegExp).optional(),
+  "visitImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationVisitImageAltMax).optional(),
+  "contactImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationContactImageUrlMax).regex(updateDealerSettingsBodyOnePresentationContactImageUrlRegExp).optional(),
+  "contactImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationContactImageAltMax).optional(),
+  "receptionImageUrl": zod.string().max(updateDealerSettingsBodyOnePresentationReceptionImageUrlMax).regex(updateDealerSettingsBodyOnePresentationReceptionImageUrlRegExp).optional(),
+  "receptionImageAlt": zod.string().max(updateDealerSettingsBodyOnePresentationReceptionImageAltMax).optional(),
   "reviewsEnabled": zod.boolean().optional(),
   "reviews": zod.array(zod.object({
   "verified": zod.boolean().optional().describe('Verification confirmed by the dealership; not a Google certification.'),
@@ -3029,6 +3403,128 @@ export const UpdateDealerSettingsBody = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneWhyBuyItemDescriptionMax)
 })).max(updateDealerSettingsBodyOneWhyBuyMax)
 })
+
+export const updateDealerSettingsResponsePresentationPageColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsResponsePresentationPanelColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsResponsePresentationHeadingColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsResponsePresentationLinkColourRegExp = new RegExp('^(#[0-9a-fA-F]{6})?$');
+export const updateDealerSettingsResponsePresentationWebsiteCopyNavigationStockMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyNavigationContactMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyNavigationPartExchangeMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyStockTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyStockIntroductionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyServicesEyebrowMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyServicesHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyFeaturedHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyVisitHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyTeamHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyReviewsHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactIntroductionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactTalkHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactVisitHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactVisitDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactDirectionsHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactBeforeHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactParkingHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactMessageHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyContactMessageDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantyEyebrowMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantySupportingCopyMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsIntroductionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantyEnquiryHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopySavedEyebrowMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopySavedTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopySavedDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyCompareTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyCompareDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyViewingTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyViewingDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyGeneralTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyGeneralDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyDeliveryTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyDeliveryDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantyTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyWarrantyDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyPartExchangeTitleMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyPartExchangeDescriptionMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyVehicleSpecificationHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyVehicleDescriptionHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyVehicleInformationHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyVehicleFeaturesHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationWebsiteCopyVehicleSimilarHeadingMax = 1000;
+
+export const updateDealerSettingsResponsePresentationFooterLogoUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationFooterLogoUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationFaviconUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationFaviconUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationVisitImageUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationVisitImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationVisitImageAltMax = 200;
+
+export const updateDealerSettingsResponsePresentationContactImageUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationContactImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationContactImageAltMax = 200;
+
+export const updateDealerSettingsResponsePresentationReceptionImageUrlMax = 2048;
+
+
+export const updateDealerSettingsResponsePresentationReceptionImageUrlRegExp = new RegExp('^(https://[^\\s]+)?$');
+export const updateDealerSettingsResponsePresentationReceptionImageAltMax = 200;
 
 export const updateDealerSettingsResponsePresentationReviewsItemReviewMax = 5000;
 
@@ -3189,6 +3685,71 @@ export const updateDealerSettingsResponseWhyBuyMax = 8;
 
 export const UpdateDealerSettingsResponse = zod.object({
   "presentation": zod.object({
+  "pageColour": zod.string().regex(updateDealerSettingsResponsePresentationPageColourRegExp).optional(),
+  "panelColour": zod.string().regex(updateDealerSettingsResponsePresentationPanelColourRegExp).optional(),
+  "headingColour": zod.string().regex(updateDealerSettingsResponsePresentationHeadingColourRegExp).optional(),
+  "linkColour": zod.string().regex(updateDealerSettingsResponsePresentationLinkColourRegExp).optional(),
+  "featuredEnabled": zod.boolean().optional(),
+  "visitEnabled": zod.boolean().optional(),
+  "servicesEnabled": zod.boolean().optional(),
+  "showHeroDescription": zod.boolean().optional(),
+  "websiteCopy": zod.object({
+  "navigationStock": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyNavigationStockMax).optional(),
+  "navigationContact": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyNavigationContactMax).optional(),
+  "navigationPartExchange": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyNavigationPartExchangeMax).optional(),
+  "stockTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyStockTitleMax).optional(),
+  "stockIntroduction": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyStockIntroductionMax).optional(),
+  "servicesEyebrow": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyServicesEyebrowMax).optional(),
+  "servicesHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyServicesHeadingMax).optional(),
+  "featuredHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyFeaturedHeadingMax).optional(),
+  "visitHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyVisitHeadingMax).optional(),
+  "teamHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyTeamHeadingMax).optional(),
+  "reviewsHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyReviewsHeadingMax).optional(),
+  "contactTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactTitleMax).optional(),
+  "contactIntroduction": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactIntroductionMax).optional(),
+  "contactTalkHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactTalkHeadingMax).optional(),
+  "contactVisitHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactVisitHeadingMax).optional(),
+  "contactVisitDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactVisitDescriptionMax).optional(),
+  "contactDirectionsHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactDirectionsHeadingMax).optional(),
+  "contactBeforeHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactBeforeHeadingMax).optional(),
+  "contactParkingHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactParkingHeadingMax).optional(),
+  "contactMessageHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactMessageHeadingMax).optional(),
+  "contactMessageDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyContactMessageDescriptionMax).optional(),
+  "warrantyEyebrow": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantyEyebrowMax).optional(),
+  "warrantySupportingCopy": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantySupportingCopyMax).optional(),
+  "warrantyDetailsHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsHeadingMax).optional(),
+  "warrantyDetailsIntroduction": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantyDetailsIntroductionMax).optional(),
+  "warrantyEnquiryHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantyEnquiryHeadingMax).optional(),
+  "savedEyebrow": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopySavedEyebrowMax).optional(),
+  "savedTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopySavedTitleMax).optional(),
+  "savedDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopySavedDescriptionMax).optional(),
+  "compareTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyCompareTitleMax).optional(),
+  "compareDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyCompareDescriptionMax).optional(),
+  "viewingTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyViewingTitleMax).optional(),
+  "viewingDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyViewingDescriptionMax).optional(),
+  "generalTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyGeneralTitleMax).optional(),
+  "generalDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyGeneralDescriptionMax).optional(),
+  "deliveryTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyDeliveryTitleMax).optional(),
+  "deliveryDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyDeliveryDescriptionMax).optional(),
+  "warrantyTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantyTitleMax).optional(),
+  "warrantyDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyWarrantyDescriptionMax).optional(),
+  "part_exchangeTitle": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyPartExchangeTitleMax).optional(),
+  "part_exchangeDescription": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyPartExchangeDescriptionMax).optional(),
+  "vehicleSpecificationHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyVehicleSpecificationHeadingMax).optional(),
+  "vehicleDescriptionHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyVehicleDescriptionHeadingMax).optional(),
+  "vehicleInformationHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyVehicleInformationHeadingMax).optional(),
+  "vehicleFeaturesHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyVehicleFeaturesHeadingMax).optional(),
+  "vehicleSimilarHeading": zod.string().max(updateDealerSettingsResponsePresentationWebsiteCopyVehicleSimilarHeadingMax).optional()
+}).optional().describe('Optional plain-text dealership page copy. Blank values use the standard wording.'),
+  "footerLogoUrl": zod.string().max(updateDealerSettingsResponsePresentationFooterLogoUrlMax).regex(updateDealerSettingsResponsePresentationFooterLogoUrlRegExp).optional(),
+  "faviconUrl": zod.string().max(updateDealerSettingsResponsePresentationFaviconUrlMax).regex(updateDealerSettingsResponsePresentationFaviconUrlRegExp).optional(),
+  "heroImagePosition": zod.enum(['center', 'left', 'right', 'top', 'bottom']).optional(),
+  "visitImageUrl": zod.string().max(updateDealerSettingsResponsePresentationVisitImageUrlMax).regex(updateDealerSettingsResponsePresentationVisitImageUrlRegExp).optional(),
+  "visitImageAlt": zod.string().max(updateDealerSettingsResponsePresentationVisitImageAltMax).optional(),
+  "contactImageUrl": zod.string().max(updateDealerSettingsResponsePresentationContactImageUrlMax).regex(updateDealerSettingsResponsePresentationContactImageUrlRegExp).optional(),
+  "contactImageAlt": zod.string().max(updateDealerSettingsResponsePresentationContactImageAltMax).optional(),
+  "receptionImageUrl": zod.string().max(updateDealerSettingsResponsePresentationReceptionImageUrlMax).regex(updateDealerSettingsResponsePresentationReceptionImageUrlRegExp).optional(),
+  "receptionImageAlt": zod.string().max(updateDealerSettingsResponsePresentationReceptionImageAltMax).optional(),
   "reviewsEnabled": zod.boolean().optional(),
   "reviews": zod.array(zod.object({
   "verified": zod.boolean().optional().describe('Verification confirmed by the dealership; not a Google certification.'),

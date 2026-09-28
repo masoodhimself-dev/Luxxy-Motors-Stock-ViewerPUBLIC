@@ -1,3 +1,5 @@
+import { useDealerSettings } from "@/lib/dealer-settings-context";
+import { websiteText } from "@/lib/website-content";
 import { useState } from "react";
 import { useSearch } from "wouter";
 import { parseShortlist, shortlistUrl } from "@/lib/customer-convenience";
@@ -10,6 +12,7 @@ import { CarCard } from "@/components/car-card";
 import { Button } from "@/components/ui/button";
 
 export default function Saved() {
+  const { settings } = useDealerSettings();
   const { stock, isLoading, error } = useStock();
   const { savedIds, clearSaved } = useSavedCars();
 
@@ -71,12 +74,12 @@ export default function Saved() {
 
         <div className="friendly-shortlist-intro mt-6">
           <PageHeading
-            eyebrow="Your shortlist"
-            title={sharedIds ? "Shared shortlist" : "Saved cars"}
+            eyebrow={websiteText(settings, "savedEyebrow")}
+            title={sharedIds ? "Shared shortlist" : websiteText(settings, "savedTitle")}
             description={
               sharedIds
                 ? "Someone shared these cars with you. Prices and availability reflect the latest stock. Your own saved cars are unchanged."
-                : "Kept on this device. Pick up where you left off with your favourites."
+                : websiteText(settings, "savedDescription")
             }
             action={
               shownIds.length > 0 && (

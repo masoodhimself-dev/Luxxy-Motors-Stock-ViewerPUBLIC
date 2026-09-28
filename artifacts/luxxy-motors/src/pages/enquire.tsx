@@ -1,3 +1,4 @@
+import { websiteText } from "@/lib/website-content";
 import { questionMessage } from "@/lib/vehicle-questions";
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
@@ -45,7 +46,9 @@ export default function Enquire() {
   const vehicle = stock?.cars.find((car) => car.id === vehicleId);
   const copy = {
     ...headings[type],
-    eyebrow: type === 'general' ? `${dealerConfig.identity.name}` : headings[type].eyebrow,
+    eyebrow: type === 'viewing' ? `Visit ${dealerConfig.identity.name}` : type === 'general' ? dealerConfig.identity.name : headings[type].eyebrow,
+    title: websiteText(dealerConfig, `${type}Title`),
+    description: websiteText(dealerConfig, `${type}Description`),
   };
   const selectedVehicleName = vehicle ? vehicleName(vehicle) : 'your next car';
 

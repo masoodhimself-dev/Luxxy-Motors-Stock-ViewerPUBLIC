@@ -1931,11 +1931,81 @@ components:
         name: { type: string, minLength: 1, maxLength: 150 }
         date: { type: string, maxLength: 100 }
         source: { type: string, maxLength: 100 }
+    DealerWebsiteCopy:
+      type: object
+      additionalProperties: false
+      description: Optional plain-text dealership page copy. Blank values use the standard wording.
+      properties:
+        navigationStock: { type: string, maxLength: 1000 }
+        navigationContact: { type: string, maxLength: 1000 }
+        navigationPartExchange: { type: string, maxLength: 1000 }
+        stockTitle: { type: string, maxLength: 1000 }
+        stockIntroduction: { type: string, maxLength: 1000 }
+        servicesEyebrow: { type: string, maxLength: 1000 }
+        servicesHeading: { type: string, maxLength: 1000 }
+        featuredHeading: { type: string, maxLength: 1000 }
+        visitHeading: { type: string, maxLength: 1000 }
+        teamHeading: { type: string, maxLength: 1000 }
+        reviewsHeading: { type: string, maxLength: 1000 }
+        contactTitle: { type: string, maxLength: 1000 }
+        contactIntroduction: { type: string, maxLength: 1000 }
+        contactTalkHeading: { type: string, maxLength: 1000 }
+        contactVisitHeading: { type: string, maxLength: 1000 }
+        contactVisitDescription: { type: string, maxLength: 1000 }
+        contactDirectionsHeading: { type: string, maxLength: 1000 }
+        contactBeforeHeading: { type: string, maxLength: 1000 }
+        contactParkingHeading: { type: string, maxLength: 1000 }
+        contactMessageHeading: { type: string, maxLength: 1000 }
+        contactMessageDescription: { type: string, maxLength: 1000 }
+        warrantyEyebrow: { type: string, maxLength: 1000 }
+        warrantySupportingCopy: { type: string, maxLength: 1000 }
+        warrantyDetailsHeading: { type: string, maxLength: 1000 }
+        warrantyDetailsIntroduction: { type: string, maxLength: 1000 }
+        warrantyEnquiryHeading: { type: string, maxLength: 1000 }
+        savedEyebrow: { type: string, maxLength: 1000 }
+        savedTitle: { type: string, maxLength: 1000 }
+        savedDescription: { type: string, maxLength: 1000 }
+        compareTitle: { type: string, maxLength: 1000 }
+        compareDescription: { type: string, maxLength: 1000 }
+        viewingTitle: { type: string, maxLength: 1000 }
+        viewingDescription: { type: string, maxLength: 1000 }
+        generalTitle: { type: string, maxLength: 1000 }
+        generalDescription: { type: string, maxLength: 1000 }
+        deliveryTitle: { type: string, maxLength: 1000 }
+        deliveryDescription: { type: string, maxLength: 1000 }
+        warrantyTitle: { type: string, maxLength: 1000 }
+        warrantyDescription: { type: string, maxLength: 1000 }
+        part_exchangeTitle: { type: string, maxLength: 1000 }
+        part_exchangeDescription: { type: string, maxLength: 1000 }
+        vehicleSpecificationHeading: { type: string, maxLength: 1000 }
+        vehicleDescriptionHeading: { type: string, maxLength: 1000 }
+        vehicleInformationHeading: { type: string, maxLength: 1000 }
+        vehicleFeaturesHeading: { type: string, maxLength: 1000 }
+        vehicleSimilarHeading: { type: string, maxLength: 1000 }
+
     DealerPresentation:
       type: object
       additionalProperties: false
       description: Optional showroom content. Empty values are not presented as factual claims.
       properties:
+        pageColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
+        panelColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
+        headingColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
+        linkColour: { type: string, pattern: "^(#[0-9a-fA-F]{6})?$" }
+        featuredEnabled: { type: boolean }
+        visitEnabled: { type: boolean }
+        servicesEnabled: { type: boolean }
+        showHeroDescription: { type: boolean }
+        websiteCopy: { $ref: "#/components/schemas/DealerWebsiteCopy" }
+        footerLogoUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        faviconUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        heroImagePosition: { type: string, enum: [center, left, right, top, bottom] }
+        visitImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        visitImageAlt: { type: string, maxLength: 200 }
+        contactImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        contactImageAlt: { type: string, maxLength: 200 }
+        receptionImageUrl: { type: string, maxLength: 2048, pattern: "^(https://[^\\s]+)?$" }
+        receptionImageAlt: { type: string, maxLength: 200 }
         reviewsEnabled: { type: boolean }
         reviews:
           type: array
