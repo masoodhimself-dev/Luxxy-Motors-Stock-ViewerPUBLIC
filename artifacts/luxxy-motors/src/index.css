@@ -496,3 +496,17 @@ body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --p
 .hero-search-secondary button, .hero-search-secondary a { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:44px; color:#fff; font-size:.875rem; text-underline-offset:4px; }
 .hero-search-secondary button:hover, .hero-search-secondary a:hover { text-decoration:underline; }
 .hero-search-secondary button:focus-visible, .hero-search-secondary a:focus-visible { outline:2px solid #fff; outline-offset:4px; }
+
+/* Stock browsing uses the same charcoal, cyan and cool-grey surfaces as home. */
+.stock-refined { background: #f3f6f6; }
+.stock-page-intro { background: #1a252a; color: #fff; padding-block: 32px 36px; border-bottom: 3px solid hsl(var(--accent)); }
+.stock-home-link { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; font-size: 12px; color: #d4dfe2; }
+.stock-home-link:hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
+.stock-refined .stock-toolbar { background: #f3f6f6; }
+.stock-refined .vehicle-card { border-radius: 2px; border-color: #d4dddd; box-shadow: none; overflow: hidden; }
+.stock-refined .vehicle-card-details { background: #eef2f2; }
+.stock-refined .vehicle-card-grid .vehicle-card-heading h3 { font-weight: 600; }
+.stock-refined .vehicle-card-grid .luxxy-price { color: #1a252a; }
+.stock-refined .vehicle-card:hover { border-color: #8babad; }
+.stock-refined .stock-toolbar input, .stock-refined .stock-toolbar select, .stock-refined .stock-toolbar button { border-radius: 2px; }
+@media (max-width: 639px) { .stock-page-intro { padding-block: 16px 24px; } }

@@ -11,5 +11,7 @@ for (const width of [390, 1280]) {
     await search.getByRole('link', { name: 'See all cars' }).click();
     await expect(page).toHaveURL(/\/stock$/);
     await expect(page.getByRole('heading', { name: 'Browse Stock', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path: `/tmp/luxxy-stock-${width}.png`});
   });
 }

@@ -305,7 +305,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     );
 
   return (
-    <div className={browseStock ? "luxxy-shell min-h-screen" : "luxxy-shell homepage-refined min-h-screen"}>
+    <div className={browseStock ? "luxxy-shell homepage-refined stock-refined min-h-screen" : "luxxy-shell homepage-refined min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
@@ -320,13 +320,19 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {!browseStock && <RollingStock cars={stock?.cars ?? []} unavailable={Boolean(error)} />}
 
+      {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="stock-home-link">Home <span aria-hidden="true">/</span> Used cars</Link>
+          <h1 id="vehicle-results-heading" tabIndex={-1} className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Browse Stock</h1>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">Explore our used cars. Find the right make, mileage and price, then take a closer look.</p>
+        </div>
+      </section>}
+
       {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div>
-              <h1 id="vehicle-results-heading" tabIndex={-1} className="section-heading">
-                Browse Stock
-              </h1>
+              <h2 className="text-lg font-semibold tracking-tight">Our used cars</h2>
 
             </div>
             {stock && (
