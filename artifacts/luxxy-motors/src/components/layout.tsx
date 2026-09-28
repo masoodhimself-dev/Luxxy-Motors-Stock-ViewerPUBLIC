@@ -64,17 +64,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const mobileMenuRef = useRef<HTMLElement>(null);
   const hasEditedFormRef = useRef(false);
 
+  // Adopt the current palette for the original template defaults; preserve bespoke colours.
+  const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl === '161.538 16.883% 15.098%' ? '195 22% 13%' : dealerConfig.identity.brandColors?.primaryHsl;
+  const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
   const brandStyle = {
-    ...(dealerConfig.identity.brandColors?.primaryHsl
+    ...(brandPrimary
       ? {
-          '--primary': dealerConfig.identity.brandColors.primaryHsl,
-          '--primary-foreground': readableForegroundForHsl(dealerConfig.identity.brandColors.primaryHsl),
+          '--primary': brandPrimary,
+          '--primary-foreground': readableForegroundForHsl(brandPrimary),
         }
       : {}),
-    ...(dealerConfig.identity.brandColors?.accentHsl
+    ...(brandAccent
       ? {
-          '--accent': dealerConfig.identity.brandColors.accentHsl,
-          '--accent-foreground': readableForegroundForHsl(dealerConfig.identity.brandColors.accentHsl),
+          '--accent': brandAccent,
+          '--accent-foreground': readableForegroundForHsl(brandAccent),
         }
       : {}),
   } as CSSProperties;

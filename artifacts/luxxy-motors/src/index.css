@@ -38,25 +38,25 @@
 
 :root {
   --site-header-height: 4.75rem;
-  --background: 48.000 23.810% 95.882%;
-  --foreground: 161.538 16.883% 15.098%;
-  --border: 68.571 9.859% 86.078%;
-  --input: 40 5% 52%;
-  --ring: 30.000 40.659% 35.686%;
+  --background: 0 0% 100%;
+  --foreground: 195 22% 13%;
+  --border: 195 10% 85%;
+  --input: 195 7% 48%;
+  --ring: 190 100% 30%;
   --card: 0 0% 100%;
-  --card-foreground: 161.538 16.883% 15.098%;
-  --card-border: 68.571 9.859% 86.078%;
+  --card-foreground: 195 22% 13%;
+  --card-border: 195 10% 85%;
   --popover: 0 0% 100%;
-  --popover-foreground: 161.538 16.883% 15.098%;
-  --popover-border: 68.571 9.859% 86.078%;
-  --primary: 161.538 16.883% 15.098%;
+  --popover-foreground: 195 22% 13%;
+  --popover-border: 195 10% 85%;
+  --primary: 195 22% 13%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 40 14% 92%;
-  --secondary-foreground: 161.538 16.883% 15.098%;
-  --muted: 40 14% 92%;
-  --muted-foreground: 146.667 4.390% 40.196%;
-  --accent: 30.000 40.659% 35.686%;
-  --accent-foreground: 0 0% 100%;
+  --secondary: 195 14% 95%;
+  --secondary-foreground: 195 22% 13%;
+  --muted: 195 14% 95%;
+  --muted-foreground: 195 7% 36%;
+  --accent: 190 86% 44%;
+  --accent-foreground: 195 35% 10%;
   --destructive: 0 60% 38%;
   --destructive-foreground: 0 0% 100%;
   --contact: 157 43% 28%;
@@ -64,32 +64,32 @@
   --app-font-sans: 'DM Sans', Arial, sans-serif;
   --font-display: 'Manrope', Arial, sans-serif;
   --radius: .25rem;
-  --shadow-soft: 0 2px 8px hsl(161.538 16.883% 15.098% / .05);
-  --shadow-lift: 0 12px 40px hsl(161.538 16.883% 15.098% / .12);
+  --shadow-soft: 0 2px 8px hsl(195 22% 13% / .05);
+  --shadow-lift: 0 12px 40px hsl(195 22% 13% / .12);
 }
 
 .dark {
   --background: 216 25% 12%;
-  --foreground: 39 29% 95%;
+  --foreground: 195 14% 95%;
   --border: 215 16% 28%;
   --input: 215 12% 54%;
-  --ring: 17 73% 58%;
+  --ring: 190 86% 55%;
   --card: 216 24% 16%;
-  --card-foreground: 39 29% 95%;
+  --card-foreground: 195 14% 95%;
   --card-border: 215 16% 28%;
   --popover: 216 24% 16%;
-  --popover-foreground: 39 29% 95%;
+  --popover-foreground: 195 14% 95%;
   --popover-border: 215 16% 28%;
-  --primary: 39 29% 95%;
+  --primary: 195 14% 95%;
   --primary-foreground: 216 25% 12%;
-  --secondary: 174 16% 24%;
-  --secondary-foreground: 39 29% 95%;
+  --secondary: 195 16% 24%;
+  --secondary-foreground: 195 14% 95%;
   --muted: 216 20% 20%;
   --muted-foreground: 215 14% 70%;
-  --accent: 17 73% 58%;
+  --accent: 190 86% 55%;
   --accent-foreground: 216 25% 12%;
   --destructive: 5 58% 52%;
-  --destructive-foreground: 39 29% 95%;
+  --destructive-foreground: 195 14% 95%;
 }
 
 @layer base {
@@ -540,3 +540,13 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
  .homepage-art-directed .rolling-stock > .container { gap: 8px; padding-block: 16px; }
  .homepage-art-directed .rolling-stock > .container .section-heading { font-size: 22px; }
 }
+
+/* Shared customer/portal surfaces. Status and WhatsApp colours remain semantic. */
+.vehicle-card-details { background: #eef2f2; }
+.vehicle-card { box-shadow: none; }
+.luxxy-shell .text-accent { color: #176574; }
+.luxxy-shell .text-link { color: hsl(var(--foreground)); }
+.luxxy-shell .text-link:hover { text-decoration-color: hsl(var(--accent)); }
+.dark .luxxy-shell .text-accent { color: #63d6e7; }
+.dark .vehicle-card-details { background: hsl(var(--card)); }
+.luxxy-kicker { color: hsl(var(--muted-foreground)); }

@@ -184,7 +184,7 @@ export default function SalesDemo() {
     }
   };
   return (
-    <div className="sales-workspace fixed inset-0 z-[70] flex flex-col bg-[#f3f4f4] text-[#172126]">
+    <div className="sales-workspace fixed inset-0 z-[70] flex flex-col bg-secondary text-foreground">
       <header className="sales-chrome flex flex-wrap items-center justify-between gap-3 border-b border-border bg-white px-4 py-3 md:px-8">
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={() => leave(!draft)}>

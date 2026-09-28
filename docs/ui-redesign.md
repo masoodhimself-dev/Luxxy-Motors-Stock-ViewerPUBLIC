@@ -739,3 +739,9 @@ Validation: 181 frontend unit tests passed; workspace typechecking and frontend/
 Balanced enabled services with an automatically sized grid: two services now fill two equal columns instead of leaving a third empty. Unified reviews, visit and service section padding with a responsive 36–64px scale. White review/service sections, pale grey review panels and a soft grey visit section create clearer separation while retaining charcoal and cyan branding. Tightened search secondary-action spacing and standardised featured-stock heading spacing. Scoped to the homepage; browsing and business behaviour preserved.
 
 Validation: 181 unit tests, four desktop/mobile browser checks, workspace typecheck and builds passed. Existing bundle-size warning remains.
+
+### Shared palette consistency
+
+Replaced legacy green-black and beige base tokens with charcoal, white and cool grey. Cyan is reserved for accents and focus; small accent text uses a darker readable teal. Standardised card caption surfaces and sales-demo neutral surfaces, retaining WhatsApp and semantic status colours. Original template brand defaults map to the updated palette at render time without modifying stored settings; bespoke dealer colour values remain supported. Dark-mode accent tokens updated as well.
+
+Validation: 181 frontend tests and workspace typecheck/build passed; seven browser checks passed, followed by a final two-width palette sweep after legacy-default mapping. Sweeps cover home, stock, vehicle, saved, contact, warranty, enquiry and sales demo. Existing build chunk-size warning remains. No backend or production changes.
