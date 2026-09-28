@@ -13,7 +13,7 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
-  viewing: { eyebrow: 'Visit Luxxy Motors', title: 'Book a viewing', description: 'Choose a date and time to see the car and ask the team any questions.' },
+  viewing: { eyebrow: 'Visit Luxxy Motors', title: 'Book a test drive', description: 'Choose a date and time to see the car and ask the team any questions.' },
   general: { eyebrow: 'Talk to the team', title: 'How can we help?', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We will confirm delivery options and costs.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
@@ -21,7 +21,7 @@ const headings: Record<EnquiryType, { eyebrow: string; title: string; descriptio
 };
 
 const metaHeadings: Record<EnquiryType, string> = {
-  viewing: 'Book a viewing',
+  viewing: 'Book a test drive',
   general: 'Contact the showroom',
   delivery: 'Ask about delivery',
   warranty: 'Ask about warranty',
@@ -183,7 +183,7 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-accent" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-accent">This vehicle has just left the showroom.</p>
-                    <p className="mt-2 text-primary/70">{type === 'viewing' ? 'Choose another available car below before booking your viewing.' : type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
+                    <p className="mt-2 text-primary/70">{type === 'viewing' ? 'Choose another available car below before booking your test drive.' : type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
                   </div>
                 </div>
               ) : null}

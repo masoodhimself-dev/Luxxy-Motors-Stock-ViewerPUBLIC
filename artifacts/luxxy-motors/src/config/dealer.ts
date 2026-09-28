@@ -105,7 +105,7 @@ export const dealerConfig: DealerConfig = {
   social: {},
   hero: {
     copy: "Find your next car.",
-    subcopy: "Independent used-car dealership in Harrow. Browse our stock and arrange a viewing.",
+    subcopy: "Independent used-car dealership in Harrow. Browse our stock and book a test drive.",
     primaryCta: "Browse cars",
     secondaryCta: "Enquire",
   },
@@ -130,8 +130,8 @@ export const dealerConfig: DealerConfig = {
   },
   bookViewing: {
     title: "Seen something you like?",
-    description: "Arrange a viewing at a time that suits you.",
-    ctaLabel: "Book a Viewing",
+    description: "Book a test drive at a time that suits you.",
+    ctaLabel: "Book a test drive",
   },
   recentHandovers: {
     enabled: false,
@@ -144,7 +144,7 @@ export const dealerConfig: DealerConfig = {
     "Straightforward buying",
   ],
   whyBuy: [
-    { title: "View it in person", description: "Choose a viewing time and tell us which car you’d like to see." },
+    { title: "View it in person", description: "Choose a test-drive time and tell us which car you’d like to see." },
     { title: "The details upfront", description: "Check the price, mileage and specification before you travel. Ask us about anything you’d like clarified." },
     { title: "Your next steps", description: "Talk through the paperwork, payment and collection arrangements before you decide." },
   ]

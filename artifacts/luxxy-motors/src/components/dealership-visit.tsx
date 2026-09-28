@@ -39,7 +39,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
             </h2>
             <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">
               {content.visitInstructions ||
-                "Arrange a viewing and take a closer look. Contact the team for directions and appointment details before setting off."}
+                "Book a test drive and take a closer look. Contact the team for directions and appointment details before setting off."}
             </p>
             <div className="mt-6 grid gap-6 sm:grid-cols-2">
               <div>
@@ -89,7 +89,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild>
                 <Link href="/enquire?type=viewing">
-                  Arrange a viewing <ArrowRight className="h-4 w-4" />
+                  Book a test drive <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline">

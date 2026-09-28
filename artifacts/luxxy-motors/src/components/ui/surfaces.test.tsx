@@ -62,7 +62,7 @@ describe('Card', () => {
     render(
       <Card data-testid="card">
         <CardHeader>
-          <CardTitle>Book a viewing</CardTitle>
+          <CardTitle>Book a test drive</CardTitle>
         </CardHeader>
         <CardContent>Wednesday, 4pm</CardContent>
       </Card>,
@@ -89,7 +89,7 @@ describe('Dialog', () => {
     render(
       <Dialog open>
         <DialogContent>
-          <DialogTitle>Confirm your viewing</DialogTitle>
+          <DialogTitle>Confirm your test drive</DialogTitle>
           <DialogDescription>We will hold the car for 24 hours.</DialogDescription>
         </DialogContent>
       </Dialog>,

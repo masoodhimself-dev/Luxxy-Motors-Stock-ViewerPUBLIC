@@ -162,7 +162,7 @@ export default function Viewing() {
       <div className="flex flex-col gap-6 border-b border-primary p-6 sm:flex-row sm:items-start sm:justify-between sm:p-10">
         <div>
           <h1 className="font-display text-3xl sm:text-2xl font-semibold tracking-tight text-primary">
-            {isCancelled ? 'Viewing cancelled' : 'Your viewing'}
+            {isCancelled ? 'Test drive cancelled' : 'Your test drive'}
           </h1>
           <p className="mt-4 font-bold text-sm tracking-normal leading-relaxed text-primary/70" data-testid="text-viewing-customer">
             Hello, {booking.customerName}.
@@ -208,7 +208,7 @@ export default function Viewing() {
       {isCancelled ? (
         <div className="bg-primary/5 p-6 sm:p-10 border-t border-primary/10">
           <p className="flex items-center gap-3 font-display text-[12px] font-semibold tracking-normal text-primary" data-testid="status-viewing-cancelled">
-            <XCircle className="h-5 w-5 text-accent" /> This viewing will not go ahead.
+            <XCircle className="h-5 w-5 text-accent" /> This test drive will not go ahead.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Button asChild className="h-12 rounded-md bg-primary font-display text-[11px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent">
@@ -225,11 +225,11 @@ export default function Viewing() {
         </div>
       ) : mode === 'confirm-cancel' ? (
         <div className="bg-destructive/10 p-6 sm:p-10 border-t border-destructive">
-          <p className="font-display text-[15px] font-semibold tracking-normal text-destructive">Cancel your viewing</p>
+          <p className="font-display text-[15px] font-semibold tracking-normal text-destructive">Cancel your test drive</p>
           <p className="mt-2 text-sm font-normal text-destructive/80">This will release your appointment. You can book another time later.</p>
 
           {cancel.isError && (
-            <p role="alert" className="mt-6 border border-destructive/50 bg-background p-4 text-sm font-bold text-destructive" data-testid="status-cancel-error">{apiMessage(cancel.error, 'We could not cancel your viewing. Please try again or call us.')}</p>
+            <p role="alert" className="mt-6 border border-destructive/50 bg-background p-4 text-sm font-bold text-destructive" data-testid="status-cancel-error">{apiMessage(cancel.error, 'We could not cancel your test drive. Please try again or call us.')}</p>
           )}
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -295,7 +295,7 @@ export default function Viewing() {
           </div>
 
           {reschedule.isError && (
-            <p role="alert" className="mt-8 border border-destructive/50 bg-background p-4 text-[13px] font-normal text-destructive" data-testid="status-reschedule-error">{apiMessage(reschedule.error, 'We could not move your viewing. Please try again or call us.')}</p>
+            <p role="alert" className="mt-8 border border-destructive/50 bg-background p-4 text-[13px] font-normal text-destructive" data-testid="status-reschedule-error">{apiMessage(reschedule.error, 'We could not move your test drive. Please try again or call us.')}</p>
           )}
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -312,7 +312,7 @@ export default function Viewing() {
               className="h-14 flex-1 rounded-md font-display text-[12px] font-normal shadow-none transition-all"
               data-testid="button-confirm-reschedule"
             >
-              {reschedule.isPending ? 'Moving viewing…' : 'Confirm new time'}
+              {reschedule.isPending ? 'Moving test drive…' : 'Confirm new time'}
             </Button>
             <Button type="button" variant="outline" disabled={busy} onClick={() => setMode('idle')} className="h-14 flex-1 rounded-md border border-primary font-display text-[12px] font-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="button-cancel-reschedule">
               Keep current time
@@ -322,7 +322,7 @@ export default function Viewing() {
       ) : reschedule.isSuccess && mode === 'idle' ? (
         <div className="bg-background p-6 sm:p-10 border-t border-accent">
           <p className="flex items-center gap-3 font-display text-[13px] font-semibold tracking-normal text-primary" data-testid="status-reschedule-success">
-            <Clock3 className="h-5 w-5 text-accent" /> Your viewing has been moved. We have updated the showroom diary.
+            <Clock3 className="h-5 w-5 text-accent" /> Your test drive has been moved. We have updated the showroom diary.
           </p>
         </div>
       ) : null}

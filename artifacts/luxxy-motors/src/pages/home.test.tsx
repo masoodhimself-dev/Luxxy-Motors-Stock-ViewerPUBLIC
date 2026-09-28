@@ -116,7 +116,7 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
     contact: { phone: '01234567890' },
     address: { city: 'Test City', region: 'Test Region' },
     hero: { copy: 'Find your next car', subcopy: 'Subcopy', announcement: 'Test Announcement', primaryCta: 'See stock', secondaryCta: 'Part exchange' },
-    bookViewing: { title: 'Book a viewing', ctaLabel: 'Book now', description: 'Book a viewing' },
+    bookViewing: { title: 'Book a test drive', ctaLabel: 'Book now', description: 'Book a test drive' },
     trustItems: ['Trust point 1'],
     whyBuy: [{ title: 'How we work', description: 'A clear buying process.' }],
     featuredVehicleIds: [] as string[],
@@ -319,7 +319,7 @@ describe('showroom search filters', () => {
     expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
     expect(within(introduction).getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
-    expect(within(introduction).getByRole('link', { name: 'Arrange a viewing' })).toHaveAttribute('href', '/enquire?type=viewing');
+    expect(within(introduction).getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', '/enquire?type=viewing');
   });
 
   it('shows anonymised recent handovers before the how-we-work section', () => {

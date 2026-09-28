@@ -275,7 +275,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>
               Browse Stock <ArrowRight className="w-5 h-5 text-accent" />
             </button>
-            <button onClick={() => { setMobileMenuOpen(false); setLocation(getEnquiryHref('viewing')); }} className={mobileNavRowClass}>Book a viewing <CalendarDays className="h-5 w-5 text-accent" /></button>
+            <button onClick={() => { setMobileMenuOpen(false); setLocation(getEnquiryHref('viewing')); }} className={mobileNavRowClass}>Book a test drive <CalendarDays className="h-5 w-5 text-accent" /></button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>Part Exchange <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/warranty' ? 'page' : undefined} className={mobileNavRowClass}>Warranty <ArrowRight className="w-5 h-5 opacity-40" /></Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery <ArrowRight className="w-5 h-5 opacity-40" /></button>}
@@ -419,7 +419,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="col-span-2 lg:col-span-3">
                 <h3 className={footerHeadingClass}>Opening hours</h3>
                 <p className="mb-5 max-w-[22rem] text-[13px] leading-6 text-primary-foreground/65">
-                  Contact us before travelling to arrange a viewing.
+                  Contact us before travelling to book a test drive.
                 </p>
                 <ul className="space-y-3">
                   {(location === '/' ? upcomingVisitDates.slice(0, 1) : upcomingVisitDates).map((visit) => (

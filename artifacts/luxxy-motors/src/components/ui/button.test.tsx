@@ -31,7 +31,7 @@ const SIZES = Object.keys(SIZE_COVERAGE) as ButtonSize[];
 
 describe('Button', () => {
   it.each(SIZES)('renders the %s size with restrained corners and flat surfaces', (size) => {
-    render(<Button size={size}>Book a viewing</Button>);
+    render(<Button size={size}>Book a test drive</Button>);
 
     // `rounded-none` is the only radius allowed: anything else means a soft edge
     // crept back into the base or a variant.
@@ -47,7 +47,7 @@ describe('Button', () => {
   });
 
   it('still lets a surface opt into a soft edge on purpose', () => {
-    render(<Button className="rounded-lg shadow-md">Book a viewing</Button>);
+    render(<Button className="rounded-lg shadow-md">Book a test drive</Button>);
 
     const { className } = screen.getByRole('button');
 

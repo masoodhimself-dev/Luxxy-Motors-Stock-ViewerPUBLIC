@@ -58,8 +58,8 @@ export default function Contact() {
           <a href="#contact-message" onClick={event => { event.preventDefault(); document.getElementById('contact-message')?.scrollIntoView({ block: 'start' }); document.getElementById('contact-message-heading')?.focus({ preventScroll: true }); }} className="text-link mt-4 inline-flex min-h-11 items-center gap-2">Send an enquiry online<ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
           <div className="mt-7 border-t border-border pt-6">
             <h3 className="font-display text-xl font-semibold">Come and see the car.</h3>
-            <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">Choose the car you’re interested in and book a viewing. We’ll confirm the details so you can plan your visit.</p>
-            <Button asChild className="mt-5"><Link href="/enquire?type=viewing">Arrange a viewing<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">Choose the car you’re interested in and book a test drive. We’ll confirm the details so you can plan your visit.</p>
+            <Button asChild className="mt-5"><Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
           </div>
         </section>
 
@@ -78,13 +78,13 @@ export default function Contact() {
             {(isLoading || isError) && <p className="mt-5 text-sm leading-6 text-primary-foreground/80">{isLoading ? 'Loading showroom location…' : 'Contact the team to confirm the showroom location.'}</p>}
           </div>
           {!isLoading && !isError && <>
-            <div className="mt-6"><h3 className="text-base font-semibold">Opening hours</h3>{settings.hours?.length ? <dl className="mt-3 divide-y divide-border">{settings.hours.map((hour, index) => <div key={index} className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-3 text-sm"><dt className="text-muted-foreground">{hour.days}</dt><dd className="font-medium">{hour.times}</dd></div>)}</dl> : <p className="mt-3 text-sm leading-6 text-muted-foreground">Contact us to confirm a suitable time.</p>}<p className="mt-3 text-xs leading-5 text-muted-foreground">Please confirm your viewing before travelling, including visits on bank holidays.</p></div>
+            <div className="mt-6"><h3 className="text-base font-semibold">Opening hours</h3>{settings.hours?.length ? <dl className="mt-3 divide-y divide-border">{settings.hours.map((hour, index) => <div key={index} className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-3 text-sm"><dt className="text-muted-foreground">{hour.days}</dt><dd className="font-medium">{hour.times}</dd></div>)}</dl> : <p className="mt-3 text-sm leading-6 text-muted-foreground">Contact us to confirm a suitable time.</p>}<p className="mt-3 text-xs leading-5 text-muted-foreground">Please confirm your test drive before travelling, including visits on bank holidays.</p></div>
           </>}
         </section>
       </div>
 
       {!isLoading && !isError && <section className="mt-10 grid gap-7 border-y border-border py-7 sm:grid-cols-2 lg:gap-16" aria-label="Before your visit">
-        <div><h2 className="font-display text-xl font-semibold">Before you set off</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.visitInstructions || 'Contact us to confirm the car is available and arrange a viewing time. We’ll help with any questions before you travel.'}</p></div>
+        <div><h2 className="font-display text-xl font-semibold">Before you set off</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.visitInstructions || 'Contact us to confirm the car is available and book a test drive time. We’ll help with any questions before you travel.'}</p></div>
         <div><h2 className="font-display text-xl font-semibold">Parking & arrival</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.parkingInstructions || 'Ask the team about parking, the entrance and any access requirements when arranging your visit.'}</p></div>
       </section>}
 

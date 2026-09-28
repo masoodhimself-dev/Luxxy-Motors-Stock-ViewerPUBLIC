@@ -19,7 +19,7 @@ import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
 
 const typeLabels: Record<EnquiryType, string> = {
-  viewing: 'Book a viewing',
+  viewing: 'Book a test drive',
   general: 'General enquiry',
   delivery: 'Delivery enquiry',
   warranty: 'Warranty enquiry',
@@ -244,7 +244,7 @@ export function EnquiryForm({
       email: email.trim(),
       phone: normalizedPhone,
       preferredContact: embedded ? 'email' : preferredContact,
-      message: [message.trim() || (isViewing ? `Viewing appointment requested for ${formatAppointment(selectedSlot!)}` : ''), embedded ? '' : exchangeSummary].filter(Boolean).join('\n\n'),
+      message: [message.trim() || (isViewing ? `Test-drive appointment requested for ${formatAppointment(selectedSlot!)}` : ''), embedded ? '' : exchangeSummary].filter(Boolean).join('\n\n'),
       appointmentAt: isViewing ? selectedSlot : null,
       partExchange: !embedded && hasPartExchange && vehicle ? {
         registration: exchange.registration.trim().toUpperCase(),
@@ -279,7 +279,7 @@ export function EnquiryForm({
     const choice = stockCars.find(car => car.id === viewingVehicleId);
     return (
       <section aria-labelledby="enquiry-form-heading" data-testid="viewing-vehicle-required">
-        <p className="luxxy-label text-accent">Your viewing</p>
+        <p className="luxxy-label text-accent">Your test drive</p>
         <h2 id="enquiry-form-heading" className="mt-3 font-display text-2xl font-semibold text-primary">Choose a car to view</h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">Select a vehicle before choosing your appointment. This helps us prepare the right car for your visit.</p>
         <fieldset className="mt-6">
@@ -348,7 +348,7 @@ export function EnquiryForm({
               </p>
               <p className="mt-1 text-xs leading-5 text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent'
-                  ? `We sent your reference and ${isViewing ? 'viewing details' : 'enquiry details'} to ${email.trim()}.`
+                  ? `We sent your reference and ${isViewing ? 'test-drive details' : 'enquiry details'} to ${email.trim()}.`
                   : `Please contact the showroom by phone or WhatsApp and quote ${mutation.data.reference}.`}
               </p>
               {mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
@@ -365,12 +365,12 @@ export function EnquiryForm({
             <div className="flex items-start gap-2.5">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <div>
-                <p className="text-sm font-bold text-primary">Manage your viewing</p>
+                <p className="text-sm font-bold text-primary">Manage your test drive</p>
                 <p className="mt-1 text-xs leading-5 text-primary/70">Reschedule or cancel using your secure link.</p>
               </div>
             </div>
             <Button asChild type="button" variant="outline" size="sm" className="h-9 shrink-0 rounded-md border-border bg-background text-xs font-bold shadow-none">
-              <Link href={mutation.data.managePath}>Manage viewing</Link>
+              <Link href={mutation.data.managePath}>Manage test drive</Link>
             </Button>
           </div>
         )}
@@ -520,18 +520,18 @@ export function EnquiryForm({
           <legend className="sr-only">Choose a time to visit</legend>
           <p className="text-xs leading-relaxed text-muted-foreground">30-minute visits · Monday to Saturday · 10:00–18:00 · London time</p>
           <label className="block sm:hidden" data-testid="label-viewing-date-mobile">
-            <span className="sr-only">Choose a viewing date</span>
+            <span className="sr-only">Choose a test-drive date</span>
             <NativeSelect
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
-              aria-label="Choose a viewing date"
+              aria-label="Choose a test-drive date"
               className="h-12"
               data-testid="select-viewing-date"
             >
               {dates.map((date) => <option key={date} value={date}>{formatDateLabel(date)}</option>)}
             </NativeSelect>
           </label>
-          <div role="group" aria-label="Choose a viewing date" className="no-scrollbar hidden gap-2 overflow-x-auto pb-1 sm:flex" data-testid="group-viewing-dates">
+          <div role="group" aria-label="Choose a test-drive date" className="no-scrollbar hidden gap-2 overflow-x-auto pb-1 sm:flex" data-testid="group-viewing-dates">
             {dates.map((date) => {
               const parts = dateParts(date);
               const weekday = parts.find((part) => part.type === 'weekday')?.value ?? '';
@@ -649,7 +649,7 @@ export function EnquiryForm({
 
       {vehicle && dealerConfig.onlineReservation?.enabled && (!isViewing || viewingStep === 2) && (
         <div className="border-t border-border pt-4">
-          <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry or viewing is submitted separately.</p>
+          <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry or test drive is submitted separately.</p>
           <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
         </div>
       )}
@@ -676,7 +676,7 @@ export function EnquiryForm({
           </Button>
         ) : (
           <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
-            {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Reserve my viewing' : `Send ${typeLabels[type].toLowerCase()}`}
+            {mutation.isPending ? (isViewing ? 'Reserving your visit…' : 'Sending enquiry…') : isViewing ? 'Book my test drive' : `Send ${typeLabels[type].toLowerCase()}`}
             {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
           </Button>
         )}
