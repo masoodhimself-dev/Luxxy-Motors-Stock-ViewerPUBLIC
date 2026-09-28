@@ -362,20 +362,20 @@
 }
 .rolling-stock .vehicle-card-details {
  flex: 1;
- justify-content: center;
- min-height: 112px;
- padding: 17px 16px;
+ justify-content: flex-start;
+ min-height: 0;
+ padding: 12px 16px 14px;
  background: #eeefed;
  text-align: center;
 }
 .rolling-stock .vehicle-card-heading h3 { font-size: 1rem; font-weight: 600; }
-.rolling-stock .vehicle-card-details > div:nth-child(2) { justify-content: center; margin-top: 8px; }
+.rolling-stock .vehicle-card-details > div:nth-child(2) { justify-content: center; margin-top: 5px; }
 .rolling-stock .luxxy-price { font-size: 1.875rem; line-height: 1.2; }
 .rolling-stock .vehicle-specs { display: none; }
 .rolling-stock .vehicle-card-actions { display: none; }
 @media (max-width: 639px) {
  .rolling-stock .vehicle-card { border-right-width: 4px; }
- .rolling-stock .vehicle-card-details { min-height: 100px; padding: 14px; }
+ .rolling-stock .vehicle-card-details { min-height: 0; padding: 10px 14px 12px; }
 }
 .browse-stock .vehicle-card img { object-fit: contain; background: #eeefed; }
 .browse-stock .vehicle-specs { grid-template-columns: auto auto; justify-content: start; column-gap: 1.25rem; }
