@@ -24,8 +24,8 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
   const allImages = useMemo(
-    () => orderVehiclePhotos(images, heroImage),
-    [images, heroImage],
+    () => orderVehiclePhotos(images, heroImage).filter(image => !failedImages.has(getSafeImageUrl(image))),
+    [images, heroImage, failedImages],
   );
   const index = Math.min(activeIndex, Math.max(0, allImages.length - 1));
   const previous = () => setActiveIndex((index + allImages.length - 1) % allImages.length);
@@ -94,7 +94,11 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         className={className}
         loading={eager ? 'eager' : 'lazy'}
         referrerPolicy="no-referrer"
-        onError={(event) => {if (!retryOriginalImage(event.currentTarget)) setFailedImages((prev) => new Set(prev).add(url));}}
+        onError={(event) => {if (!retryOriginalImage(event.currentTarget)) {
+          const removedIndex = allImages.findIndex(image => getSafeImageUrl(image) === url);
+          setActiveIndex(current => removedIndex < current ? Math.max(0, current - 1) : current);
+          setFailedImages((prev) => new Set(prev).add(url));
+        }}}
       />
     );
     return eager ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
@@ -173,7 +177,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
             {allImages.map((image, i) => {
               return (
               <button
-                key={`${getSafeImageUrl(image)}-${i}`}
+                key={getSafeImageUrl(image)}
                 type="button"
                 aria-label={`Show photograph ${i + 1} of ${allImages.length}`}
                 aria-current={i === index}
