@@ -733,3 +733,9 @@ Extended the local-only `/portal/sales-demo` workspace with removable fees and d
 Customer selection reads existing enquiry and reservation endpoints, supports search and newest-first ordering, and copies only name, email and telephone. It does not import reservation deposits as money received. Loading, unavailable and empty states allow manual entry. All sales drafts and illustrative entries remain browser-local; no production schema, payment, stock, authentication or sales API changes.
 
 Validation: 181 frontend unit tests passed; workspace typechecking and frontend/backend builds passed (existing main bundle size warning). Browser coverage includes desktop/mobile draft persistence and print previews, split payment totals, recent customer imports and the three-car limit. Refreshed document screenshots in `docs/screenshots/sales-workspace/`.
+
+### Homepage spacing and colour refinement
+
+Balanced enabled services with an automatically sized grid: two services now fill two equal columns instead of leaving a third empty. Unified reviews, visit and service section padding with a responsive 36–64px scale. White review/service sections, pale grey review panels and a soft grey visit section create clearer separation while retaining charcoal and cyan branding. Tightened search secondary-action spacing and standardised featured-stock heading spacing. Scoped to the homepage; browsing and business behaviour preserved.
+
+Validation: 181 unit tests, four desktop/mobile browser checks, workspace typecheck and builds passed. Existing bundle-size warning remains.

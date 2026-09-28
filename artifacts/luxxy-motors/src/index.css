@@ -512,3 +512,31 @@ body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --p
 @media (max-width: 639px) { .stock-page-intro { padding-block: 16px 24px; } }
 /* Keep the mobile stock header legible above the dark introduction. */
 body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
+
+/* Homepage rhythm: shared section spacing and balanced enabled services. */
+.homepage-art-directed { --home-section-space: clamp(36px, 4.5vw, 64px); background: #fff; }
+.homepage-art-directed .customer-reviews,
+.homepage-art-directed #visit,
+.homepage-art-directed .home-services { padding-block: var(--home-section-space); }
+.homepage-art-directed .customer-reviews { background: #fff; border-color: #e0e6e6; }
+.homepage-art-directed .review-panel { background: #f6f8f8; border-color: #e0e6e6; padding: 24px; }
+.homepage-art-directed #visit { background: #f0f4f4; }
+.homepage-art-directed .home-services { background: #fff; }
+.home-service-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.homepage-art-directed .section-heading { line-height: 1.2; letter-spacing: -.035em; }
+.homepage-art-directed .home-services .luxxy-kicker { color: #526369; font-weight: 500; }
+.homepage-art-directed .home-service-grid article { padding-top: 24px; }
+.homepage-art-directed .home-service-grid article p { max-width: 52ch; }
+.homepage-art-directed .rolling-stock > .container { padding-block: 20px; }
+.homepage-art-directed .rolling-stock { background: #fff; }
+.homepage-art-directed .hero-stock-search { gap: 14px; margin-top: 24px; }
+.homepage-art-directed .hero-search-secondary { margin-top: -6px; }
+.homepage-art-directed .hero-search-advanced { margin-top: -8px; }
+.homepage-art-directed .hero-search-field select { border-color: #a4b6bc; background: rgba(20,30,35,.88); }
+.homepage-art-directed .visit-story { gap: 24px; }
+@media (max-width: 639px) {
+ .homepage-art-directed .review-panel { padding: 20px; }
+ .homepage-art-directed .home-service-grid { gap: 28px; margin-top: 24px; }
+ .homepage-art-directed .rolling-stock > .container { gap: 8px; padding-block: 16px; }
+ .homepage-art-directed .rolling-stock > .container .section-heading { font-size: 22px; }
+}

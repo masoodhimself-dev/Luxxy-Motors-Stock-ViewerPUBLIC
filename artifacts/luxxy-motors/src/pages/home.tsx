@@ -305,7 +305,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     );
 
   return (
-    <div className={browseStock ? "luxxy-shell homepage-refined stock-refined min-h-screen" : "luxxy-shell homepage-refined min-h-screen"}>
+    <div className={browseStock ? "luxxy-shell homepage-refined stock-refined min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
@@ -545,7 +545,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <p className="luxxy-kicker mb-3">Along the way</p>
           <h2 className="section-heading">The details, taken care of.</h2>
-          <div className="mt-8 grid gap-8 md:grid-cols-3">
+          <div className="home-service-grid mt-8 grid gap-8">
             {(
               [
                 ['warranty', dealerConfig.warranty, 'Warranty Enquiry', 'link-warranty-enquiry'],
