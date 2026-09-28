@@ -1,3 +1,4 @@
+import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
@@ -306,20 +307,7 @@ export default function CarDetail() {
               {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a viewing separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
-                {phoneHref && (
-                  <a
-                    href={phoneHref}
-                    className="vehicle-contact-action"
-                    aria-label={`Call about ${vehicleLabel}`}
-                    onClick={() =>
-                      recordContactIntent({ channel: 'call', car, source: 'car-detail' })
-                    }
-                    data-vehicle-contact="call"
-                  >
-                    <Phone className="h-4 w-4" />
-                    Call showroom
-                  </a>
-                )}
+                <VehicleCall car={car} />
                 {whatsappHref && (
                   <a
                     href={whatsappHref}
@@ -484,19 +472,7 @@ export default function CarDetail() {
             <SiWhatsapp className="h-5 w-5" aria-hidden="true" />
           </a>
         )}
-        {phoneHref && (
-          <Button asChild variant="outline" size="icon" className="h-12 w-12">
-            <a
-              href={phoneHref}
-              aria-label="Call about this vehicle"
-              onClick={() =>
-                recordContactIntent({ channel: 'call', car, source: 'car-detail-mobile' })
-              }
-            >
-              <Phone className="h-5 w-5" />
-            </a>
-          </Button>
-        )}
+        <VehicleCall car={car} compact />
       </div>}
       {similarCars.length > 0 && (
         <section

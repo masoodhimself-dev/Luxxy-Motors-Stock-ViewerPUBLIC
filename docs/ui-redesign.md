@@ -759,3 +759,9 @@ Validation: 184 unit tests include parsing, pagination and reserved/sold orderin
 Applied the 16 requested visual refinements: shorter intro; quick choices inside Filters; restrained secondary links; white card panels and fine borders; aligned titles/prices, compact text specifications and confirmed feature captions; consistent uncropped photo areas; removed photo-count/availability overlays in catalogue cards; reserved label beside price; neutral save control retaining a 44px touch target; subtle border/title hover; quieter applied filters; tighter mobile spacing; centred results footer; and compact left-aligned empty states. Filter-dialog closing explicitly restores focus to its opening control. Existing search, photo arrows, saved cars and comparison remain available.
 
 Validation: 184 frontend unit tests, workspace typecheck/build and two desktop/mobile stock browser checks passed after final focus-return refinement. No backend or production changes.
+
+### Vehicle call follow-up
+
+Vehicle-page showroom call actions now open a compact phone/car-details dialog on desktop. Phone devices retain the native tel link and also open a “Did you get through?” follow-up, visible on returning to the page. The follow-up uses the existing reservation component only when settings and vehicle eligibility allow it; otherwise it links to an enquiry with the car selected. No call-success detection is claimed. Dialog closing returns focus to its trigger. No calls or external messages are sent by the implementation.
+
+Validation: 184 unit tests and workspace builds passed; final frontend typecheck passed. Three browser tests cover desktop dialog/focus and mobile reservation enabled/disabled using test-only dialler interception.
