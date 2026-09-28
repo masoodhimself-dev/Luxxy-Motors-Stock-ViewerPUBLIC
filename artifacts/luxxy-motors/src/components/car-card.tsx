@@ -110,6 +110,7 @@ export function CarCard({
       <div
         className={cn(
           'relative shrink-0 overflow-hidden bg-muted',
+          stretchedLink && photoControls && 'z-20',
           isRow ? 'w-full md:w-[38%]' : isCompact ? 'w-full min-[480px]:w-[40%]' : 'w-full',
         )}
       >
@@ -195,7 +196,7 @@ export function CarCard({
               <Link
                 href={detailHref}
                 onClick={recordVehicleOpen}
-                className={cn("hover:underline underline-offset-4", stretchedLink && !photoControls && "after:absolute after:inset-0 after:z-10 focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-ring")}
+                className={cn("hover:underline underline-offset-4", stretchedLink && "after:absolute after:inset-0 after:z-10 focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-ring")}
               >
                 {vehicleLabel}
               </Link>
@@ -229,7 +230,7 @@ export function CarCard({
           </p>
         )}
         <div
-          className="vehicle-card-actions mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
+          className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
           data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
         >
           <Link href={detailHref} onClick={recordVehicleOpen} className="text-link text-xs">

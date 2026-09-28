@@ -1,3 +1,5 @@
+import { parseStockSearch } from '@/lib/natural-stock-search';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { arrivalTime } from '@/lib/stock-presentation';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -29,6 +31,7 @@ interface FiltersProps {
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   onSearch?: () => void;
   vehicleCount: number;
+  matchCount?: number;
 }
 
 const emptyFilters: FilterState = {
@@ -88,7 +91,7 @@ function Select({
   );
 }
 
-export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: FiltersProps) {
+export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, matchCount }: FiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [budgetNotice, setBudgetNotice] = useState('');
   useEffect(() => {
@@ -161,6 +164,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
     Number(filters.catN);
 
   const handleSearchClick = () => {
+    setFilters(current => {const parsed = parseStockSearch(current.search, cars); return {...current, ...(parsed.make && parsed.make !== current.make ? {model:''} : {}), ...parsed};});
     onSearch?.();
   };
 
@@ -178,7 +182,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           <Input
             aria-label="Search the showroom"
             data-testid="input-showroom-search"
-            placeholder="Make, model or registration"
+            placeholder="Try automatic under £15k, make or registration"
             value={filters.search}
             onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
             onKeyDown={(event) => {
@@ -218,26 +222,27 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
           className="h-11 min-w-0 w-full border-input bg-card pl-3 pr-6 text-base shadow-none lg:text-sm"
         >
           <option value="">Stock order</option>
-          {cars.some(car => arrivalTime(car) !== null) && <option value="arrival-desc">Newest arrivals</option>}
+          {cars.some(car => arrivalTime(car) !== null) && <option value="arrival-desc">Recently added</option>}
           <option value="year-desc">Newest registration year</option>
-          <option value="price-asc">Lowest price</option>
-          <option value="price-desc">Highest price</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
           <option value="mileage-asc">Lowest mileage</option>
           <option value="mileage-desc">Highest mileage</option>
         </NativeSelect>
       </div>
+      {filters.search && <button type="button" className="mt-2 min-h-11 text-sm font-medium underline underline-offset-4" onClick={handleSearchClick}>Apply search</button>}
       {(activeFilterCount > 0 || filters.sort) && (
         <div className="mt-2 flex items-center gap-4 overflow-x-auto whitespace-nowrap" aria-label="Applied filters">
           {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex shrink-0 min-h-11 items-center gap-2 text-xs font-medium text-primary" onClick={() => {
             setFilters((current) => ({ ...current, [key]: typeof current[key] === 'boolean' ? false : '', ...(key === 'make' ? { model: '' } : {}) }));
             setBudgetNotice('');
           }}>{label}<X className="h-3.5 w-3.5" aria-hidden="true" /></button>)}
-          <button type="button" onClick={resetFilters} className="ml-auto min-h-11 shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-primary">Clear all</button>
+          <button type="button" onClick={resetFilters} className="ml-auto min-h-11 shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-primary">Reset all</button>
         </div>
       )}
       {budgetNotice && <p className="mt-2 text-sm text-muted-foreground" role="status">{budgetNotice}</p>}
-      {showAdvanced && (
-         <section id="advanced-stock-filters" className="stock-toolbar-expanded mt-3 border-t border-border pt-4 animate-in fade-in duration-200">
+      <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}><DialogContent className="stock-filter-dialog flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl"><DialogTitle>Filter used cars</DialogTitle>
+         <section id="advanced-stock-filters" className="min-h-0 flex-1 overflow-y-auto border-t border-border py-4">
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             <Field label="Make">
               <Select
@@ -323,7 +328,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount }: F
             </div>
           </fieldset>
         </section>
-      )}
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline" onClick={resetFilters}>Reset filters</button><button type="button" className="min-h-12 bg-primary px-6 text-primary-foreground" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} cars</button></div>
+      </DialogContent></Dialog>
     </div>
   );
 }

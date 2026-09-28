@@ -551,3 +551,6 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
 .dark .luxxy-shell .text-accent { color: #63d6e7; }
 .dark .vehicle-card-details { background: hsl(var(--card)); }
 .luxxy-kicker { color: hsl(var(--muted-foreground)); }
+
+.browse-stock .vehicle-card-heading { min-height: 3.2rem; }
+@media(max-width:639px) { .stock-filter-dialog { width:100vw!important; max-width:100vw!important; height:100dvh; max-height:100dvh!important; border-radius:0; } }

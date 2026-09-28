@@ -1,3 +1,4 @@
+import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
 import { arrivalTime } from '@/lib/stock-presentation';
 import { RollingStock } from '@/components/rolling-stock';
@@ -79,6 +80,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
   usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
 
+  const { savedCount } = useSavedCars();
+  const [copyNotice, setCopyNotice] = useState('');
+  const [visibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
   const [filters, setFilters] = useState<FilterState>(() => {
     if (browseStock && window.location.search) {
       const params = new URLSearchParams(window.location.search);
@@ -127,7 +131,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const filteredCars = useMemo(() => {
     if (!stock) return [];
 
-    let result = [...stock.cars];
+    let result = stock.cars.filter(car => !['sold','archived','hidden'].includes(String(car.inventoryStatus).toLowerCase()));
 
     const q = filters.search.trim().toLowerCase();
     if (q) {
@@ -196,16 +200,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       });
     }
 
-    return result;
+    return result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
   }, [stock, filters]);
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);
     setShowAll(false);
+    setVisibleCount(12);
   };
   useEffect(() => {
-    saveBrowseSession({ filters, showAll });
-  }, [filters, showAll]);
+    saveBrowseSession({ filters, showAll, visibleCount });
+  }, [filters, showAll, visibleCount]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -218,7 +223,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     }
   }, [isLoading, browseStock]);
 
-  const displayedCars = filteredCars;
+  const displayedCars = filteredCars.slice(0, visibleCount);
+  const hasFilters = Object.entries(filters).some(([key,value])=>key !== "sort" && Boolean(value));
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
   const stockCount = stock?.count ?? stock?.cars.length ?? 0;
 
@@ -315,6 +321,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             <h1 id="home-heading" tabIndex={-1} className="mt-2 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{dealerConfig.hero.copy}</h1>
             <HeroStockSearch cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
+          {!error && filteredCars.length < 4 && <p className="mt-8 border-t pt-5 text-sm">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
@@ -332,7 +339,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">Our used cars</h2>
+              <h2 className="text-lg font-semibold tracking-tight">{hasFilters ? "Search results" : "All used cars"}</h2>
 
             </div>
             {stock && (
@@ -343,9 +350,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 aria-live="polite"
                 aria-atomic="true"
               >
-                {filteredCars.length === stockCount
+                {!hasFilters
                   ? `${filteredCars.length} vehicles available`
-                  : `${filteredCars.length} matches`}
+                  : `${filteredCars.length} cars match your search`}
               </p>
             )}
             <div className="col-start-1 row-start-2 flex flex-wrap gap-1 text-xs lg:col-start-2 lg:row-start-1">
@@ -409,6 +416,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             filters={filters}
             setFilters={changeFilters}
             vehicleCount={stockCount}
+            matchCount={filteredCars.length}
             onSearch={() => {
               trackEvent('showroom_filter_applied', {
                 source: 'filter_panel',
@@ -433,6 +441,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
           />
 
+          <div className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+            <Link className="text-link" href="/saved">Saved cars ({savedCount})</Link>
+            <button className="min-h-11 underline underline-offset-4" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}>Copy search link</button>
+            {copyNotice && <p role="status">{copyNotice}</p>}
+          </div>
           <div id="vehicle-results" data-home-section className="mt-4">
             {error ? (
               <div className="surface p-8" role="alert">
@@ -462,7 +475,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     />
                   ))}
                 </div>
-
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-4"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} cars</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
               </>
             ) : !stock?.cars.length ? (
               <div className="surface px-6 py-12 text-center" data-testid="empty-stock">
@@ -475,9 +488,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 <Search className="mx-auto h-7 w-7 text-muted-foreground" />
                 <h3 className="section-heading mt-4">No matches</h3>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Try widening your budget or clearing the filters.
+                  {Object.entries(filters).filter(([key,value]) => key !== 'sort' && value).map(([key,value]) => `${key}: ${value}`).join(' · ')}. Try removing one filter below.
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-3">
+                  {(filters.minPrice || filters.maxPrice) && <Button variant="outline" onClick={()=>setFilters(current=>({...current,minPrice:'',maxPrice:''}))}>Remove price limits</Button>}
                   {filters.transmission && <Button variant="outline" onClick={() => setFilters(current => ({...current, transmission: ''}))}>Search all transmissions</Button>}
                   {filters.make && <Button variant="outline" onClick={() => setFilters(current => ({...current, make: '', model: ''}))}>Search all makes</Button>}
                   {filters.maxPrice && <Button variant="outline" onClick={() => setFilters(current => ({...current, maxPrice: String(Math.ceil(Number(current.maxPrice) * 1.25 / 500) * 500)}))}>Increase maximum price to £{(Math.ceil(Number(filters.maxPrice) * 1.25 / 500) * 500).toLocaleString('en-GB')}</Button>}

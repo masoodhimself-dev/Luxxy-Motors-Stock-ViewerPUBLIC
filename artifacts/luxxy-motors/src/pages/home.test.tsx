@@ -197,7 +197,7 @@ function resultsRegion() {
 
 function resultTitles() {
   return resultsRegion()
-    .getAllByRole('heading', { level: 3 })
+    .getAllByRole('heading', { level: 3, hidden: true })
     .map((heading) => heading.textContent);
 }
 
@@ -472,7 +472,7 @@ describe('showroom search filters', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Category N' }));
 
     expect(resultTitles()).toEqual(['BMW 3 Series', 'Ford Fiesta']);
-    expect(screen.getByRole('button', { name: 'Advanced search' })).toHaveTextContent('(2)');
+    expect(screen.getByRole('button', { name: 'Advanced search', hidden: true })).toHaveTextContent('(2)');
   });
 
   it('sorts the live results and resets every shared filter value', () => {
@@ -493,7 +493,7 @@ describe('showroom search filters', () => {
     fireEvent.change(screen.getByTestId('input-showroom-search'), {
       target: { value: 'BMW' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Clear all/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Reset all/i }));
 
     expect(resultTitles()).toHaveLength(5);
     expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
@@ -545,4 +545,16 @@ describe('showroom search filters', () => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
     });
   });
+});
+
+it('loads cars in batches and excludes sold stock while keeping reserved cars last', () => {
+  stockFixture.cars = Array.from({length: 15}, (_,i) => ({...originalCars[0], id: `batch-${i}`, title:`Batch car ${i}`, inventoryStatus:i === 0 ? 'reserved' : i === 1 ? 'sold' : 'available'}));
+  stockFixture.count = 15;
+  renderHome();
+  expect(resultTitles()).toHaveLength(12);
+  expect(screen.getByText('Showing 12 of 14 cars')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Show more cars'}));
+  expect(resultTitles()).toHaveLength(14);
+  expect(resultTitles().at(-1)).toBe('Batch car 0');
+  expect(resultTitles()).not.toContain('Batch car 1');
 });

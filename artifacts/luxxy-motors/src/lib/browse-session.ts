@@ -3,6 +3,7 @@ const KEY = "luxxy.browse.v1";
 type BrowseSession = {
   filters?: FilterState;
   showAll?: boolean;
+  visibleCount?: number;
   scrollY?: number;
   vehicleId?: string;
   viewportWidth?: number;

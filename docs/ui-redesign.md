@@ -745,3 +745,11 @@ Validation: 181 unit tests, four desktop/mobile browser checks, workspace typech
 Replaced legacy green-black and beige base tokens with charcoal, white and cool grey. Cyan is reserved for accents and focus; small accent text uses a darker readable teal. Standardised card caption surfaces and sales-demo neutral surfaces, retaining WhatsApp and semantic status colours. Original template brand defaults map to the updated palette at render time without modifying stored settings; bespoke dealer colour values remain supported. Dark-mode accent tokens updated as well.
 
 Validation: 181 frontend tests and workspace typecheck/build passed; seven browser checks passed, followed by a final two-width palette sweep after legacy-default mapping. Sweeps cover home, stock, vehicle, saved, contact, warranty, enquiry and sales demo. Existing build chunk-size warning remains. No backend or production changes.
+
+### Stock browsing and search improvements
+
+Added all-stock/search headings, saved-car access, copy-search-link feedback, 12-car incremental loading persisted with the browse session, price-limit removal, and sparse-result help carrying preferences into a general enquiry. Sold/archived/hidden cars are excluded and reserved cars follow available stock. Existing confirmed highlights, photo aspect ratios, per-filter removal, keyboard controls, availability badges and return-position restoration are retained. Card title links now cover unused card space while photo/save/compare controls remain independently operable.
+
+Filters open in an accessible dialog with a full-height mobile layout, scrolling fields and fixed live-count action. Sorting uses clear cash-price labels; recent arrivals appears only with dated stock. Explicit Apply search/Enter recognises stock makes, fuel/transmission and budgets such as “under £15k”, retaining unrecognised words and exposing recognised filters for removal. This is a deterministic parser, not a remote AI service.
+
+Validation: 184 unit tests include parsing, pagination and reserved/sold ordering. Workspace typechecking and builds passed with the existing bundle-size warning. Desktop/mobile browser checks cover natural search, dialog application, reset and homepage search. No backend or production changes.
