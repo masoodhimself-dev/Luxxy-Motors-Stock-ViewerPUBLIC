@@ -69,7 +69,7 @@ export default function Saved() {
           Back to showroom
         </Link>
 
-        <div className="mt-6">
+        <div className="friendly-shortlist-intro mt-6">
           <PageHeading
             eyebrow="Your shortlist"
             title={sharedIds ? "Shared shortlist" : "Saved cars"}

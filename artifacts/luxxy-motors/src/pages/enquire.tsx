@@ -78,7 +78,8 @@ export default function Enquire() {
           Back to showroom
         </Link>
         <div className="mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
-          <section className="flex flex-col lg:sticky lg:top-24">
+          <section className="enquiry-introduction flex flex-col lg:sticky lg:top-24">
+            <div className="friendly-banner">
             <p className="mb-2 font-display text-[12px] font-semibold tracking-normal text-accent sm:mb-4">
               {copy.eyebrow}
             </p>
@@ -86,6 +87,7 @@ export default function Enquire() {
             <p className="mt-3 text-sm font-normal leading-relaxed text-primary/70 sm:mt-6 sm:text-[15px]">
               {copy.description}
             </p>
+            </div>
 
             {type === 'part_exchange' ? (
               <div className="mt-6 hidden space-y-5 border-t border-border pt-5 text-sm leading-6 text-muted-foreground lg:block">
@@ -159,7 +161,7 @@ export default function Enquire() {
           </section>
 
           <section className="min-w-0" aria-labelledby="enquiry-form-heading">
-            <div className="surface p-4 sm:p-7">
+            <div className="enquiry-form-panel">
               {isLoading ? (
                 <div className="space-y-6 py-12" data-testid="loading-enquiry-vehicle">
                   <div className="h-4 w-44 animate-pulse bg-primary/20 border border-primary" />

@@ -226,7 +226,7 @@ export default function Compare() {
           Back to showroom
         </Link>
 
-        <div className="mt-6"><PageHeading eyebrow="Side by side" title="Compare cars" description="Price, specification and running details at a glance." action={<p className="text-sm text-muted-foreground">{cars.length} of {MAX_COMPARE} cars selected</p>} /></div>
+        <div className="friendly-shortlist-intro mt-6"><PageHeading eyebrow="Side by side" title="Compare cars" description="Price, specification and running details at a glance." action={<p className="text-sm text-muted-foreground">{cars.length} of {MAX_COMPARE} cars selected</p>} /></div>
 
         {error ? (
           <div role="alert"><PageEmptyState title="Stock could not be loaded" action={<Button onClick={() => window.location.reload()}>Try again</Button>}>

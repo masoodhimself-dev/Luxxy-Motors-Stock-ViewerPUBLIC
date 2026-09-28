@@ -77,7 +77,7 @@ export default function Warranty() {
             </div>
           </section>
         ) : <>
-          <header className={`grid items-center gap-7 py-7 sm:py-10 lg:gap-14 ${photo ? 'lg:grid-cols-2' : 'max-w-3xl'}`}>
+          <header className={`friendly-banner grid items-center gap-7 py-7 sm:py-10 lg:gap-14 ${photo ? 'lg:grid-cols-2' : 'max-w-3xl'}`}>
             <div className="min-w-0">
               <p className="luxxy-kicker">Owning your next car</p>
               <h1 className="mt-3 max-w-lg font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem]">{title}</h1>

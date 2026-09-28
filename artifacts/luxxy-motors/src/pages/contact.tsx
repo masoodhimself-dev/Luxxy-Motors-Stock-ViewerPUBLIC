@@ -38,7 +38,7 @@ export default function Contact() {
   return <div className="friendly-page friendly-contact luxxy-shell bg-background pb-14 sm:pb-20">
     <div className="container mx-auto px-4 pt-5 sm:px-6 sm:pt-8 lg:px-8">
       <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to showroom</Link>
-      <header className="mt-4 max-w-3xl pb-7 sm:pb-10">
+      <header className="friendly-banner mt-4 max-w-3xl pb-7 sm:pb-10">
         <p className="luxxy-kicker">{settings.identity.name}{settings.address?.city ? ` · ${settings.address.city}` : ''}</p>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Contact us.</h1>
         <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us.</p>
@@ -90,7 +90,7 @@ export default function Contact() {
 
       <section id="contact-message" aria-labelledby="contact-message-heading" className="mt-10 grid scroll-mt-28 items-start gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
         <div><p className="luxxy-kicker">Send a message</p><h2 id="contact-message-heading" tabIndex={-1} className="mt-3 font-display text-2xl font-semibold tracking-tight outline-none">What would you like to know?</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">Tell us which car you’re considering, ask about a part exchange, or leave a question for the team.</p><p className="mt-4 text-xs leading-6 text-muted-foreground">Your message goes to the dealership enquiry inbox. We’ll show a reference when it has been received.</p>{photos.reception && !isLoading && !isError && <DealershipPhotograph photo={photos.reception} className="mt-6" />}</div>
-        <div className="min-w-0 border border-border bg-card p-4 sm:p-6"><EnquiryForm initialType="general" stockCars={stock?.cars ?? []} /></div>
+        <div className="min-w-0"><EnquiryForm initialType="general" stockCars={stock?.cars ?? []} /></div>
       </section>
     </div>
   </div>;

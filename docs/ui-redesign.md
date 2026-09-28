@@ -783,3 +783,11 @@ Validation: 186 unit tests, workspace typechecks/builds and two desktop/mobile b
 Introduced page-scoped teal contact panels, blue warranty/booking surfaces and warm sand saved/comparison accents. Customer forms retain white working surfaces against tinted backgrounds; contact methods have distinct icon backgrounds. Vehicle summary/enquiry areas use soft teal and the review card uses warm paper tones. Typography and controls remain high-contrast; no workflow changes.
 
 Validation: 186 unit tests, workspace typecheck/build and desktop/mobile page sweeps passed. Visually inspected Contact desktop and booking mobile. Existing build-size warning remains.
+
+### Stronger customer-page colour, including Browse Stock
+
+Increased the colour beyond the earlier pale washes. Browse Stock now has a saturated petrol-teal introduction, a sea-glass catalogue background, a defined green search panel, teal prices and clearly coloured vehicle links. White card information areas keep photographs and specifications easy to scan.
+
+Contact uses a teal introduction and location panel with a warm sand visiting section. Warranty uses a slate-blue introduction and stronger blue enquiry panel. Saved/comparison headings use warm sand; booking and part-exchange pages pair a dark introduction with a tinted selected-car panel and a white form. Vehicle summary, enquiry and review panels have stronger complementary tones. Removed duplicate form frames and the empty strip beneath mobile enquiry introductions. Reduced-motion users no longer wait through reveal animation delays.
+
+Validation: 186 frontend unit tests passed; workspace typechecking and builds passed (existing >500 kB client chunk warning remains). Six browser checks passed across 390px and 1280px, covering the shared-page sweep, stock search/filter reset, saving a vehicle, populated shortlist, contact form, enabled warranty links, booking availability and part exchange. The added customer-colour test overrides settings only in the browser and saves no dealer settings. Visually inspected desktop/mobile screenshots and the live stock and booking pages; main new text pairings have contrast ratios above 6:1. No backend, API, database, production or business-rule changes.
