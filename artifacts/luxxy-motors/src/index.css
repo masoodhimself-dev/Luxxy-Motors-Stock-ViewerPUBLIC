@@ -510,3 +510,5 @@ body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --p
 .stock-refined .vehicle-card:hover { border-color: #8babad; }
 .stock-refined .stock-toolbar input, .stock-refined .stock-toolbar select, .stock-refined .stock-toolbar button { border-radius: 2px; }
 @media (max-width: 639px) { .stock-page-intro { padding-block: 16px 24px; } }
+/* Keep the mobile stock header legible above the dark introduction. */
+body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
