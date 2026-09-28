@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { Link } from 'wouter';
+import { Search, ChevronDown, RotateCcw, ArrowRight } from 'lucide-react';
 import type { Car } from '@/lib/stock-context';
 import type { FilterState } from '@/components/filters';
 import { formatPrice } from '@/lib/utils';
 
-export function HeroStockSearch({ cars, filters, setFilters, onSearch, count }: {
+export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, count }: {
   cars: Car[]; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>;
-  onSearch: () => void; count: number;
+  onSearch: () => void; onReset: () => void; count: number;
 }) {
   const [mobile, setMobile] = useState(() => window.matchMedia?.('(max-width: 639px)').matches ?? false);
   useEffect(() => {
@@ -26,6 +27,10 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, count }: 
     {select('make', 'Make')}{!mobile && select('model', 'Model')}
     {mobile ? budget('maxPrice') : <fieldset><legend className="mb-2 text-xs text-white/80">Vehicle price</legend><div className="grid grid-cols-2 gap-3">{budget('minPrice')}{budget('maxPrice')}</div></fieldset>}
     <button type="submit" className="hero-search-submit"><Search aria-hidden="true" className="h-4 w-4" />Search {count} used {count === 1 ? 'car' : 'cars'}</button>
+    <div className="hero-search-secondary">
+      <button type="button" onClick={onReset}><RotateCcw aria-hidden="true" size={15} />Reset</button>
+      <Link href="/stock?all=1">See all cars<ArrowRight aria-hidden="true" size={15} /></Link>
+    </div>
     <details className="hero-search-advanced"><summary>More filters</summary><div className="mt-3 grid gap-3">{mobile && <>{select('model', 'Model')}{budget('minPrice')}</>}{select('fuel', 'Fuel')}{select('transmission', 'Transmission')}</div></details>
   </form>;
 }

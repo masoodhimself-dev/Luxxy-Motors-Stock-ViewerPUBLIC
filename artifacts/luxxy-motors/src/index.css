@@ -491,3 +491,8 @@ body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --p
  body > .sales-print-copy { display: block; width: 190mm; max-width: 100%; min-height: 0; padding: 8mm; margin: 0; border: 0; box-shadow: none; }
  .sales-print-copy tr { break-inside: avoid; }
 }
+
+.hero-search-secondary { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.hero-search-secondary button, .hero-search-secondary a { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:44px; color:#fff; font-size:.875rem; text-underline-offset:4px; }
+.hero-search-secondary button:hover, .hero-search-secondary a:hover { text-decoration:underline; }
+.hero-search-secondary button:focus-visible, .hero-search-secondary a:focus-visible { outline:2px solid #fff; outline-offset:4px; }

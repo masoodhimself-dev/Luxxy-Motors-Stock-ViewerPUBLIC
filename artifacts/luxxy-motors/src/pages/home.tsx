@@ -313,7 +313,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           <div className="stock-search-panel">
             <p className="text-xs font-medium tracking-wide text-white/80">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
             <h1 id="home-heading" tabIndex={-1} className="mt-2 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{dealerConfig.hero.copy}</h1>
-            <HeroStockSearch cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onSearch={() => revealResults('filter_panel')} />
+            <HeroStockSearch cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
         </div>
       </section>}
