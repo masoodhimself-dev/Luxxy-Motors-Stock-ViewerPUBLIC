@@ -331,7 +331,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <Link href="/" className="stock-home-link">Home <span aria-hidden="true">/</span> Used cars</Link>
           <h1 id="vehicle-results-heading" tabIndex={-1} className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Browse Stock</h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">Explore our used cars. Find the right make, mileage and price, then take a closer look.</p>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">Find your next used car.</p>
         </div>
       </section>}
 
@@ -355,35 +355,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   : `${filteredCars.length} cars match your search`}
               </p>
             )}
-            <div className="col-start-1 row-start-2 flex flex-wrap gap-1 text-xs lg:col-start-2 lg:row-start-1">
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-automatic"
-                disabled={!stock?.cars.some(car => /automatic/i.test(car.transmission || ""))}
-              >
-                Automatic
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ maxPrice: '5000' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-under-5000"
-                disabled={!stock?.cars.some(car => car.price != null && car.price <= 5000)}
-              >
-                Under £5k
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-low-mileage"
-              >
-                Low miles
-              </button>
-              {stock?.cars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
-            </div>
             <div className="col-start-2 row-start-2 flex justify-end gap-1 lg:col-start-4 lg:row-start-1" aria-label="Vehicle display">
               {(['cards', 'compact'] as const).map((view) => {
                 const Icon = view === 'cards' ? Grid2X2 : List;
@@ -412,6 +383,36 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             </div>
           </div>
           <Filters
+            quickFilters={<>             <div className="flex flex-wrap gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+                data-testid="button-quick-automatic"
+                disabled={!stock?.cars.some(car => /automatic/i.test(car.transmission || ""))}
+              >
+                Automatic
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickFilter({ maxPrice: '5000' })}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+                data-testid="button-quick-under-5000"
+                disabled={!stock?.cars.some(car => car.price != null && car.price <= 5000)}
+              >
+                Under £5k
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+                data-testid="button-quick-low-mileage"
+              >
+                Low miles
+              </button>
+              {stock?.cars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
+            </div>
+ </>}
             cars={stock?.cars || []}
             filters={filters}
             setFilters={changeFilters}
@@ -469,28 +470,29 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     <CarCard
                       key={car.id}
                       car={car}
+                      catalogue
                       priority={index < 2}
                       layout={stockView === 'compact' ? 'compact' : 'card'}
                       stretchedLink
                     />
                   ))}
                 </div>
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-4"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} cars</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
+                <div className="stock-results-end mt-6 flex flex-col items-center justify-center gap-3"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} cars</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
               </>
             ) : !stock?.cars.length ? (
-              <div className="surface px-6 py-12 text-center" data-testid="empty-stock">
+              <div className="stock-empty surface px-6 py-8 text-left" data-testid="empty-stock">
                 <h3 className="section-heading">No vehicles currently listed</h3>
                 <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Contact the team about upcoming stock or tell us what you’re looking for.</p>
                 <Button asChild className="mt-6"><Link href="/enquire?type=general">Ask about upcoming stock <ArrowRight className="h-4 w-4" /></Link></Button>
               </div>
             ) : (
-              <div className="surface px-6 py-12 text-center">
-                <Search className="mx-auto h-7 w-7 text-muted-foreground" />
+              <div className="stock-empty surface px-6 py-8 text-left">
+
                 <h3 className="section-heading mt-4">No matches</h3>
                 <p className="mt-3 text-sm text-muted-foreground">
                   {Object.entries(filters).filter(([key,value]) => key !== 'sort' && value).map(([key,value]) => `${key}: ${value}`).join(' · ')}. Try removing one filter below.
                 </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                <div className="mt-4 flex flex-wrap gap-3">
                   {(filters.minPrice || filters.maxPrice) && <Button variant="outline" onClick={()=>setFilters(current=>({...current,minPrice:'',maxPrice:''}))}>Remove price limits</Button>}
                   {filters.transmission && <Button variant="outline" onClick={() => setFilters(current => ({...current, transmission: ''}))}>Search all transmissions</Button>}
                   {filters.make && <Button variant="outline" onClick={() => setFilters(current => ({...current, make: '', model: ''}))}>Search all makes</Button>}

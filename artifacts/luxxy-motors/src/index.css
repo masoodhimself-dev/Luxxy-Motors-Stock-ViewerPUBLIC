@@ -554,3 +554,30 @@ body:has(.stock-refined) header { background: #f3f6f6; color: #1a252a; }
 
 .browse-stock .vehicle-card-heading { min-height: 3.2rem; }
 @media(max-width:639px) { .stock-filter-dialog { width:100vw!important; max-width:100vw!important; height:100dvh; max-height:100dvh!important; border-radius:0; } }
+
+/* Catalogue refinement: restrained controls and white information panels. */
+.stock-refined .stock-page-intro { padding-block: 16px 24px; }
+.stock-refined .stock-page-intro h1 { margin-top: 4px; }
+.stock-refined .browse-stock { padding-top: 24px; }
+.stock-refined .vehicle-card-details { background: #fff; }
+.stock-refined .vehicle-card { transition: border-color 160ms; transform: none; }
+.stock-refined .vehicle-card:hover { transform: none; border-color: #809497; box-shadow: none; }
+.stock-refined .vehicle-card:hover h3 a { text-decoration: underline; text-underline-offset: 4px; }
+.stock-refined .vehicle-card-heading { min-height: 4.3rem; }
+.stock-refined .vehicle-card-heading h3 { line-height: 1.4; }
+.stock-refined .vehicle-card-heading p { line-height: 1.5; }
+.stock-refined .vehicle-specs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 12px; }
+.stock-refined .vehicle-specs svg { display: none; }
+.stock-refined .stock-card-highlights { color: #44585e; line-height: 1.6; }
+.stock-refined .vehicle-card [data-testid^="button-save"] { border-radius: 50%; width: 44px; height: 44px; color: #26383e; }
+.stock-refined .vehicle-card [data-testid^="button-save"] svg { width: 16px; height: 16px; color: inherit; }
+.stock-refined [aria-label="Applied filters"] { flex-wrap: wrap; gap: 8px; }
+.stock-refined [aria-label="Applied filters"] button { padding-inline: 10px; background: #e9eeee; border-radius: 2px; white-space: normal; }
+.stock-results-end { padding-block: 24px; border-bottom: 1px solid hsl(var(--border)); }
+.stock-empty { max-width: 720px; }
+@media(max-width:639px) {
+ .stock-refined .browse-stock { padding-top: 16px; }
+ .stock-refined .stock-page-intro { padding-block: 8px 20px; }
+ .stock-refined .vehicle-card-heading { min-height: 0; }
+ .stock-refined #vehicle-results { margin-top: 8px; }
+}

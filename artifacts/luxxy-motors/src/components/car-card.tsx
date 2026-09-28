@@ -27,6 +27,7 @@ export function CarCard({
   stretchedLink = false,
   badges = [],
   photoControls = true,
+  catalogue = false,
   analyticsSource = 'showroom',
 }: {
   car: Car;
@@ -35,6 +36,7 @@ export function CarCard({
   stretchedLink?: boolean;
   badges?: string[];
   photoControls?: boolean;
+  catalogue?: boolean;
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -172,13 +174,13 @@ export function CarCard({
           car={car}
           className="absolute right-3 top-3 h-11 w-11 rounded-full border-white bg-white text-primary shadow-none"
         />}
-        {photoControls && photoCount > 0 && (
+        {photoControls && !catalogue && photoCount > 0 && (
           <span className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white">
             <Camera className="h-3.5 w-3.5" />
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
         )}
-        {displayBadges.length > 0 && (photoControls || displayBadges[0] !== 'Available') && (
+        {!catalogue && displayBadges.length > 0 && (photoControls || displayBadges[0] !== 'Available') && (
           <span className="absolute left-3 top-3 max-w-[70%] rounded-sm bg-primary px-2 py-1 text-xs text-primary-foreground">
             {displayBadges[0]}
           </span>
@@ -214,6 +216,7 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
+          {catalogue && car.inventoryStatus === 'reserved' && <span className="text-xs font-medium text-muted-foreground">Reserved</span>}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
         </div>

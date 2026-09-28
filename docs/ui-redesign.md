@@ -753,3 +753,9 @@ Added all-stock/search headings, saved-car access, copy-search-link feedback, 12
 Filters open in an accessible dialog with a full-height mobile layout, scrolling fields and fixed live-count action. Sorting uses clear cash-price labels; recent arrivals appears only with dated stock. Explicit Apply search/Enter recognises stock makes, fuel/transmission and budgets such as “under £15k”, retaining unrecognised words and exposing recognised filters for removal. This is a deterministic parser, not a remote AI service.
 
 Validation: 184 unit tests include parsing, pagination and reserved/sold ordering. Workspace typechecking and builds passed with the existing bundle-size warning. Desktop/mobile browser checks cover natural search, dialog application, reset and homepage search. No backend or production changes.
+
+### Stock catalogue visual refinement
+
+Applied the 16 requested visual refinements: shorter intro; quick choices inside Filters; restrained secondary links; white card panels and fine borders; aligned titles/prices, compact text specifications and confirmed feature captions; consistent uncropped photo areas; removed photo-count/availability overlays in catalogue cards; reserved label beside price; neutral save control retaining a 44px touch target; subtle border/title hover; quieter applied filters; tighter mobile spacing; centred results footer; and compact left-aligned empty states. Filter-dialog closing explicitly restores focus to its opening control. Existing search, photo arrows, saved cars and comparison remain available.
+
+Validation: 184 frontend unit tests, workspace typecheck/build and two desktop/mobile stock browser checks passed after final focus-return refinement. No backend or production changes.

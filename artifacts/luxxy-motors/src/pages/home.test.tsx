@@ -528,6 +528,7 @@ describe('showroom search filters', () => {
   ])('moves focus to results after activating the %s quick filter', async (_label, testId) => {
     renderHome();
 
+    fireEvent.click(screen.getByRole("button", {name:"Advanced search"}));
     fireEvent.click(screen.getByTestId(testId));
 
     await waitFor(() => {

@@ -1,7 +1,7 @@
 import { parseStockSearch } from '@/lib/natural-stock-search';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { arrivalTime } from '@/lib/stock-presentation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ChevronDown,
   Search,
@@ -32,6 +32,7 @@ interface FiltersProps {
   onSearch?: () => void;
   vehicleCount: number;
   matchCount?: number;
+  quickFilters?: React.ReactNode;
 }
 
 const emptyFilters: FilterState = {
@@ -91,7 +92,8 @@ function Select({
   );
 }
 
-export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, matchCount }: FiltersProps) {
+export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, matchCount, quickFilters }: FiltersProps) {
+  const filterButton = useRef<HTMLButtonElement>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [budgetNotice, setBudgetNotice] = useState('');
   useEffect(() => {
@@ -209,6 +211,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
           className="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-secondary"
           onClick={() => setShowAdvanced(!showAdvanced)}
           aria-expanded={showAdvanced}
+          ref={filterButton}
           aria-label="Advanced search"
           aria-controls="advanced-stock-filters"
         >
@@ -241,8 +244,9 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
         </div>
       )}
       {budgetNotice && <p className="mt-2 text-sm text-muted-foreground" role="status">{budgetNotice}</p>}
-      <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}><DialogContent className="stock-filter-dialog flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl"><DialogTitle>Filter used cars</DialogTitle>
+      <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}><DialogContent onCloseAutoFocus={event => {event.preventDefault(); filterButton.current?.focus({preventScroll:true});}} className="stock-filter-dialog flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl"><DialogTitle>Filter used cars</DialogTitle>
          <section id="advanced-stock-filters" className="min-h-0 flex-1 overflow-y-auto border-t border-border py-4">
+          {quickFilters && <div className="mb-5" onClick={event => {if ((event.target as HTMLElement).closest("button")) setShowAdvanced(false);}}><p className="mb-2 text-xs font-medium text-muted-foreground">Quick choices</p>{quickFilters}</div>}
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             <Field label="Make">
               <Select
