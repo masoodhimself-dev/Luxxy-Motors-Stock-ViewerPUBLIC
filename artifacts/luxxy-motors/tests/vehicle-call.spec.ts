@@ -67,3 +67,20 @@ for (const enabled of [false, true])
     }
     await context.close();
   });
+
+test('closed showroom saves a callback enquiry with car and next-opening details',async({page})=>{
+ await page.clock.install({time:new Date('2026-09-28T20:00:00Z')});
+ await page.route('**/api/dealer-settings',async route=>{const response=await route.fetch();const settings=await response.json();settings.hours=[{days:'Monday – Sunday',times:'09:00 – 18:00'}];await route.fulfill({json:settings});});
+ let submitted:any;
+ await page.route('**/api/enquiries',async route=>{submitted=route.request().postDataJSON();await route.fulfill({json:{id:'callback-test',reference:'CALLBACK-TEST'}});});
+ await page.goto('/vehicle/preview-2');
+ await page.locator('[data-vehicle-contact="call"]').first().click();
+ const panel=page.getByRole('dialog');
+ await expect(panel).toContainText('tomorrow at 09:00');
+ await panel.getByLabel('Your name').fill('Sample Buyer');
+ await panel.getByLabel('Telephone').fill('07700900123');
+ await panel.getByLabel('Email',{exact:true}).fill('sample@example.test');
+ await panel.getByRole('button',{name:'Request a callback'}).click();
+ await expect(panel.getByRole('status')).toContainText('Callback request received');
+ expect(submitted.vehicleId).toBe('preview-2');expect(submitted.preferredContact).toBe('phone');expect(submitted.message).toContain('next opening');
+});

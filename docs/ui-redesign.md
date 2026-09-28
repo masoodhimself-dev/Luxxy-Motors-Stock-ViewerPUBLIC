@@ -765,3 +765,9 @@ Validation: 184 frontend unit tests, workspace typecheck/build and two desktop/m
 Vehicle-page showroom call actions now open a compact phone/car-details dialog on desktop. Phone devices retain the native tel link and also open a “Did you get through?” follow-up, visible on returning to the page. The follow-up uses the existing reservation component only when settings and vehicle eligibility allow it; otherwise it links to an enquiry with the car selected. No call-success detection is claimed. Dialog closing returns focus to its trigger. No calls or external messages are sent by the implementation.
 
 Validation: 184 unit tests and workspace builds passed; final frontend typecheck passed. Three browser tests cover desktop dialog/focus and mobile reservation enabled/disabled using test-only dialler interception.
+
+### Opening-hours-aware callback popup
+
+Call actions now evaluate configured hours in Europe/London at click time. Known closed periods offer a name/telephone/email callback form using the existing general-enquiry endpoint, with vehicle and next-opening request attached. Success is shown only after the API accepts the request. Closed mobile actions do not automatically invoke the dialler. Closed days are skipped; appointment-only/unparseable schedules do not claim a known open/closed status. Existing free-text hours support standard 24-hour ranges; special dates and overnight ranges are not inferred. Callback language asks for first contact at reopening without guaranteeing a staff response time.
+
+Validation: 186 unit tests, workspace builds/typechecks and four browser tests passed, including an intercepted callback submission. No production or schema changes.
