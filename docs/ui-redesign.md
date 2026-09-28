@@ -714,3 +714,14 @@ Added a 320ms crossfade with a subtle 2.5% settling zoom to the main and fullscr
 - Prioritised the first two stock images while retaining lazy loading, responsive sources and reserved aspect ratios for remaining photos.
 - Validation: 178 frontend tests, nine browser checks including phone/tablet browsing, gallery swipes, enquiry, valuation, settings and tablet rotation. Workspace typechecking/build passed; existing bundle-size warning remains.
 - These checks use local fixtures and emulated widths; physical iPad Safari and mobile-data speed remain useful real-device checks.
+
+
+## Full-screen sales workspace demo — 28 September 2026
+- Added preview-only /portal/sales-demo, linked from the local staff portal. Not registered in the production router.
+- One sale at a time, simple Customer / Vehicle / Part exchange / Payments / Documents / Handover navigation.
+- Local browser draft list, explicit save, reopen, and unsaved-change confirmation.
+- Current stock selection with editable agreed price, part-exchange allowance, illustrative deposit and pence-based balance calculations.
+- Word-style A4 sales-invoice and deposit-receipt previews with notes, validation and isolated Print / Save PDF layout.
+- All documents clearly labelled demo/not issued/no payment received. No payment collection, stock mutation, email, signing, issued numbering or tax configuration.
+- Drafts are device-local: sample customers only; no cross-device sync or production authentication changes.
+- Validation: 180 frontend tests passed; workspace typechecking/build passed (existing chunk warning); two browser scenarios passed at 390/1194px, covering sale entry, part exchange, totals, save/reopen, unsaved warnings and print layout. Screenshots reviewed in docs/screenshots/sales-workspace.

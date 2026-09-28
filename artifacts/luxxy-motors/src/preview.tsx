@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Router, Switch } from 'wouter';
+import { Link, Route, Router, Switch } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
@@ -11,6 +11,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
+const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const Portal = lazy(() => import("@/pages/portal"));
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
@@ -37,7 +38,8 @@ createRoot(document.getElementById('root')!).render(
               <Layout>
                 <Suspense fallback={<RouteLoading />}>
                   <Switch>
-                  <Route path="/portal" component={Portal} />
+                  <Route path="/portal/sales-demo" component={SalesDemo} />
+                  <Route path="/portal"><div className="mx-auto mt-5 max-w-7xl px-4"><Link href="/portal/sales-demo" className="inline-flex min-h-12 items-center gap-2 border border-border bg-card px-5 font-semibold">Open sales workspace demo →</Link></div><Portal /></Route>
                   <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/"><Home key="home" /></Route>
                   <Route path="/stock"><Home key="stock" browseStock /></Route>

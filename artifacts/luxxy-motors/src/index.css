@@ -473,3 +473,21 @@ body:has(.homepage-refined) header.stock-home-header { --primary: 0 0% 100%; --p
 @media (prefers-reduced-motion: reduce) {
  .vehicle-card img { transition: none; }
 }
+
+.sales-form-panel { border: 1px solid #d6dddd; background: white; padding: clamp(20px, 4vw, 40px); }
+.sales-document { width: 100%; max-width: 210mm; min-height: 270mm; margin: 0 auto; padding: clamp(20px, 5vw, 18mm); border: 1px solid #d6dddd; box-shadow: 0 4px 18px #1721260a; }
+.sales-workspace button:focus-visible, .sales-workspace select:focus-visible { outline: 2px solid #087b91; outline-offset: 3px; }
+@media print {
+ body:has(.sales-workspace) #root > * { visibility: hidden; }
+ body:has(.sales-workspace) .sales-workspace, body:has(.sales-workspace) .sales-document, body:has(.sales-workspace) .sales-document * { visibility: visible; }
+ body:has(.sales-workspace) .sales-workspace { position: absolute; inset: 0; display: block; background: white; }
+ body:has(.sales-workspace) .sales-chrome { display: none !important; }
+ body:has(.sales-workspace) .sales-workspace-content { overflow: visible; padding: 0; }
+ body:has(.sales-workspace) .sales-document { border: 0; box-shadow: none; min-height: 0; padding: 10mm; }
+}
+.sales-print-copy { display: none; }
+@media print {
+ body:has(> .sales-print-copy) > :not(.sales-print-copy) { display: none !important; }
+ body > .sales-print-copy { display: block; width: 190mm; max-width: 100%; min-height: 0; padding: 8mm; margin: 0; border: 0; box-shadow: none; }
+ .sales-print-copy tr { break-inside: avoid; }
+}
