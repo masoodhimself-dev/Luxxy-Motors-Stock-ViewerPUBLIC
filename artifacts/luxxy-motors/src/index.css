@@ -661,3 +661,8 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .browse-stock .vehicle-card-photo [data-stock-link] { overflow: hidden; border: 1px solid #d8dcdf; border-radius: 2px; background: #eeefed; }
 .browse-stock .vehicle-card-photo:focus-within { border-color: #254e77; }
 @media(max-width: 639px) { .browse-stock .vehicle-card-photo { padding: 6px; } }
+
+/* Frame the main vehicle photograph without cropping it or covering controls. */
+.vehicle-gallery-frame { padding: 9px; border: 1px solid #bbc3c9; border-radius: 6px; background: #f3f4f4; box-shadow: 0 2px 5px rgb(23 33 38 / 5%); }
+.vehicle-gallery-frame > div { border: 1px solid #d4d9dd; }
+@media(max-width: 639px) { .vehicle-gallery-frame { padding: 6px; } }

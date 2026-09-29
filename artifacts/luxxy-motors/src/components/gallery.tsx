@@ -141,8 +141,9 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
   return (
     <Dialog>
       <div className="min-w-0">
+        <div className="vehicle-gallery-frame">
         <div
-          className="relative aspect-[4/3] overflow-hidden rounded-md bg-muted touch-pan-y"
+          className="relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y"
           {...touchHandlers}
         >
           {renderImage(
@@ -183,6 +184,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
               </button>
             </>
           )}
+        </div>
         </div>
         <div
           className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"
