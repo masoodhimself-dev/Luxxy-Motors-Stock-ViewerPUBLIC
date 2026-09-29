@@ -111,7 +111,7 @@ export function CarCard({
     >
       <div
         className={cn(
-          'relative shrink-0 overflow-hidden bg-muted',
+          'vehicle-card-photo relative shrink-0 overflow-hidden bg-muted',
           stretchedLink && photoControls && 'z-20',
           isRow ? 'w-full md:w-[38%]' : isCompact ? 'w-full min-[480px]:w-[40%]' : 'w-full',
         )}

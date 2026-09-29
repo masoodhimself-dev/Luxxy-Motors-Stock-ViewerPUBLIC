@@ -655,3 +655,9 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .vehicle-thumbnail-grid > button { flex: 0 0 100px; width: 100px; scroll-snap-align: start; }
 .rolling-stock .vehicle-card [data-stock-link] img { object-fit: contain; background: #eeefed; }
 @media(max-width: 639px) { .vehicle-thumbnail-grid > button { flex-basis: 80px; width: 80px; } }
+
+/* Inset photographic mounts give stock images a clear edge on white pages. */
+.browse-stock .vehicle-card-photo { padding: 7px; border: 1px solid #c5cbd0; border-radius: 5px; background: #f3f4f4; }
+.browse-stock .vehicle-card-photo [data-stock-link] { overflow: hidden; border: 1px solid #d8dcdf; border-radius: 2px; background: #eeefed; }
+.browse-stock .vehicle-card-photo:focus-within { border-color: #254e77; }
+@media(max-width: 639px) { .browse-stock .vehicle-card-photo { padding: 6px; } }
