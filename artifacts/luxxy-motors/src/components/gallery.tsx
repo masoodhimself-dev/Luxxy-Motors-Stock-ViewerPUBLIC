@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup } from "@/lib/vehicle-photography";
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type CarImage } from '@/lib/stock-context';
@@ -28,6 +28,31 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
     [images, heroImage, failedImages],
   );
   const index = Math.min(activeIndex, Math.max(0, allImages.length - 1));
+  const [loadedUrl, setLoadedUrl] = useState('');
+  const activeUrl = getSafeImageUrl(allImages[index]);
+  useEffect(() => {
+    // Only warm neighbours after the main photograph has finished loading.
+    if (!activeUrl || loadedUrl !== activeUrl || allImages.length < 2) return;
+    const neighbours = [...new Set([(index + 1) % allImages.length, (index + allImages.length - 1) % allImages.length])];
+    const requests = neighbours.map(i => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.fetchPriority = 'low';
+      image.referrerPolicy = 'no-referrer';
+      image.src = getSafeImageUrl(allImages[i]);
+      return image;
+    });
+    return () => { requests.forEach(image => { image.onload = null; image.onerror = null; }); };
+  }, [activeUrl, loadedUrl, allImages, index]);
+  useEffect(() => {
+    const button = thumbnailRefs.current[index];
+    const row = button?.parentElement;
+    if (!button || !row) return;
+    // Move the strip without unexpectedly scrolling the customer down the page.
+    const left = button.offsetLeft - row.offsetLeft;
+    if (left < row.scrollLeft) row.scrollLeft = left;
+    else if (left + button.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + button.offsetWidth - row.clientWidth;
+  }, [index]);
   const previous = () => setActiveIndex((index + allImages.length - 1) % allImages.length);
   const next = () => setActiveIndex((index + 1) % allImages.length);
   const touchHandlers = {
@@ -54,14 +79,14 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
     .filter(group => allImages.some(image => photoGroup(image) === group));
   const groupNavigation = (fullscreen = false) => groups.length > 1 && (
     <div className="mt-3 flex flex-wrap gap-1 border-b border-border" aria-label="Photograph sections">
-      {groups.map(group => <button type="button" key={group} aria-label={group} aria-pressed={photoGroup(allImages[index]) === group}
+      {groups.map(group => <button type="button" key={group} aria-label={group === "Other" ? "More photos" : group} aria-pressed={photoGroup(allImages[index]) === group}
         onClick={() => {
           const target = allImages.findIndex(image => photoGroup(image) === group);
           setActiveIndex(target);
           if (!fullscreen) thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }}
         className={cn('min-h-11 border-b-2 px-3 text-xs', photoGroup(allImages[index]) === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
-        {group} ({allImages.filter(image => photoGroup(image) === group).length})
+        {group === "Other" ? "More photos" : group} ({allImages.filter(image => photoGroup(image) === group).length})
       </button>)}
     </div>
   );
@@ -94,6 +119,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         className={className}
         loading={eager ? 'eager' : 'lazy'}
         referrerPolicy="no-referrer"
+        onLoad={eager ? () => setLoadedUrl(url) : undefined}
         onError={(event) => {if (!retryOriginalImage(event.currentTarget)) {
           const removedIndex = allImages.findIndex(image => getSafeImageUrl(image) === url);
           setActiveIndex(current => removedIndex < current ? Math.max(0, current - 1) : current);
@@ -171,7 +197,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         {groupNavigation()}
         {allImages.length > 1 && (
           <div
-            className="vehicle-thumbnail-grid mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-6"
+            className="vehicle-thumbnail-grid mt-3 flex gap-2"
             aria-label="Choose photograph"
           >
             {allImages.map((image, i) => {
@@ -197,11 +223,11 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
                 }}
                 onClick={() => setActiveIndex(i)}
                 className={cn(
-                  'aspect-[4/3] w-full overflow-hidden rounded-sm border-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  'aspect-[4/3] bg-muted overflow-hidden rounded-sm border-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   i === index ? 'border-accent' : 'border-transparent opacity-70 hover:opacity-100',
                 )}
               >
-                {renderImage(i, 'h-full w-full object-cover')}
+                {renderImage(i, 'h-full w-full object-contain')}
               </button>
             ); })}
           </div>

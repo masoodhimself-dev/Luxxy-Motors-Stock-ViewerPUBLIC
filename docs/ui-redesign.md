@@ -801,3 +801,7 @@ Validation: 186 frontend tests passed, workspace typechecking/builds passed (exi
 ### Guided dealership onboarding
 
 Replaced the long default settings form with a ten-step sidebar workflow and optional all-sections view. Added searchable customer-page wording, separate brand/photo placements, hero crop focus, homepage visibility switches and neutral surface/text colours. Publishing is preceded by a review step; private drafts and existing validation remain in place. New settings use the existing JSON configuration, with typed API validation and backwards-compatible merging. See `docs/dealership-onboarding.md` for the content inventory and boundaries (hosted images, private integrations, controlled transactional copy).
+
+### Imported-stock image refinements
+
+Stock-card and homepage-strip photographs now use contain framing. Vehicle galleries use one horizontally scrollable thumbnail row at all widths; unclassified images are labelled More photos. After the main photograph loads, only its immediate neighbours are prefetched at low priority. Existing swipe, reduced-motion transitions, fullscreen keyboard navigation and failed-photo filtering are retained. Verification: 188 frontend tests, frontend typecheck/build and two desktop/mobile browser tests passed. Build retains the existing large-chunk warning. Local screenshots: /tmp/gallery-refined-390.png and /tmp/gallery-refined-1280.png.

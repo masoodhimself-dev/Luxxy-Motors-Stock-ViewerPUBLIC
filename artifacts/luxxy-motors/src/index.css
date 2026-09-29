@@ -649,3 +649,9 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .friendly-page h1, .friendly-page .friendly-banner h1, .stock-page-intro, .stock-refined .vehicle-card .luxxy-price { color: var(--dealer-heading, #202428); }
 .friendly-page form, .stock-refined .vehicle-card-details, .stock-refined .stock-toolbar, .vehicle-summary { background: var(--dealer-panel, #fff); }
 .friendly-page .friendly-banner .text-link, .stock-refined .vehicle-card-actions > a, .luxxy-shell .text-accent { color: var(--dealer-link, #254e77); }
+
+/* A single, browsable thumbnail strip at every screen size. */
+.vehicle-thumbnail-grid { display: flex; overflow-x: auto; overflow-y: hidden; max-height: none; padding: 3px 3px 8px; overscroll-behavior-x: contain; scroll-snap-type: x proximity; }
+.vehicle-thumbnail-grid > button { flex: 0 0 100px; width: 100px; scroll-snap-align: start; }
+.rolling-stock .vehicle-card [data-stock-link] img { object-fit: contain; background: #eeefed; }
+@media(max-width: 639px) { .vehicle-thumbnail-grid > button { flex-basis: 80px; width: 80px; } }

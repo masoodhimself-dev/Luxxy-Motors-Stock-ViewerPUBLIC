@@ -141,7 +141,7 @@ export function CarCard({
                   loading={priority ? "eager" : "lazy"}
                   fetchPriority={priority ? "high" : "auto"}
                   className={cn(
-                    'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
+                    'absolute inset-0 h-full w-full object-contain transition-opacity duration-300',
                     url === galleryUrls[activeIndex]
                       ? "opacity-100"
                       : "opacity-0",
