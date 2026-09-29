@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "runId": "REPLACE-WITH-UNIQUE-RUN-ID",
+  "source": "grok",
+  "retailerId": "REPLACE-WITH-CONFIGURED-RETAILER-ID",
+  "dealerName": "Example Motors",
+  "scrapedAt": "2026-09-28T12:00:00Z",
+  "complete": true,
+  "expectedAdvertCount": 1,
+  "count": 1,
+  "failedAdvertIds": [],
+  "errors": [],
+  "cars": [
+    {
+      "advertId": "EXAMPLE-001",
+      "title": "2021 Ford Focus",
+      "variant": null,
+      "make": "Ford",
+      "model": "Focus",
+      "trim": null,
+      "year": 2021,
+      "price": 14995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 32000,
+      "mileageText": null,
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": null,
+      "dealerName": "Example Motors",
+      "dealerLocation": null,
+      "imageCount": 1,
+      "heroImage": "https://images.example.com/EXAMPLE-001/front.jpg",
+      "images": [
+        {
+          "url": "https://images.example.com/EXAMPLE-001/front.jpg",
+          "caption": "Front right"
+        }
+      ],
+      "specifications": null,
+      "sourceExtras": null
+    }
+  ]
+}

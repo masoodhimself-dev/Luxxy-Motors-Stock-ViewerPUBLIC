@@ -15,6 +15,7 @@ let queue: Promise<unknown> = Promise.resolve();
 const dealerId = 'local-reservation-preview';
 const fixtureId = (id: string) => previewStock.cars.findIndex(car => car.id === id);
 const internalId = (id: string) => {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return id;
   const index = fixtureId(id);
   return index >= 0 ? `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}` : id;
 };
