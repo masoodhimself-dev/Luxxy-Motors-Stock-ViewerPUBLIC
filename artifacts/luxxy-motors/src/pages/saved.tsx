@@ -1,3 +1,4 @@
+import { SavedCarDetails } from '@/components/saved-car-details';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { websiteText } from "@/lib/website-content";
 import { useState } from "react";
@@ -170,7 +171,7 @@ export default function Saved() {
         ) : cars.length > 0 ? (
           <div className="mt-6 flex flex-col gap-6">
             {cars.map((car) => (
-              <CarCard key={car.id} car={car} layout="row" />
+              <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card"><CarCard car={car} layout="row" /><SavedCarDetails car={car} /></div>
             ))}
           </div>
         ) : (

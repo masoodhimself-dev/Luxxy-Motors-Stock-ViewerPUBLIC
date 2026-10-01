@@ -1,7 +1,7 @@
 import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
@@ -54,6 +54,8 @@ export function readableForegroundForHsl(hsl: string) {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
+  const [, vehicleRoute] = useRoute('/vehicle/:id');
+  const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
   const isStaff = location.startsWith('/portal');
   const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
   const { settings: dealerConfig } = useDealerSettings();
@@ -216,7 +218,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
             </button>
             <Button
-              onClick={() => setLocation(getEnquiryHref('viewing'))}
+              onClick={() => setLocation(testDriveHref)}
               className="h-11 px-6 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all ml-4"
             >
               {dealerConfig.bookViewing.ctaLabel}
@@ -256,7 +258,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 )}
               </button>
                <Button
-                 onClick={() => setLocation(getEnquiryHref('viewing'))}
+                 onClick={() => setLocation(testDriveHref)}
                  className="h-12 px-7 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all ml-4"
                >
                  {dealerConfig.bookViewing.ctaLabel}
@@ -288,7 +290,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationStock")} <ArrowRight className="w-5 h-5 text-accent" />
             </button>
-            <button onClick={() => { setMobileMenuOpen(false); setLocation(getEnquiryHref('viewing')); }} className={mobileNavRowClass}>{dealerConfig.bookViewing.ctaLabel} <CalendarDays className="h-5 w-5 text-accent" /></button>
+            <button onClick={() => { setMobileMenuOpen(false); setLocation(testDriveHref); }} className={mobileNavRowClass}>{dealerConfig.bookViewing.ctaLabel} <CalendarDays className="h-5 w-5 text-accent" /></button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationPartExchange")} <ArrowRight className="w-5 h-5 opacity-40" /></button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/warranty' ? 'page' : undefined} className={mobileNavRowClass}>Warranty <ArrowRight className="w-5 h-5 opacity-40" /></Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={mobileNavRowClass}>Delivery <ArrowRight className="w-5 h-5 opacity-40" /></button>}
@@ -389,7 +391,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <nav className="flex flex-col items-start gap-0">
                 <button onClick={() => handleNav('stock')} className={footerLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
                 <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
-                <button onClick={() => setLocation(getEnquiryHref('viewing'))} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
+                <button onClick={() => setLocation(testDriveHref)} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
                 {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex items-center ${footerLinkClass}`}>Warranty</Link>}
               </nav>
             </div>
