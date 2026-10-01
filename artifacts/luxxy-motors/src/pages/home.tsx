@@ -475,7 +475,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 <div
                   className={cn(
                     'grid gap-5',
-                    stockView === 'compact' ? 'xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3',
+                    stockView === 'compact' ? 'xl:grid-cols-2' : 'stock-card-results sm:grid-cols-2 xl:grid-cols-3',
                   )}
                 >
                   {displayedCars.map((car, index) => (

@@ -886,3 +886,23 @@ The phone audit found too many equal-weight choices in the vehicle summary, repe
 Validation: 194 frontend tests passed. 37 browser checks passed across phone, tablet and desktop layouts, including seven new action tests; those seven were rerun after final sticky-bar/keyboard-order refinements. Full workspace typechecking and builds passed. Existing client bundle-size and tooltip sourcemap warnings remain. Checked collapsed/expanded controls, native filters, list preference persistence, copying links, contextual booking/part exchange, call/WhatsApp/reservation dialogs, focus restoration and customer-detail reuse. Tests intercept API writes and do not send enquiries, messages or reservations. Chromium responsive emulation was used; no physical iPhone Safari claim is made.
 
 Final captures: [phone vehicle summary](screenshots/mobile-actions-2026-10-01/vehicle-primary-375.png), [expanded vehicle options](screenshots/mobile-actions-2026-10-01/vehicle-options-375.png), [stock](screenshots/mobile-actions-2026-10-01/stock-collapsed-375.jpg), [homepage](screenshots/mobile-actions-2026-10-01/home-375.png), [optional reservation](screenshots/mobile-actions-2026-10-01/booking-optional-reservation-375.png). Desktop and expanded stock captures are in the same directory. All changes are frontend-only; no backend, database, production, deployment or merge changes.
+
+### Touch browsing on phones and iPads — 1 October 2026
+
+Car-card photo arrows are hidden for coarse-pointer/non-hover devices. Browse Stock, filtered results and shared saved/similar cards now support a deliberate horizontal swipe to move one photograph at a time. Vertical movement stays with page scrolling; cancelled and multi-finger gestures do not select a photo. Photo links suppress the click following a drag, while a fresh tap still opens the correct vehicle. Disabled native image/link dragging so pen gestures work too. Desktop hover arrows remain, and focused photo links also support Left/Right keys followed by Enter. Screen readers receive photo-position updates. Directional transitions are short and disabled under reduced motion.
+
+The homepage uses native horizontal scrolling between vehicles, without nesting a second photo carousel inside each card. Cards snap into position, and touch/pointer/wheel interaction pauses automatic movement until Resume is chosen. Genuine mouse hover still pauses temporarily; sticky touch hover no longer controls autoplay. Phone cards show a small glimpse of the next vehicle. Tablet touch layouts show two featured cards in portrait and three at wider landscape widths; the normal stock grid also uses three columns from 1100px. Compact/list view retains its existing layout. Full vehicle galleries and the recent phone action simplification are preserved.
+
+Validation:
+- All 194 frontend tests passed (41 files).
+- All 41 browser regressions passed: 14 new touch/keyboard tests plus the existing 20 responsive and seven mobile-action checks. The new tests use Chromium's native CDP touch input for horizontal/vertical gestures, cancellation, multi-touch, pen, filtered-result navigation, autoplay pause/resume and reduced motion. They verify 390px phone, 820px portrait tablet, 1180px landscape tablet and 1280px desktop behaviour. The existing responsive checks also cover 320px, 375px and 1024px widths.
+- Three additional capture checks passed with the original stock photographs, separately from deterministic test-image fixtures. Reviewed all six captures below, plus the LAN preview's desktop photo controls. No page-wide horizontal overflow was found at the tested sizes.
+- Final full workspace typechecking/builds passed. Existing UI sourcemap and large-client-bundle warnings remain.
+
+These are Chromium touch/emulation checks, not a physical iPhone/iPad Safari test. No backend/API, database, authentication, sales-rule, production or deployment changes were made. The preview remains available on the local network.
+
+| View | Featured vehicles | Browse Stock |
+| --- | --- | --- |
+| Phone (390px) | [Homepage strip](screenshots/touch-browsing-2026-10-01/phone-featured.png) | [Stock card](screenshots/touch-browsing-2026-10-01/phone-stock.png) |
+| iPad portrait (820px) | [Two cards](screenshots/touch-browsing-2026-10-01/ipad-portrait-featured.png) | [Two-column stock](screenshots/touch-browsing-2026-10-01/ipad-portrait-stock.png) |
+| iPad landscape (1180px) | [Three cards](screenshots/touch-browsing-2026-10-01/ipad-landscape-featured.png) | [Three-column stock](screenshots/touch-browsing-2026-10-01/ipad-landscape-stock.png) |

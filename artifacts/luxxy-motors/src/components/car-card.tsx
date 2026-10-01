@@ -3,7 +3,8 @@ import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-p
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { rememberStockPosition } from "@/lib/browse-session";
-import { useEffect, useMemo, useState } from 'react';
+import { usePhotoSwipe } from '@/hooks/use-photo-swipe';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import {
@@ -61,12 +62,21 @@ export function CarCard({
   }, [car]);
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [photoDirection, setPhotoDirection] = useState<-1 | 0 | 1>(0);
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
 
   const visibleImageUrls = imageUrls.filter((url) => !failedImageUrls.has(url));
   const galleryUrls = visibleImageUrls;
   const activeIndex = galleryUrls.length > 0 ? activeImageIndex % galleryUrls.length : 0;
   const photoCount = car.imageCount || car.images?.length || visibleImageUrls.length;
+  const photoHelpId = useId();
+  const canBrowsePhotos = photoControls && galleryUrls.length > 1;
+  const changePhoto = (direction: -1 | 1) => {
+    if (!canBrowsePhotos) return;
+    setPhotoDirection(direction);
+    setActiveImageIndex((activeIndex + direction + galleryUrls.length) % galleryUrls.length);
+  };
+  const photoSwipe = usePhotoSwipe(canBrowsePhotos, changePhoto);
 
   const vehicleLabel = vehicleDisplayTitle(car);
   const registration = vehicleRegistration(car);
@@ -82,6 +92,7 @@ export function CarCard({
   const imageSignature = imageUrls.join('|');
   useEffect(() => {
     setActiveImageIndex(0);
+    setPhotoDirection(0);
     setFailedImageUrls(new Set());
   }, [car.id, imageSignature]);
 
@@ -120,9 +131,18 @@ export function CarCard({
         <Link
           href={detailHref}
           data-stock-link={car.id}
+          draggable={false}
+          {...photoSwipe}
           onClick={recordVehicleOpen}
-          className="relative block aspect-[4/3]"
+          onKeyDown={event => {
+            if (canBrowsePhotos && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+              event.preventDefault();
+              changePhoto(event.key === 'ArrowRight' ? 1 : -1);
+            }
+          }}
+          className={cn('relative block aspect-[4/3]', canBrowsePhotos && 'stock-photo-swipe')}
           aria-label={`View full details for ${vehicleLabel}`}
+          aria-describedby={canBrowsePhotos ? photoHelpId : undefined}
         >
           {galleryUrls.length ? (
             galleryUrls
@@ -134,11 +154,12 @@ export function CarCard({
                 <img
                   key={url}
                   src={url}
-                  {...responsiveVehicleImage(url, "(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 440px")}
+                  {...responsiveVehicleImage(url, "(max-width: 639px) 100vw, (pointer: coarse) and (min-width: 1100px) 33vw, (max-width: 1279px) 50vw, 440px")}
                   alt={url === galleryUrls[activeIndex] ? vehicleLabel : ""}
                   decoding="async"
                   width={800}
                   height={600}
+                  draggable={false}
                   loading={priority ? "eager" : "lazy"}
                   fetchPriority={priority ? "high" : "auto"}
                   className={cn(
@@ -146,6 +167,8 @@ export function CarCard({
                     url === galleryUrls[activeIndex]
                       ? "opacity-100"
                       : "opacity-0",
+                    photoDirection === 1 && 'stock-photo-next',
+                    photoDirection === -1 && 'stock-photo-previous',
                   )}
                   onError={(event) => {if (!retryOriginalImage(event.currentTarget)) setFailedImageUrls((prev) => new Set(prev).add(url));}}
                 />
@@ -157,16 +180,18 @@ export function CarCard({
             </div>
           )}
         </Link>
+        {canBrowsePhotos && <span id={photoHelpId} className="sr-only">Swipe left or right, or use the arrow keys, to browse photographs. Tap or press Enter to view the car.</span>}
+        {photoControls && <span className="sr-only" aria-live="polite" aria-atomic="true">{photoDirection !== 0 && galleryUrls.length > 0 ? `Photograph ${activeIndex + 1} of ${galleryUrls.length}` : ''}</span>}
         {photoControls && galleryUrls.length > 1 && (
           <div className="stock-photo-controls">
             <button type="button" className="stock-photo-arrow left-2"
               aria-label={`Previous photo of ${vehicleLabel}`}
-              onClick={() => setActiveImageIndex((activeIndex + galleryUrls.length - 1) % galleryUrls.length)}>
+              onClick={() => changePhoto(-1)}>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <button type="button" className="stock-photo-arrow right-2"
               aria-label={`Next photo of ${vehicleLabel}`}
-              onClick={() => setActiveImageIndex((activeIndex + 1) % galleryUrls.length)}>
+              onClick={() => changePhoto(1)}>
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
