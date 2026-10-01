@@ -303,9 +303,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,176 below market average",
-          "goodPriceLowerBound": "\u00a33,847",
-          "goodPriceUpperBound": "\u00a34,044"
+          "comparisonDescription": "£1,176 below market average",
+          "goodPriceLowerBound": "£3,847",
+          "goodPriceUpperBound": "£4,044"
         },
         "specCategories": [
           {
@@ -441,7 +441,7 @@
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": null,
@@ -505,7 +505,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "105g/km"
             },
             {
@@ -516,7 +516,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a320"
+              "value": "£20"
             },
             {
               "key": "FUEL_URBAN",
@@ -601,7 +601,7 @@
       "advertUrl": "https://www.autotrader.co.uk/car-details/202609105910316",
       "dealerName": "PARAMOUNT AUTO GROUP LTD",
       "dealerLocation": "Wembley",
-      "imageCount": 73,
+      "imageCount": 76,
       "heroImage": "https://m.atcdn.co.uk/a/media/bae84ff765924d0cb5b66fd437f7c230.jpg",
       "images": [
         {
@@ -793,6 +793,10 @@
           "caption": "Wing Mirror"
         },
         {
+          "url": "https://m.atcdn.co.uk/a/media/3e682387db284b71a38704d3ef6fcb82.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
           "url": "https://m.atcdn.co.uk/a/media/5ed8d272dcd34dd68d0e701f163e4c76.jpg",
           "caption": "Steering Wheel"
         },
@@ -814,6 +818,10 @@
         },
         {
           "url": "https://m.atcdn.co.uk/a/media/93c3ba280031481482de8a3b3842c82f.jpg",
+          "caption": "Roof"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8135d34a169c4aadbc881dd271dcf362.jpg",
           "caption": "Roof"
         },
         {
@@ -895,6 +903,10 @@
         {
           "url": "https://m.atcdn.co.uk/a/media/b6802c7073f14733b1505435d6ae1351.jpg",
           "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/36e1612fa63948d18aaecbc05e85079b.jpg",
+          "caption": "vehicle image"
         }
       ],
       "specifications": {
@@ -936,9 +948,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,070 below market average",
-          "goodPriceLowerBound": "\u00a34,846",
-          "goodPriceUpperBound": "\u00a35,093"
+          "comparisonDescription": "£1,070 below market average",
+          "goodPriceLowerBound": "£4,846",
+          "goodPriceUpperBound": "£5,093"
         },
         "specCategories": [
           {
@@ -1066,19 +1078,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 20,161 more miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai n-tec+ SUV",
-          "registrationDateFormatted": "January 2016"
-        },
         "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2016 Nissan Qashqai for sale - 6 Month Warranty -HPI Clear - Fresh 12 Month MOT - Fresh Service - New Suspension Fitted - 6 Owners \n\nPlease be aware this vehicle does not come with any service history except the service we have done on the car \n\nThe 2016 Nissan Qashqai DIG-T n-tec+ is a practical and well-equipped crossover that balances performance with everyday usability. This model is powered by a 1.2-litre petrol engine, which meets Euro 6 emission standards, ensuring it remains compliant with modern environmental regulations. As an n-tec+ trim, it offers a comprehensive suite of technology designed to make driving more convenient, including automatic headlights that adjust to changing light conditions and an intelligent key system that allows for keyless entry.\n\nThis vehicle stands out for its focus on efficiency and ease of use, making it a sensible choice for a wide range of drivers. It offers an impressive fuel economy of 49 mpg and low CO2 emissions, which helps to keep running costs manageable. The inclusion of a 360-degree bird-view around view monitor provides excellent parking assistance, while the dual-zone climate control ensures a comfortable cabin environment for all passengers. Furthermore, the integration of Bluetooth technology allows for seamless telephone connectivity, and the vehicle benefits from a low insurance group, adding to its overall value and appeal.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -1171,7 +1177,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "133g/km"
             },
             {
@@ -1182,7 +1188,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3200"
+              "value": "£200"
             },
             {
               "key": "FUEL_URBAN",
@@ -1231,7 +1237,8 @@
               "value": "Partial"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00"
       }
     },
     {
@@ -1567,9 +1574,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a3457 below market average",
-          "goodPriceLowerBound": "\u00a34,343",
-          "goodPriceUpperBound": "\u00a34,565"
+          "comparisonDescription": "£457 below market average",
+          "goodPriceLowerBound": "£4,343",
+          "goodPriceUpperBound": "£4,565"
         },
         "specCategories": [
           {
@@ -1705,16 +1712,11 @@
         "detailCapturedAt": "2026-10-01T12:02:44.242926+00:00",
         "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
         "detailSource": "fresh",
-        "websitePriceReduction": {
-          "previousPrice": 4175,
-          "currentPrice": 3975,
-          "detectedAt": "2026-10-01T12:02:44.242926+00:00"
-        },
         "advertDescription": "This 2015 Nissan Juke DIG-T Tekna is a practical compact crossover that combines a 1.2 litre petrol engine with the high specification of the Tekna trim level. As a Euro 6 compliant vehicle, it meets modern emission standards while offering a balanced driving experience. The interior is well equipped with heated front seats for added comfort and an intelligent key system that allows for keyless entry and push button starting. Drivers can also benefit from seamless connectivity through the integrated Bluetooth telephone system and maintain a comfortable cabin environment using the automatic climate control, which includes a pollen filter.\n\nThe vehicle is designed to be both economical and easy to manage, making it a sensible choice for daily driving. It achieves an impressive fuel economy of 50 mpg and benefits from low CO2 emissions, which helps to keep running costs down. Safety and convenience are prioritised through the included safety pack, which features blind spot assistance and a 360 degree camera system to aid with parking. Furthermore, the vehicle falls into a low insurance group, offering additional financial benefits compared to many other cars in its class.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -1791,7 +1793,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "128g/km"
             },
             {
@@ -1802,7 +1804,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3170"
+              "value": "£170"
             },
             {
               "key": "FUEL_URBAN",
@@ -2078,9 +2080,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,257 below market average",
-          "goodPriceLowerBound": "\u00a36,646",
-          "goodPriceUpperBound": "\u00a36,985"
+          "comparisonDescription": "£1,257 below market average",
+          "goodPriceLowerBound": "£6,646",
+          "goodPriceUpperBound": "£6,985"
         },
         "specCategories": [
           {
@@ -2208,19 +2210,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 10,855 fewer miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai N-Connecta SUV",
-          "registrationDateFormatted": "March 2016"
-        },
         "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2016 Nissan Qashqai for sale - 1 Owner from New - Good Condition - 2 Keys - 6 Month Warranty \n\nThis 2016 Nissan Qashqai DIG-T N-Connecta is a practical choice for those seeking a reliable family vehicle. Having covered 58,000 miles, this car has been maintained by only one owner from new. It is powered by a 1.2 litre petrol engine that meets Euro 6 emission standards, ensuring it remains compliant with current environmental regulations.\n\nThe vehicle is well equipped to make daily driving easier and more comfortable. It features the Smart Vision Pack, which includes front and rear parking sensors, alongside the Tech Pack that provides a 360 degree camera system to assist with manoeuvring. Inside, passengers can enjoy dual zone climate control air conditioning and the convenience of an intelligent key with keyless entry, while Bluetooth connectivity allows for seamless phone integration. Beyond its equipment, this model is an economical option, offering a fuel economy of 50 mpg and low CO2 emissions. Furthermore, it sits in a low insurance group, which helps to keep ongoing running costs manageable.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -2294,7 +2290,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "133g/km"
             },
             {
@@ -2305,7 +2301,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3200"
+              "value": "£200"
             },
             {
               "key": "FUEL_URBAN",
@@ -2354,7 +2350,8 @@
               "value": "Contact seller"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00"
       }
     },
     {
@@ -2718,9 +2715,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,146 below market average",
-          "goodPriceLowerBound": "\u00a37,371",
-          "goodPriceUpperBound": "\u00a37,747"
+          "comparisonDescription": "£1,146 below market average",
+          "goodPriceLowerBound": "£7,371",
+          "goodPriceUpperBound": "£7,747"
         },
         "specCategories": [
           {
@@ -2842,9 +2839,9 @@
           {
             "key": "InsuranceGroupLow",
             "title": "Lower insurance group",
-            "description": "17E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type.",
+            "description": "17E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type.",
             "descriptionList": [
-              "17E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type."
+              "17E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type."
             ],
             "linkDescription": "More about running costs",
             "quantifier": "LOW",
@@ -2855,19 +2852,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 15,996 more miles than the average",
-          "vehicleDetails": "petrol MINI Clubman Cooper Estate",
-          "registrationDateFormatted": "December 2016"
-        },
         "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2016 Mini Clubman Cooper for sale - Top Spec -\nBrand New Steering Rack - CHILI Pack - Media Pack XL - Panoramic Glass Roof - Jhon Cooper Works Leather Steering Wheel - PDC Park Distance Control Rear - Darkened Rear Seats - Front Heated Seats - Run Flat Tyres \n\nThis 2016 MINI Clubman Cooper offers a practical yet stylish option for those seeking a compact vehicle with character. Powered by a 1.5 litre petrol engine, this model meets Euro 6 emission standards, ensuring it remains compliant with modern environmental regulations. The interior is finished with a cloth and leather combination in Carbon Black, providing a comfortable cabin environment.\n\nThe vehicle is equipped with several notable features that enhance the driving experience, including a panoramic electric glass sunroof that allows for an open and airy feel. Technology is well integrated through the Media Pack XL and enhanced Bluetooth with USB audio connectivity, making it easy to manage entertainment and communications on the move. The exterior aesthetic is complemented by 18 inch star spoke black alloy wheels. Beyond its equipment, this Clubman is an economical choice, offering a fuel economy of 55 mpg, low CO2 emissions, and a low insurance group, which helps to keep ongoing running costs manageable.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [
@@ -2877,7 +2868,7 @@
             "count": "4",
             "featureItems": [
               {
-                "description": "Valuable features are features that have increased the current valuation of this car and go beyond the standard specification for this make and model. This car\u2019s valuable features:",
+                "description": "Valuable features are features that have increased the current valuation of this car and go beyond the standard specification for this make and model. This car’s valuable features:",
                 "items": [
                   {
                     "name": "18in Alloy Wheels - Star Spoke Black"
@@ -2901,7 +2892,7 @@
             "count": "10",
             "featureItems": [
               {
-                "description": "Very rare features are only found on 10% of cars similar to this one. This car\u2019s very rare features:",
+                "description": "Very rare features are only found on 10% of cars similar to this one. This car’s very rare features:",
                 "items": [
                   {
                     "name": "18in Alloy Wheels - Star Spoke Black"
@@ -2930,7 +2921,7 @@
                 ]
               },
               {
-                "description": "Rare features are features that aren\u2019t often found on cars similar to this one. This car\u2019s rare features:",
+                "description": "Rare features are features that aren’t often found on cars similar to this one. This car’s rare features:",
                 "items": [
                   {
                     "name": "Bonnet Stripes - Black"
@@ -2948,7 +2939,7 @@
             "count": "22",
             "featureItems": [
               {
-                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car\u2019s added extras:",
+                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car’s added extras:",
                 "items": [
                   {
                     "name": "18in Alloy Wheels - Star Spoke Black"
@@ -3031,7 +3022,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "123g/km"
             },
             {
@@ -3042,7 +3033,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3170"
+              "value": "£170"
             },
             {
               "key": "FUEL_URBAN",
@@ -3091,7 +3082,8 @@
               "value": "Full (dealership)"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00"
       }
     },
     {
@@ -3418,9 +3410,9 @@
         "marketPriceRating": {
           "value": "GREAT",
           "label": "Great price",
-          "comparisonDescription": "\u00a3337 below market average",
-          "goodPriceLowerBound": "\u00a36,651",
-          "goodPriceUpperBound": "\u00a36,991"
+          "comparisonDescription": "£337 below market average",
+          "goodPriceLowerBound": "£6,651",
+          "goodPriceUpperBound": "£6,991"
         },
         "specCategories": [
           {
@@ -3549,19 +3541,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 40,157 more miles than the average",
-          "vehicleDetails": "petrol BMW 2 Series M Sport Coupe",
-          "registrationDateFormatted": "November 2016"
-        },
         "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "This 2016 BMW 2 Series 218i M Sport offers a refined driving experience that balances performance with everyday practicality. As an M Sport variant, this vehicle features a 1.5 litre petrol engine that meets Euro 6 emission standards. The exterior is equipped with a Xenon Headlight Package, which includes automatic activation for added convenience during night driving or in low light conditions. Inside, the cabin is designed for connectivity, featuring enhanced Bluetooth telephone preparation with a USB audio interface and voice control, alongside a dedicated Bluetooth hands free facility. Parking is made simpler with the inclusion of rear Park Distance Control, which uses rear sensors to assist with manoeuvring into tight spaces.\n\nThe efficiency of this model is a significant highlight, as it achieves an impressive fuel economy of 50 mpg. This level of efficiency, combined with its low CO2 emissions, makes it a sensible choice for those looking to manage running costs without compromising on the quality associated with the BMW brand. By integrating advanced technology like the automatic headlight system and comprehensive parking assistance, this vehicle provides a modern and user friendly experience that stands out in its class.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [
@@ -3571,7 +3557,7 @@
             "count": "5",
             "featureItems": [
               {
-                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car\u2019s added extras:",
+                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car’s added extras:",
                 "items": [
                   {
                     "name": "Enhanced Bluetooth Telephone Preparation with USB Audio Interface and Voice Control"
@@ -3601,7 +3587,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "130g/km"
             },
             {
@@ -3612,7 +3598,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3170"
+              "value": "£170"
             },
             {
               "key": "FUEL_URBAN",
@@ -3661,7 +3647,8 @@
               "value": "None"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00"
       }
     },
     {
@@ -3973,9 +3960,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,468 below market average",
-          "goodPriceLowerBound": "\u00a38,078",
-          "goodPriceUpperBound": "\u00a38,490"
+          "comparisonDescription": "£1,468 below market average",
+          "goodPriceLowerBound": "£8,078",
+          "goodPriceUpperBound": "£8,490"
         },
         "specCategories": [
           {
@@ -4104,19 +4091,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 43,664 fewer miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai 360 SUV",
-          "registrationDateFormatted": "September 2013"
-        },
         "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2013 Nissan Qashqai we have for sale - 6 Month Warranty- Genuine Low Miles - 2 Keys - Full History - Perfect example of a clean well maintained reliable used car \n\nThis 2013 Nissan Qashqai 360 is a well-maintained example of a popular family vehicle, powered by a reliable 1.6 litre petrol engine. With only 38,000 miles on the clock, this car has covered very low mileage for its age and has been cared for by just two owners from new. Its combination of a practical body style and efficient engine makes it a sensible choice for those seeking a dependable vehicle with a proven history.\n\nThe 360 trim level offers a range of features designed to make daily driving more comfortable and convenient. The interior includes dual zone climate control to keep the cabin temperature consistent, while the panoramic glass roof, which can be opened, adds a sense of space and light to the journey. Technology is well integrated with Bluetooth telephone connectivity, and parking is made simpler thanks to the rear parking sensors. Furthermore, the automatic lighting system ensures the headlights activate when needed, and the vehicle sits in a low insurance group, which helps to keep ongoing running costs manageable compared to other similar models.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -4138,7 +4119,7 @@
           "Trip Computer",
           "Exterior",
           "18in Alloy Wheels - Onyx",
-          "360\u0092 External Badge",
+          "360 External Badge",
           "Bumpers - Body Coloured",
           "Chrome-Trimmed LCD Combimeter",
           "Door Mirrors - Electric Adjustment and Heated",
@@ -4201,7 +4182,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "149g/km"
             },
             {
@@ -4212,7 +4193,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3225"
+              "value": "£225"
             },
             {
               "key": "FUEL_URBAN",
@@ -4261,7 +4242,8 @@
               "value": "Full"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00"
       }
     }
   ]

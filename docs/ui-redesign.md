@@ -813,3 +813,9 @@ Applied the supplied 7-car snapshot to the local preview only. The new Focus is 
 Original snapshots are retained under `preview/stock-history`. The preview copy deduplicates image URLs and preserves previously captured cached metadata and its detail timestamp. The reduction component uses `sourceExtras.websitePriceReduction` with previous/current prices and a fixed first-observed timestamp. It hides after fourteen days, on price mismatch, or invalid evidence. The exact time the seller changed the price is unknown; the snapshot's observation time is used. Future imports must preserve this timestamp for an unchanged price; automatic production price-history recording has not been added in this local update.
 
 Validation: 191 frontend tests, frontend typecheck/build, and two desktop/mobile browser checks passed. Existing large-bundle warning remains. No production import, database or migration executed.
+
+### Enriched stock content
+
+Included the supplied enriched snapshot and archived its original. Vehicle pages and their existing print action now consume `advertDescription` / `featureList` through a shared normalizer, retaining existing dealer-field priority. Removed scraped category headings and duplicate equipment labels. Description and equipment sections are omitted when no useful content exists. Original cached-detail capture timestamps and the Juke reduction record are preserved. This enrichment does not advance missing-stock observations. Extra raw specifications/history remain stored without speculative display mappings.
+
+Validation: 194 frontend tests, three browser checks, frontend typecheck and build passed (existing bundle-size warning only). Local preview only; no database or production changes.

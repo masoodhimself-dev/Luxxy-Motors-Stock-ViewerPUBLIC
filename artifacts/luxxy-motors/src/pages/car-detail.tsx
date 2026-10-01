@@ -1,3 +1,4 @@
+import { vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { websiteText } from "@/lib/website-content";
 import { VehicleReviews } from '@/components/vehicle-reviews';
@@ -192,15 +193,7 @@ export default function CarDetail() {
     return null;
   })();
 
-  const description = [
-    car.description,
-    car.specifications?.description,
-    car.sourceExtras?.description,
-  ].find((value) => typeof value === 'string' && value.trim()) as string | undefined;
-  const rawFeatures = car.features ?? car.specifications?.features ?? car.sourceExtras?.features;
-  const features = Array.isArray(rawFeatures)
-    ? rawFeatures.filter((value): value is string => typeof value === 'string')
-    : [];
+  const { description, features } = vehicleContent(car);
   const share = async () => {
     try {
       const url = getVehicleShareUrl(car);
@@ -350,7 +343,7 @@ export default function CarDetail() {
                 ))}
               </dl>
             </section>
-            <section
+            {description && <section
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="vehicle-description-heading"
             >
@@ -358,11 +351,10 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
               <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                {description ||
-                  'Speak to our team for the full vehicle description, service history and preparation details. We’ll be happy to answer your questions before you visit.'}
+                {description}
               </p>
 
-            </section>
+            </section>}
             <section
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="buyer-information-heading"
