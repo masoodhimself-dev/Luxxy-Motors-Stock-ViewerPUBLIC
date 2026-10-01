@@ -1,13 +1,15 @@
+import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Camera, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail } from 'lucide-react';
 import { getSafeImageUrl, cn } from '@/lib/utils';
-import { type CarImage } from '@/lib/stock-context';
+import { type Car, type CarImage } from '@/lib/stock-context';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface GalleryProps {
+  car?: Car;
   images: CarImage[];
   heroImage?: string | null;
   vehicleLabel?: string;
@@ -16,8 +18,10 @@ function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
 }
 
-export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: GalleryProps) {
+export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle' }: GalleryProps) {
   const reduceMotion = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  const messageRequested = useRef(false);
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -139,7 +143,7 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
       </div>
     );
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <div className="min-w-0">
         <div className="vehicle-gallery-frame">
         <div
@@ -236,7 +240,17 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
         )}
       </div>
       <DialogContent
-        className="max-w-[min(1200px,calc(100vw-2rem))] border-0 bg-background p-4 pt-16 sm:p-6 sm:pt-16"
+        className="vehicle-lightbox"
+        onCloseAutoFocus={event => {
+          if (!messageRequested.current) return;
+          event.preventDefault();
+          messageRequested.current = false;
+          requestAnimationFrame(() => {
+            const heading = document.getElementById('vehicle-enquiry-heading');
+            heading?.focus({ preventScroll: true });
+            document.getElementById('vehicle-enquiry')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+          });
+        }}
         aria-describedby={undefined}
         onKeyDown={(event) => {
           if (event.key === 'ArrowRight') {
@@ -251,8 +265,8 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
       >
         <DialogTitle className="sr-only">Vehicle image gallery</DialogTitle>
         {groupNavigation(true)}
-        <div className="flex min-w-0 items-center justify-center touch-pan-y" {...touchHandlers}>
-          {renderImage(index, 'max-h-[65dvh] w-full object-contain', true)}
+        <div className="vehicle-lightbox-photo flex min-w-0 items-center justify-center touch-pan-y" {...touchHandlers}>
+          {renderImage(index, 'h-full max-h-full w-full object-contain', true)}
         </div>
         <div className="flex items-center justify-between gap-3">
           <button
@@ -273,6 +287,12 @@ export function Gallery({ images, heroImage, vehicleLabel = 'Vehicle' }: Gallery
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
+        {car && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
+          <VehicleCall car={car} buttonLabel="Show phone number" className="vehicle-lightbox-contact-button" />
+          <button type="button" className="vehicle-lightbox-contact-button" onClick={() => { messageRequested.current = true; setOpen(false); }}>
+            <Mail className="h-5 w-5" /> Message
+          </button>
+        </div>}
       </DialogContent>
     </Dialog>
   );

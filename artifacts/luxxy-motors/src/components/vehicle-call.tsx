@@ -23,9 +23,13 @@ import type { Car } from "@/lib/stock-context";
 export function VehicleCall({
   car,
   compact = false,
+  buttonLabel,
+  className,
 }: {
   car: Car;
   compact?: boolean;
+  buttonLabel?: string;
+  className?: string;
 }) {
   const { settings } = useDealerSettings();
   const trigger = useRef<HTMLAnchorElement>(null);
@@ -67,15 +71,15 @@ export function VehicleCall({
         href={href}
         onClick={call}
         className={
-          compact
+          className ?? (compact
             ? "vehicle-contact-action h-12 w-12 shrink-0 p-0"
-            : "vehicle-contact-action"
+            : "vehicle-contact-action")
         }
-        aria-label={compact ? "Call about this vehicle" : `Call about ${label}`}
+        aria-label={buttonLabel ? `${buttonLabel} for ${label}` : compact ? "Call about this vehicle" : `Call about ${label}`}
         data-vehicle-contact="call"
       >
         <Phone className="h-4 w-4" />
-        {!compact && "Call showroom"}
+        {!compact && (buttonLabel || "Call showroom")}
       </a>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

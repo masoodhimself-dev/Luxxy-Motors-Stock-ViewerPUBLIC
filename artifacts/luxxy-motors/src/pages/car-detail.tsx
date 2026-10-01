@@ -243,7 +243,7 @@ export default function CarDetail() {
         </div>
         <div className="grid min-w-0 items-start gap-6 vehicle-detail-grid lg:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)] lg:gap-7">
           <div className="vehicle-detail-gallery min-w-0 lg:col-start-1 lg:row-start-1">
-            <Gallery key={car.id} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
             <VehicleWhatsApp car={car} walkaround />
           </div>
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
