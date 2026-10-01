@@ -1,3 +1,4 @@
+import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
 import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
@@ -664,13 +665,6 @@ export function EnquiryForm({
         </>
       )}
 
-      {vehicle && dealerConfig.onlineReservation?.enabled && (!isViewing || viewingStep === 2) && (
-        <div className="border-t border-border pt-4">
-          <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry or test drive is submitted separately.</p>
-          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
-        </div>
-      )}
-
       {mutation.isError && (
         <div role="alert" className="flex items-start gap-3 border border-destructive/50 bg-background p-4 text-[13px] font-normal text-destructive" data-testid="status-enquiry-error" tabIndex={-1}>
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
@@ -713,6 +707,12 @@ export function EnquiryForm({
            </span>
         </div>
       </div>
+      {vehicle && dealerConfig.onlineReservation?.enabled && (!isViewing || viewingStep === 2) && (
+        <MobileActionDisclosure label="Or reserve this car" className="border-t border-border pt-2" testId="enquiry-reservation-options">
+          <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry or test drive is submitted separately.</p>
+          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
+        </MobileActionDisclosure>
+      )}
     </form>
   );
 }

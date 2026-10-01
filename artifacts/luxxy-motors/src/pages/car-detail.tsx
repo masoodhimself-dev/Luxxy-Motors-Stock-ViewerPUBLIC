@@ -1,3 +1,5 @@
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { websiteText } from "@/lib/website-content";
@@ -67,6 +69,7 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 }
 
 export default function CarDetail() {
+  const isPhone = useIsMobile();
   const [shareMessage, setShareMessage] = useState('');
   const purchasePanel = useRef<HTMLDivElement>(null);
   const [purchaseVisible, setPurchaseVisible] = useState(false);
@@ -80,7 +83,7 @@ export default function CarDetail() {
 
   useEffect(() => {
     if (!purchasePanel.current || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(([entry]) => setPurchaseVisible(entry.intersectionRatio >= .45), {threshold: [0, .45, 1], rootMargin: '-90px 0px -80px 0px'});
+    const observer = new IntersectionObserver(([entry]) => setPurchaseVisible(entry.isIntersecting), {threshold: 0, rootMargin: '-90px 0px -80px 0px'});
     observer.observe(purchasePanel.current);
     return () => observer.disconnect();
   }, [car?.id]);
@@ -221,6 +224,24 @@ export default function CarDetail() {
     }
   };
 
+  const bookingAction = (
+    <Button asChild size="lg" variant="outline" key="booking">
+      <a
+        href={bookingHref}
+        onClick={() => recordBookingIntent({ source: 'car_detail', vehicleContext: true })}
+        data-vehicle-contact="booking"
+      >
+        <Calendar className="h-4 w-4" />
+        {dealerConfig.bookViewing.ctaLabel}
+      </a>
+    </Button>
+  );
+  const enquiryAction = (
+    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}>
+      Enquire about this car <ArrowRight className="h-4 w-4" />
+    </a>
+  );
+
   return (
     <div className="vehicle-page luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -245,7 +266,7 @@ export default function CarDetail() {
           <div className="vehicle-main-column min-w-0">
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
-            <VehicleWhatsApp car={car} walkaround />
+            <div className="hidden md:block"><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-details-content min-w-0 pb-10">
             <div className="vehicle-editorial-overview">
@@ -408,32 +429,22 @@ export default function CarDetail() {
               </div>
             )}
               {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
-            <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
-            <div ref={purchasePanel} className="mt-4 flex flex-col gap-3 border-t border-border pt-5">
+            <div ref={purchasePanel} className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
+            <div className="mt-4 flex flex-col gap-3 border-t border-border pt-5">
 
-              <Button asChild size="lg" variant="outline">
-                <a
-                  href={bookingHref}
-                  onClick={() =>
-                    recordBookingIntent({ source: 'car_detail', vehicleContext: true })
-                  }
-                  data-vehicle-contact="booking"
-                >
-                  <Calendar className="h-4 w-4" />
-                  {dealerConfig.bookViewing.ctaLabel}
-                </a>
-              </Button>
-              <a className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}>
-                  Enquire about this car <ArrowRight className="h-4 w-4" />
-              </a>
+              {isPhone ? [enquiryAction, bookingAction] : [bookingAction, enquiryAction]}
+            </div>
+            <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
+              <div className="flex flex-col gap-3 pt-1 md:pt-3">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
               {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
                 <VehicleCall car={car} />
                 <VehicleWhatsApp car={car} />
               </div>
-            </div>
+              <div className="md:hidden"><VehicleWhatsApp car={car} walkaround /></div>
+              </div>
             {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex items-center justify-between">
               <CompareCarButton car={car} variant="compact" className="min-h-11" />
               <Link href="/compare" className="text-link text-xs text-muted-foreground">
@@ -441,9 +452,10 @@ export default function CarDetail() {
               </Link>
             </div>}
 
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 border-t border-border pt-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
+            </MobileActionDisclosure>
             </div>
           </aside>
-<div className="mt-5 flex flex-wrap items-center gap-x-5 border-t border-border pt-3"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
             <VehicleReviews />
           </div>
 
@@ -473,8 +485,6 @@ export default function CarDetail() {
             Enquire
           </a>
         </Button>
-        <VehicleWhatsApp car={car} compact />
-        <VehicleCall car={car} compact />
       </div>}
       {similarCars.length > 0 && (
         <section

@@ -1,3 +1,5 @@
+import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
@@ -52,6 +54,7 @@ const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
   const [, setLocation] = useLocation();
+  const isPhone = useIsMobile();
   useEffect(() => {
     const redirectStock = () => {
       if (!browseStock && ['#stock', '#vehicle-results'].includes(window.location.hash)) setLocation('/stock');
@@ -311,6 +314,35 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       </div>
     );
 
+  const stockViewControls = (
+    <div className="flex justify-end gap-1" aria-label="Vehicle display">
+      {(['cards', 'compact'] as const).map((view) => {
+        const Icon = view === 'cards' ? Grid2X2 : List;
+        return (
+          <button
+            key={view}
+            type="button"
+            aria-label={view === 'cards' ? 'Grid' : 'List'}
+            aria-pressed={stockView === view}
+            data-testid={`button-stock-view-${view}`}
+            onClick={() => {
+              setStockView(view);
+              trackEvent('stock_view_changed', { view });
+            }}
+            className={cn(
+              'grid h-11 w-11 place-items-center rounded-md border',
+              stockView === view
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border text-muted-foreground hover:bg-secondary',
+            )}
+          >
+            <Icon className="h-4 w-4" />
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className={browseStock ? "luxxy-shell homepage-refined stock-refined min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
@@ -357,32 +389,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   : `${filteredCars.length} cars match your search`}
               </p>
             )}
-            <div className="col-start-2 row-start-1 row-span-2 flex justify-end gap-1 lg:col-start-4 lg:row-span-1" aria-label="Vehicle display">
-              {(['cards', 'compact'] as const).map((view) => {
-                const Icon = view === 'cards' ? Grid2X2 : List;
-                return (
-                  <button
-                    key={view}
-                    type="button"
-                    aria-label={view === 'cards' ? 'Grid' : 'List'}
-                    aria-pressed={stockView === view}
-                    data-testid={`button-stock-view-${view}`}
-                    onClick={() => {
-                      setStockView(view);
-                      trackEvent('stock_view_changed', { view });
-                    }}
-                    className={cn(
-                      'grid h-11 w-11 place-items-center rounded-md border',
-                      stockView === view
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border text-muted-foreground hover:bg-secondary',
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </button>
-                );
-              })}
-            </div>
+            {!isPhone && <div className="col-start-2 row-start-1 row-span-2 lg:col-start-4 lg:row-span-1">{stockViewControls}</div>}
           </div>
           <Filters
             quickFilters={<>             <div className="flex flex-wrap gap-2 text-sm">
@@ -444,12 +451,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+          <MobileActionDisclosure label="Display & sharing" testId="stock-secondary-actions" className="mt-1">
+          <div className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm md:py-3">
+            {isPhone && <div className="flex w-full items-center justify-between"><span className="text-muted-foreground">Vehicle display</span>{stockViewControls}</div>}
             <Link className="text-link" href="/saved">Saved cars ({savedCount})</Link>
             <button className="min-h-11 underline underline-offset-4" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}>Copy search link</button>
             {copyNotice && <p role="status">{copyNotice}</p>}
           </div>
-          <div id="vehicle-results" data-home-section className="mt-4">
+          </MobileActionDisclosure>
+          <div id="vehicle-results" data-home-section className="mt-2 md:mt-4">
             {error ? (
               <div className="surface p-8" role="alert">
                 <h3 className="section-heading">Stock is temporarily unavailable</h3>

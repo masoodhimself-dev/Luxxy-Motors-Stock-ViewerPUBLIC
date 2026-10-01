@@ -752,3 +752,8 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
  .vehicle-main-column .vehicle-gallery-frame > div { aspect-ratio: 4 / 3; height: auto; }
  .vehicle-main-column .vehicle-details-content { padding-top: 0; }
 }
+
+/* Secondary phone actions should remain compact even when expanded. */
+@media (max-width: 767px) {
+ .vehicle-page .vehicle-secondary-actions .vehicle-contact-action { font-size: 14px; line-height: 1.4; gap: 6px; padding-inline: 8px; }
+}

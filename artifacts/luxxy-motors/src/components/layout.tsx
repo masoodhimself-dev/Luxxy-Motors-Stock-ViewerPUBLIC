@@ -312,14 +312,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button onClick={() => handleNav('about')} className={mobileNavRowClass}>Why Buy From Us <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <Link href="/contact" onClick={() => setMobileMenuOpen(false)} aria-current={location === '/contact' ? 'page' : undefined} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationContact")} <ArrowRight className="w-5 h-5 opacity-40" /></Link>
 
-            <div className="mt-8 flex flex-col gap-4 pb-4">
+            <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
               {dealerConfig.contact.phone && (
                 <a
                   href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}
-                  className="flex items-center justify-between p-4 bg-primary text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-primary hover:bg-secondary"
                 >
-                  <span className="font-display font-bold tracking-normal text-sm flex items-center gap-3"><Phone className="h-5 w-5" /> Call us</span>
-                  <span className="font-display font-semibold tracking-normal text-base">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
+                  <span className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call us</span>
                 </a>
               )}
               {dealerConfig.contact.whatsapp && (
@@ -327,10 +326,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   href={`https://wa.me/${dealerConfig.contact.whatsapp.replace(/[^0-9+]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-[hsl(var(--contact))] text-white transition-colors hover:opacity-90"
+                  className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-primary hover:bg-secondary"
                 >
-                  <span className="font-display font-bold tracking-normal text-sm flex items-center gap-3"><MessageCircle className="h-5 w-5" /> Message</span>
-                  <span className="font-display font-semibold tracking-normal text-base">WhatsApp</span>
+                  <span className="flex items-center gap-2 text-sm font-medium"><MessageCircle className="h-4 w-4" /> WhatsApp</span>
                 </a>
               )}
             </div>

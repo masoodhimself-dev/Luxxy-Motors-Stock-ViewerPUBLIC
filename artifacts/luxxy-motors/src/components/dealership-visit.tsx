@@ -1,3 +1,4 @@
+import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { websiteText } from "@/lib/website-content";
 import { Link } from "wouter";
 import { ArrowRight, MapPin, Phone } from "lucide-react";
@@ -93,6 +94,8 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
                   {settings.bookViewing.ctaLabel} <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
+              <MobileActionDisclosure label="Contact & directions" className="w-full md:contents" contentClassName="md:contents">
+              <div className="flex flex-wrap gap-3 md:contents">
               <Button asChild variant="outline">
                 <Link href="/contact">
                   Contact & directions <MapPin className="h-4 w-4" />
@@ -107,6 +110,8 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
                   {formatPhoneDisplay(contact.phone)}
                 </a>
               )}
+              </div>
+              </MobileActionDisclosure>
             </div>
           </div>
           {(hasStory || visitPhoto || children) && (

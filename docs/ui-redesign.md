@@ -869,3 +869,20 @@ Selected final visual captures:
 | Booking / contact | [Booking](screenshots/responsive-2026-10-01/booking-375.jpg) | [Contact](screenshots/responsive-2026-10-01/contact-820.jpg) |
 | Supporting layouts | [Tablet footer](screenshots/responsive-2026-10-01/footer-contact-820.jpg) | [Part exchange](screenshots/responsive-2026-10-01/part-exchange-1180.jpg) |
 | Fullscreen gallery | — | [844px landscape](screenshots/responsive-2026-10-01/gallery-landscape-844.png) |
+
+
+### Simplify phone calls to action — 1 October 2026
+
+The phone audit found too many equal-weight choices in the vehicle summary, repeated contact actions in the sticky bar, stock utilities competing with search, and an optional reservation button competing with booking submission.
+
+- Vehicle summary: enquiry and the vehicle-specific test-drive link remain visible. Call, WhatsApp, reservation, part exchange, walkaround request, print/share and optional comparison are grouped under **More options** on phones. The shared accessible disclosure stays expanded on tablet/desktop. Primary action DOM order follows the visual order for keyboard users.
+- Sticky vehicle bar: price plus one **Enquire** action. It stays hidden while the purchase options or enquiry form are visible, including when secondary options are expanded.
+- Browse Stock: keep search, filters and sorting prominent. Phone grid/list, saved-stock link and search sharing move into **Display & sharing**. The header saved-cars shortcut remains available.
+- Homepage: put **More filters** and **See all cars** on one quiet phone row; show Reset only when a search is active. The visit section groups its secondary contact choices. No filter fields or contact methods were removed.
+- Mobile navigation: compact Call/WhatsApp buttons replace two large stacked colour panels.
+- Booking/enquiry: the optional reservation sits after the main submission controls and behind **Or reserve this car** on phones. Existing vehicle, contact details, part exchange and reservation settings are preserved.
+- Shared responsive detection handles legacy Safari media-query listeners and avoids initially flashing expanded desktop actions on phones.
+
+Validation: 194 frontend tests passed. 37 browser checks passed across phone, tablet and desktop layouts, including seven new action tests; those seven were rerun after final sticky-bar/keyboard-order refinements. Full workspace typechecking and builds passed. Existing client bundle-size and tooltip sourcemap warnings remain. Checked collapsed/expanded controls, native filters, list preference persistence, copying links, contextual booking/part exchange, call/WhatsApp/reservation dialogs, focus restoration and customer-detail reuse. Tests intercept API writes and do not send enquiries, messages or reservations. Chromium responsive emulation was used; no physical iPhone Safari claim is made.
+
+Final captures: [phone vehicle summary](screenshots/mobile-actions-2026-10-01/vehicle-primary-375.png), [expanded vehicle options](screenshots/mobile-actions-2026-10-01/vehicle-options-375.png), [stock](screenshots/mobile-actions-2026-10-01/stock-collapsed-375.jpg), [homepage](screenshots/mobile-actions-2026-10-01/home-375.png), [optional reservation](screenshots/mobile-actions-2026-10-01/booking-optional-reservation-375.png). Desktop and expanded stock captures are in the same directory. All changes are frontend-only; no backend, database, production, deployment or merge changes.
