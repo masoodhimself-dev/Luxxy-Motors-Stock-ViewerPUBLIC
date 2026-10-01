@@ -819,3 +819,6 @@ Validation: 191 frontend tests, frontend typecheck/build, and two desktop/mobile
 Included the supplied enriched snapshot and archived its original. Vehicle pages and their existing print action now consume `advertDescription` / `featureList` through a shared normalizer, retaining existing dealer-field priority. Removed scraped category headings and duplicate equipment labels. Description and equipment sections are omitted when no useful content exists. Original cached-detail capture timestamps and the Juke reduction record are preserved. This enrichment does not advance missing-stock observations. Extra raw specifications/history remain stored without speculative display mappings.
 
 Validation: 194 frontend tests, three browser checks, frontend typecheck and build passed (existing bundle-size warning only). Local preview only; no database or production changes.
+
+### Vehicle content discoverability
+Added Description and Features & equipment jump links beneath the vehicle title (only for populated sections). Restore these deep links after asynchronous stock loading, with header clearance, instead of leaving visitors at the top. Verified the user's in-app browser visibly shows the description after reload. Three browser checks including desktop/mobile anchor navigation, typecheck and build passed.

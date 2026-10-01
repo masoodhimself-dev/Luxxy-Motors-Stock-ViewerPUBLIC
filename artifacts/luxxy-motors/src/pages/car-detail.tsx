@@ -95,6 +95,20 @@ export default function CarDetail() {
 
   useEffect(() => { if (car?.id) rememberVehicle(car.id); }, [car?.id]);
 
+  useEffect(() => {
+    if (!car?.id) return;
+    const scrollToSection = () => {
+      const id = window.location.hash.slice(1);
+      if (['vehicle-description-heading', 'features-heading'].includes(id)) {
+        document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      }
+    };
+    const frame = requestAnimationFrame(scrollToSection);
+    window.addEventListener('hashchange', scrollToSection);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('hashchange', scrollToSection); };
+  }, [car?.id]);
+
+
   usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : null);
 
   if (isLoading) {
@@ -247,6 +261,10 @@ export default function CarDetail() {
                 {car.variant || car.trim}
               </p>
             )}
+            {(description || features.length > 0) && <nav aria-label="Vehicle information" className="mt-3 flex flex-wrap gap-x-5">
+              {description && <a className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4" href="#vehicle-description-heading">Description</a>}
+              {features.length > 0 && <a className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4" href="#features-heading">Features & equipment</a>}
+            </nav>}
             <div className="mt-3 border-b border-border pb-3 lg:mt-5 lg:pb-5">
               <p className="luxxy-price text-[2rem]">
                 {car.price
@@ -347,7 +365,7 @@ export default function CarDetail() {
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="vehicle-description-heading"
             >
-              <h2 id="vehicle-description-heading" className="section-heading">
+              <h2 id="vehicle-description-heading" className="section-heading scroll-mt-28">
                 {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
               <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
@@ -402,7 +420,7 @@ export default function CarDetail() {
                 className="mt-8 border-t border-border pt-7"
                 aria-labelledby="features-heading"
               >
-                <h2 id="features-heading" className="section-heading">
+                <h2 id="features-heading" className="section-heading scroll-mt-28">
                   {websiteText(dealerConfig, "vehicleFeaturesHeading")}
                 </h2>
                 <ul className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
