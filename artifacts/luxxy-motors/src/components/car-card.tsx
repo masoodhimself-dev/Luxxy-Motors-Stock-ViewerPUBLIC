@@ -1,3 +1,4 @@
+import { PriceReduction } from '@/components/price-reduction';
 import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
@@ -216,6 +217,7 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
+          <PriceReduction car={car} />
           {catalogue && car.inventoryStatus === 'reserved' && <span className="text-xs font-medium text-muted-foreground">Reserved</span>}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 

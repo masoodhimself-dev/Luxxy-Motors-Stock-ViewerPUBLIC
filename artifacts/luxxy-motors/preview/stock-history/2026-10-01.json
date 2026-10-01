@@ -303,9 +303,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,176 below market average",
-          "goodPriceLowerBound": "\u00a33,847",
-          "goodPriceUpperBound": "\u00a34,044"
+          "comparisonDescription": "£1,176 below market average",
+          "goodPriceLowerBound": "£3,847",
+          "goodPriceUpperBound": "£4,044"
         },
         "specCategories": [
           {
@@ -466,7 +466,7 @@
       "advertUrl": "https://www.autotrader.co.uk/car-details/202609105910316",
       "dealerName": "PARAMOUNT AUTO GROUP LTD",
       "dealerLocation": "Wembley",
-      "imageCount": 73,
+      "imageCount": 76,
       "heroImage": "https://m.atcdn.co.uk/a/media/bae84ff765924d0cb5b66fd437f7c230.jpg",
       "images": [
         {
@@ -658,6 +658,10 @@
           "caption": "Wing Mirror"
         },
         {
+          "url": "https://m.atcdn.co.uk/a/media/3e682387db284b71a38704d3ef6fcb82.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
           "url": "https://m.atcdn.co.uk/a/media/5ed8d272dcd34dd68d0e701f163e4c76.jpg",
           "caption": "Steering Wheel"
         },
@@ -679,6 +683,10 @@
         },
         {
           "url": "https://m.atcdn.co.uk/a/media/93c3ba280031481482de8a3b3842c82f.jpg",
+          "caption": "Roof"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8135d34a169c4aadbc881dd271dcf362.jpg",
           "caption": "Roof"
         },
         {
@@ -760,6 +768,10 @@
         {
           "url": "https://m.atcdn.co.uk/a/media/b6802c7073f14733b1505435d6ae1351.jpg",
           "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/36e1612fa63948d18aaecbc05e85079b.jpg",
+          "caption": "vehicle image"
         }
       ],
       "specifications": {
@@ -792,7 +804,7 @@
         "engineLitres": 1.2,
         "engineFormatted": "1.2L",
         "vehicleRegisteredText": "Vehicle registered: 29/01/2016",
-        "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
         "dealerPhone": "(07537) 122736",
         "dealerTown": "WEMBLEY",
         "dealerPostcode": "HA0 1ET",
@@ -801,9 +813,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,070 below market average",
-          "goodPriceLowerBound": "\u00a34,846",
-          "goodPriceUpperBound": "\u00a35,093"
+          "comparisonDescription": "£1,070 below market average",
+          "goodPriceLowerBound": "£4,846",
+          "goodPriceUpperBound": "£5,093"
         },
         "specCategories": [
           {
@@ -931,14 +943,8 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 20,161 more miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai n-tec+ SUV",
-          "registrationDateFormatted": "January 2016"
-        },
         "lastCheckedAt": "2026-10-01T12:02:44.242926+00:00",
-        "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00"
+        "detailSource": "cached"
       }
     },
     {
@@ -1274,9 +1280,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a3457 below market average",
-          "goodPriceLowerBound": "\u00a34,343",
-          "goodPriceUpperBound": "\u00a34,565"
+          "comparisonDescription": "£457 below market average",
+          "goodPriceLowerBound": "£4,343",
+          "goodPriceUpperBound": "£4,565"
         },
         "specCategories": [
           {
@@ -1405,12 +1411,7 @@
         ],
         "detailCapturedAt": "2026-10-01T12:02:44.242926+00:00",
         "lastCheckedAt": "2026-10-01T12:02:44.242926+00:00",
-        "detailSource": "fresh",
-        "websitePriceReduction": {
-          "previousPrice": 4175,
-          "currentPrice": 3975,
-          "detectedAt": "2026-10-01T12:02:44.242926+00:00"
-        }
+        "detailSource": "fresh"
       }
     },
     {
@@ -1628,7 +1629,7 @@
         "engineLitres": 1.2,
         "engineFormatted": "1.2L",
         "vehicleRegisteredText": "Vehicle registered: 31/03/2016",
-        "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
         "dealerPhone": "(07537) 122736",
         "dealerTown": "WEMBLEY",
         "dealerPostcode": "HA0 1ET",
@@ -1637,9 +1638,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,257 below market average",
-          "goodPriceLowerBound": "\u00a36,646",
-          "goodPriceUpperBound": "\u00a36,985"
+          "comparisonDescription": "£1,257 below market average",
+          "goodPriceLowerBound": "£6,646",
+          "goodPriceUpperBound": "£6,985"
         },
         "specCategories": [
           {
@@ -1767,14 +1768,8 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 10,855 fewer miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai N-Connecta SUV",
-          "registrationDateFormatted": "March 2016"
-        },
         "lastCheckedAt": "2026-10-01T12:02:44.242926+00:00",
-        "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00"
+        "detailSource": "cached"
       }
     },
     {
@@ -2129,7 +2124,7 @@
         "engineLitres": 1.5,
         "engineFormatted": "1.5L",
         "vehicleRegisteredText": "Vehicle registered: 07/12/2016",
-        "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
         "dealerPhone": "(07537) 122736",
         "dealerTown": "WEMBLEY",
         "dealerPostcode": "HA0 1ET",
@@ -2138,9 +2133,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,146 below market average",
-          "goodPriceLowerBound": "\u00a37,371",
-          "goodPriceUpperBound": "\u00a37,747"
+          "comparisonDescription": "£1,146 below market average",
+          "goodPriceLowerBound": "£7,371",
+          "goodPriceUpperBound": "£7,747"
         },
         "specCategories": [
           {
@@ -2262,9 +2257,9 @@
           {
             "key": "InsuranceGroupLow",
             "title": "Lower insurance group",
-            "description": "17E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type.",
+            "description": "17E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type.",
             "descriptionList": [
-              "17E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type."
+              "17E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type."
             ],
             "linkDescription": "More about running costs",
             "quantifier": "LOW",
@@ -2275,14 +2270,8 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 15,996 more miles than the average",
-          "vehicleDetails": "petrol MINI Clubman Cooper Estate",
-          "registrationDateFormatted": "December 2016"
-        },
         "lastCheckedAt": "2026-10-01T12:02:44.242926+00:00",
-        "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00"
+        "detailSource": "cached"
       }
     },
     {
@@ -2600,7 +2589,7 @@
         "engineLitres": 1.5,
         "engineFormatted": "1.5L",
         "vehicleRegisteredText": "Vehicle registered: 25/11/2016",
-        "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
         "dealerPhone": "(07537) 122736",
         "dealerTown": "WEMBLEY",
         "dealerPostcode": "HA0 1ET",
@@ -2609,9 +2598,9 @@
         "marketPriceRating": {
           "value": "GREAT",
           "label": "Great price",
-          "comparisonDescription": "\u00a3337 below market average",
-          "goodPriceLowerBound": "\u00a36,651",
-          "goodPriceUpperBound": "\u00a36,991"
+          "comparisonDescription": "£337 below market average",
+          "goodPriceLowerBound": "£6,651",
+          "goodPriceUpperBound": "£6,991"
         },
         "specCategories": [
           {
@@ -2740,14 +2729,8 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 40,157 more miles than the average",
-          "vehicleDetails": "petrol BMW 2 Series M Sport Coupe",
-          "registrationDateFormatted": "November 2016"
-        },
         "lastCheckedAt": "2026-10-01T12:02:44.242926+00:00",
-        "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00"
+        "detailSource": "cached"
       }
     },
     {
@@ -3050,7 +3033,7 @@
         "engineLitres": 1.6,
         "engineFormatted": "1.6L",
         "vehicleRegisteredText": "Vehicle registered: 30/09/2013",
-        "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
         "dealerPhone": "(07537) 122736",
         "dealerTown": "WEMBLEY",
         "dealerPostcode": "HA0 1ET",
@@ -3059,9 +3042,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,468 below market average",
-          "goodPriceLowerBound": "\u00a38,078",
-          "goodPriceUpperBound": "\u00a38,490"
+          "comparisonDescription": "£1,468 below market average",
+          "goodPriceLowerBound": "£8,078",
+          "goodPriceUpperBound": "£8,490"
         },
         "specCategories": [
           {
@@ -3190,14 +3173,8 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 43,664 fewer miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai 360 SUV",
-          "registrationDateFormatted": "September 2013"
-        },
         "lastCheckedAt": "2026-10-01T12:02:44.242926+00:00",
-        "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00"
+        "detailSource": "cached"
       }
     }
   ]

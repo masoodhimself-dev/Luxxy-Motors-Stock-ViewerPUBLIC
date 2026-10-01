@@ -805,3 +805,11 @@ Replaced the long default settings form with a ten-step sidebar workflow and opt
 ### Imported-stock image refinements
 
 Stock-card and homepage-strip photographs now use contain framing. Vehicle galleries use one horizontally scrollable thumbnail row at all widths; unclassified images are labelled More photos. After the main photograph loads, only its immediate neighbours are prefetched at low priority. Existing swipe, reduced-motion transitions, fullscreen keyboard navigation and failed-photo filtering are retained. Verification: 188 frontend tests, frontend typecheck/build and two desktop/mobile browser tests passed. Build retains the existing large-chunk warning. Local screenshots: /tmp/gallery-refined-390.png and /tmp/gallery-refined-1280.png.
+
+## 1 October 2026 — local stock refresh and price reduction
+
+Applied the supplied 7-car snapshot to the local preview only. The new Focus is added; the Juke is £3,975 (previously £4,175). Both missing adverts remain on public preview after their first missing observation, giving nine visible vehicles until a second successful snapshot confirms removal. Stable advert-derived IDs and existing reservation storage are unchanged.
+
+Original snapshots are retained under `preview/stock-history`. The preview copy deduplicates image URLs and preserves previously captured cached metadata and its detail timestamp. The reduction component uses `sourceExtras.websitePriceReduction` with previous/current prices and a fixed first-observed timestamp. It hides after fourteen days, on price mismatch, or invalid evidence. The exact time the seller changed the price is unknown; the snapshot's observation time is used. Future imports must preserve this timestamp for an unchanged price; automatic production price-history recording has not been added in this local update.
+
+Validation: 191 frontend tests, frontend typecheck/build, and two desktop/mobile browser checks passed. Existing large-bundle warning remains. No production import, database or migration executed.

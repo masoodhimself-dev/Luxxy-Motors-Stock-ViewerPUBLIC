@@ -1,3 +1,4 @@
+import { PriceReduction } from '@/components/price-reduction';
 import { websiteText } from "@/lib/website-content";
 import { VehicleReviews } from '@/components/vehicle-reviews';
 import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
@@ -259,6 +260,7 @@ export default function CarDetail() {
                   ? formatPrice(car.price, car.currency)
                   : 'Price on application'}
               </p>
+              <PriceReduction car={car} />
               {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
 
             </div>

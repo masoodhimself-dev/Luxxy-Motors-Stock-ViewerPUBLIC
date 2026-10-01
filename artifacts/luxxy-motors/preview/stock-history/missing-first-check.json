@@ -1,0 +1,966 @@
+[
+  {
+    "advertId": "202608245388714",
+    "title": "2016 Audi A4",
+    "variant": "1.4 TFSI Sport Euro 6 (s/s) 4dr",
+    "make": "Audi",
+    "model": "A4",
+    "trim": "Sport",
+    "year": 2016,
+    "price": 5250,
+    "priceType": null,
+    "currency": "GBP",
+    "mileage": 107000,
+    "mileageText": "107,000 miles",
+    "registration": "2016 (66 reg)",
+    "registrationBand": "66 reg",
+    "plate": null,
+    "vrm": null,
+    "vrmVerified": null,
+    "fuel": "Petrol",
+    "transmission": "Manual",
+    "bodyType": "Saloon",
+    "engineSize": "1.4L",
+    "engineCC": 1395,
+    "doors": 4,
+    "seats": 5,
+    "colour": "Grey",
+    "emissionClass": "Euro 6",
+    "drivetrain": "Front Wheel Drive",
+    "owners": 3,
+    "writeOffCategory": null,
+    "advertUrl": "https://www.autotrader.co.uk/car-details/202608245388714",
+    "dealerName": "PARAMOUNT AUTO GROUP LTD",
+    "dealerLocation": "Wembley",
+    "imageCount": 65,
+    "heroImage": "https://m.atcdn.co.uk/a/media/ef029f42b2f14684b641f06f7b9a40fa.jpg",
+    "images": [
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ef029f42b2f14684b641f06f7b9a40fa.jpg",
+        "caption": "Front Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/df0e831cb7844cc1b16cc599df7988e6.jpg",
+        "caption": "Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/63387bc0375843a2be229f10b699bbe9.jpg",
+        "caption": "Front Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/37787f7ceca64d4f90a532e1c1e8c907.jpg",
+        "caption": "Front Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/51a277b1b0b44a0aa67a82052755cb9a.jpg",
+        "caption": "Front Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/73259a6feb1c43f3bde526a28843ecc7.jpg",
+        "caption": "Rear Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/33e0df6d8e5e477d93b57de5fff312b9.jpg",
+        "caption": "Front Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/263382ff53c04f1fb2b3758d28db0210.jpg",
+        "caption": "Side Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/0f3b3539b7c74f658a134dc3076d69d7.jpg",
+        "caption": "Side Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/9ba3a664feca466eabce6e76c02b27ad.jpg",
+        "caption": "Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/680442356b194e79b96c33b5cb14cc14.jpg",
+        "caption": "Side Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/b84463d7319b414c83c34e12ed8993c1.jpg",
+        "caption": "Side Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/92a26ed168da4a0085a1fc0548412a6d.jpg",
+        "caption": "Side Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/169960033d5347e2b18e5e98efe47344.jpg",
+        "caption": "Rear Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/209460c4f002454ebaa8b64058ee8839.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/725c9a3ee92341ebaf146f7092f5fb11.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/1450ba3dade1447fae59d80d6f31cfbf.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/df43ec03049141d3977b9766689f9af7.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/df76d477a9b5417780ad763273a3046e.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/204795e4e2794498bfa040a7a2714c4f.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/201641e8b3fc486eaa3015c00be2daca.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/c700b754ada74e62b4bf366a959cbc9d.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/395ca3632f354b8cbfae3648113d9d11.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/8192a94046df454d951f73142e78765c.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/bee7187a53ff40738015a48b0a86f902.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/9ed707d566f446ad81d5d30ad17141a3.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/6f8bfdfb1505417484fc9dcc9c943684.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/5f381e00d31c40bc90cfff59220980dd.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ca4644ae0052402186bd74e33b65575d.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/09f2e909e61a4acaa0661747d87e9e1d.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/039719843b1d42d5b5a8bf84963a8d2c.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/9518d769d2d042719b78b4ef93dc92c5.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/eddbfdc051ca404ea5bbd721893ba71c.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/697d691b49f745d7bb62cf8ec6a1c84f.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/28aa951747dd439f83d303202cb7483f.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/bd879dac26104ff68415f0c6c461138d.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/9cab350695f148358f3e28019922674f.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/58fd34cb1a404fbcb73a82ad1d988432.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e55a9eef47844f63924f664dea4e9195.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/8a2496d9cedb4c8698d5329486ed18ab.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/2e15366e5b004b4b861a911db83b1e67.jpg",
+        "caption": "Door Interior"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/b8692df69f744777ab178fc0a739305e.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e7e6d0ed4266465b9d0dda6bd393ac41.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e3930e0e8d3e45fd8beb9418e9518e80.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e5e24bb7c0054927bbcd6fd7f47734ae.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/cfa93785e36a42f38b77175e773d23a7.jpg",
+        "caption": "Driver Instruments"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/0d75f36196324c19bc67038fe7402547.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/20f7a0cf4aa743748aa7e3a02344af30.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/647b6c076e304933a3674bdef59e7032.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/1d049150d4084f098ece7c5f911c9ca3.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/5b8c1cd9acaf44e2a043a6ecc6687839.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/221c9cb6f8ed40a3aca37bb0f4b14de4.jpg",
+        "caption": "Steering Wheel"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/bbaaebce3db149b3876a945fbee55621.jpg",
+        "caption": "Steering Wheel"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/6a2f5418fb1249c6860f5df81ad4eccb.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/b6d3b8399731438585fb1396187a12ec.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/58e66f58e55f427786c042e9b5be33b9.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/eeeb2e68bfb644debc3ce2f57a0b25fe.jpg",
+        "caption": "Lights Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/97b4ec5db4b14052b71b815ba2b0859b.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/89b12e93042e43f2b30e47f8790e286a.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/26ae6e4ee3b042be9568544aba3bd681.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/9029e990754240fd812ad0d8f1444534.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/b9b6c43329c7460aa38aeb5784a75bc1.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/4c205b799aa24a67ac3cb8cf3ff425f2.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/21a3fb08e7da4f719080bc050f413895.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e71ade0259fb4d2b8a813504530f0c2f.jpg",
+        "caption": "vehicle image"
+      }
+    ],
+    "specifications": {
+      "MILEAGE": "107,000 miles",
+      "REGISTRATION": "2016 (66 reg)",
+      "OWNERS": "3",
+      "FUELTYPE": "Petrol",
+      "BODYTYPE": "Saloon",
+      "ENGINESIZELITRES": "1.4L",
+      "GEARBOX": "Manual",
+      "DOORS": "4",
+      "SEATS": "5",
+      "BODYCOLOUR": "Grey",
+      "EMISSIONCLASS": "Euro 6"
+    },
+    "sourceExtras": {
+      "stockListUrl": "https://www.autotrader.co.uk/cars/retailer/stock?advertising-location=at_cars&advertising-location=at_profile_cars&onesearchad=Used&onesearchad=Nearly%20New&onesearchad=New&postcode=HA0%204GP&retailerId=10045264&sort=price-asc",
+      "attentionGrabber": "Apple Car Play+Cruise Control",
+      "serviceHistory": "Service history",
+      "writeOffStatusExplicit": "Never been written off",
+      "writeOffCheck": {
+        "id": "WRITE_OFF",
+        "label": "Never been written off",
+        "status": "PASSED"
+      },
+      "vehicleCheckId": "f1634bdebf8a4b0b944838670be5e823",
+      "generationId": "a3585a20074d48be97f05d9b0ef4641b",
+      "derivativeId": "3a323b40903b47529e2f2ca6eb486b6a",
+      "engineCC": 1395,
+      "engineLitres": 1.4,
+      "engineFormatted": "1.4L",
+      "vehicleRegisteredText": "Vehicle registered: 28/10/2016",
+      "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+      "dealerPhone": "(07537) 122736",
+      "dealerTown": "WEMBLEY",
+      "dealerPostcode": "HA0 1ET",
+      "vehicleCheckStatus": "PASSED",
+      "vehicleCheckStatusText": "10 checks passed",
+      "marketPriceRating": {
+        "value": "LOW",
+        "label": "Lower price",
+        "comparisonDescription": "\u00a31,406 below market average",
+        "goodPriceLowerBound": "\u00a36,523",
+        "goodPriceUpperBound": "\u00a36,856"
+      },
+      "specCategories": [
+        {
+          "category": "Performance",
+          "count": "7",
+          "items": [
+            {
+              "name": "0-60mph",
+              "value": "8.4 seconds"
+            },
+            {
+              "name": "Top speed",
+              "value": "130mph"
+            },
+            {
+              "name": "Cylinders",
+              "value": "4"
+            },
+            {
+              "name": "Valves",
+              "value": "16"
+            },
+            {
+              "name": "Engine power",
+              "value": "148BHP"
+            },
+            {
+              "name": "Engine torque",
+              "value": "249NM"
+            },
+            {
+              "name": "Miles per gallon",
+              "value": "53.3mpg"
+            }
+          ]
+        },
+        {
+          "category": "Size and dimensions",
+          "count": "9",
+          "items": [
+            {
+              "name": "Height",
+              "value": "1,427mm"
+            },
+            {
+              "name": "Length",
+              "value": "4,726mm"
+            },
+            {
+              "name": "Width",
+              "value": "2,022mm"
+            },
+            {
+              "name": "Wheelbase",
+              "value": "2,820mm"
+            },
+            {
+              "name": "Seats",
+              "value": "5"
+            },
+            {
+              "name": "Fuel tank capacity",
+              "value": "54L"
+            },
+            {
+              "name": "Boot space (seats down)",
+              "value": "965L"
+            },
+            {
+              "name": "Boot space (seats up)",
+              "value": "480L"
+            },
+            {
+              "name": "Minimum kerb weight",
+              "value": "1,320kg"
+            }
+          ]
+        }
+      ],
+      "vehicleHighlights": [
+        {
+          "key": "FuelEconomyVeryHigh",
+          "title": "Better fuel economy",
+          "description": "53.3mpg\n\nThis vehicle's MPG is in the top 25% compared to vehicles of similar age and body type.",
+          "descriptionList": [
+            "53.3mpg\n\nThis vehicle's MPG is in the top 25% compared to vehicles of similar age and body type."
+          ],
+          "badge": "Top 25%",
+          "linkDescription": "More about running costs",
+          "quantifier": "VERY_HIGH",
+          "vehicleHighlightContext": {
+            "quantifier": "VERY_HIGH",
+            "highlightName": "FUEL_ECONOMY",
+            "index": 1
+          }
+        },
+        {
+          "key": "InsuranceGroupLow",
+          "title": "Lower insurance group",
+          "description": "20E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type.",
+          "descriptionList": [
+            "20E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type."
+          ],
+          "linkDescription": "More about running costs",
+          "quantifier": "LOW",
+          "vehicleHighlightContext": {
+            "quantifier": "LOW",
+            "highlightName": "INSURANCE_GROUP",
+            "index": 2
+          }
+        },
+        {
+          "key": "BootSpaceLarge",
+          "title": "Bigger boot",
+          "description": "480L\n\nThis vehicle\u2019s boot size is bigger than average compared to vehicles of a similar age and body type.",
+          "descriptionList": [
+            "480L\n\nThis vehicle\u2019s boot size is bigger than average compared to vehicles of a similar age and body type."
+          ],
+          "quantifier": "LARGE",
+          "vehicleHighlightContext": {
+            "quantifier": "LARGE",
+            "highlightName": "BOOT_SPACE",
+            "index": 3
+          }
+        }
+      ],
+      "mileageComparison": {
+        "mileageDeviationDescription": "This vehicle has done 34,003 more miles than the average",
+        "vehicleDetails": "petrol Audi A4 Sport Saloon",
+        "registrationDateFormatted": "October 2016"
+      },
+      "websiteSourceStatus": "missing",
+      "websiteMissingCount": 1,
+      "websiteMissingDetectedAt": "2026-10-01T12:02:44.242926+00:00"
+    }
+  },
+  {
+    "advertId": "202609286468440",
+    "title": "2017 Nissan Qashqai",
+    "variant": "1.2 DIG-T N-Vision XTRON 2WD Euro 6 (s/s) 5dr",
+    "make": "Nissan",
+    "model": "Qashqai",
+    "trim": "N-Vision",
+    "year": 2017,
+    "price": 5625,
+    "priceType": null,
+    "currency": "GBP",
+    "mileage": 89500,
+    "mileageText": "89,500 miles",
+    "registration": "2017 (17 reg)",
+    "registrationBand": "17 reg",
+    "plate": null,
+    "vrm": null,
+    "vrmVerified": null,
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "bodyType": "SUV",
+    "engineSize": "1.2L",
+    "engineCC": 1197,
+    "doors": 5,
+    "seats": 5,
+    "colour": "Black",
+    "emissionClass": "Euro 6",
+    "drivetrain": "Front Wheel Drive",
+    "owners": 3,
+    "writeOffCategory": null,
+    "advertUrl": "https://www.autotrader.co.uk/car-details/202609286468440",
+    "dealerName": "PARAMOUNT AUTO GROUP LTD",
+    "dealerLocation": "Wembley",
+    "imageCount": 68,
+    "heroImage": "https://m.atcdn.co.uk/a/media/2beab230987f4f26991fc8c9deef9b9e.jpg",
+    "images": [
+      {
+        "url": "https://m.atcdn.co.uk/a/media/2beab230987f4f26991fc8c9deef9b9e.jpg",
+        "caption": "Front Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/587ee0be5d9e4d4e941528bab373198e.jpg",
+        "caption": "Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/cda9e3b1aa9647c39aafab8834b6e565.jpg",
+        "caption": "Front Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/badbaa0830164f9a99e6782bad2790f7.jpg",
+        "caption": "Front Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/b91a7fc515064c6e83f208e415efa23f.jpg",
+        "caption": "Side Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ca5946072fca4f9db203d6da5a0e8081.jpg",
+        "caption": "Front Left"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/35140c241fab4fb885fbae26e6c66029.jpg",
+        "caption": "Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/27d1f12661de415e86c7c6f22a02989d.jpg",
+        "caption": "Side Right"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/53db2e4f7c364018be67131d19088dc1.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/a6dc54cb5285416bbee6eaea495b0809.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/fc41ca8bf6c9496aa76cdc27a0480bfa.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/d0dd965efcae46628cb4b18ab49f13a0.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/c9d76ec01b1949489ca6f336ff3646ff.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/2c6c7b07cc2942f0b8aafac3d596ea55.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/6f066336d7a0477b9dcbeb2396641668.jpg",
+        "caption": "Interior Front"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/96653fe8477e4e6794a13d865c132f42.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/d1461d9aa33a42fca10d73306c6e7888.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/1dd78037b4e34eb2bc874f622558c39b.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/c72dbbede09641ee852a4303f5b5210a.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/8a7eac9d4b3a44d29ab0ea5d1527b9aa.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/f65ef235ab3a4516aea407adb4367a26.jpg",
+        "caption": "Seat Driver"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/a7be704bec514c63b93c904e56299436.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/c6786d3cf18f4872ae94f66a408d8db0.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ddf5244cee6f416c9bda449bcf729c7d.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ea1dbf5855504181893152c4608197c7.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/6d9f7392cab64d54a40e30203f7af99e.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/6d5d35ddc6b74992bff93c9c9831d2f4.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/be73b745ecfd4b319f8d642b238b2d85.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/1077eaa401a7429ebfd1fa45e738d1cf.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/f9298353390943b592bf8c8bdc163b37.jpg",
+        "caption": "Seats Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/901d7182b35144d883ec80696166a4e7.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/16c35b9fc2594f5da000507fe7eda5ee.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/44ab1c631ef24ca0b0a72dece7ccc722.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/8b00731355984a2d957fef9c18038776.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/3ab7ae0e6b5440be86b91c10074f4828.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/f6ec446b21e941089bf4875b83d86635.jpg",
+        "caption": "Misc Controls"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e671b965658b47839e47da879546bdf3.jpg",
+        "caption": "Door Interior"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ebbef3c2b04a42ff9fdf130267d0d5f6.jpg",
+        "caption": "Wheel"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/e595d3597fbf4352b282e5d42537a451.jpg",
+        "caption": "Wheel"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/88253dcd0c03497386e519bafb9ec1eb.jpg",
+        "caption": "Wheel"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/232743927b644a078b90199bb78b8115.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/17a2c9ea5ed246e5b76fe73521bcff8d.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/edbdb80fc8fd4240a76cca2e7a731f01.jpg",
+        "caption": "Infotainment System"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/59506969ec564ecabf91b33ce96fba21.jpg",
+        "caption": "Driver Instruments"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/c7d23cbe254f48c997b4ae00bbf1f2bf.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/cc3ebfa60794408991b2d89bb51d0ffe.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/852af34b022147b9bf81aeed7a364fd7.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/a6eeca5930c440eda608789604965e0c.jpg",
+        "caption": "Wing Mirror"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/476dc0150c95454c89eddea9ff9c5dea.jpg",
+        "caption": "Steering Wheel"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/72ace5b77e444fd3bc2ed3065424e885.jpg",
+        "caption": "Roof"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/d5f9c5ac13c2416d9f659a6e704b8f40.jpg",
+        "caption": "Roof"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/a7f6737e17b7454a9721b70ee58dbbf1.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/ca9ebfd92a7642cebd3a361418dfcfe1.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/f08e491c75514db499b4add72f0b3cc1.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/9423188077e840d997a3ebaf94a38cfb.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/71408d6a677c4b0aac83444335892edb.jpg",
+        "caption": "Seat Front Passenger"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/c16a9281f0cd4e2c9fd279e8e497efcf.jpg",
+        "caption": "Lights Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/fbbb39a3c97d4646b7e68ca1990683fa.jpg",
+        "caption": "Lights Rear"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/38e8c35124f540d891bd04d36761ad11.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/2957c082dba142898e8408df1a0d18d3.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/32fd7a0ba4404bb3990d94565638ac45.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/f2f9aaed31a648da8f9a3acde7f5f2d3.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/6484791e17074c6ba019a520961bff89.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/5ae27b8f29a049d1b36834e2457faace.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/f60c13d8eea84e0cb26b363a7465107a.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/86335ca89c014a7e979fecf553cd59cd.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/2b6d7bf30ca44c239a2b0054f05fb66f.jpg",
+        "caption": "vehicle image"
+      },
+      {
+        "url": "https://m.atcdn.co.uk/a/media/13f4c579707e4de8a11d916dd1d23d1a.jpg",
+        "caption": "vehicle image"
+      }
+    ],
+    "specifications": {
+      "MILEAGE": "89,500 miles",
+      "REGISTRATION": "2017 (17 reg)",
+      "OWNERS": "3",
+      "FUELTYPE": "Petrol",
+      "BODYTYPE": "SUV",
+      "ENGINESIZELITRES": "1.2L",
+      "GEARBOX": "Automatic",
+      "DOORS": "5",
+      "SEATS": "5",
+      "BODYCOLOUR": "Black",
+      "EMISSIONCLASS": "Euro 6"
+    },
+    "sourceExtras": {
+      "stockListUrl": "https://www.autotrader.co.uk/cars/retailer/stock?advertising-location=at_cars&advertising-location=at_profile_cars&onesearchad=Used&onesearchad=Nearly%20New&onesearchad=New&postcode=HA0%204GP&retailerId=10045264&sort=price-asc",
+      "attentionGrabber": "Heated Seats+2Keys+Reverse Cam",
+      "serviceHistory": "Service history",
+      "writeOffStatusExplicit": "Never been written off",
+      "writeOffCheck": {
+        "id": "WRITE_OFF",
+        "label": "Never been written off",
+        "status": "PASSED"
+      },
+      "vehicleCheckId": "8f50604ce2544fa983c9569e6a4b2b05",
+      "generationId": "ea169b8d2ebd26010ee582e17e2a584b",
+      "derivativeId": "ec44004f16a44965892da42a57f5b94f",
+      "engineCC": 1197,
+      "engineLitres": 1.2,
+      "engineFormatted": "1.2L",
+      "vehicleRegisteredText": "Vehicle registered: 02/03/2017",
+      "dealerAddress": "Studio 7, 261 Ealing Road, WEMBLEY, MIDDLESEX, HA0 1ET",
+      "dealerPhone": "(07537) 122736",
+      "dealerTown": "WEMBLEY",
+      "dealerPostcode": "HA0 1ET",
+      "vehicleCheckStatus": "PASSED",
+      "vehicleCheckStatusText": "10 checks passed",
+      "marketPriceRating": {
+        "value": "LOW",
+        "label": "Lower price",
+        "comparisonDescription": "\u00a31,274 below market average",
+        "goodPriceLowerBound": "\u00a36,761",
+        "goodPriceUpperBound": "\u00a37,106"
+      },
+      "specCategories": [
+        {
+          "category": "Performance",
+          "count": "7",
+          "items": [
+            {
+              "name": "0-62mph",
+              "value": "12.9 seconds"
+            },
+            {
+              "name": "Top speed",
+              "value": "107mph"
+            },
+            {
+              "name": "Cylinders",
+              "value": "4"
+            },
+            {
+              "name": "Valves",
+              "value": "16"
+            },
+            {
+              "name": "Engine power",
+              "value": "113BHP"
+            },
+            {
+              "name": "Engine torque",
+              "value": "165NM"
+            },
+            {
+              "name": "Miles per gallon",
+              "value": "50.4mpg"
+            }
+          ]
+        },
+        {
+          "category": "Size and dimensions",
+          "count": "9",
+          "items": [
+            {
+              "name": "Height",
+              "value": "1,590mm"
+            },
+            {
+              "name": "Length",
+              "value": "4,377mm"
+            },
+            {
+              "name": "Width",
+              "value": "2,070mm"
+            },
+            {
+              "name": "Wheelbase",
+              "value": "2,646mm"
+            },
+            {
+              "name": "Seats",
+              "value": "5"
+            },
+            {
+              "name": "Fuel tank capacity",
+              "value": "55L"
+            },
+            {
+              "name": "Boot space (seats down)",
+              "value": "860L"
+            },
+            {
+              "name": "Boot space (seats up)",
+              "value": "430L"
+            },
+            {
+              "name": "Minimum kerb weight",
+              "value": "1,451kg"
+            }
+          ]
+        }
+      ],
+      "vehicleHighlights": [
+        {
+          "key": "FuelEconomyVeryHigh",
+          "title": "Better fuel economy",
+          "description": "50.4mpg\n\nThis vehicle's MPG is in the top 25% compared to vehicles of similar age and body type.",
+          "descriptionList": [
+            "50.4mpg\n\nThis vehicle's MPG is in the top 25% compared to vehicles of similar age and body type."
+          ],
+          "badge": "Top 25%",
+          "linkDescription": "More about running costs",
+          "quantifier": "VERY_HIGH",
+          "vehicleHighlightContext": {
+            "quantifier": "VERY_HIGH",
+            "highlightName": "FUEL_ECONOMY",
+            "index": 1
+          }
+        },
+        {
+          "key": "InsuranceGroupVeryLow",
+          "title": "Lower insurance group",
+          "description": "13E\n\nThis vehicle's insurance group is in the lowest 25% compared to vehicles of similar age and body type.",
+          "descriptionList": [
+            "13E\n\nThis vehicle's insurance group is in the lowest 25% compared to vehicles of similar age and body type."
+          ],
+          "badge": "Lowest 25%",
+          "linkDescription": "More about running costs",
+          "quantifier": "VERY_LOW",
+          "vehicleHighlightContext": {
+            "quantifier": "VERY_LOW",
+            "highlightName": "INSURANCE_GROUP",
+            "index": 2
+          }
+        },
+        {
+          "key": "Co2EmissionLow",
+          "title": "Lower emissions",
+          "description": "129g/km\n\nThis vehicle\u2019s CO2 emissions are lower than average compared to vehicles of similar age and body type.",
+          "descriptionList": [
+            "129g/km\n\nThis vehicle\u2019s CO2 emissions are lower than average compared to vehicles of similar age and body type."
+          ],
+          "linkDescription": "More about running costs",
+          "quantifier": "LOW",
+          "vehicleHighlightContext": {
+            "quantifier": "LOW",
+            "highlightName": "CO2_EMISSION",
+            "index": 3
+          }
+        }
+      ],
+      "mileageComparison": {
+        "mileageDeviationDescription": "This vehicle has done 23,371 more miles than the average",
+        "vehicleDetails": "petrol Nissan Qashqai N-Vision SUV",
+        "registrationDateFormatted": "March 2017"
+      },
+      "websiteSourceStatus": "missing",
+      "websiteMissingCount": 1,
+      "websiteMissingDetectedAt": "2026-10-01T12:02:44.242926+00:00"
+    }
+  }
+]
