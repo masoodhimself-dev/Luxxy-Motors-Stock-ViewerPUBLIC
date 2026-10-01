@@ -7,10 +7,9 @@ import { VehicleCall } from '@/components/vehicle-call';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
-import { VehicleHighlights, VehicleVisit } from '@/components/vehicle-buying-guide';
+import { VehicleVisit } from '@/components/vehicle-buying-guide';
 import { SiWhatsapp } from 'react-icons/si';
 import { ReserveCar } from '@/components/reserve-car';
-import { questionKeyForLabel } from "@/lib/vehicle-questions";
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
@@ -341,13 +340,20 @@ export default function CarDetail() {
           </div>
 
           </div>
-          <section ref={enquiryPanel} id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
-            <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
-            <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
-            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
-          </section>
           <div className="vehicle-details-content min-w-0 pb-10 lg:col-span-2">
-            <VehicleHighlights car={car} features={features} />
+            <div className="vehicle-editorial-overview">
+            {description && <section
+              className="mt-8 border-t border-border pt-7"
+              aria-labelledby="vehicle-description-heading"
+            >
+              <h2 id="vehicle-description-heading" className="section-heading scroll-mt-28">
+                {websiteText(dealerConfig, "vehicleDescriptionHeading")}
+              </h2>
+              <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
+                {description}
+              </p>
+
+            </section>}
             <section
               aria-labelledby="vehicle-overview-heading"
               className="border-t border-border pt-7"
@@ -361,18 +367,7 @@ export default function CarDetail() {
                 ))}
               </dl>
             </section>
-            {description && <section
-              className="mt-8 border-t border-border pt-7"
-              aria-labelledby="vehicle-description-heading"
-            >
-              <h2 id="vehicle-description-heading" className="section-heading scroll-mt-28">
-                {websiteText(dealerConfig, "vehicleDescriptionHeading")}
-              </h2>
-              <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                {description}
-              </p>
-
-            </section>}
+            </div>
             {features.length > 0 && (
               <section
                 className="mt-8 border-t border-border pt-7 lg:col-span-2"
@@ -381,14 +376,20 @@ export default function CarDetail() {
                 <h2 id="features-heading" className="section-heading scroll-mt-28">
                   {websiteText(dealerConfig, "vehicleFeaturesHeading")}
                 </h2>
-                <ul className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-                  {features.map((feature) => (
+                <ul className="vehicle-equipment-list mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  {features.slice(0, 9).map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                       {feature}
                     </li>
                   ))}
                 </ul>
+                {features.length > 9 && <details className="vehicle-equipment-more mt-5">
+                  <summary className="cursor-pointer py-3 text-sm font-semibold underline underline-offset-4">View all {features.length} features</summary>
+                  <ul className="vehicle-equipment-list mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    {features.slice(9).map(feature => <li key={feature} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />{feature}</li>)}
+                  </ul>
+                </details>}
               </section>
             )}
             <section
@@ -399,11 +400,10 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleInformationHeading")}
               </h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                History, condition and what comes with the car. Ask our team
-                about any details still to be confirmed.
+                Available history and handover information. Ask us about anything else you need to know.
               </p>
               <dl className="mt-4 divide-y divide-border">
-                {buyerInformation(car).map((item) => (
+                {buyerInformation(car).filter(item => item.value).map((item) => (
                   <div
                     key={item.label}
                     className="grid grid-cols-[.8fr_1.2fr] gap-5 py-3 text-sm"
@@ -416,7 +416,7 @@ export default function CarDetail() {
                           : "text-muted-foreground"
                       }
                     >
-                      {item.value || <><span className="block">Not supplied — please ask our team</span><Link className="text-link min-h-11 text-sm" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=${questionKeyForLabel(item.label) || ''}`}>Ask about {item.label.toLowerCase()} <ArrowRight className="h-3.5 w-3.5" /></Link></>}
+                      {item.value}
                     </dd>
                   </div>
                 ))}
@@ -446,6 +446,12 @@ export default function CarDetail() {
 
             <VehicleVisit car={car} />
           </div>
+          <section ref={enquiryPanel} id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
+            <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
+            <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
+            <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
+          </section>
+
 
 
         </div>

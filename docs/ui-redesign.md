@@ -822,3 +822,6 @@ Validation: 194 frontend tests, three browser checks, frontend typecheck and bui
 
 ### Vehicle content discoverability
 Added Description and Features & equipment jump links beneath the vehicle title (only for populated sections). Restore these deep links after asynchronous stock loading, with header clearance, instead of leaving visitors at the top. Verified the user's in-app browser visibly shows the description after reload. Three browser checks including desktop/mobile anchor navigation, typecheck and build passed.
+
+### Vehicle-page architecture review
+Replaced the uneven lower-page grid with a deliberate reading order: description/specification overview, compact expandable equipment, supplied buyer information, visit, then enquiry. Removed duplicate highlights and repeated empty-data rows; all actual insurance disclosures remain. Kept price, booking, reserve, contact, print/share and reviews intact. Features show nine entries with a keyboard-accessible native disclosure for the remainder. The showroom photograph is secondary beside visit information on desktop. Gallery remains in view while scrolling through the adjacent summary. Reviewed full-page desktop/mobile captures and tested deep links, equipment expansion, ordering and overflow. 194 unit tests and five browser checks passed; typecheck/build passed with existing size warning.

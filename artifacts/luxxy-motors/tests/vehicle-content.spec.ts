@@ -22,4 +22,11 @@ for (const width of [390,1280]) test(`description deep link and navigation at ${
  await expect(page.locator('#features-heading')).toBeInViewport();
  await page.getByRole('link',{name:'Description',exact:true}).click();
  await expect(page.locator('#vehicle-description-heading')).toBeInViewport();
+ const sections=await page.locator('#features-heading, #buyer-information-heading, #vehicle-enquiry-heading').evaluateAll(els=>Object.fromEntries(els.map(el=>[el.id,el.getBoundingClientRect().top])));
+ expect(sections['features-heading']).toBeLessThan(sections['buyer-information-heading']);
+ expect(sections['buyer-information-heading']).toBeLessThan(sections['vehicle-enquiry-heading']);
+ await page.screenshot({path:`/tmp/vehicle-architecture-${width}.png`,fullPage:true});
+ await page.locator('.vehicle-equipment-more summary').click();
+ await expect(page.locator('.vehicle-equipment-more')).toHaveAttribute('open','');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });
