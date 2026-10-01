@@ -732,6 +732,6 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 @media(min-width:1024px) {
  .vehicle-main-column { display: block; grid-column: 1; grid-row: 1; }
  .vehicle-summary-column { grid-column: 2; grid-row: 1; }
- .vehicle-main-column .vehicle-gallery-frame > div { aspect-ratio: auto; height: clamp(320px, 52vh, 620px); }
+ .vehicle-main-column .vehicle-gallery-frame > div { aspect-ratio: 4 / 3; height: auto; }
  .vehicle-main-column .vehicle-details-content { padding-top: 0; }
 }
