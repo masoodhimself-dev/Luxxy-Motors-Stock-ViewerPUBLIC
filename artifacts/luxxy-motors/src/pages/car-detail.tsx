@@ -2,6 +2,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
+import { stockRegistrationYear } from '@/lib/stock-presentation';
 import { websiteText } from "@/lib/website-content";
 import { VehicleReviews } from '@/components/vehicle-reviews';
 import { VehicleWhatsApp } from '@/components/vehicle-whatsapp';
@@ -111,7 +112,10 @@ export default function CarDetail() {
   }, [car?.id]);
 
 
-  usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : null);
+  usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
+    title: `${error ? 'Vehicle details unavailable' : 'Vehicle not in stock'} | ${dealerConfig.identity.name}`,
+    description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or contact the showroom about this vehicle.',
+  });
 
   if (isLoading) {
     return (
@@ -152,7 +156,7 @@ export default function CarDetail() {
   const registrationBand = [car.registrationBand, car.registration]
     .map((value) => value?.trim() || '')
     .find((value) => value && !isUKNumberPlate(value));
-  const registrationYear = registrationBand || (car.year ? String(car.year) : 'Unknown');
+  const registrationYear = stockRegistrationYear({ ...car, registrationBand: registrationBand ?? null }) || registrationBand || 'Unknown';
   const bookingHref = getVehicleBookingHref(car);
   const phoneHref = getPhoneHref(dealerConfig);
   const whatsappHref = getVehicleWhatsAppHref(

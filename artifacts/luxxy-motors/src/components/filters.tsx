@@ -332,7 +332,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             </div>
           </fieldset>
         </section>
-        <div className="flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline" onClick={resetFilters}>Reset filters</button><button type="button" className="min-h-12 bg-primary px-6 text-primary-foreground" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} cars</button></div>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline" onClick={resetFilters}>Reset filters</button><button type="button" className="min-h-12 bg-primary px-6 text-primary-foreground" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} {(matchCount ?? vehicleCount) === 1 ? 'car' : 'cars'}</button></div>
       </DialogContent></Dialog>
     </div>
   );

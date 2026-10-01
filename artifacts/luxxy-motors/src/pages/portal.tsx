@@ -92,7 +92,11 @@ function PortalDesk() {
     );
   }
 
-  if (sessionQuery.isError || sessionQuery.data?.state === 'forbidden') {
+  const requestStatus = sessionQuery.error && 'status' in sessionQuery.error
+    ? sessionQuery.error.status
+    : undefined;
+
+  if (sessionQuery.data?.state === 'forbidden' || requestStatus === 403) {
     return (
       <AccessDenied
         email={
@@ -101,6 +105,21 @@ function PortalDesk() {
           null
         }
       />
+    );
+  }
+
+  if (sessionQuery.isError) {
+    return (
+      <PortalFrame
+        kicker="Staff portal"
+        title="Unable to load your workspace"
+        blurb="We couldn’t check your staff access. Please try again in a moment."
+      >
+        <Button type="button" onClick={() => void sessionQuery.refetch()} disabled={sessionQuery.isFetching}>
+          {sessionQuery.isFetching ? 'Checking access…' : 'Try again'}
+        </Button>
+        <Button asChild variant="outline"><Link href="/">Back to showroom</Link></Button>
+      </PortalFrame>
     );
   }
 

@@ -64,6 +64,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     return () => window.removeEventListener('hashchange', redirectStock);
   }, [browseStock, setLocation]);
   const { stock, isLoading, error } = useStock();
+  const publicCars = useMemo(() => (stock?.cars ?? []).filter(car => !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus).toLowerCase())), [stock?.cars]);
   const { settings: dealerConfig } = useDealerSettings();
   const recentHandoversQuery = useGetRecentHandovers({
     query: {
@@ -82,7 +83,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     }
   });
 
-  usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock?.cars.length ?? null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
+  usePageMeta({ ...showroomPageMeta(dealerConfig, { count: stock ? publicCars.length : null }), ...(browseStock ? { title: 'Browse Stock | ' + dealerConfig.identity.name, url: window.location.origin + '/stock' } : {}) });
 
   const { savedCount } = useSavedCars();
   const [copyNotice, setCopyNotice] = useState('');
@@ -133,9 +134,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   }, [browseStock]);
 
   const filteredCars = useMemo(() => {
-    if (!stock) return [];
-
-    let result = stock.cars.filter(car => !['sold','archived','hidden'].includes(String(car.inventoryStatus).toLowerCase()));
+    let result = [...publicCars];
 
     const q = filters.search.trim().toLowerCase();
     if (q) {
@@ -205,7 +204,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     }
 
     return result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
-  }, [stock, filters]);
+  }, [publicCars, filters]);
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);
@@ -230,7 +229,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const displayedCars = filteredCars.slice(0, visibleCount);
   const hasFilters = Object.entries(filters).some(([key,value])=>key !== "sort" && Boolean(value));
   const recentHandovers = recentHandoversQuery.data?.handovers ?? [];
-  const stockCount = stock?.count ?? stock?.cars.length ?? 0;
+  const stockCount = publicCars.length;
 
   useEffect(() => {
     try {
@@ -271,7 +270,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   };
 
   // The hero is a dealership introduction; featured stock only orders the stock list.
-  const heroFallbackCar = stock?.cars.find((car) => getThumbnailUrl(car));
+  const heroFallbackCar = publicCars.find((car) => getThumbnailUrl(car));
 
   const configuredHeroImage = dealerConfig.presentation?.heroImageUrl;
   // Custom homepage photography is independent of featured stock selections.
@@ -353,13 +352,13 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             <p className="text-xs font-medium tracking-wide text-white/80">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
             <h1 id="home-heading" tabIndex={-1} className="mt-2 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{dealerConfig.hero.copy}</h1>
             {dealerConfig.presentation?.showHeroDescription && <p className="mt-4 max-w-lg text-sm leading-6 text-white/85">{dealerConfig.hero.subcopy}</p>}
-            <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={stock?.cars ?? []} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
+            <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
           {!error && filteredCars.length < 4 && <p className="mt-8 border-t pt-5 text-sm">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
-      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={stock?.cars ?? []} unavailable={Boolean(error)} />}
+      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={publicCars} unavailable={Boolean(error)} />}
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -385,8 +384,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 aria-atomic="true"
               >
                 {!hasFilters
-                  ? `${filteredCars.length} vehicles available`
-                  : `${filteredCars.length} cars match your search`}
+                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available`
+                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
               </p>
             )}
             {!isPhone && <div className="col-start-2 row-start-1 row-span-2 lg:col-start-4 lg:row-span-1">{stockViewControls}</div>}
@@ -398,7 +397,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
                 className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-automatic"
-                disabled={!stock?.cars.some(car => /automatic/i.test(car.transmission || ""))}
+                disabled={!publicCars.some(car => /automatic/i.test(car.transmission || ""))}
               >
                 Automatic
               </button>
@@ -407,7 +406,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 onClick={() => applyQuickFilter({ maxPrice: '5000' })}
                 className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-under-5000"
-                disabled={!stock?.cars.some(car => car.price != null && car.price <= 5000)}
+                disabled={!publicCars.some(car => car.price != null && car.price <= 5000)}
               >
                 Under £5k
               </button>
@@ -419,10 +418,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               >
                 Low miles
               </button>
-              {stock?.cars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
+              {publicCars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
             </div>
  </>}
-            cars={stock?.cars || []}
+            cars={publicCars}
             filters={filters}
             setFilters={changeFilters}
             vehicleCount={stockCount}
@@ -489,9 +488,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                     />
                   ))}
                 </div>
-                <div className="stock-results-end mt-6 flex flex-col items-center justify-center gap-3"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} cars</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
+                <div className="stock-results-end mt-6 flex flex-col items-center justify-center gap-3"><p className="text-sm text-muted-foreground">Showing {displayedCars.length} of {filteredCars.length} {filteredCars.length === 1 ? 'car' : 'cars'}</p>{visibleCount < filteredCars.length && <Button variant="outline" onClick={()=>setVisibleCount(count=>count+12)}>Show more cars</Button>}</div>
               </>
-            ) : !stock?.cars.length ? (
+            ) : !publicCars.length ? (
               <div className="stock-empty surface px-6 py-8 text-left" data-testid="empty-stock">
                 <h3 className="section-heading">No vehicles currently listed</h3>
                 <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Contact the team about upcoming stock or tell us what you’re looking for.</p>

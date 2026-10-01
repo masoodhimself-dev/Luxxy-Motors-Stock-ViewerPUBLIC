@@ -13,7 +13,10 @@ for (const width of [390, 1194]) {
       .fill("Sample Buyer");
     await page.getByLabel("Email", { exact: true }).fill("buyer@example.test");
     await page.getByRole("button", { name: "Vehicle", exact: true }).click();
-    await page.getByLabel("Vehicle", { exact: true }).selectOption("preview-1");
+    const vehicle = page.getByLabel("Vehicle", { exact: true });
+    await expect(vehicle.locator('option[value]:not([value=""])').first()).toBeAttached();
+    const vehicleId = await vehicle.locator('option[value]:not([value=""])').first().getAttribute('value');
+    await vehicle.selectOption(vehicleId!);
     await page.getByLabel("Agreed vehicle price (£)").fill("15000");
     await page
       .getByRole("button", { name: "Part exchange", exact: true })
@@ -56,9 +59,9 @@ for (const width of [390, 1194]) {
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    await mkdir("../../docs/screenshots/sales-workspace", { recursive: true });
+    await mkdir("/tmp/luxxy-sales-workspace", { recursive: true });
     await page.screenshot({
-      path: `../../docs/screenshots/sales-workspace/documents-${width}.png`,
+      path: `/tmp/luxxy-sales-workspace/documents-${width}.png`,
     });
     await page.evaluate(() => {
       window.print = () => {};
@@ -71,7 +74,7 @@ for (const width of [390, 1194]) {
     await expect(page.locator("#root")).toBeHidden();
     await expect(page.locator(".sales-print-copy")).toContainText("£11,750.00");
     await page.screenshot({
-      path: `../../docs/screenshots/sales-workspace/print-${width}.png`,
+      path: `/tmp/luxxy-sales-workspace/print-${width}.png`,
       fullPage: true,
     });
     await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));

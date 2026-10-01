@@ -906,3 +906,53 @@ These are Chromium touch/emulation checks, not a physical iPhone/iPad Safari tes
 | Phone (390px) | [Homepage strip](screenshots/touch-browsing-2026-10-01/phone-featured.png) | [Stock card](screenshots/touch-browsing-2026-10-01/phone-stock.png) |
 | iPad portrait (820px) | [Two cards](screenshots/touch-browsing-2026-10-01/ipad-portrait-featured.png) | [Two-column stock](screenshots/touch-browsing-2026-10-01/ipad-portrait-stock.png) |
 | iPad landscape (1180px) | [Three cards](screenshots/touch-browsing-2026-10-01/ipad-landscape-featured.png) | [Three-column stock](screenshots/touch-browsing-2026-10-01/ipad-landscape-stock.png) |
+
+### Whole-site follow-up audit — 1 October 2026
+
+Reviewed the customer site and staff workspace again, exercising real controls as well as inspecting desktop, tablet and phone captures. Kept the existing design and fixed concrete failures instead of introducing another visual redesign.
+
+**Issues fixed**
+
+- Reservation confirmation could fail before sending a request on an HTTP local-network address: `crypto.randomUUID` is unavailable in that context. Added a cryptographically random UUID fallback using `getRandomValues`; repeated attempts retain the same idempotency key. No reservation or payment rules changed.
+- Archived, hidden and sold cars could still appear in the homepage featured strip and search choices. Home and Browse Stock now use the same visible inventory for those surfaces and their counts. A feed containing only unavailable cars now shows the genuine empty-stock message, rather than suggesting the customer remove nonexistent filters.
+- Broken comparison photographs now use the shared image fallback, preserving readable vehicle details and a stable layout.
+- Vehicle summaries now show the supplied year alongside the registration band, consistently with stock cards. Previously the Ford summary showed only “15 reg”.
+- Saved cars, shared shortlists, comparison and unavailable pages now have descriptive browser titles. The 404 page uses readable sentence-case copy and direct stock/contact recovery links.
+- Gallery touch handling now permits native pinch zoom alongside vertical scrolling.
+- Successful enquiries/test-drive requests move keyboard focus to the confirmation heading. Booking management has clearer status announcements, larger date text and a correctly routed Browse stock link after cancellation.
+- Staff network errors now show a retryable connection state, rather than incorrectly claiming access was denied. Genuine forbidden responses still show access denied; authentication rules are unchanged.
+- On narrow screens, settings Continue and sales-demo Next/Previous keep the active horizontal step visible.
+- Single-result wording now reads “1 car matches”, “Show 1 car” and “1 vehicle available”.
+
+**Coverage**
+
+Customer coverage included home/search/reset, Browse Stock filters/sort/grid/list, saved and shared cars, enabled/disabled comparison, vehicle galleries and description/equipment jump links, current-car print/share, call/WhatsApp review dialogs, enquiry, car-specific test-drive booking, reservation/retry, part exchange, contact/directions, delivery, enabled/disabled warranty, booking management/expired links, retired signing/document routes, 404s, unavailable stock and failed API/image states. The live LAN address was also used for manual homepage → filtered stock → vehicle → equipment navigation.
+
+Staff coverage included reservations/filtering/cancellation confirmation, all ten settings sections in guided and all-sections modes, all six sales-demo sections, local draft handling, invoice/receipt previews and the three-part-exchange limit. Tests use mock customer data, intercept customer writes and stub print/share side effects; no real enquiries, messages, reservations, payments or published settings were created.
+
+**Validation and limits**
+
+- Frontend: **194/194 tests passed**, across 41 files.
+- Browser: **97 distinct current regression tests passed**: 60 existing responsive/touch/mobile/gallery/saved/content/price checks, six new site-audit checks, 12 customer-flow checks, seven portal checks, three sales-workspace checks and nine stock/image edge checks. Relevant suites were rerun after their fixes. Nine additional print/share/gallery-navigation checks passed at 390, 820 and 1440px.
+- New audit cases cover 390, 820 and 1440px; existing responsive coverage also exercises 320, 375, 1024 and 1180px, plus short landscape galleries. No page-wide horizontal overflow or content-overlap failure was found in these checked routes/states.
+- Final **full workspace typechecking and builds passed**. Existing tooltip/collapsible sourcemap warnings and the approximately 586kB main client bundle warning remain. Reducing that bundle is a useful separate performance task.
+- Backend: **77 passed, 12 failed out of 89 executed**. All current stock, settings, PDF, reservation policy/integration, portability and retirement checks passed. The failures are nine legacy sales tests, two lead-to-sale tests and one portal work-queue test that still expect retired APIs to succeed; those APIs intentionally return 410. The test command stops at the retired sales suite, so remaining suites were run separately. This is not a fully green backend suite: its legacy coverage needs aligning with the deliberately removed workflow before it can serve as a clean release gate. No backend tests or implementation were changed in this audit.
+- Reservation integration checks used a disposable local test database, which was shut down afterwards. No migrations were run.
+- Chromium responsive/touch emulation is not a physical iPhone/iPad Safari test. Real Clerk sign-in, Stripe payments and outbound email delivery are not proven by this isolated preview; payments remain simulated. Configurable disabled pages were checked with both current settings and isolated test fixtures where noted.
+- Source changes are frontend-only. No backend/API, database, authentication-rule, sales-rule, production, deployment or merge changes.
+
+Changed application files: `components/dealer-settings-panel.tsx`, `enquiry-form.tsx`, `filters.tsx`, `gallery.tsx`, `reserve-car.tsx`; `pages/car-detail.tsx`, `compare.tsx`, `home.tsx`, `not-found.tsx`, `portal.tsx`, `sales-demo.tsx`, `saved.tsx`, `viewing.tsx` (under `artifacts/luxxy-motors/src`). Added four browser audit suites and updated the existing responsive/sales-workspace tests to use current labels and stock instead of obsolete preview IDs.
+
+**Selected final screenshots**
+
+| Page / state | Phone | Tablet / desktop |
+| --- | --- | --- |
+| Homepage | [390px](screenshots/full-audit-2026-10-01/home-390.jpg) | [1440px](screenshots/full-audit-2026-10-01/home-1440.jpg) |
+| Filtered stock | — | [820px](screenshots/full-audit-2026-10-01/filtered-stock-820.jpg), [1440px](screenshots/full-audit-2026-10-01/filtered-stock-1440.jpg) |
+| Vehicle | [390px](screenshots/full-audit-2026-10-01/vehicle-390.jpg) | [1440px](screenshots/full-audit-2026-10-01/vehicle-1440.jpg) |
+| Saved / comparison fallback | [Saved](screenshots/full-audit-2026-10-01/saved-390.jpg) | [Failed-photo fallback, 390px](screenshots/full-audit-2026-10-01/comparison-photo-fallback-390.png) |
+| Test drive | [390px](screenshots/full-audit-2026-10-01/test-drive-390.png) | [1440px](screenshots/full-audit-2026-10-01/test-drive-1440.png) |
+| Contact | — | [1440px](screenshots/full-audit-2026-10-01/contact-1440.png) |
+| Settings | [Review step, 390px](screenshots/full-audit-2026-10-01/settings-review-390.png) | [Identity, 820px](screenshots/full-audit-2026-10-01/settings-identity-820.png) |
+| Sales document preview | [390px](screenshots/full-audit-2026-10-01/sales-documents-390.png) | [1440px](screenshots/full-audit-2026-10-01/sales-documents-1440.png) |
+| Staff reservations (test fixture) | — | [1440px](screenshots/full-audit-2026-10-01/reservations-1440.png) |

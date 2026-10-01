@@ -1,4 +1,5 @@
 import { SavedCarDetails } from '@/components/saved-car-details';
+import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { websiteText } from "@/lib/website-content";
 import { useState } from "react";
@@ -18,6 +19,10 @@ export default function Saved() {
   const { savedIds, clearSaved } = useSavedCars();
 
   const sharedIds = parseShortlist(useSearch());
+  usePageMeta({
+    title: `${sharedIds ? 'Shared shortlist' : 'Saved cars'} | ${settings.identity.name}`,
+    description: 'Review your shortlisted cars, explore their details and arrange a test drive.',
+  });
   const shownIds = sharedIds ?? savedIds;
   const [shareStatus, setShareStatus] = useState("");
   const [copyLink, setCopyLink] = useState("");

@@ -105,6 +105,18 @@ export default function SalesDemo() {
     "Sales invoice" | "Deposit receipt"
   >("Sales invoice");
   const heading = useRef<HTMLHeadingElement>(null);
+  const sectionNavigation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const navigation = sectionNavigation.current;
+    const active = navigation?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!navigation || !active) return;
+    const container = navigation.getBoundingClientRect();
+    const button = active.getBoundingClientRect();
+    // Keep the selected step in view when Next/Previous changes a section on
+    // narrow screens, without scrolling the form or moving keyboard focus.
+    if (button.left < container.left) navigation.scrollLeft -= container.left - button.left + 16;
+    else if (button.right > container.right) navigation.scrollLeft += button.right - container.right + 16;
+  }, [tab, Boolean(draft)]);
   const dirty = Boolean(draft && JSON.stringify(draft) !== snapshot);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -276,6 +288,7 @@ export default function SalesDemo() {
       ) : (
         <>
           <nav
+            ref={sectionNavigation}
             aria-label="Sale sections"
             className="sales-chrome flex shrink-0 overflow-x-auto border-b border-border bg-white px-4 md:px-8"
           >

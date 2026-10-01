@@ -1,4 +1,6 @@
 import { websiteText } from "@/lib/website-content";
+import { usePageMeta } from '@/hooks/use-page-meta';
+import { ShowroomPhoto } from '@/components/showroom-photo';
 import { SiWhatsapp } from 'react-icons/si';
 import { useState } from 'react';
 import { PageHeading, PageEmptyState } from '@/components/page-ui';
@@ -91,7 +93,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
     <div className="flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-card shadow-none">
       <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full border-b border-primary bg-primary/10">
         {thumbnail ? (
-          <img src={thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <ShowroomPhoto src={thumbnail} alt={label} fit="contain" className="absolute inset-0" />
         ) : (
           <div className="flex h-full items-center justify-center font-display text-[11px] font-semibold tracking-normal text-muted-foreground">No photo</div>
         )}
@@ -191,6 +193,10 @@ function EmptySlot() {
 
 export default function Compare() {
   const { settings } = useDealerSettings();
+  usePageMeta({
+    title: `${settings.presentation?.comparisonEnabled ? 'Compare cars' : 'Choose your next car'} | ${settings.identity.name}`,
+    description: 'Review the cars you are considering and find the right one for you.',
+  });
   const { stock, isLoading, error } = useStock();
   const { compareIds, removeFromCompare } = useSavedCars();
   const [differencesOnly, setDifferencesOnly] = useState(false);

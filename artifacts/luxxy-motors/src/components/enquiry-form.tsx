@@ -127,6 +127,7 @@ export function EnquiryForm({
   const [type, setType] = useState<EnquiryType>(initialType);
   const [unavailableVehiclePhoto, setUnavailableVehiclePhoto] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const successHeadingRef = useRef<HTMLHeadingElement>(null);
   const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
   const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
   useEffect(() => {
@@ -182,6 +183,9 @@ export function EnquiryForm({
   useEffect(() => {
     if(mutation.isError) document.querySelector<HTMLElement>('[data-testid="status-enquiry-error"]')?.focus();
   }, [mutation.isError]);
+  useEffect(() => {
+    if (mutation.isSuccess) successHeadingRef.current?.focus();
+  }, [mutation.isSuccess]);
   const discardDraft = () => {
     discardEnquiryDraft(draftKey);setDraftSaved(false);
     setCustomerName('');setEmail('');setPhone('');setMessage('');messageTouched.current=true;
@@ -325,7 +329,7 @@ export function EnquiryForm({
           <CheckCircle2 className="h-6 w-6" />
         </span>
         <p className="luxxy-label mt-7 text-accent">{isViewing ? 'Your visit is reserved' : 'Message received'}</p>
-        <h2 className="mt-4 font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-.035em] text-primary sm:text-[2.5rem]">
+        <h2 ref={successHeadingRef} tabIndex={-1} className="mt-4 font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-.035em] text-primary outline-none sm:text-[2.5rem]">
           {isViewing ? 'See you at the showroom.' : 'We will be in touch.'}
         </h2>
         <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-primary/70">

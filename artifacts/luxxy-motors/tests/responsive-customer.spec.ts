@@ -220,13 +220,13 @@ for (const viewport of viewports) {
       await expectReachable(make);
       await make.selectOption(car.make);
       const expectedCount = cars.filter(candidate => candidate.make === car.make).length;
-      const showCars = dialog.getByRole('button', { name: `Show ${expectedCount} cars`, exact: true });
+      const showCars = dialog.getByRole('button', { name: `Show ${expectedCount} ${expectedCount === 1 ? 'car' : 'cars'}`, exact: true });
       await expectReachable(showCars);
       await expectInsideViewport(page, showCars);
       await capture(page, 'filters');
       await showCars.tap();
       await expect(dialog).toHaveCount(0);
-      await expect(page.getByTestId('text-filtered-stock-count')).toContainText(`${expectedCount} cars match your search`);
+      await expect(page.getByTestId('text-filtered-stock-count')).toContainText(`${expectedCount} ${expectedCount === 1 ? 'car matches' : 'cars match'} your search`);
       await expect(page.getByRole('button', { name: `Remove ${car.make} filter`, exact: true })).toBeVisible();
       const sort = page.getByRole('combobox', { name: 'Sort results' });
       await expectReachable(sort);

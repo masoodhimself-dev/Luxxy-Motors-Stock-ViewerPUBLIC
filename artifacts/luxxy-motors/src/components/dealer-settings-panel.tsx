@@ -4,7 +4,7 @@ import { ShowroomPhoto } from './showroom-photo';
 import { ReviewsSettings } from './reviews-settings';
 import { ColourField, isValidHsl } from '@/components/brand/colour-field';
 import { DealerWordmark } from "@/components/brand/wordmark";
-import { createContext, useContext, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   getGetDealerSettingsQueryKey,
   type DealerSettings,
@@ -310,6 +310,16 @@ export function DealerSettingsPanel() {
   const [form, setForm] = useState<DealerSettings>(fallbackSettings);
   const [initialized, setInitialized] = useState(false);
   const [activeSection, setActiveSection] = useState<FormSection>('identity');
+  const sectionNavigation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const navigation = sectionNavigation.current;
+    const active = navigation?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!navigation || !active) return;
+    const container = navigation.getBoundingClientRect();
+    const button = active.getBoundingClientRect();
+    if (button.left < container.left) navigation.scrollLeft -= container.left - button.left + 8;
+    else if (button.right > container.right) navigation.scrollLeft += button.right - container.right + 8;
+  }, [activeSection]);
   const [guided, setGuided] = useState(true);
   const stepIndex = setupSteps.findIndex(([id]) => id === activeSection);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -548,7 +558,7 @@ export function DealerSettingsPanel() {
       )}
 
       <div className="settings-workspace">
-      <nav className="settings-step-nav" aria-label="Settings sections">
+      <nav ref={sectionNavigation} className="settings-step-nav" aria-label="Settings sections">
         {setupSteps.map(([section, label, hint], index) => <button key={section} type="button" aria-current={activeSection === section ? 'step' : undefined} onClick={() => scrollToSection(section)} data-testid={`button-settings-nav-${section}`}>
           <span className="settings-step-number">{String(index + 1).padStart(2, '0')}</span><span><span className="block font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{hint}</span></span>
         </button>)}

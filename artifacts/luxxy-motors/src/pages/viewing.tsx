@@ -109,7 +109,7 @@ export default function Viewing() {
   const shell = (children: React.ReactNode) => (
     <div className="luxxy-shell min-h-[60vh] bg-background">
       <div className="mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6 sm:pt-12">
-        <Link href="/" className="inline-flex items-center gap-3 font-display text-[12px] font-normal text-primary transition-colors hover:text-accent group mb-8" data-testid="link-back-to-showroom">
+        <Link href="/" className="inline-flex min-h-11 items-center gap-3 font-display text-sm font-normal text-primary transition-colors hover:text-accent group mb-8" data-testid="link-back-to-showroom">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Back to showroom
         </Link>
         <div className="border border-border bg-card shadow-none">
@@ -207,12 +207,12 @@ export default function Viewing() {
 
       {isCancelled ? (
         <div className="bg-primary/5 p-6 sm:p-10 border-t border-primary/10">
-          <p className="flex items-center gap-3 font-display text-[12px] font-semibold tracking-normal text-primary" data-testid="status-viewing-cancelled">
+          <p role="status" className="flex items-center gap-3 font-display text-sm font-semibold tracking-normal text-primary" data-testid="status-viewing-cancelled">
             <XCircle className="h-5 w-5 text-accent" /> This test drive will not go ahead.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <Button asChild className="h-12 rounded-md bg-primary font-display text-[11px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent">
-              <Link href="/">Back to Stock</Link>
+              <Link href="/stock">Browse stock</Link>
             </Button>
             {(phoneHref || whatsAppHref) && (
               <p className="flex items-center gap-4 font-medium text-[13px] tracking-normal text-primary/70 border-l-2 border-primary/20 pl-4">
@@ -255,10 +255,10 @@ export default function Viewing() {
                 className={`flex h-12 flex-col items-center justify-center border border-border bg-card px-2 transition-all duration-200 shadow-none  shadow-none ${selectedDate === date ? 'border-accent shadow-none translate-y-[-2px]' : ''}`}
                 data-testid={`button-viewing-date-${date}`}
               >
-                <span className={`font-display text-[11px] font-semibold  tracking-normal ${selectedDate === date ? 'text-accent' : 'text-primary'}`}>
+                <span className={`font-display text-xs font-semibold tracking-normal ${selectedDate === date ? 'text-accent' : 'text-primary'}`}>
                   {formatDateLabel(date).split(' ')[0]}
                 </span>
-                <span className={`text-[10px] font-normal ${selectedDate === date ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`text-xs font-normal ${selectedDate === date ? 'text-primary' : 'text-muted-foreground'}`}>
                   {formatDateLabel(date).split(' ').slice(1).join(' ')}
                 </span>
               </button>
@@ -321,7 +321,7 @@ export default function Viewing() {
         </div>
       ) : reschedule.isSuccess && mode === 'idle' ? (
         <div className="bg-background p-6 sm:p-10 border-t border-accent">
-          <p className="flex items-center gap-3 font-display text-[13px] font-semibold tracking-normal text-primary" data-testid="status-reschedule-success">
+          <p role="status" className="flex items-center gap-3 font-display text-sm font-semibold tracking-normal text-primary" data-testid="status-reschedule-success">
             <Clock3 className="h-5 w-5 text-accent" /> Your test drive has been moved. We have updated the showroom diary.
           </p>
         </div>

@@ -147,7 +147,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle' }: Ga
       <div className="min-w-0">
         <div className="vehicle-gallery-frame">
         <div
-          className="relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y"
+          className="relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
           {...touchHandlers}
         >
           {renderImage(
@@ -265,7 +265,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle' }: Ga
       >
         <DialogTitle className="sr-only">Vehicle image gallery</DialogTitle>
         {groupNavigation(true)}
-        <div className="vehicle-lightbox-photo flex min-w-0 items-center justify-center touch-pan-y" {...touchHandlers}>
+        <div className="vehicle-lightbox-photo flex min-w-0 items-center justify-center touch-pan-y touch-pinch-zoom" {...touchHandlers}>
           {renderImage(index, 'h-full max-h-full w-full object-contain', true)}
         </div>
         <div className="vehicle-lightbox-navigation flex items-center justify-between gap-3">

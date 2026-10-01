@@ -12,6 +12,16 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, Dia
 const pounds = (pence: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 2 }).format(pence / 100).replace(/\.00$/, '');
 type Contact = { customerName: string; email: string; phone: string };
 
+function reservationRequestKey() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // getRandomValues also works on HTTP LAN previews, where randomUUID does not.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function ReserveCar({ car, className, customer, partExchange }: {
   car: Car;
   className?: string;
@@ -72,7 +82,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
       ...(partExchange?.registration.trim() && Number.isInteger(partExchange.mileage) ? { partExchange } : {}),
     };
     const data = JSON.stringify(body);
-    if (attempt.current?.data !== data) attempt.current = { data, key: crypto.randomUUID() };
+    if (attempt.current?.data !== data) attempt.current = { data, key: reservationRequestKey() };
     mutation.mutate({ data: { ...body, idempotencyKey: attempt.current.key } as OnlineReservationInput }, {
       onSuccess: () => {
         void cache.invalidateQueries({ queryKey: getGetStockQueryKey() });
@@ -124,7 +134,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
             <p className="mt-2 text-sm">Deposit: {pounds(result.depositPence)} · Payment simulated</p>
             <p className="mt-2 text-sm text-muted-foreground">£0 received. Your full vehicle balance is still outstanding. This is a reservation record, not a payment receipt.</p>
           </div></div>
-          <p className="text-sm leading-6 text-muted-foreground">{result.status === 'cancelled' ? 'Contact the dealership or refresh the vehicle page to check its current availability.' : 'Contact the dealership with this reference if you need to change or cancel your reservation. A viewing must be booked separately.'}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{result.status === 'cancelled' ? 'Contact the dealership or refresh the vehicle page to check its current availability.' : 'Contact the dealership with this reference if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
           <DialogClose asChild><Button type="button" className="w-full">Done</Button></DialogClose>
         </div> : step === 'details' ? <form onSubmit={review} className="space-y-4">
           <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} autoComplete="name" value={contact.customerName} onChange={e => setContact({ ...contact, customerName: e.target.value })} /></label>
