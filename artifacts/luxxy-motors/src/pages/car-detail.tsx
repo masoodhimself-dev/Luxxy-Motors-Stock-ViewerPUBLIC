@@ -222,7 +222,7 @@ export default function CarDetail() {
   };
 
   return (
-    <div className="luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+    <div className="vehicle-page luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-2 py-4">
           <Link href="/stock" className="text-link text-muted-foreground">

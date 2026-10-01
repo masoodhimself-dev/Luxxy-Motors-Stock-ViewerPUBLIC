@@ -834,3 +834,6 @@ Added a dark fullscreen photo viewer with white rounded Show phone number and Me
 
 ### Saved vehicle details and contextual test-drive booking
 Saved/shared shortlists retain the existing car cards and now expose an accessible More details disclosure with variant, supplied specifications, description, eight equipment highlights and links to full details or that vehicle's test-drive booking. Missing fields are omitted. All shared-layout booking controls (desktop header, mobile menu and footer) now carry the current vehicle route ID; generic pages still offer vehicle selection. Existing vehicle-page booking link remains unchanged. 194 frontend tests, two desktop/mobile browser checks, typecheck and build passed.
+
+### Vehicle page width and readability
+Removed the 1280px content cap from vehicle pages in favour of full available width with responsive edge gutters. Increased vehicle body/feature/specification text to 16px, secondary labels to 14px, and adjusted heading/price sizes and line spacing. Prose retains a readable line length. Changes are scoped to vehicle detail pages. Nine browser checks passed across 390–1920px including overlap/deep links, plus frontend typecheck/build; inspected the large-desktop screenshot. No backend or data changes.

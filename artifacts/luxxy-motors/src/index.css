@@ -701,3 +701,27 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .vehicle-lightbox-contact-button:focus-visible { outline: 3px solid #38c9e6; outline-offset: 3px; }
 @media(max-width:639px) { .vehicle-lightbox { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 56px 12px 12px; } .vehicle-lightbox-contact { gap: 8px; } .vehicle-lightbox-contact-button { width: auto; flex: 1; padding: 12px 8px; gap: 6px; font-size: 13px; } }
 .vehicle-lightbox > button:last-child { color: #17191a; opacity: 1; }
+
+/* Vehicle pages use the screen width; prose keeps a readable line length. */
+.vehicle-page > .container,
+.vehicle-page > section > .container { max-width: none; padding-inline: clamp(16px, 2.5vw, 48px); }
+.vehicle-page { font-family: var(--app-font-sans); font-size: 16px; line-height: 1.65; }
+.vehicle-page .section-heading { font-size: clamp(22px, 1.8vw, 30px); line-height: 1.3; letter-spacing: -.02em; }
+.vehicle-page .vehicle-summary h1 { font-size: clamp(28px, 2.3vw, 40px); line-height: 1.2; }
+.vehicle-page .vehicle-summary .text-sm,
+.vehicle-page .vehicle-details-content .text-sm,
+.vehicle-page .vehicle-inline-enquiry .text-sm { font-size: 16px; line-height: 1.7; }
+.vehicle-page .vehicle-summary .text-xs,
+.vehicle-page .vehicle-details-content .text-xs { font-size: 14px; line-height: 1.6; }
+.vehicle-page .vehicle-details-content dt { font-size: 14px; line-height: 1.6; }
+.vehicle-page .vehicle-details-content dd { font-size: 16px; line-height: 1.6; }
+.vehicle-page .vehicle-editorial-overview p { max-width: 72ch; line-height: 1.85; }
+.vehicle-page .vehicle-summary { padding: clamp(20px, 2vw, 32px); }
+.vehicle-page .vehicle-summary .luxxy-price { font-size: clamp(32px, 2.8vw, 44px); line-height: 1.2; }
+.vehicle-page .vehicle-equipment-list { row-gap: 16px; }
+.vehicle-page .vehicle-contact-action,
+.vehicle-page .vehicle-enquiry-action { font-size: 16px; }
+@media(min-width:1024px) {
+ .vehicle-page .vehicle-detail-grid { grid-template-columns: minmax(0,1.4fr) minmax(380px,1fr); gap: 32px; }
+ .vehicle-page .vehicle-editorial-overview { grid-template-columns: minmax(0,1.4fr) minmax(380px,1fr); gap: 32px; }
+}
