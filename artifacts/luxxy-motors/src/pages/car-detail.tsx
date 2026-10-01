@@ -373,6 +373,24 @@ export default function CarDetail() {
               </p>
 
             </section>}
+            {features.length > 0 && (
+              <section
+                className="mt-8 border-t border-border pt-7 lg:col-span-2"
+                aria-labelledby="features-heading"
+              >
+                <h2 id="features-heading" className="section-heading scroll-mt-28">
+                  {websiteText(dealerConfig, "vehicleFeaturesHeading")}
+                </h2>
+                <ul className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                  {features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <section
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="buyer-information-heading"
@@ -415,24 +433,6 @@ export default function CarDetail() {
                 Ask about these details <ArrowRight className="h-4 w-4" />
               </Link>
             </section>
-            {features.length > 0 && (
-              <section
-                className="mt-8 border-t border-border pt-7"
-                aria-labelledby="features-heading"
-              >
-                <h2 id="features-heading" className="section-heading scroll-mt-28">
-                  {websiteText(dealerConfig, "vehicleFeaturesHeading")}
-                </h2>
-                <ul className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-                  {features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
             {damageDisclosure && (
               <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
                 <h3 className="text-xs font-medium text-muted-foreground">
