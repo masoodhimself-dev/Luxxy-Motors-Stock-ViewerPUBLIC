@@ -686,5 +686,4 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .vehicle-details-content > section[aria-labelledby="vehicle-visit-heading"] { display: flow-root; }
 @media(min-width:1024px) {
  .vehicle-details-content > section[aria-labelledby="vehicle-visit-heading"] figure { float: right; width: 40%; margin: 20px 0 20px 36px; }
- .vehicle-detail-gallery { position: sticky; top: calc(var(--site-header-height, 80px) + 16px); }
 }

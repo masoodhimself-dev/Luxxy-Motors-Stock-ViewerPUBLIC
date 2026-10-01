@@ -30,3 +30,32 @@ for (const width of [390,1280]) test(`description deep link and navigation at ${
  await expect(page.locator('.vehicle-equipment-more')).toHaveAttribute('open','');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 });
+
+for (const width of [390, 1024, 1440]) test(`vehicle content remains unobstructed while scrolling at ${width}`, async ({page, request}) => {
+ await page.setViewportSize({width, height:960});
+ const stock=await(await request.get('/api/stock')).json();
+ const car=stock.cars.find((c:any)=>c.make==='Ford');
+ await page.goto(`/vehicle/${car.id}#vehicle-description-heading`);
+ const description=page.locator('#vehicle-description-heading');
+ await expect(description).toBeInViewport();
+ // Visibility alone passes even when a sticky sibling paints over the text.
+ for (const id of ['vehicle-description-heading','features-heading','buyer-information-heading','vehicle-visit-heading','vehicle-enquiry-heading']) {
+  const heading=page.locator(`#${id}`);
+  await heading.evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
+  await expect.poll(async()=>heading.evaluate(el=>{
+   const box=el.getBoundingClientRect();
+   const hit=document.elementFromPoint(box.left+Math.min(30,box.width/2),box.top+box.height/2);
+   return !!hit && (el===hit || el.contains(hit));
+  })).toBe(true);
+  const gap=await page.evaluate((headingId)=>{
+   const gallery=document.querySelector('.vehicle-detail-gallery')!.getBoundingClientRect();
+   const section=document.getElementById(headingId)!.getBoundingClientRect();
+   return section.top-gallery.bottom;
+  },id);
+  expect(gap).toBeGreaterThan(0);
+  if(id==='vehicle-description-heading'||id==='features-heading') await page.screenshot({path:`/tmp/vehicle-repaired-${width}-${id}.png`});
+ }
+ await page.locator('.vehicle-equipment-more summary').click();
+ await expect(page.locator('.vehicle-equipment-more')).toHaveAttribute('open','');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+});
