@@ -142,7 +142,7 @@ export default function CarDetail() {
   }
 
   if (!stock || !stock.cars) return <NotFound />;
-  if (!car) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{stock.cars.slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
@@ -242,11 +242,119 @@ export default function CarDetail() {
           </div>
         </div>
         <div className="grid min-w-0 items-start gap-6 vehicle-detail-grid lg:grid-cols-[minmax(0,1.4fr)_minmax(360px,1fr)] lg:gap-7">
-          <div className="vehicle-detail-gallery min-w-0 lg:col-start-1 lg:row-start-1">
+          <div className="vehicle-main-column min-w-0">
+          <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} />
             <VehicleWhatsApp car={car} walkaround />
           </div>
-          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+          <div className="vehicle-details-content min-w-0 pb-10">
+            <div className="vehicle-editorial-overview">
+            {description && <section
+              className="mt-8 border-t border-border pt-7"
+              aria-labelledby="vehicle-description-heading"
+            >
+              <h2 id="vehicle-description-heading" className="section-heading scroll-mt-28">
+                {websiteText(dealerConfig, "vehicleDescriptionHeading")}
+              </h2>
+              <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
+                {description}
+              </p>
+
+            </section>}
+            </div>
+            {features.length > 0 && (
+              <section
+                className="mt-8 border-t border-border pt-7 lg:col-span-2"
+                aria-labelledby="features-heading"
+              >
+                <h2 id="features-heading" className="section-heading scroll-mt-28">
+                  {websiteText(dealerConfig, "vehicleFeaturesHeading")}
+                </h2>
+                <ul className="vehicle-equipment-list mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                  {features.slice(0, 9).map((feature) => (
+                    <li key={feature} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {features.length > 9 && <details className="vehicle-equipment-more mt-5">
+                  <summary className="cursor-pointer py-3 text-sm font-semibold underline underline-offset-4">View all {features.length} features</summary>
+                  <ul className="vehicle-equipment-list mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                    {features.slice(9).map(feature => <li key={feature} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />{feature}</li>)}
+                  </ul>
+                </details>}
+              </section>
+            )}
+            <section
+              aria-labelledby="vehicle-overview-heading"
+              className="border-t border-border pt-7"
+            >
+              <h2 id="vehicle-overview-heading" className="section-heading">
+                {websiteText(dealerConfig, "vehicleSpecificationHeading")}
+              </h2>
+              <dl className="mt-5 grid gap-x-8 sm:grid-cols-2">
+                {overviewSpecs.map((spec) => (
+                  <LedgerRow key={spec.label} label={spec.label} value={spec.value} />
+                ))}
+              </dl>
+            </section>
+            <section
+              className="mt-8 border-t border-border pt-7"
+              aria-labelledby="buyer-information-heading"
+            >
+              <h2 id="buyer-information-heading" tabIndex={-1} className="section-heading scroll-mt-28">
+                {websiteText(dealerConfig, "vehicleInformationHeading")}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Available history and handover information. Ask us about anything else you need to know.
+              </p>
+              <dl className="mt-4 divide-y divide-border">
+                {buyerInformation(car).filter(item => item.value).map((item) => (
+                  <div
+                    key={item.label}
+                    className="grid grid-cols-[.8fr_1.2fr] gap-5 py-3 text-sm"
+                  >
+                    <dt className="text-muted-foreground">{item.label}</dt>
+                    <dd
+                      className={
+                        item.value
+                          ? "whitespace-pre-line"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {item.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {dealerConfig.presentation?.includedInformation && (
+                <p className="mt-4 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+                  {dealerConfig.presentation.includedInformation}
+                </p>
+              )}
+              <Link
+                href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}
+                className="text-link mt-3"
+              >
+                Ask about these details <ArrowRight className="h-4 w-4" />
+              </Link>
+            </section>
+            {damageDisclosure && (
+              <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
+                <h3 className="text-xs font-medium text-muted-foreground">
+                  Insurance history: {damageDisclosure.label}
+                </h3>
+                <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                  {damageDisclosure.explanation}
+                </p>
+              </div>
+            )}
+
+            <VehicleVisit car={car} />
+          </div>
+          </div>
+          <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
           <header className="min-w-0">
             <p className="luxxy-kicker mb-3">
@@ -339,112 +447,6 @@ export default function CarDetail() {
             <VehicleReviews />
           </div>
 
-          </div>
-          <div className="vehicle-details-content min-w-0 pb-10 lg:col-span-2">
-            <div className="vehicle-editorial-overview">
-            {description && <section
-              className="mt-8 border-t border-border pt-7"
-              aria-labelledby="vehicle-description-heading"
-            >
-              <h2 id="vehicle-description-heading" className="section-heading scroll-mt-28">
-                {websiteText(dealerConfig, "vehicleDescriptionHeading")}
-              </h2>
-              <p className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                {description}
-              </p>
-
-            </section>}
-            <section
-              aria-labelledby="vehicle-overview-heading"
-              className="border-t border-border pt-7"
-            >
-              <h2 id="vehicle-overview-heading" className="section-heading">
-                {websiteText(dealerConfig, "vehicleSpecificationHeading")}
-              </h2>
-              <dl className="mt-5 grid gap-x-8 sm:grid-cols-2">
-                {overviewSpecs.map((spec) => (
-                  <LedgerRow key={spec.label} label={spec.label} value={spec.value} />
-                ))}
-              </dl>
-            </section>
-            </div>
-            {features.length > 0 && (
-              <section
-                className="mt-8 border-t border-border pt-7 lg:col-span-2"
-                aria-labelledby="features-heading"
-              >
-                <h2 id="features-heading" className="section-heading scroll-mt-28">
-                  {websiteText(dealerConfig, "vehicleFeaturesHeading")}
-                </h2>
-                <ul className="vehicle-equipment-list mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                  {features.slice(0, 9).map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                {features.length > 9 && <details className="vehicle-equipment-more mt-5">
-                  <summary className="cursor-pointer py-3 text-sm font-semibold underline underline-offset-4">View all {features.length} features</summary>
-                  <ul className="vehicle-equipment-list mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                    {features.slice(9).map(feature => <li key={feature} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />{feature}</li>)}
-                  </ul>
-                </details>}
-              </section>
-            )}
-            <section
-              className="mt-8 border-t border-border pt-7"
-              aria-labelledby="buyer-information-heading"
-            >
-              <h2 id="buyer-information-heading" tabIndex={-1} className="section-heading scroll-mt-28">
-                {websiteText(dealerConfig, "vehicleInformationHeading")}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Available history and handover information. Ask us about anything else you need to know.
-              </p>
-              <dl className="mt-4 divide-y divide-border">
-                {buyerInformation(car).filter(item => item.value).map((item) => (
-                  <div
-                    key={item.label}
-                    className="grid grid-cols-[.8fr_1.2fr] gap-5 py-3 text-sm"
-                  >
-                    <dt className="text-muted-foreground">{item.label}</dt>
-                    <dd
-                      className={
-                        item.value
-                          ? "whitespace-pre-line"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {item.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              {dealerConfig.presentation?.includedInformation && (
-                <p className="mt-4 whitespace-pre-line text-sm leading-6 text-muted-foreground">
-                  {dealerConfig.presentation.includedInformation}
-                </p>
-              )}
-              <Link
-                href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}
-                className="text-link mt-3"
-              >
-                Ask about these details <ArrowRight className="h-4 w-4" />
-              </Link>
-            </section>
-            {damageDisclosure && (
-              <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
-                <h3 className="text-xs font-medium text-muted-foreground">
-                  Insurance history: {damageDisclosure.label}
-                </h3>
-                <p className="mt-2 text-xs leading-6 text-muted-foreground">
-                  {damageDisclosure.explanation}
-                </p>
-              </div>
-            )}
-
-            <VehicleVisit car={car} />
           </div>
           <section ref={enquiryPanel} id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
