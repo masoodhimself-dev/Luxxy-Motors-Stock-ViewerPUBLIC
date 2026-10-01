@@ -840,3 +840,32 @@ Removed the 1280px content cap from vehicle pages in favour of full available wi
 
 ### Keep descriptions beside the summary, directly below photographs
 The full-width gallery and tall purchase/review panel previously shared a row, delaying all vehicle content until the taller panel ended. Introduced an independent main column for gallery, description, equipment, specifications and buyer information. The description now begins directly below the gallery; equipment immediately follows description. Mobile retains gallery, purchase summary, vehicle details, enquiry order. Capped desktop photo height without cropping. Removed obsolete lower-grid declarations. Added geometric browser checks requiring a short gallery-to-description gap and description starting before the summary ends. 194 frontend tests, 11 browser checks, typecheck/build passed; reviewed actual desktop top-of-page and scrolled content screenshots. No backend/data/deployment changes.
+
+
+### Phone and iPad responsive review — 1 October 2026
+
+Kept the full-size 4:3 vehicle photograph and the independent description/equipment column. Photo categories now stay on a horizontally swipeable row on phones. The fullscreen viewer uses a compact layout in short landscape viewports, preserving the photograph and 44px navigation/contact controls. The stock toolbar stops sticking on short screens so it cannot consume the available viewing space.
+
+Enlarged small navigation targets and stock-card specification/link text. Native stock sorting stays at 16px on tablets. Tightened mobile stock heading/count alignment. Booking now shows a compact selected-car photo, year, transmission and price on phones/tablets; unavailable photos are omitted. Removed the sticky booking introduction on shorter screens. Contact and visit sections use balanced tablet columns; the footer uses responsive columns, wrapping email addresses and consistent opening-hour rows.
+
+Validation:
+- 194 frontend unit tests passed (41 files).
+- 40 browser regression tests passed: 20 focused vehicle/gallery/booking/saved tests and 20 responsive customer tests.
+- The responsive sweep covered 320×740, 375×812, 820×1180, 1024×768 and 1180×820 across home, stock, vehicle, booking, part exchange, contact, saved, warranty and comparison. Warranty/comparison currently show their settings-disabled informational states. Additional focused tests covered 740×360 and 844×390 landscape galleries, and vehicle layouts through 1920px.
+- Checked page overflow, footer text clipping, menu/filter/sort/reset controls, gallery navigation and keyboard focus, saved-car expansion, vehicle-specific test-drive links, description/equipment visibility and booking progression. No page-wide horizontal overflow was found at the tested sizes.
+- Interacted with the local preview through tablet stock filters, the part-exchange journey up to contact/review, and phone WhatsApp/reservation dialogs. No enquiry, reservation, payment or message was submitted.
+- Full workspace typechecking and builds passed; the final frontend rebuild also passed. Existing large-client-bundle and tooltip sourcemap warnings remain.
+
+These checks used Chromium responsive/touch emulation, not physical iPad/iPhone Safari or native on-screen keyboards. Changes are frontend-only; no backend, database, production, deployment or merge changes.
+
+Selected final visual captures:
+
+| Page | Phone | Tablet / landscape |
+| --- | --- | --- |
+| Homepage | [375px](screenshots/responsive-2026-10-01/home-375.jpg) | [820px](screenshots/responsive-2026-10-01/home-820.jpg) |
+| Browse Stock | [375px](screenshots/responsive-2026-10-01/stock-375.jpg) | [820px](screenshots/responsive-2026-10-01/stock-820.jpg) |
+| Vehicle | [375px](screenshots/responsive-2026-10-01/vehicle-375.jpg) | [1180px](screenshots/responsive-2026-10-01/vehicle-1180.jpg) |
+| Vehicle content | [Description](screenshots/responsive-2026-10-01/vehicle-description-375.jpg) | [Equipment](screenshots/responsive-2026-10-01/vehicle-features-375.jpg) |
+| Booking / contact | [Booking](screenshots/responsive-2026-10-01/booking-375.jpg) | [Contact](screenshots/responsive-2026-10-01/contact-820.jpg) |
+| Supporting layouts | [Tablet footer](screenshots/responsive-2026-10-01/footer-contact-820.jpg) | [Part exchange](screenshots/responsive-2026-10-01/part-exchange-1180.jpg) |
+| Fullscreen gallery | — | [844px landscape](screenshots/responsive-2026-10-01/gallery-landscape-844.png) |

@@ -81,7 +81,7 @@ export default function Enquire() {
           Back to showroom
         </Link>
         <div className="mt-3 grid items-start gap-5 sm:mt-5 sm:gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:gap-12">
-          <section className="enquiry-introduction flex flex-col lg:sticky lg:top-24">
+          <section className="enquiry-introduction flex flex-col">
             <div className="friendly-banner">
             <p className="mb-2 font-display text-[12px] font-semibold tracking-normal text-accent sm:mb-4">
               {copy.eyebrow}

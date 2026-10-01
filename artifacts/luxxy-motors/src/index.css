@@ -347,10 +347,14 @@
 .browse-stock .vehicle-card-grid .vehicle-card-heading { text-align: left; }
 .browse-stock .vehicle-card-grid .vehicle-card-heading h3 { font-size: 1.125rem; line-height: 1.4; }
 .browse-stock .vehicle-card-grid .luxxy-price { font-size: 1.875rem; text-align: left; }
-.browse-stock .vehicle-card-grid .vehicle-specs { font-size: .8125rem; color: hsl(var(--muted-foreground)); }
+.browse-stock .vehicle-card-grid .vehicle-specs { font-size: .875rem; color: hsl(var(--muted-foreground)); }
 @media (max-width: 1023px) {
  .browse-stock .stock-toolbar { position: sticky; top: var(--site-header-height); z-index: 30; }
  .stock-toolbar-expanded { max-height: calc(100dvh - var(--site-header-height) - 190px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
+}
+/* Short screens need space for the results, including when the keyboard is open. */
+@media (max-height: 540px) {
+ .browse-stock .stock-toolbar { position: static; }
 }
 
 /* Homepage feature boxes: photography above a quiet name-and-price panel. */
@@ -698,6 +702,19 @@ body:has(.stock-refined) header { background: #fff; color: #202428; }
 .vehicle-lightbox-contact-button:focus-visible { outline: 3px solid #38c9e6; outline-offset: 3px; }
 @media(max-width:639px) { .vehicle-lightbox { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 56px 12px 12px; } .vehicle-lightbox-contact { gap: 8px; } .vehicle-lightbox-contact-button { width: auto; flex: 1; padding: 12px 8px; gap: 6px; font-size: 13px; } }
 .vehicle-lightbox > button:last-child { color: #17191a; opacity: 1; }
+/* Keep the photograph useful when a phone is turned sideways. */
+@media (min-width: 640px) and (max-height: 540px) {
+ .vehicle-lightbox { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 8px max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); gap: 8px; }
+ .vehicle-lightbox > [aria-label="Photograph sections"] { margin-top: 0; padding-right: 60px; flex-wrap: nowrap; overflow-x: auto; }
+ .vehicle-lightbox > [aria-label="Photograph sections"] button { white-space: nowrap; }
+ .vehicle-lightbox-photo { padding-bottom: 28px; }
+ .vehicle-lightbox-navigation { position: absolute; inset: 64px max(12px, env(safe-area-inset-right)) 68px max(12px, env(safe-area-inset-left)); pointer-events: none; }
+ .vehicle-lightbox-navigation > button { pointer-events: auto; }
+ .vehicle-lightbox-navigation > p { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); max-width: calc(100% - 112px); border-radius: 4px; background: #17191ae6; padding: 2px 8px; font-size: 12px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+ .vehicle-lightbox-contact { padding: 0; gap: 12px; }
+ .vehicle-lightbox-contact-button { min-height: 44px; padding: 8px 16px; font-size: 14px; }
+ .vehicle-lightbox > button:last-child { top: 8px; right: max(12px, env(safe-area-inset-right)); }
+}
 
 /* Vehicle pages use the screen width; prose keeps a readable line length. */
 .vehicle-page > .container,

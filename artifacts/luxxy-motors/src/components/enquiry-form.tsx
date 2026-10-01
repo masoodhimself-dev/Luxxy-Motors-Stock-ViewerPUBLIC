@@ -1,5 +1,6 @@
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
+import { responsiveVehicleImage, retryOriginalImage } from '@/lib/responsive-vehicle-image';
 import { ReserveCar } from '@/components/reserve-car';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { PartExchangeForm } from '@/components/part-exchange-form';
@@ -123,6 +124,7 @@ export function EnquiryForm({
 }) {
   const { settings: dealerConfig } = useDealerSettings();
   const [type, setType] = useState<EnquiryType>(initialType);
+  const [unavailableVehiclePhoto, setUnavailableVehiclePhoto] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
   const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
@@ -201,6 +203,7 @@ export function EnquiryForm({
 
   const isPartExchange = type === 'part_exchange';
   const selectedVehicle = vehicle;
+  const selectedVehiclePhoto = getThumbnailUrl(selectedVehicle);
   const vehicleLabel = selectedVehicle?.title || [selectedVehicle?.make, selectedVehicle?.model].filter(Boolean).join(' ') || 'selected vehicle';
   const availableSlots = availabilityQuery.data?.slots.filter((slot) => slot.available) ?? [];
   const selectedSlotLabel = availabilityQuery.data?.slots.find((slot) => slot.startAt === selectedSlot)?.label;
@@ -434,16 +437,30 @@ export function EnquiryForm({
       </div>
 
       {vehicle && !isPartExchange && !embedded && (
-        <div className="flex items-start justify-between gap-3 lg:hidden" data-testid="card-enquiry-vehicle">
-          <div className="min-w-0">
+        <div className="flex items-start gap-3 rounded-md border border-border bg-card p-3 sm:gap-4 sm:p-4 lg:hidden" data-testid="card-enquiry-vehicle">
+          {selectedVehiclePhoto && unavailableVehiclePhoto !== selectedVehiclePhoto && (
+            <img
+              src={selectedVehiclePhoto}
+              {...responsiveVehicleImage(selectedVehiclePhoto, '(min-width: 640px) 120px, 88px')}
+              alt=""
+              width={160}
+              height={120}
+              decoding="async"
+              referrerPolicy="no-referrer"
+              className="aspect-[4/3] w-[88px] shrink-0 rounded-sm border border-border bg-muted object-contain sm:w-[120px]"
+              onError={event => { if (!retryOriginalImage(event.currentTarget)) setUnavailableVehiclePhoto(selectedVehiclePhoto); }}
+            />
+          )}
+          <div className="min-w-0 flex-1">
             <p className="luxxy-label text-primary/70">Your selected car</p>
-            <p className="mt-1.5 text-sm font-semibold leading-5 text-primary">{vehicleLabel}</p>
-          </div>
-          <div className="shrink-0 text-right">
-            {vehicle.price != null && <p className="luxxy-price-inline text-sm font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
-            <Link href="/stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-xs text-accent underline underline-offset-4 transition-colors hover:text-primary">
+            <p className="mt-1.5 text-base font-semibold leading-snug text-primary">{vehicleDisplayTitle(vehicle)}</p>
+            {(vehicle.year || vehicle.transmission) && <p className="mt-1 text-sm text-muted-foreground">{[vehicle.year, vehicle.transmission].filter(Boolean).join(' · ')}</p>}
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
+            {vehicle.price != null && <p className="luxxy-price-inline text-base font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
+            <Link href="/stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-primary">
               Change car
             </Link>
+            </div>
           </div>
         </div>
       )}

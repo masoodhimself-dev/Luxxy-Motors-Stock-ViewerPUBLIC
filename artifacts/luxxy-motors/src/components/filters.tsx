@@ -58,7 +58,7 @@ function Field({
 }) {
   return (
     <label className="block min-w-0">
-       <span className="mb-2 block font-display text-[11px] font-semibold tracking-normal text-primary/70">
+       <span className="mb-2 block font-display text-sm font-semibold tracking-normal text-primary/70">
         {label}
       </span>
       {children}
@@ -222,7 +222,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
           aria-label="Sort results"
           value={filters.sort}
           onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-          className="h-11 min-w-0 w-full border-input bg-card pl-3 pr-6 text-base shadow-none lg:text-sm"
+          className="h-11 min-w-0 w-full border-input bg-card pl-3 pr-6 text-base shadow-none"
         >
           <option value="">Stock order</option>
           {cars.some(car => arrivalTime(car) !== null) && <option value="arrival-desc">Recently added</option>}

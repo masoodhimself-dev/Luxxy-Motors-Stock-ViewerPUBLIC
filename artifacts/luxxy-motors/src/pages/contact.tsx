@@ -48,7 +48,7 @@ export default function Contact() {
 
       {isLoading ? <div role="status" aria-busy="true" className="mb-8 border-y border-border py-8 text-sm text-muted-foreground">Loading contact and visiting details…</div> : isError ? <div role="alert" className="mb-8 flex flex-wrap items-center justify-between gap-4 border-y border-border py-5"><p className="max-w-xl text-sm leading-6">We couldn’t load the latest dealership details. Please confirm the address and opening hours before travelling.</p><Button variant="outline" onClick={() => window.location.reload()}>Try again</Button></div> : null}
 
-      <div className="grid items-start gap-8 border-t border-border pt-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16 lg:pt-10">
+      <div className="grid items-start gap-8 border-t border-border pt-7 md:grid-cols-2 lg:gap-12 lg:pt-10">
         <section aria-labelledby="talk-heading" className="min-w-0">
           <h2 id="talk-heading" className="font-display text-2xl font-semibold tracking-tight">{websiteText(settings, "contactTalkHeading")}</h2>
           <div className="mt-5 divide-y divide-border border-y border-border">

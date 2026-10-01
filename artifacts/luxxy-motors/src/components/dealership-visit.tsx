@@ -32,7 +32,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
     >
       <div id="about" className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div
-          className={`grid items-start gap-6 lg:gap-10 ${hasStory || visitPhoto || children ? "lg:grid-cols-2" : "max-w-4xl"}`}
+          className={`grid items-start gap-6 lg:gap-10 ${hasStory || visitPhoto || children ? "md:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
             <h2 id="visit-heading" tabIndex={-1} className="section-heading">{websiteText(settings, "visitHeading")}

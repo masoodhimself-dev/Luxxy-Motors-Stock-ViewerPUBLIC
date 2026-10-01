@@ -346,7 +346,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             </div>
             {stock && (
               <p
-                className="col-start-2 row-start-1 text-right text-xs text-muted-foreground sm:text-sm lg:col-start-3"
+                className="col-start-1 row-start-2 text-sm text-muted-foreground lg:col-start-3 lg:row-start-1 lg:text-right"
                 data-testid="text-filtered-stock-count"
                 role="status"
                 aria-live="polite"
@@ -357,7 +357,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   : `${filteredCars.length} cars match your search`}
               </p>
             )}
-            <div className="col-start-2 row-start-2 flex justify-end gap-1 lg:col-start-4 lg:row-start-1" aria-label="Vehicle display">
+            <div className="col-start-2 row-start-1 row-span-2 flex justify-end gap-1 lg:col-start-4 lg:row-span-1" aria-label="Vehicle display">
               {(['cards', 'compact'] as const).map((view) => {
                 const Icon = view === 'cards' ? Grid2X2 : List;
                 return (

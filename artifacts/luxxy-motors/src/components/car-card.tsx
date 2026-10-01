@@ -238,7 +238,7 @@ export function CarCard({
           className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
           data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
         >
-          <Link href={detailHref} onClick={recordVehicleOpen} className="text-link text-xs">
+          <Link href={detailHref} onClick={recordVehicleOpen} className="text-link text-sm">
             View vehicle
             <ArrowRight className="h-4 w-4" />
           </Link>

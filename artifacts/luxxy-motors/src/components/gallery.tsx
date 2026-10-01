@@ -82,14 +82,14 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle' }: Ga
   const groups = (["Exterior", "Interior", "Details", "Other"] as const)
     .filter(group => allImages.some(image => photoGroup(image) === group));
   const groupNavigation = (fullscreen = false) => groups.length > 1 && (
-    <div className="mt-3 flex flex-wrap gap-1 border-b border-border" aria-label="Photograph sections">
+    <div className="vehicle-photo-sections mt-3 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Photograph sections">
       {groups.map(group => <button type="button" key={group} aria-label={group === "Other" ? "More photos" : group} aria-pressed={photoGroup(allImages[index]) === group}
         onClick={() => {
           const target = allImages.findIndex(image => photoGroup(image) === group);
           setActiveIndex(target);
           if (!fullscreen) thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }}
-        className={cn('min-h-11 border-b-2 px-3 text-xs', photoGroup(allImages[index]) === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
+        className={cn('min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 text-xs', photoGroup(allImages[index]) === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
         {group === "Other" ? "More photos" : group} ({allImages.filter(image => photoGroup(image) === group).length})
       </button>)}
     </div>
@@ -268,7 +268,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle' }: Ga
         <div className="vehicle-lightbox-photo flex min-w-0 items-center justify-center touch-pan-y" {...touchHandlers}>
           {renderImage(index, 'h-full max-h-full w-full object-contain', true)}
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="vehicle-lightbox-navigation flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={previous}

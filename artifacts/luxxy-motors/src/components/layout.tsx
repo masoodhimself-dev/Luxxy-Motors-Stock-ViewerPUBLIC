@@ -14,7 +14,7 @@ import { formatPhoneDisplay } from '@/lib/utils';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 
 const navLinkClass =
-  'whitespace-nowrap font-display text-[14px] font-semibold tracking-normal text-primary/75 transition-colors hover:text-accent';
+  'inline-flex min-h-11 items-center whitespace-nowrap font-display text-[14px] font-semibold tracking-normal text-primary/75 transition-colors hover:text-accent';
 const mobileNavRowClass =
   'flex min-h-12 items-center justify-between border-b border-primary/10 py-2 text-left font-display text-base font-semibold text-primary transition-colors hover:text-accent';
 const footerLinkClass =
@@ -208,7 +208,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => setLocation('/saved')}
               aria-label={savedCount > 0 ? `Saved cars, ${savedCount} saved` : 'Saved cars'}
               data-testid="link-saved-cars-condensed"
-              className="relative flex items-center gap-2 font-display text-[13px] font-bold tracking-normal text-primary/80 transition-colors hover:text-accent"
+              className="relative flex h-11 min-w-11 items-center justify-center gap-2 font-display text-[13px] font-bold tracking-normal text-primary/80 transition-colors hover:text-accent"
             >
               <Heart className={`h-5 w-5 ${savedCount > 0 ? 'text-accent fill-current' : ''}`} />
               {savedCount > 0 && (
@@ -235,7 +235,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-6 ml-4 pl-8 border-l-2 border-primary/10">
               {dealerConfig.contact.phone && (
-                <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-2">
+                <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2">
                   <Phone className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:scale-110" />
                   <span className="whitespace-nowrap font-display text-[14px] font-bold tracking-normal text-primary transition-colors group-hover:text-accent">
                     {formatPhoneDisplay(dealerConfig.contact.phone)}
@@ -355,9 +355,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </footer>
       )}
       <footer hidden={isStaff || isCustomerTask} id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-12 pb-8 text-primary-foreground">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="mb-10 grid grid-cols-2 gap-6 lg:grid-cols-12 lg:gap-12">
-            <div className="col-span-2 lg:col-span-5">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 xl:grid-cols-[1.25fr_.8fr_1fr_1.25fr] xl:gap-8">
+            <div className="col-span-2 min-w-0 md:col-span-3 xl:col-span-1">
                <DealerWordmark {...dealerConfig.identity} logoAsset={dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset} className="mb-4 text-primary-foreground" />
               {locationLabel && (
                  <p className="mb-6 font-display text-xs font-medium tracking-normal text-primary-foreground/75">{locationLabel}</p>
@@ -386,7 +386,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="min-w-0">
               <h3 className={footerHeadingClass}>Vehicles</h3>
               <nav className="flex flex-col items-start gap-0">
                 <button onClick={() => handleNav('stock')} className={footerLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
@@ -396,20 +396,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </nav>
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="min-w-0">
               <h3 className={footerHeadingClass}>Visit</h3>
               <Link href="/contact" className={`mb-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Contact & directions <ArrowRight className="h-4 w-4 shrink-0" /></Link>
               <div className="space-y-5 text-sm text-primary-foreground/80 font-medium">
                 {dealerConfig.contact.phone && (
-                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex items-center gap-3 transition-colors hover:text-accent">
+                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-accent">
                     <Phone className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
                     <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-accent">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
                   </a>
                 )}
                 {dealerConfig.contact.email && (
-                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex items-center gap-3 transition-colors hover:text-accent truncate">
+                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-accent">
                     <MessageCircle className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="truncate">{dealerConfig.contact.email}</span>
+                    <span className="min-w-0 break-words [overflow-wrap:anywhere]">{dealerConfig.contact.email}</span>
                   </a>
                 )}
                 {dealerConfig.address && (
@@ -431,14 +431,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             {upcomingVisitDates.length > 0 && (
-              <div className="col-span-2 lg:col-span-3">
+              <div className="col-span-2 min-w-0 md:col-span-1">
                 <h3 className={footerHeadingClass}>Opening hours</h3>
                 <p className="mb-5 max-w-[22rem] text-[13px] leading-6 text-primary-foreground/65">
                   Contact us before travelling to book a test drive.
                 </p>
                 <ul className="space-y-3">
                   {(location === '/' ? upcomingVisitDates.slice(0, 1) : upcomingVisitDates).map((visit) => (
-                    <li key={visit.date} className="flex items-center justify-between gap-4 border-b border-primary-foreground/10 pb-3 text-[14px]">
+                    <li key={visit.date} className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-3 border-b border-primary-foreground/10 pb-3 text-[14px]">
                       <span className="flex min-w-0 items-center gap-3">
                         <CalendarDays className="h-4 w-4 shrink-0 text-accent" />
                         <span className="min-w-0">
@@ -446,7 +446,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           <span className="block text-[12px] text-primary-foreground/60">{visit.relativeLabel === 'Today' || visit.relativeLabel === 'Tomorrow' ? visit.dateLabel : visit.dateLabel.replace(/^\S+\s/, '')}</span>
                         </span>
                       </span>
-                      <span className="shrink-0 font-display text-[12px] font-bold tracking-normal text-primary-foreground">{visit.times}</span>
+                      <span className="min-w-0 text-right font-display text-[12px] font-bold leading-5 tracking-normal text-primary-foreground">{visit.times}</span>
                     </li>
                   ))}
                 </ul>
