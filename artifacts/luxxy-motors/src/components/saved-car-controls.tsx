@@ -40,17 +40,16 @@ export function SaveCarButton({
       className={cn(
         'inline-flex items-center justify-center gap-2 border transition-colors  focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         variant === 'overlay'
-          ? 'h-9 w-9 border-border/60 bg-background/90 backdrop-blur-sm hover:border-primary/50'
+          ? 'photo-glass-control'
           : 'h-11 px-4 text-[13px] font-bold',
         variant === 'inline' &&
           (saved
             ? 'border-accent bg-accent/12 text-primary'
             : 'border-border bg-background text-foreground hover:border-primary/45 hover:bg-secondary'),
-        variant === 'overlay' && saved && 'border-accent bg-accent text-accent-foreground',
         className,
       )}
     >
-      <Heart className={cn('h-4 w-4', saved ? 'fill-current' : 'text-accent')} />
+      <Heart className={cn('h-4 w-4', saved ? 'fill-current' : variant === 'inline' ? 'text-accent' : '')} />
       {variant === 'inline' && (saved ? 'Saved' : 'Save')}
     </button>
   );

@@ -184,12 +184,12 @@ export function CarCard({
         {photoControls && <span className="sr-only" aria-live="polite" aria-atomic="true">{photoDirection !== 0 && galleryUrls.length > 0 ? `Photograph ${activeIndex + 1} of ${galleryUrls.length}` : ''}</span>}
         {photoControls && galleryUrls.length > 1 && (
           <div className="stock-photo-controls">
-            <button type="button" className="stock-photo-arrow left-2"
+            <button type="button" className="photo-glass-control stock-photo-arrow left-2"
               aria-label={`Previous photo of ${vehicleLabel}`}
               onClick={() => changePhoto(-1)}>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
-            <button type="button" className="stock-photo-arrow right-2"
+            <button type="button" className="photo-glass-control stock-photo-arrow right-2"
               aria-label={`Next photo of ${vehicleLabel}`}
               onClick={() => changePhoto(1)}>
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -198,7 +198,7 @@ export function CarCard({
         )}
         {photoControls && <SaveCarButton
           car={car}
-          className="absolute right-3 top-3 h-11 w-11 rounded-full border-white bg-white text-primary shadow-none"
+          className="absolute right-3 top-3"
         />}
         {photoControls && !catalogue && photoCount > 0 && (
           <span className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white">

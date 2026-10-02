@@ -134,7 +134,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle' }: Ga
     return eager ? <AnimatePresence initial={false} mode="popLayout">{content}</AnimatePresence> : content;
   };
   const arrowClass =
-    'grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 bg-white text-black shadow-sm hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+    'photo-glass-control grid shrink-0 place-items-center';
   if (!allImages.length)
     return (
       <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">

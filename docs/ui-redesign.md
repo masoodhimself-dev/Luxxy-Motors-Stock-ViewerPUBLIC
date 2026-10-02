@@ -966,3 +966,9 @@ Ten browser checks passed at 375, 820 and 1280px, verifying that the toolbar scr
 Visual checks: [phone stock](screenshots/no-sticky-2026-10-02/stock-scrolled-375.png), [tablet stock](screenshots/no-sticky-2026-10-02/stock-scrolled-820.png), [phone vehicle actions](screenshots/no-sticky-2026-10-02/vehicle-primary-375.png).
 
 The full frontend suite also passed: 194 tests across 41 files. Its first run caught two stale uppercase `REG` assertions after the previous audit's registration-format change; these now expect the shared `reg` presentation, with plate-versus-metadata checks preserved.
+
+### Quieter photograph controls — 2 October 2026
+
+Stock save buttons and gallery/photo arrows now share a translucent surface, subtle border and light background blur instead of opaque white backgrounds and shadows. Touch devices use a 42%-white background, with crisp dark icons and the same 44px touch targets. Saved state uses a filled heart without adding a bright solid background. Keyboard focus remains clearly outlined; hover emphasis only applies to mouse pointers, and reduced-motion preferences disable transitions. Existing stock arrows remain hidden on touch devices, preserving swipe browsing; vehicle-gallery arrows remain available. Inline Save remains a quiet text/heart action.
+
+Twelve existing mobile-action/gallery browser checks passed. Final full workspace typechecking/builds passed with existing bundle/sourcemap warnings. Visually checked 390px phone and 820px tablet touch captures: [phone gallery](screenshots/photo-controls-2026-10-02/vehicle-390.png), [tablet gallery](screenshots/photo-controls-2026-10-02/vehicle-820.png), [phone stock](screenshots/photo-controls-2026-10-02/stock-390.png), [tablet stock](screenshots/photo-controls-2026-10-02/stock-820.png). No backend or production changes.
