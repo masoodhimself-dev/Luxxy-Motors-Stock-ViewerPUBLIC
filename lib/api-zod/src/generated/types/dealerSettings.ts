@@ -18,6 +18,7 @@ import type { DealerPresentation } from './dealerPresentation';
 import type { DealerRecentHandovers } from './dealerRecentHandovers';
 import type { DealerService } from './dealerService';
 import type { DealerSocial } from './dealerSocial';
+import type { DealerTestDriveBooking } from './dealerTestDriveBooking';
 import type { DealerWhyBuyItem } from './dealerWhyBuyItem';
 
 export interface DealerSettings {
@@ -42,6 +43,7 @@ export interface DealerSettings {
   partExchange: DealerService;
   onlineReservation?: DealerOnlineReservation;
   bookViewing: DealerBookViewing;
+  testDriveBooking?: DealerTestDriveBooking;
   recentHandovers: DealerRecentHandovers;
   /**
      * @maxItems 8

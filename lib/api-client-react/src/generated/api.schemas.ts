@@ -281,6 +281,83 @@ export interface DealerService {
   ctaLabel: string;
 }
 
+export interface DealerTestDriveHours {
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  day: number;
+  enabled: boolean;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  open: string;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  close: string;
+}
+
+export type DealerTestDriveBookingConfirmationMode = typeof DealerTestDriveBookingConfirmationMode[keyof typeof DealerTestDriveBookingConfirmationMode];
+
+
+export const DealerTestDriveBookingConfirmationMode = {
+  instant: 'instant',
+  approval: 'approval',
+} as const;
+
+export interface DealerTestDriveBooking {
+  enabled: boolean;
+  /**
+     * @minimum 15
+     * @maximum 180
+     */
+  durationMinutes: number;
+  /**
+     * @minimum 0
+     * @maximum 120
+     */
+  bufferMinutes: number;
+  /**
+     * @minimum 0
+     * @maximum 720
+     */
+  minimumNoticeHours: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  dailyCapacity: number;
+  /**
+     * @minimum 1
+     * @maximum 90
+     */
+  daysAhead: number;
+  /**
+     * @maxItems 366
+     * @items.pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  blockedDates: string[];
+  /**
+     * @minItems 7
+     * @maxItems 7
+     */
+  weeklyHours: DealerTestDriveHours[];
+  /** @maxLength 2000 */
+  instructions: string;
+  confirmationMode: DealerTestDriveBookingConfirmationMode;
+}
+
+export type TestDriveBookingDecisionDecision = typeof TestDriveBookingDecisionDecision[keyof typeof TestDriveBookingDecisionDecision];
+
+
+export const TestDriveBookingDecisionDecision = {
+  confirm: 'confirm',
+  decline: 'decline',
+} as const;
+
+export interface TestDriveBookingDecision {
+  decision: TestDriveBookingDecisionDecision;
+  /** @minimum 0 */
+  expectedRevision: number;
+}
+
 export interface DealerBookViewing {
   /**
      * @minLength 1
@@ -635,6 +712,7 @@ export interface DealerSettings {
   partExchange: DealerService;
   onlineReservation?: DealerOnlineReservation;
   bookViewing: DealerBookViewing;
+  testDriveBooking?: DealerTestDriveBooking;
   recentHandovers: DealerRecentHandovers;
   /**
      * @maxItems 8
@@ -965,6 +1043,17 @@ export interface ApiError {
   error: string;
 }
 
+/**
+ * @nullable
+ */
+export type EnquiryAppointmentStatus = typeof EnquiryAppointmentStatus[keyof typeof EnquiryAppointmentStatus] | null;
+
+
+export const EnquiryAppointmentStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+} as const;
+
 export type EnquiryType = typeof EnquiryType[keyof typeof EnquiryType];
 
 
@@ -1040,6 +1129,14 @@ export interface Enquiry {
   vehicleUrl: string | null;
   /** @nullable */
   appointmentAt: string | null;
+  /** @minimum 0 */
+  appointmentRevision?: number;
+  /** @nullable */
+  appointmentStatus?: EnquiryAppointmentStatus;
+  /** @nullable */
+  appointmentDurationMinutes?: number | null;
+  /** @nullable */
+  appointmentBufferMinutes?: number | null;
   /** @nullable */
   appointmentCancelledAt: string | null;
   /**
@@ -1215,6 +1312,7 @@ export type ViewingBookingStatus = typeof ViewingBookingStatus[keyof typeof View
 
 
 export const ViewingBookingStatus = {
+  pending: 'pending',
   booked: 'booked',
   cancelled: 'cancelled',
 } as const;
@@ -1228,6 +1326,7 @@ export interface ViewingBooking {
   appointmentAt: string | null;
   /** @nullable */
   cancelledAt: string | null;
+  durationMinutes?: number;
   timezone: string;
   /** @nullable */
   vehicleTitle: string | null;

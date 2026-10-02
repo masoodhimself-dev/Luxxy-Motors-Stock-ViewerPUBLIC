@@ -127,8 +127,11 @@ test("customer pages reflow at 200% equivalent viewport and support reduced moti
   }
 });
 test("failed enquiry retains details and successful viewing offers practical next steps", async ({
-  page,
+  page, request,
 }) => {
+  await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } }));
+  const stock = await (await request.get('/api/stock')).json();
+  const car = stock.cars.find((car: any) => !['sold', 'archived', 'hidden'].includes(car.inventoryStatus ?? ''));
   let fail = true;
   await page.route("**/api/enquiries", (route) =>
     route.fulfill(
@@ -137,7 +140,8 @@ test("failed enquiry retains details and successful viewing offers practical nex
         : {
             json: {
               reference: "LOCAL-TEST",
-              notificationStatus: "sent",
+              customerNotificationStatus: "sent",
+              appointmentStatus: "confirmed",
               managePath: "/viewing/sample",
               calendarIcs: "BEGIN:VCALENDAR\r\nEND:VCALENDAR",
               appointmentAt: new Date().toISOString(),
@@ -145,7 +149,7 @@ test("failed enquiry retains details and successful viewing offers practical nex
           },
     ),
   );
-  await page.goto("/enquire?type=viewing&vehicleId=preview-2");
+  await page.goto(`/enquire?type=viewing&vehicleId=${car.id}`);
   await page
     .getByTestId("group-viewing-slots")
     .getByRole("button")
@@ -155,27 +159,27 @@ test("failed enquiry retains details and successful viewing offers practical nex
   await page.getByTestId("input-customer-name").fill("Local Test");
   await page.getByTestId("input-customer-email").fill("local@example.test");
   await page.getByTestId("input-customer-phone").fill("07700900123");
+  await page.getByTestId("button-review-booking").click();
   await page.getByTestId("button-submit-enquiry").click();
   await expect(page.getByTestId("status-enquiry-error")).toBeFocused();
-  await expect(page.getByTestId("input-customer-name")).toHaveValue(
-    "Local Test",
-  );
+  await expect(page.getByTestId("status-enquiry-error")).toContainText("Please try again shortly.");
+  await expect(page.getByText("Local Test", { exact: true })).toBeVisible();
   fail = false;
   await page.getByTestId("button-submit-enquiry").click();
   await expect(page.getByTestId("status-enquiry-success")).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Manage viewing", exact: true }),
+    page.getByRole("link", { name: "Manage test drive", exact: true }),
   ).toHaveAttribute("href", "/viewing/sample");
   await expect(page.getByTestId("link-download-calendar")).toHaveAttribute(
     "download",
-    "luxxy-viewing-LOCAL-TEST.ics",
+    "test-drive-LOCAL-TEST.ics",
   );
   await expect(
-    page.getByRole("link", { name: "Directions, parking & opening hours" }),
+    page.getByRole("link", { name: "Directions & opening hours" }),
   ).toHaveAttribute("href", "/contact");
   expect(
-    await page.evaluate(() =>
-      sessionStorage.getItem("luxxy.enquiry-draft.viewing:preview-2"),
+    await page.evaluate(
+      (id) => sessionStorage.getItem(`luxxy.enquiry-draft.viewing:${id}`), car.id,
     ),
   ).toBeNull();
 });

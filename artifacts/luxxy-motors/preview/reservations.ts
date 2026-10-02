@@ -1,15 +1,20 @@
 // Local-only durable reservation sandbox. Never imported by the production entry point.
+import { randomUUID, randomBytes } from 'node:crypto';
+import type { Enquiry } from '@workspace/api-client-react';
+import { bookingDateIsInWindow, bookingPolicyFromConfig, bookingPolicyError, getSlotsForDate, isValidDateString, slotIsAvailable } from '../../api-server/src/lib/booking-slots';
+import { preserveTestDriveBooking } from '../../api-server/src/lib/settings-content';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { UpdateDealerSettingsBody } from '../../../lib/api-zod/src/generated/api';
+import { CreateEnquiryBody, DecideTestDriveBookingBody, RescheduleViewingBody, UpdateDealerSettingsBody } from '../../../lib/api-zod/src/generated/api';
 import { createOnlineReservation, reservationView, ReservationError, type ReservationRecord, type ReservationRepository } from '../../api-server/src/lib/online-reservations';
 import { previewSettings } from './settings';
 import { previewStock } from './stock';
 import { leads, previewResponse } from './portal';
 
-type State = { reservations: ReservationRecord[]; settings?: typeof previewSettings };
+type PreviewEnquiry = Enquiry & { manageToken?: string };
+export type BookingPreviewState = { reservations: ReservationRecord[]; settings?: typeof previewSettings; enquiries?: PreviewEnquiry[] };
 const filename = fileURLToPath(new URL('../../../.local/online-reservations-preview.json', import.meta.url));
 let queue: Promise<unknown> = Promise.resolve();
 const dealerId = 'local-reservation-preview';
@@ -22,13 +27,13 @@ const internalId = (id: string) => {
 const externalId = (id: string) => previewStock.cars.find(car => internalId(car.id) === id)?.id ?? id;
 const publicView = (record: ReservationRecord) => ({ ...reservationView(record), vehicleId: externalId(record.vehicleId) });
 
-async function load(): Promise<State> {
+async function load(): Promise<BookingPreviewState> {
   try { return JSON.parse(await readFile(filename, 'utf8')); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { reservations: [] }; throw error; }
 }
 export async function readPreviewSettings() { return (await load()).settings ?? previewSettings; }
 
-async function save(state: State) {
+async function save(state: BookingPreviewState) {
   await mkdir(dirname(filename), { recursive: true });
   await writeFile(`${filename}.tmp`, JSON.stringify(state, null, 2), { mode: 0o600 });
   await rename(`${filename}.tmp`, filename);
@@ -69,6 +74,7 @@ function leadView(record: ReservationRecord) {
 export async function reservationPreview(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
   const path = url.pathname;
   const handles = path === '/api/reservations' || /^\/api\/reservations\/[^/]+\/cancel$/.test(path)
+    || path === '/api/enquiries' || path === '/api/enquiries/availability' || path === '/api/test-drive-bookings' || /^\/api\/test-drive-bookings\/[^/]+\/decision$/.test(path) || (path.startsWith('/api/viewings/') && path !== '/api/viewings/sample')
     || path === '/api/stock' || path === '/api/dealer-settings' || path === '/api/leads' || /^\/api\/leads\/[0-9a-f-]{36}(\/events)?$/.test(path);
   if (!handles) return false;
   // LAN access is explicitly enabled for a local preview session, never production.
@@ -90,6 +96,8 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
     const result = await serial(async () => {
       const state = await load();
       const settings = state.settings ?? previewSettings;
+      const bookingResult = await handlePreviewBooking(req, url, state, settings);
+      if (bookingResult) { if (req.method !== "GET") await save(state); return bookingResult; }
       if (req.method === 'GET') {
         if (path === '/api/dealer-settings') return { status: 200, data: settings };
         if (path === '/api/stock') return { status: 200, data: { ...previewStock, cars: previewStock.cars.map(car => ({ ...car, inventoryStatus: state.reservations.some(item => item.vehicleId === internalId(car.id) && item.status === 'reserved') ? 'reserved' : 'available' })) } };
@@ -105,7 +113,10 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
         const parsed = UpdateDealerSettingsBody.safeParse(await body(req));
         if (!parsed.success) throw new ReservationError('Please check your settings.', 400);
         if (parsed.data.onlineReservation?.enabled && !parsed.data.onlineReservation.terms.trim()) throw new ReservationError('Add reservation terms before enabling online reservations.', 400);
-        state.settings = parsed.data as typeof previewSettings;
+        const compatible = preserveTestDriveBooking(parsed.data, settings);
+        const policyError = bookingPolicyError(compatible.testDriveBooking);
+        if (policyError) throw new ReservationError(policyError, 400);
+        state.settings = compatible as typeof previewSettings;
         await save(state);
         return { status: 200, data: state.settings };
       }
@@ -144,4 +155,87 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
     send(res, error instanceof ReservationError ? error.status : 500, { error: error instanceof ReservationError ? error.message : 'The local reservation could not be saved. Please try again.' });
   }
   return true;
+}
+
+
+function previewCalendar(booking: PreviewEnquiry, settings: typeof previewSettings) {
+  if (!booking.appointmentAt || booking.appointmentStatus === 'pending') return null;
+  const timestamp = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const escape = (value: string) => value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const start = new Date(booking.appointmentAt);
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Local showroom preview//Test drive//EN', `METHOD:${booking.appointmentCancelledAt ? 'CANCEL' : 'PUBLISH'}`, 'BEGIN:VEVENT', `UID:${booking.id}@local-preview`, `SEQUENCE:${booking.appointmentRevision ?? 0}`, `DTSTAMP:${timestamp(new Date())}`, `DTSTART:${timestamp(start)}`, `DTEND:${timestamp(new Date(start.getTime() + (booking.appointmentDurationMinutes ?? 30) * 60_000))}`, `SUMMARY:${escape(`Test drive: ${booking.vehicleTitle ?? settings.identity.name}`)}`, `LOCATION:${escape([settings.address.street, settings.address.city, settings.address.postcode].filter(Boolean).join(', '))}`, `STATUS:${booking.appointmentCancelledAt ? 'CANCELLED' : 'CONFIRMED'}`, 'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
+}
+
+function publicBooking(booking: PreviewEnquiry, settings: typeof previewSettings) {
+  const { manageToken: _token, ...enquiry } = booking;
+  return { ...enquiry, calendarIcs: previewCalendar(booking, settings) };
+}
+
+function previewManagement(booking: PreviewEnquiry, settings: typeof previewSettings) {
+  return { reference: booking.reference, status: booking.appointmentCancelledAt ? 'cancelled' : booking.appointmentStatus === 'pending' ? 'pending' : 'booked', customerName: booking.customerName, appointmentAt: booking.appointmentAt, cancelledAt: booking.appointmentCancelledAt, timezone: 'Europe/London', durationMinutes: booking.appointmentDurationMinutes ?? 30, vehicleTitle: booking.vehicleTitle, vehicleUrl: booking.vehicleUrl, calendarIcs: previewCalendar(booking, settings), canChange: !booking.appointmentCancelledAt && !!booking.appointmentAt && new Date(booking.appointmentAt).getTime() > Date.now() };
+}
+
+export async function handlePreviewBooking(req: IncomingMessage, url: URL, state: BookingPreviewState, settings: typeof previewSettings): Promise<{ status: number; data: unknown } | undefined> {
+  const path = url.pathname;
+  const policy = bookingPolicyFromConfig(settings);
+  const enquiries = state.enquiries ??= [];
+  const occupied = () => enquiries.filter((entry) => entry.type === 'viewing' && !entry.appointmentCancelledAt).map((entry) => ({ ...entry, appointmentAt: entry.appointmentAt ? new Date(entry.appointmentAt) : null }));
+  if (req.method === 'GET' && path === '/api/enquiries/availability') {
+    const date = url.searchParams.get('date') ?? '';
+    if (!isValidDateString(date) || !bookingDateIsInWindow(date, policy)) throw new ReservationError(`Choose a date within the next ${policy.daysAhead} days.`, 400);
+    return { status: 200, data: { date, timezone: 'Europe/London', slots: getSlotsForDate(date, policy).map((slot) => ({ startAt: slot.startAt.toISOString(), label: slot.label, available: slotIsAvailable(slot.startAt, policy, occupied()) })) } };
+  }
+  if (req.method === 'GET' && (path === '/api/enquiries' || path === '/api/test-drive-bookings')) return { status: 200, data: enquiries.filter((entry) => path === '/api/enquiries' || entry.type === 'viewing').map((entry) => publicBooking(entry, settings)) };
+  if (req.method === 'POST' && path === '/api/enquiries') {
+    const parsed = CreateEnquiryBody.safeParse(await body(req));
+    if (!parsed.success) throw new ReservationError('Please check your contact details and chosen time.', 400);
+    const input = parsed.data;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new ReservationError('Please provide a valid email address.', 400);
+    if (input.type === 'viewing' && (!input.phone || !/^\+?[0-9]{7,15}$/.test(input.phone.replace(/[\s().\-/]/g, '')))) throw new ReservationError('Please provide a phone number for your test drive.', 400);
+    const vehicle = previewStock.cars.find((entry) => entry.id === input.vehicleId);
+    if (input.vehicleId && !vehicle) throw new ReservationError('That car is no longer available.', 404);
+    if (input.type === 'viewing' && (!vehicle || !input.appointmentAt)) throw new ReservationError('Please choose a car and time.', 400);
+    if (input.type !== 'viewing' && input.appointmentAt) throw new ReservationError('Appointments are only available for test drives.', 400);
+    if (input.appointmentAt && !slotIsAvailable(input.appointmentAt, policy, occupied())) throw new ReservationError('That test-drive time is no longer available. Please choose another.', 409);
+    const id = randomUUID(); const token = randomBytes(24).toString('base64url'); const now = new Date().toISOString();
+    const viewing = input.type === 'viewing';
+    const enquiry: PreviewEnquiry = { id, dealerId: 'local-preview', reference: `PREVIEW-${id.slice(0, 8).toUpperCase()}`, vehicleId: vehicle?.id ?? null, vehicleTitle: vehicle?.title ?? null, vehicleRegistration: vehicle?.registration ?? null, vehiclePrice: vehicle?.price ?? null, vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null, type: input.type, status: 'new', customerName: input.customerName.trim(), email: input.email, phone: input.phone, preferredContact: input.preferredContact, message: input.message, partExchangeRegistration: input.partExchange?.registration ?? null, partExchangeMileage: input.partExchange?.mileage ?? null, partExchangeCondition: input.partExchange?.condition ?? null, appointmentAt: input.appointmentAt?.toISOString() ?? null, appointmentCancelledAt: null, appointmentRevision: 0, appointmentStatus: viewing ? policy.confirmationMode === 'approval' ? 'pending' : 'confirmed' : null, appointmentDurationMinutes: viewing ? policy.durationMinutes : null, appointmentBufferMinutes: viewing ? policy.bufferMinutes : null, manageToken: viewing ? token : undefined, managePath: viewing ? `/viewing/${token}` : null, calendarIcs: null, events: [], customerNotificationStatus: 'not_sent', customerNotificationError: 'Local preview — no email is sent.', customerNotificationSentAt: null, dealerNotificationStatus: 'not_sent', dealerNotificationError: 'Local preview — no email is sent.', dealerNotificationSentAt: null, reminderStatus: 'not_scheduled', reminderError: null, reminderSentAt: null, source: 'local-preview', createdAt: now, updatedAt: now };
+    enquiries.unshift(enquiry);
+    return { status: 201, data: publicBooking(enquiry, settings) };
+  }
+  const decision = /^\/api\/test-drive-bookings\/([^/]+)\/decision$/.exec(path);
+  if (req.method === 'POST' && decision) {
+    const parsed = DecideTestDriveBookingBody.safeParse(await body(req));
+    if (!parsed.success) throw new ReservationError('Choose confirm or decline.', 400);
+    const booking = enquiries.find((entry) => entry.id === decision[1] && entry.type === 'viewing');
+    if (!booking) throw new ReservationError('Test drive not found.', 404);
+    if ((booking.appointmentRevision ?? 0) !== parsed.data.expectedRevision) throw new ReservationError('This test drive has changed. Refresh the booking before deciding.', 409);
+    if ((parsed.data.decision === 'confirm' && booking.appointmentStatus === 'confirmed' && !booking.appointmentCancelledAt) || (parsed.data.decision === 'decline' && booking.appointmentCancelledAt)) return { status: 200, data: publicBooking(booking, settings) };
+    if (booking.appointmentCancelledAt || booking.appointmentStatus !== 'pending' || !booking.appointmentAt || new Date(booking.appointmentAt).getTime() <= Date.now()) throw new ReservationError('Only future pending requests can be confirmed or declined.', 409);
+    if (parsed.data.decision === 'confirm') booking.appointmentStatus = 'confirmed'; else booking.appointmentCancelledAt = new Date().toISOString();
+    booking.appointmentRevision = (booking.appointmentRevision ?? 0) + 1;
+    booking.updatedAt = new Date().toISOString();
+    return { status: 200, data: publicBooking(booking, settings) };
+  }
+  const management = /^\/api\/viewings\/([^/]+)(?:\/(reschedule|cancel))?$/.exec(path);
+  if (management) {
+    const booking = enquiries.find((entry) => entry.manageToken === management[1]);
+    if (!booking) throw new ReservationError('This booking link is no longer valid.', 404);
+    if (req.method === 'GET' && !management[2]) return { status: 200, data: previewManagement(booking, settings) };
+    if (req.method === 'POST' && management[2] === 'cancel') {
+      if (!booking.appointmentCancelledAt) booking.appointmentRevision = (booking.appointmentRevision ?? 0) + 1;
+      booking.appointmentCancelledAt ??= new Date().toISOString(); booking.updatedAt = new Date().toISOString();
+      return { status: 200, data: previewManagement(booking, settings) };
+    }
+    if (req.method === 'POST' && management[2] === 'reschedule') {
+      const parsed = RescheduleViewingBody.safeParse(await body(req));
+      if (!parsed.success) throw new ReservationError('Please choose a new test-drive time.', 400);
+      if (!previewManagement(booking, settings).canChange) throw new ReservationError('This booking can no longer be moved.', 400);
+      if (!slotIsAvailable(parsed.data.appointmentAt, policy, occupied(), new Date(), booking.id)) throw new ReservationError('That time is no longer available. Please choose another.', 409);
+      booking.appointmentRevision = (booking.appointmentRevision ?? 0) + 1;
+      booking.appointmentAt = parsed.data.appointmentAt.toISOString(); booking.appointmentStatus = policy.confirmationMode === 'approval' ? 'pending' : 'confirmed'; booking.appointmentDurationMinutes = policy.durationMinutes; booking.appointmentBufferMinutes = policy.bufferMinutes; booking.updatedAt = new Date().toISOString();
+      return { status: 200, data: previewManagement(booking, settings) };
+    }
+  }
+  return undefined;
 }

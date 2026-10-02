@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
+import { TestDriveBooking } from '@/components/test-drive-booking';
 import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
 import { formatMileage, formatPrice, getThumbnailUrl } from '@/lib/utils';
@@ -69,6 +70,8 @@ export default function Enquire() {
       ].filter((highlight): highlight is { label: string; value: string } => Boolean(highlight.value))
     : [];
   const changeCar = () => navigateToHomeTarget('stock', location, setLocation);
+
+  if (type === 'viewing') return <TestDriveBooking vehicle={vehicle} stockCars={stock?.cars ?? []} isLoading={isLoading} error={error} missingVehicle={Boolean(vehicleId && !vehicle)} />;
 
   return (
     <div className="friendly-page friendly-enquire luxxy-shell min-h-screen bg-background pb-20 pt-4 sm:pt-8 md:pt-12">
@@ -180,7 +183,7 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-[hsl(var(--accent))]" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-[hsl(var(--accent))]">We could not load the showroom details.</p>
-                    <p className="mt-2 text-primary/70">{(type === 'part_exchange' || type === 'viewing') ? 'Please reload to choose a current stock vehicle, or call the showroom.' : 'You can still send an enquiry and our team will help match it to the right vehicle.'}</p>
+                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Please reload to choose a current stock vehicle, or call the showroom.' : 'You can still send an enquiry and our team will help match it to the right vehicle.'}</p>
                   </div>
                 </div>
               ) : vehicleId && !vehicle ? (
@@ -188,12 +191,12 @@ export default function Enquire() {
                   <CircleAlert className="h-6 w-6 shrink-0 text-accent" />
                   <div>
                     <p className="font-display text-[14px] font-semibold text-accent">This vehicle has just left the showroom.</p>
-                    <p className="mt-2 text-primary/70">{type === 'viewing' ? 'Choose another available car below before booking your test drive.' : type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
+                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
                   </div>
                 </div>
               ) : null}
 
-              <EnquiryForm initialMessage={vehicle && type === "general" ? questionMessage(params.get("question")) : type === "general" && params.get("searchRequest") ? "Please help me find a car. My preferences: " + params.get("searchRequest")!.slice(0, 500) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
+              <EnquiryForm initialMessage={type === "general" && params.get("searchRequest") ? params.get("searchRequest")!.slice(0, 500) : vehicle && type === "general" ? questionMessage(params.get("question")) : ""} onTypeChange={setType} onChangeCar={changeCar} initialType={type} vehicle={vehicle} stockCars={stock?.cars ?? []} />
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">

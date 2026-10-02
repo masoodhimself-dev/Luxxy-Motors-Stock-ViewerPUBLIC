@@ -1,9 +1,11 @@
+import { defaultBookingPolicy } from '../../api-server/src/lib/booking-slots';
 import customerReviews from './customer-reviews.json';
 import type { DealerSettings } from '@workspace/api-client-react';
 import { dealerConfig } from '../src/config/dealer';
 
 // Complete API-shaped defaults for the read-only design preview.
 export const previewSettings: DealerSettings = {
+  testDriveBooking: defaultBookingPolicy,
   onlineReservation: {
     enabled: true,
     depositPence: 10000,

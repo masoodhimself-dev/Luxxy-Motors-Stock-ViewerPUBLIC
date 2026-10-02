@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   pgEnum,
@@ -59,6 +60,10 @@ export const enquiriesTable = pgTable(
     partExchangeRegistration: text("part_exchange_registration"),
     partExchangeMileage: integer("part_exchange_mileage"),
     partExchangeCondition: text("part_exchange_condition"),
+    appointmentRevision: integer("appointment_revision").notNull().default(0),
+    appointmentStatus: text("appointment_status").$type<"pending" | "confirmed">(),
+    appointmentDurationMinutes: integer("appointment_duration_minutes"),
+    appointmentBufferMinutes: integer("appointment_buffer_minutes"),
     appointmentAt: timestamp("appointment_at", { withTimezone: true }),
     appointmentCancelledAt: timestamp("appointment_cancelled_at", {
       withTimezone: true,
@@ -109,6 +114,9 @@ export const enquiriesTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    check("enquiries_appointment_status_check", sql`${table.appointmentStatus} is null or ${table.appointmentStatus} in ('pending', 'confirmed')`),
+    check("enquiries_appointment_duration_check", sql`${table.appointmentDurationMinutes} is null or ${table.appointmentDurationMinutes} between 15 and 180`),
+    check("enquiries_appointment_buffer_check", sql`${table.appointmentBufferMinutes} is null or ${table.appointmentBufferMinutes} between 0 and 120`),
     index("enquiries_dealer_status_created_idx").on(
       table.dealerId,
       table.status,

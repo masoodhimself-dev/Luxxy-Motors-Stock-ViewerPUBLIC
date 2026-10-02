@@ -83,19 +83,23 @@ test('save and compare work from stock and vehicle details', async ({ page }) =>
   await expect(page.getByTestId('row-vehicle-preview-1')).toBeVisible();
 });
 
-test('booking preserves the selected car, date and contact payload', async ({ page }) => {
+test('booking preserves the selected car, date and contact payload', async ({ page, request }) => {
+  await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } }));
+  const stock = await (await request.get('/api/stock')).json();
+  const car = stock.cars.find((car: any) => !['sold', 'archived', 'hidden'].includes(car.inventoryStatus ?? ''));
   let submitted: Record<string, unknown> | undefined;
   await page.route('**/api/enquiries', async (route) => {
     submitted = route.request().postDataJSON();
     await route.fulfill({
       json: {
         reference: 'UI-TEST',
+        appointmentStatus: 'confirmed',
         customerNotificationStatus: 'sent',
         managePath: '/viewing/sample',
       },
     });
   });
-  await page.goto('/enquire?type=viewing&vehicleId=preview-1');
+  await page.goto(`/enquire?type=viewing&vehicleId=${car.id}`);
   const continueButton = page.getByTestId('button-continue-to-details');
   await expect(continueButton).toBeDisabled();
   await page.getByTestId('group-viewing-slots').getByRole('button').first().click();
@@ -106,11 +110,13 @@ test('booking preserves the selected car, date and contact payload', async ({ pa
   await page.getByTestId('input-customer-name').fill('Test Customer');
   await page.getByTestId('input-customer-email').fill('test@example.com');
   await page.getByTestId('input-customer-phone').fill('07700 900123');
+  await page.getByTestId('button-review-booking').click();
+  expect(submitted).toBeUndefined();
   await page.getByTestId('button-submit-enquiry').click();
   await expect(page.getByTestId('status-enquiry-success')).toBeVisible();
   expect(submitted).toMatchObject({
     type: 'viewing',
-    vehicleId: 'preview-1',
+    vehicleId: car.id,
     customerName: 'Test Customer',
     email: 'test@example.com',
     phone: '07700900123',

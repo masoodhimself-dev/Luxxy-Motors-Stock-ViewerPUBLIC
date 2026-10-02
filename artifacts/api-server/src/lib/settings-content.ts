@@ -45,3 +45,10 @@ export function preserveBrochure<T extends { brochure?: object }>(incoming: T, p
   if (!brochure || typeof brochure !== 'object' || Array.isArray(brochure)) return incoming;
   return { ...incoming, brochure: { ...brochure, ...incoming.brochure } };
 }
+
+/** Retain the appointment policy when an older settings editor omits it. */
+export function preserveTestDriveBooking<T extends { testDriveBooking?: object }>(incoming: T, previous: unknown): T {
+  if (incoming.testDriveBooking !== undefined) return incoming;
+  const policy = previous && typeof previous === "object" && "testDriveBooking" in previous ? previous.testDriveBooking : undefined;
+  return policy && typeof policy === "object" && !Array.isArray(policy) ? { ...incoming, testDriveBooking: policy } : incoming;
+}

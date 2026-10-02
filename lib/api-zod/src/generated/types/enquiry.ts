@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EnquiryAppointmentStatus } from './enquiryAppointmentStatus';
 import type { EnquiryEvent } from './enquiryEvent';
 import type { EnquiryStatus } from './enquiryStatus';
 import type { EnquiryType } from './enquiryType';
@@ -28,6 +29,14 @@ export interface Enquiry {
   vehicleUrl: string | null;
   /** @nullable */
   appointmentAt: Date | null;
+  /** @minimum 0 */
+  appointmentRevision?: number;
+  /** @nullable */
+  appointmentStatus?: EnquiryAppointmentStatus;
+  /** @nullable */
+  appointmentDurationMinutes?: number | null;
+  /** @nullable */
+  appointmentBufferMinutes?: number | null;
   /** @nullable */
   appointmentCancelledAt: Date | null;
   /**

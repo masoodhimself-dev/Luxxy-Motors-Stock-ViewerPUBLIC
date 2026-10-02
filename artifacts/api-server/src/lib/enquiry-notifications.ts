@@ -16,7 +16,7 @@ import {
   type Enquiry,
 } from "@workspace/db";
 import type { Logger } from "pino";
-import { viewingCalendarIcs, viewingManageUrl } from "./enquiry-links";
+import { notificationVersion, viewingCalendarIcs, viewingManageUrl } from "./enquiry-links";
 
 export const bookingTimezone = "Europe/London";
 const reminderLeadTimeMs = 24 * 60 * 60 * 1000;
@@ -50,6 +50,8 @@ function formatAppointment(value: Date | null) {
 type DealerProfile = {
   identity: { name: string };
   contact: { email: string; phone: string; whatsapp: string; address: string };
+  instructions?: string;
+  parkingInstructions?: string;
 };
 
 const defaultDealerProfile: DealerProfile = {
@@ -58,6 +60,8 @@ const defaultDealerProfile: DealerProfile = {
 };
 
 type DealerSettingsConfig = {
+  testDriveBooking?: { instructions?: string };
+  presentation?: { parkingInstructions?: string; visitInstructions?: string };
   identity?: { name?: string };
   contact?: { email?: string; phone?: string; whatsapp?: string };
   address?: {
@@ -87,6 +91,8 @@ async function getDealerProfile(): Promise<DealerProfile> {
     );
   const config = settings?.config as DealerSettingsConfig | undefined;
   return {
+    instructions: config?.testDriveBooking?.instructions?.trim() || config?.presentation?.visitInstructions?.trim() || "",
+    parkingInstructions: config?.presentation?.parkingInstructions?.trim() || "",
     identity: {
       name: config?.identity?.name?.trim() || defaultDealerProfile.identity.name,
     },
@@ -198,6 +204,10 @@ function partExchangeSection(enquiry: Enquiry) {
     .join("<br />")}</p>`;
 }
 
+function appointmentState(enquiry: Enquiry) {
+  return enquiry.appointmentCancelledAt ? "cancelled" : enquiry.appointmentStatus === "pending" ? "requested — awaiting confirmation" : "confirmed";
+}
+
 function customerEmail(
   enquiry: Enquiry,
   reminder: boolean,
@@ -208,17 +218,18 @@ function customerEmail(
   const greeting = escapeHtml(enquiry.customerName);
   const vehicle = escapeHtml(vehicleLabel(enquiry, dealerName));
   const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
-  const intro = reminder
-    ? "This is a reminder for your upcoming viewing."
-    : isViewing
-      ? "Your viewing has been booked."
-      : "We have received your enquiry.";
+  const intro = enquiry.appointmentCancelledAt
+    ? "Your test drive has been cancelled. Please contact the showroom if you would like help arranging another time."
+    : enquiry.appointmentStatus === "pending"
+      ? "We have received your test-drive request. The showroom will confirm whether this time is available. Your appointment is not confirmed yet."
+      : reminder ? "This is a reminder for your upcoming test drive."
+      : isViewing ? "Your test drive has been booked." : "We have received your enquiry.";
   const appointmentRow = appointment
     ? `<p><strong>Viewing time:</strong> ${escapeHtml(appointment)} (${bookingTimezone})</p>`
     : "";
-  const manageUrl = isViewing ? viewingManageUrl(enquiry.id) : null;
+  const manageUrl = isViewing && !enquiry.appointmentCancelledAt ? viewingManageUrl(enquiry.id) : null;
   const manageBlock = manageUrl
-    ? `<p>Need to move or cancel it? <a href="${escapeHtml(manageUrl)}">Change your viewing</a>. A calendar invite is attached to this email.</p>`
+    ? `<p>Need to move or cancel it? <a href="${escapeHtml(manageUrl)}">Change your test drive</a>. ${enquiry.appointmentStatus === "pending" ? "We will send a calendar invite once your time is confirmed." : "A calendar invite is attached to this email."}</p>`
     : "<p>If you need to make a change, please reply to this email or contact the showroom.</p>";
   const contactLine = [
     dealer.contact.phone ? `call ${dealer.contact.phone}` : null,
@@ -235,6 +246,10 @@ function customerEmail(
       <p><strong>Your reference:</strong> ${escapeHtml(enquiry.reference)}</p>
       <p><strong>Vehicle:</strong> ${vehicle}</p>
       ${appointmentRow}
+      ${isViewing ? row("Duration", `${enquiry.appointmentDurationMinutes ?? 30} minutes`) : ""}
+      ${isViewing ? row("Showroom", dealer.contact.address) : ""}
+      ${isViewing ? row("Before your visit", dealer.instructions) : ""}
+      ${isViewing ? row("Parking", dealer.parkingInstructions) : ""}
       ${manageBlock}
       ${contactLine ? `<p>Quote your reference when you ${escapeHtml(contactLine)}.</p>` : ""}
        <p>Thanks,<br />${escapeHtml(dealerName)}</p>
@@ -251,7 +266,7 @@ function dealerEmail(enquiry: Enquiry, dealerName: string) {
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
        <h1 style="color:#172033">New ${escapeHtml(dealerName)} enquiry</h1>
-      <p>A customer has submitted a new enquiry.</p>
+      <p>${enquiry.type === "viewing" ? `Test drive ${appointmentState(enquiry)}.` : "A customer has submitted a new enquiry."}</p>
       ${row("Reference", enquiry.reference)}
       ${row("Customer", enquiry.customerName)}
       ${row("Phone", enquiry.phone)}
@@ -313,6 +328,7 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
     .where(
       and(
         eq(enquiriesTable.id, enquiry.id),
+        eq(enquiriesTable.appointmentRevision, enquiry.appointmentRevision),
         claimable(
           enquiriesTable.customerNotificationStatus,
           enquiriesTable.customerNotificationAttemptedAt,
@@ -327,10 +343,10 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
     to: claimed.email,
     subject:
       claimed.type === "viewing"
-          ? `Your ${dealer.identity.name} viewing is booked`
+          ? `Your ${dealer.identity.name} test drive ${appointmentState(claimed)}`
           : `Your ${dealer.identity.name} enquiry`,
     html: customerEmail(claimed, false, dealer),
-    idempotencyKey: `enquiry-${claimed.id}-customer-confirmation`,
+    idempotencyKey: `enquiry-${claimed.id}-customer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Customer email address is missing.",
     log,
@@ -349,6 +365,7 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
     .where(
       and(
         eq(enquiriesTable.id, claimed.id),
+        eq(enquiriesTable.appointmentRevision, claimed.appointmentRevision),
         eq(enquiriesTable.customerNotificationStatus, "sending"),
         eq(
           enquiriesTable.customerNotificationAttemptedAt,
@@ -371,6 +388,7 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
     .where(
       and(
         eq(enquiriesTable.id, enquiry.id),
+        eq(enquiriesTable.appointmentRevision, enquiry.appointmentRevision),
         claimable(
           enquiriesTable.dealerNotificationStatus,
           enquiriesTable.dealerNotificationAttemptedAt,
@@ -385,10 +403,10 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
     to: process.env.DEALER_NOTIFICATION_EMAIL?.trim() || dealer.contact.email || null,
     subject:
       claimed.type === "viewing"
-        ? `New viewing booked at ${dealer.identity.name}`
+        ? `Test drive ${appointmentState(claimed)} at ${dealer.identity.name}`
         : `New enquiry at ${dealer.identity.name}`,
     html: dealerEmail(claimed, dealer.identity.name),
-    idempotencyKey: `enquiry-${claimed.id}-dealer-notification`,
+    idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Dealer notification email is not configured.",
     log,
@@ -406,6 +424,7 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
     .where(
       and(
         eq(enquiriesTable.id, claimed.id),
+        eq(enquiriesTable.appointmentRevision, claimed.appointmentRevision),
         eq(enquiriesTable.dealerNotificationStatus, "sending"),
         eq(
           enquiriesTable.dealerNotificationAttemptedAt,
@@ -445,6 +464,12 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
     .where(
       and(
         eq(enquiriesTable.id, enquiry.id),
+        eq(enquiriesTable.appointmentRevision, enquiry.appointmentRevision),
+        eq(enquiriesTable.type, "viewing"),
+        eq(enquiriesTable.appointmentStatus, "confirmed"),
+        isNull(enquiriesTable.appointmentCancelledAt),
+        gt(enquiriesTable.appointmentAt, attemptedAt),
+        lte(enquiriesTable.appointmentAt, new Date(attemptedAt.getTime() + reminderLeadTimeMs)),
         claimable(
           enquiriesTable.reminderStatus,
           enquiriesTable.reminderAttemptedAt,
@@ -459,8 +484,8 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
     to: claimed.email,
     subject: `Reminder: your upcoming ${dealer.identity.name} viewing`,
     html: customerEmail(claimed, true, dealer),
-    // A rescheduled viewing gets a fresh reminder, so the key follows the time.
-    idempotencyKey: `enquiry-${claimed.id}-customer-reminder-${claimed.appointmentAt?.getTime() ?? 0}`,
+    // Retries deduplicate, while a later change back to the same time is new.
+    idempotencyKey: `enquiry-${claimed.id}-customer-reminder-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Customer email address is missing.",
     log,
@@ -479,6 +504,9 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
     .where(
       and(
         eq(enquiriesTable.id, claimed.id),
+        eq(enquiriesTable.appointmentRevision, claimed.appointmentRevision),
+        eq(enquiriesTable.appointmentStatus, "confirmed"),
+        isNull(enquiriesTable.appointmentCancelledAt),
         eq(enquiriesTable.reminderStatus, "sending"),
         eq(
           enquiriesTable.reminderAttemptedAt,
@@ -520,6 +548,7 @@ export async function processDueNotifications(log: Logger) {
     .where(
       and(
         eq(enquiriesTable.type, "viewing"),
+        or(eq(enquiriesTable.appointmentStatus, "confirmed"), isNull(enquiriesTable.appointmentStatus)),
         isNull(enquiriesTable.appointmentCancelledAt),
         claimable(
           enquiriesTable.reminderStatus,
@@ -543,6 +572,7 @@ export async function processDueNotifications(log: Logger) {
     .where(
       and(
         eq(enquiriesTable.type, "viewing"),
+        or(eq(enquiriesTable.appointmentStatus, "confirmed"), isNull(enquiriesTable.appointmentStatus)),
         isNull(enquiriesTable.appointmentCancelledAt),
         or(
           eq(enquiriesTable.reminderStatus, "pending"),

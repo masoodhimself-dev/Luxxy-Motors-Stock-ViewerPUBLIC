@@ -1,8 +1,12 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { Enquiry } from "@workspace/db";
 
+/** Stable across delivery retries, fresh for every customer/staff appointment change. */
+export function notificationVersion(enquiry: Pick<Enquiry, "appointmentCancelledAt" | "appointmentStatus" | "appointmentAt" | "appointmentRevision">) {
+  return `${enquiry.appointmentCancelledAt ? "cancelled" : enquiry.appointmentStatus ?? "received"}-${enquiry.appointmentAt?.getTime() ?? 0}-${enquiry.appointmentRevision}`;
+}
+
 const referenceAlphabet = "ACDEFGHJKLMNPQRTUVWXY34679";
-const viewingDurationMs = 30 * 60 * 1000;
 
 /**
  * Customer-facing reference, e.g. "K4QM-9TXR". Ambiguous characters are left
@@ -108,7 +112,7 @@ export function viewingCalendarIcs({
   enquiry,
   dealerName,
   location,
-  sequence = 0,
+  sequence = enquiry.appointmentRevision ?? 0,
 }: {
   enquiry: Pick<
     Enquiry,
@@ -118,19 +122,19 @@ export function viewingCalendarIcs({
     | "appointmentCancelledAt"
     | "vehicleTitle"
     | "dealerId"
-  >;
+  > & { appointmentStatus?: "pending" | "confirmed" | null; appointmentDurationMinutes?: number | null; appointmentRevision?: number };
   dealerName: string;
   location?: string | null;
   sequence?: number;
 }) {
-  if (!enquiry.appointmentAt) return null;
+  if (!enquiry.appointmentAt || enquiry.appointmentStatus === "pending") return null;
   const cancelled = enquiry.appointmentCancelledAt != null;
   const start = enquiry.appointmentAt;
-  const end = new Date(start.getTime() + viewingDurationMs);
+  const end = new Date(start.getTime() + (enquiry.appointmentDurationMinutes ?? 30) * 60_000);
   const vehicle = enquiry.vehicleTitle?.trim();
   const summary = vehicle
-    ? `Car viewing: ${vehicle} at ${dealerName}`
-    : `Car viewing at ${dealerName}`;
+    ? `Test drive: ${vehicle} at ${dealerName}`
+    : `Test drive at ${dealerName}`;
   const description = [
     vehicle ? `Vehicle: ${vehicle}` : null,
     `Reference: ${enquiry.reference}`,

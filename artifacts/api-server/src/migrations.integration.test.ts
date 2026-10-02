@@ -33,7 +33,7 @@ test("migrations build the current schema and preserve existing stock and enquir
   );
   assert.equal(
     journal.entries.at(-1).tag,
-    "0011_reconcile_portal_and_enquiry_events",
+    "0012_test_drive_booking_policy",
   );
   const historical = await mkdtemp(
     path.join(tmpdir(), "luxxy-migration-history-"),
@@ -71,10 +71,14 @@ test("migrations build the current schema and preserve existing stock and enquir
     assert.equal(Number(preserved.rows[0].source_price), 12500);
     assert.match(preserved.rows[0].reference, /^[A-F0-9]{4}-[A-F0-9]{4}$/);
     assert.equal(preserved.rows[0].appointment_cancelled_at, null);
+    assert.equal(preserved.rows[0].appointment_status, "confirmed");
+    assert.equal(preserved.rows[0].appointment_revision, 0);
+    assert.equal(preserved.rows[0].appointment_duration_minutes, 30);
+    assert.equal(preserved.rows[0].appointment_buffer_minutes, 0);
 
     const snapshot = JSON.parse(
       await readFile(
-        path.join(migrationsFolder, "meta/0011_snapshot.json"),
+        path.join(migrationsFolder, "meta/0012_snapshot.json"),
         "utf8",
       ),
     );

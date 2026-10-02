@@ -1,9 +1,60 @@
 export const bookingTimezone = "Europe/London";
 
-const bookingStartHour = 10;
-const bookingEndHour = 18;
-const slotMinutes = 30;
-const bookingWindowDays = 30;
+export type BookingPolicy = {
+  enabled: boolean;
+  durationMinutes: number;
+  bufferMinutes: number;
+  minimumNoticeHours: number;
+  dailyCapacity: number;
+  daysAhead: number;
+  blockedDates: string[];
+  weeklyHours: Array<{ day: number; enabled: boolean; open: string; close: string }>;
+  instructions: string;
+  confirmationMode: "instant" | "approval";
+};
+
+export const defaultBookingPolicy: BookingPolicy = {
+  enabled: true, durationMinutes: 30, bufferMinutes: 0, minimumNoticeHours: 0,
+  dailyCapacity: 16, daysAhead: 30, blockedDates: [], instructions: "", confirmationMode: "instant",
+  weeklyHours: Array.from({ length: 7 }, (_, day) => ({ day, enabled: day !== 0, open: "10:00", close: "18:00" })),
+};
+
+export function bookingPolicyFromConfig(config: unknown): BookingPolicy {
+  const value = config && typeof config === "object" && "testDriveBooking" in config ? config.testDriveBooking : undefined;
+  return value && typeof value === "object" ? { ...defaultBookingPolicy, ...value } as BookingPolicy : defaultBookingPolicy;
+}
+
+export function bookingPolicyError(policy?: BookingPolicy): string | null {
+  if (!policy) return null;
+  if (new Set(policy.weeklyHours.map(({ day }) => day)).size !== 7) return "Set booking hours once for each day of the week.";
+  if (policy.weeklyHours.some(({ enabled, open, close }) => enabled && open >= close)) return "Booking closing times must be after opening times.";
+  if (policy.weeklyHours.some(({ enabled, open, close }) => enabled && timeMinutes(close) - timeMinutes(open) < policy.durationMinutes)) return "Allow enough time for a full test drive within each day's booking hours.";
+  if (policy.blockedDates.some((date) => !isValidDateString(date))) return "Choose valid dates to block from bookings.";
+  return null;
+}
+
+function timeMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+export type OccupiedBooking = { id?: string; appointmentAt: Date | null; appointmentDurationMinutes?: number | null; appointmentBufferMinutes?: number | null };
+
+/** Pending and confirmed appointments both hold their time until cancelled. */
+export function slotIsAvailable(startAt: Date, policy: BookingPolicy, booked: OccupiedBooking[], now = new Date(), excludeId?: string) {
+  if (!validBookingDateTime(startAt, policy, now)) return false;
+  const active = booked.filter((entry) => entry.id !== excludeId || !excludeId);
+  const date = dateStringInTimezone(startAt);
+  if (active.filter((entry) => entry.appointmentAt && dateStringInTimezone(entry.appointmentAt) === date).length >= policy.dailyCapacity) return false;
+  const start = startAt.getTime();
+  const end = start + (policy.durationMinutes + policy.bufferMinutes) * 60_000;
+  return !active.some((entry) => {
+    if (!entry.appointmentAt) return false;
+    const occupiedStart = entry.appointmentAt.getTime();
+    const occupiedEnd = occupiedStart + ((entry.appointmentDurationMinutes ?? 30) + (entry.appointmentBufferMinutes ?? 0)) * 60_000;
+    return start < occupiedEnd && occupiedStart < end;
+  });
+}
 
 export function datePartsInTimezone(value: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -44,9 +95,9 @@ export function isValidDateString(value: string) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-export function bookingDateIsInWindow(dateValue: string) {
-  const today = dateStringInTimezone(new Date());
-  return dateValue >= today && dateValue <= addDays(today, bookingWindowDays);
+export function bookingDateIsInWindow(dateValue: string, policy = defaultBookingPolicy, now = new Date()) {
+  const today = dateStringInTimezone(now);
+  return dateValue >= today && dateValue <= addDays(today, policy.daysAhead);
 }
 
 export function localDateTimeToUtc(dateValue: string, hour: number, minute: number) {
@@ -84,27 +135,32 @@ export function formatAppointmentLabel(value: Date | null) {
   }).format(value);
 }
 
-export function getSlotsForDate(dateValue: string) {
+export function getSlotsForDate(dateValue: string, policy = defaultBookingPolicy) {
+  if (!policy.enabled || policy.blockedDates.includes(dateValue) || !isValidDateString(dateValue)) return [];
   const weekday = new Date(`${dateValue}T00:00:00.000Z`).getUTCDay();
-  if (weekday === 0) return [];
+  const hours = policy.weeklyHours.find(({ day }) => day === weekday);
+  if (!hours?.enabled) return [];
   const slots: Array<{ startAt: Date; label: string }> = [];
-  for (let minutes = bookingStartHour * 60; minutes < bookingEndHour * 60; minutes += slotMinutes) {
+  const step = policy.durationMinutes + policy.bufferMinutes;
+  const closeMinutes = timeMinutes(hours.close);
+  const closingAt = localDateTimeToUtc(dateValue, Math.floor(closeMinutes / 60), closeMinutes % 60);
+  if (step <= 0) return slots;
+  for (let minutes = timeMinutes(hours.open); minutes + policy.durationMinutes <= timeMinutes(hours.close); minutes += step) {
     const startAt = localDateTimeToUtc(dateValue, Math.floor(minutes / 60), minutes % 60);
+    if (startAt.getTime() + policy.durationMinutes * 60_000 > closingAt.getTime()) continue;
+    const actual = datePartsInTimezone(startAt);
+    // A clock-change gap must never turn into a different local appointment.
+    if (actual.hour !== Math.floor(minutes / 60) || actual.minute !== minutes % 60) continue;
     slots.push({ startAt, label: formatSlotLabel(startAt) });
   }
   return slots;
 }
 
-export function validBookingDateTime(appointmentAt: Date) {
-  if (Number.isNaN(appointmentAt.getTime()) || appointmentAt.getTime() <= Date.now()) {
-    return false;
-  }
-  const parts = datePartsInTimezone(appointmentAt);
-  const dateValue = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-  if (!bookingDateIsInWindow(dateValue) || parts.second !== 0) return false;
-  return getSlotsForDate(dateValue).some(
-    (slot) => slot.startAt.getTime() === appointmentAt.getTime(),
-  );
+export function validBookingDateTime(appointmentAt: Date, policy = defaultBookingPolicy, now = new Date()) {
+  if (Number.isNaN(appointmentAt.getTime()) || appointmentAt.getTime() <= now.getTime() + policy.minimumNoticeHours * 3_600_000) return false;
+  const dateValue = dateStringInTimezone(appointmentAt);
+  if (!bookingDateIsInWindow(dateValue, policy, now)) return false;
+  return getSlotsForDate(dateValue, policy).some((slot) => slot.startAt.getTime() === appointmentAt.getTime());
 }
 
 export function isUniqueViolation(error: unknown): boolean {

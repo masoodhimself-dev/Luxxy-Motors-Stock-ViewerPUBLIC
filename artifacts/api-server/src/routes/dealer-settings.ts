@@ -1,4 +1,5 @@
-import { preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
+import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
+import { preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
@@ -13,6 +14,7 @@ const router: IRouter = Router();
 const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
 
 const defaultSettings = {
+  testDriveBooking: defaultBookingPolicy,
   identity: {
     name: "Luxxy Motors",
     logoText: "LUXXY MOTORS",
@@ -127,8 +129,8 @@ router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> =
     return;
   }
   const [previous] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId()));
-  const compatible = UpdateDealerSettingsBody.parse(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data, previous?.config), previous?.config), previous?.config));
-  const reservationError = reservationSettingsError(compatible.onlineReservation);
+  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data, previous?.config), previous?.config), previous?.config), previous?.config));
+  const reservationError = reservationSettingsError(compatible.onlineReservation) ?? bookingPolicyError(compatible.testDriveBooking);
   if (reservationError) {
     res.status(400).json({ error: reservationError });
     return;

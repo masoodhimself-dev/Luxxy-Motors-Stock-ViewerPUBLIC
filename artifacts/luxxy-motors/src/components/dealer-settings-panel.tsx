@@ -10,6 +10,7 @@ import {
   type DealerSettings,
   type DealerService,
   type DealerPresentation,
+  type DealerTestDriveBooking,
   useGetDealerSettings,
   useUpdateDealerSettings,
 } from '@workspace/api-client-react';
@@ -37,6 +38,7 @@ import {
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { dealerConfig } from '@/config/dealer';
 import { readSettingsDraft, writeSettingsDraft, clearSettingsDraft } from '@/lib/settings-draft';
@@ -58,7 +60,7 @@ const ActiveSettingsSection = createContext<FormSection | null>(null);
 const setupSteps: Array<[FormSection, string, string]> = [
   ["identity", "Your brand", "Name, logo & colours"],
   ["contact", "Your showroom", "Contact, address & hours"],
-  ["presentation", "Photographs & visits", "Images, directions & reviews"],
+  ["presentation", "Photographs & visits", "Photos, bookings & directions"],
   ["homepage", "Homepage", "Headline & featured cars"],
   ["pages", "Page wording", "Navigation & customer pages"],
   ["services", "Services", "Reservations & feature switches"],
@@ -67,6 +69,25 @@ const setupSteps: Array<[FormSection, string, string]> = [
   ["legal", "Business details", "Company, social & policy links"],
   ["review", "Review & publish", "Check the draft before publishing"],
 ];
+
+const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const defaultTestDriveBooking: DealerTestDriveBooking = {
+  enabled: true,
+  durationMinutes: 30,
+  bufferMinutes: 0,
+  minimumNoticeHours: 0,
+  dailyCapacity: 16,
+  daysAhead: 30,
+  blockedDates: [],
+  weeklyHours: weekdayNames.map((_, day) => ({ day, enabled: day !== 0, open: '10:00', close: '18:00' })),
+  instructions: '',
+  confirmationMode: 'instant',
+};
+
+function copyBookingSettings(value?: DealerTestDriveBooking): DealerTestDriveBooking {
+  const settings = value ?? defaultTestDriveBooking;
+  return { ...settings, blockedDates: [...settings.blockedDates], weeklyHours: settings.weeklyHours.map(day => ({ ...day })) };
+}
 
 const fallbackSettings: DealerSettings = {
   onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...dealerConfig.onlineReservation },
@@ -159,6 +180,7 @@ function copySettings(source: DealerSettings): DealerSettings {
     partExchange: { ...source.partExchange },
     onlineReservation: { enabled: false, depositPence: 10000, terms: "", ...source.onlineReservation },
     bookViewing: { ...source.bookViewing },
+    testDriveBooking: copyBookingSettings(source.testDriveBooking),
     recentHandovers: { ...source.recentHandovers },
     presentation: { ...source.presentation, ...(source.presentation?.websiteCopy ? { websiteCopy: { ...source.presentation.websiteCopy } } : {}) },
     brochure: { ...source.brochure },
@@ -298,6 +320,78 @@ function ServiceEditor({
   );
 }
 
+
+function TestDriveSettings({ value, onChange, errors }: {
+  value: DealerTestDriveBooking;
+  onChange: (value: DealerTestDriveBooking) => void;
+  errors: Record<string, string>;
+}) {
+  const [blockedDate, setBlockedDate] = useState('');
+  const update = <K extends keyof DealerTestDriveBooking>(key: K, next: DealerTestDriveBooking[K]) => onChange({ ...value, [key]: next });
+  const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(`${date}T12:00:00Z`));
+  return (
+    <div className="rounded-md border border-border p-4 sm:p-6" data-testid="test-drive-settings">
+      <div className="border-b border-border pb-5">
+        <h3 className="font-display text-xl font-semibold text-primary">Test-drive appointments</h3>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose when customers can book and what they need for their visit. All appointment times use UK time.</p>
+        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5 accent-primary" checked={value.enabled} onChange={event => update('enabled', event.target.checked)} data-testid="checkbox-test-drive-enabled" />Accept online test-drive bookings</label>
+      </div>
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <Field label="Booking confirmation" hint="What the customer sees">
+          <NativeSelect value={value.confirmationMode} onChange={event => update('confirmationMode', event.target.value as DealerTestDriveBooking['confirmationMode'])} data-testid="select-test-drive-confirmation">
+            <option value="instant">Confirm immediately</option>
+            <option value="approval">Require staff approval</option>
+          </NativeSelect>
+        </Field>
+        <p className="self-center text-sm leading-6 text-muted-foreground">{value.confirmationMode === 'approval' ? 'Customers receive a request acknowledgement. Review requests in the Test drives tab to confirm or decline the appointment.' : 'Available appointments are confirmed as soon as the customer completes their booking.'}</p>
+        {([
+          ['durationMinutes', 'Appointment length (minutes)', '15–180 minutes', 15, 180],
+          ['bufferMinutes', 'Preparation time between visits (minutes)', '0–120 minutes', 0, 120],
+          ['minimumNoticeHours', 'Minimum advance notice (hours)', '0 allows same-day bookings', 0, 720],
+          ['dailyCapacity', 'Maximum appointments per day', 'Across all vehicles', 1, 100],
+          ['daysAhead', 'Allow bookings up to (days ahead)', '1–90 days', 1, 90],
+        ] as const).map(([key, label, hint, min, max]) => (
+          <Field key={key} label={label} hint={hint} error={errors[`testDriveBooking.${key}`]}>
+            <Input type="number" inputMode="numeric" min={min} max={max} step={1} value={value[key]} onChange={event => update(key, Number(event.target.value))} data-testid={`input-test-drive-${key}`} />
+          </Field>
+        ))}
+      </div>
+      <fieldset className="mt-6 border-t border-border pt-5">
+        <legend className="pr-3 text-sm font-semibold">Appointment hours</legend>
+        <p className="mb-3 text-sm text-muted-foreground">These times control the booking calendar. Your displayed showroom opening hours are managed in Your showroom.</p>
+        <div className="divide-y divide-border">
+          {[1, 2, 3, 4, 5, 6, 0].map(dayNumber => {
+            const day = value.weeklyHours.find(entry => entry.day === dayNumber)!;
+            const editDay = (change: Partial<typeof day>) => update('weeklyHours', value.weeklyHours.map(entry => entry.day === dayNumber ? { ...entry, ...change } : entry));
+            return (
+              <div key={dayNumber} className="grid grid-cols-2 items-center gap-3 py-3 sm:grid-cols-[minmax(140px,1fr)_1fr_1fr]">
+                <label className="col-span-2 flex min-h-11 items-center gap-3 text-sm font-medium sm:col-span-1"><input type="checkbox" className="h-5 w-5 accent-primary" checked={day.enabled} onChange={event => editDay({ enabled: event.target.checked })} aria-label={`${weekdayNames[dayNumber]} appointments`} />{weekdayNames[dayNumber]}</label>
+                <label className="min-w-0 space-y-1 text-xs text-muted-foreground">From<Input type="time" value={day.open} disabled={!day.enabled} aria-label={`${weekdayNames[dayNumber]} first appointment`} className="min-w-0" onChange={event => editDay({ open: event.target.value })} /></label>
+                <label className="min-w-0 space-y-1 text-xs text-muted-foreground">Until<Input type="time" value={day.close} disabled={!day.enabled} aria-label={`${weekdayNames[dayNumber]} appointments finish`} className="min-w-0" onChange={event => editDay({ close: event.target.value })} /></label>
+              </div>
+            );
+          })}
+        </div>
+        {errors['testDriveBooking.weeklyHours'] && <p role="alert" className="mt-2 text-sm text-destructive">{errors['testDriveBooking.weeklyHours']}</p>}
+      </fieldset>
+      <div className="mt-6 border-t border-border pt-5">
+        <h4 className="text-sm font-semibold">Unavailable dates</h4>
+        <p className="mt-1 text-sm text-muted-foreground">Close bookings for holidays, events or days when the team is unavailable.</p>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <Field label="Date to block"><Input type="date" value={blockedDate} onChange={event => setBlockedDate(event.target.value)} data-testid="input-test-drive-blocked-date" /></Field>
+          <Button type="button" variant="outline" disabled={!blockedDate || value.blockedDates.includes(blockedDate) || value.blockedDates.length >= 366} onClick={() => { update('blockedDates', [...value.blockedDates, blockedDate].sort()); setBlockedDate(''); }}>Add unavailable date</Button>
+        </div>
+        {value.blockedDates.length > 0 && <ul className="mt-3 divide-y divide-border">{value.blockedDates.map(date => <li key={date} className="flex items-center justify-between gap-3 py-2 text-sm"><span>{dateLabel(date)}</span><Button type="button" variant="ghost" size="icon" aria-label={`Remove unavailable date ${dateLabel(date)}`} onClick={() => update('blockedDates', value.blockedDates.filter(entry => entry !== date))}><Trash2 className="h-4 w-4" /></Button></li>)}</ul>}
+      </div>
+      <div className="mt-6 border-t border-border pt-5">
+        <Field label="What to bring and booking instructions" hint="Shown after booking">
+          <Textarea rows={4} maxLength={2000} value={value.instructions} onChange={event => update('instructions', event.target.value)} placeholder="Add your dealership’s requirements and practical instructions for a test drive." data-testid="textarea-test-drive-instructions" />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 export function DealerSettingsPanel() {
   const { stock } = useStock();
   const stockWithThumbnails = useMemo(() => {
@@ -417,6 +511,23 @@ export function DealerSettingsPanel() {
     const reservation = form.onlineReservation;
     if (reservation && (!Number.isInteger(reservation.depositPence) || reservation.depositPence < 100 || reservation.depositPence > 1000000)) errors['onlineReservation.depositPence'] = 'Enter a deposit between £1 and £10,000, in pounds and pence.';
     if (reservation?.enabled && !reservation.terms.trim()) errors['onlineReservation.terms'] = 'Add your reservation terms before enabling online reservations.';
+    const booking = form.testDriveBooking;
+    if (booking) {
+      for (const [key, label, min, max] of [
+        ['durationMinutes', 'Appointment length', 15, 180],
+        ['bufferMinutes', 'Preparation time', 0, 120],
+        ['minimumNoticeHours', 'Advance notice', 0, 720],
+        ['dailyCapacity', 'Appointments per day', 1, 100],
+        ['daysAhead', 'Booking window', 1, 90],
+      ] as const) {
+        if (!Number.isInteger(booking[key]) || booking[key] < min || booking[key] > max) errors[`testDriveBooking.${key}`] = `${label} must be a whole number between ${min} and ${max}.`;
+      }
+      const minutes = (value: string) => { const [hours, mins] = value.split(':').map(Number); return hours * 60 + mins; };
+      if (booking.weeklyHours.some(day => day.enabled && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(day.open) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(day.close) || minutes(day.close) - minutes(day.open) < booking.durationMinutes))) {
+        errors['testDriveBooking.weeklyHours'] = 'Each available day needs a closing time after opening, with room for one full appointment.';
+      }
+      if (booking.enabled && !booking.weeklyHours.some(day => day.enabled)) errors['testDriveBooking.weeklyHours'] = 'Choose at least one available day, or turn off online test-drive booking.';
+    }
     if (form.hours.some((item) => !item.days.trim() || !item.times.trim())) errors.hours = 'Complete or remove each opening-hours row.';
     if (form.trustItems.some((item) => !item.trim())) errors.trustItems = 'Remove empty trust points or fill them in.';
     if (form.whyBuy.some((item) => !item.title.trim() || !item.description.trim())) errors.whyBuy = 'Complete or remove each why-buy point.';
@@ -425,6 +536,7 @@ export function DealerSettingsPanel() {
       const first = Object.keys(errors)[0];
       if (first.startsWith("brochure")) setActiveSection("brochure");
       else if (/^presentation\.(footerLogoUrl|faviconUrl|.*Colour)$/.test(first)) setActiveSection("identity");
+      else if (first.startsWith("testDriveBooking")) setActiveSection("presentation");
       else if (first.startsWith("presentation")) setActiveSection("presentation");
       else if (first.startsWith('identity')) setActiveSection('identity');
       else if (first.startsWith('hero') || first.startsWith('bookViewing')) setActiveSection('homepage');
@@ -843,6 +955,7 @@ export function DealerSettingsPanel() {
           icon={<Image className="h-5 w-5" />}
         >
           <div className="space-y-6">
+            <TestDriveSettings value={form.testDriveBooking ?? defaultTestDriveBooking} onChange={value => updateGroup('testDriveBooking', value)} errors={validationErrors} />
             {(["hero", "showroom", "team", "visit", "contact", "reception"] as const).map((subject) => (
               <div key={subject} className="grid gap-4 sm:grid-cols-2">
                 <Field
@@ -1096,6 +1209,11 @@ export function DealerSettingsPanel() {
         </SectionCard>
         <SectionCard id="review" eyebrow="Ready when you are" title="Review your website" description="Check the content, preview your branding, then publish the complete draft." icon={<Check className="h-5 w-5" />}>
           <LaunchReadiness settings={form} /><SettingsPreview settings={form} />
+          <div className="mt-5 rounded-md border border-border p-4 text-sm">
+            <p className="font-semibold">Test-drive booking</p>
+            <p className="mt-2 text-muted-foreground">{form.testDriveBooking?.enabled === false ? 'Online booking is turned off.' : `${form.testDriveBooking?.durationMinutes ?? 30}-minute appointments · ${form.testDriveBooking?.confirmationMode === 'approval' ? 'staff approval required' : 'confirmed immediately'} · up to ${form.testDriveBooking?.dailyCapacity ?? 16} appointments a day.`}</p>
+            <Button type="button" variant="link" className="mt-1 h-auto min-h-11 px-0" onClick={() => scrollToSection('presentation')}>Review booking settings</Button>
+          </div>
           <p className="text-sm leading-6 text-muted-foreground">Stock credentials, email keys, payment connections and your domain are private deployment settings. They are never stored in the public website settings. Stock photographs and prices come from your dealership’s stock feed.</p>
         </SectionCard>
         {guided && <div className="flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={stepIndex === 0} onClick={() => scrollToSection(setupSteps[stepIndex - 1][0])}>Previous</Button>{stepIndex < setupSteps.length - 1 && <Button type="button" onClick={() => scrollToSection(setupSteps[stepIndex + 1][0])}>Continue to {setupSteps[stepIndex + 1][1]}</Button>}</div>}

@@ -1,4 +1,8 @@
 import {test,expect} from '@playwright/test';
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } }));
+});
 for(const width of [390,1280]) test(`saved details and vehicle booking at ${width}`,async({page,request})=>{
  await page.setViewportSize({width,height:900});
  const stock=await(await request.get('/api/stock')).json();const car=stock.cars[0];
@@ -9,8 +13,12 @@ for(const width of [390,1280]) test(`saved details and vehicle booking at ${widt
  await expect(page.getByRole('heading',{name:'About this car'})).toBeVisible();
  await page.getByRole('link',{name:'Book a test drive',exact:true}).click();
  await expect(page).toHaveURL(new RegExp(`vehicleId=${car.id}`));
+ await expect(page.getByTestId('card-enquiry-vehicle')).toContainText(String(car.year));
+ await expect(page.getByTestId('group-viewing-dates')).toBeVisible();
+ await expect(page.getByTestId('button-continue-to-details')).toBeDisabled();
  await page.goto(`/vehicle/${car.id}`);
  if(width<1024){await page.getByRole('button',{name:'Open navigation menu'}).click();}
  await page.getByRole('button',{name:'Book a test drive',exact:true}).first().click();
  await expect(page).toHaveURL(new RegExp(`type=viewing&vehicleId=${car.id}`));
+ await expect(page.getByTestId('card-enquiry-vehicle')).toBeVisible();
 });

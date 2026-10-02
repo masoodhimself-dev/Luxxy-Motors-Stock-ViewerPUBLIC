@@ -11,6 +11,20 @@ function matchesShape(value: unknown, example: unknown): boolean {
   return typeof value === typeof example;
 }
 
+function bookingDraftHasValidShape(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const booking = value as Record<string, unknown>;
+  return typeof booking.enabled === 'boolean'
+    && ['durationMinutes', 'bufferMinutes', 'minimumNoticeHours', 'dailyCapacity', 'daysAhead'].every((field) => typeof booking[field] === 'number' && Number.isFinite(booking[field]))
+    && typeof booking.instructions === 'string'
+    && ['instant', 'approval'].includes(String(booking.confirmationMode))
+    && Array.isArray(booking.blockedDates) && booking.blockedDates.every((date) => typeof date === 'string')
+    && Array.isArray(booking.weeklyHours) && booking.weeklyHours.length === 7
+    && booking.weeklyHours.every((hours) => hours && typeof hours === 'object' && Number.isInteger(hours.day) && hours.day >= 0 && hours.day <= 6 && typeof hours.enabled === 'boolean' && typeof hours.open === 'string' && typeof hours.close === 'string')
+    && new Set(booking.weeklyHours.map((hours) => hours.day)).size === 7;
+}
+
 // Unpublished dealership settings only: kept in this tab, never customer data.
 export function readSettingsDraft(saved: DealerSettings): Draft | null {
   let draft: Draft | null = memoryDraft;
@@ -26,7 +40,11 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
   if (draft.form && typeof draft.form === 'object' && draft.form.brochure === undefined && saved.brochure !== undefined) {
     draft = { ...draft, form: { ...draft.form, brochure: { ...saved.brochure } } };
   }
+  if (draft.form && typeof draft.form === 'object' && draft.form.testDriveBooking === undefined && saved.testDriveBooking !== undefined) {
+    draft = { ...draft, form: { ...draft.form, testDriveBooking: { ...saved.testDriveBooking, blockedDates: [...saved.testDriveBooking.blockedDates], weeklyHours: saved.testDriveBooking.weeklyHours.map((hours) => ({ ...hours })) } } };
+  }
   if (typeof draft.saved !== 'string' || !matchesShape(draft.form, saved)) return null;
+  if (!bookingDraftHasValidShape(draft.form.testDriveBooking)) return null;
   return draft;
 }
 

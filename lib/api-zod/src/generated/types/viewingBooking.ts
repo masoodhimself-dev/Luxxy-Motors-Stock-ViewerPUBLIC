@@ -16,6 +16,7 @@ export interface ViewingBooking {
   appointmentAt: Date | null;
   /** @nullable */
   cancelledAt: Date | null;
+  durationMinutes?: number;
   timezone: string;
   /** @nullable */
   vehicleTitle: string | null;

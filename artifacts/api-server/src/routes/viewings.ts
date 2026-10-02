@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   CancelViewingBody,
   CancelViewingParams,
@@ -23,7 +23,8 @@ import {
   viewingTokenHash,
   viewingTokenMatches,
 } from "../lib/enquiry-links";
-import { dealerProfile } from "../lib/enquiry-notifications";
+import { BookingConflict, ensureBookingAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
+import { deliverEnquiryNotifications, dealerProfile } from "../lib/enquiry-notifications";
 
 const router: IRouter = Router();
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
@@ -77,7 +78,8 @@ async function viewingBooking(enquiry: Enquiry) {
   const dealer = await dealerProfile();
   return {
     reference: enquiry.reference,
-    status: enquiry.appointmentCancelledAt ? ("cancelled" as const) : ("booked" as const),
+    status: enquiry.appointmentCancelledAt ? ("cancelled" as const) : enquiry.appointmentStatus === "pending" ? ("pending" as const) : ("booked" as const),
+    durationMinutes: enquiry.appointmentDurationMinutes ?? 30,
     customerName: enquiry.customerName,
     appointmentAt: enquiry.appointmentAt,
     cancelledAt: enquiry.appointmentCancelledAt,
@@ -176,7 +178,8 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
         );
       return;
     }
-    if (!validBookingDateTime(appointmentAt)) {
+    const policy = await getBookingPolicy(dealerId());
+    if (!validBookingDateTime(appointmentAt, policy)) {
       res.status(400).json(errorResponse("That viewing slot is not available."));
       return;
     }
@@ -186,24 +189,24 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
     }
 
     const previous = enquiry.appointmentAt;
-    const [updated] = await db
-      .update(enquiriesTable)
-      .set({
+    const updated = await db.transaction(async (tx) => {
+      await lockBookingDays(tx, dealerId(), [appointmentAt, ...(previous ? [previous] : [])]);
+      const [current] = await tx.select().from(enquiriesTable).where(eq(enquiriesTable.id, enquiry.id)).for("update");
+      if (!current || !canChange(current)) throw new BookingConflict("This booking has changed. Reload it before choosing another time.");
+      await ensureBookingAvailable(tx, dealerId(), appointmentAt, policy, enquiry.id);
+      const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt,
-        // The old reminder no longer describes the booking, so schedule a new one.
-        reminderStatus: "pending",
-        reminderError: null,
-        reminderSentAt: null,
-        reminderAttemptedAt: null,
-        reminderProviderId: null,
-      })
-      .where(
-        and(
-          eq(enquiriesTable.id, enquiry.id),
-          isNull(enquiriesTable.appointmentCancelledAt),
-        ),
-      )
-      .returning();
+        appointmentRevision: sql`${enquiriesTable.appointmentRevision} + 1`,
+        appointmentStatus: policy.confirmationMode === "approval" ? "pending" : "confirmed",
+        appointmentDurationMinutes: policy.durationMinutes,
+        appointmentBufferMinutes: policy.bufferMinutes,
+        reminderStatus: policy.confirmationMode === "approval" ? "not_scheduled" : "pending",
+        reminderError: null, reminderSentAt: null, reminderAttemptedAt: null, reminderProviderId: null,
+        customerNotificationStatus: "pending", customerNotificationError: null, customerNotificationAttemptedAt: null, customerNotificationSentAt: null,
+        dealerNotificationStatus: "pending", dealerNotificationError: null, dealerNotificationAttemptedAt: null, dealerNotificationSentAt: null,
+      }).where(and(eq(enquiriesTable.id, enquiry.id), isNull(enquiriesTable.appointmentCancelledAt))).returning();
+      return changed;
+    });
     if (!updated) {
       notFound(res);
       return;
@@ -225,11 +228,12 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
       visitorId: updated.visitorId,
     });
 
+    try { await deliverEnquiryNotifications(updated, req.log); } catch (error) { req.log.error({ err: error }, "Reschedule notification failed"); }
     res.json(
       RescheduleViewingResponse.parse(await viewingBooking(updated)),
     );
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    if (error instanceof BookingConflict || isUniqueViolation(error)) {
       res
         .status(409)
         .json(errorResponse("That slot has just been taken. Please choose another."));
@@ -276,6 +280,9 @@ router.post("/viewings/:token/cancel", async (req, res): Promise<void> => {
       .update(enquiriesTable)
       .set({
         appointmentCancelledAt: new Date(),
+        appointmentRevision: sql`${enquiriesTable.appointmentRevision} + 1`,
+        customerNotificationStatus: "pending", customerNotificationError: null, customerNotificationAttemptedAt: null, customerNotificationSentAt: null,
+        dealerNotificationStatus: "pending", dealerNotificationError: null, dealerNotificationAttemptedAt: null, dealerNotificationSentAt: null,
         // No reminder should go out for a viewing that is no longer happening.
         reminderStatus: "not_scheduled",
         reminderError: null,
@@ -311,6 +318,7 @@ router.post("/viewings/:token/cancel", async (req, res): Promise<void> => {
       visitorId: updated.visitorId,
     });
 
+    try { await deliverEnquiryNotifications(updated, req.log); } catch (error) { req.log.error({ err: error }, "Cancellation notification failed"); }
     res.json(CancelViewingResponse.parse(await viewingBooking(updated)));
   } catch (error) {
     req.log.error({ err: error }, "Unable to cancel viewing");

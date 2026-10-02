@@ -80,40 +80,29 @@ test('settings off hides reservation and rejects a direct request', async ({ pag
   } finally { await request.patch('/api/dealer-settings', { data: settings }); }
 });
 
-test('reservation reuses viewing details without submitting the viewing', async ({ page, request }) => {
+test('viewing review has no competing reservation action', async ({ page, request }) => {
   const settings = await (await request.get('/api/dealer-settings')).json();
   const stock = await (await request.get('/api/stock')).json();
   const car = stock.cars.find((item: any) => item.inventoryStatus === 'available');
-  let reservation: any;
-  let enquiryWrites = 0;
-  await page.route('**/api/enquiries', route => { enquiryWrites += 1; return route.fulfill({ status: 400, json: { error: 'Viewing should not have been submitted.' } }); });
-  await request.patch('/api/dealer-settings', { data: { ...settings, onlineReservation: { enabled: true, depositPence: 10000, terms: 'Local test reservation terms. Payment simulated; contact us to cancel.' } } });
-  try {
-    await page.setViewportSize({ width: 390, height: 900 });
-    await page.goto(`/enquire?type=viewing&vehicleId=${car.id}`);
-    await page.getByTestId('group-viewing-slots').getByRole('button').and(page.locator(':enabled')).first().click();
-    await page.getByTestId('button-continue-to-details').click();
-    await page.getByTestId('input-customer-name').fill('Local Viewing Reservation');
-    await page.getByTestId('input-customer-email').fill('local@example.test');
-    await page.getByTestId('input-customer-phone').fill('07700900123');
-    await page.getByTestId('textarea-enquiry-message').fill('Please have the service records ready.');
-    await page.getByRole('button', { name: 'Reserve car online', exact: true }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByLabel('Your name', { exact: true })).toHaveValue('Local Viewing Reservation');
-    await dialog.getByRole('button', { name: 'Continue · £100 deposit', exact: true }).click();
-    await dialog.getByRole('checkbox').check();
-    const response = page.waitForResponse(res => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/reservations');
-    await dialog.getByRole('button', { name: 'Confirm reservation · simulate payment' }).click();
-    reservation = await (await response).json();
-    await expect(dialog.getByRole('heading', { name: 'Your car is reserved' })).toBeVisible();
-    await dialog.getByRole('button', { name: 'Done', exact: true }).click();
-    await expect(page.getByTestId('textarea-enquiry-message')).toHaveValue('Please have the service records ready.');
-    await expect(page.getByTestId('input-customer-name')).toHaveValue('Local Viewing Reservation');
-    expect(enquiryWrites).toBe(0);
-  } finally {
-    if (reservation?.id) await request.post(`/api/reservations/${reservation.id}/cancel`);
-    await request.patch('/api/dealer-settings', { data: settings });
-  }
+  let writes = 0;
+  await page.route('**/api/**', route => {
+    if (['GET', 'HEAD'].includes(route.request().method())) return route.continue();
+    writes += 1;
+    return route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } });
+  });
+  await page.route('**/api/dealer-settings', route => route.fulfill({ json: { ...settings, onlineReservation: { enabled: true, depositPence: 10000, terms: 'Local test reservation terms.' } } }));
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(`/enquire?type=viewing&vehicleId=${car.id}`);
+  await page.getByTestId('group-viewing-slots').getByRole('button').and(page.locator(':enabled')).first().click();
+  await page.getByTestId('button-continue-to-details').click();
+  await page.getByTestId('input-customer-name').fill('Local Viewing Review');
+  await page.getByTestId('input-customer-email').fill('local@example.test');
+  await page.getByTestId('input-customer-phone').fill('07700900123');
+  await expect(page.getByRole('button', { name: 'Reserve car online', exact: true })).toHaveCount(0);
+  await page.getByTestId('button-review-booking').click();
+  await expect(page.getByTestId('button-submit-enquiry')).toHaveText('Confirm test drive');
+  await expect(page.getByRole('button', { name: 'Reserve car online', exact: true })).toHaveCount(0);
+  expect(writes).toBe(0);
 });
 
 test('a cancelled retry is never presented as a confirmed hold', async ({ page, request }) => {

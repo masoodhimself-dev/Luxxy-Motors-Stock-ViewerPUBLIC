@@ -78,7 +78,10 @@ for (const width of [390, 820, 1440]) {
       const book = page.getByRole('link', { name: 'Book a test drive', exact: true }).filter({ visible: true }).first();
       await book.click();
       await expect(page).toHaveURL(new RegExp(`vehicleId=${vehicleHref.split('/').pop()}`));
+      await expect(page.getByTestId('card-enquiry-vehicle')).toBeVisible();
+      await expect(page.getByTestId('group-viewing-dates')).toBeVisible();
       await expect(page.getByTestId('group-viewing-slots')).toBeVisible();
+      await expect(page.getByTestId('button-submit-enquiry')).toHaveCount(0);
       await checkAndCapture(page, 'booking');
     });
 

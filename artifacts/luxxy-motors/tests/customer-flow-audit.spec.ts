@@ -53,8 +53,9 @@ for (const width of [390, 820, 1440]) {
     let submission: any;
     await page.route('**/api/enquiries', async route => {
       submission = route.request().postDataJSON();
-      await route.fulfill({ json: { reference: 'AUDIT-BOOKING', customerNotificationStatus: 'sent', managePath: '/viewing/sample' } });
+      await route.fulfill({ json: { reference: 'AUDIT-BOOKING', customerNotificationStatus: 'sent', appointmentStatus: 'confirmed', managePath: '/viewing/sample' } });
     });
+    await page.getByTestId('button-review-booking').click();
     await page.getByTestId('button-submit-enquiry').click();
     await expect(page.getByTestId('status-enquiry-success')).toBeVisible();
     await expect(page.getByTestId('status-enquiry-success').getByRole('heading')).toBeFocused();

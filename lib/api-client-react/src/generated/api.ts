@@ -71,6 +71,7 @@ import type {
   StockImportEnvelope,
   StockImportErrorResponse,
   StockImportResult,
+  TestDriveBookingDecision,
   Vehicle,
   ViewingBooking,
   ViewingCancellation,
@@ -3640,5 +3641,154 @@ export const useCreateLeadActivity = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getCreateLeadActivityMutationOptions(options));
+    }
+
+export const getGetTestDriveBookingsUrl = () => {
+
+
+
+
+  return `/api/test-drive-bookings`
+}
+
+/**
+ * @summary List test-drive appointments for dealership staff
+ */
+export const getTestDriveBookings = async ( options?: Parameters<typeof customFetch>[1]): Promise<Enquiry[]> => {
+
+  return customFetch<Enquiry[]>(getGetTestDriveBookingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTestDriveBookingsQueryKey = () => {
+    return [
+    `/api/test-drive-bookings`
+    ] as const;
+    }
+
+
+export const getGetTestDriveBookingsQueryOptions = <TData = Awaited<ReturnType<typeof getTestDriveBookings>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTestDriveBookings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTestDriveBookingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTestDriveBookings>>> = ({ signal }) => getTestDriveBookings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTestDriveBookings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTestDriveBookingsQueryResult = NonNullable<Awaited<ReturnType<typeof getTestDriveBookings>>>
+export type GetTestDriveBookingsQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary List test-drive appointments for dealership staff
+ */
+
+export function useGetTestDriveBookings<TData = Awaited<ReturnType<typeof getTestDriveBookings>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTestDriveBookings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTestDriveBookingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecideTestDriveBookingUrl = (id: string,) => {
+
+
+
+
+  return `/api/test-drive-bookings/${id}/decision`
+}
+
+/**
+ * @summary Confirm or decline a pending test-drive request
+ */
+export const decideTestDriveBooking = async (id: string,
+    testDriveBookingDecision: TestDriveBookingDecision, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getDecideTestDriveBookingUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(testDriveBookingDecision)
+  }
+);}
+
+
+
+
+
+export const getDecideTestDriveBookingMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideTestDriveBooking>>, TError,{id: string;data: BodyType<TestDriveBookingDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideTestDriveBooking>>, TError,{id: string;data: BodyType<TestDriveBookingDecision>}, TContext> => {
+
+const mutationKey = ['decideTestDriveBooking'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideTestDriveBooking>>, {id: string;data: BodyType<TestDriveBookingDecision>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  decideTestDriveBooking(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideTestDriveBookingMutationResult = NonNullable<Awaited<ReturnType<typeof decideTestDriveBooking>>>
+    export type DecideTestDriveBookingMutationBody = BodyType<TestDriveBookingDecision>
+    export type DecideTestDriveBookingMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Confirm or decline a pending test-drive request
+ */
+export const useDecideTestDriveBooking = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideTestDriveBooking>>, TError,{id: string;data: BodyType<TestDriveBookingDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideTestDriveBooking>>,
+        TError,
+        {id: string;data: BodyType<TestDriveBookingDecision>},
+        TContext
+      > => {
+      return useMutation(getDecideTestDriveBookingMutationOptions(options));
     }
 

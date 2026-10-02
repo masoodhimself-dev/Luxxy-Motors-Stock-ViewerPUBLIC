@@ -629,6 +629,9 @@ export const GetEnquiriesQueryParams = zod.object({
 
 export const getEnquiriesResponseVehiclePriceMultipleOf = 1;
 
+export const getEnquiriesResponseAppointmentRevisionMin = 0;
+export const getEnquiriesResponseAppointmentRevisionMultipleOf = 1;
+
 
 
 export const getEnquiriesResponsePartExchangeMileageMultipleOf = 1;
@@ -645,6 +648,10 @@ export const GetEnquiriesResponseItem = zod.object({
   "vehiclePrice": zod.number().multipleOf(getEnquiriesResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(getEnquiriesResponseAppointmentRevisionMin).multipleOf(getEnquiriesResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
   "appointmentCancelledAt": zod.coerce.date().nullable(),
   "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
@@ -730,6 +737,9 @@ export const CreateEnquiryBody = zod.object({
 
 export const createEnquiryResponseVehiclePriceMultipleOf = 1;
 
+export const createEnquiryResponseAppointmentRevisionMin = 0;
+export const createEnquiryResponseAppointmentRevisionMultipleOf = 1;
+
 
 
 export const createEnquiryResponsePartExchangeMileageMultipleOf = 1;
@@ -746,6 +756,10 @@ export const CreateEnquiryResponse = zod.object({
   "vehiclePrice": zod.number().multipleOf(createEnquiryResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(createEnquiryResponseAppointmentRevisionMin).multipleOf(createEnquiryResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
   "appointmentCancelledAt": zod.coerce.date().nullable(),
   "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
@@ -828,6 +842,9 @@ export const UpdateEnquiryStatusBody = zod.object({
 
 export const updateEnquiryStatusResponseVehiclePriceMultipleOf = 1;
 
+export const updateEnquiryStatusResponseAppointmentRevisionMin = 0;
+export const updateEnquiryStatusResponseAppointmentRevisionMultipleOf = 1;
+
 
 
 export const updateEnquiryStatusResponsePartExchangeMileageMultipleOf = 1;
@@ -844,6 +861,10 @@ export const UpdateEnquiryStatusResponse = zod.object({
   "vehiclePrice": zod.number().multipleOf(updateEnquiryStatusResponseVehiclePriceMultipleOf).nullable(),
   "vehicleUrl": zod.string().nullable(),
   "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(updateEnquiryStatusResponseAppointmentRevisionMin).multipleOf(updateEnquiryStatusResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
   "appointmentCancelledAt": zod.coerce.date().nullable(),
   "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
@@ -898,10 +919,11 @@ export const GetViewingBookingParams = zod.object({
 
 export const GetViewingBookingResponse = zod.object({
   "reference": zod.string().min(1),
-  "status": zod.enum(['booked', 'cancelled']),
+  "status": zod.enum(['pending', 'booked', 'cancelled']),
   "customerName": zod.string(),
   "appointmentAt": zod.coerce.date().nullable(),
   "cancelledAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.number().optional(),
   "timezone": zod.string(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
@@ -929,10 +951,11 @@ export const RescheduleViewingBody = zod.object({
 
 export const RescheduleViewingResponse = zod.object({
   "reference": zod.string().min(1),
-  "status": zod.enum(['booked', 'cancelled']),
+  "status": zod.enum(['pending', 'booked', 'cancelled']),
   "customerName": zod.string(),
   "appointmentAt": zod.coerce.date().nullable(),
   "cancelledAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.number().optional(),
   "timezone": zod.string(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
@@ -964,10 +987,11 @@ export const CancelViewingBody = zod.object({
 
 export const CancelViewingResponse = zod.object({
   "reference": zod.string().min(1),
-  "status": zod.enum(['booked', 'cancelled']),
+  "status": zod.enum(['pending', 'booked', 'cancelled']),
   "customerName": zod.string(),
   "appointmentAt": zod.coerce.date().nullable(),
   "cancelledAt": zod.coerce.date().nullable(),
+  "durationMinutes": zod.number().optional(),
   "timezone": zod.string(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
@@ -2733,6 +2757,37 @@ export const getDealerSettingsResponseBookViewingDescriptionMax = 300;
 
 export const getDealerSettingsResponseBookViewingCtaLabelMax = 80;
 
+export const getDealerSettingsResponseTestDriveBookingDurationMinutesMin = 15;
+export const getDealerSettingsResponseTestDriveBookingDurationMinutesMax = 180;
+export const getDealerSettingsResponseTestDriveBookingDurationMinutesMultipleOf = 1;
+
+export const getDealerSettingsResponseTestDriveBookingBufferMinutesMin = 0;
+export const getDealerSettingsResponseTestDriveBookingBufferMinutesMax = 120;
+export const getDealerSettingsResponseTestDriveBookingBufferMinutesMultipleOf = 1;
+
+export const getDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMin = 0;
+export const getDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMax = 720;
+
+export const getDealerSettingsResponseTestDriveBookingDailyCapacityMax = 100;
+export const getDealerSettingsResponseTestDriveBookingDailyCapacityMultipleOf = 1;
+
+export const getDealerSettingsResponseTestDriveBookingDaysAheadMax = 90;
+export const getDealerSettingsResponseTestDriveBookingDaysAheadMultipleOf = 1;
+
+export const getDealerSettingsResponseTestDriveBookingBlockedDatesItemRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getDealerSettingsResponseTestDriveBookingBlockedDatesMax = 366;
+
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMin = 0;
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMax = 6;
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMultipleOf = 1;
+
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursItemOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursItemCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursMin = 7;
+export const getDealerSettingsResponseTestDriveBookingWeeklyHoursMax = 7;
+
+export const getDealerSettingsResponseTestDriveBookingInstructionsMax = 2000;
+
 export const getDealerSettingsResponseRecentHandoversCountMax = 6;
 export const getDealerSettingsResponseRecentHandoversCountMultipleOf = 1;
 
@@ -2923,6 +2978,23 @@ export const GetDealerSettingsResponse = zod.object({
   "description": zod.string().min(1).max(getDealerSettingsResponseBookViewingDescriptionMax),
   "ctaLabel": zod.string().min(1).max(getDealerSettingsResponseBookViewingCtaLabelMax)
 }),
+  "testDriveBooking": zod.object({
+  "enabled": zod.boolean(),
+  "durationMinutes": zod.number().min(getDealerSettingsResponseTestDriveBookingDurationMinutesMin).max(getDealerSettingsResponseTestDriveBookingDurationMinutesMax).multipleOf(getDealerSettingsResponseTestDriveBookingDurationMinutesMultipleOf),
+  "bufferMinutes": zod.number().min(getDealerSettingsResponseTestDriveBookingBufferMinutesMin).max(getDealerSettingsResponseTestDriveBookingBufferMinutesMax).multipleOf(getDealerSettingsResponseTestDriveBookingBufferMinutesMultipleOf),
+  "minimumNoticeHours": zod.number().min(getDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMin).max(getDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMax),
+  "dailyCapacity": zod.number().min(1).max(getDealerSettingsResponseTestDriveBookingDailyCapacityMax).multipleOf(getDealerSettingsResponseTestDriveBookingDailyCapacityMultipleOf),
+  "daysAhead": zod.number().min(1).max(getDealerSettingsResponseTestDriveBookingDaysAheadMax).multipleOf(getDealerSettingsResponseTestDriveBookingDaysAheadMultipleOf),
+  "blockedDates": zod.array(zod.string().regex(getDealerSettingsResponseTestDriveBookingBlockedDatesItemRegExp)).max(getDealerSettingsResponseTestDriveBookingBlockedDatesMax),
+  "weeklyHours": zod.array(zod.object({
+  "day": zod.number().min(getDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMin).max(getDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMax).multipleOf(getDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMultipleOf),
+  "enabled": zod.boolean(),
+  "open": zod.string().regex(getDealerSettingsResponseTestDriveBookingWeeklyHoursItemOpenRegExp),
+  "close": zod.string().regex(getDealerSettingsResponseTestDriveBookingWeeklyHoursItemCloseRegExp)
+})).min(getDealerSettingsResponseTestDriveBookingWeeklyHoursMin).max(getDealerSettingsResponseTestDriveBookingWeeklyHoursMax),
+  "instructions": zod.string().max(getDealerSettingsResponseTestDriveBookingInstructionsMax),
+  "confirmationMode": zod.enum(['instant', 'approval'])
+}).optional(),
   "recentHandovers": zod.object({
   "enabled": zod.boolean(),
   "count": zod.number().min(1).max(getDealerSettingsResponseRecentHandoversCountMax).multipleOf(getDealerSettingsResponseRecentHandoversCountMultipleOf)
@@ -3203,6 +3275,37 @@ export const updateDealerSettingsBodyOneBookViewingDescriptionMax = 300;
 
 export const updateDealerSettingsBodyOneBookViewingCtaLabelMax = 80;
 
+export const updateDealerSettingsBodyOneTestDriveBookingDurationMinutesMin = 15;
+export const updateDealerSettingsBodyOneTestDriveBookingDurationMinutesMax = 180;
+export const updateDealerSettingsBodyOneTestDriveBookingDurationMinutesMultipleOf = 1;
+
+export const updateDealerSettingsBodyOneTestDriveBookingBufferMinutesMin = 0;
+export const updateDealerSettingsBodyOneTestDriveBookingBufferMinutesMax = 120;
+export const updateDealerSettingsBodyOneTestDriveBookingBufferMinutesMultipleOf = 1;
+
+export const updateDealerSettingsBodyOneTestDriveBookingMinimumNoticeHoursMin = 0;
+export const updateDealerSettingsBodyOneTestDriveBookingMinimumNoticeHoursMax = 720;
+
+export const updateDealerSettingsBodyOneTestDriveBookingDailyCapacityMax = 100;
+export const updateDealerSettingsBodyOneTestDriveBookingDailyCapacityMultipleOf = 1;
+
+export const updateDealerSettingsBodyOneTestDriveBookingDaysAheadMax = 90;
+export const updateDealerSettingsBodyOneTestDriveBookingDaysAheadMultipleOf = 1;
+
+export const updateDealerSettingsBodyOneTestDriveBookingBlockedDatesItemRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateDealerSettingsBodyOneTestDriveBookingBlockedDatesMax = 366;
+
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemDayMin = 0;
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemDayMax = 6;
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemDayMultipleOf = 1;
+
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursMin = 7;
+export const updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursMax = 7;
+
+export const updateDealerSettingsBodyOneTestDriveBookingInstructionsMax = 2000;
+
 export const updateDealerSettingsBodyOneRecentHandoversCountMax = 6;
 export const updateDealerSettingsBodyOneRecentHandoversCountMultipleOf = 1;
 
@@ -3393,6 +3496,23 @@ export const UpdateDealerSettingsBody = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsBodyOneBookViewingCtaLabelMax)
 }),
+  "testDriveBooking": zod.object({
+  "enabled": zod.boolean(),
+  "durationMinutes": zod.number().min(updateDealerSettingsBodyOneTestDriveBookingDurationMinutesMin).max(updateDealerSettingsBodyOneTestDriveBookingDurationMinutesMax).multipleOf(updateDealerSettingsBodyOneTestDriveBookingDurationMinutesMultipleOf),
+  "bufferMinutes": zod.number().min(updateDealerSettingsBodyOneTestDriveBookingBufferMinutesMin).max(updateDealerSettingsBodyOneTestDriveBookingBufferMinutesMax).multipleOf(updateDealerSettingsBodyOneTestDriveBookingBufferMinutesMultipleOf),
+  "minimumNoticeHours": zod.number().min(updateDealerSettingsBodyOneTestDriveBookingMinimumNoticeHoursMin).max(updateDealerSettingsBodyOneTestDriveBookingMinimumNoticeHoursMax),
+  "dailyCapacity": zod.number().min(1).max(updateDealerSettingsBodyOneTestDriveBookingDailyCapacityMax).multipleOf(updateDealerSettingsBodyOneTestDriveBookingDailyCapacityMultipleOf),
+  "daysAhead": zod.number().min(1).max(updateDealerSettingsBodyOneTestDriveBookingDaysAheadMax).multipleOf(updateDealerSettingsBodyOneTestDriveBookingDaysAheadMultipleOf),
+  "blockedDates": zod.array(zod.string().regex(updateDealerSettingsBodyOneTestDriveBookingBlockedDatesItemRegExp)).max(updateDealerSettingsBodyOneTestDriveBookingBlockedDatesMax),
+  "weeklyHours": zod.array(zod.object({
+  "day": zod.number().min(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemDayMin).max(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemDayMax).multipleOf(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemDayMultipleOf),
+  "enabled": zod.boolean(),
+  "open": zod.string().regex(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemOpenRegExp),
+  "close": zod.string().regex(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursItemCloseRegExp)
+})).min(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursMin).max(updateDealerSettingsBodyOneTestDriveBookingWeeklyHoursMax),
+  "instructions": zod.string().max(updateDealerSettingsBodyOneTestDriveBookingInstructionsMax),
+  "confirmationMode": zod.enum(['instant', 'approval'])
+}).optional(),
   "recentHandovers": zod.object({
   "enabled": zod.boolean(),
   "count": zod.number().min(1).max(updateDealerSettingsBodyOneRecentHandoversCountMax).multipleOf(updateDealerSettingsBodyOneRecentHandoversCountMultipleOf)
@@ -3668,6 +3788,37 @@ export const updateDealerSettingsResponseBookViewingDescriptionMax = 300;
 
 export const updateDealerSettingsResponseBookViewingCtaLabelMax = 80;
 
+export const updateDealerSettingsResponseTestDriveBookingDurationMinutesMin = 15;
+export const updateDealerSettingsResponseTestDriveBookingDurationMinutesMax = 180;
+export const updateDealerSettingsResponseTestDriveBookingDurationMinutesMultipleOf = 1;
+
+export const updateDealerSettingsResponseTestDriveBookingBufferMinutesMin = 0;
+export const updateDealerSettingsResponseTestDriveBookingBufferMinutesMax = 120;
+export const updateDealerSettingsResponseTestDriveBookingBufferMinutesMultipleOf = 1;
+
+export const updateDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMin = 0;
+export const updateDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMax = 720;
+
+export const updateDealerSettingsResponseTestDriveBookingDailyCapacityMax = 100;
+export const updateDealerSettingsResponseTestDriveBookingDailyCapacityMultipleOf = 1;
+
+export const updateDealerSettingsResponseTestDriveBookingDaysAheadMax = 90;
+export const updateDealerSettingsResponseTestDriveBookingDaysAheadMultipleOf = 1;
+
+export const updateDealerSettingsResponseTestDriveBookingBlockedDatesItemRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateDealerSettingsResponseTestDriveBookingBlockedDatesMax = 366;
+
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMin = 0;
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMax = 6;
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMultipleOf = 1;
+
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemOpenRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemCloseRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursMin = 7;
+export const updateDealerSettingsResponseTestDriveBookingWeeklyHoursMax = 7;
+
+export const updateDealerSettingsResponseTestDriveBookingInstructionsMax = 2000;
+
 export const updateDealerSettingsResponseRecentHandoversCountMax = 6;
 export const updateDealerSettingsResponseRecentHandoversCountMultipleOf = 1;
 
@@ -3858,6 +4009,23 @@ export const UpdateDealerSettingsResponse = zod.object({
   "description": zod.string().min(1).max(updateDealerSettingsResponseBookViewingDescriptionMax),
   "ctaLabel": zod.string().min(1).max(updateDealerSettingsResponseBookViewingCtaLabelMax)
 }),
+  "testDriveBooking": zod.object({
+  "enabled": zod.boolean(),
+  "durationMinutes": zod.number().min(updateDealerSettingsResponseTestDriveBookingDurationMinutesMin).max(updateDealerSettingsResponseTestDriveBookingDurationMinutesMax).multipleOf(updateDealerSettingsResponseTestDriveBookingDurationMinutesMultipleOf),
+  "bufferMinutes": zod.number().min(updateDealerSettingsResponseTestDriveBookingBufferMinutesMin).max(updateDealerSettingsResponseTestDriveBookingBufferMinutesMax).multipleOf(updateDealerSettingsResponseTestDriveBookingBufferMinutesMultipleOf),
+  "minimumNoticeHours": zod.number().min(updateDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMin).max(updateDealerSettingsResponseTestDriveBookingMinimumNoticeHoursMax),
+  "dailyCapacity": zod.number().min(1).max(updateDealerSettingsResponseTestDriveBookingDailyCapacityMax).multipleOf(updateDealerSettingsResponseTestDriveBookingDailyCapacityMultipleOf),
+  "daysAhead": zod.number().min(1).max(updateDealerSettingsResponseTestDriveBookingDaysAheadMax).multipleOf(updateDealerSettingsResponseTestDriveBookingDaysAheadMultipleOf),
+  "blockedDates": zod.array(zod.string().regex(updateDealerSettingsResponseTestDriveBookingBlockedDatesItemRegExp)).max(updateDealerSettingsResponseTestDriveBookingBlockedDatesMax),
+  "weeklyHours": zod.array(zod.object({
+  "day": zod.number().min(updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMin).max(updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMax).multipleOf(updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemDayMultipleOf),
+  "enabled": zod.boolean(),
+  "open": zod.string().regex(updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemOpenRegExp),
+  "close": zod.string().regex(updateDealerSettingsResponseTestDriveBookingWeeklyHoursItemCloseRegExp)
+})).min(updateDealerSettingsResponseTestDriveBookingWeeklyHoursMin).max(updateDealerSettingsResponseTestDriveBookingWeeklyHoursMax),
+  "instructions": zod.string().max(updateDealerSettingsResponseTestDriveBookingInstructionsMax),
+  "confirmationMode": zod.enum(['instant', 'approval'])
+}).optional(),
   "recentHandovers": zod.object({
   "enabled": zod.boolean(),
   "count": zod.number().min(1).max(updateDealerSettingsResponseRecentHandoversCountMax).multipleOf(updateDealerSettingsResponseRecentHandoversCountMultipleOf)
@@ -4190,6 +4358,162 @@ export const CreateLeadActivityResponse = zod.object({
   "createdAt": zod.coerce.date()
 }),zod.null()]),
   "enquiryMessage": zod.string().nullable()
+})
+
+
+/**
+ * @summary List test-drive appointments for dealership staff
+ */
+
+
+
+export const getTestDriveBookingsResponseVehiclePriceMultipleOf = 1;
+
+export const getTestDriveBookingsResponseAppointmentRevisionMin = 0;
+export const getTestDriveBookingsResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const getTestDriveBookingsResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const GetTestDriveBookingsResponseItem = zod.object({
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(getTestDriveBookingsResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(getTestDriveBookingsResponseAppointmentRevisionMin).multipleOf(getTestDriveBookingsResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(getTestDriveBookingsResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const GetTestDriveBookingsResponse = zod.array(GetTestDriveBookingsResponseItem)
+
+
+/**
+ * @summary Confirm or decline a pending test-drive request
+ */
+
+
+
+export const DecideTestDriveBookingParams = zod.object({
+  "id": zod.coerce.string().min(1)
+})
+
+export const decideTestDriveBookingBodyExpectedRevisionMin = 0;
+export const decideTestDriveBookingBodyExpectedRevisionMultipleOf = 1;
+
+
+
+export const DecideTestDriveBookingBody = zod.object({
+  "decision": zod.enum(['confirm', 'decline']),
+  "expectedRevision": zod.number().min(decideTestDriveBookingBodyExpectedRevisionMin).multipleOf(decideTestDriveBookingBodyExpectedRevisionMultipleOf)
+})
+
+
+
+
+export const decideTestDriveBookingResponseVehiclePriceMultipleOf = 1;
+
+export const decideTestDriveBookingResponseAppointmentRevisionMin = 0;
+export const decideTestDriveBookingResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const decideTestDriveBookingResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const DecideTestDriveBookingResponse = zod.object({
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(decideTestDriveBookingResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(decideTestDriveBookingResponseAppointmentRevisionMin).multipleOf(decideTestDriveBookingResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(decideTestDriveBookingResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
 
 

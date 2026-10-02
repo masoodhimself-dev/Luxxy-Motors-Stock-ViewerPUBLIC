@@ -7,17 +7,20 @@ import {
 } from '@workspace/api-client-react';
 import {
   BookmarkCheck,
+  CalendarClock,
   LoaderCircle,
   Lock,
   Settings2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
+import { TestDriveBookingsPanel } from '@/components/portal/test-drive-bookings-panel';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 
-type TabKey = 'reservations' | 'settings';
+type TabKey = 'test-drives' | 'reservations' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
+  { key: 'test-drives', label: 'Test drives', icon: CalendarClock },
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
   { key: 'settings', label: 'Settings', icon: Settings2 },
 ];
@@ -176,6 +179,7 @@ function PortalDesk() {
             </nav>
 
             <div className="min-h-[50vh]">
+              {tab === 'test-drives' && <TestDriveBookingsPanel />}
               {tab === 'reservations' && <ReservationsPanel />}
               {tab === 'settings' && <DealerSettingsPanel />}
             </div>
@@ -213,7 +217,7 @@ export default function Portal() {
       <PortalFrame
         kicker="Staff portal"
         title="Sign in to your staff portal"
-        blurb="Sign in with your dealership staff account to see dealership settings and reservations."
+        blurb="Sign in with your dealership staff account to manage test drives, reservations and dealership settings."
       >
         <SignInButton mode="redirect">
           <Button data-testid="button-portal-sign-in">

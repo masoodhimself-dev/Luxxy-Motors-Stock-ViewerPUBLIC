@@ -10,6 +10,7 @@ export type ViewingBookingStatus = typeof ViewingBookingStatus[keyof typeof View
 
 
 export const ViewingBookingStatus = {
+  pending: 'pending',
   booked: 'booked',
   cancelled: 'cancelled',
 } as const;

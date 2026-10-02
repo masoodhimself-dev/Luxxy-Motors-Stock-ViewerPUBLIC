@@ -100,15 +100,22 @@ for (const type of ['general', 'delivery', 'warranty']) {
   });
 }
 
-test('booking navigation updates an already-open enquiry without losing contact details', async ({ page }) => {
+test('booking navigation updates an already-open enquiry without losing contact details', async ({ page, request }) => {
+  await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } }));
+  const stock = await (await request.get('/api/stock')).json();
+  const car = stock.cars.find((car: any) => !['sold', 'archived', 'hidden'].includes(car.inventoryStatus ?? ''));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/enquire?type=general&vehicleId=preview-1');
+  await page.goto(`/enquire?type=general&vehicleId=${car.id}`);
   await page.getByTestId('input-customer-name').fill('Test Customer');
-  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Book a Viewing' }).click();
-  await expect(page).toHaveURL(/enquire\?type=viewing$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Book a viewing');
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Book a test drive' }).click();
+  await expect(page).toHaveURL(/enquire\?type=viewing/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Book a test drive');
+  if (!new URL(page.url()).searchParams.get('vehicleId')) {
+    await page.locator(`input[name="viewing-vehicle"][value="${car.id}"]`).check();
+    await page.getByRole('link', { name: 'Choose date and time' }).click();
+  }
   await page.getByTestId('group-viewing-slots').getByRole('button').first().click();
   await page.getByTestId('button-continue-to-details').click();
   await expect(page.getByTestId('input-customer-name')).toHaveValue('Test Customer');
-  await expect(page.getByTestId('card-enquiry-vehicle')).toHaveCount(0);
+  await expect(page.getByTestId('card-enquiry-vehicle')).toBeVisible();
 });

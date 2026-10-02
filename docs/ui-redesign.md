@@ -972,3 +972,41 @@ The full frontend suite also passed: 194 tests across 41 files. Its first run ca
 Stock save buttons and gallery/photo arrows now share a translucent surface, subtle border and light background blur instead of opaque white backgrounds and shadows. Touch devices use a 42%-white background, with crisp dark icons and the same 44px touch targets. Saved state uses a filled heart without adding a bright solid background. Keyboard focus remains clearly outlined; hover emphasis only applies to mouse pointers, and reduced-motion preferences disable transitions. Existing stock arrows remain hidden on touch devices, preserving swipe browsing; vehicle-gallery arrows remain available. Inline Save remains a quiet text/heart action.
 
 Twelve existing mobile-action/gallery browser checks passed. Final full workspace typechecking/builds passed with existing bundle/sourcemap warnings. Visually checked 390px phone and 820px tablet touch captures: [phone gallery](screenshots/photo-controls-2026-10-02/vehicle-390.png), [tablet gallery](screenshots/photo-controls-2026-10-02/vehicle-820.png), [phone stock](screenshots/photo-controls-2026-10-02/stock-390.png), [tablet stock](screenshots/photo-controls-2026-10-02/stock-820.png). No backend or production changes.
+
+### Test-drive booking rebuild — 2 October 2026
+
+Replaced the old enquiry-style appointment form with a focused booking journey: a visual car picker when needed, a compact selected-car summary, date/time selection, three essential contact fields, and an explicit review before submission. Optional part-exchange registration/mileage and a message stay collapsed until wanted. The booking page has one main action per step, no reservation cross-sell or floating controls. Existing vehicle links carry the selected car through; the general enquiry/contact dropdown opens the same new booking route. Removed the obsolete second booking implementation from `EnquiryForm`.
+
+Details survive editing the appointment, changing cars and failed submissions. Available times come from the API; unavailable times cannot be submitted, and a conflict keeps the contact details while asking the customer to choose again. Review alone does not send a request. The result uses the server's confirmed/pending status, only offers a confirmed calendar when appropriate, and states whether the email was actually sent. It includes the car, time, reference, management link and configured visit/parking instructions. Customer management now uses the same configured booking dates, supports rescheduling/cancellation, and keeps cancellation available when online booking is disabled.
+
+**Dealer controls and booking behaviour**
+
+Settings → Photographs & visits contains online booking on/off, instant confirmation or staff approval, duration, preparation buffer, advance notice, daily limit, booking horizon, weekly hours, blocked dates and visit instructions. Booking hours control availability separately from the displayed showroom hours. Settings drafts retain the optional configuration and old clients preserve it when saving unrelated settings. A new Test drives portal tab shows the car, appointment, contact information, part-exchange/message details and pending decisions. Staff must explicitly review a pending request to confirm or decline it.
+
+The server enforces the rules when listing availability, creating and moving appointments. Pending and confirmed appointments occupy capacity. Existing appointments retain their duration/buffer snapshots. Dealer/day transaction locks protect overlapping bookings and capacity checks. Approval requests receive request wording and no confirmed calendar/reminder. Appointment revisions prevent staff confirming a stale time, distinguish repeat notification deliveries after A → B → A rescheduling, and version calendar changes. Tests caught and fixed a spring daylight-saving boundary that could otherwise allow an appointment to end after closing.
+
+The isolated local preview supports the booking lifecycle with durable local records and no outbound emails. Both localhost and the existing LAN address returned HTTP 200 for the booking page, stock and settings; stock still contains nine cars. No production changes, push, deployment or merge occurred.
+
+**Validation**
+
+- Complete frontend suite: **201/201 tests passed**, 41 files.
+- Customer booking/affected regression coverage: **35 browser checks passed**, including car-specific entry, general-enquiry draft restoration, approval/confirmed copy, review, retry, slot conflict, duplicate-click prevention, optional fields, disabled scheduling and layouts from 320–1440px. Two cases interrupted by development hot reload passed on a stable rerun.
+- Customer management: **5/5 browser checks passed** at 390, 820 and 1440px, including pending-state calendar suppression and cancellation with scheduling disabled.
+- Staff/settings: **10/10 browser checks passed**, covering phone/tablet/desktop editing, validation, confirmation/decline/retry, stale-decision rejection and moving past appointments out of the active list. All writes in these browser checks are intercepted; customer contacts are synthetic.
+- Backend: **11 booking policy/calendar/preview lifecycle tests**, **11 settings tests** and **5 portability tests passed**. These checks do not connect to a database or send email.
+- Full workspace typechecking and builds passed. Existing tooltip/collapsible sourcemap warnings and the approximately 587kB main client bundle warning remain.
+- Prepared migration `lib/db/drizzle/0012_test_drive_booking_policy.sql`, Drizzle schema/snapshot, generated API clients and migration assertions. **No migration was run.** Apply this migration to an approved environment before deploying the changed backend. Real database concurrency/migration execution, email-provider delivery and physical iPhone/iPad Safari remain unverified. The previously documented legacy backend tests expecting retired sales/lead APIs were not changed or rerun here; this is not a claim that the entire historical backend integration suite is green.
+
+**Visual review**
+
+Manually used the local selected-car → time → details → review journey without submitting an enquiry. Inspected fresh phone, tablet and desktop screenshots. The booking form, pending management page and staff appointment list have readable labels and clear hierarchy; no fixed action bar or page-wide overflow was found in the checked booking states. Sample showroom text remains visibly marked until each dealer replaces it in settings.
+
+| View | Screenshot |
+| --- | --- |
+| Phone time selection | [390px](screenshots/test-drive-booking-2026-10-02/time-390.png) |
+| Phone contact details | [390px](screenshots/test-drive-booking-2026-10-02/details-390.png) |
+| Desktop review | [1440px](screenshots/test-drive-booking-2026-10-02/review-1440.png) |
+| Tablet confirmation | [820px](screenshots/test-drive-booking-2026-10-02/success-820.png) |
+| Phone rescheduling | [390px](screenshots/test-drive-booking-2026-10-02/reschedule-390.png) |
+| Staff appointments (fixture) | [1440px](screenshots/test-drive-booking-2026-10-02/staff-1440.png) |
+| Dealer booking settings (fixture) | [820px](screenshots/test-drive-booking-2026-10-02/settings-820.png) |

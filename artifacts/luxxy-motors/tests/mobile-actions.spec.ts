@@ -224,9 +224,13 @@ for (const width of [375, 820, 1280]) {
   });
 }
 
-test('phone booking keeps submission primary and reservation details intact', async ({ page, request }) => {
+test('phone booking gives the final review a single primary action', async ({ page, request }) => {
   await page.setViewportSize({ width: 375, height: 900 });
   const blockedWrites = await protectPreview(page);
+  await page.route('**/api/enquiries/availability?*', route => {
+    const date = new URL(route.request().url()).searchParams.get('date');
+    return route.fulfill({ json: { date, timezone: 'Europe/London', slots: [{ label: '10:00 am', startAt: `${date}T09:00:00.000Z`, available: true }] } });
+  });
   const car = await availableCar(request);
   await page.goto(`/enquire?type=viewing&vehicleId=${encodeURIComponent(car.id)}`);
   await page.getByTestId('group-viewing-slots').getByRole('button').and(page.locator(':enabled')).first().click();
@@ -234,23 +238,13 @@ test('phone booking keeps submission primary and reservation details intact', as
   await page.getByTestId('input-customer-name').fill('Local Mobile Review');
   await page.getByTestId('input-customer-email').fill('mobile-review@example.test');
   await page.getByTestId('input-customer-phone').fill('07700900123');
+  await page.getByTestId('button-review-booking').click();
   const submit = page.getByTestId('button-submit-enquiry');
-  const optional = page.getByRole('button', { name: 'Or reserve this car', exact: true });
-  const reserve = page.getByRole('button', { name: 'Reserve car online', exact: true });
-  await expect(submit).toBeVisible();
-  await expect(optional).toHaveAttribute('aria-expanded', 'false');
-  await expect(reserve).toBeHidden();
-  expect((await optional.boundingBox())!.y).toBeGreaterThan((await submit.boundingBox())!.y);
-  await optional.click();
-  await reserve.click();
-  const dialog = page.getByTestId('reserve-car-dialog');
-  await expect(dialog.getByLabel('Your name', { exact: true })).toHaveValue('Local Mobile Review');
-  await expect(dialog.getByLabel('Email address', { exact: true })).toHaveValue('mobile-review@example.test');
-  await expect(dialog.getByLabel('Phone number', { exact: true })).toHaveValue('07700900123');
-  await closeDialog(page, reserve);
-  await expect(page.getByTestId('input-customer-name')).toHaveValue('Local Mobile Review');
-  await expect(submit).toHaveText('Book my test drive');
+  await expect(submit).toHaveText('Confirm test drive');
+  await expect(page.getByText('Local Mobile Review', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Or reserve this car', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reserve car online', exact: true })).toHaveCount(0);
   expect(blockedWrites.filter(path => /^\/api\/(enquiries|reservations)$/.test(path))).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await screenshot(page, 'booking-optional-reservation-375');
+  await screenshot(page, 'booking-review-375');
 });

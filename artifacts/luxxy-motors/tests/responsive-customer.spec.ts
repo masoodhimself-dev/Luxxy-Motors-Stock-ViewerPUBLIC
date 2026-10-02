@@ -247,20 +247,15 @@ for (const viewport of viewports) {
       await settleContent(page);
       const continueButton = page.getByTestId('button-continue-to-details');
       await expect(continueButton).toBeDisabled();
-      if (viewport.width < 640) {
-        const dates = page.getByRole('combobox', { name: 'Choose a test-drive date', exact: true });
-        await expectReachable(dates);
-        await dates.selectOption({ index: 1 });
-      } else {
-        const date = page.getByTestId('group-viewing-dates').getByRole('button').nth(1);
-        await expectReachable(date);
-        await date.tap();
-        await expect(date).toHaveAttribute('aria-pressed', 'true');
-      }
+      const date = page.getByTestId('group-viewing-dates').getByRole('button').nth(1);
+      await expectReachable(date);
+      await date.tap();
+      await expect(date).toHaveAttribute('aria-pressed', 'true');
       const slot = page.getByTestId('group-viewing-slots').locator('button:not([disabled])').first();
       await expect(slot).toBeVisible();
       await expectReachable(slot);
-      const selectedTime = await slot.getAttribute('aria-label');
+      const selectedStart = (await slot.getAttribute('data-testid'))!.replace('button-viewing-slot-', '');
+      const selectedTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' }).format(new Date(selectedStart));
       await slot.tap();
       await expect(slot).toHaveAttribute('aria-pressed', 'true');
       await expectReachable(continueButton);
@@ -271,10 +266,11 @@ for (const viewport of viewports) {
       await page.getByTestId('input-customer-name').fill('Responsive Preview');
       await page.getByTestId('input-customer-email').fill('responsive@example.test');
       await page.getByTestId('input-customer-phone').fill('07700 900123');
-      const preferredContact = page.getByTestId('select-preferred-contact');
-      await expectReachable(preferredContact);
-      await preferredContact.selectOption('email');
-      await expect(page.getByTestId('input-customer-name')).toHaveValue('Responsive Preview');
+      await expect(page.getByTestId('select-preferred-contact')).toHaveCount(0);
+      await expectReachable(page.getByTestId('button-review-booking'));
+      await page.getByTestId('button-review-booking').tap();
+      await expect(page.getByTestId('button-submit-enquiry')).toHaveText('Confirm test drive');
+      await expect(page.getByRole('button', { name: 'Reserve car online', exact: true })).toHaveCount(0);
       await expectReachable(page.getByTestId('button-submit-enquiry'));
       await expectNoHorizontalOverflow(page);
       await capture(page, 'booking-details');
