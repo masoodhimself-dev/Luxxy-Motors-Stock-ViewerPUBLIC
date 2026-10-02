@@ -145,7 +145,7 @@ for (const width of [390, 820, 1440]) {
       },
     );
     await page
-      .getByRole("button", { name: "Find enquiry or appointment", exact: true })
+      .getByRole("tab", { name: "Find enquiry or appointment", exact: true })
       .click();
     await page.getByLabel("Find a customer or car").fill("07700900123");
     await expect(page.getByTestId("enquiry-enquiry-one")).toContainText(
@@ -210,7 +210,7 @@ test("cancellation requires a second deliberate action", async ({ page }) => {
     },
   );
   await page
-    .getByRole("button", { name: "Find enquiry or appointment", exact: true })
+    .getByRole("tab", { name: "Find enquiry or appointment", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Change appointment", exact: true })
@@ -292,3 +292,26 @@ test('a general call can be saved even if showroom stock cannot be loaded', asyn
   await expect(page.getByRole('status')).toContainText('GENERAL-1 saved');
   expect(payload).toMatchObject({ vehicleId: null, adHocVehicle: null, type: 'general', appointmentAt: null });
 });
+
+for (const width of [390, 820, 1440]) {
+  test(`stock workspace keeps caller draft and gates booking at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await setup(page);
+    await page.getByLabel('Customer name', { exact: true }).fill('Draft Caller');
+    await page.getByRole('tab', { name: 'All cars', exact: true }).click();
+    const panel = page.getByRole('tabpanel', { name: 'All cars', exact: true });
+    await expect(panel.getByRole('listitem')).toHaveCount(2);
+    await expect(panel.getByRole('listitem').filter({ hasText: 'Reserved Ford Fiesta' }).getByRole('button', { name: 'Book test drive' })).toBeDisabled();
+    await panel.getByLabel('Stock availability').selectOption('available');
+    await expect(panel.getByRole('listitem')).toHaveCount(1);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `/tmp/enquiry-workspace-${width}.png`, fullPage: true });
+    await panel.getByRole('button', { name: 'Log enquiry', exact: true }).click();
+    await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
+    await expect(page.getByRole('radio', { name: 'Log call / enquiry only' })).toBeChecked();
+    await page.getByRole('tab', { name: 'All cars', exact: true }).click();
+    await panel.getByRole('button', { name: 'Book test drive' }).click();
+    await expect(page.getByRole('radio', { name: 'Book a test drive', exact: true })).toBeChecked();
+    await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
+  });
+}

@@ -1046,3 +1046,11 @@ Validation: 203 frontend tests, 16 enquiry browser checks across 390/820/1440px,
 Prepared **0013_enquiry_follow_ups.sql**, not executed; the real backend needs this and the previously prepared 0012 migration before deployment. Database integration/concurrency remains unverified. No production changes, migrations, customer notifications, merge or deployment took place. Browser writes were mocked; preview lifecycle tests used isolated memory state.
 
 Reviewed fixture screenshots: [phone](screenshots/enquiries-details-2026-10-02/phone.png), [desktop](screenshots/enquiries-details-2026-10-02/desktop.png), [tablet vehicle information](screenshots/enquiries-details-2026-10-02/vehicle-information.png). Full-page captures include the fixed header at the current scroll position.
+
+## Tabbed enquiry workspace — 2 October 2026
+
+Replaced the enquiry desk button navigation with a Word-inspired navy title bar, accessible keyboard-operated tabs, a compact action ribbon and white working sheets on a soft grey-blue canvas. New call drafts stay mounted when switching to the stock directory or enquiry history.
+
+The All cars tab shows current inventory with photo, price, mileage, registration, fuel/transmission, advert reference and availability. Staff can search, filter availability, sort by name/price/mileage, inspect full details, log an enquiry or start a test-drive booking for a selected car. Reserved/unconfirmed cars cannot start a booking. Stock actions retain caller details and reset the previous appointment selection. Ad hoc cars remain enquiry records, not inventory listings. No backend or stock mutation controls were added.
+
+Validation: 19 enquiry browser checks at 390/820/1440px passed, including draft retention and reservation gating. Workspace typechecking/build passed with the existing bundle warning. Reviewed [desktop](screenshots/enquiry-workspace-2026-10-02/desktop.png) and [phone](screenshots/enquiry-workspace-2026-10-02/phone.png) screenshots. No deployment, merge or migrations.

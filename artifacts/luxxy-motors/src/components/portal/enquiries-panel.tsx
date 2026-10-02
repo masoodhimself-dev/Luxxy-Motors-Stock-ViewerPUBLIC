@@ -1,3 +1,5 @@
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EnquiryStockDesk } from "./enquiry-stock-desk";
 import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
 import {
   FollowUpEditor,
@@ -271,9 +273,11 @@ function CarSummary({ car }: { car: Car }) {
 
 function NewCall({
   initial,
+  selection,
   onSaved,
 }: {
   initial?: Enquiry;
+  selection?: { id: string; booking: boolean };
   onSaved: (booking: Enquiry) => void;
 }) {
   const { stock, isLoading, error } = useStock();
@@ -296,6 +300,10 @@ function NewCall({
   const [booking, setBooking] = useState(Boolean(initial));
   const [time, setTime] = useState("");
   const [localError, setLocalError] = useState("");
+  useEffect(() => {
+    if (!selection) return;
+    setVehicleMode("stock"); setCarId(selection.id); setBooking(selection.booking); setTime("");
+  }, [selection]);
   const mutation = useCreateStaffEnquiry();
   const submitting = useRef(false);
   const cars = stock?.cars ?? [];
@@ -771,13 +779,14 @@ function AppointmentEditor({
 }
 
 export function EnquiriesPanel() {
-  const [mode, setMode] = useState<"new" | "history">("new");
+  const [mode, setMode] = useState<"new" | "history" | "stock">("new");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [information, setInformation] = useState<Car | null>(null);
   const [followUpEntry, setFollowUpEntry] = useState<Enquiry | null>(null);
   const [notice, setNotice] = useState("");
   const [initial, setInitial] = useState<Enquiry>();
+  const [selection, setSelection] = useState<{ id: string; booking: boolean }>();
   const [formKey, setFormKey] = useState(0);
   const [editing, setEditing] = useState<Enquiry | null>(null);
   const client = useQueryClient();
@@ -788,6 +797,7 @@ export function EnquiriesPanel() {
   async function saved(entry: Enquiry) {
     setEditing(null);
     setInitial(undefined);
+    setSelection(undefined);
     setFormKey((key) => key + 1);
     setNotice(
       `${entry.reference} saved — ${entry.appointmentCancelledAt ? "appointment cancelled" : entry.appointmentAt ? `${status(entry)}: ${appointmentLabel(entry.appointmentAt)}` : "phone enquiry recorded"}.${entry.customerNotificationStatus === "failed" ? " Customer email failed; confirm by phone." : ""}`,
@@ -849,53 +859,23 @@ export function EnquiriesPanel() {
     );
   return (
     <Panel>
-      <PanelHeader
-        title="Enquiries & appointments"
-        meta="Everything you need while a customer is on the phone."
-        action={
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Refresh enquiries and stock"
-            disabled={query.isFetching}
-            onClick={() => {
-              query.refetch();
-              client.invalidateQueries({ queryKey: ["/api/stock"] });
-            }}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        }
-      />
-      <div className="space-y-5 p-4 sm:p-6">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={mode === "new" ? "default" : "outline"}
-            aria-pressed={mode === "new"}
-            onClick={() => setMode("new")}
-          >
-            <Phone className="mr-2 h-4 w-4" />
-            New call
-          </Button>
-          <Button
-            variant={mode === "history" ? "default" : "outline"}
-            aria-pressed={mode === "history"}
-            onClick={() => setMode("history")}
-          >
-            <Search className="mr-2 h-4 w-4" />
-            Find enquiry or appointment
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setMode("history");
-              setFilter("due");
-              setSearch("");
-            }}
-          >
-            Follow-ups due ({dueCount})
-          </Button>
-        </div>
+      <div className="bg-[#213e61] px-5 py-4 text-white">
+        <h2 className="text-xl font-semibold">Enquiry workspace</h2>
+        <p className="mt-1 text-sm text-white/75">Calls, cars and appointments · Showroom desk</p>
+      </div>
+      <Tabs value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
+        <TabsList aria-label="Enquiry workspace" className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-[#e8eef5] p-2">
+          <TabsTrigger value="new" id="desk-tab-new" aria-controls="desk-panel-new" className="min-h-11 rounded-sm px-5">New call</TabsTrigger>
+          <TabsTrigger value="stock" id="desk-tab-stock" aria-controls="desk-panel-stock" className="min-h-11 rounded-sm px-5">All cars</TabsTrigger>
+          <TabsTrigger value="history" id="desk-tab-history" aria-controls="desk-panel-history" className="min-h-11 rounded-sm px-5">Find enquiry or appointment</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <div aria-label="Workspace actions" className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
+        <Button variant="outline" size="sm" aria-label="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
+        <Button variant="outline" size="sm" onClick={() => { setMode("history"); setFilter("due"); setSearch(""); }}>Follow-ups due ({dueCount})</Button>
+        <span className="ml-auto text-xs text-muted-foreground">{stock?.cars.length ?? 0} cars in current stock · Draft retained when switching tabs</span>
+      </div>
+      <div className="space-y-5 bg-slate-100/70 p-3 sm:p-6">
         {notice && (
           <div
             role="status"
@@ -905,11 +885,14 @@ export function EnquiriesPanel() {
             {notice}
           </div>
         )}
-        <div hidden={mode !== "new"}>
-          <NewCall key={formKey} initial={initial} onSaved={saved} />
+        <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby="desk-tab-new" className="border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <NewCall key={formKey} initial={initial} selection={selection} onSaved={saved} />
+        </div>
+        <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-labelledby="desk-tab-stock">
+          <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { setSelection({ id: car.id, booking }); setMode("new"); }} />
         </div>
         {mode === "history" && (
-          <div className="space-y-4">
+          <div role="tabpanel" id="desk-panel-history" aria-labelledby="desk-tab-history" className="space-y-4 border border-slate-200 bg-white p-4 sm:p-6">
             <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
               <label className={field}>
                 Find a customer or car
@@ -1052,6 +1035,7 @@ export function EnquiriesPanel() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
+                              setSelection(undefined);
                               setInitial(entry);
                               setFormKey((key) => key + 1);
                               setMode("new");
