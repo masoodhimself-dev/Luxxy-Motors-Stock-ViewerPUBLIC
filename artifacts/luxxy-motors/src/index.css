@@ -367,13 +367,10 @@
 .browse-stock .vehicle-card-grid .vehicle-card-heading h3 { font-size: 1.125rem; line-height: 1.4; }
 .browse-stock .vehicle-card-grid .luxxy-price { font-size: 1.875rem; text-align: left; }
 .browse-stock .vehicle-card-grid .vehicle-specs { font-size: .875rem; color: hsl(var(--muted-foreground)); }
+/* Keep search controls in normal flow so they never cover the cars. */
+.browse-stock .stock-toolbar { position: static; }
 @media (max-width: 1023px) {
- .browse-stock .stock-toolbar { position: sticky; top: var(--site-header-height); z-index: 30; }
  .stock-toolbar-expanded { max-height: calc(100dvh - var(--site-header-height) - 190px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
-}
-/* Short screens need space for the results, including when the keyboard is open. */
-@media (max-height: 540px) {
- .browse-stock .stock-toolbar { position: static; }
 }
 
 /* Homepage feature boxes: photography above a quiet name-and-price panel. */

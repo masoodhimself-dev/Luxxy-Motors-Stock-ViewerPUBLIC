@@ -129,7 +129,7 @@ describe('vehicle detail registration', () => {
   it('shows the registration band as ordinary metadata rather than a plate', () => {
     renderVehicle('band-only');
 
-    expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2009 (59 REG)');
+    expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2009 (59 reg)');
     expect(screen.queryByTestId('plate-vehicle-band-only')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^UK registration/)).not.toBeInTheDocument();
   });
@@ -139,7 +139,7 @@ describe('vehicle detail registration', () => {
 
     const plate = screen.getByTestId('plate-vehicle-with-plate');
     expect(plate).toHaveTextContent('NV24 LNZ');
-    expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 REG)');
+    expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 reg)');
   });
 });
 

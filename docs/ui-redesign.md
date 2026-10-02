@@ -956,3 +956,13 @@ Changed application files: `components/dealer-settings-panel.tsx`, `enquiry-form
 | Settings | [Review step, 390px](screenshots/full-audit-2026-10-01/settings-review-390.png) | [Identity, 820px](screenshots/full-audit-2026-10-01/settings-identity-820.png) |
 | Sales document preview | [390px](screenshots/full-audit-2026-10-01/sales-documents-390.png) | [1440px](screenshots/full-audit-2026-10-01/sales-documents-1440.png) |
 | Staff reservations (test fixture) | — | [1440px](screenshots/full-audit-2026-10-01/reservations-1440.png) |
+
+### Remove distracting mobile overlays — 2 October 2026
+
+Removed the floating price/enquiry bar from vehicle pages, together with its visibility observers and reserved bottom padding. The regular enquiry, test-drive and optional contact/reservation controls remain in the vehicle summary. Browse Stock search/filter controls now stay in normal document flow on phones and tablets, including filtered searches and See all cars, so they scroll away instead of covering photographs and results. The filter dialog and existing navigation remain available.
+
+Ten browser checks passed at 375, 820 and 1280px, verifying that the toolbar scrolls out of view, no conversion bar remains, and contact, reservation, saved, display, sharing and booking controls still work. Full workspace typechecking/builds passed with existing bundle/sourcemap warnings. These are local Chromium checks, with writes intercepted; no backend or production changes.
+
+Visual checks: [phone stock](screenshots/no-sticky-2026-10-02/stock-scrolled-375.png), [tablet stock](screenshots/no-sticky-2026-10-02/stock-scrolled-820.png), [phone vehicle actions](screenshots/no-sticky-2026-10-02/vehicle-primary-375.png).
+
+The full frontend suite also passed: 194 tests across 41 files. Its first run caught two stale uppercase `REG` assertions after the previous audit's registration-format change; these now expect the shared `reg` presentation, with plate-versus-metadata checks preserved.

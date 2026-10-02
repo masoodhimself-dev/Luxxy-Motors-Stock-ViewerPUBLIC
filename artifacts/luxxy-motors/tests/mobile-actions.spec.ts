@@ -86,7 +86,7 @@ async function screenshot(page: Page, name: string) {
   await page.screenshot({ path: `/tmp/luxxy-mobile-actions/${name}.png`, animations: 'disabled' });
 }
 
-for (const width of [375, 1280]) {
+for (const width of [375, 820, 1280]) {
   test(`vehicle actions remain available with a clear hierarchy at ${width}px`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 900 });
     const blockedWrites = await protectPreview(page);
@@ -152,11 +152,10 @@ for (const width of [375, 1280]) {
       await expect(page.getByTestId('mobile-conversion-bar')).toBeHidden();
       await screenshot(page, `vehicle-primary-${width}`);
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      const sticky = page.getByTestId('mobile-conversion-bar');
-      await expect(sticky).toBeVisible();
-      await expect(sticky.getByRole('link', { name: 'Enquire', exact: true })).toHaveAttribute('href', '#vehicle-enquiry');
-      await expect(sticky.locator('a, button')).toHaveCount(1);
+      await expect(page.getByTestId('mobile-conversion-bar')).toHaveCount(0);
     }
+    await expect(page.getByTestId('mobile-conversion-bar')).toHaveCount(0);
+    await expect(page.locator('.vehicle-page')).toHaveCSS('padding-bottom', '0px');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(blockedWrites.filter(path => /^\/api\/(enquiries|reservations)$/.test(path))).toEqual([]);
   });
@@ -197,6 +196,11 @@ for (const width of [375, 1280]) {
       await expect(copy).toBeHidden();
       await expect(trigger).toBeFocused();
     }
+    const toolbar = page.getByTestId('stock-search-toolbar');
+    await expect(toolbar).toHaveCSS('position', 'static');
+    await toolbar.evaluate(element => window.scrollTo(0, window.scrollY + element.getBoundingClientRect().bottom + 100));
+    await expect.poll(() => toolbar.evaluate(element => element.getBoundingClientRect().bottom)).toBeLessThan(0);
+    await screenshot(page, `stock-scrolled-${width}`);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 

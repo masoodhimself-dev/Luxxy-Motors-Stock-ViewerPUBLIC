@@ -15,7 +15,7 @@ import { SiWhatsapp } from 'react-icons/si';
 import { ReserveCar } from '@/components/reserve-car';
 import { getSimilarCars } from "@/lib/similar-cars";
 import { buyerInformation } from "@/lib/buyer-information";
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import {
   ArrowLeft,
@@ -72,29 +72,11 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 export default function CarDetail() {
   const isPhone = useIsMobile();
   const [shareMessage, setShareMessage] = useState('');
-  const purchasePanel = useRef<HTMLDivElement>(null);
-  const [purchaseVisible, setPurchaseVisible] = useState(false);
-  const enquiryPanel = useRef<HTMLElement>(null);
-  const [enquiryVisible, setEnquiryVisible] = useState(false);
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
-
-  useEffect(() => {
-    if (!purchasePanel.current || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(([entry]) => setPurchaseVisible(entry.isIntersecting), {threshold: 0, rootMargin: '-90px 0px -80px 0px'});
-    observer.observe(purchasePanel.current);
-    return () => observer.disconnect();
-  }, [car?.id]);
-
-  useEffect(() => {
-    if (!enquiryPanel.current || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(([entry]) => setEnquiryVisible(entry.isIntersecting), { rootMargin: '-90px 0px -80px 0px' });
-    observer.observe(enquiryPanel.current);
-    return () => observer.disconnect();
-  }, [car?.id]);
 
   useEffect(() => { if (car?.id) rememberVehicle(car.id); }, [car?.id]);
 
@@ -247,7 +229,7 @@ export default function CarDetail() {
   );
 
   return (
-    <div className="vehicle-page luxxy-shell min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+    <div className="vehicle-page luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-2 py-4">
           <Link href="/stock" className="text-link text-muted-foreground">
@@ -433,7 +415,7 @@ export default function CarDetail() {
               </div>
             )}
               {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
-            <div ref={purchasePanel} className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
+            <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
             <div className="mt-4 flex flex-col gap-3 border-t border-border pt-5">
 
               {isPhone ? [enquiryAction, bookingAction] : [bookingAction, enquiryAction]}
@@ -464,7 +446,7 @@ export default function CarDetail() {
           </div>
 
           </div>
-          <section ref={enquiryPanel} id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
+          <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0 mt-6 lg:col-span-2" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
             <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
@@ -474,22 +456,6 @@ export default function CarDetail() {
 
         </div>
       </div>
-      {!purchaseVisible && !enquiryVisible && <div
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-border bg-card p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] lg:hidden"
-        data-testid="mobile-conversion-bar"
-      >
-        <p className="luxxy-price shrink-0 px-1 text-lg">
-          {car.price ? formatPrice(car.price, car.currency) : "POA"}
-        </p>
-        <Button asChild className="min-h-12 min-w-0 flex-1">
-          <a
-            href="#vehicle-enquiry"
-            onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}
-          >
-            Enquire
-          </a>
-        </Button>
-      </div>}
       {similarCars.length > 0 && (
         <section
           className="section-space border-t border-border bg-secondary/40"
