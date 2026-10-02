@@ -1,3 +1,4 @@
+import { EnquiryCalendar } from "./enquiry-calendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnquiryStockDesk } from "./enquiry-stock-desk";
 import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
@@ -779,7 +780,7 @@ function AppointmentEditor({
 }
 
 export function EnquiriesPanel() {
-  const [mode, setMode] = useState<"new" | "history" | "stock">("new");
+  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar">("new");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [information, setInformation] = useState<Car | null>(null);
@@ -867,6 +868,7 @@ export function EnquiriesPanel() {
         <TabsList aria-label="Enquiry workspace" className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-[#e8eef5] p-2">
           <TabsTrigger value="new" id="desk-tab-new" aria-controls="desk-panel-new" className="min-h-11 rounded-sm px-5">New call</TabsTrigger>
           <TabsTrigger value="stock" id="desk-tab-stock" aria-controls="desk-panel-stock" className="min-h-11 rounded-sm px-5">All cars</TabsTrigger>
+          <TabsTrigger value="calendar" id="desk-tab-calendar" aria-controls="desk-panel-calendar" className="min-h-11 rounded-sm px-5">Calendar</TabsTrigger>
           <TabsTrigger value="history" id="desk-tab-history" aria-controls="desk-panel-history" className="min-h-11 rounded-sm px-5">Find enquiry or appointment</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -890,6 +892,9 @@ export function EnquiriesPanel() {
         </div>
         <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-labelledby="desk-tab-stock">
           <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { setSelection({ id: car.id, booking }); setMode("new"); }} />
+        </div>
+        <div hidden={mode !== "calendar"} role="tabpanel" id="desk-panel-calendar" aria-labelledby="desk-tab-calendar">
+          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <p role="alert">Appointments could not be loaded. Use Refresh to try again.</p> : <EnquiryCalendar entries={query.data ?? []} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
         </div>
         {mode === "history" && (
           <div role="tabpanel" id="desk-panel-history" aria-labelledby="desk-tab-history" className="space-y-4 border border-slate-200 bg-white p-4 sm:p-6">

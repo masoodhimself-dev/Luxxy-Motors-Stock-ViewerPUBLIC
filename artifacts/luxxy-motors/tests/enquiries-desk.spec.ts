@@ -315,3 +315,34 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
   });
 }
+
+for (const width of [390, 820, 1440]) {
+  test(`calendar combines website and staff appointments at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await setup(page);
+    await page.route('**/api/enquiries', route => route.fulfill({ json: [
+      { ...existing, source: 'website', customerName: 'Website Customer' },
+      { ...existing, id: 'staff-two', reference: 'STAFF-2', source: 'phone', customerName: 'Phone Customer', appointmentAt: '2027-01-05T14:00:00Z', appointmentStatus: 'pending' },
+      { ...existing, id: 'cancelled-three', reference: 'CANCEL-3', source: 'website', customerName: 'Cancelled Customer', appointmentCancelledAt: '2026-10-01T10:00:00Z' },
+      { ...existing, id: 'no-appointment', customerName: 'Enquiry Only', appointmentAt: null },
+    ] }));
+    await page.getByRole('button', { name: 'Refresh enquiries and stock' }).click();
+    await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+    const panel = page.getByRole('tabpanel', { name: 'Calendar', exact: true });
+    await panel.getByLabel('Calendar month').fill('2027-01');
+    await panel.getByRole('button', { name: 'Tuesday 5 January 2027, 2 appointments', exact: true }).click();
+    await expect(panel.getByText('Website booking', { exact: false })).toBeVisible();
+    await expect(panel.getByText('Awaiting approval · Staff booking', { exact: false })).toBeVisible();
+    await expect(panel.getByText('Enquiry Only', { exact: false })).toHaveCount(0);
+    await panel.getByLabel('Show cancelled').check();
+    await expect(panel.getByText('Cancelled Customer', { exact: false })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `/tmp/enquiry-calendar-${width}.png`, fullPage: true });
+    await panel.getByRole('button', { name: 'Change appointment', exact: true }).first().click();
+    await expect(page.getByRole('dialog', { name: 'Change appointment' })).toBeVisible();
+    await page.getByRole('button', { name: 'Keep existing appointment' }).click();
+    await panel.getByRole('button', { name: 'Next month' }).click();
+    await expect(panel.getByLabel('Calendar month')).toHaveValue('2027-02');
+    await expect(panel.getByText('No appointments on this day.')).toBeVisible();
+  });
+}
