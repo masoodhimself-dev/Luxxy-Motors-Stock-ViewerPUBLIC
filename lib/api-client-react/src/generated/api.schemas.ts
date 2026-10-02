@@ -1111,6 +1111,17 @@ export interface EnquiryEvent {
 }
 
 export interface Enquiry {
+  /** @nullable */
+  followUpAt?: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  followUpNote?: string | null;
+  /** @nullable */
+  followUpCompletedAt?: string | null;
+  /** @minimum 0 */
+  followUpRevision?: number;
   /** @minLength 1 */
   id: string;
   /** @minLength 1 */
@@ -1282,6 +1293,29 @@ export interface EnquiryInput {
   appointmentAt: string | null;
 }
 
+/**
+ * Caller-supplied vehicle attached only to this enquiry; does not create stock or imply availability.
+ * @nullable
+ */
+export type StaffEnquiryInputAdHocVehicle = {
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  title: string;
+  /**
+     * @maxLength 16
+     * @nullable
+     */
+  registration?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 10000000
+     * @nullable
+     */
+  price?: number | null;
+} | null;
+
 export type StaffEnquiryInputType = typeof StaffEnquiryInputType[keyof typeof StaffEnquiryInputType];
 
 
@@ -1340,6 +1374,18 @@ export type StaffEnquiryInputPartExchange = {
 
 export interface StaffEnquiryInput {
   /** @nullable */
+  followUpAt?: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  followUpNote?: string | null;
+  /**
+     * Caller-supplied vehicle attached only to this enquiry; does not create stock or imply availability.
+     * @nullable
+     */
+  adHocVehicle?: StaffEnquiryInputAdHocVehicle;
+  /** @nullable */
   vehicleId: string | null;
   type: StaffEnquiryInputType;
   /**
@@ -1378,6 +1424,28 @@ export interface StaffEnquiryInput {
   visitorId?: string | null;
   /** @nullable */
   appointmentAt: string | null;
+}
+
+export type StaffFollowUpChangeAction = typeof StaffFollowUpChangeAction[keyof typeof StaffFollowUpChangeAction];
+
+
+export const StaffFollowUpChangeAction = {
+  schedule: 'schedule',
+  complete: 'complete',
+  cancel: 'cancel',
+} as const;
+
+export interface StaffFollowUpChange {
+  action: StaffFollowUpChangeAction;
+  /** @minimum 0 */
+  expectedRevision: number;
+  /** @nullable */
+  followUpAt?: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  followUpNote?: string | null;
 }
 
 export type StaffAppointmentChangeAction = typeof StaffAppointmentChangeAction[keyof typeof StaffAppointmentChangeAction];

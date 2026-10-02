@@ -367,6 +367,42 @@ paths:
           description: Record unavailable
         "409":
           description: Booking or availability has changed
+  /staff/enquiries/{id}/follow-up:
+    post:
+      operationId: changeStaffFollowUp
+      tags: [enquiries]
+      summary: Staff-only changeStaffFollowUp
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffFollowUpChange"
+      responses:
+        "200":
+          description: Enquiry saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Staff access required
+        "404":
+          description: Record unavailable
+        "409":
+          description: Booking or availability has changed
   /staff/enquiries/{id}/appointment:
     post:
       operationId: changeStaffAppointment
@@ -2696,6 +2732,19 @@ components:
       type: object
       additionalProperties: false
       properties:
+        followUpAt:
+          type: [string, "null"]
+          format: date-time
+        followUpNote:
+          type: [string, "null"]
+          maxLength: 1000
+        followUpCompletedAt:
+          type: [string, "null"]
+          format: date-time
+        followUpRevision:
+          type: number
+          multipleOf: 1
+          minimum: 0
         id:
           type: string
           minLength: 1
@@ -2895,6 +2944,30 @@ components:
       type: object
       additionalProperties: false
       properties:
+        followUpAt:
+          type: [string, "null"]
+          format: date-time
+        followUpNote:
+          type: [string, "null"]
+          maxLength: 1000
+        adHocVehicle:
+          description: Caller-supplied vehicle attached only to this enquiry; does not create stock or imply availability.
+          type: [object, "null"]
+          additionalProperties: false
+          properties:
+            title:
+              type: string
+              minLength: 2
+              maxLength: 200
+            registration:
+              type: [string, "null"]
+              maxLength: 16
+            price:
+              type: [number, "null"]
+              minimum: 0
+              maximum: 10000000
+              multipleOf: 1
+          required: [title]
         vehicleId:
           type: [string, "null"]
         type:
@@ -2950,6 +3023,24 @@ components:
         - preferredContact
         - message
         - appointmentAt
+    StaffFollowUpChange:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [schedule, complete, cancel]
+        expectedRevision:
+          type: number
+          multipleOf: 1
+          minimum: 0
+        followUpAt:
+          type: [string, "null"]
+          format: date-time
+        followUpNote:
+          type: [string, "null"]
+          maxLength: 1000
+      required: [action, expectedRevision]
     StaffAppointmentChange:
       type: object
       additionalProperties: false

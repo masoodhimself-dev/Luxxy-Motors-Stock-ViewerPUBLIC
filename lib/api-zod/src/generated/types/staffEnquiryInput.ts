@@ -5,11 +5,24 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StaffEnquiryInputAdHocVehicle } from './staffEnquiryInputAdHocVehicle';
 import type { StaffEnquiryInputPartExchange } from './staffEnquiryInputPartExchange';
 import type { StaffEnquiryInputPreferredContact } from './staffEnquiryInputPreferredContact';
 import type { StaffEnquiryInputType } from './staffEnquiryInputType';
 
 export interface StaffEnquiryInput {
+  /** @nullable */
+  followUpAt?: Date | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  followUpNote?: string | null;
+  /**
+     * Caller-supplied vehicle attached only to this enquiry; does not create stock or imply availability.
+     * @nullable
+     */
+  adHocVehicle?: StaffEnquiryInputAdHocVehicle;
   /** @nullable */
   vehicleId: string | null;
   type: StaffEnquiryInputType;

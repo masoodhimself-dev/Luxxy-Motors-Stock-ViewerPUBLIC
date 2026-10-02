@@ -68,3 +68,26 @@ test('staff phone-only enquiries and appointments preserve capacity and reject s
   assert.ok(cancelled.data.appointmentCancelledAt); assert.equal(cancelled.data.appointmentRevision, 2);
   assert.equal((await call(state, settings, 'GET', `/api/enquiries/availability?date=${day}`)).data.slots[1].available, true);
 });
+
+test('ad hoc phone enquiry persists vehicle details and follow-up lifecycle without booking or creating stock', async () => {
+  const state: BookingPreviewState = { reservations: [] };
+  const settings = { ...previewSettings, testDriveBooking: policy() };
+  const followUpAt = new Date(Date.now() + 86400000).toISOString();
+  const input = { vehicleId: null, type: 'general', customerName: 'Ad Hoc Caller', email: null, phone: '07700900123', preferredContact: 'phone', message: 'Wants to discuss a car not in stock.', appointmentAt: null, adHocVehicle: { title: '2018 Volkswagen Golf', registration: 'ab18 xyz', price: 9000 }, followUpAt, followUpNote: 'Call with service history details' };
+  const stockCount = previewStock.cars.length;
+  const result = await call(state, settings, 'POST', '/api/staff/enquiries', input);
+  assert.equal(result.data.vehicleId, null); assert.equal(result.data.vehicleTitle, input.adHocVehicle.title); assert.equal(result.data.vehicleRegistration, 'AB18 XYZ'); assert.equal(result.data.vehiclePrice, 9000); assert.equal(result.data.source, 'phone_ad_hoc'); assert.equal(result.data.appointmentAt, null); assert.equal(result.data.followUpAt, followUpAt); assert.equal(previewStock.cars.length, stockCount);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...input, vehicleId: previewStock.cars[0].id }), /ad hoc/);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...input, type: 'viewing', appointmentAt: followUpAt }), /ad hoc/);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...input, adHocVehicle: { title: '  ' } }), /ad hoc/);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...input, followUpAt: '2020-01-01T09:00:00Z' }), /future/);
+  const path = `/api/staff/enquiries/${result.data.id}/follow-up`;
+  const completed = await call(state, settings, 'POST', path, { action: 'complete', expectedRevision: 0 });
+  assert.ok(completed.data.followUpCompletedAt); assert.equal(completed.data.followUpRevision, 1);
+  await assert.rejects(call(state, settings, 'POST', path, { action: 'schedule', expectedRevision: 0, followUpAt }), /changed/);
+  const rescheduled = await call(state, settings, 'POST', path, { action: 'schedule', expectedRevision: 1, followUpAt, followUpNote: 'Call again' });
+  assert.equal(rescheduled.data.followUpCompletedAt, null); assert.equal(rescheduled.data.followUpNote, 'Call again');
+  const cancelled = await call(state, settings, 'POST', path, { action: 'cancel', expectedRevision: 2 });
+  assert.equal(cancelled.data.followUpAt, null); assert.equal(cancelled.data.appointmentAt, null);
+  assert.equal((await call(state, settings, 'GET', '/api/enquiries')).data[0].vehicleTitle, input.adHocVehicle.title);
+});

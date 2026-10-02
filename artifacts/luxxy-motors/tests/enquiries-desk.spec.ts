@@ -18,6 +18,7 @@ const car = {
   inventoryStatus: "available",
   heroImage: null,
   images: [],
+  mileage: 42000, fuel: 'Petrol', sourceExtras: { advertDescription: 'A carefully maintained example with documented servicing.', featureList: ['Heated seats', 'Rear parking sensors'], serviceHistory: 'Full service history', specCategories: [{ category: 'Performance', items: [{ name: 'Engine power', value: '125 BHP' }] }] },
 };
 const existing = {
   id: "enquiry-one",
@@ -223,4 +224,71 @@ test("cancellation requires a second deliberate action", async ({ page }) => {
     .click();
   await expect(page.getByRole("status")).toContainText("appointment cancelled");
   expect(writes).toBe(1);
+});
+
+for (const width of [390, 820, 1440]) {
+  test(`full vehicle information stays in the call workspace at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 }); await setup(page);
+    await page.getByRole('button', { name: /Select Ford Focus/ }).click();
+    await page.getByLabel('Customer name', { exact: true }).fill('Keep This Caller');
+    await page.getByRole('button', { name: 'View full vehicle information', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('42,000 miles'); await expect(dialog).toContainText('Full service history');
+    await expect(dialog).toContainText('Heated seats'); await expect(dialog).toContainText('A carefully maintained example');
+    await dialog.getByText('Technical specifications', { exact: true }).click();
+    await expect(dialog.getByText('125 BHP', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `/tmp/luxxy-enquiry-info-${width}.png` });
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Keep This Caller');
+  });
+  test(`ad hoc enquiry with follow-up needs no appointment at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 }); await setup(page);
+    let payload: any;
+    await page.route('**/api/staff/enquiries', route => { payload = route.request().postDataJSON(); return route.fulfill({ status: 201, json: { ...existing, ...payload, vehicleTitle: payload.adHocVehicle.title, reference: 'ADHOC-1' } }); });
+    await page.getByLabel('Vehicle source', { exact: true }).selectOption('adhoc');
+    await page.getByLabel('Vehicle make and model', { exact: true }).fill('2018 Volkswagen Golf');
+    await page.getByLabel('Vehicle registration (optional)', { exact: true }).fill('AB18 XYZ');
+    await page.getByLabel('Quoted vehicle price (£, optional)', { exact: true }).fill('9000');
+    await page.getByLabel('Customer name', { exact: true }).fill('Ad Hoc Caller');
+    await page.getByLabel('Phone number', { exact: true }).fill('07700900123');
+    await expect(page.getByLabel('Log call / enquiry only', { exact: true })).toBeChecked();
+    await expect(page.getByLabel('Book a test drive', { exact: true })).toBeDisabled();
+    await page.getByLabel('Request a follow-up', { exact: true }).check();
+    await page.getByLabel('Follow-up date and time (UK)', { exact: true }).fill('2027-01-05T10:00');
+    await page.getByLabel('Follow-up note (optional)', { exact: true }).fill('Check service history and call back.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `/tmp/luxxy-enquiry-adhoc-${width}.png`, fullPage: true });
+    await page.getByRole('button', { name: 'Save phone enquiry', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('ADHOC-1 saved');
+    expect(payload).toMatchObject({ vehicleId: null, type: 'general', appointmentAt: null, adHocVehicle: { title: '2018 Volkswagen Golf', registration: 'AB18 XYZ', price: 9000 }, followUpAt: '2027-01-05T10:00:00.000Z', followUpNote: 'Check service history and call back.' });
+  });
+}
+test('due follow-up queue can complete a request with the reviewed revision', async ({ page }) => {
+  await setup(page);
+  let entry = { ...existing, appointmentAt: null, followUpAt: '2026-01-01T10:00:00Z', followUpNote: 'Discuss delivery', followUpCompletedAt: null as string | null, followUpRevision: 2 };
+  await page.route('**/api/enquiries', route => route.fulfill({ json: [entry] }));
+  await page.getByRole('button', { name: 'Refresh enquiries and stock' }).click();
+  await page.getByRole('button', { name: 'Follow-ups due (1)' }).click();
+  await expect(page.getByTestId('enquiry-enquiry-one')).toContainText('Follow-up overdue');
+  let payload: any;
+  await page.route('**/api/staff/enquiries/enquiry-one/follow-up', route => { payload = route.request().postDataJSON(); entry = { ...entry, followUpRevision: 3, followUpCompletedAt: new Date().toISOString() }; return route.fulfill({ json: entry }); });
+  await page.getByRole('button', { name: 'Manage follow-up', exact: true }).click();
+  await page.getByRole('button', { name: 'Mark follow-up done', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('follow-up completed');
+  await expect(page.getByRole('button', { name: 'Follow-ups due (0)' })).toBeVisible();
+  expect(payload).toMatchObject({ action: 'complete', expectedRevision: 2 });
+});
+test('a general call can be saved even if showroom stock cannot be loaded', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/stock', route => route.fulfill({ status: 503, json: { error: 'Offline' } }));
+  await page.getByRole('button', { name: 'Refresh enquiries and stock' }).click();
+  await page.getByLabel('Vehicle source', { exact: true }).selectOption('none');
+  await page.getByLabel('Customer name', { exact: true }).fill('General Caller');
+  await page.getByLabel('Phone number', { exact: true }).fill('07700900123');
+  let payload: any;
+  await page.route('**/api/staff/enquiries', route => { payload = route.request().postDataJSON(); return route.fulfill({ status: 201, json: { ...existing, ...payload, reference: 'GENERAL-1' } }); });
+  await page.getByRole('button', { name: 'Save phone enquiry', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('GENERAL-1 saved');
+  expect(payload).toMatchObject({ vehicleId: null, adHocVehicle: null, type: 'general', appointmentAt: null });
 });

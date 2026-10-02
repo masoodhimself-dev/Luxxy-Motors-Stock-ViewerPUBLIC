@@ -8,6 +8,7 @@ import {
   CreateEnquiryBody,
   CreateStaffEnquiryBody,
   ChangeStaffAppointmentBody,
+  ChangeStaffFollowUpBody,
   CreateEnquiryResponse,
   GetEnquiryAvailabilityQueryParams,
   GetEnquiryAvailabilityResponse,
@@ -255,6 +256,14 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
   }
 
   const input = parsed.data;
+  const adHoc = staff && "adHocVehicle" in input ? input.adHocVehicle : null;
+  const followUpAt = staff && "followUpAt" in input ? input.followUpAt : null;
+  const followUpNote = staff && "followUpNote" in input ? input.followUpNote : null;
+  if (followUpAt && followUpAt.getTime() <= Date.now()) { res.status(400).json(errorResponse("Choose a future follow-up time.")); return; }
+
+  if (adHoc && (input.vehicleId || input.type === "viewing" || adHoc.title.trim().length < 2)) {
+    res.status(400).json(errorResponse("Use an ad hoc car for an enquiry only, or choose a stock car for a test drive.")); return;
+  }
   if (input.customerName.trim().length < 2) { res.status(400).json(errorResponse("Please provide the customer’s name.")); return; }
   if (!staff && !input.email) {
     res.status(400).json(errorResponse("Please provide an email address for confirmation."));
@@ -336,7 +345,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
 
     const vehicleTitle = vehicle
       ? vehicle.websiteTitleOverride ?? vehicle.title
-      : null;
+      : adHoc?.title.trim() ?? null;
     const vehicleUrl = vehicle ? `/vehicle/${vehicle.id}` : null;
     const isViewing = input.type === "viewing";
 
@@ -346,10 +355,10 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       vehicleTitle,
       vehicleRegistration: vehicle
         ? vehicle.registration ?? vehicle.plate ?? vehicle.vrm
-        : null,
+        : adHoc?.registration?.trim() ? normaliseRegistration(adHoc.registration) : null,
       vehiclePrice: vehicle
         ? vehicle.websitePriceOverride ?? vehicle.sourcePrice
-        : null,
+        : adHoc?.price ?? null,
       vehicleUrl,
       type: input.type,
       customerName: input.customerName.trim(),
@@ -357,6 +366,8 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       phone,
       preferredContact,
       message: input.message.trim(),
+      followUpAt: followUpAt ?? null,
+      followUpNote: followUpAt ? followUpNote?.trim() || null : null,
       partExchangeRegistration: partExchange?.registration?.trim()
         ? normaliseRegistration(partExchange.registration)
         : null,
@@ -370,7 +381,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       customerNotificationStatus: input.email ? "pending" : "not_sent",
       dealerNotificationStatus: "pending",
       reminderStatus: Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
-      source: staff ? "phone" : "website",
+      source: staff ? adHoc ? "phone_ad_hoc" : "phone" : "website",
       status: staff ? "contacted" : "new",
     }, policy);
 
@@ -450,6 +461,34 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
  }
 router.post("/enquiries", (req, res) => createEnquiry(req, res));
 router.post("/staff/enquiries", requireStaff, (req, res) => createEnquiry(req, res, true));
+
+router.post("/staff/enquiries/:id/follow-up", requireStaff, async (req, res): Promise<void> => {
+  const parsed = ChangeStaffFollowUpBody.safeParse(req.body);
+  const id = String(req.params.id);
+  if (!uuidPattern.test(id) || !parsed.success) { res.status(400).json(errorResponse("Check the follow-up details.")); return; }
+  const input = parsed.data;
+  if (input.action === "schedule" && (!input.followUpAt || input.followUpAt.getTime() <= Date.now())) { res.status(400).json(errorResponse("Choose a future follow-up time.")); return; }
+  try {
+    const updated = await db.transaction(async tx => {
+      const [entry] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId))).for("update");
+      if (!entry) return null;
+      if (entry.followUpRevision !== input.expectedRevision) throw new BookingConflict("This follow-up changed. Refresh before editing it.");
+      if (input.action !== "schedule" && (!entry.followUpAt || entry.followUpCompletedAt)) throw new BookingConflict("There is no outstanding follow-up to update.");
+      const [changed] = await tx.update(enquiriesTable).set({
+        followUpAt: input.action === "schedule" ? input.followUpAt! : input.action === "cancel" ? null : entry.followUpAt,
+        followUpNote: input.action === "schedule" ? input.followUpNote?.trim() || null : entry.followUpNote,
+        followUpCompletedAt: input.action === "complete" ? new Date() : null,
+        followUpRevision: entry.followUpRevision + 1, updatedAt: new Date(),
+      }).where(eq(enquiriesTable.id, id)).returning();
+      return changed;
+    });
+    if (!updated) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
+    res.json(toEnquiryResponse(updated));
+  } catch (error) {
+    if (error instanceof BookingConflict) { res.status(409).json(errorResponse(error.message)); return; }
+    req.log.error({ err: error }, "Unable to save follow-up"); res.status(500).json(errorResponse("Unable to save follow-up."));
+  }
+});
 
 router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): Promise<void> => {
   const parsed = ChangeStaffAppointmentBody.safeParse(req.body);

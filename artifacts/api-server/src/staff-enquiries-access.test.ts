@@ -24,11 +24,11 @@ test('staff enquiry routes reject anonymous access and validate before database 
   await new Promise<void>(resolve => server.once('listening', resolve));
   const address = server.address() as { port: number };
   try {
-    for (const [method, path] of [['POST', '/staff/enquiries'], ['POST', '/staff/enquiries/not-an-id/appointment'], ['GET', '/staff/enquiries/not-an-id/availability?date=2026-10-05']]) {
+    for (const [method, path] of [['POST', '/staff/enquiries'], ['POST', '/staff/enquiries/not-an-id/appointment'], ['POST', '/staff/enquiries/not-an-id/follow-up'], ['GET', '/staff/enquiries/not-an-id/availability?date=2026-10-05']]) {
       const response = await fetch(`http://127.0.0.1:${address.port}/api${path}`, { method, headers: { 'content-type': 'application/json' }, ...(method === 'POST' ? { body: '{}' } : {}) });
       assert.equal(response.status, 401, `${method} ${path} requires staff`);
     }
-    for (const path of ['/staff/enquiries', '/staff/enquiries/not-an-id/appointment']) {
+    for (const path of ['/staff/enquiries', '/staff/enquiries/not-an-id/appointment', '/staff/enquiries/not-an-id/follow-up']) {
       const response = await fetch(`http://127.0.0.1:${address.port}/api${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-portal-token': process.env.PORTAL_API_TOKEN! }, body: '{}' });
       assert.equal(response.status, 400);
     }

@@ -619,6 +619,17 @@ export const CancelReservationResponse = zod.object({
 /**
  * @summary Staff-only createStaffEnquiry
  */
+export const createStaffEnquiryBodyFollowUpNoteMax = 1000;
+
+export const createStaffEnquiryBodyAdHocVehicleTitleMin = 2;
+export const createStaffEnquiryBodyAdHocVehicleTitleMax = 200;
+
+export const createStaffEnquiryBodyAdHocVehicleRegistrationMax = 16;
+
+export const createStaffEnquiryBodyAdHocVehiclePriceMin = 0;
+export const createStaffEnquiryBodyAdHocVehiclePriceMax = 10000000;
+export const createStaffEnquiryBodyAdHocVehiclePriceMultipleOf = 1;
+
 export const createStaffEnquiryBodyCustomerNameMin = 2;
 export const createStaffEnquiryBodyCustomerNameMax = 120;
 
@@ -640,6 +651,13 @@ export const createStaffEnquiryBodyVisitorIdMax = 64;
 
 
 export const CreateStaffEnquiryBody = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(createStaffEnquiryBodyFollowUpNoteMax).nullish(),
+  "adHocVehicle": zod.object({
+  "title": zod.string().min(createStaffEnquiryBodyAdHocVehicleTitleMin).max(createStaffEnquiryBodyAdHocVehicleTitleMax),
+  "registration": zod.string().max(createStaffEnquiryBodyAdHocVehicleRegistrationMax).nullish(),
+  "price": zod.number().min(createStaffEnquiryBodyAdHocVehiclePriceMin).max(createStaffEnquiryBodyAdHocVehiclePriceMax).multipleOf(createStaffEnquiryBodyAdHocVehiclePriceMultipleOf).nullish()
+}).nullish().describe('Caller-supplied vehicle attached only to this enquiry; does not create stock or imply availability.'),
   "vehicleId": zod.string().nullable(),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
   "customerName": zod.string().min(createStaffEnquiryBodyCustomerNameMin).max(createStaffEnquiryBodyCustomerNameMax),
@@ -656,6 +674,11 @@ export const CreateStaffEnquiryBody = zod.object({
   "appointmentAt": zod.coerce.date().nullable()
 })
 
+export const createStaffEnquiryResponseFollowUpNoteMax = 1000;
+
+export const createStaffEnquiryResponseFollowUpRevisionMin = 0;
+export const createStaffEnquiryResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -671,6 +694,10 @@ export const createStaffEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateStaffEnquiryResponse = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(createStaffEnquiryResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(createStaffEnquiryResponseFollowUpRevisionMin).multipleOf(createStaffEnquiryResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
@@ -723,6 +750,102 @@ export const CreateStaffEnquiryResponse = zod.object({
 
 
 /**
+ * @summary Staff-only changeStaffFollowUp
+ */
+export const ChangeStaffFollowUpParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const changeStaffFollowUpBodyExpectedRevisionMin = 0;
+export const changeStaffFollowUpBodyExpectedRevisionMultipleOf = 1;
+
+export const changeStaffFollowUpBodyFollowUpNoteMax = 1000;
+
+
+
+export const ChangeStaffFollowUpBody = zod.object({
+  "action": zod.enum(['schedule', 'complete', 'cancel']),
+  "expectedRevision": zod.number().min(changeStaffFollowUpBodyExpectedRevisionMin).multipleOf(changeStaffFollowUpBodyExpectedRevisionMultipleOf),
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(changeStaffFollowUpBodyFollowUpNoteMax).nullish()
+})
+
+export const changeStaffFollowUpResponseFollowUpNoteMax = 1000;
+
+export const changeStaffFollowUpResponseFollowUpRevisionMin = 0;
+export const changeStaffFollowUpResponseFollowUpRevisionMultipleOf = 1;
+
+
+
+
+export const changeStaffFollowUpResponseVehiclePriceMultipleOf = 1;
+
+export const changeStaffFollowUpResponseAppointmentRevisionMin = 0;
+export const changeStaffFollowUpResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const changeStaffFollowUpResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const ChangeStaffFollowUpResponse = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(changeStaffFollowUpResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(changeStaffFollowUpResponseFollowUpRevisionMin).multipleOf(changeStaffFollowUpResponseFollowUpRevisionMultipleOf).optional(),
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(changeStaffFollowUpResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(changeStaffFollowUpResponseAppointmentRevisionMin).multipleOf(changeStaffFollowUpResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(changeStaffFollowUpResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Staff-only changeStaffAppointment
  */
 export const ChangeStaffAppointmentParams = zod.object({
@@ -740,6 +863,11 @@ export const ChangeStaffAppointmentBody = zod.object({
   "expectedRevision": zod.number().min(changeStaffAppointmentBodyExpectedRevisionMin).multipleOf(changeStaffAppointmentBodyExpectedRevisionMultipleOf)
 })
 
+export const changeStaffAppointmentResponseFollowUpNoteMax = 1000;
+
+export const changeStaffAppointmentResponseFollowUpRevisionMin = 0;
+export const changeStaffAppointmentResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -755,6 +883,10 @@ export const changeStaffAppointmentResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffAppointmentResponse = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(changeStaffAppointmentResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(changeStaffAppointmentResponseFollowUpRevisionMin).multipleOf(changeStaffAppointmentResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
@@ -814,6 +946,11 @@ export const GetEnquiriesQueryParams = zod.object({
   "status": zod.enum(['new', 'contacted', 'closed']).optional()
 })
 
+export const getEnquiriesResponseFollowUpNoteMax = 1000;
+
+export const getEnquiriesResponseFollowUpRevisionMin = 0;
+export const getEnquiriesResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -829,6 +966,10 @@ export const getEnquiriesResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetEnquiriesResponseItem = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(getEnquiriesResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(getEnquiriesResponseFollowUpRevisionMin).multipleOf(getEnquiriesResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
@@ -922,6 +1063,11 @@ export const CreateEnquiryBody = zod.object({
   "appointmentAt": zod.coerce.date().nullable()
 })
 
+export const createEnquiryResponseFollowUpNoteMax = 1000;
+
+export const createEnquiryResponseFollowUpRevisionMin = 0;
+export const createEnquiryResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -937,6 +1083,10 @@ export const createEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateEnquiryResponse = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(createEnquiryResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(createEnquiryResponseFollowUpRevisionMin).multipleOf(createEnquiryResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
@@ -1056,6 +1206,11 @@ export const UpdateEnquiryStatusBody = zod.object({
   "status": zod.enum(['new', 'contacted', 'closed'])
 })
 
+export const updateEnquiryStatusResponseFollowUpNoteMax = 1000;
+
+export const updateEnquiryStatusResponseFollowUpRevisionMin = 0;
+export const updateEnquiryStatusResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -1071,6 +1226,10 @@ export const updateEnquiryStatusResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const UpdateEnquiryStatusResponse = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(updateEnquiryStatusResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(updateEnquiryStatusResponseFollowUpRevisionMin).multipleOf(updateEnquiryStatusResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
@@ -4583,6 +4742,11 @@ export const CreateLeadActivityResponse = zod.object({
 /**
  * @summary List test-drive appointments for dealership staff
  */
+export const getTestDriveBookingsResponseFollowUpNoteMax = 1000;
+
+export const getTestDriveBookingsResponseFollowUpRevisionMin = 0;
+export const getTestDriveBookingsResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -4598,6 +4762,10 @@ export const getTestDriveBookingsResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetTestDriveBookingsResponseItem = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(getTestDriveBookingsResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(getTestDriveBookingsResponseFollowUpRevisionMin).multipleOf(getTestDriveBookingsResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),
@@ -4670,6 +4838,11 @@ export const DecideTestDriveBookingBody = zod.object({
   "expectedRevision": zod.number().min(decideTestDriveBookingBodyExpectedRevisionMin).multipleOf(decideTestDriveBookingBodyExpectedRevisionMultipleOf)
 })
 
+export const decideTestDriveBookingResponseFollowUpNoteMax = 1000;
+
+export const decideTestDriveBookingResponseFollowUpRevisionMin = 0;
+export const decideTestDriveBookingResponseFollowUpRevisionMultipleOf = 1;
+
 
 
 
@@ -4685,6 +4858,10 @@ export const decideTestDriveBookingResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const DecideTestDriveBookingResponse = zod.object({
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(decideTestDriveBookingResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(decideTestDriveBookingResponseFollowUpRevisionMin).multipleOf(decideTestDriveBookingResponseFollowUpRevisionMultipleOf).optional(),
   "id": zod.string().min(1),
   "reference": zod.string().min(1),
   "dealerId": zod.string().min(1),

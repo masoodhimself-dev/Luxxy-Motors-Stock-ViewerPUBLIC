@@ -1032,3 +1032,17 @@ Manually checked the LAN preview with real showroom stock, selected a car and lo
 - [Tablet call desk](screenshots/enquiries-desk-2026-10-02/tablet.png)
 - [Desktop call desk](screenshots/enquiries-desk-2026-10-02/desktop.png)
 - [Change appointment](screenshots/enquiries-desk-2026-10-02/change-appointment.png)
+
+## Enquiry information, ad hoc vehicles and follow-ups — 2 October 2026
+
+Extended the enquiry desk with an in-place vehicle information dialog showing photos, supplied description, equipment, specifications, cash price and history. Missing preparation/history facts are explicitly unconfirmed for staff; no facts are invented. Opening the dialog preserves caller input.
+
+Vehicle source now supports showroom stock, an ad hoc vehicle or no specific vehicle. Ad hoc title, registration and quoted price are saved with the enquiry without creating a stock listing or implying availability. Logging a call is the default standalone action. Test-drive booking still requires available showroom stock. General calls can be saved when the stock request fails.
+
+Staff can request a follow-up with UK date/time and an optional note, inspect outstanding/due/overdue tasks, reschedule, complete or cancel them. Revision checks protect against stale edits. Follow-ups are internal tasks and send no customer messages.
+
+Validation: 203 frontend tests, 16 enquiry browser checks across 390/820/1440px, 13 booking policy/preview lifecycle tests and 2 staff access/input-boundary tests passed. Full workspace typechecking and build passed; existing sourcemap/bundle-size warnings remain. An initial overloaded parallel unit run timed out; the full suite passed with two workers. Browser checks found an ambiguous vehicle-source accessible name, which was fixed before all 16 passed. UK winter/summer conversion and invalid spring-transition dates are covered.
+
+Prepared **0013_enquiry_follow_ups.sql**, not executed; the real backend needs this and the previously prepared 0012 migration before deployment. Database integration/concurrency remains unverified. No production changes, migrations, customer notifications, merge or deployment took place. Browser writes were mocked; preview lifecycle tests used isolated memory state.
+
+Reviewed fixture screenshots: [phone](screenshots/enquiries-details-2026-10-02/phone.png), [desktop](screenshots/enquiries-details-2026-10-02/desktop.png), [tablet vehicle information](screenshots/enquiries-details-2026-10-02/vehicle-information.png). Full-page captures include the fixed header at the current scroll position.

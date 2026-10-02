@@ -55,6 +55,10 @@ export const enquiriesTable = pgTable(
     phone: text("phone"),
     preferredContact: text("preferred_contact"),
     message: text("message").notNull(),
+    followUpAt: timestamp("follow_up_at", { withTimezone: true }),
+    followUpNote: text("follow_up_note"),
+    followUpCompletedAt: timestamp("follow_up_completed_at", { withTimezone: true }),
+    followUpRevision: integer("follow_up_revision").notNull().default(0),
     // Part exchange details are stored as real fields so they can be searched
     // and carried into a deal, instead of being sentences inside the message.
     partExchangeRegistration: text("part_exchange_registration"),

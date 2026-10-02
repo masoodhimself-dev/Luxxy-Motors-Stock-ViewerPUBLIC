@@ -11,6 +11,17 @@ import type { EnquiryStatus } from './enquiryStatus';
 import type { EnquiryType } from './enquiryType';
 
 export interface Enquiry {
+  /** @nullable */
+  followUpAt?: Date | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  followUpNote?: string | null;
+  /** @nullable */
+  followUpCompletedAt?: Date | null;
+  /** @minimum 0 */
+  followUpRevision?: number;
   /** @minLength 1 */
   id: string;
   /** @minLength 1 */

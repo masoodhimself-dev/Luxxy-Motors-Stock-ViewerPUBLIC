@@ -33,14 +33,14 @@ test("migrations build the current schema and preserve existing stock and enquir
   );
   assert.equal(
     journal.entries.at(-1).tag,
-    "0012_test_drive_booking_policy",
+    "0013_enquiry_follow_ups",
   );
   const historical = await mkdtemp(
     path.join(tmpdir(), "luxxy-migration-history-"),
   );
   try {
     await mkdir(path.join(historical, "meta"));
-    const earlier = journal.entries.slice(0, -1) as Array<{ tag: string }>;
+    const earlier = journal.entries.slice(0, -2) as Array<{ tag: string }>;
     await writeFile(
       path.join(historical, "meta/_journal.json"),
       JSON.stringify({ ...journal, entries: earlier }),
@@ -75,10 +75,13 @@ test("migrations build the current schema and preserve existing stock and enquir
     assert.equal(preserved.rows[0].appointment_revision, 0);
     assert.equal(preserved.rows[0].appointment_duration_minutes, 30);
     assert.equal(preserved.rows[0].appointment_buffer_minutes, 0);
+    assert.equal(preserved.rows[0].follow_up_at, null);
+    assert.equal(preserved.rows[0].follow_up_completed_at, null);
+    assert.equal(preserved.rows[0].follow_up_revision, 0);
 
     const snapshot = JSON.parse(
       await readFile(
-        path.join(migrationsFolder, "meta/0012_snapshot.json"),
+        path.join(migrationsFolder, "meta/0013_snapshot.json"),
         "utf8",
       ),
     );

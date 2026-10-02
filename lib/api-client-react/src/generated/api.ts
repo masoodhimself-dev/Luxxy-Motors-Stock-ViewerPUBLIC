@@ -70,6 +70,7 @@ import type {
   SigningSessionCompletion,
   StaffAppointmentChange,
   StaffEnquiryInput,
+  StaffFollowUpChange,
   Stock,
   StockImportEnvelope,
   StockImportErrorResponse,
@@ -854,6 +855,78 @@ export const useCreateStaffEnquiry = <TError = ErrorType<ApiError | void>,
         TContext
       > => {
       return useMutation(getCreateStaffEnquiryMutationOptions(options));
+    }
+
+export const getChangeStaffFollowUpUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/follow-up`
+}
+
+/**
+ * @summary Staff-only changeStaffFollowUp
+ */
+export const changeStaffFollowUp = async (id: string,
+    staffFollowUpChange: StaffFollowUpChange, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getChangeStaffFollowUpUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(staffFollowUpChange)
+  }
+);}
+
+
+
+
+
+export const getChangeStaffFollowUpMutationOptions = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeStaffFollowUp>>, TError,{id: string;data: BodyType<StaffFollowUpChange>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeStaffFollowUp>>, TError,{id: string;data: BodyType<StaffFollowUpChange>}, TContext> => {
+
+const mutationKey = ['changeStaffFollowUp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeStaffFollowUp>>, {id: string;data: BodyType<StaffFollowUpChange>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeStaffFollowUp(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeStaffFollowUpMutationResult = NonNullable<Awaited<ReturnType<typeof changeStaffFollowUp>>>
+    export type ChangeStaffFollowUpMutationBody = BodyType<StaffFollowUpChange>
+    export type ChangeStaffFollowUpMutationError = ErrorType<ApiError | void>
+
+    /**
+ * @summary Staff-only changeStaffFollowUp
+ */
+export const useChangeStaffFollowUp = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeStaffFollowUp>>, TError,{id: string;data: BodyType<StaffFollowUpChange>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeStaffFollowUp>>,
+        TError,
+        {id: string;data: BodyType<StaffFollowUpChange>},
+        TContext
+      > => {
+      return useMutation(getChangeStaffFollowUpMutationOptions(options));
     }
 
 export const getChangeStaffAppointmentUrl = (id: string,) => {

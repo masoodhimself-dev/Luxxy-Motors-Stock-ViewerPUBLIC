@@ -1,3 +1,9 @@
+import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
+import {
+  FollowUpEditor,
+  FollowUpFields,
+  followUpIso,
+} from "./enquiry-follow-up";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -271,6 +277,16 @@ function NewCall({
   onSaved: (booking: Enquiry) => void;
 }) {
   const { stock, isLoading, error } = useStock();
+  const [vehicleMode, setVehicleMode] = useState<"stock" | "adhoc" | "none">(
+    "stock",
+  );
+  const [adHocTitle, setAdHocTitle] = useState("");
+  const [adHocRegistration, setAdHocRegistration] = useState("");
+  const [adHocPrice, setAdHocPrice] = useState("");
+  const [information, setInformation] = useState<Car | null>(null);
+  const [followUp, setFollowUp] = useState(false);
+  const [followUpTime, setFollowUpTime] = useState("");
+  const [followUpNote, setFollowUpNote] = useState("");
   const [search, setSearch] = useState("");
   const [carId, setCarId] = useState(initial?.vehicleId ?? "");
   const [name, setName] = useState(initial?.customerName ?? "");
@@ -283,7 +299,10 @@ function NewCall({
   const mutation = useCreateStaffEnquiry();
   const submitting = useRef(false);
   const cars = stock?.cars ?? [];
-  const car = cars.find((entry) => entry.id === carId);
+  const car =
+    vehicleMode === "stock"
+      ? cars.find((entry) => entry.id === carId)
+      : undefined;
   const matches = cars.filter((entry) =>
     contains(
       [
@@ -310,11 +329,33 @@ function NewCall({
       setLocalError("Select an available car and appointment time.");
       return;
     }
+    const followUpAt = followUp ? followUpIso(followUpTime) : null;
+    if (
+      followUp &&
+      (!followUpAt || new Date(followUpAt).getTime() <= Date.now())
+    ) {
+      setLocalError("Choose a valid future UK follow-up time.");
+      return;
+    }
+    if (vehicleMode === "adhoc" && adHocTitle.trim().length < 2) {
+      setLocalError("Enter the ad hoc vehicle’s make and model.");
+      return;
+    }
     submitting.current = true;
     try {
       const result = await mutation.mutateAsync({
         data: {
           vehicleId: car?.id ?? null,
+          adHocVehicle:
+            vehicleMode === "adhoc"
+              ? {
+                  title: adHocTitle.trim(),
+                  registration: adHocRegistration.trim() || null,
+                  price: adHocPrice === "" ? null : Number(adHocPrice),
+                }
+              : null,
+          followUpAt,
+          followUpNote: followUp ? followUpNote.trim() || null : null,
           type: booking ? "viewing" : "general",
           customerName: name.trim(),
           phone: phone.trim(),
@@ -338,71 +379,144 @@ function NewCall({
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <fieldset disabled={mutation.isPending} className="min-w-0 space-y-4">
-        <legend className="mb-4 font-semibold">1. Find the car</legend>
-        <label className={`${field} ${car ? "hidden lg:grid" : ""}`}>
-          Search showroom stock
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Make, model, registration or advert reference"
-            />
-          </div>
+        <legend className="mb-4 font-semibold">1. Vehicle information</legend>
+        <label className={field}>
+          Vehicle source
+          <NativeSelect
+            aria-label="Vehicle source"
+            value={vehicleMode}
+            onChange={(e) => {
+              setVehicleMode(e.target.value as "stock" | "adhoc" | "none");
+              setBooking(false);
+              setTime("");
+            }}
+          >
+            <option value="stock">Showroom stock</option>
+            <option value="adhoc">Ad hoc vehicle — not in stock</option>
+            <option value="none">No specific vehicle</option>
+          </NativeSelect>
         </label>
-        {isLoading && <p role="status">Loading stock…</p>}
-        {error && (
-          <p role="alert">
-            Stock is unavailable. Refresh before confirming a car.
+        {vehicleMode === "adhoc" && (
+          <div className="space-y-4 border border-border bg-muted/30 p-4">
+            <p className="text-sm text-muted-foreground">
+              Attach a vehicle to this enquiry. This does not add it to stock or
+              confirm availability.
+            </p>
+            <label className={field}>
+              Vehicle make and model
+              <Input
+                required
+                minLength={2}
+                maxLength={200}
+                value={adHocTitle}
+                onChange={(e) => setAdHocTitle(e.target.value)}
+                placeholder="For example: 2018 Volkswagen Golf 1.4 TSI"
+              />
+            </label>
+            <label className={field}>
+              Vehicle registration (optional)
+              <Input
+                maxLength={16}
+                value={adHocRegistration}
+                onChange={(e) =>
+                  setAdHocRegistration(e.target.value.toUpperCase())
+                }
+              />
+            </label>
+            <label className={field}>
+              Quoted vehicle price (£, optional)
+              <Input
+                type="number"
+                min={0}
+                max={10000000}
+                step={1}
+                value={adHocPrice}
+                onChange={(e) => setAdHocPrice(e.target.value)}
+              />
+            </label>
+          </div>
+        )}
+        {vehicleMode === "none" && (
+          <p className="text-sm text-muted-foreground">
+            Log the call and any follow-up without selecting a car.
           </p>
         )}
-        {car && (
-          <div className="border border-primary/25 bg-primary/5 p-3">
-            <CarSummary car={car} />
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="mt-2"
-              onClick={() => {
-                setCarId("");
-                setTime("");
-              }}
+        {vehicleMode === "stock" && (
+          <>
+            <label className={`${field} ${car ? "hidden lg:grid" : ""}`}>
+              Search showroom stock
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Make, model, registration or advert reference"
+                />
+              </div>
+            </label>
+            {isLoading && <p role="status">Loading stock…</p>}
+            {error && (
+              <p role="alert">
+                Stock is unavailable. Refresh before confirming a car.
+              </p>
+            )}
+            {car && (
+              <div className="border border-primary/25 bg-primary/5 p-3">
+                <CarSummary car={car} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() => setInformation(car)}
+                >
+                  View full vehicle information
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2"
+                  onClick={() => {
+                    setCarId("");
+                    setTime("");
+                  }}
+                >
+                  Change selected car
+                </Button>
+              </div>
+            )}
+            <div
+              className={`max-h-96 divide-y divide-border overflow-y-auto rounded-sm border border-border ${car ? "hidden lg:block" : ""}`}
+              aria-label="Showroom cars"
             >
-              Change selected car
-            </Button>
-          </div>
-        )}
-        <div
-          className={`max-h-96 divide-y divide-border overflow-y-auto rounded-sm border border-border ${car ? "hidden lg:block" : ""}`}
-          aria-label="Showroom cars"
-        >
-          {matches.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              aria-label={`Select ${vehicleDisplayTitle(entry)}, ${entry.year ?? ""}, ${stockStatus(entry)}`}
-              aria-pressed={entry.id === carId}
-              onClick={() => {
-                setCarId(entry.id);
-                setTime("");
-              }}
-              className={`block w-full p-3 text-left transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 ${entry.id === carId ? "bg-primary/5" : "bg-card"}`}
-            >
-              <CarSummary car={entry} />
-            </button>
-          ))}
-          {!isLoading && !error && !matches.length && (
-            <p className="p-4 text-sm">
-              No matching cars. Try a model or advert reference.
+              {matches.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  aria-label={`Select ${vehicleDisplayTitle(entry)}, ${entry.year ?? ""}, ${stockStatus(entry)}`}
+                  aria-pressed={entry.id === carId}
+                  onClick={() => {
+                    setCarId(entry.id);
+                    setTime("");
+                  }}
+                  className={`block w-full p-3 text-left transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 ${entry.id === carId ? "bg-primary/5" : "bg-card"}`}
+                >
+                  <CarSummary car={entry} />
+                </button>
+              ))}
+              {!isLoading && !error && !matches.length && (
+                <p className="p-4 text-sm">
+                  No matching cars. Try a model or advert reference.
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only current showroom stock is listed. Reserved cars can receive
+              enquiries but cannot be booked here.
             </p>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Only current showroom stock is listed. Reserved cars can receive
-          enquiries but cannot be booked here.
-        </p>
+          </>
+        )}
       </fieldset>
       <fieldset disabled={mutation.isPending} className="min-w-0 space-y-4">
         <legend className="mb-4 font-semibold">2. Caller and next step</legend>
@@ -448,18 +562,56 @@ function NewCall({
             placeholder="Questions, requests or anything to prepare"
           />
         </label>
-        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-sm border border-border bg-muted/40 p-3 text-sm font-medium">
+        <fieldset className="space-y-2 border-t border-border pt-4">
+          <legend className="text-sm font-semibold">Next step</legend>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <input
+              type="radio"
+              name="call-action"
+              checked={!booking}
+              onChange={() => {
+                setBooking(false);
+                setTime("");
+              }}
+              className="h-5 w-5 accent-primary"
+            />
+            Log call / enquiry only
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <input
+              type="radio"
+              name="call-action"
+              checked={booking}
+              disabled={vehicleMode !== "stock"}
+              onChange={() => setBooking(true)}
+              className="h-5 w-5 accent-primary"
+            />
+            Book a test drive
+          </label>
+          {vehicleMode !== "stock" && (
+            <p className="text-xs text-muted-foreground">
+              A test drive needs an available showroom stock car. You can
+              request a follow-up for any enquiry.
+            </p>
+          )}
+        </fieldset>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
           <input
             type="checkbox"
-            checked={booking}
-            onChange={(e) => {
-              setBooking(e.target.checked);
-              setTime("");
-            }}
+            checked={followUp}
+            onChange={(e) => setFollowUp(e.target.checked)}
             className="h-5 w-5 accent-primary"
           />
-          Book a test drive
+          Request a follow-up
         </label>
+        {followUp && (
+          <FollowUpFields
+            time={followUpTime}
+            note={followUpNote}
+            onTime={setFollowUpTime}
+            onNote={setFollowUpNote}
+          />
+        )}
         {booking &&
           (car && available(car) ? (
             <Slots value={time} onChange={setTime} />
@@ -488,8 +640,7 @@ function NewCall({
           className="w-full"
           disabled={
             mutation.isPending ||
-            isLoading ||
-            Boolean(error) ||
+            (booking && (isLoading || Boolean(error))) ||
             (booking && (!car || !available(car) || !time))
           }
         >
@@ -500,6 +651,12 @@ function NewCall({
               : "Save phone enquiry"}
         </Button>
       </fieldset>
+      {information && (
+        <EnquiryVehicleInformation
+          car={information}
+          onClose={() => setInformation(null)}
+        />
+      )}
     </form>
   );
 }
@@ -617,6 +774,8 @@ export function EnquiriesPanel() {
   const [mode, setMode] = useState<"new" | "history">("new");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [information, setInformation] = useState<Car | null>(null);
+  const [followUpEntry, setFollowUpEntry] = useState<Enquiry | null>(null);
   const [notice, setNotice] = useState("");
   const [initial, setInitial] = useState<Enquiry>();
   const [formKey, setFormKey] = useState(0);
@@ -645,29 +804,49 @@ export function EnquiriesPanel() {
       }),
     ]);
   }
-  const entries = (query.data ?? []).filter(
+  const dueCount = (query.data ?? []).filter(
     (entry) =>
-      contains(
-        [
-          entry.customerName,
-          entry.phone,
-          entry.email,
-          entry.reference,
-          entry.vehicleTitle,
-          entry.vehicleRegistration,
-        ].join(" "),
-        search,
-      ) &&
-      (filter === "all" ||
-        (filter === "upcoming"
-          ? Boolean(
-              entry.appointmentAt &&
-              !entry.appointmentCancelledAt &&
-              new Date(entry.appointmentAt).getTime() > Date.now(),
-            )
-          : entry.appointmentAt &&
-            londonDate(new Date(entry.appointmentAt)) === londonDate())),
-  );
+      entry.followUpAt &&
+      !entry.followUpCompletedAt &&
+      londonDate(new Date(entry.followUpAt)) <= londonDate(),
+  ).length;
+  const entries = (query.data ?? [])
+    .filter(
+      (entry) =>
+        contains(
+          [
+            entry.customerName,
+            entry.phone,
+            entry.email,
+            entry.reference,
+            entry.vehicleTitle,
+            entry.vehicleRegistration,
+          ].join(" "),
+          search,
+        ) &&
+        (filter === "all" ||
+          (filter === "followups"
+            ? Boolean(entry.followUpAt && !entry.followUpCompletedAt)
+            : filter === "due"
+              ? Boolean(
+                  entry.followUpAt &&
+                  !entry.followUpCompletedAt &&
+                  londonDate(new Date(entry.followUpAt)) <= londonDate(),
+                )
+              : filter === "upcoming"
+                ? Boolean(
+                    entry.appointmentAt &&
+                    !entry.appointmentCancelledAt &&
+                    new Date(entry.appointmentAt).getTime() > Date.now(),
+                  )
+                : entry.appointmentAt &&
+                  londonDate(new Date(entry.appointmentAt)) === londonDate())),
+    )
+    .sort((a, b) =>
+      ["due", "followups"].includes(filter)
+        ? (a.followUpAt ?? "").localeCompare(b.followUpAt ?? "")
+        : 0,
+    );
   return (
     <Panel>
       <PanelHeader
@@ -706,6 +885,16 @@ export function EnquiriesPanel() {
             <Search className="mr-2 h-4 w-4" />
             Find enquiry or appointment
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setMode("history");
+              setFilter("due");
+              setSearch("");
+            }}
+          >
+            Follow-ups due ({dueCount})
+          </Button>
         </div>
         {notice && (
           <div
@@ -739,6 +928,8 @@ export function EnquiriesPanel() {
                   <option value="all">All enquiries</option>
                   <option value="upcoming">Upcoming appointments</option>
                   <option value="today">Today’s appointments</option>
+                  <option value="followups">Outstanding follow-ups</option>
+                  <option value="due">Follow-ups: overdue / due today</option>
                 </NativeSelect>
               </label>
             </div>
@@ -789,6 +980,35 @@ export function EnquiriesPanel() {
                               : "No longer in current stock"}
                           </p>
                         )}
+                        {!entry.vehicleId && entry.vehicleTitle && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Ad hoc vehicle — not showroom stock
+                            {entry.vehicleRegistration
+                              ? ` · ${entry.vehicleRegistration}`
+                              : ""}
+                            {entry.vehiclePrice != null
+                              ? ` · ${formatPrice(entry.vehiclePrice)}`
+                              : ""}
+                          </p>
+                        )}
+                        {entry.followUpAt && (
+                          <div className="mt-3 border-l-2 border-primary pl-3 text-sm">
+                            <p className="font-medium">
+                              {entry.followUpCompletedAt
+                                ? "Follow-up completed"
+                                : new Date(entry.followUpAt).getTime() <
+                                    Date.now()
+                                  ? "Follow-up overdue"
+                                  : "Follow-up requested"}
+                            </p>
+                            <p>{appointmentLabel(entry.followUpAt)}</p>
+                            {entry.followUpNote && (
+                              <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+                                {entry.followUpNote}
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {entry.appointmentAt && (
                           <p className="mt-2 text-sm">
                             {appointmentLabel(entry.appointmentAt)}
@@ -798,7 +1018,25 @@ export function EnquiriesPanel() {
                           <Chip>{status(entry)}</Chip>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-start gap-2">
+                      <div className="flex max-w-sm flex-wrap items-start gap-2">
+                        {car && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setInformation(car)}
+                          >
+                            Vehicle information
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFollowUpEntry({ ...entry })}
+                        >
+                          {entry.followUpAt && !entry.followUpCompletedAt
+                            ? "Manage follow-up"
+                            : "Request follow-up"}
+                        </Button>
                         {future && (
                           <Button
                             variant="outline"
@@ -849,6 +1087,25 @@ export function EnquiriesPanel() {
           </div>
         )}
       </div>
+      {information && (
+        <EnquiryVehicleInformation
+          car={information}
+          onClose={() => setInformation(null)}
+        />
+      )}
+      {followUpEntry && (
+        <FollowUpEditor
+          entry={followUpEntry}
+          onClose={() => setFollowUpEntry(null)}
+          onSaved={async (entry) => {
+            setFollowUpEntry(null);
+            setNotice(
+              `${entry.reference}: ${entry.followUpCompletedAt ? "follow-up completed" : entry.followUpAt ? "follow-up scheduled" : "follow-up removed"}.`,
+            );
+            await query.refetch();
+          }}
+        />
+      )}
       {editing && (
         <AppointmentEditor
           booking={editing}

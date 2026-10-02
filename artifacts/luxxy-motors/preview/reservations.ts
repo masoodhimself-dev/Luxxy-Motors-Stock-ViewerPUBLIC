@@ -7,7 +7,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { CreateStaffEnquiryBody, ChangeStaffAppointmentBody, CreateEnquiryBody, DecideTestDriveBookingBody, RescheduleViewingBody, UpdateDealerSettingsBody } from '../../../lib/api-zod/src/generated/api';
+import { CreateStaffEnquiryBody, ChangeStaffAppointmentBody, ChangeStaffFollowUpBody, CreateEnquiryBody, DecideTestDriveBookingBody, RescheduleViewingBody, UpdateDealerSettingsBody } from '../../../lib/api-zod/src/generated/api';
 import { createOnlineReservation, reservationView, ReservationError, type ReservationRecord, type ReservationRepository } from '../../api-server/src/lib/online-reservations';
 import { previewSettings } from './settings';
 import { previewStock } from './stock';
@@ -193,6 +193,12 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     const parsed = (staff ? CreateStaffEnquiryBody : CreateEnquiryBody).safeParse(await body(req));
     if (!parsed.success) throw new ReservationError('Please check your contact details and chosen time.', 400);
     const input = parsed.data;
+    const adHoc = staff && "adHocVehicle" in input ? input.adHocVehicle : null;
+    const followUpAt = staff && "followUpAt" in input ? input.followUpAt : null;
+    const followUpNote = staff && "followUpNote" in input ? input.followUpNote : null;
+    if (followUpAt && followUpAt.getTime() <= Date.now()) throw new ReservationError('Choose a future follow-up time.', 400);
+
+    if (adHoc && (input.vehicleId || input.type === 'viewing' || adHoc.title.trim().length < 2)) throw new ReservationError('Use an ad hoc car for an enquiry only, or choose a stock car for a test drive.', 400);
     if ((!staff || input.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email ?? '')) throw new ReservationError('Please provide a valid email address.', 400);
     if ((staff || input.type === 'viewing') && (!input.phone || !/^\+?[0-9]{7,15}$/.test(input.phone.replace(/[\s().\-/]/g, '')))) throw new ReservationError('Please provide a phone number for your test drive.', 400);
     const vehicle = previewStock.cars.find((entry) => entry.id === input.vehicleId);
@@ -203,9 +209,25 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if (input.appointmentAt && !slotIsAvailable(input.appointmentAt, policy, occupied())) throw new ReservationError('That test-drive time is no longer available. Please choose another.', 409);
     const id = randomUUID(); const token = randomBytes(24).toString('base64url'); const now = new Date().toISOString();
     const viewing = input.type === 'viewing';
-    const enquiry: PreviewEnquiry = { id, dealerId: 'local-preview', reference: `PREVIEW-${id.slice(0, 8).toUpperCase()}`, vehicleId: vehicle?.id ?? null, vehicleTitle: vehicle?.title ?? null, vehicleRegistration: vehicle?.registration ?? null, vehiclePrice: vehicle?.price ?? null, vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null, type: input.type, status: staff ? 'contacted' : 'new', customerName: input.customerName.trim(), email: input.email, phone: input.phone, preferredContact: input.preferredContact, message: input.message, partExchangeRegistration: input.partExchange?.registration ?? null, partExchangeMileage: input.partExchange?.mileage ?? null, partExchangeCondition: input.partExchange?.condition ?? null, appointmentAt: input.appointmentAt?.toISOString() ?? null, appointmentCancelledAt: null, appointmentRevision: 0, appointmentStatus: viewing ? policy.confirmationMode === 'approval' ? 'pending' : 'confirmed' : null, appointmentDurationMinutes: viewing ? policy.durationMinutes : null, appointmentBufferMinutes: viewing ? policy.bufferMinutes : null, manageToken: viewing ? token : undefined, managePath: viewing ? `/viewing/${token}` : null, calendarIcs: null, events: [], customerNotificationStatus: 'not_sent', customerNotificationError: 'Local preview — no email is sent.', customerNotificationSentAt: null, dealerNotificationStatus: 'not_sent', dealerNotificationError: 'Local preview — no email is sent.', dealerNotificationSentAt: null, reminderStatus: 'not_scheduled', reminderError: null, reminderSentAt: null, source: staff ? 'phone' : 'local-preview', createdAt: now, updatedAt: now };
+    const enquiry: PreviewEnquiry = { id, dealerId: 'local-preview', reference: `PREVIEW-${id.slice(0, 8).toUpperCase()}`, vehicleId: vehicle?.id ?? null, vehicleTitle: vehicle?.title ?? adHoc?.title.trim() ?? null, vehicleRegistration: vehicle?.registration ?? adHoc?.registration?.trim().toUpperCase() ?? null, vehiclePrice: vehicle?.price ?? adHoc?.price ?? null, vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null, type: input.type, status: staff ? 'contacted' : 'new', customerName: input.customerName.trim(), email: input.email, phone: input.phone, preferredContact: input.preferredContact, message: input.message, followUpAt: followUpAt?.toISOString() ?? null, followUpNote: followUpAt ? followUpNote?.trim() || null : null, followUpCompletedAt: null, followUpRevision: 0, partExchangeRegistration: input.partExchange?.registration ?? null, partExchangeMileage: input.partExchange?.mileage ?? null, partExchangeCondition: input.partExchange?.condition ?? null, appointmentAt: input.appointmentAt?.toISOString() ?? null, appointmentCancelledAt: null, appointmentRevision: 0, appointmentStatus: viewing ? policy.confirmationMode === 'approval' ? 'pending' : 'confirmed' : null, appointmentDurationMinutes: viewing ? policy.durationMinutes : null, appointmentBufferMinutes: viewing ? policy.bufferMinutes : null, manageToken: viewing ? token : undefined, managePath: viewing ? `/viewing/${token}` : null, calendarIcs: null, events: [], customerNotificationStatus: 'not_sent', customerNotificationError: 'Local preview — no email is sent.', customerNotificationSentAt: null, dealerNotificationStatus: 'not_sent', dealerNotificationError: 'Local preview — no email is sent.', dealerNotificationSentAt: null, reminderStatus: 'not_scheduled', reminderError: null, reminderSentAt: null, source: staff ? adHoc ? 'phone_ad_hoc' : 'phone' : 'local-preview', createdAt: now, updatedAt: now };
     enquiries.unshift(enquiry);
     return { status: 201, data: publicBooking(enquiry, settings) };
+  }
+  const followUpChange = /^\/api\/staff\/enquiries\/([^/]+)\/follow-up$/.exec(path);
+  if (req.method === 'POST' && followUpChange) {
+    const parsed = ChangeStaffFollowUpBody.safeParse(await body(req));
+    if (!parsed.success) throw new ReservationError('Check the follow-up details.', 400);
+    const input = parsed.data;
+    const entry = enquiries.find(entry => entry.id === followUpChange[1]);
+    if (!entry) throw new ReservationError('Enquiry not found.', 404);
+    if ((entry.followUpRevision ?? 0) !== input.expectedRevision) throw new ReservationError('This follow-up changed. Refresh before editing it.', 409);
+    if (input.action === 'schedule' && (!input.followUpAt || input.followUpAt.getTime() <= Date.now())) throw new ReservationError('Choose a future follow-up time.', 400);
+    if (input.action !== 'schedule' && (!entry.followUpAt || entry.followUpCompletedAt)) throw new ReservationError('There is no outstanding follow-up to update.', 409);
+    entry.followUpAt = input.action === 'schedule' ? input.followUpAt!.toISOString() : input.action === 'cancel' ? null : entry.followUpAt;
+    entry.followUpNote = input.action === 'schedule' ? input.followUpNote?.trim() || null : entry.followUpNote;
+    entry.followUpCompletedAt = input.action === 'complete' ? new Date().toISOString() : null;
+    entry.followUpRevision = (entry.followUpRevision ?? 0) + 1; entry.updatedAt = new Date().toISOString();
+    return { status: 200, data: publicBooking(entry, settings) };
   }
   const staffChange = /^\/api\/staff\/enquiries\/([^/]+)\/appointment$/.exec(path);
   if (req.method === 'POST' && staffChange) {
