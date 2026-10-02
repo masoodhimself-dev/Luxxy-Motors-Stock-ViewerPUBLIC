@@ -1,0 +1,861 @@
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetEnquiries,
+  useCreateStaffEnquiry,
+  useChangeStaffAppointment,
+  useGetEnquiryAvailability,
+  useGetStaffAppointmentAvailability,
+  getGetStaffAppointmentAvailabilityQueryKey,
+  getGetEnquiriesQueryKey,
+  getGetTestDriveBookingsQueryKey,
+  getGetEnquiryAvailabilityQueryKey,
+  type Enquiry,
+} from "@workspace/api-client-react";
+import {
+  Search,
+  Phone,
+  RefreshCw,
+  CalendarDays,
+  CheckCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useStock, type Car } from "@/lib/stock-context";
+import { useDealerSettings } from "@/lib/dealer-settings-context";
+import {
+  availableBookingDates,
+  bookingDateLabel,
+  appointmentLabel,
+  defaultBookingSettings,
+  londonDate,
+} from "@/lib/test-drive-dates";
+import { formatPrice, vehicleDisplayTitle } from "@/lib/utils";
+import { Panel, PanelHeader, Chip } from "./portal-ui";
+
+const field = "grid gap-1.5 text-sm font-medium";
+function errorMessage(error: unknown) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "data" in error &&
+    error.data &&
+    typeof error.data === "object" &&
+    "error" in error.data &&
+    typeof error.data.error === "string"
+  )
+    return error.data.error;
+  return "We could not save this. Please try again; your details are still here.";
+}
+function status(booking: Enquiry) {
+  return booking.appointmentCancelledAt
+    ? "Cancelled"
+    : booking.appointmentAt
+      ? booking.appointmentStatus === "pending"
+        ? "Awaiting approval"
+        : "Confirmed"
+      : "Enquiry";
+}
+function available(car: Car) {
+  return car.inventoryStatus === "available";
+}
+function stockStatus(car: Car) {
+  return available(car)
+    ? "Available"
+    : car.inventoryStatus === "reserved"
+      ? "Reserved"
+      : "Availability unconfirmed";
+}
+function contains(value: string, search: string) {
+  const normal = (text: string) =>
+    text.toLocaleLowerCase().replace(/[\s()+.-]/g, "");
+  return normal(value).includes(normal(search));
+}
+
+function Slots({
+  bookingId,
+  value,
+  onChange,
+}: {
+  bookingId?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { settings, isLoading, isError } = useDealerSettings();
+  const config = settings.testDriveBooking ?? defaultBookingSettings;
+  const dates = availableBookingDates(config);
+  const [date, setDate] = useState(dates[0] ?? londonDate());
+  const publicQuery = useGetEnquiryAvailability(
+    { date },
+    {
+      query: {
+        queryKey: getGetEnquiryAvailabilityQueryKey({ date }),
+        enabled:
+          !bookingId &&
+          !isLoading &&
+          !isError &&
+          config.enabled &&
+          dates.includes(date),
+        refetchInterval: 30_000,
+        staleTime: 0,
+      },
+    },
+  );
+  const staffQuery = useGetStaffAppointmentAvailability(
+    bookingId ?? "",
+    { date },
+    {
+      query: {
+        queryKey: getGetStaffAppointmentAvailabilityQueryKey(bookingId ?? "", {
+          date,
+        }),
+        enabled:
+          Boolean(bookingId) &&
+          !isLoading &&
+          !isError &&
+          config.enabled &&
+          dates.includes(date),
+        refetchInterval: 30_000,
+        staleTime: 0,
+      },
+    },
+  );
+  const query = bookingId ? staffQuery : publicQuery;
+  useEffect(() => {
+    if (
+      value &&
+      query.data &&
+      !query.data.slots.some((slot) => slot.available && slot.startAt === value)
+    )
+      onChange("");
+  }, [query.data, value, onChange]);
+  if (isLoading) return <p role="status">Loading booking hours…</p>;
+  if (isError)
+    return (
+      <p role="alert">
+        Booking settings could not be loaded. Refresh before booking.
+      </p>
+    );
+  if (!config.enabled)
+    return <p>Test-drive scheduling is switched off in Settings.</p>;
+  return (
+    <div className="space-y-3">
+      <label className={field}>
+        Appointment date
+        <NativeSelect
+          value={date}
+          onChange={(event) => {
+            setDate(event.target.value);
+            onChange("");
+          }}
+        >
+          {dates.map((day) => (
+            <option key={day} value={day}>
+              {bookingDateLabel(day)}
+            </option>
+          ))}
+        </NativeSelect>
+      </label>
+      <p className="text-xs text-muted-foreground">
+        UK time · {config.durationMinutes} minutes
+        {config.confirmationMode === "approval"
+          ? " · Staff approval required after saving"
+          : ""}
+      </p>
+      {query.isError ? (
+        <div role="alert">
+          Could not load times.{" "}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => query.refetch()}
+          >
+            Retry times
+          </Button>
+        </div>
+      ) : query.isLoading ? (
+        <p role="status">Checking available times…</p>
+      ) : (
+        <div
+          className="flex flex-wrap gap-2"
+          aria-label="Available appointment times"
+        >
+          {query.data?.slots
+            .filter((slot) => slot.available)
+            .map((slot) => (
+              <Button
+                key={slot.startAt}
+                type="button"
+                size="sm"
+                variant={value === slot.startAt ? "default" : "outline"}
+                aria-pressed={value === slot.startAt}
+                onClick={() => onChange(slot.startAt)}
+              >
+                {slot.label}
+              </Button>
+            ))}
+          {!query.data?.slots.some((slot) => slot.available) && (
+            <p className="text-sm text-muted-foreground">
+              No times available. Choose another date.
+            </p>
+          )}
+        </div>
+      )}
+      {value &&
+        query.data &&
+        !query.data.slots.some(
+          (slot) => slot.available && slot.startAt === value,
+        ) && (
+          <p role="alert" className="text-sm text-destructive">
+            That time is no longer available. Choose another.
+          </p>
+        )}
+    </div>
+  );
+}
+
+function CarSummary({ car }: { car: Car }) {
+  return (
+    <div className="flex items-center gap-3">
+      {car.heroImage && (
+        <img
+          src={car.heroImage}
+          alt=""
+          className="h-16 w-24 shrink-0 rounded-sm object-cover"
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      )}
+      <div className="min-w-0">
+        <p className="font-semibold leading-5">{vehicleDisplayTitle(car)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {[
+            car.year,
+            car.plate || car.vrm || car.registration,
+            car.transmission,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+        <p className="mt-1 text-sm font-medium">
+          {car.price == null ? "Price on request" : formatPrice(car.price)}{" "}
+          <span
+            className={
+              available(car) ? "ml-2 text-emerald-800" : "ml-2 text-amber-800"
+            }
+          >
+            {stockStatus(car)}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NewCall({
+  initial,
+  onSaved,
+}: {
+  initial?: Enquiry;
+  onSaved: (booking: Enquiry) => void;
+}) {
+  const { stock, isLoading, error } = useStock();
+  const [search, setSearch] = useState("");
+  const [carId, setCarId] = useState(initial?.vehicleId ?? "");
+  const [name, setName] = useState(initial?.customerName ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [email, setEmail] = useState(initial?.email ?? "");
+  const [message, setMessage] = useState("");
+  const [booking, setBooking] = useState(Boolean(initial));
+  const [time, setTime] = useState("");
+  const [localError, setLocalError] = useState("");
+  const mutation = useCreateStaffEnquiry();
+  const submitting = useRef(false);
+  const cars = stock?.cars ?? [];
+  const car = cars.find((entry) => entry.id === carId);
+  const matches = cars.filter((entry) =>
+    contains(
+      [
+        entry.title,
+        entry.make,
+        entry.model,
+        entry.plate,
+        entry.vrm,
+        entry.registration,
+        entry.advertId,
+      ].join(" "),
+      search,
+    ),
+  );
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (submitting.current) return;
+    setLocalError("");
+    if (!/^\+?[0-9]{7,15}$/.test(phone.replace(/[\s().\-/]/g, ""))) {
+      setLocalError("Enter a valid contact number.");
+      return;
+    }
+    if (booking && (!car || !available(car) || !time)) {
+      setLocalError("Select an available car and appointment time.");
+      return;
+    }
+    submitting.current = true;
+    try {
+      const result = await mutation.mutateAsync({
+        data: {
+          vehicleId: car?.id ?? null,
+          type: booking ? "viewing" : "general",
+          customerName: name.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
+          preferredContact: "phone",
+          message:
+            message.trim() ||
+            (booking
+              ? "Test drive arranged by phone with the showroom."
+              : "Customer called the showroom."),
+          appointmentAt: booking ? time : null,
+        },
+      });
+      onSaved(result);
+    } catch {
+      /* Keep caller details for retry. */
+    } finally {
+      submitting.current = false;
+    }
+  }
+  return (
+    <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <fieldset disabled={mutation.isPending} className="min-w-0 space-y-4">
+        <legend className="mb-4 font-semibold">1. Find the car</legend>
+        <label className={`${field} ${car ? "hidden lg:grid" : ""}`}>
+          Search showroom stock
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Make, model, registration or advert reference"
+            />
+          </div>
+        </label>
+        {isLoading && <p role="status">Loading stock…</p>}
+        {error && (
+          <p role="alert">
+            Stock is unavailable. Refresh before confirming a car.
+          </p>
+        )}
+        {car && (
+          <div className="border border-primary/25 bg-primary/5 p-3">
+            <CarSummary car={car} />
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => {
+                setCarId("");
+                setTime("");
+              }}
+            >
+              Change selected car
+            </Button>
+          </div>
+        )}
+        <div
+          className={`max-h-96 divide-y divide-border overflow-y-auto rounded-sm border border-border ${car ? "hidden lg:block" : ""}`}
+          aria-label="Showroom cars"
+        >
+          {matches.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              aria-label={`Select ${vehicleDisplayTitle(entry)}, ${entry.year ?? ""}, ${stockStatus(entry)}`}
+              aria-pressed={entry.id === carId}
+              onClick={() => {
+                setCarId(entry.id);
+                setTime("");
+              }}
+              className={`block w-full p-3 text-left transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 ${entry.id === carId ? "bg-primary/5" : "bg-card"}`}
+            >
+              <CarSummary car={entry} />
+            </button>
+          ))}
+          {!isLoading && !error && !matches.length && (
+            <p className="p-4 text-sm">
+              No matching cars. Try a model or advert reference.
+            </p>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Only current showroom stock is listed. Reserved cars can receive
+          enquiries but cannot be booked here.
+        </p>
+      </fieldset>
+      <fieldset disabled={mutation.isPending} className="min-w-0 space-y-4">
+        <legend className="mb-4 font-semibold">2. Caller and next step</legend>
+        <label className={field}>
+          Customer name
+          <Input
+            required
+            minLength={2}
+            maxLength={120}
+            autoComplete="off"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className={field}>
+            Phone number
+            <Input
+              required
+              type="tel"
+              autoComplete="off"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </label>
+          <label className={field}>
+            Email (optional)
+            <Input
+              type="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+        </div>
+        <label className={field}>
+          Call notes (optional)
+          <Textarea
+            rows={2}
+            maxLength={2000}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Questions, requests or anything to prepare"
+          />
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-sm border border-border bg-muted/40 p-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={booking}
+            onChange={(e) => {
+              setBooking(e.target.checked);
+              setTime("");
+            }}
+            className="h-5 w-5 accent-primary"
+          />
+          Book a test drive
+        </label>
+        {booking &&
+          (car && available(car) ? (
+            <Slots value={time} onChange={setTime} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Choose an available car first.
+            </p>
+          ))}
+        {time && booking && (
+          <p className="border-l-2 border-primary pl-3 text-sm">
+            {appointmentLabel(time)}
+          </p>
+        )}
+        <p className="text-xs leading-5 text-muted-foreground">
+          {email.trim()
+            ? "A confirmation will be emailed using the dealership’s configured email service."
+            : "No email supplied: confirm the details with the caller. No customer email or reminder will be sent."}
+        </p>
+        {(localError || mutation.isError) && (
+          <p role="alert" className="text-sm text-destructive">
+            {localError || errorMessage(mutation.error)}
+          </p>
+        )}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={
+            mutation.isPending ||
+            isLoading ||
+            Boolean(error) ||
+            (booking && (!car || !available(car) || !time))
+          }
+        >
+          {mutation.isPending
+            ? "Saving…"
+            : booking
+              ? "Save test-drive booking"
+              : "Save phone enquiry"}
+        </Button>
+      </fieldset>
+    </form>
+  );
+}
+
+function AppointmentEditor({
+  booking,
+  onClose,
+  onSaved,
+}: {
+  booking: Enquiry;
+  onClose: () => void;
+  onSaved: (entry: Enquiry) => void;
+}) {
+  const [time, setTime] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const mutation = useChangeStaffAppointment();
+  const { settings } = useDealerSettings();
+  async function save() {
+    if (mutation.isPending) return;
+    try {
+      onSaved(
+        await mutation.mutateAsync({
+          id: booking.id,
+          data: {
+            action: cancelling ? "cancel" : "reschedule",
+            appointmentAt: cancelling ? null : time,
+            expectedRevision: booking.appointmentRevision ?? 0,
+          },
+        }),
+      );
+    } catch {
+      /* Keep edit open with the error. */
+    }
+  }
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !mutation.isPending) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="pr-10">
+            {cancelling ? "Cancel this appointment?" : "Change appointment"}
+          </DialogTitle>
+          <DialogDescription>
+            {booking.customerName} · {booking.reference}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="border-y border-border py-3 text-sm">
+          <p className="font-semibold">{booking.vehicleTitle}</p>
+          <p className="mt-1">
+            {booking.appointmentAt && appointmentLabel(booking.appointmentAt)}
+          </p>
+          <p className="mt-1">{booking.phone}</p>
+        </div>
+        {cancelling ? (
+          <p className="text-sm">
+            This will release the appointment time. The customer’s enquiry will
+            remain in the call history.
+          </p>
+        ) : (
+          <Slots bookingId={booking.id} value={time} onChange={setTime} />
+        )}
+        {!cancelling && time && (
+          <p className="text-sm font-medium">
+            New time: {appointmentLabel(time)}
+            {settings.testDriveBooking?.confirmationMode === "approval"
+              ? " — awaiting staff approval"
+              : ""}
+          </p>
+        )}
+        {mutation.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(mutation.error)} Close this window and refresh if the
+            booking has changed.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={mutation.isPending || (!cancelling && !time)}
+            variant={cancelling ? "destructive" : "default"}
+            onClick={save}
+          >
+            {mutation.isPending
+              ? "Saving…"
+              : cancelling
+                ? "Confirm cancellation"
+                : "Save new appointment"}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={mutation.isPending}
+            onClick={onClose}
+          >
+            Keep existing appointment
+          </Button>
+        </div>
+        {!cancelling && (
+          <Button
+            variant="ghost"
+            disabled={mutation.isPending}
+            onClick={() => setCancelling(true)}
+          >
+            Cancel appointment instead
+          </Button>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function EnquiriesPanel() {
+  const [mode, setMode] = useState<"new" | "history">("new");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [notice, setNotice] = useState("");
+  const [initial, setInitial] = useState<Enquiry>();
+  const [formKey, setFormKey] = useState(0);
+  const [editing, setEditing] = useState<Enquiry | null>(null);
+  const client = useQueryClient();
+  const query = useGetEnquiries(undefined, {
+    query: { queryKey: getGetEnquiriesQueryKey(), refetchInterval: 30_000 },
+  });
+  const { stock } = useStock();
+  async function saved(entry: Enquiry) {
+    setEditing(null);
+    setInitial(undefined);
+    setFormKey((key) => key + 1);
+    setNotice(
+      `${entry.reference} saved — ${entry.appointmentCancelledAt ? "appointment cancelled" : entry.appointmentAt ? `${status(entry)}: ${appointmentLabel(entry.appointmentAt)}` : "phone enquiry recorded"}.${entry.customerNotificationStatus === "failed" ? " Customer email failed; confirm by phone." : ""}`,
+    );
+    setMode("history");
+    setSearch(entry.reference);
+    setFilter("all");
+    await Promise.all([
+      client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }),
+      client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }),
+      client.invalidateQueries({
+        predicate: (query) =>
+          String(query.queryKey[0]).endsWith("/availability"),
+      }),
+    ]);
+  }
+  const entries = (query.data ?? []).filter(
+    (entry) =>
+      contains(
+        [
+          entry.customerName,
+          entry.phone,
+          entry.email,
+          entry.reference,
+          entry.vehicleTitle,
+          entry.vehicleRegistration,
+        ].join(" "),
+        search,
+      ) &&
+      (filter === "all" ||
+        (filter === "upcoming"
+          ? Boolean(
+              entry.appointmentAt &&
+              !entry.appointmentCancelledAt &&
+              new Date(entry.appointmentAt).getTime() > Date.now(),
+            )
+          : entry.appointmentAt &&
+            londonDate(new Date(entry.appointmentAt)) === londonDate())),
+  );
+  return (
+    <Panel>
+      <PanelHeader
+        title="Enquiries & appointments"
+        meta="Everything you need while a customer is on the phone."
+        action={
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Refresh enquiries and stock"
+            disabled={query.isFetching}
+            onClick={() => {
+              query.refetch();
+              client.invalidateQueries({ queryKey: ["/api/stock"] });
+            }}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        }
+      />
+      <div className="space-y-5 p-4 sm:p-6">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={mode === "new" ? "default" : "outline"}
+            aria-pressed={mode === "new"}
+            onClick={() => setMode("new")}
+          >
+            <Phone className="mr-2 h-4 w-4" />
+            New call
+          </Button>
+          <Button
+            variant={mode === "history" ? "default" : "outline"}
+            aria-pressed={mode === "history"}
+            onClick={() => setMode("history")}
+          >
+            <Search className="mr-2 h-4 w-4" />
+            Find enquiry or appointment
+          </Button>
+        </div>
+        {notice && (
+          <div
+            role="status"
+            className="flex gap-2 border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950"
+          >
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+            {notice}
+          </div>
+        )}
+        <div hidden={mode !== "new"}>
+          <NewCall key={formKey} initial={initial} onSaved={saved} />
+        </div>
+        {mode === "history" && (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+              <label className={field}>
+                Find a customer or car
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Name, phone, email, reference or car"
+                />
+              </label>
+              <label className={field}>
+                Show
+                <NativeSelect
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                >
+                  <option value="all">All enquiries</option>
+                  <option value="upcoming">Upcoming appointments</option>
+                  <option value="today">Today’s appointments</option>
+                </NativeSelect>
+              </label>
+            </div>
+            {query.isLoading && <p role="status">Loading enquiries…</p>}
+            {query.isError && (
+              <p role="alert">
+                Enquiries could not be loaded. Use Refresh to try again.
+              </p>
+            )}
+            <ul className="divide-y divide-border border-y border-border">
+              {entries.map((entry) => {
+                const car = stock?.cars.find(
+                  (car) => car.id === entry.vehicleId,
+                );
+                const future =
+                  entry.appointmentAt &&
+                  new Date(entry.appointmentAt).getTime() > Date.now() &&
+                  !entry.appointmentCancelledAt;
+                return (
+                  <li
+                    key={entry.id}
+                    className="py-4"
+                    data-testid={`enquiry-${entry.id}`}
+                  >
+                    <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                      <div>
+                        <p className="font-semibold">{entry.customerName}</p>
+                        <p className="mt-1 text-sm">
+                          {entry.phone || "No phone supplied"}
+                        </p>
+                        {entry.email && (
+                          <p className="break-all text-sm text-muted-foreground">
+                            {entry.email}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {entry.reference}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {entry.vehicleTitle || "General showroom enquiry"}
+                        </p>
+                        {entry.vehicleId && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {car
+                              ? stockStatus(car)
+                              : "No longer in current stock"}
+                          </p>
+                        )}
+                        {entry.appointmentAt && (
+                          <p className="mt-2 text-sm">
+                            {appointmentLabel(entry.appointmentAt)}
+                          </p>
+                        )}
+                        <div className="mt-2">
+                          <Chip>{status(entry)}</Chip>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-start gap-2">
+                        {future && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditing({ ...entry })}
+                          >
+                            <CalendarDays className="mr-1 h-4 w-4" />
+                            Change appointment
+                          </Button>
+                        )}
+                        {!entry.appointmentAt && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setInitial(entry);
+                              setFormKey((key) => key + 1);
+                              setMode("new");
+                              setNotice(
+                                "Customer details copied. Saving creates a new test-drive booking.",
+                              );
+                            }}
+                          >
+                            Book test drive
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {entry.message && (
+                      <details className="mt-2 text-sm">
+                        <summary className="min-h-11 cursor-pointer py-3 font-medium">
+                          Call notes
+                        </summary>
+                        <p className="whitespace-pre-wrap break-words text-muted-foreground">
+                          {entry.message}
+                        </p>
+                      </details>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            {!query.isLoading && !query.isError && !entries.length && (
+              <p className="py-6 text-center text-muted-foreground">
+                No matching enquiries. Try another name or phone number.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+      {editing && (
+        <AppointmentEditor
+          booking={editing}
+          onClose={() => setEditing(null)}
+          onSaved={saved}
+        />
+      )}
+    </Panel>
+  );
+}

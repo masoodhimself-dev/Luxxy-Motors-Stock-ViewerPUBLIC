@@ -40,6 +40,7 @@ import type {
   GetEnquiriesParams,
   GetEnquiryAvailabilityParams,
   GetLeadsParams,
+  GetStaffAppointmentAvailabilityParams,
   HealthStatus,
   Lead,
   LeadActivityInput,
@@ -67,6 +68,8 @@ import type {
   SalePreparation,
   SigningSession,
   SigningSessionCompletion,
+  StaffAppointmentChange,
+  StaffEnquiryInput,
   Stock,
   StockImportEnvelope,
   StockImportErrorResponse,
@@ -782,6 +785,149 @@ export const useCancelReservation = <TError = ErrorType<ApiError>,
       return useMutation(getCancelReservationMutationOptions(options));
     }
 
+export const getCreateStaffEnquiryUrl = () => {
+
+
+
+
+  return `/api/staff/enquiries`
+}
+
+/**
+ * @summary Staff-only createStaffEnquiry
+ */
+export const createStaffEnquiry = async (staffEnquiryInput: StaffEnquiryInput, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getCreateStaffEnquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(staffEnquiryInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStaffEnquiryMutationOptions = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStaffEnquiry>>, TError,{data: BodyType<StaffEnquiryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStaffEnquiry>>, TError,{data: BodyType<StaffEnquiryInput>}, TContext> => {
+
+const mutationKey = ['createStaffEnquiry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStaffEnquiry>>, {data: BodyType<StaffEnquiryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStaffEnquiry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStaffEnquiryMutationResult = NonNullable<Awaited<ReturnType<typeof createStaffEnquiry>>>
+    export type CreateStaffEnquiryMutationBody = BodyType<StaffEnquiryInput>
+    export type CreateStaffEnquiryMutationError = ErrorType<ApiError | void>
+
+    /**
+ * @summary Staff-only createStaffEnquiry
+ */
+export const useCreateStaffEnquiry = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStaffEnquiry>>, TError,{data: BodyType<StaffEnquiryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStaffEnquiry>>,
+        TError,
+        {data: BodyType<StaffEnquiryInput>},
+        TContext
+      > => {
+      return useMutation(getCreateStaffEnquiryMutationOptions(options));
+    }
+
+export const getChangeStaffAppointmentUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/appointment`
+}
+
+/**
+ * @summary Staff-only changeStaffAppointment
+ */
+export const changeStaffAppointment = async (id: string,
+    staffAppointmentChange: StaffAppointmentChange, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getChangeStaffAppointmentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(staffAppointmentChange)
+  }
+);}
+
+
+
+
+
+export const getChangeStaffAppointmentMutationOptions = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeStaffAppointment>>, TError,{id: string;data: BodyType<StaffAppointmentChange>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeStaffAppointment>>, TError,{id: string;data: BodyType<StaffAppointmentChange>}, TContext> => {
+
+const mutationKey = ['changeStaffAppointment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeStaffAppointment>>, {id: string;data: BodyType<StaffAppointmentChange>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeStaffAppointment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeStaffAppointmentMutationResult = NonNullable<Awaited<ReturnType<typeof changeStaffAppointment>>>
+    export type ChangeStaffAppointmentMutationBody = BodyType<StaffAppointmentChange>
+    export type ChangeStaffAppointmentMutationError = ErrorType<ApiError | void>
+
+    /**
+ * @summary Staff-only changeStaffAppointment
+ */
+export const useChangeStaffAppointment = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeStaffAppointment>>, TError,{id: string;data: BodyType<StaffAppointmentChange>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeStaffAppointment>>,
+        TError,
+        {id: string;data: BodyType<StaffAppointmentChange>},
+        TContext
+      > => {
+      return useMutation(getChangeStaffAppointmentMutationOptions(options));
+    }
+
 export const getGetEnquiriesUrl = (params?: GetEnquiriesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -938,6 +1084,96 @@ export const useCreateEnquiry = <TError = ErrorType<ApiError>,
       > => {
       return useMutation(getCreateEnquiryMutationOptions(options));
     }
+
+export const getGetStaffAppointmentAvailabilityUrl = (id: string,
+    params: GetStaffAppointmentAvailabilityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/enquiries/${id}/availability?${stringifiedParams}` : `/api/staff/enquiries/${id}/availability`
+}
+
+/**
+ * Returns bookable 30-minute viewing slots for a date in the dealership timezone.
+ * @summary Get available viewing appointments
+ */
+export const getStaffAppointmentAvailability = async (id: string,
+    params: GetStaffAppointmentAvailabilityParams, options?: Parameters<typeof customFetch>[1]): Promise<EnquiryAvailability> => {
+
+  return customFetch<EnquiryAvailability>(getGetStaffAppointmentAvailabilityUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffAppointmentAvailabilityQueryKey = (id: string,
+    params?: GetStaffAppointmentAvailabilityParams,) => {
+    return [
+    `/api/staff/enquiries/${id}/availability`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStaffAppointmentAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof getStaffAppointmentAvailability>>, TError = ErrorType<ApiError>>(id: string,
+    params: GetStaffAppointmentAvailabilityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAppointmentAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffAppointmentAvailabilityQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffAppointmentAvailability>>> = ({ signal }) => getStaffAppointmentAvailability(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaffAppointmentAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffAppointmentAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getStaffAppointmentAvailability>>>
+export type GetStaffAppointmentAvailabilityQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Get available viewing appointments
+ */
+
+export function useGetStaffAppointmentAvailability<TData = Awaited<ReturnType<typeof getStaffAppointmentAvailability>>, TError = ErrorType<ApiError>>(
+ id: string,
+    params: GetStaffAppointmentAvailabilityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAppointmentAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffAppointmentAvailabilityQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetEnquiryAvailabilityUrl = (params: GetEnquiryAvailabilityParams,) => {
   const normalizedParams = new URLSearchParams();

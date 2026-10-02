@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
@@ -6,6 +6,8 @@ import {
   DecideTestDriveBookingResponse,
   GetTestDriveBookingsResponse,
   CreateEnquiryBody,
+  CreateStaffEnquiryBody,
+  ChangeStaffAppointmentBody,
   CreateEnquiryResponse,
   GetEnquiryAvailabilityQueryParams,
   GetEnquiryAvailabilityResponse,
@@ -128,6 +130,10 @@ async function insertEnquiryWithReference(
         if (values.appointmentAt && policy) {
           await lockBookingDays(tx, values.dealerId, [values.appointmentAt]);
           await ensureBookingAvailable(tx, values.dealerId, values.appointmentAt, policy);
+          if (values.source === "phone" && values.vehicleId) {
+            const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, values.vehicleId), eq(vehiclesTable.dealerId, values.dealerId))).for("update");
+            if (!vehicle || !visibleVehicle(vehicle) || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for a test drive.");
+          }
         }
         const [created] = await tx
           .insert(enquiriesTable)
@@ -200,7 +206,7 @@ router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
   }
 });
 
-router.get("/enquiries/availability", async (req, res): Promise<void> => {
+async function enquiryAvailability(req: Request, res: Response, staff = false): Promise<void> {
   const parsedQuery = GetEnquiryAvailabilityQueryParams.safeParse(req.query);
   if (!parsedQuery.success) {
     res.status(400).json(errorResponse("Choose a valid booking date."));
@@ -214,6 +220,12 @@ router.get("/enquiries/availability", async (req, res): Promise<void> => {
       res.status(400).json(errorResponse(`Choose a date within the next ${policy.daysAhead} days.`));
       return;
     }
+    const excludeId = staff ? String(req.params.id) : undefined;
+    if (excludeId) {
+      if (!uuidPattern.test(excludeId)) { res.status(400).json(errorResponse("Invalid appointment.")); return; }
+      const [booking] = await db.select({ id: enquiriesTable.id }).from(enquiriesTable).where(and(eq(enquiriesTable.id, excludeId), eq(enquiriesTable.dealerId, settings().dealerId), eq(enquiriesTable.type, "viewing")));
+      if (!booking) { res.status(404).json(errorResponse("Appointment not found.")); return; }
+    }
     const allSlots = getSlotsForDate(date, policy);
     const booked = await bookingsForDate(settings().dealerId, date);
     res.json(
@@ -223,7 +235,7 @@ router.get("/enquiries/availability", async (req, res): Promise<void> => {
         slots: allSlots.map((slot) => ({
           startAt: slot.startAt.toISOString(),
           label: slot.label,
-          available: slotIsAvailable(slot.startAt, policy, booked),
+          available: slotIsAvailable(slot.startAt, policy, booked, new Date(), excludeId),
         })),
       }),
     );
@@ -231,26 +243,29 @@ router.get("/enquiries/availability", async (req, res): Promise<void> => {
     req.log.error({ err: error }, "Unable to load enquiry availability");
     res.status(500).json(errorResponse("Unable to load viewing availability."));
   }
-});
+}
+router.get("/enquiries/availability", (req, res) => enquiryAvailability(req, res));
+router.get("/staff/enquiries/:id/availability", requireStaff, (req, res) => enquiryAvailability(req, res, true));
 
-router.post("/enquiries", async (req, res): Promise<void> => {
-  const parsed = CreateEnquiryBody.safeParse(req.body);
+async function createEnquiry(req: Request, res: Response, staff = false): Promise<void> {
+  const parsed = (staff ? CreateStaffEnquiryBody : CreateEnquiryBody).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json(errorResponse(validationMessage(parsed.error)));
     return;
   }
 
   const input = parsed.data;
-  if (!input.email) {
+  if (input.customerName.trim().length < 2) { res.status(400).json(errorResponse("Please provide the customer’s name.")); return; }
+  if (!staff && !input.email) {
     res.status(400).json(errorResponse("Please provide an email address for confirmation."));
     return;
   }
-  if (!validEmail(input.email)) {
+  if (input.email && !validEmail(input.email)) {
     res.status(400).json(errorResponse("Please provide a valid email address."));
     return;
   }
 
-  const preferredContact = input.preferredContact ?? "email";
+  const preferredContact = staff ? "phone" : input.preferredContact ?? "email";
   const phone = input.phone?.trim() ? normalisePhone(input.phone) : null;
   if (input.phone?.trim() && !phone) {
     res.status(400).json(errorResponse("Please provide a valid phone number."));
@@ -338,7 +353,7 @@ router.post("/enquiries", async (req, res): Promise<void> => {
       vehicleUrl,
       type: input.type,
       customerName: input.customerName.trim(),
-      email: input.email.trim().toLowerCase(),
+      email: input.email?.trim().toLowerCase() || null,
       phone,
       preferredContact,
       message: input.message.trim(),
@@ -352,10 +367,11 @@ router.post("/enquiries", async (req, res): Promise<void> => {
       appointmentDurationMinutes: isViewing ? policy.durationMinutes : null,
       appointmentBufferMinutes: isViewing ? policy.bufferMinutes : null,
       visitorId: input.visitorId?.trim() || null,
-      customerNotificationStatus: "pending",
+      customerNotificationStatus: input.email ? "pending" : "not_sent",
       dealerNotificationStatus: "pending",
-      reminderStatus: isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
-      source: "website",
+      reminderStatus: Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
+      source: staff ? "phone" : "website",
+      status: staff ? "contacted" : "new",
     }, policy);
 
     // A booked viewing gets a capability link so the customer can move or drop
@@ -374,7 +390,7 @@ router.post("/enquiries", async (req, res): Promise<void> => {
       vehicleTitle: created.vehicleTitle,
       vehicleUrl: created.vehicleUrl,
       kind: isViewing ? "viewing_booked" : "enquiry_received",
-      actor: "customer",
+      actor: staff ? "dealer" : "customer",
       summary: isViewing
         ? `${created.appointmentStatus === "pending" ? "Test drive requested" : "Test drive booked"} for ${formatAppointmentLabel(created.appointmentAt)}`
         : `${enquiryTypeLabel(created.type)} enquiry received`,
@@ -425,11 +441,61 @@ router.post("/enquiries", async (req, res): Promise<void> => {
     }
   } catch (error) {
     if (error instanceof BookingConflict || isUniqueViolation(error)) {
-      res.status(409).json(errorResponse("That viewing slot has just been booked. Please choose another."));
+      res.status(409).json(errorResponse(staff && error instanceof BookingConflict ? error.message : "That viewing slot has just been booked. Please choose another."));
       return;
     }
     req.log.error({ err: error }, "Unable to create enquiry");
     res.status(500).json(errorResponse("Unable to save your enquiry. Please try again."));
+  }
+ }
+router.post("/enquiries", (req, res) => createEnquiry(req, res));
+router.post("/staff/enquiries", requireStaff, (req, res) => createEnquiry(req, res, true));
+
+router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): Promise<void> => {
+  const parsed = ChangeStaffAppointmentBody.safeParse(req.body);
+  const id = String(req.params.id);
+  if (!uuidPattern.test(id) || !parsed.success) {
+    res.status(400).json(errorResponse("Check the appointment details.")); return;
+  }
+  const input = parsed.data;
+  try {
+    const policy = await getBookingPolicy(settings().dealerId);
+    if (input.action === "reschedule" && (!input.appointmentAt || !validBookingDateTime(input.appointmentAt, policy))) {
+      res.status(400).json(errorResponse("Choose an available appointment time.")); return;
+    }
+    const updated = await db.transaction(async tx => {
+      // Day locks precede row locks, matching customer booking operations.
+      const [before] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId)));
+      if (!before?.appointmentAt || before.type !== "viewing") return null;
+      await lockBookingDays(tx, settings().dealerId, [before.appointmentAt, ...(input.appointmentAt ? [input.appointmentAt] : [])]);
+      const [current] = await tx.select().from(enquiriesTable).where(eq(enquiriesTable.id, id)).for("update");
+      if (!current || current.appointmentRevision !== input.expectedRevision || current.appointmentCancelledAt || !current.appointmentAt || current.appointmentAt.getTime() <= Date.now()) throw new BookingConflict("This appointment changed. Refresh and try again.");
+      if (input.action === "reschedule") await ensureBookingAvailable(tx, settings().dealerId, input.appointmentAt!, policy, id);
+      const cancelled = input.action === "cancel";
+      const [changed] = await tx.update(enquiriesTable).set({
+        appointmentAt: cancelled ? current.appointmentAt : input.appointmentAt!,
+        appointmentCancelledAt: cancelled ? new Date() : null,
+        appointmentRevision: current.appointmentRevision + 1,
+        appointmentStatus: cancelled ? current.appointmentStatus : policy.confirmationMode === "approval" ? "pending" : "confirmed",
+        appointmentDurationMinutes: cancelled ? current.appointmentDurationMinutes : policy.durationMinutes,
+        appointmentBufferMinutes: cancelled ? current.appointmentBufferMinutes : policy.bufferMinutes,
+        customerNotificationStatus: current.email ? "pending" : "not_sent", customerNotificationError: null, customerNotificationSentAt: null, customerNotificationAttemptedAt: null,
+        dealerNotificationStatus: "pending", dealerNotificationError: null, dealerNotificationSentAt: null, dealerNotificationAttemptedAt: null,
+        reminderStatus: !cancelled && current.email && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
+        reminderError: null, reminderSentAt: null, reminderAttemptedAt: null, reminderProviderId: null,
+        updatedAt: new Date(),
+      }).where(eq(enquiriesTable.id, id)).returning();
+      return changed;
+    });
+    if (!updated) { res.status(404).json(errorResponse("Appointment not found.")); return; }
+    await recordEnquiryEvent({ dealerId: updated.dealerId, enquiryId: id, vehicleId: updated.vehicleId, vehicleTitle: updated.vehicleTitle, vehicleUrl: updated.vehicleUrl, kind: input.action === "cancel" ? "viewing_cancelled" : "viewing_rescheduled", actor: "dealer", summary: input.action === "cancel" ? "Staff cancelled the appointment" : `Staff moved the appointment to ${formatAppointmentLabel(updated.appointmentAt)}`, detail: { expectedRevision: input.expectedRevision }, visitorId: null });
+    let notified = updated;
+    try { notified = await deliverEnquiryNotifications(updated, req.log); } catch (error) { req.log.error({ err: error }, "Staff appointment notification failed"); }
+    res.json(toEnquiryResponse(notified));
+  } catch (error) {
+    if (error instanceof BookingConflict || isUniqueViolation(error)) { res.status(409).json(errorResponse("The appointment or availability changed. Refresh before trying again.")); return; }
+    req.log.error({ err: error }, "Unable to update staff appointment");
+    res.status(500).json(errorResponse("Unable to update this appointment."));
   }
 });
 
@@ -501,8 +567,8 @@ router.post("/test-drive-bookings/:id/decision", requireStaff, async (req, res):
         appointmentRevision: sql`${enquiriesTable.appointmentRevision} + 1`,
         appointmentStatus: confirm ? "confirmed" : "pending",
         appointmentCancelledAt: confirm ? null : new Date(),
-        reminderStatus: confirm ? "pending" : "not_scheduled",
-        customerNotificationStatus: "pending", customerNotificationError: null, customerNotificationAttemptedAt: null, customerNotificationSentAt: null,
+        reminderStatus: confirm && booking.email ? "pending" : "not_scheduled",
+        customerNotificationStatus: booking.email ? "pending" : "not_sent", customerNotificationError: null, customerNotificationAttemptedAt: null, customerNotificationSentAt: null,
         dealerNotificationStatus: "pending", dealerNotificationError: null, dealerNotificationAttemptedAt: null, dealerNotificationSentAt: null,
       }).where(eq(enquiriesTable.id, booking.id)).returning();
       return { booking: updated, changed: true };

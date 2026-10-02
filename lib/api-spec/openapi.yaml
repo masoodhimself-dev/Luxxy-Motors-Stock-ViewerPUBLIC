@@ -337,6 +337,72 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /staff/enquiries:
+    post:
+      operationId: createStaffEnquiry
+      tags: [enquiries]
+      summary: Staff-only createStaffEnquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffEnquiryInput"
+      responses:
+        "201":
+          description: Enquiry saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Staff access required
+        "404":
+          description: Record unavailable
+        "409":
+          description: Booking or availability has changed
+  /staff/enquiries/{id}/appointment:
+    post:
+      operationId: changeStaffAppointment
+      tags: [enquiries]
+      summary: Staff-only changeStaffAppointment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffAppointmentChange"
+      responses:
+        "200":
+          description: Enquiry saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Staff access required
+        "404":
+          description: Record unavailable
+        "409":
+          description: Booking or availability has changed
   /enquiries:
     get:
       operationId: getEnquiries
@@ -397,6 +463,43 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "500":
           description: Unable to create enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /staff/enquiries/{id}/availability:
+    get:
+      operationId: getStaffAppointmentAvailability
+      tags: [enquiries]
+      summary: Get available viewing appointments
+      description: Returns bookable 30-minute viewing slots for a date in the dealership timezone.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      responses:
+        "200":
+          description: Viewing availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnquiryAvailability"
+        "400":
+          description: Invalid or unavailable date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Unable to load availability
           content:
             application/json:
               schema:
@@ -2788,6 +2891,80 @@ components:
         - preferredContact
         - message
         - appointmentAt
+    StaffEnquiryInput:
+      type: object
+      additionalProperties: false
+      properties:
+        vehicleId:
+          type: [string, "null"]
+        type:
+          type: string
+          enum: [viewing, general, delivery, warranty, part_exchange]
+        customerName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: [string, "null"]
+          minLength: 3
+        phone:
+          type: [string, "null"]
+          minLength: 5
+          maxLength: 40
+        preferredContact:
+          type: [string, "null"]
+          enum: [email, phone, whatsapp]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        partExchange:
+          description: Details of the car the customer wants to trade in.
+          type: [object, "null"]
+          additionalProperties: false
+          properties:
+            registration:
+              type: [string, "null"]
+              maxLength: 16
+            mileage:
+              type: [number, "null"]
+              multipleOf: 1
+              minimum: 0
+              maximum: 1000000
+            condition:
+              type: [string, "null"]
+              enum: [excellent, good, fair, poor]
+        visitorId:
+          description: Anonymous browser identifier used to attach earlier call/WhatsApp taps to this lead.
+          type: [string, "null"]
+          maxLength: 64
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
+      required:
+        - vehicleId
+        - type
+        - customerName
+        - email
+        - phone
+        - preferredContact
+        - message
+        - appointmentAt
+    StaffAppointmentChange:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [reschedule, cancel]
+        appointmentAt:
+          type: [string, "null"]
+          format: date-time
+        expectedRevision:
+          type: number
+          multipleOf: 1
+          minimum: 0
+      required: [action, expectedRevision]
     EnquiryStatusUpdate:
       type: object
       additionalProperties: false

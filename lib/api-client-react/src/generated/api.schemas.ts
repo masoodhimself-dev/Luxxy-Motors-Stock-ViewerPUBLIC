@@ -1282,6 +1282,120 @@ export interface EnquiryInput {
   appointmentAt: string | null;
 }
 
+export type StaffEnquiryInputType = typeof StaffEnquiryInputType[keyof typeof StaffEnquiryInputType];
+
+
+export const StaffEnquiryInputType = {
+  viewing: 'viewing',
+  general: 'general',
+  delivery: 'delivery',
+  warranty: 'warranty',
+  part_exchange: 'part_exchange',
+} as const;
+
+/**
+ * @nullable
+ */
+export type StaffEnquiryInputPreferredContact = typeof StaffEnquiryInputPreferredContact[keyof typeof StaffEnquiryInputPreferredContact] | null;
+
+
+export const StaffEnquiryInputPreferredContact = {
+  email: 'email',
+  phone: 'phone',
+  whatsapp: 'whatsapp',
+} as const;
+
+/**
+ * @nullable
+ */
+export type StaffEnquiryInputPartExchangeCondition = typeof StaffEnquiryInputPartExchangeCondition[keyof typeof StaffEnquiryInputPartExchangeCondition] | null;
+
+
+export const StaffEnquiryInputPartExchangeCondition = {
+  excellent: 'excellent',
+  good: 'good',
+  fair: 'fair',
+  poor: 'poor',
+} as const;
+
+/**
+ * Details of the car the customer wants to trade in.
+ * @nullable
+ */
+export type StaffEnquiryInputPartExchange = {
+  /**
+     * @maxLength 16
+     * @nullable
+     */
+  registration?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     * @nullable
+     */
+  mileage?: number | null;
+  /** @nullable */
+  condition?: StaffEnquiryInputPartExchangeCondition;
+} | null;
+
+export interface StaffEnquiryInput {
+  /** @nullable */
+  vehicleId: string | null;
+  type: StaffEnquiryInputType;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  customerName: string;
+  /**
+     * @minLength 3
+     * @nullable
+     */
+  email: string | null;
+  /**
+     * @minLength 5
+     * @maxLength 40
+     * @nullable
+     */
+  phone: string | null;
+  /** @nullable */
+  preferredContact: StaffEnquiryInputPreferredContact;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  message: string;
+  /**
+     * Details of the car the customer wants to trade in.
+     * @nullable
+     */
+  partExchange?: StaffEnquiryInputPartExchange;
+  /**
+     * Anonymous browser identifier used to attach earlier call/WhatsApp taps to this lead.
+     * @maxLength 64
+     * @nullable
+     */
+  visitorId?: string | null;
+  /** @nullable */
+  appointmentAt: string | null;
+}
+
+export type StaffAppointmentChangeAction = typeof StaffAppointmentChangeAction[keyof typeof StaffAppointmentChangeAction];
+
+
+export const StaffAppointmentChangeAction = {
+  reschedule: 'reschedule',
+  cancel: 'cancel',
+} as const;
+
+export interface StaffAppointmentChange {
+  action: StaffAppointmentChangeAction;
+  /** @nullable */
+  appointmentAt?: string | null;
+  /** @minimum 0 */
+  expectedRevision: number;
+}
+
 export type EnquiryStatusUpdateStatus = typeof EnquiryStatusUpdateStatus[keyof typeof EnquiryStatusUpdateStatus];
 
 
@@ -2235,6 +2349,13 @@ export const GetEnquiriesStatus = {
   contacted: 'contacted',
   closed: 'closed',
 } as const;
+
+export type GetStaffAppointmentAvailabilityParams = {
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+date: string;
+};
 
 export type GetEnquiryAvailabilityParams = {
 /**

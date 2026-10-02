@@ -617,6 +617,196 @@ export const CancelReservationResponse = zod.object({
 
 
 /**
+ * @summary Staff-only createStaffEnquiry
+ */
+export const createStaffEnquiryBodyCustomerNameMin = 2;
+export const createStaffEnquiryBodyCustomerNameMax = 120;
+
+export const createStaffEnquiryBodyEmailMin = 3;
+
+export const createStaffEnquiryBodyPhoneMin = 5;
+export const createStaffEnquiryBodyPhoneMax = 40;
+
+export const createStaffEnquiryBodyMessageMax = 2000;
+
+export const createStaffEnquiryBodyPartExchangeRegistrationMax = 16;
+
+export const createStaffEnquiryBodyPartExchangeMileageMin = 0;
+export const createStaffEnquiryBodyPartExchangeMileageMax = 1000000;
+export const createStaffEnquiryBodyPartExchangeMileageMultipleOf = 1;
+
+export const createStaffEnquiryBodyVisitorIdMax = 64;
+
+
+
+export const CreateStaffEnquiryBody = zod.object({
+  "vehicleId": zod.string().nullable(),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "customerName": zod.string().min(createStaffEnquiryBodyCustomerNameMin).max(createStaffEnquiryBodyCustomerNameMax),
+  "email": zod.string().min(createStaffEnquiryBodyEmailMin).nullable(),
+  "phone": zod.string().min(createStaffEnquiryBodyPhoneMin).max(createStaffEnquiryBodyPhoneMax).nullable(),
+  "preferredContact": zod.enum(['email', 'phone', 'whatsapp']).nullable(),
+  "message": zod.string().min(1).max(createStaffEnquiryBodyMessageMax),
+  "partExchange": zod.object({
+  "registration": zod.string().max(createStaffEnquiryBodyPartExchangeRegistrationMax).nullish(),
+  "mileage": zod.number().min(createStaffEnquiryBodyPartExchangeMileageMin).max(createStaffEnquiryBodyPartExchangeMileageMax).multipleOf(createStaffEnquiryBodyPartExchangeMileageMultipleOf).nullish(),
+  "condition": zod.enum(['excellent', 'good', 'fair', 'poor']).nullish()
+}).nullish().describe('Details of the car the customer wants to trade in.'),
+  "visitorId": zod.string().max(createStaffEnquiryBodyVisitorIdMax).nullish().describe('Anonymous browser identifier used to attach earlier call\/WhatsApp taps to this lead.'),
+  "appointmentAt": zod.coerce.date().nullable()
+})
+
+
+
+
+export const createStaffEnquiryResponseVehiclePriceMultipleOf = 1;
+
+export const createStaffEnquiryResponseAppointmentRevisionMin = 0;
+export const createStaffEnquiryResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const createStaffEnquiryResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const CreateStaffEnquiryResponse = zod.object({
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(createStaffEnquiryResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(createStaffEnquiryResponseAppointmentRevisionMin).multipleOf(createStaffEnquiryResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(createStaffEnquiryResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Staff-only changeStaffAppointment
+ */
+export const ChangeStaffAppointmentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const changeStaffAppointmentBodyExpectedRevisionMin = 0;
+export const changeStaffAppointmentBodyExpectedRevisionMultipleOf = 1;
+
+
+
+export const ChangeStaffAppointmentBody = zod.object({
+  "action": zod.enum(['reschedule', 'cancel']),
+  "appointmentAt": zod.coerce.date().nullish(),
+  "expectedRevision": zod.number().min(changeStaffAppointmentBodyExpectedRevisionMin).multipleOf(changeStaffAppointmentBodyExpectedRevisionMultipleOf)
+})
+
+
+
+
+export const changeStaffAppointmentResponseVehiclePriceMultipleOf = 1;
+
+export const changeStaffAppointmentResponseAppointmentRevisionMin = 0;
+export const changeStaffAppointmentResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const changeStaffAppointmentResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const ChangeStaffAppointmentResponse = zod.object({
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(changeStaffAppointmentResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(changeStaffAppointmentResponseAppointmentRevisionMin).multipleOf(changeStaffAppointmentResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(changeStaffAppointmentResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * Returns customer enquiries for the configured dealer, newest first.
  * @summary List customer enquiries
  */
@@ -795,6 +985,35 @@ export const CreateEnquiryResponse = zod.object({
   "source": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Returns bookable 30-minute viewing slots for a date in the dealership timezone.
+ * @summary Get available viewing appointments
+ */
+export const GetStaffAppointmentAvailabilityParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getStaffAppointmentAvailabilityQueryDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetStaffAppointmentAvailabilityQueryParams = zod.object({
+  "date": zod.coerce.string().regex(getStaffAppointmentAvailabilityQueryDateRegExp)
+})
+
+
+
+
+export const GetStaffAppointmentAvailabilityResponse = zod.object({
+  "date": zod.string(),
+  "timezone": zod.string(),
+  "slots": zod.array(zod.object({
+  "startAt": zod.coerce.date(),
+  "label": zod.string().min(1),
+  "available": zod.boolean()
+}))
 })
 
 

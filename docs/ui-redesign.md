@@ -1010,3 +1010,25 @@ Manually used the local selected-car → time → details → review journey wit
 | Phone rescheduling | [390px](screenshots/test-drive-booking-2026-10-02/reschedule-390.png) |
 | Staff appointments (fixture) | [1440px](screenshots/test-drive-booking-2026-10-02/staff-1440.png) |
 | Dealer booking settings (fixture) | [820px](screenshots/test-drive-booking-2026-10-02/settings-820.png) |
+
+## Staff enquiry desk — 2 October 2026
+
+Added **Portal → Enquiries**, also available directly at `/portal?section=enquiries`. The desk supports phone calls without bringing back the retired lead pipeline:
+
+- Search current showroom stock by make/model, registration or advert reference; see photo, cash price, year/transmission and available/reserved/unconfirmed status. Reserved cars can receive an enquiry but cannot receive a new staff test-drive booking. The backend rechecks vehicle availability inside the booking transaction.
+- Save a phone enquiry with name and phone; email and call notes are optional. Phone-only records do not schedule customer email or reminders. Supplied email addresses use the existing notification service; local preview sends no email.
+- Book using configured UK-time slots, duration, buffer, notice, blocked dates, daily capacity and instant/approval mode. Approval-mode bookings still need approval in the Test drives tab; disabled scheduling remains disabled.
+- Search enquiry/appointment history by customer, phone (ignoring punctuation), email, reference, car or registration. Filter to upcoming or today’s appointments. Copy an enquiry’s contact details into a new booking; the original enquiry is retained.
+- Reschedule in place or explicitly confirm cancellation. Revision checks reject stale edits. Appointment-specific availability excludes the existing booking so staff can move it even when its day is at capacity. Changes use the existing enquiry record and event history.
+- Desktop uses stock and call details side by side; smaller screens stack them and collapse the stock list after selection. Labelled fields, explicit car selection names, keyboard focus, status/error messages and a focus-managed appointment dialog support accessible use.
+
+Implementation adds staff-protected create/change/availability routes with generated OpenAPI clients and validation. Existing customer booking contracts and authentication policy remain unchanged. No database columns or new migration are needed beyond the previously prepared **0012 booking migration, still not run**. Preview writes remain local and durable through the existing preview adapter.
+
+Validation: **201 frontend tests**, **32 browser checks** (8 enquiry desk, 10 staff/settings, 14 customer booking), **2 retired-lead portal browser checks**, **12 booking policy/preview lifecycle tests**, and **2 staff authentication/input-boundary tests passed**. Full workspace typechecking/build passed. Existing sourcemap and main-bundle size warnings remain. Initial browser fixture title mismatches and the signed-out Clerk test fixture were corrected and rerun successfully. No real customer messages were sent or real bookings modified in testing. Database-backed concurrency and email delivery remain unverified; no production, migration, merge or deployment action was taken.
+
+Manually checked the LAN preview with real showroom stock, selected a car and loaded its test-drive times without submitting. Reviewed the following fresh fixture screenshots at 390, 820 and 1440px; no horizontal page overflow in the checked states:
+
+- [Phone call desk](screenshots/enquiries-desk-2026-10-02/phone.png)
+- [Tablet call desk](screenshots/enquiries-desk-2026-10-02/tablet.png)
+- [Desktop call desk](screenshots/enquiries-desk-2026-10-02/desktop.png)
+- [Change appointment](screenshots/enquiries-desk-2026-10-02/change-appointment.png)

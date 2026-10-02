@@ -14,12 +14,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
+import { EnquiriesPanel } from '@/components/portal/enquiries-panel';
 import { TestDriveBookingsPanel } from '@/components/portal/test-drive-bookings-panel';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 
-type TabKey = 'test-drives' | 'reservations' | 'settings';
+type TabKey = 'enquiries' | 'test-drives' | 'reservations' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
+  { key: 'enquiries', label: 'Enquiries', icon: CalendarClock },
   { key: 'test-drives', label: 'Test drives', icon: CalendarClock },
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
   { key: 'settings', label: 'Settings', icon: Settings2 },
@@ -74,7 +76,7 @@ function AccessDenied({ email }: { email: string | null }) {
 }
 
 function PortalDesk() {
-  const [tab, setTab] = useState<TabKey>('settings');
+  const [tab, setTab] = useState<TabKey>(() => new URLSearchParams(window.location.search).get('section') === 'enquiries' ? 'enquiries' : 'settings');
   const { user } = useUser();
 
   const sessionQuery = useGetPortalSession({
@@ -179,6 +181,7 @@ function PortalDesk() {
             </nav>
 
             <div className="min-h-[50vh]">
+              {tab === 'enquiries' && <EnquiriesPanel />}
               {tab === 'test-drives' && <TestDriveBookingsPanel />}
               {tab === 'reservations' && <ReservationsPanel />}
               {tab === 'settings' && <DealerSettingsPanel />}

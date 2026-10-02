@@ -42,3 +42,29 @@ test("local booking lifecycle holds pending capacity, confirms, reschedules and 
   assert.ok(declined.data.appointmentCancelledAt); assert.equal(declined.data.calendarIcs, null);
   await assert.rejects(call(state, settings, "POST", `/api/test-drive-bookings/${another.data.id}/decision`, { decision: "confirm", expectedRevision: 0 }), /has changed/);
 });
+
+test('staff phone-only enquiries and appointments preserve capacity and reject stale edits', async () => {
+  const state: BookingPreviewState = { reservations: [] };
+  const config = policy({ dailyCapacity: 1 });
+  const settings = { ...previewSettings, testDriveBooking: config };
+  let day = addDays(dateStringInTimezone(new Date()), 1);
+  while (!getSlotsForDate(day, config).length) day = addDays(day, 1);
+  const slots = (await call(state, settings, 'GET', `/api/enquiries/availability?date=${day}`)).data.slots;
+  const payload = { vehicleId: previewStock.cars[0].id, type: 'general', customerName: 'Phone Caller', email: null, phone: '07700900123', preferredContact: 'phone', message: 'Called showroom', appointmentAt: null };
+  const enquiry = await call(state, settings, 'POST', '/api/staff/enquiries', payload);
+  assert.equal(enquiry.data.email, null); assert.equal(enquiry.data.source, 'phone'); assert.equal(enquiry.data.status, 'contacted');
+  await assert.rejects(call(state, settings, 'POST', '/api/enquiries', payload));
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, phone: '' }));
+  const booked = await call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, type: 'viewing', appointmentAt: slots[0].startAt });
+  assert.equal(booked.data.appointmentStatus, 'confirmed');
+  const path = `/api/staff/enquiries/${booked.data.id}/appointment`;
+  assert.equal((await call(state, settings, 'GET', `/api/enquiries/availability?date=${day}`)).data.slots[1].available, false);
+  assert.equal((await call(state, settings, 'GET', `/api/staff/enquiries/${booked.data.id}/availability?date=${day}`)).data.slots[1].available, true);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, type: 'viewing', appointmentAt: slots[0].startAt }), /no longer available/);
+  const moved = await call(state, settings, 'POST', path, { action: 'reschedule', appointmentAt: slots[1].startAt, expectedRevision: 0 });
+  assert.equal(moved.data.appointmentAt, slots[1].startAt); assert.equal(moved.data.appointmentRevision, 1);
+  await assert.rejects(call(state, settings, 'POST', path, { action: 'cancel', expectedRevision: 0 }), /changed/);
+  const cancelled = await call(state, settings, 'POST', path, { action: 'cancel', expectedRevision: 1 });
+  assert.ok(cancelled.data.appointmentCancelledAt); assert.equal(cancelled.data.appointmentRevision, 2);
+  assert.equal((await call(state, settings, 'GET', `/api/enquiries/availability?date=${day}`)).data.slots[1].available, true);
+});
