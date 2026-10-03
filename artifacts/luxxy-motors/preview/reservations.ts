@@ -1,7 +1,7 @@
 // Local-only durable reservation sandbox. Never imported by the production entry point.
 import { randomUUID, randomBytes } from 'node:crypto';
 import type { Enquiry } from '@workspace/api-client-react';
-import { bookingDateIsInWindow, bookingPolicyFromConfig, bookingPolicyError, getSlotsForDate, isValidDateString, slotIsAvailable } from '../../api-server/src/lib/booking-slots';
+import { bookingDateIsInWindow, bookingPolicyFromConfig, bookingPolicyError, bookingPressure, getSlotsForDate, isValidDateString, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy, type OccupiedBooking } from '../../api-server/src/lib/booking-slots';
 import { preserveTestDriveBooking } from '../../api-server/src/lib/settings-content';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -14,6 +14,14 @@ import { previewStock } from './stock';
 import { leads, previewResponse } from './portal';
 
 type PreviewEnquiry = Enquiry & { manageToken?: string };
+function staffException(at: Date, policy: BookingPolicy, booked: OccupiedBooking[], options: { allowOutsideHours?: boolean; allowDoubleBooking?: boolean }, excludeId?: string) {
+  if (!validStaffAppointmentDateTime(at)) throw new ReservationError('Choose a future UK time in 15-minute steps, within the next year.', 400);
+  const appointmentOutsideHours = !withinBookingHours(at, policy);
+  const pressure = bookingPressure(at, policy, booked, excludeId);
+  if (appointmentOutsideHours && !options.allowOutsideHours) throw new ReservationError('This is outside normal booking hours. Review and confirm the staff exception.', 409);
+  if ((pressure.overlapping || pressure.overCapacity) && !options.allowDoubleBooking) throw new ReservationError('This overlaps another appointment or exceeds daily capacity. Review and confirm the staff exception.', 409);
+  return { appointmentOutsideHours, appointmentDoubleBooked: pressure.overlapping, appointmentOverCapacity: pressure.overCapacity };
+}
 export type BookingPreviewState = { reservations: ReservationRecord[]; settings?: typeof previewSettings; enquiries?: PreviewEnquiry[] };
 const filename = fileURLToPath(new URL('../../../.local/online-reservations-preview.json', import.meta.url));
 let queue: Promise<unknown> = Promise.resolve();
@@ -196,6 +204,8 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     const adHoc = staff && "adHocVehicle" in input ? input.adHocVehicle : null;
     const followUpAt = staff && "followUpAt" in input ? input.followUpAt : null;
     const followUpNote = staff && "followUpNote" in input ? input.followUpNote : null;
+    const staffOptions = staff ? { allowOutsideHours: 'allowOutsideHours' in input ? input.allowOutsideHours : false, allowDoubleBooking: 'allowDoubleBooking' in input ? input.allowDoubleBooking : false } : undefined;
+    if (staffOptions && input.type !== 'viewing' && (staffOptions.allowOutsideHours || staffOptions.allowDoubleBooking)) throw new ReservationError('Appointment exceptions apply only to a test drive.', 400);
     if (followUpAt && followUpAt.getTime() <= Date.now()) throw new ReservationError('Choose a future follow-up time.', 400);
 
     if (adHoc && (input.vehicleId || input.type === 'viewing' || adHoc.title.trim().length < 2)) throw new ReservationError('Use an ad hoc car for an enquiry only, or choose a stock car for a test drive.', 400);
@@ -206,10 +216,12 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if (input.type === 'viewing' && (!vehicle || !input.appointmentAt)) throw new ReservationError('Please choose a car and time.', 400);
     if (staff && input.type === 'viewing' && vehicle && state.reservations.some(entry => entry.vehicleId === internalId(vehicle.id) && entry.status === 'reserved')) throw new ReservationError('This car is reserved and cannot be booked.', 409);
     if (input.type !== 'viewing' && input.appointmentAt) throw new ReservationError('Appointments are only available for test drives.', 400);
-    if (input.appointmentAt && !slotIsAvailable(input.appointmentAt, policy, occupied())) throw new ReservationError('That test-drive time is no longer available. Please choose another.', 409);
+    const exception = input.appointmentAt && staffOptions ? staffException(input.appointmentAt, policy, occupied(), staffOptions) : null;
+    if (input.appointmentAt && !staff && !slotIsAvailable(input.appointmentAt, policy, occupied())) throw new ReservationError('That test-drive time is no longer available. Please choose another.', 409);
     const id = randomUUID(); const token = randomBytes(24).toString('base64url'); const now = new Date().toISOString();
     const viewing = input.type === 'viewing';
     const enquiry: PreviewEnquiry = { id, dealerId: 'local-preview', reference: `PREVIEW-${id.slice(0, 8).toUpperCase()}`, vehicleId: vehicle?.id ?? null, vehicleTitle: vehicle?.title ?? adHoc?.title.trim() ?? null, vehicleRegistration: vehicle?.registration ?? adHoc?.registration?.trim().toUpperCase() ?? null, vehiclePrice: vehicle?.price ?? adHoc?.price ?? null, vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null, type: input.type, status: staff ? 'contacted' : 'new', customerName: input.customerName.trim(), email: input.email, phone: input.phone, preferredContact: input.preferredContact, message: input.message, followUpAt: followUpAt?.toISOString() ?? null, followUpNote: followUpAt ? followUpNote?.trim() || null : null, followUpCompletedAt: null, followUpRevision: 0, partExchangeRegistration: input.partExchange?.registration ?? null, partExchangeMileage: input.partExchange?.mileage ?? null, partExchangeCondition: input.partExchange?.condition ?? null, appointmentAt: input.appointmentAt?.toISOString() ?? null, appointmentCancelledAt: null, appointmentRevision: 0, appointmentStatus: viewing ? policy.confirmationMode === 'approval' ? 'pending' : 'confirmed' : null, appointmentDurationMinutes: viewing ? policy.durationMinutes : null, appointmentBufferMinutes: viewing ? policy.bufferMinutes : null, manageToken: viewing ? token : undefined, managePath: viewing ? `/viewing/${token}` : null, calendarIcs: null, events: [], customerNotificationStatus: 'not_sent', customerNotificationError: 'Local preview — no email is sent.', customerNotificationSentAt: null, dealerNotificationStatus: 'not_sent', dealerNotificationError: 'Local preview — no email is sent.', dealerNotificationSentAt: null, reminderStatus: 'not_scheduled', reminderError: null, reminderSentAt: null, source: staff ? adHoc ? 'phone_ad_hoc' : 'phone' : 'local-preview', createdAt: now, updatedAt: now };
+    Object.assign(enquiry, exception ?? { appointmentOutsideHours: false, appointmentDoubleBooked: false, appointmentOverCapacity: false });
     enquiries.unshift(enquiry);
     return { status: 201, data: publicBooking(enquiry, settings) };
   }
@@ -237,8 +249,10 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if (!booking) throw new ReservationError('Appointment not found.', 404);
     if ((booking.appointmentRevision ?? 0) !== parsed.data.expectedRevision || !previewManagement(booking, settings).canChange) throw new ReservationError('The appointment changed. Refresh before trying again.', 409);
     if (parsed.data.action === 'reschedule') {
-      if (!parsed.data.appointmentAt || !slotIsAvailable(parsed.data.appointmentAt, policy, occupied(), new Date(), booking.id)) throw new ReservationError('That time is no longer available.', 409);
+      if (!parsed.data.appointmentAt) throw new ReservationError('Choose a future appointment time.', 400);
+      const exception = staffException(parsed.data.appointmentAt, policy, occupied(), parsed.data, booking.id);
       booking.appointmentAt = parsed.data.appointmentAt.toISOString();
+      Object.assign(booking, exception);
       booking.appointmentStatus = policy.confirmationMode === 'approval' ? 'pending' : 'confirmed';
       booking.appointmentDurationMinutes = policy.durationMinutes;
       booking.appointmentBufferMinutes = policy.bufferMinutes;
@@ -277,7 +291,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
       if (!previewManagement(booking, settings).canChange) throw new ReservationError('This booking can no longer be moved.', 400);
       if (!slotIsAvailable(parsed.data.appointmentAt, policy, occupied(), new Date(), booking.id)) throw new ReservationError('That time is no longer available. Please choose another.', 409);
       booking.appointmentRevision = (booking.appointmentRevision ?? 0) + 1;
-      booking.appointmentAt = parsed.data.appointmentAt.toISOString(); booking.appointmentStatus = policy.confirmationMode === 'approval' ? 'pending' : 'confirmed'; booking.appointmentDurationMinutes = policy.durationMinutes; booking.appointmentBufferMinutes = policy.bufferMinutes; booking.updatedAt = new Date().toISOString();
+      booking.appointmentAt = parsed.data.appointmentAt.toISOString(); booking.appointmentStatus = policy.confirmationMode === 'approval' ? 'pending' : 'confirmed'; booking.appointmentDurationMinutes = policy.durationMinutes; booking.appointmentBufferMinutes = policy.bufferMinutes; booking.appointmentOutsideHours = false; booking.appointmentDoubleBooked = false; booking.appointmentOverCapacity = false; booking.updatedAt = new Date().toISOString();
       return { status: 200, data: previewManagement(booking, settings) };
     }
   }

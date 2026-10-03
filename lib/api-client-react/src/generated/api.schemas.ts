@@ -1111,6 +1111,12 @@ export interface EnquiryEvent {
 }
 
 export interface Enquiry {
+  /** Staff arranged outside configured booking hours or a closed date. */
+  appointmentOutsideHours?: boolean;
+  /** Staff explicitly allowed an overlapping active appointment. */
+  appointmentDoubleBooked?: boolean;
+  /** Staff explicitly allowed a booking above daily capacity. */
+  appointmentOverCapacity?: boolean;
   /** @nullable */
   followUpAt?: string | null;
   /**
@@ -1373,6 +1379,10 @@ export type StaffEnquiryInputPartExchange = {
 } | null;
 
 export interface StaffEnquiryInput {
+  /** Explicit staff override for a time outside configured booking hours. */
+  allowOutsideHours?: boolean;
+  /** Explicit staff override for an overlapping appointment or full day. */
+  allowDoubleBooking?: boolean;
   /** @nullable */
   followUpAt?: string | null;
   /**
@@ -1457,6 +1467,8 @@ export const StaffAppointmentChangeAction = {
 } as const;
 
 export interface StaffAppointmentChange {
+  allowOutsideHours?: boolean;
+  allowDoubleBooking?: boolean;
   action: StaffAppointmentChangeAction;
   /** @nullable */
   appointmentAt?: string | null;

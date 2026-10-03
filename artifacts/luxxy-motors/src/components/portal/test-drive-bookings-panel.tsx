@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Chip, EmptyState, Panel, PanelHeader, formatDateTime } from './portal-ui';
+import { AppointmentExceptionLabels } from './enquiry-calendar';
 
 type Decision = 'confirm' | 'decline';
 const bookingStatus = (booking: Enquiry) => booking.appointmentCancelledAt ? 'cancelled' : booking.appointmentStatus === 'pending' ? 'pending' : 'confirmed';
@@ -57,6 +58,7 @@ function BookingRow({ booking, now, onDecision }: { booking: Enquiry; now: numbe
         <div className="min-w-0">
           <p className="font-semibold text-primary">{booking.vehicleTitle || 'Vehicle to be arranged'}</p>
           <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
+          <AppointmentExceptionLabels booking={booking} />
           <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes · {booking.reference}</p>
         </div>
         <div className="min-w-0 text-sm">

@@ -196,6 +196,9 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
       await ensureBookingAvailable(tx, dealerId(), appointmentAt, policy, enquiry.id);
       const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt,
+        appointmentOutsideHours: false,
+        appointmentDoubleBooked: false,
+        appointmentOverCapacity: false,
         appointmentRevision: sql`${enquiriesTable.appointmentRevision} + 1`,
         appointmentStatus: policy.confirmationMode === "approval" ? "pending" : "confirmed",
         appointmentDurationMinutes: policy.durationMinutes,

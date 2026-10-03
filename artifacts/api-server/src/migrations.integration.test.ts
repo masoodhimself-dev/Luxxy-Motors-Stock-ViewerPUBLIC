@@ -33,7 +33,7 @@ test("migrations build the current schema and preserve existing stock and enquir
   );
   assert.equal(
     journal.entries.at(-1).tag,
-    "0013_enquiry_follow_ups",
+    "0014_staff_booking_exceptions",
   );
   const historical = await mkdtemp(
     path.join(tmpdir(), "luxxy-migration-history-"),
@@ -81,7 +81,7 @@ test("migrations build the current schema and preserve existing stock and enquir
 
     const snapshot = JSON.parse(
       await readFile(
-        path.join(migrationsFolder, "meta/0013_snapshot.json"),
+        path.join(migrationsFolder, "meta/0014_snapshot.json"),
         "utf8",
       ),
     );
@@ -133,11 +133,10 @@ test("migrations build the current schema and preserve existing stock and enquir
       1,
       "a cancelled viewing releases its slot",
     );
-    await assert.rejects(
-      pool.query(`insert into enquiries (dealer_id, type, customer_name, email, message, appointment_at)
-      values ('migration-test', 'viewing', 'Duplicate Booking', 'duplicate@example.test', 'Must fail', '2026-10-20T12:00:00Z')`),
-      (error: any) => error.code === "23505",
-    );
+    const staffOverride = await pool.query(`insert into enquiries (dealer_id, type, customer_name, email, message, appointment_at, appointment_double_booked)
+      values ('migration-test', 'viewing', 'Staff Override', 'staff@example.test', 'Double-booked with warning', '2026-10-20T12:00:00Z', true)
+      returning appointment_double_booked`);
+    assert.equal(staffOverride.rows[0].appointment_double_booked, true);
     const beforeReplay = await pool.query(
       "select count(*)::int as count from drizzle.__drizzle_migrations",
     );
@@ -150,7 +149,7 @@ test("migrations build the current schema and preserve existing stock and enquir
       beforeReplay.rows,
       "replaying applied migrations is a no-op",
     );
-    assert.equal(afterReplay.rows[0].count, 12);
+    assert.equal(afterReplay.rows[0].count, 13);
   } finally {
     await rm(historical, { recursive: true, force: true });
   }

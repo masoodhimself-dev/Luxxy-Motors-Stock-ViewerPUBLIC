@@ -163,6 +163,38 @@ export function validBookingDateTime(appointmentAt: Date, policy = defaultBookin
   return getSlotsForDate(dateValue, policy).some((slot) => slot.startAt.getTime() === appointmentAt.getTime());
 }
 
+/** Staff may arrange a time outside public slots, but never a past or implausibly distant time. */
+export function validStaffAppointmentDateTime(value: Date, now = new Date()) {
+  if (Number.isNaN(value.getTime()) || value.getTime() <= now.getTime() || value.getTime() > now.getTime() + 366 * 86_400_000) return false;
+  const parts = datePartsInTimezone(value);
+  return parts.second === 0 && parts.minute % 15 === 0;
+}
+
+export function withinBookingHours(value: Date, policy: BookingPolicy) {
+  if (!policy.enabled) return false;
+  const date = dateStringInTimezone(value);
+  if (policy.blockedDates.includes(date)) return false;
+  const parts = datePartsInTimezone(value);
+  const hours = policy.weeklyHours.find(item => item.day === new Date(`${date}T12:00:00Z`).getUTCDay());
+  if (!hours?.enabled) return false;
+  const start = parts.hour * 60 + parts.minute;
+  return start >= timeMinutes(hours.open) && start + policy.durationMinutes <= timeMinutes(hours.close);
+}
+
+/** Capacity and overlap are separate so the diary can label the actual exception. */
+export function bookingPressure(value: Date, policy: BookingPolicy, booked: OccupiedBooking[], excludeId?: string) {
+  const active = booked.filter(item => item.id !== excludeId && item.appointmentAt);
+  const sameDay = active.filter(item => dateStringInTimezone(item.appointmentAt!) === dateStringInTimezone(value));
+  const start = value.getTime();
+  const end = start + (policy.durationMinutes + policy.bufferMinutes) * 60_000;
+  const overlapping = active.some(item => {
+    const occupiedStart = item.appointmentAt!.getTime();
+    const occupiedEnd = occupiedStart + ((item.appointmentDurationMinutes ?? 30) + (item.appointmentBufferMinutes ?? 0)) * 60_000;
+    return start < occupiedEnd && occupiedStart < end;
+  });
+  return { overlapping, overCapacity: sameDay.length >= policy.dailyCapacity };
+}
+
 export function isUniqueViolation(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   if ("code" in error && (error as { code?: string }).code === "23505") {

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  boolean,
   index,
   integer,
   pgEnum,
@@ -69,6 +70,9 @@ export const enquiriesTable = pgTable(
     appointmentDurationMinutes: integer("appointment_duration_minutes"),
     appointmentBufferMinutes: integer("appointment_buffer_minutes"),
     appointmentAt: timestamp("appointment_at", { withTimezone: true }),
+    appointmentOutsideHours: boolean("appointment_outside_hours").notNull().default(false),
+    appointmentDoubleBooked: boolean("appointment_double_booked").notNull().default(false),
+    appointmentOverCapacity: boolean("appointment_over_capacity").notNull().default(false),
     appointmentCancelledAt: timestamp("appointment_cancelled_at", {
       withTimezone: true,
     }),
@@ -128,8 +132,8 @@ export const enquiriesTable = pgTable(
     ),
     index("enquiries_dealer_created_idx").on(table.dealerId, table.createdAt),
     index("enquiries_vehicle_id_idx").on(table.vehicleId),
-    // A cancelled viewing must release its slot, so only live bookings are unique.
-    uniqueIndex("enquiries_dealer_appointment_uidx")
+    // Day advisory locks and booking checks protect ordinary bookings; staff may override.
+    index("enquiries_dealer_appointment_idx")
       .on(table.dealerId, table.appointmentAt)
       .where(sql`appointment_cancelled_at is null`),
     uniqueIndex("enquiries_dealer_reference_uidx").on(

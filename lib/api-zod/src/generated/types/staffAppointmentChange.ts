@@ -8,6 +8,8 @@
 import type { StaffAppointmentChangeAction } from './staffAppointmentChangeAction';
 
 export interface StaffAppointmentChange {
+  allowOutsideHours?: boolean;
+  allowDoubleBooking?: boolean;
   action: StaffAppointmentChangeAction;
   /** @nullable */
   appointmentAt?: Date | null;

@@ -2732,6 +2732,15 @@ components:
       type: object
       additionalProperties: false
       properties:
+        appointmentOutsideHours:
+          type: boolean
+          description: Staff arranged outside configured booking hours or a closed date.
+        appointmentDoubleBooked:
+          type: boolean
+          description: Staff explicitly allowed an overlapping active appointment.
+        appointmentOverCapacity:
+          type: boolean
+          description: Staff explicitly allowed a booking above daily capacity.
         followUpAt:
           type: [string, "null"]
           format: date-time
@@ -2944,6 +2953,12 @@ components:
       type: object
       additionalProperties: false
       properties:
+        allowOutsideHours:
+          type: boolean
+          description: Explicit staff override for a time outside configured booking hours.
+        allowDoubleBooking:
+          type: boolean
+          description: Explicit staff override for an overlapping appointment or full day.
         followUpAt:
           type: [string, "null"]
           format: date-time
@@ -3045,6 +3060,10 @@ components:
       type: object
       additionalProperties: false
       properties:
+        allowOutsideHours:
+          type: boolean
+        allowDoubleBooking:
+          type: boolean
         action:
           type: string
           enum: [reschedule, cancel]

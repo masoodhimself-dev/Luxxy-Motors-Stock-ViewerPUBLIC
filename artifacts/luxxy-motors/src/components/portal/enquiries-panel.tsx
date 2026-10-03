@@ -1,4 +1,4 @@
-import { EnquiryCalendar } from "./enquiry-calendar";
+import { AppointmentExceptionLabels, EnquiryCalendar } from "./enquiry-calendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnquiryStockDesk } from "./enquiry-stock-desk";
 import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
@@ -6,7 +6,9 @@ import {
   FollowUpEditor,
   FollowUpFields,
   followUpIso,
+  followUpLocal,
 } from "./enquiry-follow-up";
+import { bookingPressure, validStaffAppointmentDateTime, withinBookingHours } from "../../../../api-server/src/lib/booking-slots";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -233,6 +235,53 @@ function Slots({
   );
 }
 
+function StaffAppointmentPicker({ bookingId, time, onTime, manual, onManual, allowOutsideHours, onOutsideHours, allowDoubleBooking, onDoubleBooking }: {
+  bookingId?: string;
+  time: string; onTime: (value: string) => void;
+  manual: boolean; onManual: (value: boolean) => void;
+  allowOutsideHours: boolean; onOutsideHours: (value: boolean) => void;
+  allowDoubleBooking: boolean; onDoubleBooking: (value: boolean) => void;
+}) {
+  const [local, setLocal] = useState(time ? followUpLocal(time) : "");
+  const { settings } = useDealerSettings();
+  const policy = settings.testDriveBooking ?? defaultBookingSettings;
+  const query = useGetEnquiries(undefined, { query: { queryKey: getGetEnquiriesQueryKey(), refetchInterval: 30_000 } });
+  const appointment = time ? new Date(time) : null;
+  const occupied = (query.data ?? []).filter(item => item.appointmentAt && !item.appointmentCancelledAt).map(item => ({ id: item.id, appointmentAt: new Date(item.appointmentAt!), appointmentDurationMinutes: item.appointmentDurationMinutes, appointmentBufferMinutes: item.appointmentBufferMinutes }));
+  const outside = appointment && validStaffAppointmentDateTime(appointment) && !withinBookingHours(appointment, policy);
+  const pressure = appointment && validStaffAppointmentDateTime(appointment) ? bookingPressure(appointment, policy, occupied, bookingId) : null;
+  return <div className="space-y-3 border-t border-border pt-4">
+    <div className="flex flex-wrap gap-2">
+      <Button type="button" size="sm" variant={!manual ? "default" : "outline"} aria-pressed={!manual} onClick={() => { setLocal(""); onManual(false); onTime(""); onOutsideHours(false); onDoubleBooking(false); }}>Available slots</Button>
+      <Button type="button" size="sm" variant={manual ? "default" : "outline"} aria-pressed={manual} onClick={() => { setLocal(""); onManual(true); onTime(""); }}>Choose a specific UK time</Button>
+    </div>
+    {manual ? <>
+      <label className={field}>Staff appointment date and time (UK)
+        <Input type="datetime-local" step={900} value={local} onChange={event => { setLocal(event.target.value); onTime(followUpIso(event.target.value) ?? ""); }} />
+      </label>
+      {local && !time && <p role="alert" className="text-sm text-destructive">Choose a valid UK date and time in 15-minute steps.</p>}
+      <fieldset className="space-y-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+        <legend className="px-1 font-semibold">Staff booking exceptions</legend>
+        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={allowOutsideHours} onChange={event => onOutsideHours(event.target.checked)} />Allow outside normal booking hours or a closed date</label>
+        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={allowDoubleBooking} onChange={event => onDoubleBooking(event.target.checked)} />Allow overlapping appointments or a full day</label>
+        {outside && <p>Selected time is outside normal booking hours. The first exception must be checked.</p>}
+        {pressure?.overlapping && <p>Another appointment overlaps this time. This will be marked as double booked.</p>}
+        {pressure?.overCapacity && <p>Daily capacity has been reached. This will be marked as over capacity.</p>}
+        {query.isError && <p>Other bookings could not be checked here. The server will check again before saving.</p>}
+      </fieldset>
+    </> : <Slots bookingId={bookingId} value={time} onChange={onTime} />}
+  </div>;
+}
+
+function StaffExceptionReview({ time, outside, double, onConfirm, onClose }: { time: string; outside: boolean; double: boolean; onConfirm: () => void; onClose: () => void }) {
+  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent><DialogHeader><DialogTitle>Review staff booking exception</DialogTitle><DialogDescription>{appointmentLabel(time)}</DialogDescription></DialogHeader>
+    <p className="text-sm">This appointment will be saved even if the selected time is outside the normal diary or another booking is already there. Check the customer, car and time before continuing.</p>
+    <ul className="list-inside list-disc text-sm">{outside && <li>Outside normal booking hours or a closed date</li>}{double && <li>Possible double booking or exceeded daily capacity</li>}</ul>
+    <p className="text-sm text-muted-foreground">The diary will label the actual exception. If an email address is provided, the usual booking notification may be sent.</p>
+    <div className="flex flex-wrap gap-2"><Button type="button" onClick={onConfirm}>Confirm staff exception</Button><Button type="button" variant="outline" onClick={onClose}>Go back</Button></div>
+  </DialogContent></Dialog>;
+}
+
 function CarSummary({ car }: { car: Car }) {
   return (
     <div className="flex items-center gap-3">
@@ -300,10 +349,14 @@ function NewCall({
   const [message, setMessage] = useState("");
   const [booking, setBooking] = useState(Boolean(initial));
   const [time, setTime] = useState("");
+  const [manualTime, setManualTime] = useState(false);
+  const [allowOutsideHours, setAllowOutsideHours] = useState(false);
+  const [allowDoubleBooking, setAllowDoubleBooking] = useState(false);
+  const [reviewException, setReviewException] = useState(false);
   const [localError, setLocalError] = useState("");
   useEffect(() => {
     if (!selection) return;
-    setVehicleMode("stock"); setCarId(selection.id); setBooking(selection.booking); setTime("");
+    setVehicleMode("stock"); setCarId(selection.id); setBooking(selection.booking); setTime(""); setManualTime(false); setAllowOutsideHours(false); setAllowDoubleBooking(false);
   }, [selection]);
   const mutation = useCreateStaffEnquiry();
   const submitting = useRef(false);
@@ -326,8 +379,8 @@ function NewCall({
       search,
     ),
   );
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  async function submit(event?: FormEvent, confirmed = false) {
+    event?.preventDefault();
     if (submitting.current) return;
     setLocalError("");
     if (!/^\+?[0-9]{7,15}$/.test(phone.replace(/[\s().\-/]/g, ""))) {
@@ -336,6 +389,14 @@ function NewCall({
     }
     if (booking && (!car || !available(car) || !time)) {
       setLocalError("Select an available car and appointment time.");
+      return;
+    }
+    if (booking && !validStaffAppointmentDateTime(new Date(time))) {
+      setLocalError("Choose a future UK appointment time in 15-minute steps.");
+      return;
+    }
+    if (booking && manualTime && (allowOutsideHours || allowDoubleBooking) && !confirmed) {
+      setReviewException(true);
       return;
     }
     const followUpAt = followUp ? followUpIso(followUpTime) : null;
@@ -376,6 +437,8 @@ function NewCall({
               ? "Test drive arranged by phone with the showroom."
               : "Customer called the showroom."),
           appointmentAt: booking ? time : null,
+          allowOutsideHours: booking && manualTime && allowOutsideHours,
+          allowDoubleBooking: booking && manualTime && allowDoubleBooking,
         },
       });
       onSaved(result);
@@ -508,6 +571,8 @@ function NewCall({
                   onClick={() => {
                     setCarId(entry.id);
                     setTime("");
+                    setAllowOutsideHours(false);
+                    setAllowDoubleBooking(false);
                   }}
                   className={`block w-full p-3 text-left transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 ${entry.id === carId ? "bg-primary/5" : "bg-card"}`}
                 >
@@ -623,7 +688,7 @@ function NewCall({
         )}
         {booking &&
           (car && available(car) ? (
-            <Slots value={time} onChange={setTime} />
+            <StaffAppointmentPicker time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Choose an available car first.
@@ -656,7 +721,7 @@ function NewCall({
           {mutation.isPending
             ? "Saving…"
             : booking
-              ? "Save test-drive booking"
+              ? manualTime && (allowOutsideHours || allowDoubleBooking) ? "Review staff exception" : "Save test-drive booking"
               : "Save phone enquiry"}
         </Button>
       </fieldset>
@@ -666,6 +731,7 @@ function NewCall({
           onClose={() => setInformation(null)}
         />
       )}
+      {reviewException && time && <StaffExceptionReview time={time} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void submit(undefined, true); }} />}
     </form>
   );
 }
@@ -681,10 +747,16 @@ function AppointmentEditor({
 }) {
   const [time, setTime] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [manualTime, setManualTime] = useState(false);
+  const [allowOutsideHours, setAllowOutsideHours] = useState(false);
+  const [allowDoubleBooking, setAllowDoubleBooking] = useState(false);
+  const [reviewException, setReviewException] = useState(false);
   const mutation = useChangeStaffAppointment();
   const { settings } = useDealerSettings();
-  async function save() {
+  async function save(confirmed = false) {
     if (mutation.isPending) return;
+    if (!cancelling && !time) return;
+    if (!cancelling && (allowOutsideHours || allowDoubleBooking) && !confirmed) { setReviewException(true); return; }
     try {
       onSaved(
         await mutation.mutateAsync({
@@ -693,6 +765,8 @@ function AppointmentEditor({
             action: cancelling ? "cancel" : "reschedule",
             appointmentAt: cancelling ? null : time,
             expectedRevision: booking.appointmentRevision ?? 0,
+            ...(allowOutsideHours && !cancelling ? { allowOutsideHours: true } : {}),
+            ...(allowDoubleBooking && !cancelling ? { allowDoubleBooking: true } : {}),
           },
         }),
       );
@@ -729,7 +803,7 @@ function AppointmentEditor({
             remain in the call history.
           </p>
         ) : (
-          <Slots bookingId={booking.id} value={time} onChange={setTime} />
+          <StaffAppointmentPicker bookingId={booking.id} time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
         )}
         {!cancelling && time && (
           <p className="text-sm font-medium">
@@ -749,13 +823,13 @@ function AppointmentEditor({
           <Button
             disabled={mutation.isPending || (!cancelling && !time)}
             variant={cancelling ? "destructive" : "default"}
-            onClick={save}
+            onClick={() => void save()}
           >
             {mutation.isPending
               ? "Saving…"
               : cancelling
                 ? "Confirm cancellation"
-                : "Save new appointment"}
+                : allowOutsideHours || allowDoubleBooking ? "Review staff exception" : "Save new appointment"}
           </Button>
           <Button
             variant="outline"
@@ -774,6 +848,7 @@ function AppointmentEditor({
             Cancel appointment instead
           </Button>
         )}
+        {reviewException && time && <StaffExceptionReview time={time} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void save(true); }} />}
       </DialogContent>
     </Dialog>
   );
@@ -998,9 +1073,7 @@ export function EnquiriesPanel() {
                           </div>
                         )}
                         {entry.appointmentAt && (
-                          <p className="mt-2 text-sm">
-                            {appointmentLabel(entry.appointmentAt)}
-                          </p>
+                          <div className="mt-2 space-y-1 text-sm"><p>{appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} /></div>
                         )}
                         <div className="mt-2">
                           <Chip>{status(entry)}</Chip>

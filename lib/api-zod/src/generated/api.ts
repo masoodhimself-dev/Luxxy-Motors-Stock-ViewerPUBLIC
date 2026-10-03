@@ -651,6 +651,8 @@ export const createStaffEnquiryBodyVisitorIdMax = 64;
 
 
 export const CreateStaffEnquiryBody = zod.object({
+  "allowOutsideHours": zod.boolean().optional().describe('Explicit staff override for a time outside configured booking hours.'),
+  "allowDoubleBooking": zod.boolean().optional().describe('Explicit staff override for an overlapping appointment or full day.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(createStaffEnquiryBodyFollowUpNoteMax).nullish(),
   "adHocVehicle": zod.object({
@@ -694,6 +696,9 @@ export const createStaffEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateStaffEnquiryResponse = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(createStaffEnquiryResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -790,6 +795,9 @@ export const changeStaffFollowUpResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffFollowUpResponse = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(changeStaffFollowUpResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -858,6 +866,8 @@ export const changeStaffAppointmentBodyExpectedRevisionMultipleOf = 1;
 
 
 export const ChangeStaffAppointmentBody = zod.object({
+  "allowOutsideHours": zod.boolean().optional(),
+  "allowDoubleBooking": zod.boolean().optional(),
   "action": zod.enum(['reschedule', 'cancel']),
   "appointmentAt": zod.coerce.date().nullish(),
   "expectedRevision": zod.number().min(changeStaffAppointmentBodyExpectedRevisionMin).multipleOf(changeStaffAppointmentBodyExpectedRevisionMultipleOf)
@@ -883,6 +893,9 @@ export const changeStaffAppointmentResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffAppointmentResponse = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(changeStaffAppointmentResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -966,6 +979,9 @@ export const getEnquiriesResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetEnquiriesResponseItem = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(getEnquiriesResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -1083,6 +1099,9 @@ export const createEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateEnquiryResponse = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(createEnquiryResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -1226,6 +1245,9 @@ export const updateEnquiryStatusResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const UpdateEnquiryStatusResponse = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(updateEnquiryStatusResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -4762,6 +4784,9 @@ export const getTestDriveBookingsResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetTestDriveBookingsResponseItem = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(getTestDriveBookingsResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),
@@ -4858,6 +4883,9 @@ export const decideTestDriveBookingResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const DecideTestDriveBookingResponse = zod.object({
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
   "followUpAt": zod.coerce.date().nullish(),
   "followUpNote": zod.string().max(decideTestDriveBookingResponseFollowUpNoteMax).nullish(),
   "followUpCompletedAt": zod.coerce.date().nullish(),

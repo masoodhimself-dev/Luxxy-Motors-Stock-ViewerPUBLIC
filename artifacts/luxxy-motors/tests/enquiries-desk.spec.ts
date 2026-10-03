@@ -168,6 +168,28 @@ for (const width of [390, 820, 1440]) {
     });
   });
 }
+test("staff must review an out-of-hours reschedule before it is sent", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setup(page);
+  let payload: any;
+  await page.route("**/api/staff/enquiries/enquiry-one/appointment", route => {
+    payload = route.request().postDataJSON();
+    return route.fulfill({ json: { ...existing, appointmentAt: payload.appointmentAt, appointmentOutsideHours: true, appointmentRevision: 1 } });
+  });
+  await page.getByRole("tab", { name: "Find enquiry or appointment", exact: true }).click();
+  await page.getByLabel("Find a customer or car").fill("07700900123");
+  await page.getByRole("button", { name: "Change appointment", exact: true }).click();
+  await page.getByRole("button", { name: "Choose a specific UK time" }).click();
+  await page.getByLabel("Staff appointment date and time (UK)").fill("2027-01-06T20:00");
+  await page.getByLabel("Allow outside normal booking hours or a closed date").check();
+  await page.getByRole("button", { name: "Review staff exception" }).click();
+  await expect(page.getByRole("dialog", { name: "Review staff booking exception" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(payload).toBeUndefined();
+  await page.getByRole("button", { name: "Confirm staff exception" }).click();
+  await expect.poll(() => payload).toMatchObject({ action: "reschedule", allowOutsideHours: true, expectedRevision: 0 });
+});
+
 test("reserved stock cannot be booked and failed requests retain caller details", async ({
   page,
 }) => {

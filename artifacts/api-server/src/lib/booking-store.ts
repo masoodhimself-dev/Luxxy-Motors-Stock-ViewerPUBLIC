@@ -1,6 +1,6 @@
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db, dealerSettingsTable, enquiriesTable } from "@workspace/db";
-import { addDays, bookingPolicyFromConfig, dateStringInTimezone, localDateTimeToUtc, slotIsAvailable, type BookingPolicy } from "./booking-slots";
+import { addDays, bookingPolicyFromConfig, bookingPressure, dateStringInTimezone, localDateTimeToUtc, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy } from "./booking-slots";
 
 export type BookingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export class BookingConflict extends Error {}
@@ -24,4 +24,13 @@ export async function lockBookingDays(tx: BookingTransaction, dealerId: string, 
 export async function ensureBookingAvailable(tx: BookingTransaction, dealerId: string, appointmentAt: Date, policy: BookingPolicy, excludeId?: string) {
   const bookings = await bookingsForDate(dealerId, dateStringInTimezone(appointmentAt), tx);
   if (!slotIsAvailable(appointmentAt, policy, bookings, new Date(), excludeId)) throw new BookingConflict("That test-drive time is no longer available. Please choose another.");
+}
+
+export async function checkStaffAppointment(tx: BookingTransaction, dealerId: string, appointmentAt: Date, policy: BookingPolicy, options: { allowOutsideHours?: boolean; allowDoubleBooking?: boolean }, excludeId?: string) {
+  if (!validStaffAppointmentDateTime(appointmentAt)) throw new BookingConflict("Choose a future UK time in 15-minute steps, within the next year.");
+  const outsideHours = !withinBookingHours(appointmentAt, policy);
+  const pressure = bookingPressure(appointmentAt, policy, await bookingsForDate(dealerId, dateStringInTimezone(appointmentAt), tx), excludeId);
+  if (outsideHours && !options.allowOutsideHours) throw new BookingConflict("This is outside normal booking hours. Review and confirm the staff exception.");
+  if ((pressure.overlapping || pressure.overCapacity) && !options.allowDoubleBooking) throw new BookingConflict("This overlaps another appointment or exceeds daily capacity. Review and confirm the staff exception.");
+  return { appointmentOutsideHours: outsideHours, appointmentDoubleBooked: pressure.overlapping, appointmentOverCapacity: pressure.overCapacity };
 }

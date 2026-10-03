@@ -38,6 +38,7 @@ import {
   isUniqueViolation,
   isValidDateString,
   validBookingDateTime,
+  validStaffAppointmentDateTime,
   slotIsAvailable,
   type BookingPolicy,
 } from "../lib/booking-slots";
@@ -55,7 +56,7 @@ import {
   viewingToken,
   viewingTokenHash,
 } from "../lib/enquiry-links";
-import { BookingConflict, bookingsForDate, ensureBookingAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
+import { BookingConflict, bookingsForDate, checkStaffAppointment, ensureBookingAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
 import { openLeadForEnquiry } from "../lib/leads";
 
 const router: IRouter = Router();
@@ -122,15 +123,18 @@ function enquiryTypeLabel(type: string) {
 async function insertEnquiryWithReference(
   values: Omit<typeof enquiriesTable.$inferInsert, "reference">,
   policy?: BookingPolicy,
+  staffOptions?: { allowOutsideHours?: boolean; allowDoubleBooking?: boolean },
 ): Promise<Enquiry> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const reference = generateEnquiryReference();
     try {
       return await db.transaction(async (tx) => {
+        let exception = { appointmentOutsideHours: false, appointmentDoubleBooked: false, appointmentOverCapacity: false };
         if (values.appointmentAt && policy) {
           await lockBookingDays(tx, values.dealerId, [values.appointmentAt]);
-          await ensureBookingAvailable(tx, values.dealerId, values.appointmentAt, policy);
+          if (staffOptions) exception = await checkStaffAppointment(tx, values.dealerId, values.appointmentAt, policy, staffOptions);
+          else await ensureBookingAvailable(tx, values.dealerId, values.appointmentAt, policy);
           if (values.source === "phone" && values.vehicleId) {
             const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, values.vehicleId), eq(vehiclesTable.dealerId, values.dealerId))).for("update");
             if (!vehicle || !visibleVehicle(vehicle) || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for a test drive.");
@@ -138,7 +142,7 @@ async function insertEnquiryWithReference(
         }
         const [created] = await tx
           .insert(enquiriesTable)
-          .values({ ...values, reference })
+          .values({ ...values, ...exception, reference })
           .returning();
         // The enquiry and its lead timeline must either both persist or roll back.
         await openLeadForEnquiry(tx, created);
@@ -259,6 +263,8 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
   const adHoc = staff && "adHocVehicle" in input ? input.adHocVehicle : null;
   const followUpAt = staff && "followUpAt" in input ? input.followUpAt : null;
   const followUpNote = staff && "followUpNote" in input ? input.followUpNote : null;
+  const staffOptions = staff ? { allowOutsideHours: "allowOutsideHours" in input ? input.allowOutsideHours : false, allowDoubleBooking: "allowDoubleBooking" in input ? input.allowDoubleBooking : false } : undefined;
+  if (staffOptions && input.type !== "viewing" && (staffOptions.allowOutsideHours || staffOptions.allowDoubleBooking)) { res.status(400).json(errorResponse("Appointment exceptions apply only to a test drive.")); return; }
   if (followUpAt && followUpAt.getTime() <= Date.now()) { res.status(400).json(errorResponse("Choose a future follow-up time.")); return; }
 
   if (adHoc && (input.vehicleId || input.type === "viewing" || adHoc.title.trim().length < 2)) {
@@ -319,7 +325,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
 
   try {
     const policy = await getBookingPolicy(settings().dealerId);
-    if (input.appointmentAt && !validBookingDateTime(input.appointmentAt, policy)) {
+    if (input.appointmentAt && !(staff ? validStaffAppointmentDateTime(input.appointmentAt) : validBookingDateTime(input.appointmentAt, policy))) {
       res.status(400).json(errorResponse("That test-drive time is no longer available. Please choose another."));
       return;
     }
@@ -383,7 +389,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       reminderStatus: Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
       source: staff ? adHoc ? "phone_ad_hoc" : "phone" : "website",
       status: staff ? "contacted" : "new",
-    }, policy);
+    }, policy, staffOptions);
 
     // A booked viewing gets a capability link so the customer can move or drop
     // it themselves; the token is derived from the id, so only its hash is kept.
@@ -405,7 +411,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       summary: isViewing
         ? `${created.appointmentStatus === "pending" ? "Test drive requested" : "Test drive booked"} for ${formatAppointmentLabel(created.appointmentAt)}`
         : `${enquiryTypeLabel(created.type)} enquiry received`,
-      detail: { reference: created.reference, preferredContact },
+      detail: { reference: created.reference, preferredContact, appointmentOutsideHours: created.appointmentOutsideHours, appointmentDoubleBooked: created.appointmentDoubleBooked, appointmentOverCapacity: created.appointmentOverCapacity },
       visitorId: created.visitorId,
     });
 
@@ -499,7 +505,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
   const input = parsed.data;
   try {
     const policy = await getBookingPolicy(settings().dealerId);
-    if (input.action === "reschedule" && (!input.appointmentAt || !validBookingDateTime(input.appointmentAt, policy))) {
+    if (input.action === "reschedule" && (!input.appointmentAt || !validStaffAppointmentDateTime(input.appointmentAt))) {
       res.status(400).json(errorResponse("Choose an available appointment time.")); return;
     }
     const updated = await db.transaction(async tx => {
@@ -509,10 +515,13 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
       await lockBookingDays(tx, settings().dealerId, [before.appointmentAt, ...(input.appointmentAt ? [input.appointmentAt] : [])]);
       const [current] = await tx.select().from(enquiriesTable).where(eq(enquiriesTable.id, id)).for("update");
       if (!current || current.appointmentRevision !== input.expectedRevision || current.appointmentCancelledAt || !current.appointmentAt || current.appointmentAt.getTime() <= Date.now()) throw new BookingConflict("This appointment changed. Refresh and try again.");
-      if (input.action === "reschedule") await ensureBookingAvailable(tx, settings().dealerId, input.appointmentAt!, policy, id);
+      const exception = input.action === "reschedule" ? await checkStaffAppointment(tx, settings().dealerId, input.appointmentAt!, policy, input, id) : null;
       const cancelled = input.action === "cancel";
       const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt: cancelled ? current.appointmentAt : input.appointmentAt!,
+        appointmentOutsideHours: cancelled ? current.appointmentOutsideHours : exception!.appointmentOutsideHours,
+        appointmentDoubleBooked: cancelled ? current.appointmentDoubleBooked : exception!.appointmentDoubleBooked,
+        appointmentOverCapacity: cancelled ? current.appointmentOverCapacity : exception!.appointmentOverCapacity,
         appointmentCancelledAt: cancelled ? new Date() : null,
         appointmentRevision: current.appointmentRevision + 1,
         appointmentStatus: cancelled ? current.appointmentStatus : policy.confirmationMode === "approval" ? "pending" : "confirmed",
@@ -527,7 +536,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
       return changed;
     });
     if (!updated) { res.status(404).json(errorResponse("Appointment not found.")); return; }
-    await recordEnquiryEvent({ dealerId: updated.dealerId, enquiryId: id, vehicleId: updated.vehicleId, vehicleTitle: updated.vehicleTitle, vehicleUrl: updated.vehicleUrl, kind: input.action === "cancel" ? "viewing_cancelled" : "viewing_rescheduled", actor: "dealer", summary: input.action === "cancel" ? "Staff cancelled the appointment" : `Staff moved the appointment to ${formatAppointmentLabel(updated.appointmentAt)}`, detail: { expectedRevision: input.expectedRevision }, visitorId: null });
+    await recordEnquiryEvent({ dealerId: updated.dealerId, enquiryId: id, vehicleId: updated.vehicleId, vehicleTitle: updated.vehicleTitle, vehicleUrl: updated.vehicleUrl, kind: input.action === "cancel" ? "viewing_cancelled" : "viewing_rescheduled", actor: "dealer", summary: input.action === "cancel" ? "Staff cancelled the appointment" : `Staff moved the appointment to ${formatAppointmentLabel(updated.appointmentAt)}`, detail: { expectedRevision: input.expectedRevision, appointmentOutsideHours: updated.appointmentOutsideHours, appointmentDoubleBooked: updated.appointmentDoubleBooked, appointmentOverCapacity: updated.appointmentOverCapacity }, visitorId: null });
     let notified = updated;
     try { notified = await deliverEnquiryNotifications(updated, req.log); } catch (error) { req.log.error({ err: error }, "Staff appointment notification failed"); }
     res.json(toEnquiryResponse(notified));

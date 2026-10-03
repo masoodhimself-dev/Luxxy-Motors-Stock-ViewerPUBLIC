@@ -11,6 +11,12 @@ import type { EnquiryStatus } from './enquiryStatus';
 import type { EnquiryType } from './enquiryType';
 
 export interface Enquiry {
+  /** Staff arranged outside configured booking hours or a closed date. */
+  appointmentOutsideHours?: boolean;
+  /** Staff explicitly allowed an overlapping active appointment. */
+  appointmentDoubleBooked?: boolean;
+  /** Staff explicitly allowed a booking above daily capacity. */
+  appointmentOverCapacity?: boolean;
   /** @nullable */
   followUpAt?: Date | null;
   /**

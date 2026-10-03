@@ -60,13 +60,37 @@ test('staff phone-only enquiries and appointments preserve capacity and reject s
   const path = `/api/staff/enquiries/${booked.data.id}/appointment`;
   assert.equal((await call(state, settings, 'GET', `/api/enquiries/availability?date=${day}`)).data.slots[1].available, false);
   assert.equal((await call(state, settings, 'GET', `/api/staff/enquiries/${booked.data.id}/availability?date=${day}`)).data.slots[1].available, true);
-  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, type: 'viewing', appointmentAt: slots[0].startAt }), /no longer available/);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, type: 'viewing', appointmentAt: slots[0].startAt }), /overlaps|capacity/);
   const moved = await call(state, settings, 'POST', path, { action: 'reschedule', appointmentAt: slots[1].startAt, expectedRevision: 0 });
   assert.equal(moved.data.appointmentAt, slots[1].startAt); assert.equal(moved.data.appointmentRevision, 1);
   await assert.rejects(call(state, settings, 'POST', path, { action: 'cancel', expectedRevision: 0 }), /changed/);
   const cancelled = await call(state, settings, 'POST', path, { action: 'cancel', expectedRevision: 1 });
   assert.ok(cancelled.data.appointmentCancelledAt); assert.equal(cancelled.data.appointmentRevision, 2);
   assert.equal((await call(state, settings, 'GET', `/api/enquiries/availability?date=${day}`)).data.slots[1].available, true);
+});
+
+test('staff exceptions require explicit overrides and remain visible; customer booking stays protected', async () => {
+  const state: BookingPreviewState = { reservations: [] };
+  const config = policy({ dailyCapacity: 2 });
+  const settings = { ...previewSettings, testDriveBooking: config };
+  let day = addDays(dateStringInTimezone(new Date()), 2);
+  while (!getSlotsForDate(day, config).length) day = addDays(day, 1);
+  const first = getSlotsForDate(day, config)[0].startAt.toISOString();
+  const afterHours = new Date(first); afterHours.setUTCHours(21, 0, 0, 0);
+  const payload = { vehicleId: previewStock.cars[0].id, type: 'viewing', customerName: 'Staff Test', email: null, phone: '07700900123', preferredContact: 'phone', message: 'Staff booking test', appointmentAt: first };
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, appointmentAt: afterHours.toISOString() }), /outside normal booking hours/);
+  const outside = await call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, appointmentAt: afterHours.toISOString(), allowOutsideHours: true });
+  assert.equal(outside.data.appointmentOutsideHours, true);
+  assert.equal(outside.data.appointmentDoubleBooked, false);
+  const regular = await call(state, settings, 'POST', '/api/staff/enquiries', payload);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', payload), /overlaps|capacity/);
+  const doubled = await call(state, settings, 'POST', '/api/staff/enquiries', { ...payload, allowDoubleBooking: true });
+  assert.equal(doubled.data.appointmentDoubleBooked, true);
+  assert.equal(doubled.data.appointmentOverCapacity, true);
+  await assert.rejects(call(state, settings, 'POST', '/api/enquiries', { ...payload, email: 'customer@example.test', allowDoubleBooking: true }), /no longer available|Invalid/);
+  const moved = await call(state, settings, 'POST', `/api/staff/enquiries/${regular.data.id}/appointment`, { action: 'reschedule', appointmentAt: afterHours.toISOString(), expectedRevision: 0, allowOutsideHours: true, allowDoubleBooking: true });
+  assert.equal(moved.data.appointmentOutsideHours, true);
+  assert.equal(moved.data.appointmentDoubleBooked, true);
 });
 
 test('ad hoc phone enquiry persists vehicle details and follow-up lifecycle without booking or creating stock', async () => {

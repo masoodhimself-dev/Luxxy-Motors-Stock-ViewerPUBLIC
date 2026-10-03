@@ -11,6 +11,10 @@ import type { StaffEnquiryInputPreferredContact } from './staffEnquiryInputPrefe
 import type { StaffEnquiryInputType } from './staffEnquiryInputType';
 
 export interface StaffEnquiryInput {
+  /** Explicit staff override for a time outside configured booking hours. */
+  allowOutsideHours?: boolean;
+  /** Explicit staff override for an overlapping appointment or full day. */
+  allowDoubleBooking?: boolean;
   /** @nullable */
   followUpAt?: Date | null;
   /**
