@@ -1062,3 +1062,9 @@ Added Calendar to the enquiry workspace, using the existing staff-protected enqu
 Upcoming active bookings reuse the existing revision-protected change/cancel dialog. Vehicle information opens in place; removed stock displays an explanatory notice. Pending approval remains managed by the existing Test drives workflow. Existing 30-second enquiry refresh also updates the calendar. No backend, storage or booking-rule changes.
 
 Validation: 22 enquiry browser tests passed across phone/tablet/desktop, including mixed-source bookings, cancellation visibility, enquiry exclusion, month navigation and opening the appointment editor. Workspace typechecking/build passed with existing bundle warnings. Reviewed [phone](screenshots/enquiry-calendar-2026-10-02/phone.png) and [desktop](screenshots/enquiry-calendar-2026-10-02/desktop.png) captures. Tests use mocked records, not real customer appointments. No migration, deployment or merge.
+
+## Imported vehicle costs and history — 3 October 2026
+
+Made structured `sourceExtras` visible as customer-friendly vehicle facts. Customer vehicle pages now show only supplied running-cost figures (CO₂, insurance group, annual tax and available urban/extra-urban/average MPG), ownership and service-record facts, and supplied vehicle comparison highlights. The card and home/stock listings show concise average-MPG and annual-tax facts when present. Saved-car expansions include the full facts. The staff All cars rows show the concise cost summary and the staff vehicle-information dialog includes the detailed costs/history/highlights. Missing values are omitted. “Contact seller” key metadata is phrased as a request to confirm with the team; comparative claims retain their listing context. No schema or API changes.
+
+Workspace typechecking passed. No tests were added or run. Existing browser preview picks up the change through Vite. No deployment or migration.

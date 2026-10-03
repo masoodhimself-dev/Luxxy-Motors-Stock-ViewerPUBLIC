@@ -11,6 +11,8 @@ import { EnquiryForm } from '@/components/enquiry-form';
 import { VehiclePrint } from '@/components/vehicle-print';
 import { rememberVehicle, vehicleAvailability } from '@/lib/customer-convenience';
 import { VehicleVisit } from '@/components/vehicle-buying-guide';
+import { VehicleHistorySummary, VehicleListingHighlights, VehicleRunningCosts } from '@/components/vehicle-running-costs';
+import { vehicleHistoryFacts, vehicleRunningCosts as getVehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 import { SiWhatsapp } from 'react-icons/si';
 import { ReserveCar } from '@/components/reserve-car';
 import { getSimilarCars } from "@/lib/similar-cars";
@@ -147,6 +149,8 @@ export default function CarDetail() {
     dealerConfig,
   );
   const vehicleLabel = vehicleDisplayTitle(car);
+  const vehicleRunningCostFacts = getVehicleRunningCosts(car);
+  const vehicleHistoryRecordFacts = vehicleHistoryFacts(car);
 
   const overviewSpecs = [
     { label: 'Engine', value: car.engineSize || (car.engineCC ? `${(car.engineCC / 1000).toFixed(1)}L` : 'Ask us') },
@@ -306,6 +310,9 @@ export default function CarDetail() {
                 ))}
               </dl>
             </section>
+            <VehicleRunningCosts car={car} />
+            <VehicleHistorySummary car={car} />
+            <VehicleListingHighlights car={car} />
             <section
               className="mt-8 border-t border-border pt-7"
               aria-labelledby="buyer-information-heading"
@@ -317,7 +324,7 @@ export default function CarDetail() {
                 Available history and handover information. Ask us about anything else you need to know.
               </p>
               <dl className="mt-4 divide-y divide-border">
-                {buyerInformation(car).filter(item => item.value).map((item) => (
+                {buyerInformation(car).filter(item => item.value && !['Service history', 'Keys', 'Previous keepers'].includes(item.label)).map((item) => (
                   <div
                     key={item.label}
                     className="grid grid-cols-[.8fr_1.2fr] gap-5 py-3 text-sm"
@@ -375,9 +382,11 @@ export default function CarDetail() {
                 {car.variant || car.trim}
               </p>
             )}
-            {(description || features.length > 0) && <nav aria-label="Vehicle information" className="mt-3 flex flex-wrap gap-x-5">
+            {(description || features.length > 0 || vehicleRunningCostFacts.length > 0 || vehicleHistoryRecordFacts.length > 0) && <nav aria-label="Vehicle information" className="mt-3 flex flex-wrap gap-x-5">
               {description && <a className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4" href="#vehicle-description-heading">Description</a>}
               {features.length > 0 && <a className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4" href="#features-heading">Features & equipment</a>}
+              {vehicleRunningCostFacts.length > 0 && <a className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4" href="#vehicle-running-costs-heading">Running costs</a>}
+              {vehicleHistoryRecordFacts.length > 0 && <a className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4" href="#vehicle-records-heading">Service & ownership</a>}
             </nav>}
             <div className="mt-3 border-b border-border pb-3 lg:mt-5 lg:pb-5">
               <p className="luxxy-price text-[2rem]">

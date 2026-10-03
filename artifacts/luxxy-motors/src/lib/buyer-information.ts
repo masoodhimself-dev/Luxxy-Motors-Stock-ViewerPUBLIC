@@ -1,5 +1,6 @@
 import type { Car } from "./stock-context";
 import { insuranceHistoryLabel } from "./vehicle-history";
+import { vehicleHistoryFacts } from "./vehicle-extra-facts";
 /** Display supplied stock fields only. Missing records never imply a clean history or included cover. */
 export function buyerInformation(car: Car) {
   const sources = [car, car.specifications, car.sourceExtras];
@@ -30,10 +31,12 @@ export function buyerInformation(car: Car) {
     }
   }
   const history = text(["writeOffCategory"]);
+  const records = vehicleHistoryFacts(car);
   return [
-    { label: "Service history", value: text(["serviceHistory"]) },
+    { label: "Previous keepers", value: records.find(item => item.label === "Previous keepers")?.value ?? null },
+    { label: "Service history", value: records.find(item => item.label === "Service history")?.value ?? text(["serviceHistory"]) },
     { label: "MOT expiry", value: text(["motExpiry", "motExpiryDate"]) },
-    { label: "Keys", value: keyCount || text(["keys"]) },
+    { label: "Keys", value: keyCount || records.find(item => item.label === "Keys supplied")?.value || text(["keys"]) },
     { label: "Insurance history", value: history ? insuranceHistoryLabel(history) : null },
     { label: "Condition", value: text(["conditionNotes", "condition"]) },
     { label: "Warranty", value: text(["warrantyDetails", "warranty"]) },

@@ -4,6 +4,7 @@ import { vehicleContent } from "@/lib/vehicle-content";
 import { buyerInformation } from "@/lib/buyer-information";
 import { vehicleDisplayTitle, formatPrice } from "@/lib/utils";
 import { Gallery } from "@/components/gallery";
+import { vehicleHistoryFacts, vehicleListingHighlights, vehicleRunningCosts } from "@/lib/vehicle-extra-facts";
 import {
   Dialog,
   DialogContent,
@@ -104,6 +105,9 @@ export function EnquiryVehicleInformation({
     ["Advert reference", car.advertId],
   ];
   const extra = car.sourceExtras ?? {};
+  const runningCosts = vehicleRunningCosts(car);
+  const recordFacts = vehicleHistoryFacts(car);
+  const listingHighlights = vehicleListingHighlights(car);
   return (
     <Dialog
       open
@@ -155,7 +159,7 @@ export function EnquiryVehicleInformation({
             History, condition & preparation
           </h3>
           <dl className="grid gap-4 text-sm sm:grid-cols-2">
-            {buyerInformation(car).map((item) => (
+            {buyerInformation(car).filter(item => !["Previous keepers", "Service history", "Keys"].includes(item.label)).map((item) => (
               <div key={item.label}>
                 <dt className="font-medium">{item.label}</dt>
                 <dd className="mt-1 text-muted-foreground">
@@ -190,16 +194,27 @@ export function EnquiryVehicleInformation({
             </ul>
           </section>
         )}
+        {runningCosts.length > 0 && <section className="border-t border-border pt-4">
+          <h3 className="mb-3 font-semibold">Running costs</h3>
+          <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">{runningCosts.map(fact => <div key={fact.label} className="border border-border bg-muted/30 p-3"><dt className="text-xs text-muted-foreground">{fact.label}</dt><dd className="mt-1 font-semibold">{fact.value}</dd></div>)}</dl>
+          <p className="mt-2 text-xs text-muted-foreground">Figures supplied with the listing; actual fuel use and tax may vary.</p>
+        </section>}
+        {recordFacts.length > 0 && <section className="border-t border-border pt-4">
+          <h3 className="mb-3 font-semibold">Ownership & service records</h3>
+          <dl className="grid gap-3 sm:grid-cols-3">{recordFacts.map(fact => <div key={fact.label}><dt className="text-xs text-muted-foreground">{fact.label}</dt><dd className="mt-1 text-sm font-medium">{fact.value}</dd></div>)}</dl>
+        </section>}
+        {listingHighlights.length > 0 && <section className="border-t border-border pt-4">
+          <h3 className="mb-3 font-semibold">Listing highlights</h3>
+          <dl className="grid gap-3 sm:grid-cols-2">{listingHighlights.map(fact => <div key={fact.label}><dt className="font-medium">{fact.label}</dt><dd className="mt-1 text-sm text-muted-foreground">{fact.value}</dd></div>)}</dl>
+          <p className="mt-2 text-xs text-muted-foreground">Comparisons supplied with the listing refer to similar vehicles.</p>
+        </section>}
         {(
           [
             [
               "Technical specifications",
               extra.specCategories ?? car.specifications,
             ],
-            ["Running costs", extra.runningCosts],
             ["Insurance group", extra.insuranceGroup],
-            ["Additional history", extra.historyExtras],
-            ["Vehicle highlights", extra.vehicleHighlights],
           ] as [string, unknown][]
         )
           .filter(

@@ -19,6 +19,7 @@ import {
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
 import { ArrowRight, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
+import { vehicleEconomySummary } from '@/lib/vehicle-extra-facts';
 
 
 
@@ -253,6 +254,7 @@ export function CarCard({
           ))}
         </div>
         {stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
+        {vehicleEconomySummary(car).length > 0 && <p className="mb-3 text-xs font-medium text-muted-foreground">{vehicleEconomySummary(car).join(' · ')}</p>}
         {registration && isRow && (
           <p className="mb-4 text-xs text-muted-foreground">
             Registration{" "}
