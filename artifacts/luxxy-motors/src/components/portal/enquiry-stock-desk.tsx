@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { vehicleEconomySummary } from "@/lib/vehicle-extra-facts";
+import { EnquiryPhotoPeek } from "./enquiry-photo-peek";
 
 export function EnquiryStockDesk({ onDetails, onChoose }: { onDetails: (car: Car) => void; onChoose: (car: Car, booking: boolean) => void }) {
   const { stock, isLoading, error } = useStock();
@@ -25,7 +26,7 @@ export function EnquiryStockDesk({ onDetails, onChoose }: { onDetails: (car: Car
     {error && <p role="alert">Stock could not be loaded. Use Refresh to try again.</p>}
     <ul className="space-y-3">{cars.map(car => <li key={car.id} className="grid gap-4 border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[1fr_auto]">
       <div className="flex min-w-0 gap-4">
-        {car.heroImage && <img src={car.heroImage} alt="" loading="lazy" className="h-24 w-28 shrink-0 rounded-sm bg-slate-100 object-cover sm:w-36" onError={e => { e.currentTarget.style.display = "none"; }} />}
+        {car.heroImage && <button type="button" aria-label={`View photos of ${vehicleDisplayTitle(car)}`} onClick={() => onDetails(car)} className="shrink-0 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"><EnquiryPhotoPeek car={car} className="h-24 w-28 rounded-sm bg-slate-100 object-cover sm:w-36" /></button>}
         <div className="min-w-0"><h3 className="font-semibold">{vehicleDisplayTitle(car)}</h3><p className="mt-1 text-sm text-muted-foreground">{[car.year, car.plate || car.vrm || car.registration, car.transmission, car.fuel, car.mileage != null ? `${car.mileage.toLocaleString("en-GB")} miles` : null].filter(Boolean).join(" · ")}</p><p className="mt-2 font-semibold">{car.price == null ? "Price on request" : formatPrice(car.price)}</p>{vehicleEconomySummary(car).length > 0 && <p className="mt-1 text-xs text-muted-foreground">{vehicleEconomySummary(car).join(" · ")}</p>}<p className="mt-1 text-xs text-muted-foreground">Advert {car.advertId} · {car.inventoryStatus === "available" ? "Available" : car.inventoryStatus === "reserved" ? "Reserved" : "Availability unconfirmed"}</p></div>
       </div>
       <div className="flex flex-wrap items-center gap-2 xl:max-w-72"><Button size="sm" variant="outline" onClick={() => onDetails(car)}>Vehicle information</Button><Button size="sm" variant="outline" onClick={() => onChoose(car, false)}>Log enquiry</Button><Button size="sm" disabled={car.inventoryStatus !== "available"} onClick={() => onChoose(car, true)}>Book test drive</Button></div>

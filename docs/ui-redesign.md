@@ -1076,3 +1076,9 @@ The enquiry desk now offers a specific UK date/time alongside normal available s
 The calendar, enquiry history and Test drives list label out-of-hours, double-booked and over-capacity appointments. Migration `0014_staff_booking_exceptions.sql` replaces the old unique same-time index with a normal lookup index and adds the three flag columns. It was generated but **not run**; the real backend requires this migration before the new options can be used. No deployment or production data changes.
 
 Validation: full workspace typecheck/build and 14 booking policy/preview tests passed. The 22 existing enquiry browser checks passed, plus a mocked browser test confirming the warning appears before an out-of-hours reschedule is sent. The frontend unit suite has one unrelated pre-existing failure in `buyer-information.test.tsx` (an unexpected leading null); 202/203 tests pass when Node's experimental web storage is disabled. Database migration integration was not run.
+
+## Enquiry car photo preview — 3 October 2026
+
+Hovering over a car photograph in the enquiry call desk or All cars tab now opens a larger, viewport-contained preview. The preview shows supplied colour and an actual plate/VRM. A registration year/band is not presented as a number plate; when no plate is supplied, the preview says so. Unavailable images disappear. In All cars, tapping or clicking the thumbnail opens the full vehicle information dialog, preserving access on touch devices.
+
+Validation: workspace typechecking, frontend build and all 24 mocked enquiry browser checks passed. No backend, migration, deployment or production changes.

@@ -1,4 +1,5 @@
 import { AppointmentExceptionLabels, EnquiryCalendar } from "./enquiry-calendar";
+import { EnquiryPhotoPeek } from "./enquiry-photo-peek";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnquiryStockDesk } from "./enquiry-stock-desk";
 import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
@@ -285,16 +286,7 @@ function StaffExceptionReview({ time, outside, double, onConfirm, onClose }: { t
 function CarSummary({ car }: { car: Car }) {
   return (
     <div className="flex items-center gap-3">
-      {car.heroImage && (
-        <img
-          src={car.heroImage}
-          alt=""
-          className="h-16 w-24 shrink-0 rounded-sm object-cover"
-          onError={(event) => {
-            event.currentTarget.hidden = true;
-          }}
-        />
-      )}
+      <EnquiryPhotoPeek key={car.id} car={car} className="h-16 w-24 rounded-sm object-cover" />
       <div className="min-w-0">
         <p className="font-semibold leading-5">{vehicleDisplayTitle(car)}</p>
         <p className="mt-1 text-sm text-muted-foreground">

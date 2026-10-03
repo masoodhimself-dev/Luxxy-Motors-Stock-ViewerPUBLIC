@@ -190,6 +190,26 @@ test("staff must review an out-of-hours reschedule before it is sent", async ({ 
   await expect.poll(() => payload).toMatchObject({ action: "reschedule", allowOutsideHours: true, expectedRevision: 0 });
 });
 
+test("enquiry stock photos enlarge on hover and show only supplied plate details", async ({ page }) => {
+  await setup(page);
+  const image = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#346181"/></svg>').toString('base64')}`;
+  await page.route("**/api/stock", route => route.fulfill({ json: { schemaVersion: 1, count: 2, cars: [
+    { ...car, heroImage: image, colour: "Blue" },
+    { ...car, id: "without-plate", title: "2018 Ford Fiesta", model: "Fiesta", heroImage: image, plate: null, vrm: null, registration: "2018 (68 reg)" },
+  ] } }));
+  await page.reload();
+  await page.getByTestId("tab-enquiries").click();
+  await page.getByRole("tab", { name: "All cars", exact: true }).click();
+  await page.getByRole("img", { name: "Preview Ford Focus" }).hover();
+  const preview = page.getByRole("status", { name: "Enlarged photo of Ford Focus" });
+  await expect(preview).toContainText("Colour: Blue");
+  await expect(preview).toContainText("AB19 XYZ");
+  await page.getByRole("img", { name: "Preview 2018 Ford Fiesta" }).hover();
+  await expect(page.getByRole("status", { name: "Enlarged photo of 2018 Ford Fiesta" })).toContainText("Number plate not supplied");
+  await page.getByRole("button", { name: "View photos of 2018 Ford Fiesta" }).click();
+  await expect(page.getByRole("dialog", { name: "2018 Ford Fiesta" })).toBeVisible();
+});
+
 test("reserved stock cannot be booked and failed requests retain caller details", async ({
   page,
 }) => {
