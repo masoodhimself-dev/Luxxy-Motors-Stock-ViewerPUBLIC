@@ -7,7 +7,8 @@ import { EnquiryForm } from '@/components/enquiry-form';
 import { TestDriveBooking } from '@/components/test-drive-booking';
 import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
-import { formatMileage, formatPrice, getThumbnailUrl } from '@/lib/utils';
+import { formatMileage, formatPrice, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
+import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { enquiryPageMeta } from '@/lib/page-meta';
@@ -63,7 +64,7 @@ export default function Enquire() {
   const vehicleImage = vehicle ? getThumbnailUrl(vehicle) : '';
   const vehicleHighlights = vehicle
     ? [
-        { label: 'Year', value: vehicle.year ? String(vehicle.year) : null },
+        { label: vehicleRegistration(vehicle) ? 'Year & registration' : 'Year', value: customerRegistrationDetails(vehicle) },
         { label: 'Mileage', value: vehicle.mileage ? formatMileage(vehicle.mileage) : vehicle.mileageText },
         { label: 'Fuel', value: vehicle.fuel },
         { label: 'Gearbox', value: vehicle.transmission },

@@ -5,7 +5,7 @@ export function getSimilarCars(currentCar: Car, cars: Car[]) {
 
   return cars
     .filter((candidate) => candidate.id !== currentCar.id &&
-      !['sold', 'archived', 'reserved'].includes(String(candidate.inventoryStatus || '').toLowerCase()) &&
+      !['sold', 'archived', 'reserved', 'hidden'].includes(String(candidate.inventoryStatus || '').toLowerCase()) &&
       (!candidate.sourceStatus || candidate.sourceStatus === 'live'))
     .map((candidate) => {
       let score = 0;

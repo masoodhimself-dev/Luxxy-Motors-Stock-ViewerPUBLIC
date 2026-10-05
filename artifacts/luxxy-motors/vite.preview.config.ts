@@ -1,11 +1,16 @@
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
-import { reservationPreview, readPreviewSettings } from './preview/reservations';
+import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
+import { operationsPreview } from './preview/operations';
+import { chatPreview } from './preview/chat';
+import { relationshipsPreview } from './preview/relationships';
+import { dealerIntegrationsPreview } from './preview/dealer-integrations';
 import { defineConfig, mergeConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { previewResponse } from './preview/portal';
 import baseConfig from './vite.config';
 import { previewSettings } from './preview/settings';
 import { previewStock } from './preview/stock';
+import { salesPreview } from './preview/sales';
 import { brochureOrigin, createBrochureHandler } from '../api-server/src/lib/vehicle-brochure-handler';
 
 // The same PDF renderer as production, supplied only with archived preview records.
@@ -33,6 +38,7 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
+            if ((url.pathname.startsWith('/my-purchase/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
@@ -41,12 +47,17 @@ export default mergeConfig(
               res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
               return;
             }
+            if (await operationsPreview(req, res, url, { readSettings: readPreviewSettings, writeSettings: writePreviewSettings, readEnquiries: readPreviewEnquiries })) return;
+            if (await chatPreview(req, res, url)) return;
+            if (await relationshipsPreview(req, res, url)) return;
+            if (await dealerIntegrationsPreview(req, res, url)) return;
             if (await reservationPreview(req, res, url)) return;
+            if (await salesPreview(req, res, url)) return;
             if (req.method !== 'GET') {
               res.statusCode = 405;
               res.end(
                 JSON.stringify({
-                  error: 'Local preview only. No enquiry or booking has been sent.',
+                  error: 'This action is unavailable. No enquiry or booking has been sent.',
                 }),
               );
               return;
@@ -69,7 +80,7 @@ export default mergeConfig(
             res.statusCode = response ? 200 : 404;
             res.end(
               JSON.stringify(
-                response ?? { error: 'This service is unavailable in the local preview.' },
+                response ?? { error: 'This service is unavailable.' },
               ),
             );
           });

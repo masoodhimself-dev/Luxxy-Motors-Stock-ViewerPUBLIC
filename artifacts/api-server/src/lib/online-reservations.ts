@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { vehicleRegistrationLabel } from "@workspace/vehicle-meta";
 import { z } from "zod/v4";
 
 const money = z.number().int().min(1).max(2_147_483_647);
@@ -43,8 +44,10 @@ export type ReservationVehicle = {
   make?: string | null;
   model?: string | null;
   registration?: string | null;
+  registrationBand?: string | null;
   plate?: string | null;
   vrm?: string | null;
+  year?: number | null;
 };
 export type ReservationRecord = {
   id: string;
@@ -52,6 +55,8 @@ export type ReservationRecord = {
   reference: string;
   vehicleId: string;
   vehicleTitle: string;
+  /** Snapshot for new records; optional so existing saved reservations stay intact. */
+  vehicleRegistration?: string | null;
   depositPence: number;
   amountReceivedPence: 0;
   paymentStatus: "simulated";
@@ -152,6 +157,7 @@ export function reservationView(record: ReservationRecord) {
   return {
     id: record.id, reference: record.reference,
     vehicleId: record.vehicleId, vehicleTitle: record.vehicleTitle,
+    ...(record.vehicleRegistration !== undefined ? { vehicleRegistration: record.vehicleRegistration } : {}),
     depositPence: record.depositPence, amountReceivedPence: record.amountReceivedPence,
     paymentStatus: record.paymentStatus, status: record.status, createdAt: record.createdAt,
   };
@@ -190,6 +196,7 @@ export async function createOnlineReservation(
       reference: `RSV-${id.replace(/-/g, "").slice(0, 12).toUpperCase()}`,
       vehicleId: vehicle.id,
       vehicleTitle: vehicle.websiteTitleOverride || vehicle.title || [vehicle.make, vehicle.model].filter(Boolean).join(" ") || "Vehicle",
+      vehicleRegistration: vehicleRegistrationLabel(vehicle),
       depositPence: settings.depositPence, amountReceivedPence: 0, paymentStatus: "simulated",
       status: "reserved", createdAt: new Date().toISOString(),
       idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint,

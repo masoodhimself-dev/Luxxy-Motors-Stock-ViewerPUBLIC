@@ -46,6 +46,7 @@ export async function attachVisitorEventsToEnquiry({
 }
 
 export function serializeEnquiryEvent(event: EnquiryEvent) {
+  const detail = event.kind === 'conversation_logged' || event.kind === 'records_merged' ? event.detail : null;
   return {
     id: event.id,
     kind: event.kind,
@@ -55,6 +56,13 @@ export function serializeEnquiryEvent(event: EnquiryEvent) {
     vehicleTitle: event.vehicleTitle,
     vehicleUrl: event.vehicleUrl,
     occurredAt: event.occurredAt,
+    ...(detail ? {
+      ...(typeof detail.note === 'string' ? { note: detail.note } : {}),
+      ...(typeof detail.staffId === 'string' ? { staffId: detail.staffId } : {}),
+      ...(typeof detail.staffName === 'string' ? { staffName: detail.staffName } : {}),
+      ...(typeof detail.callOutcome === 'string' ? { callOutcome: detail.callOutcome } : {}),
+      ...(typeof detail.followUpAt === 'string' || detail.followUpAt === null ? { followUpAt: detail.followUpAt } : {}),
+    } : {}),
   };
 }
 

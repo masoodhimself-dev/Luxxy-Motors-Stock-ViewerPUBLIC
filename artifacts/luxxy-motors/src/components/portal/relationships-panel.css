@@ -1,0 +1,1085 @@
+.relationships-panel {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  color: var(--portal-ink, #192a36);
+}
+.relationships-panel :is(h2, h3, h4, p, ol, ul, dl) {
+  margin: 0;
+}
+.relationships-panel :is(button, a) {
+  -webkit-tap-highlight-color: transparent;
+}
+.relationships-panel :is(button, a, input):focus-visible {
+  outline: 2px solid var(--portal-accent, #215a7e);
+  outline-offset: 3px;
+}
+.relationship-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.relationship-heading > div {
+  min-width: 0;
+  max-width: 750px;
+}
+.relationship-heading h2 {
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.035em;
+  margin: 4px 0 9px;
+}
+.relationship-heading > div > p:last-child {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--portal-muted, #586976);
+}
+.relationship-heading > button {
+  flex-shrink: 0;
+}
+.relationship-heading > button > svg {
+  width: 15px;
+  height: 15px;
+}
+.relationship-kicker {
+  color: var(--portal-accent, #215a7e);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.relationship-views {
+  display: flex;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 7px;
+  background: #eaf0f4;
+}
+.relationship-views > button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid transparent !important;
+  border-radius: 4px !important;
+  color: var(--portal-muted, #586976);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.relationship-views > button[aria-current] {
+  background: #fff;
+  border-color: #dce3e8 !important;
+  color: var(--portal-accent, #215a7e);
+  box-shadow: 0 1px 2px #142f4210;
+}
+.relationship-views svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.relationship-views > button > span {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #dbe5ec;
+  min-width: 22px;
+}
+.relationship-workspace {
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  gap: 22px;
+}
+.relationship-workspace.has-selection {
+  grid-template-columns: minmax(280px, 0.36fr) minmax(0, 1fr);
+}
+.relationship-directory {
+  min-width: 0;
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 7px;
+  background: #fff;
+  overflow: hidden;
+}
+.relationship-directory-heading {
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--portal-border, #dce3e8);
+  display: grid;
+  gap: 14px;
+}
+.relationship-directory-heading h3 {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+.relationship-directory-heading > div > p {
+  font-size: 12px;
+  color: var(--portal-muted, #586976);
+  line-height: 1.6;
+  margin-top: 4px;
+}
+.relationship-search {
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+.relationship-search > svg {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: #6b7d89;
+  pointer-events: none;
+}
+.relationships-panel .relationship-search > input {
+  padding-left: 36px !important;
+  min-width: 0;
+  font-size: 14px;
+}
+.relationship-results {
+  font-size: 12px;
+  color: var(--portal-muted, #586976);
+}
+.relationship-grouping-note {
+  padding: 13px 22px !important;
+  font-size: 12px;
+  color: var(--portal-muted, #586976);
+  line-height: 1.65;
+  background: #f7f9fb;
+  border-bottom: 1px solid var(--portal-border, #dce3e8);
+}
+.relationship-profile-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0;
+}
+.relationship-profile-list > li {
+  min-width: 0;
+  border-bottom: 1px solid var(--portal-border, #dce3e8);
+  border-right: 1px solid var(--portal-border, #dce3e8);
+}
+.relationship-profile-list > li:nth-child(3n) {
+  border-right: 0;
+}
+.has-selection .relationship-profile-list {
+  grid-template-columns: 1fr;
+}
+.has-selection .relationship-profile-list > li {
+  border-right: 0;
+}
+.relationship-profile-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  width: 100%;
+  height: 100%;
+  min-height: 144px;
+  padding: 20px 18px;
+  background: #fff;
+  transition: background 0.15s;
+  position: relative;
+  border: 0;
+  border-radius: 0 !important;
+}
+.relationship-profile-row:hover {
+  background: #f5f8fa;
+}
+.relationship-profile-row[aria-current] {
+  background: #eef4f8;
+  box-shadow: inset 3px 0 0 var(--portal-accent, #215a7e);
+}
+.relationship-row-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 7px;
+  flex: 1;
+}
+.relationship-row-copy > strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.relationship-row-facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 11px;
+  color: var(--portal-muted, #586976);
+}
+.relationship-registration {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #263c4a;
+  letter-spacing: 0.06em;
+  border: 1px solid #d2dce3;
+  border-radius: 3px;
+  background: #f3f6f8;
+  line-height: 1.7;
+}
+.relationship-list-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--portal-muted, #586976);
+}
+.relationship-list-counts > span:not(:last-child):after {
+  content: "·";
+  margin-left: 8px;
+  color: #94a6b2;
+}
+.relationship-last-activity {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #71828e;
+}
+.relationship-row-image {
+  width: 64px;
+  height: 50px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border-radius: 4px;
+  margin-top: 3px;
+  background: #f0f4f7;
+}
+.relationship-row-chevron {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #71828e;
+  margin-top: 5px;
+}
+.has-selection .relationship-row-image {
+  width: 50px;
+  height: 42px;
+}
+.has-selection .relationship-profile-row {
+  padding: 19px 16px;
+  gap: 10px;
+}
+.has-selection .relationship-row-copy > strong {
+  font-size: 13px;
+}
+.relationship-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #eaf1f6;
+  color: var(--portal-accent, #215a7e);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+.relationship-avatar > svg {
+  width: 17px;
+  height: 17px;
+}
+.relationship-row-contact {
+  font-size: 12px;
+  color: var(--portal-muted, #586976);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.relationship-detail {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.relationship-back {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  min-height: 44px;
+  color: var(--portal-accent, #215a7e);
+  font-size: 13px;
+  background: transparent;
+  border: 0;
+}
+.relationship-back > svg {
+  width: 16px;
+  height: 16px;
+}
+.relationship-profile {
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 7px;
+  background: #fff;
+  overflow: hidden;
+}
+.relationship-profile-heading {
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  min-width: 0;
+}
+.relationship-profile-heading > div {
+  min-width: 0;
+  flex: 1;
+}
+.relationship-profile-heading h3 {
+  font-size: clamp(20px, 2vw, 25px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.4;
+  margin: 5px 0 11px;
+  overflow-wrap: anywhere;
+}
+.relationship-profile-image {
+  width: 150px;
+  aspect-ratio: 1.4;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: #f0f4f7;
+}
+.relationship-profile-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.relationship-profile-facts > strong {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.relationship-status {
+  display: inline-block;
+  padding: 2px 7px;
+  background: #f0f4f7;
+  border: 1px solid #dce5ec;
+  border-radius: 4px;
+  color: #4b6475;
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.relationship-latest {
+  margin-top: 12px !important;
+  color: var(--portal-muted, #586976);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.relationship-avatar-large {
+  width: 52px;
+  height: 52px;
+  font-size: 16px;
+  margin-top: 3px;
+}
+.relationship-contact-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  min-width: 0;
+}
+.relationship-contact-details > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--portal-muted, #586976);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.relationship-contact-details > a:hover {
+  color: var(--portal-accent, #215a7e);
+  text-decoration: underline;
+}
+.relationship-contact-details svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.relationship-match-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 24px 22px !important;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: #f4f7f9;
+  font-size: 12px;
+  color: var(--portal-muted, #586976);
+  line-height: 1.7;
+}
+.relationship-match-note > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: #5b798c;
+}
+.relationship-match-note > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.relationship-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 20px 24px !important;
+  gap: 12px;
+  border-top: 1px solid var(--portal-border, #dce3e8);
+  background: #fbfcfd;
+}
+.relationship-counts > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+  min-width: 0;
+}
+.relationship-counts dt {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--portal-muted, #586976);
+  overflow-wrap: anywhere;
+}
+.relationship-counts dd {
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+.relationship-connections {
+  min-width: 0;
+}
+.relationship-connections > h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.relationship-connections > h3 > span {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5d7687;
+  background: #e9f0f5;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.relationship-connections > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.relationship-connections button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 5px !important;
+  min-height: 70px;
+  color: var(--portal-ink, #192a36);
+}
+.relationship-connections button:hover {
+  border-color: #b6cbd9;
+  background: #f8fafb;
+}
+.relationship-connections button > img {
+  width: 55px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.relationship-connections button > span:not(.relationship-avatar) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+.relationship-connections strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.relationship-connections small {
+  font-size: 11px;
+  color: var(--portal-muted, #586976);
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.relationship-connections button > svg {
+  width: 14px;
+  height: 14px;
+  color: #718b9b;
+  flex-shrink: 0;
+}
+.relationship-timeline {
+  background: #fff;
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 7px;
+  min-width: 0;
+}
+.relationship-timeline-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 24px 18px;
+}
+.relationship-timeline-heading h3 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.relationship-timeline-heading > span {
+  color: var(--portal-muted, #586976);
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: right;
+}
+.relationship-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 24px 20px;
+  border-bottom: 1px solid var(--portal-border, #dce3e8);
+}
+.relationship-filters > button {
+  padding: 8px 11px;
+  min-height: 38px;
+  border: 1px solid #dce3e8;
+  border-radius: 4px !important;
+  background: #fff;
+  color: var(--portal-muted, #586976);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.relationship-filters > button:hover {
+  background: #f5f8fa;
+  border-color: #c4d4df;
+}
+.relationship-filters > button[aria-pressed="true"] {
+  background: #edf4f9;
+  border-color: #bfd3e2;
+  color: var(--portal-accent, #215a7e);
+}
+.relationship-events {
+  list-style: none;
+  padding: 6px 24px 0 !important;
+}
+.relationship-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  position: relative;
+  min-width: 0;
+  padding: 24px 0;
+}
+.relationship-event:not(:last-child):before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 53px;
+  bottom: -20px;
+  width: 1px;
+  background: #dce6ed;
+}
+.relationship-event-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: #edf3f7;
+  color: #4e7894;
+  border: 1px solid #d6e3ec;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+}
+.relationship-event-icon > svg {
+  width: 14px;
+  height: 14px;
+}
+.relationship-event-icon-payment,
+.relationship-event-icon-sale {
+  background: #f0f7f3;
+  color: #44735b;
+  border-color: #d7e7de;
+}
+.relationship-event-content {
+  flex: 1;
+  min-width: 0;
+}
+.relationship-event:not(:last-child) .relationship-event-content {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e7edf1;
+  margin-bottom: -24px;
+}
+.relationship-event-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  min-height: 30px;
+}
+.relationship-kind {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4e6a7d;
+}
+.relationship-event-meta time {
+  margin-left: auto;
+  font-size: 11px;
+  line-height: 1.65;
+  color: #71828e;
+}
+.relationship-event-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 5px;
+}
+.relationship-event-title h4 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.relationship-event-title > strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.65;
+  color: #315d48;
+  white-space: nowrap;
+}
+.relationship-record-reference {
+  font-size: 11px;
+  color: #71828e;
+  margin-top: 4px !important;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.relationship-record-reference > span {
+  color: #4e6a7d;
+  font-weight: 500;
+}
+.relationship-description {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--portal-muted, #586976);
+}
+.relationship-description > p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.relationship-description > button {
+  min-height: 38px;
+  font-size: 12px;
+  color: var(--portal-accent, #215a7e);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: transparent;
+  border: 0;
+  padding: 4px 0;
+}
+.relationship-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--portal-accent, #215a7e);
+}
+.relationship-source-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.relationship-source-link > svg {
+  width: 13px;
+  height: 13px;
+}
+.relationship-time-note {
+  padding: 0 24px 20px !important;
+  font-size: 11px;
+  line-height: 1.65;
+  color: #71828e;
+}
+.relationship-empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 36px 22px;
+  min-width: 0;
+}
+.relationship-empty > svg {
+  width: 27px;
+  height: 27px;
+  color: #8aa1b1;
+  margin-bottom: 4px;
+}
+.relationship-empty :is(h3, h4) {
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.relationship-empty > p {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--portal-muted, #586976);
+  max-width: 400px;
+}
+.relationship-empty > button {
+  min-height: 44px;
+  font-size: 13px;
+  color: var(--portal-accent, #215a7e);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.relationship-missing {
+  padding: 28px;
+  border: 1px solid var(--portal-border, #dce3e8);
+  border-radius: 6px;
+  background: #fff;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.relationship-missing h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.relationship-missing p {
+  color: var(--portal-muted, #586976);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.relationship-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  color: var(--portal-muted, #586976);
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 24px;
+}
+.relationship-loading > svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: #7594a8;
+}
+.relationship-error {
+  padding: 20px 22px;
+  border: 1px solid #e8cfcf;
+  border-radius: 6px;
+  background: #fff8f8;
+  display: grid;
+  gap: 7px;
+  justify-items: start;
+  font-size: 14px;
+  color: #8c3f3f;
+}
+.relationship-error > strong {
+  font-weight: 600;
+}
+.relationship-error > p {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.relationship-error > button {
+  margin-top: 5px;
+}
+.relationship-updated {
+  font-size: 11px;
+  color: #71828e;
+  line-height: 1.7;
+}
+.relationship-refreshing {
+  animation: relationship-refresh 1.5s linear infinite;
+}
+@keyframes relationship-refresh {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (min-width: 1024px) {
+  .has-selection .relationship-directory {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .has-selection .relationship-profile-list > li:last-child {
+    border-bottom: 0;
+  }
+}
+@media (max-width: 1199px) {
+  .relationship-profile-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .relationship-profile-list > li:nth-child(3n) {
+    border-right: 1px solid var(--portal-border, #dce3e8);
+  }
+  .relationship-profile-list > li:nth-child(2n) {
+    border-right: 0;
+  }
+  .has-selection .relationship-profile-list > li {
+    border-right: 0;
+  }
+  .relationship-profile-image {
+    width: 110px;
+  }
+  .relationship-profile-heading {
+    gap: 16px;
+  }
+  .relationship-connections > div {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1023px) {
+  .relationship-workspace.has-selection {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .has-selection .relationship-directory {
+    display: none;
+  }
+  .relationship-back {
+    display: flex;
+  }
+  .relationship-profile-image {
+    width: 155px;
+  }
+  .relationship-connections > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .relationship-detail {
+    gap: 18px;
+  }
+  .relationship-heading > div {
+    max-width: 550px;
+  }
+}
+@media (max-width: 639px) {
+  .relationships-panel {
+    gap: 18px;
+  }
+  .relationship-heading {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .relationship-heading h2 {
+    font-size: 24px;
+  }
+  .relationship-heading > div > p:last-child {
+    font-size: 13px;
+  }
+  .relationship-heading > button {
+    align-self: flex-start;
+  }
+  .relationship-views {
+    width: 100%;
+  }
+  .relationship-views > button {
+    flex: 1;
+    gap: 7px;
+    padding: 10px 7px;
+    font-size: 12px;
+  }
+  .relationship-views svg {
+    width: 15px;
+    height: 15px;
+  }
+  .relationship-views > button > span {
+    font-size: 10px;
+    min-width: 18px;
+    padding: 1px 4px;
+  }
+  .relationship-profile-list {
+    grid-template-columns: 1fr;
+  }
+  .relationship-profile-list > li {
+    border-right: 0 !important;
+  }
+  .relationship-profile-row {
+    padding: 20px 16px;
+    min-height: 138px;
+    gap: 12px;
+  }
+  .relationship-directory-heading {
+    padding: 20px 16px 15px;
+  }
+  .relationship-grouping-note {
+    padding: 13px 16px !important;
+  }
+  .relationship-row-image {
+    width: 76px;
+    height: 59px;
+  }
+  .relationship-row-copy > strong {
+    font-size: 14px;
+  }
+  .relationship-search > input {
+    font-size: 16px !important;
+  }
+  .relationship-profile-heading {
+    padding: 20px 16px;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .relationship-profile-heading:has(.relationship-profile-image) > div {
+    flex-basis: 100%;
+  }
+  .relationship-profile-image {
+    width: 100%;
+    height: 165px;
+    aspect-ratio: auto;
+  }
+  .relationship-profile-heading h3 {
+    font-size: 22px;
+  }
+  .relationship-avatar-large {
+    width: 42px;
+    height: 42px;
+    font-size: 13px;
+  }
+  .relationship-contact-details {
+    gap: 8px;
+  }
+  .relationship-contact-details > a {
+    font-size: 12px;
+  }
+  .relationship-match-note {
+    margin: 0 16px 20px !important;
+    padding: 11px 12px;
+    font-size: 11px;
+  }
+  .relationship-counts {
+    padding: 17px 16px !important;
+    gap: 8px;
+  }
+  .relationship-counts dt {
+    font-size: 10px;
+  }
+  .relationship-counts dd {
+    font-size: 23px;
+  }
+  .relationship-connections > div {
+    grid-template-columns: 1fr;
+  }
+  .relationship-timeline-heading {
+    padding: 20px 16px 16px;
+    align-items: flex-start;
+  }
+  .relationship-timeline-heading h3 {
+    font-size: 19px;
+  }
+  .relationship-timeline-heading > span {
+    max-width: 75px;
+    margin-top: 3px;
+  }
+  .relationship-filters {
+    padding: 0 16px 16px;
+    gap: 6px;
+  }
+  .relationship-filters > button {
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .relationship-events {
+    padding: 0 16px !important;
+  }
+  .relationship-event {
+    gap: 11px;
+    padding: 22px 0;
+  }
+  .relationship-event-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .relationship-event:not(:last-child):before {
+    left: 13px;
+    top: 48px;
+  }
+  .relationship-event-meta {
+    gap: 6px 8px;
+  }
+  .relationship-event-meta time {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .relationship-event-title {
+    flex-wrap: wrap;
+    margin-top: 8px;
+    gap: 5px;
+  }
+  .relationship-event-title h4 {
+    font-size: 13px;
+  }
+  .relationship-description {
+    font-size: 12px;
+  }
+  .relationship-time-note {
+    padding: 0 16px 18px !important;
+  }
+  .relationship-error {
+    padding: 18px 16px;
+  }
+  .relationship-missing {
+    padding: 22px 18px;
+  }
+  .relationship-empty {
+    padding: 32px 20px;
+  }
+  .relationship-loading {
+    align-items: flex-start;
+    min-height: 180px;
+  }
+  .relationship-back {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .relationship-refreshing {
+    animation: none;
+  }
+  .relationship-profile-row {
+    transition: none;
+  }
+}

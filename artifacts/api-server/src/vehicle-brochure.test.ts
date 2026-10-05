@@ -49,6 +49,14 @@ test('public details preserve zero values, supplied history and missing buyer in
   assert.equal(brochureDetails({ ...vehicle, writeOffCategory: 'S' }).history, 'Category S');
 });
 
+test('brochure number plates prefer supplied plate and VRM without mistaking a year band for a plate', () => {
+  const numberPlate = (fields: Partial<BrochureVehicle>) => brochureDetails({ ...vehicle, ...fields }).specs.find(([key]) => key === 'Number plate')?.[1];
+  assert.equal(numberPlate({ plate: ' ab12 cde ', vrm: 'XY34 ZZZ', registration: '2019 (19 reg)' }), 'AB12 CDE');
+  assert.equal(numberPlate({ plate: ' ', vrm: ' xy34 zzz ', registration: '2019 (19 reg)' }), 'XY34 ZZZ');
+  assert.equal(numberPlate({ registration: ' ab12 cde ', registrationBand: '19' }), 'AB12 CDE');
+  assert.equal(numberPlate({ registration: '2019 (19 reg)', registrationBand: '19' }), undefined);
+});
+
 test('gallery is deduplicated with the supplied hero and original caption first', () => {
   assert.deepEqual(brochurePhotos(vehicle), [
     { url: 'https://m.atcdn.co.uk/front.jpg', caption: 'Front view' },
@@ -66,7 +74,8 @@ test('PDF contains long descriptions, features, category notes, pagination and h
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   assert.ok((pdf.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length >= 4);
   const text = contentStreams(pdf);
-  for (const value of ['DESCRIPTION END', 'First feature', 'Last feature', 'CAT N', 'Photograph unavailable', 'Please ask our team', 'ARCHIVED STOCK']) assert.ok(text.includes(value), value);
+  for (const value of ['DESCRIPTION END', 'First feature', 'Last feature', 'CAT N', 'Photograph unavailable', 'Please ask our team', 'Sample dealership details']) assert.ok(text.includes(value), value);
+  assert.ok(text.includes('VEHICLE DETAILS')); assert.equal(/local preview|PREVIEW \/ ARCHIVED STOCK/i.test(text), false);
   assert.ok(pdf.toString('latin1').includes('https://example.com/vehicle/test-car'));
 });
 

@@ -1,5 +1,7 @@
-import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { CompareSelectionLink } from '@/components/saved-car-controls';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import './stock-redesign.css';
+import './home-redesign.css';
 import { websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
@@ -32,7 +34,7 @@ import {
 } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Grid2X2, List, Search, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, Grid2X2, List, ArrowUpRight, ChevronDown, Heart, Link2, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
 import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';
@@ -54,7 +56,6 @@ const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
   const [, setLocation] = useLocation();
-  const isPhone = useIsMobile();
   useEffect(() => {
     const redirectStock = () => {
       if (!browseStock && ['#stock', '#vehicle-results'].includes(window.location.hash)) setLocation('/stock');
@@ -87,6 +88,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
   const { savedCount } = useSavedCars();
   const [copyNotice, setCopyNotice] = useState('');
+  const [stockOptionsOpen, setStockOptionsOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(() => readBrowseSession().visibleCount || 12);
   const [filters, setFilters] = useState<FilterState>(() => {
     if (browseStock && window.location.search) {
@@ -297,6 +299,21 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     </ul>
   ) : dealerConfig.trustItems?.length ? <ul className="divide-y divide-border">{dealerConfig.trustItems.map(item => <li key={item} className="py-3 text-sm">{item}</li>)}</ul> : null;
 
+  if (isLoading && browseStock)
+    return (
+      <div className="luxxy-shell stock-refined stock-redesign min-h-screen" aria-label="Loading stock" aria-busy="true">
+        <span className="sr-only" role="status">Loading used cars</span>
+        <div className="container stock-loading mx-auto px-4 sm:px-6 lg:px-8" aria-hidden="true">
+          <div className="stock-loading-title stock-skeleton animate-pulse" />
+          <div className="stock-loading-line stock-skeleton animate-pulse" />
+          <div className="stock-loading-search" />
+          <div className="stock-card-results stock-results-grid grid">
+            {[1, 2, 3, 4, 5, 6].map(n => <div key={n} className="stock-loading-card"><div className="stock-loading-photo stock-skeleton animate-pulse" /><div className="stock-loading-details"><div className="stock-loading-line stock-skeleton animate-pulse" /><div className="stock-loading-line stock-skeleton animate-pulse" /><div className="stock-loading-line stock-skeleton animate-pulse" /></div></div>)}
+          </div>
+        </div>
+      </div>
+    );
+
   if (isLoading)
     return (
       <div
@@ -343,18 +360,18 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   );
 
   return (
-    <div className={browseStock ? "luxxy-shell homepage-refined stock-refined min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed min-h-screen"}>
+    <div className={browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
         {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="stock-search-panel">
-            <p className="text-xs font-medium tracking-wide text-white/80">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
-            <h1 id="home-heading" tabIndex={-1} className="mt-2 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{dealerConfig.hero.copy}</h1>
-            {dealerConfig.presentation?.showHeroDescription && <p className="mt-4 max-w-lg text-sm leading-6 text-white/85">{dealerConfig.hero.subcopy}</p>}
+            <p className="home-hero-eyebrow">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
+            <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
+            {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
             <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
-          {!error && filteredCars.length < 4 && <p className="mt-8 border-t pt-5 text-sm">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
+          {!error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
@@ -362,34 +379,27 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="stock-home-link">Home <span aria-hidden="true">/</span> Used cars</Link>
-          <h1 id="vehicle-results-heading" tabIndex={-1} className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{websiteText(dealerConfig, "stockTitle")}</h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80 sm:text-base">{websiteText(dealerConfig, "stockIntroduction")}</p>
+          <nav aria-label="Breadcrumb" className="stock-breadcrumb"><Link href="/">Home</Link><span aria-hidden="true">/</span><span>Used cars</span></nav>
+          <div className="stock-heading-row">
+            <div>
+              <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
+            </div>
+            <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
+              <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />Display & sharing<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
+              <CollapsibleContent className="stock-options-panel">
+                <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
+                <Link className="stock-option-action" href="/saved"><Heart size={17} aria-hidden="true" />Saved cars ({savedCount})<ArrowRight size={16} aria-hidden="true" /></Link>
+                <button type="button" className="stock-option-action" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}><Link2 size={17} aria-hidden="true" />Copy search link</button>
+                {copyNotice && <p className="text-sm leading-5 text-muted-foreground" role="status">{copyNotice}</p>}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          <p className="stock-introduction">{websiteText(dealerConfig, "stockIntroduction")}</p>
         </div>
       </section>}
 
       {browseStock && <section id="stock" data-home-section className="browse-stock py-8 md:py-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">{hasFilters ? "Search results" : "All used cars"}</h2>
-
-            </div>
-            {stock && (
-              <p
-                className="col-start-1 row-start-2 text-sm text-muted-foreground lg:col-start-3 lg:row-start-1 lg:text-right"
-                data-testid="text-filtered-stock-count"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {!hasFilters
-                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available`
-                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
-              </p>
-            )}
-            {!isPhone && <div className="col-start-2 row-start-1 row-span-2 lg:col-start-4 lg:row-span-1">{stockViewControls}</div>}
-          </div>
           <Filters
             quickFilters={<>             <div className="flex flex-wrap gap-2 text-sm">
               <button
@@ -450,30 +460,28 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
           />
 
-          <MobileActionDisclosure label="Display & sharing" testId="stock-secondary-actions" className="mt-1">
-          <div className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm md:py-3">
-            {isPhone && <div className="flex w-full items-center justify-between"><span className="text-muted-foreground">Vehicle display</span>{stockViewControls}</div>}
-            <Link className="text-link" href="/saved">Saved cars ({savedCount})</Link>
-            <button className="min-h-11 underline underline-offset-4" onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setCopyNotice('Search link copied');} catch {setCopyNotice('Copy the address from your browser to share this search.');}}}>Copy search link</button>
-            {copyNotice && <p role="status">{copyNotice}</p>}
-          </div>
-          </MobileActionDisclosure>
           <div id="vehicle-results" data-home-section className="mt-2 md:mt-4">
+            {!error && <div className="stock-results-bar">
+              {stock && <p className="stock-result-count" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
+                {!hasFilters
+                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available`
+                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
+              </p>}
+              <CompareSelectionLink />
+            </div>}
             {error ? (
-              <div className="surface p-8" role="alert">
+              <div className="stock-error surface p-8" role="alert">
                 <h3 className="section-heading">Stock is temporarily unavailable</h3>
                 <p className="mt-3 text-muted-foreground">
                   Please try again or contact the showroom for current availability.
                 </p>
-                <Button className="mt-5" onClick={() => window.location.reload()}>
-                  Try again
-                </Button>
+                <div className="mt-5 flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>
               </div>
             ) : filteredCars.length ? (
               <>
                 <div
                   className={cn(
-                    'grid gap-5',
+                    'stock-results-grid grid gap-5',
                     stockView === 'compact' ? 'xl:grid-cols-2' : 'stock-card-results sm:grid-cols-2 xl:grid-cols-3',
                   )}
                 >
@@ -500,9 +508,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <div className="stock-empty surface px-6 py-8 text-left">
 
                 <h3 className="section-heading mt-4">No matches</h3>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {Object.entries(filters).filter(([key,value]) => key !== 'sort' && value).map(([key,value]) => `${key}: ${value}`).join(' · ')}. Try removing one filter below.
-                </p>
+                <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">We couldn’t find a car with these filters. Remove a filter above or widen your search below.</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {(filters.minPrice || filters.maxPrice) && <Button variant="outline" onClick={()=>setFilters(current=>({...current,minPrice:'',maxPrice:''}))}>Remove price limits</Button>}
                   {filters.transmission && <Button variant="outline" onClick={() => setFilters(current => ({...current, transmission: ''}))}>Search all transmissions</Button>}

@@ -134,11 +134,12 @@ describe('vehicle detail registration', () => {
     expect(screen.queryByLabelText(/^UK registration/)).not.toBeInTheDocument();
   });
 
-  it('shows plate styling only for a vehicle with a real plate', () => {
+  it('shows the supplied registration alongside the vehicle identity', () => {
     renderVehicle('with-plate');
 
     const plate = screen.getByTestId('plate-vehicle-with-plate');
     expect(plate).toHaveTextContent('NV24 LNZ');
+    expect(plate.closest('.vehicle-summary header')).not.toBeNull();
     expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 reg)');
   });
 });

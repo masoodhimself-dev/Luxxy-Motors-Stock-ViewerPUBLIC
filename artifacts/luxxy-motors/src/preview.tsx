@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Link, Route, Router, Switch } from 'wouter';
+import { Route, Router, Switch } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
@@ -21,6 +21,8 @@ const Compare = lazy(() => import("@/pages/compare"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
+const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
+const CustomerSale = lazy(() => import("@/pages/customer-sale"));
 const Viewing = lazy(() => import("@/pages/viewing"));
 import './index.css';
 
@@ -39,7 +41,7 @@ createRoot(document.getElementById('root')!).render(
                 <Suspense fallback={<RouteLoading />}>
                   <Switch>
                   <Route path="/portal/sales-demo" component={SalesDemo} />
-                  <Route path="/portal"><div className="mx-auto mt-5 max-w-7xl px-4"><Link href="/portal/sales-demo" className="inline-flex min-h-12 items-center gap-2 border border-border bg-card px-5 font-semibold">Open sales workspace demo →</Link></div><Portal /></Route>
+                  <Route path="/portal" component={Portal} />
                   <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/"><Home key="home" /></Route>
                   <Route path="/stock"><Home key="stock" browseStock /></Route>
@@ -49,6 +51,8 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/enquire" component={Enquire} />
                   <Route path="/contact" component={Contact} />
                   <Route path="/warranty" component={Warranty} />
+                  <Route path="/reserve/payment-return" component={ReservationPaymentReturn} />
+                  <Route path="/my-purchase/:token" component={CustomerSale} />
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/sign/:token" component={RetiredSalesPage} />
                   <Route path="/customer-details/:token" component={RetiredSalesPage} />
@@ -56,7 +60,6 @@ createRoot(document.getElementById('root')!).render(
                 </Switch>
                 </Suspense>
               </Layout>
-              <aside className="border-t border-border bg-secondary px-4 py-3 text-center text-xs leading-5 text-muted-foreground" aria-label="Preview mode">Local preview · Reservations saved locally · Payments simulated</aside>
             </SavedCarsProvider>
           </StockProvider>
           <Toaster />

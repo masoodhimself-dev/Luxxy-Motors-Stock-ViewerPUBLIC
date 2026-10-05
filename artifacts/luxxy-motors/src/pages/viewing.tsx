@@ -1,3 +1,7 @@
+import { useStock } from '@/lib/stock-context';
+import { ShowroomPhoto } from '@/components/showroom-photo';
+import { getThumbnailUrl } from '@/lib/utils';
+import { dealershipLocation } from '@/lib/dealership-location';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'wouter';
@@ -43,10 +47,13 @@ export default function Viewing() {
   const [mode, setMode] = useState<'idle' | 'reschedule' | 'confirm-cancel'>('idle');
   const resultRef = useRef<HTMLParagraphElement>(null);
   const changeHeadingRef = useRef<HTMLHeadingElement>(null);
-  const query = useGetViewingBooking(token, { query: { queryKey: getGetViewingBookingQueryKey(token), retry: false } });
+  const query = useGetViewingBooking(token, { query: { queryKey: getGetViewingBookingQueryKey(token), retry: false, staleTime: 0, refetchOnWindowFocus: true, refetchInterval: 30_000 } });
   const reschedule = useRescheduleViewing();
   const cancel = useCancelViewing();
   const booking = query.data;
+  const { stock } = useStock();
+  const bookedCar = stock?.cars.find(car => booking?.vehicleUrl === `/vehicle/${car.id}`);
+  const location = dealershipLocation(dealerConfig.address);
   const availabilityQuery = useGetEnquiryAvailability({ date: selectedDate }, {
     query: {
       queryKey: getGetEnquiryAvailabilityQueryKey({ date: selectedDate }),
@@ -110,6 +117,8 @@ export default function Viewing() {
       <h1 className="font-display text-2xl font-semibold tracking-tight text-primary sm:text-3xl">{isCancelled ? 'Test drive cancelled' : isPending ? 'Your test-drive request' : 'Your test drive'}</h1>
       <p className="mt-3 text-sm text-muted-foreground" data-testid="text-viewing-customer">Hello, {booking.customerName}.</p>
       {isPending && !isCancelled && <p className="mt-4 rounded-lg bg-secondary p-4 text-sm leading-6 text-primary" data-testid="status-viewing-pending">Awaiting showroom confirmation. We will email you when your requested time is confirmed.</p>}
+      <div className="mt-5 inline-flex rounded-full border border-border bg-secondary px-3 py-1.5 text-sm font-semibold" role="status">{isCancelled ? 'Cancelled' : isPending ? 'Requested · awaiting confirmation' : 'Confirmed'}</div>
+      {bookedCar && getThumbnailUrl(bookedCar) && <ShowroomPhoto src={getThumbnailUrl(bookedCar)!} alt={booking.vehicleTitle || 'Your selected car'} fit="contain" className="mt-5 aspect-[16/9] max-h-64 w-full overflow-hidden rounded-lg bg-secondary" />}
       <div className="mt-6 space-y-4 text-sm text-primary">
         {booking.vehicleTitle && <p className="font-medium">{booking.vehicleUrl ? <Link href={booking.vehicleUrl} className="underline decoration-border underline-offset-4 hover:decoration-primary">{booking.vehicleTitle}</Link> : booking.vehicleTitle}</p>}
         <p className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" /><span>{booking.appointmentAt ? appointmentLabel(booking.appointmentAt) : 'Not scheduled'}<span className="mt-1 block text-xs text-muted-foreground">{booking.durationMinutes ?? 30} minutes · UK time</span></span></p>
@@ -162,6 +171,6 @@ export default function Viewing() {
       </div>
     </div> : reschedule.isSuccess ? <div className="border-t border-border p-6 sm:p-10"><p ref={resultRef} tabIndex={-1} role="status" className="flex items-start gap-3 text-sm leading-6 outline-none" data-testid="status-reschedule-success"><Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />{booking.status === 'pending' ? 'Your new time has been requested. Please wait for the showroom to confirm it.' : 'Your test drive has been moved and your new time is confirmed.'}</p></div> : null}
 
-    {!isCancelled && mode === 'idle' && (bookingSettings.instructions || dealerConfig.presentation?.parkingInstructions) && <div className="border-t border-border p-6 sm:p-10"><h2 className="text-sm font-semibold">Before your visit</h2>{bookingSettings.instructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{bookingSettings.instructions}</p>}{dealerConfig.presentation?.parkingInstructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{dealerConfig.presentation.parkingInstructions}</p>}<Link href="/contact" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Directions & opening hours</Link></div>}
+    {!isCancelled && mode === 'idle' && <div className="border-t border-border p-6 sm:p-10"><h2 className="text-sm font-semibold">Before your visit</h2>{bookingSettings.instructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{bookingSettings.instructions}</p>}{dealerConfig.presentation?.parkingInstructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{dealerConfig.presentation.parkingInstructions}</p>}{location.directions && <a href={location.directions} target="_blank" rel="noopener noreferrer" className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Get directions</a>}{phoneHref && <a href={phoneHref} className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call the showroom</a>}<Link href="/contact" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Directions & opening hours</Link></div>}
   </>);
 }

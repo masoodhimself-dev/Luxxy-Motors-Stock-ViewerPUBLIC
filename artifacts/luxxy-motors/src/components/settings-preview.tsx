@@ -14,25 +14,29 @@ export function launchChecks(settings: DealerSettings) {
 }
 export function LaunchReadiness({ settings }: { settings: DealerSettings }) {
   const checks = launchChecks(settings);
-  return <details className="mb-6 border-y border-border py-3 text-sm">
+  return <details className="settings-review-details settings-launch-readiness mb-6 border-y border-border py-3 text-sm">
     <summary className="min-h-11 cursor-pointer py-3 font-semibold">Launch readiness · {checks.filter(check => check.issue).length} items to review</summary>
-    <p className="my-3 text-muted-foreground">Based on this draft. Passing a check confirms a field is present, not that its contents are accurate. Review before publishing.</p>
-    <ul className="divide-y divide-border">{checks.map(check => <li key={check.label} className="flex flex-wrap justify-between gap-2 py-3"><span className="font-medium">{check.label}</span><span className={check.issue ? 'text-amber-800' : 'text-muted-foreground'}>{check.issue || 'Added / not required — confirm accuracy'}</span></li>)}</ul>
+    <div className="settings-review-content">
+      <p className="text-muted-foreground">Based on this draft. Passing a check confirms a field is present, not that its contents are accurate. Review before publishing.</p>
+      <ul className="settings-readiness-list divide-y divide-border">{checks.map(check => <li key={check.label} className="flex flex-wrap justify-between gap-2 py-3"><span className="font-medium">{check.label}</span><span className={check.issue ? 'text-amber-800' : 'text-muted-foreground'}>{check.issue || 'Added / not required — confirm accuracy'}</span></li>)}</ul>
+    </div>
   </details>;
 }
 export function SettingsPreview({ settings }: { settings: DealerSettings }) {
   const photo = settings.presentation?.heroImageUrl || settings.presentation?.showroomImageUrl;
   const review = settings.presentation?.reviewsEnabled && settings.presentation.reviews?.[0];
-  return <details className="mb-6 border border-border bg-card p-4">
+  return <details className="settings-review-details settings-appearance-preview mb-6 border border-border bg-card p-4">
     <summary className="min-h-11 cursor-pointer py-2 font-semibold">Preview your draft appearance</summary>
+    <div className="settings-review-content">
     <p className="mb-4 text-sm text-muted-foreground">A small preview of your content and brand colours. Changes are not published until you save.</p>
     <div className="grid gap-5 md:grid-cols-2">
-      <div className="overflow-hidden border border-border">
-        <div className="p-4 text-white" style={{background: `hsl(${settings.identity.brandColors.primaryHsl})`}}>{settings.identity.name}</div>
+      <div className="settings-preview-card overflow-hidden border border-border">
+        <div className="settings-preview-card-header p-4 text-white" style={{background: `hsl(${settings.identity.brandColors.primaryHsl})`}}>{settings.identity.name}</div>
         {photo && /^https:\/\//.test(photo) && <ShowroomPhoto src={photo} alt="Draft homepage photograph" position={settings.presentation?.heroImagePosition} className="aspect-video" />}
-        <div className="p-4"><p className="text-lg font-semibold">{settings.hero.copy}</p><p className="mt-2 text-sm">{settings.hero.subcopy}</p><span className="mt-4 inline-block px-4 py-2 text-sm" style={{borderLeft: `4px solid hsl(${settings.identity.brandColors.accentHsl})`, background: "#f3f4f4", color: "#172126"}}>{settings.hero.primaryCta}</span></div>
+        <div className="settings-preview-card-body p-4"><p className="text-lg font-semibold">{settings.hero.copy}</p><p className="mt-2 text-sm">{settings.hero.subcopy}</p><span className="mt-4 inline-block px-4 py-2 text-sm" style={{borderLeft: `4px solid hsl(${settings.identity.brandColors.accentHsl})`, background: "#f3f4f4", color: "#172126"}}>{settings.hero.primaryCta}</span></div>
       </div>
-      <div className="border border-border p-4"><h3 className="font-semibold">Customer review preview</h3>{review ? <><p className="mt-3" aria-label={`${review.rating} stars`}>{'★'.repeat(review.rating)}</p><blockquote className="mt-3 text-sm leading-6">{review.review}</blockquote><p className="mt-4 text-sm font-medium">{review.name}{review.verified ? ' · Verified review' : ''}{review.invited ? ' · Invited' : ''}</p></> : <p className="mt-3 text-sm text-muted-foreground">No reviews enabled. This section will stay hidden.</p>}</div>
+      <div className="settings-preview-card border border-border p-4"><h3 className="font-semibold">Customer review preview</h3>{review ? <><p className="mt-3" aria-label={`${review.rating} stars`}>{'★'.repeat(review.rating)}</p><blockquote className="mt-3 text-sm leading-6">{review.review}</blockquote><p className="mt-4 text-sm font-medium">{review.name}{review.verified ? ' · Verified review' : ''}{review.invited ? ' · Invited' : ''}</p></> : <p className="mt-3 text-sm text-muted-foreground">No reviews enabled. This section will stay hidden.</p>}</div>
+    </div>
     </div>
   </details>;
 }

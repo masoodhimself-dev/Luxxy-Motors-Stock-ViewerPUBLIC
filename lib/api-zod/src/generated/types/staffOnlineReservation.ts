@@ -15,6 +15,8 @@ export interface StaffOnlineReservation {
   reference: string;
   vehicleId: string;
   vehicleTitle: string;
+  /** @nullable */
+  vehicleRegistration?: string | null;
   /**
      * @minimum 100
      * @maximum 1000000

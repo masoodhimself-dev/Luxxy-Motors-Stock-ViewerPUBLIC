@@ -66,8 +66,9 @@ test('rolling cars move left, pause and respect reduced motion', async ({ page }
   const viewport = page.locator('.rolling-stock-window');
   await page.mouse.move(0, 0);
   const step = await viewport.locator('article').first().evaluate(node => node.getBoundingClientRect().width);
-  await expect.poll(() => viewport.evaluate(node => node.scrollLeft), {timeout: 6500}).toBeGreaterThan(step - 2);
-  expect(await viewport.evaluate(node => node.scrollLeft)).toBeLessThan(step + 2);
+  const initialScroll = await viewport.evaluate(node => node.scrollLeft);
+  await expect.poll(() => viewport.evaluate(node => node.scrollLeft), {timeout: 6500}).toBeGreaterThan(initialScroll + step - 2);
+  expect(await viewport.evaluate(node => node.scrollLeft)).toBeLessThan(initialScroll + step + 2);
   await page.getByRole('button', {name: 'Pause cars'}).click();
   await expect(viewport).toHaveAttribute('data-paused', 'true');
   await page.emulateMedia({reducedMotion: 'reduce'});
@@ -86,7 +87,15 @@ test('homepage has one visit section and a clickable featured price panel', asyn
   await expect(page.getByRole('heading', { name: 'Meet the team' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Featured cars' })).toBeVisible();
   await page.getByRole('button', { name: 'Pause cars' }).click();
-  const card = page.locator('.rolling-stock-group').first().locator('article').first();
+  await page.evaluate(() => document.fonts.ready);
+  const cards = page.locator('.rolling-stock-group').first().locator('article');
+  // Autoplay may already have advanced while stock and fonts loaded.
+  const visibleIndex = await cards.evaluateAll(elements => elements.findIndex(element => {
+    const bounds = element.getBoundingClientRect();
+    return bounds.left + bounds.width / 2 > 0 && bounds.left + bounds.width / 2 < innerWidth;
+  }));
+  expect(visibleIndex).toBeGreaterThanOrEqual(0);
+  const card = cards.nth(visibleIndex);
   await expect(card.getByText('Available', { exact: true })).toHaveCount(0);
   const link = card.locator('h3 a');
   const href = await link.getAttribute('href');

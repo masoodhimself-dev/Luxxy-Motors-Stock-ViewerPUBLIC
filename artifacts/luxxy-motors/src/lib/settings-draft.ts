@@ -1,7 +1,7 @@
 import type { DealerSettings } from '@workspace/api-client-react';
 
 const key = 'luxxy-showroom-draft-v1';
-type Draft = { saved: string; form: DealerSettings; updatedAt: number };
+type Draft = { saved: string; form: DealerSettings; updatedAt: number; revision?: number | null };
 let memoryDraft: Draft | null = null;
 
 function matchesShape(value: unknown, example: unknown): boolean {
@@ -48,8 +48,8 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
   return draft;
 }
 
-export function writeSettingsDraft(saved: string, form: DealerSettings): boolean {
-  memoryDraft = { saved, form, updatedAt: Date.now() };
+export function writeSettingsDraft(saved: string, form: DealerSettings, revision?: number | null): boolean {
+  memoryDraft = { saved, form, updatedAt: Date.now(), revision };
   try {
     sessionStorage.setItem(key, JSON.stringify(memoryDraft));
     return true;

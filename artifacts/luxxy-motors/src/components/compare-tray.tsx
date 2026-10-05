@@ -4,7 +4,7 @@ import { Link, useLocation } from 'wouter';
 import { ArrowRight, ChevronDown, ChevronUp, Scale, X } from 'lucide-react';
 import { useStock } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
-import { getSafeImageUrl, getThumbnailUrl } from '@/lib/utils';
+import { getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
 import { trackEvent } from '@/lib/analytics';
 
@@ -24,7 +24,7 @@ export function CompareTray() {
 
   useEffect(() => {
     if (isLoading || error || !stock) return;
-    pruneCompare(stock.cars.map((car) => car.id));
+    pruneCompare(stock.cars.filter(car => !['sold', 'hidden', 'archived'].includes(String(car.inventoryStatus))).map((car) => car.id));
   }, [isLoading, error, stock, pruneCompare]);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function CompareTray() {
                     ) : (
                       <span className="h-12 w-16 shrink-0 bg-primary/10 border border-primary/20" />
                     )}
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-normal text-primary group-hover:text-accent transition-colors">{vehicleLabelFor(car)}</span>
+                    <span className="min-w-0 flex-1 text-primary group-hover:text-accent transition-colors"><span className="block truncate text-[11px] font-bold tracking-normal">{vehicleLabelFor(car)}</span>{vehicleRegistration(car) && <span className="block truncate text-[11px] text-muted-foreground">{vehicleRegistration(car)}</span>}</span>
                   </Link>
                   <button
                     type="button"

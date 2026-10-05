@@ -27,6 +27,8 @@ const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
+const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
+const CustomerSale = lazy(() => import("@/pages/customer-sale"));
 const Viewing = lazy(() => import("@/pages/viewing"));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
@@ -43,7 +45,7 @@ const StaffSignUp = lazy(() =>
 const queryClient = new QueryClient();
 
 // Use the dealership’s own Clerk application; proxying is optional.
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || import.meta.env.CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -76,6 +78,8 @@ function Router() {
           <Route path="/enquire" component={Enquire} />
           <Route path="/contact" component={Contact} />
           <Route path="/warranty" component={Warranty} />
+          <Route path="/reserve/payment-return" component={ReservationPaymentReturn} />
+                  <Route path="/my-purchase/:token" component={CustomerSale} />
           <Route path="/viewing/:token" component={Viewing} />
           <Route path="/sign/:token" component={RetiredSalesPage} />
           <Route path="/customer-details/:token" component={RetiredSalesPage} />

@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { useGetStock } from '@workspace/api-client-react';
+import { useGetStock, getGetStockQueryKey } from '@workspace/api-client-react';
 
 export type CarImage = { url: string; caption: string | null } | string;
 
@@ -86,7 +86,7 @@ function normalizeStock(data: unknown): StockData | null {
 }
 
 export function StockProvider({ children }: { children: ReactNode }) {
-  const { data: apiStock, isLoading, error } = useGetStock();
+  const { data: apiStock, isLoading, error } = useGetStock({ query: { queryKey: getGetStockQueryKey(), staleTime: 30_000, refetchInterval: 60_000, refetchOnWindowFocus: true } });
   const stock = normalizeStock(apiStock);
   const errorMessage = error instanceof Error ? error.message : error ? 'Unable to load current stock.' : null;
 

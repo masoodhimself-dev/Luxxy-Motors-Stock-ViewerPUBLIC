@@ -80,7 +80,7 @@ async function capture(page: Page, name: string) {
 const touchDevices = [
   { name: 'phone', width: 390, height: 844, columns: 1, featured: 1 / 0.85 },
   { name: 'ipad-portrait', width: 820, height: 1180, columns: 2, featured: 2 },
-  { name: 'ipad-landscape', width: 1180, height: 820, columns: 3, featured: 3 },
+  { name: 'ipad-landscape', width: 1180, height: 820, columns: 2, featured: 3 },
 ];
 
 for (const device of touchDevices) {
@@ -149,7 +149,14 @@ for (const device of touchDevices) {
       const cardWidth = await first.evaluate((element) => element.getBoundingClientRect().width);
       expect(Math.abs(cardWidth - device.width / device.featured)).toBeLessThan(3);
       await expect(carousel.locator('.stock-photo-controls')).toHaveCount(0);
-      const photo = first.locator('[data-stock-link] img');
+      // Target a visible photo if autoplay advanced during initial loading.
+      const cards = carousel.locator('.rolling-stock-group').first().locator('.vehicle-card');
+      const initialVisibleIndex = await cards.evaluateAll(elements => elements.findIndex(element => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.left + bounds.width / 2 > 20 && bounds.left + bounds.width / 2 < innerWidth - 20;
+      }));
+      expect(initialVisibleIndex).toBeGreaterThanOrEqual(0);
+      const photo = cards.nth(initialVisibleIndex).locator('[data-stock-link] img');
       const original = await photo.getAttribute('src');
       const session = await context.newCDPSession(page);
       const verticalBox = await photo.boundingBox();

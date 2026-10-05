@@ -13,7 +13,7 @@ export interface DealershipPhoto {
 const illustrative = (src: string, description: string): DealershipPhoto => ({
   src,
   alt: `Illustrative Luxxy Motors showroom: ${description}`,
-  caption: 'Illustrative showroom imagery · Template preview',
+  caption: 'Illustrative showroom imagery',
 });
 
 /** Supplied template artwork must never replace a dealer's configured photography. */

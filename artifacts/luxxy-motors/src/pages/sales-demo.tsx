@@ -1,5 +1,28 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  customFetch,
+  HttpApiError as ApiError,
+} from "@workspace/api-client-react";
+import type {
+  SaleWorkspaceRecord,
+  SaleWorkspaceMutation,
+  SaleWorkspaceDocument,
+  SaleWorkspaceDraft,
+  SaleWorkspacePayment,
+  SaleWorkspacePaymentInput,
+} from "@workspace/vehicle-meta";
+import {
+  PaymentDialog,
+  ReversePaymentDialog,
+  PaymentLedger,
+  DeliveryPanel,
+  HandoverDialog,
+  salePaymentState,
+} from "@/components/sales-demo/sales-controls";
+import { SalesConnections, DocumentDelivery } from "@/components/sales-demo/sales-connections";
+import { HistoryLinks } from '@/components/portal/history-links';
+import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,12 +30,21 @@ import {
   Printer,
   Plus,
   FileText,
+  UserRound,
+  CarFront,
+  ArrowLeftRight,
+  WalletCards,
+  ClipboardCheck,
+  ChevronDown,
 } from "lucide-react";
+import "@/sales-workspace.css";
+import { SalesDocument } from "@/components/sales-demo/sales-document";
 import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
+  vehicleRegistrationLabel,
   getThumbnailUrl,
 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,9 +58,12 @@ import {
   exchanges,
   payments,
   pence,
+  saleRequestId,
+  saleStaffLabel,
 } from "@/components/sales-demo/model";
 
 import {
+  getGetStockQueryKey,
   useGetEnquiries,
   useListReservations,
 } from "@workspace/api-client-react";
@@ -38,16 +73,24 @@ const tabs = [
   "Customer",
   "Vehicle",
   "Part exchange",
-  "Payments",
+  "Payments & receipts",
   "Documents",
-  "Handover",
+  "Delivery & handover",
 ] as const;
+const sectionIcons = [
+  UserRound,
+  CarFront,
+  ArrowLeftRight,
+  WalletCards,
+  FileText,
+  ClipboardCheck,
+];
 const money = (pence: number) =>
   Number.isFinite(pence)
     ? new Intl.NumberFormat("en-GB", {
         style: "currency",
         currency: "GBP",
-      }).format(pence / 100)
+      }).format(pence === 0 ? 0 : pence / 100)
     : "—";
 function readDrafts(): SaleDraft[] {
   try {
@@ -65,16 +108,32 @@ function readDrafts(): SaleDraft[] {
     return [];
   }
 }
-export default function SalesDemo() {
+export interface SalesWorkspaceProps {
+  embedded?: boolean;
+  newSaleRequest?: number;
+  onExit?: () => void;
+}
+
+export function SalesWorkspace({
+  embedded = false,
+  newSaleRequest = 0,
+  onExit,
+}: SalesWorkspaceProps) {
   const [, navigate] = useLocation();
+  const searchParams = useSearch();
+  const consumedSource = useRef("");
+  const [customerUrl, setCustomerUrl] = useState("");
+  const linkRequest = useRef<{ token: string; expiresAt: string } | null>(null);
   const { stock } = useStock();
   const { settings } = useDealerSettings();
   const enquiries = useGetEnquiries();
   const reservations = useListReservations();
   const [customerSearch, setCustomerSearch] = useState("");
-  const recentCustomers = [
+  const sourceCustomers = [
     ...(enquiries.data ?? []).map((item) => ({
       id: "Enquiry " + item.reference,
+      sourceEnquiryId: item.id, sourceReservationId: "",
+      vehicleId: item.vehicleId ?? "", vehicle: item.vehicleTitle ?? "", registration: item.vehicleRegistration ?? "", price: item.vehiclePrice ? String(item.vehiclePrice) : "",
       name: item.customerName,
       email: item.email ?? "",
       phone: item.phone ?? "",
@@ -82,40 +141,81 @@ export default function SalesDemo() {
     })),
     ...(reservations.data?.reservations ?? []).map((item) => ({
       id: "Reservation " + item.reference,
+      sourceEnquiryId: "", sourceReservationId: item.id,
+      vehicleId: item.vehicleId, vehicle: item.vehicleTitle, registration: item.vehicleRegistration ?? "", price: stock?.cars.find(car => car.id === item.vehicleId)?.price ? String(stock!.cars.find(car => car.id === item.vehicleId)!.price) : "",
       name: item.customerName,
       email: item.email,
       phone: item.phone,
       date: item.createdAt,
     })),
   ]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .filter((item) =>
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const recentCustomers = sourceCustomers.filter((item) =>
       `${item.name} ${item.email} ${item.phone} ${item.id}`
         .toLowerCase()
         .includes(customerSearch.toLowerCase()),
     )
     .slice(0, 20);
-  const [sales, setSales] = useState<SaleDraft[]>(readDrafts);
+  const queryClient = useQueryClient();
+  const salesQuery = useQuery({
+    queryKey: ["sale-workspace"],
+    queryFn: () =>
+      customFetch<{ sales: SaleWorkspaceRecord[]; preview: boolean }>(
+        "/api/sale-workspace",
+      ),
+    refetchInterval: 15000,
+    retry: false,
+  });
+  const records = salesQuery.data?.sales ?? [];
+  const sales = records.map((sale) => sale.draft);
+  const [olderDrafts] = useState(readDrafts);
+  const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
+  const [saleSearch, setSaleSearch] = useState("");
+  const [saleFilter, setSaleFilter] = useState("all");
+  const [busy, setBusy] = useState(false);
+  const operationLock = useRef(false);
+  const retryIds = useRef(new Map<string, string>());
+  const [actionProblem, setActionProblem] = useState("");
+  const [paymentDialog, setPaymentDialog] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<
+    SaleWorkspacePayment | undefined
+  >();
+  const [reversePayment, setReversePayment] =
+    useState<SaleWorkspacePayment | null>(null);
+  const [handoverDialog, setHandoverDialog] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null,
+  );
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [snapshot, setSnapshot] = useState("");
   const [tab, setTab] = useState(0);
   const [message, setMessage] = useState("");
   const [problems, setProblems] = useState<string[]>([]);
-  const [documentType, setDocumentType] = useState<
-    "Sales invoice" | "Deposit receipt"
-  >("Sales invoice");
+  const [preparingPrint, setPreparingPrint] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const documentType = "Sales invoice" as const;
+  const selectedDocument = record?.documents.find(
+    (doc) => doc.id === selectedDocumentId,
+  );
   const heading = useRef<HTMLHeadingElement>(null);
   const sectionNavigation = useRef<HTMLElement>(null);
+  const consumedNewSaleRequest = useRef(0);
+  const printCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => printCleanup.current?.(), []);
   useEffect(() => {
     const navigation = sectionNavigation.current;
-    const active = navigation?.querySelector<HTMLElement>('[aria-current="step"]');
+    const active = navigation?.querySelector<HTMLElement>(
+      '[aria-current="step"]',
+    );
     if (!navigation || !active) return;
     const container = navigation.getBoundingClientRect();
     const button = active.getBoundingClientRect();
     // Keep the selected step in view when Next/Previous changes a section on
     // narrow screens, without scrolling the form or moving keyboard focus.
-    if (button.left < container.left) navigation.scrollLeft -= container.left - button.left + 16;
-    else if (button.right > container.right) navigation.scrollLeft += button.right - container.right + 16;
+    if (button.left < container.left)
+      navigation.scrollLeft -= container.left - button.left + 16;
+    else if (button.right > container.right)
+      navigation.scrollLeft += button.right - container.right + 16;
   }, [tab, Boolean(draft)]);
   const dirty = Boolean(draft && JSON.stringify(draft) !== snapshot);
   useEffect(() => {
@@ -130,58 +230,304 @@ export default function SalesDemo() {
   }, [dirty]);
   const leave = (exit = false) => {
     if (dirty && !window.confirm("Leave without saving these changes?")) return;
+    if (operationLock.current) return;
     setDraft(null);
+    setRecord(null);
+    setSelectedDocumentId(null);
     setMessage("");
     setProblems([]);
-    if (exit) navigate("/portal");
+    if (exit) {
+      if (onExit) onExit();
+      else navigate("/portal");
+    }
   };
-  const open = (sale: SaleDraft) => {
-    setDraft({ ...sale });
+  const open = (sale: SaleDraft, saved?: SaleWorkspaceRecord) => {
+    if (operationLock.current) return;
+    setRecord(saved ?? null);
+    setSelectedDocumentId(null);
+    setCustomerUrl(""); linkRequest.current = null;
+    setDraft(structuredClone(sale));
     setSnapshot(JSON.stringify(sale));
     setTab(0);
     setMessage("");
     setProblems([]);
   };
+  useEffect(() => {
+    if (
+      newSaleRequest <= 0 ||
+      newSaleRequest === consumedNewSaleRequest.current
+    )
+      return;
+    consumedNewSaleRequest.current = newSaleRequest;
+    if (dirty && !window.confirm("Leave without saving these changes?")) return;
+    open(emptyDraft());
+  }, [newSaleRequest]);
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    // History also deep-links to enquiries and reservations. A hidden sale
+    // workspace must never interpret those links as a request to start a sale.
+    if (embedded && params.get('section') !== 'sales') return;
+    const sourceEnquiryId = params.get('enquiryId') ?? '', sourceReservationId = params.get('reservationId') ?? '', saleId = params.get('saleId') ?? '';
+    const key = [sourceEnquiryId, sourceReservationId, saleId].join(':');
+    if (key === '::' || consumedSource.current === key || salesQuery.isLoading || operationLock.current) return;
+    if (dirty && !window.confirm('Leave without saving these changes?')) { consumedSource.current = key; return; }
+    const existing = records.find(s => saleId ? s.id === saleId : sourceEnquiryId ? s.draft.sourceEnquiryId === sourceEnquiryId : s.draft.sourceReservationId === sourceReservationId);
+    if (existing) { consumedSource.current = key; open(existing.draft, existing); return; }
+    if (saleId) return;
+    const source = sourceCustomers.find(item => sourceEnquiryId ? item.sourceEnquiryId === sourceEnquiryId : item.sourceReservationId === sourceReservationId);
+    if (!source) return;
+    consumedSource.current = key;
+    const car = stock?.cars.find(c => c.id === source.vehicleId);
+    open({ ...emptyDraft(), customer: source.name, email: source.email, phone: source.phone, customerSource: source.id,
+      sourceEnquiryId: source.sourceEnquiryId, sourceReservationId: source.sourceReservationId,
+      vehicleId: source.vehicleId, vehicle: source.vehicle || (car ? vehicleDisplayTitle(car) : ''), registration: source.registration || (car ? vehicleRegistration(car) : ''), price: source.price || (car?.price ? String(car.price) : '') });
+    setMessage('Source linked. Check the agreed sale details before saving. Payments are recorded separately.');
+  }, [searchParams, salesQuery.data, enquiries.data, reservations.data, stock, busy, embedded]);
   const update = <K extends keyof SaleDraft>(key: K, value: SaleDraft[K]) => {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
     setMessage("");
   };
-  const save = () => {
-    if (!draft) return;
-    const next = [...sales.filter((sale) => sale.id !== draft.id), draft];
+  const accept = (result: SaleWorkspaceMutation) => {
+    setRecord(result.sale);
+    setDraft(result.sale.draft);
+    setSnapshot(JSON.stringify(result.sale.draft));
+    queryClient.setQueryData<{
+      sales: SaleWorkspaceRecord[];
+      preview: boolean;
+    }>(["sale-workspace"], (previous) => ({
+      preview: result.preview ?? previous?.preview ?? false,
+      sales: [
+        result.sale,
+        ...(previous?.sales ?? []).filter((sale) => sale.id !== result.sale.id),
+      ],
+    }));
+    if (result.document) setSelectedDocumentId(result.document.id);
+    return result.sale;
+  };
+  const request = async (url: string, method: string, payload: object) => {
+    const key = JSON.stringify({ url, method, payload });
+    const requestId = retryIds.current.get(key) ?? saleRequestId();
+    retryIds.current.set(key, requestId);
     try {
-      localStorage.setItem(KEY, JSON.stringify(next));
-      setSales(next);
-      setSnapshot(JSON.stringify(draft));
-      setMessage("Draft saved on this device.");
-    } catch {
-      setMessage("Could not save. Keep this page open and try again.");
+      const result = await customFetch<SaleWorkspaceMutation>(url, {
+        method,
+        body: JSON.stringify({ ...payload, requestId }),
+      });
+      retryIds.current.delete(key);
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError && error.status < 500)
+        retryIds.current.delete(key);
+      throw error;
     }
   };
+  const saveInternal = async (): Promise<SaleWorkspaceRecord> => {
+    if (!draft) throw new Error("Open a sale first.");
+    if (record && !dirty) return record;
+    // Old local payment entries are never promoted to received money. The server owns the ledger.
+    const editable = {
+      ...draft,
+      payments: [],
+      deposit: "",
+    } as SaleWorkspaceDraft;
+    return accept(
+      await request(
+        record ? `/api/sale-workspace/${record.id}` : "/api/sale-workspace",
+        record ? "PUT" : "POST",
+        {
+          draft: editable,
+          ...(record ? { expectedRevision: record.revision } : {}),
+        },
+      ),
+    );
+  };
+  const run = async (operation: () => Promise<void>) => {
+    if (operationLock.current) return;
+    operationLock.current = true;
+    setBusy(true);
+    setProblems([]);
+    setActionProblem("");
+    try {
+      await operation();
+    } catch (error) {
+      const serverMessage =
+        error instanceof ApiError &&
+        error.data &&
+        typeof error.data === "object" &&
+        "error" in error.data
+          ? String(error.data.error)
+          : "";
+      const text =
+        error instanceof ApiError &&
+        error.status === 409 &&
+        /another device|changed on|reload.*sav|revision/i.test(serverMessage)
+          ? "Another staff member changed this sale. Your edits are kept. Reload the latest sale before continuing."
+          : serverMessage
+            ? serverMessage
+            : error instanceof Error
+              ? error.message
+              : "Could not save. Keep this page open and try again.";
+      setProblems([text]);
+      setActionProblem(text);
+      setMessage(
+        "Changes have not been confirmed. Please review the message above.",
+      );
+    } finally {
+      operationLock.current = false;
+      setBusy(false);
+    }
+  };
+  const save = () =>
+    void run(async () => {
+      await saveInternal();
+      setMessage("Sale saved. Available to staff on other devices.");
+    });
+  const command = async (
+    path: string,
+    payload: object,
+    current?: SaleWorkspaceRecord,
+  ) => {
+    const saved = current ?? (await saveInternal());
+    return accept(
+      await request(`/api/sale-workspace/${saved.id}${path}`, "POST", {
+        expectedRevision: saved.revision,
+        ...payload,
+      }),
+    );
+  };
+  const createCustomerLink = () => void run(async () => {
+    const saved = await saveInternal();
+    if (!linkRequest.current) {
+      const bytes = crypto.getRandomValues(new Uint8Array(32));
+      linkRequest.current = { token: Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''), expiresAt: new Date(Date.now() + 30 * 86400000).toISOString() };
+    }
+    const payload = { expectedRevision: saved.revision, days: 30, ...linkRequest.current };
+    const key = JSON.stringify(payload); const requestId = retryIds.current.get(key) ?? saleRequestId(); retryIds.current.set(key, requestId);
+    const result = await customFetch<SaleWorkspaceMutation & { customerUrl: string }>(`/api/sale-workspace/${saved.id}/customer-links`, { method: 'POST', body: JSON.stringify({ ...payload, requestId }) });
+    accept(result); retryIds.current.delete(key); linkRequest.current = null;
+    setCustomerUrl(new URL(import.meta.env.BASE_URL.replace(/\/$/, "") + result.customerUrl, window.location.origin).href); setMessage('Customer link created. Share it with this buyer.');
+  });
+  const emailCustomerLink = () => void run(async () => {
+    if (!customerUrl) return;
+    const saved = await saveInternal(); const token = new URL(customerUrl).pathname.split('/').pop();
+    accept(await request(`/api/sale-workspace/${saved.id}/customer-links/email`, 'POST', { expectedRevision: saved.revision, token }));
+    setMessage('Customer link email status updated.');
+  });
+  const updateLifecycle = (status: 'reserved' | 'sold' | 'released') => void run(async () => {
+    await command('/lifecycle', { status }); await queryClient.invalidateQueries({ queryKey: getGetStockQueryKey() });
+    setMessage(status === 'released' ? 'Reservation released. Stock availability updated.' : `Vehicle marked ${status}. Stock availability updated.`);
+  });
+  const emailDocument = () => void run(async () => {
+    if (!record || !selectedDocument) return;
+    const saved = await saveInternal();
+    const result = await request(`/api/sale-workspace/${saved.id}/documents/${selectedDocument.id}/email`, 'POST', { expectedRevision: saved.revision });
+    accept(result); setMessage('Document email status updated.');
+  });
+  const downloadDocument = () => void run(async () => {
+    if (!record || !selectedDocument) return;
+    const response = await customFetch<Blob>(`/api/sale-workspace/${record.id}/documents/${selectedDocument.id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response); const a = window.document.createElement('a'); a.href = url; a.download = selectedDocument.number + '.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+  });
+  const showReceipt = (id: string) => {
+    setSelectedDocumentId(id);
+    changeTab(4);
+  };
+  const recordPayment = (payment: SaleWorkspacePaymentInput) =>
+    void run(async () => {
+      if (pendingConfirmation)
+        await command(`/payments/${pendingConfirmation.id}/confirm`, {
+          date: payment.date,
+        });
+      else await command("/payments", { payment });
+      setPaymentDialog(false);
+      setPendingConfirmation(undefined);
+      setMessage(
+        payment.status === "confirmed"
+          ? "Payment recorded. The receipt is ready to print."
+          : "Pending payment saved. The balance is unchanged.",
+      );
+      if (payment.status === "confirmed") changeTab(4);
+    });
+  const issueDocument = (type: "invoice" | "statement") =>
+    void run(async () => {
+      await command("/documents", { type });
+      changeTab(4);
+      setMessage("Document saved. Reprints will keep these details.");
+    });
+  const latest = record && records.find((sale) => sale.id === record.id);
+  const stale = Boolean(latest && record && latest.revision > record.revision);
+  const reloadLatest = () =>
+    void run(async () => {
+      if (
+        dirty &&
+        !window.confirm(
+          "Discard your unsaved edits and open the latest saved sale?",
+        )
+      )
+        return;
+      const result = await customFetch<{ sale: SaleWorkspaceRecord }>(
+        `/api/sale-workspace/${record!.id}`,
+      );
+      accept({ sale: result.sale });
+      setPaymentDialog(false);
+      setPendingConfirmation(undefined);
+      setReversePayment(null);
+      setHandoverDialog(false);
+      setMessage("Latest saved sale loaded.");
+    });
   const changeTab = (index: number) => {
     setTab(index);
     setProblems([]);
-    requestAnimationFrame(() => heading.current?.focus());
+    requestAnimationFrame(() => {
+      heading.current?.focus({ preventScroll: embedded });
+      if (embedded)
+        heading.current?.scrollIntoView({
+          block: "start",
+          behavior: "instant",
+        });
+    });
   };
   const field = (key: keyof SaleDraft, label: string, type = "text") => (
     <label className="grid gap-2 text-sm font-medium">
       {label}
       <Input
         type={type}
+        inputMode={key === "price" ? "decimal" : undefined}
         value={String(draft?.[key] ?? "")}
         onChange={(e) => update(key, e.target.value as never)}
         className="h-12 bg-white"
       />
     </label>
   );
+  const visibleRecords = records.filter((item) => {
+    const d = item.draft;
+    const matches =
+      `${d.customer} ${d.phone} ${d.email} ${d.vehicle} ${d.registration} ${item.reference}`
+        .toLowerCase()
+        .includes(saleSearch.toLowerCase());
+    return (
+      matches &&
+      (saleFilter === "all" ||
+        (saleFilter === "balance" && totals(d).balance > 0) ||
+        (saleFilter === "completed" && Boolean(d.fulfilment?.completedAt)) ||
+        (saleFilter === "delivery" &&
+          d.fulfilment?.method === "delivery" &&
+          Boolean(d.fulfilment.scheduledDate) &&
+          !d.fulfilment.completedAt) ||
+        (saleFilter === "collection" &&
+          d.fulfilment?.method !== "delivery" &&
+          d.preparation &&
+          !d.fulfilment?.completedAt))
+    );
+  });
   const selected = stock?.cars.find((car) => car.id === draft?.vehicleId);
   const amount = draft ? totals(draft) : null;
-  const print = () => {
-    if (!draft) return;
-    const found = errors(draft);
+  const print = async () => {
+    if (!draft || preparingPrint) return;
+    const found = selectedDocument ? [] : errors(draft, record?.draft);
     setProblems(found);
     if (!found.length) {
-      document.querySelector(".sales-print-copy")?.remove();
+      printCleanup.current?.();
       const sheet = document
         .querySelector(".sales-document")
         ?.cloneNode(true) as HTMLElement | undefined;
@@ -189,100 +535,316 @@ export default function SalesDemo() {
       sheet.classList.add("sales-print-copy");
       sheet.querySelectorAll(".sales-chrome").forEach((node) => node.remove());
       document.body.appendChild(sheet);
-      window.addEventListener("afterprint", () => sheet.remove(), {
-        once: true,
-      });
-      window.print();
+      const originalTitle = document.title;
+      const cleanup = () => {
+        sheet.remove();
+        document.title = originalTitle;
+        window.removeEventListener("afterprint", cleanup);
+        if (printCleanup.current === cleanup) printCleanup.current = null;
+      };
+      printCleanup.current = cleanup;
+      setPreparingPrint(true);
+      try {
+        // Prepare the validated snapshot, so later form edits cannot change the document being printed.
+        await Promise.race([
+          Promise.allSettled([
+            document.fonts?.ready,
+            ...Array.from(sheet.querySelectorAll("img")).map((image) =>
+              image.decode(),
+            ),
+          ]),
+          new Promise((resolve) => setTimeout(resolve, 4000)),
+        ]);
+        if (!sheet.isConnected) return;
+        sheet
+          .querySelectorAll<HTMLImageElement>("img.invoice-logo")
+          .forEach((image) => {
+            if (image.naturalWidth) return;
+            const fallback = document.createElement("span");
+            fallback.className = "invoice-wordmark";
+            fallback.textContent = selectedDocument
+              ? selectedDocument.snapshot.branding.identity.logoText ||
+                selectedDocument.snapshot.branding.identity.name
+              : settings.identity.logoText || settings.identity.name;
+            image.replaceWith(fallback);
+          });
+        document.title = `${selectedDocument?.snapshot.branding.identity.name ?? settings.identity.name} - ${selectedDocument?.title ?? documentType} - ${selectedDocument?.number ?? draft.id}`;
+        window.addEventListener("afterprint", cleanup, { once: true });
+        window.print();
+      } catch {
+        cleanup();
+        setProblems(["The print preview could not open. Please try again."]);
+      } finally {
+        setPreparingPrint(false);
+      }
     }
   };
   return (
-    <div className="sales-workspace fixed inset-0 z-[70] flex flex-col bg-secondary text-foreground">
-      <header className="sales-chrome flex flex-wrap items-center justify-between gap-3 border-b border-border bg-white px-4 py-3 md:px-8">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={() => leave(!draft)}>
-            <ArrowLeft size={17} />
-            {draft ? "All sales" : "Staff portal"}
-          </Button>
+    <div
+      className={`sales-workspace sales-premium-workspace flex flex-col ${embedded ? "sales-embedded-workspace" : "fixed inset-0 z-[70]"}`}
+    >
+      {(!embedded || draft) && (
+        <header className="sales-chrome sales-titlebar">
+          <div className="sales-titlebar-identity">
+            <Button
+              className="sales-back-button"
+              variant="ghost"
+              onClick={() => leave(!draft)}
+            >
+              <ArrowLeft size={17} />
+              {draft ? "All sales" : "Staff portal"}
+            </Button>
+            <div className="sales-titlebar-name">
+              <p>{draft ? draft.customer || "New sale" : "Sales workspace"}</p>
+              <p>
+                {draft
+                  ? (record?.reference ?? "Unsaved sale")
+                  : settings.identity.name}
+              </p>
+            </div>
+          </div>
+          <div className="sales-titlebar-actions">
+            <span className="sales-draft-state" data-dirty={dirty}>
+              {dirty
+                ? "Unsaved changes"
+                : draft
+                  ? sales.some((sale) => sale.id === draft.id)
+                    ? "Saved sale"
+                    : "New sale"
+                  : "Shared records"}
+            </span>
+            {draft && (
+              <Button
+                className="sales-primary-action"
+                onClick={save}
+                disabled={busy}
+              >
+                <Save size={16} />
+                {busy ? "Saving…" : "Save sale"}
+              </Button>
+            )}
+          </div>
+        </header>
+      )}
+      {draft && (
+        <div className="sales-chrome sales-quick-actions">
           <div>
-            <p className="font-semibold">
-              {draft ? draft.customer || "New sale" : "Sales workspace"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {draft ? draft.id : settings.identity.name}
-            </p>
+            <span className="sales-status-tag">{salePaymentState(draft)}</span>
+            <span>
+              {draft.fulfilment?.completedAt
+                ? draft.fulfilment.method === "delivery"
+                  ? "Delivered"
+                  : "Collected"
+                : draft.fulfilment?.scheduledDate
+                  ? draft.fulfilment.method === "delivery"
+                    ? "Delivery booked"
+                    : "Collection booked"
+                  : "Handover not arranged"}
+            </span>
+          </div>
+          <div>
+            {record && <HistoryLinks vehicleId={record.draft.vehicleId} recordType="sale" recordId={record.id} vehicle={Boolean(record.draft.vehicleId || record.draft.vehicle)} />}
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                setPendingConfirmation(undefined);
+                setActionProblem("");
+                setPaymentDialog(true);
+              }}
+            >
+              <WalletCards size={16} />
+              Record payment
+            </Button>
+            <Button variant="outline" onClick={() => changeTab(4)}>
+              <FileText size={16} />
+              Receipts & documents
+            </Button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            {dirty
-              ? "Unsaved changes"
-              : draft
-                ? sales.some((sale) => sale.id === draft.id)
-                  ? "Saved draft"
-                  : "New draft"
-                : "Local demo"}
-          </span>
-          {draft && (
-            <Button onClick={save}>
-              <Save size={16} />
-              Save draft
-            </Button>
-          )}
+      )}
+      {draft && (
+        <dl className="sales-financial-summary sales-chrome">
+          <div>
+            <dt>Total due</dt>
+            <dd>
+              {money(amount!.price + amount!.adjustments - amount!.allowance)}
+            </dd>
+          </div>
+          <div>
+            <dt>Confirmed paid</dt>
+            <dd>{money(amount!.deposit)}</dd>
+          </div>
+          <div>
+            <dt>{amount!.balance < 0 ? "Customer credit" : "Outstanding"}</dt>
+            <dd>{money(Math.abs(amount!.balance))}</dd>
+          </div>
+        </dl>
+      )}
+      {(stale ||
+        problems.some((p) => p.startsWith("Another staff member"))) && (
+        <div className="sales-conflict-banner" role="alert">
+          <p>
+            A newer version of this sale is available. Your unsaved edits are
+            kept.
+          </p>
+          <Button variant="outline" disabled={busy} onClick={reloadLatest}>
+            Reload latest sale
+          </Button>
         </div>
-      </header>
-      <div className="sales-chrome border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">
-        Design demo · Use sample customer details · Saved on this browser only ·
-        No money received, documents issued or emails sent
-      </div>
+      )}
       {!draft ? (
-        <main className="mx-auto w-full max-w-6xl overflow-auto p-5 md:p-10">
-          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <main className="sales-drafts-home">
+          <div className="sales-drafts-intro">
             <div>
-              <h1 className="text-3xl font-semibold">Sales</h1>
-              <p className="mt-2 text-muted-foreground">
-                Open a draft or start a new sale.
-              </p>
+              <p className="sales-eyebrow">Sales workspace</p>
+              <h1>Sales</h1>
+              <p>Find a customer, reopen a sale or start a new one.</p>
             </div>
-            <Button onClick={() => open(emptyDraft())}>
-              <Plus size={17} />
-              New sale
+            {!embedded && (
+              <Button
+                className="sales-primary-action"
+                onClick={() => open(emptyDraft())}
+              >
+                <Plus size={17} />
+                New sale
+              </Button>
+            )}
+          </div>
+          <div className="sales-list-search">
+            <label>
+              Search sales
+              <Input
+                value={saleSearch}
+                onChange={(e) => setSaleSearch(e.target.value)}
+                placeholder="Customer, phone, registration or reference"
+              />
+            </label>
+            <label>
+              Show
+              <select
+                value={saleFilter}
+                onChange={(e) => setSaleFilter(e.target.value)}
+              >
+                <option value="all">All sales</option>
+                <option value="balance">Awaiting balance</option>
+                <option value="delivery">Delivery booked</option>
+                <option value="collection">Ready for collection</option>
+                <option value="completed">Handover complete</option>
+              </select>
+            </label>
+            <Button
+              variant="outline"
+              disabled={salesQuery.isFetching}
+              onClick={() => void salesQuery.refetch()}
+            >
+              Refresh sales
             </Button>
           </div>
+          {salesQuery.isLoading && <p role="status">Loading shared sales…</p>}
+          {salesQuery.isError && (
+            <div role="alert" className="sales-action-error">
+              Shared sales could not be loaded. Please refresh before recording
+              payments.
+            </div>
+          )}
           {sales.length ? (
-            <div className="divide-y divide-border border border-border bg-white">
-              {sales.map((sale) => (
-                <button
-                  key={sale.id}
-                  onClick={() => open(sale)}
-                  className="grid w-full gap-2 p-5 text-left hover:bg-secondary md:grid-cols-[1fr_1fr_auto]"
-                >
-                  <span className="font-semibold">
-                    {sale.customer || "Unnamed customer"}
-                    <small className="mt-1 block font-normal text-muted-foreground">
-                      {sale.id}
-                    </small>
-                  </span>
-                  <span>{sale.vehicle || "Vehicle not selected"}</span>
-                  <span>
-                    {money(totals(sale).balance)}
-                    <small className="block text-muted-foreground">
-                      Illustrative balance · Draft
-                    </small>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <section className="sales-draft-list" aria-label="Saved sales">
+              <div className="sales-draft-list-heading">
+                <h2>
+                  Saved sales <span>{sales.length}</span>
+                </h2>
+                <p>Shared with dealership staff</p>
+              </div>
+              {visibleRecords.map((item) => {
+                const sale = item.draft;
+                return (
+                  <button
+                    key={sale.id}
+                    onClick={() => open(sale, item)}
+                    className="sales-draft-row"
+                  >
+                    <span className="sales-draft-customer">
+                      {sale.customer || "Unnamed customer"}
+                      <small>
+                        {item.reference} · {sale.phone}
+                      </small>
+                    </span>
+                    <span className="sales-draft-vehicle">
+                      {sale.vehicle || "Vehicle not selected"}
+                    </span>
+                    <span className="sales-draft-amount">
+                      {money(totals(sale).balance)}
+                      <small>
+                        {salePaymentState(sale)} ·{" "}
+                        {sale.fulfilment?.completedAt
+                          ? "Handed over"
+                          : sale.fulfilment?.method === "delivery"
+                            ? "Delivery"
+                            : "Collection"}
+                      </small>
+                    </span>
+                  </button>
+                );
+              })}
+              {!visibleRecords.length && (
+                <p className="sales-search-empty">
+                  No sales match these filters.
+                </p>
+              )}
+            </section>
           ) : (
-            <div className="border border-dashed border-border bg-white px-6 py-12 text-center">
-              <FileText className="mx-auto mb-4" />
-              <h2 className="text-lg font-semibold">
-                Your first sale starts here
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Choose a car, enter a sample customer and preview their
-                paperwork.
+            <div className="sales-empty-state">
+              <div className="sales-empty-icon">
+                <FileText size={28} />
+              </div>
+              <h2>Your first sale starts here</h2>
+              <p>
+                Choose a car and enter the customer. Record payments and issue
+                their paperwork whenever they need it.
               </p>
+              <div className="sales-empty-steps">
+                <span>
+                  <UserRound size={18} /> Customer details
+                </span>
+                <span>
+                  <CarFront size={18} /> Vehicle &amp; agreed price
+                </span>
+                <span>
+                  <FileText size={18} /> Receipts & documents
+                </span>
+              </div>
             </div>
+          )}
+          {olderDrafts.length > 0 && (
+            <details className="sales-legacy-drafts">
+              <summary>
+                Older drafts on this device ({olderDrafts.length})
+              </summary>
+              <p>
+                These were demonstration drafts. Opening one copies the customer
+                and sale details only. Old payment entries are not confirmed or
+                credited.
+              </p>
+              {olderDrafts.map((old) => (
+                <Button
+                  variant="outline"
+                  key={old.id}
+                  onClick={() =>
+                    open({
+                      ...old,
+                      id: "DRAFT-" + saleRequestId(),
+                      payments: [],
+                      deposit: "",
+                      handover: false,
+                      fulfilment: undefined,
+                    })
+                  }
+                >
+                  Open older draft: {old.customer || old.id}
+                </Button>
+              ))}
+            </details>
           )}
         </main>
       ) : (
@@ -290,639 +852,684 @@ export default function SalesDemo() {
           <nav
             ref={sectionNavigation}
             aria-label="Sale sections"
-            className="sales-chrome flex shrink-0 overflow-x-auto border-b border-border bg-white px-4 md:px-8"
+            className="sales-chrome sales-section-ribbon"
           >
-            {tabs.map((label, index) => (
-              <button
-                key={label}
-                aria-current={tab === index ? "step" : undefined}
-                onClick={() => changeTab(index)}
-                className={`min-h-14 shrink-0 border-b-2 px-5 text-sm ${tab === index ? "border-primary font-semibold" : "border-transparent text-muted-foreground"}`}
-              >
-                {label}
-              </button>
-            ))}
+            {tabs.map((label, index) => {
+              const Icon = sectionIcons[index];
+              return (
+                <button
+                  key={label}
+                  aria-current={tab === index ? "step" : undefined}
+                  onClick={() => changeTab(index)}
+                  className="sales-section-tab"
+                  disabled={busy}
+                >
+                  <Icon size={19} aria-hidden="true" />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
           </nav>
-          <main className="sales-workspace-content flex-1 overflow-auto p-4 md:p-8">
-            <div
-              className={tab === 4 ? "mx-auto max-w-5xl" : "mx-auto max-w-4xl"}
-            >
-              <div className="sales-chrome mb-6">
-                <h1
-                  ref={heading}
-                  tabIndex={-1}
-                  className="text-2xl font-semibold"
-                >
-                  {tabs[tab]}
-                </h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {
-                    [
-                      "Enter the customer once. Their details carry through to the paperwork.",
-                      "Choose from current stock, then confirm the agreed selling price.",
-                      "Record the allowance agreed for the customer’s car.",
-                      "Plan the deposit and balance. All amounts remain illustrative in this demo.",
-                      "Check the A4 preview. Print or choose Save as PDF in your browser.",
-                      "Plan collection and record the handover checklist.",
-                    ][tab]
-                  }
-                </p>
-              </div>
-              {problems.length > 0 && (
-                <ul
-                  role="alert"
-                  className="sales-chrome mb-5 list-inside list-disc border border-red-300 bg-red-50 p-4 text-sm text-red-800"
-                >
-                  {problems.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-              )}
-              {tab === 0 && (
-                <div className="sales-form-panel">
-                  <details className="mb-6 border-b pb-5">
-                    <summary className="cursor-pointer py-3 font-medium">
-                      Use a recent enquiry or reservation
-                    </summary>
-                    <Input
-                      aria-label="Search recent customers"
-                      placeholder="Search name, telephone or reference"
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                    />
-                    <p className="my-3 text-sm text-muted-foreground">
-                      Selecting a customer replaces name, email and telephone
-                      only. Payments are never imported.
-                    </p>
-                    {(enquiries.isLoading || reservations.isLoading) && (
-                      <p role="status">Loading recent customers…</p>
-                    )}
-                    {(enquiries.isError || reservations.isError) && (
-                      <p role="alert">
-                        Some recent records could not be loaded. You can enter
-                        details below.
+          <main className="sales-workspace-content sales-premium-content">
+            <div className="sales-sheet-layout" data-document={tab === 4}>
+              <fieldset disabled={busy} className="sales-active-sheet">
+                <div className="sales-chrome sales-section-intro">
+                  <p className="sales-eyebrow">
+                    Section {tab + 1} of {tabs.length}
+                  </p>
+                  <h1
+                    ref={heading}
+                    tabIndex={-1}
+                    className="sales-section-title"
+                  >
+                    {tabs[tab]}
+                  </h1>
+                  <p className="sales-section-description">
+                    {
+                      [
+                        "Enter the customer once. Their details carry through to the paperwork.",
+                        "Choose from current stock, then confirm the agreed selling price.",
+                        "Record the allowance agreed for the customer’s car.",
+                        "Record payments received and keep every receipt. Fees and discounts update the balance.",
+                        "Issue an invoice or statement, or reopen an earlier receipt exactly as it was issued.",
+                        "Arrange collection or delivery independently of the payments and any viewing.",
+                      ][tab]
+                    }
+                  </p>
+                </div>
+                {problems.length > 0 && (
+                  <ul
+                    role="alert"
+                    className="sales-chrome mb-5 list-inside list-disc border border-red-300 bg-red-50 p-4 text-sm text-red-800"
+                  >
+                    {problems.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
+                )}
+                {tab === 0 && (
+                  <div className="sales-form-panel sales-customer-panel">
+                    <details className="sales-customer-import">
+                      <summary>
+                        <UserRound size={18} aria-hidden="true" />
+                        Use a recent enquiry or reservation
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </summary>
+                      <Input
+                        aria-label="Search recent customers"
+                        placeholder="Search name, telephone or reference"
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                      />
+                      <p className="my-3 text-sm text-muted-foreground">
+                        Selecting a customer links their enquiry or reservation and vehicle. Payments are recorded separately.
+                      </p>
+                      {(enquiries.isLoading || reservations.isLoading) && (
+                        <p role="status">Loading recent customers…</p>
+                      )}
+                      {(enquiries.isError || reservations.isError) && (
+                        <p role="alert">
+                          Some recent records could not be loaded. You can enter
+                          details below.
+                        </p>
+                      )}
+                      <div className="sales-recent-customers max-h-64 overflow-auto divide-y">
+                        {recentCustomers.map((item) => (
+                          <button
+                            key={item.id}
+                            className="block w-full py-3 text-left hover:bg-secondary"
+                            onClick={() => {
+                              setDraft({
+                                ...draft,
+                                customer: item.name,
+                                email: item.email,
+                                phone: item.phone,
+                                customerSource: item.id,
+                                sourceEnquiryId: item.sourceEnquiryId, sourceReservationId: item.sourceReservationId,
+                                vehicleId: item.vehicleId, vehicle: item.vehicle, registration: item.registration, price: item.price,
+                              });
+                              setMessage(
+                                "Customer details copied. Please check them below.",
+                              );
+                            }}
+                          >
+                            <strong>{item.name}</strong>
+                            <span className="block text-sm text-muted-foreground">
+                              {item.id} ·{" "}
+                              {new Date(item.date).toLocaleDateString("en-GB")}
+                            </span>
+                          </button>
+                        ))}
+                        {!recentCustomers.length &&
+                          !enquiries.isLoading &&
+                          !reservations.isLoading && (
+                            <p className="py-4 text-sm">
+                              No matching recent customers.
+                            </p>
+                          )}
+                      </div>
+                    </details>
+                    {draft.customerSource && (
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        Copied from {draft.customerSource}
                       </p>
                     )}
-                    <div className="max-h-64 overflow-auto divide-y">
-                      {recentCustomers.map((item) => (
-                        <button
-                          key={item.id}
-                          className="block w-full py-3 text-left hover:bg-secondary"
-                          onClick={() => {
+                    <div className="sales-panel-heading">
+                      <h2>Contact details</h2>
+                      <p>These details appear on the sales paperwork.</p>
+                    </div>
+                    <div className="sales-field-grid">
+                      {field("customer", "Customer name")}
+                      {field("phone", "Telephone", "tel")}
+                      {field("email", "Email", "email")}
+                    </div>
+                    <label className="mt-6 grid gap-2 text-sm font-medium">
+                      Address
+                      <Textarea
+                        rows={3}
+                        value={draft.address}
+                        onChange={(e) => update("address", e.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
+                {tab === 1 && (
+                  <div className="sales-form-panel">
+                    <div className="sales-panel-heading">
+                      <h2>Vehicle &amp; selling price</h2>
+                      <p>
+                        Select the car, then record the price agreed with the
+                        customer.
+                      </p>
+                    </div>
+                    <label className="grid gap-2 text-sm font-medium">
+                      Vehicle
+                      <select
+                        aria-label="Vehicle"
+                        className="h-12 w-full border border-input bg-white px-3"
+                        value={draft.vehicleId}
+                        onChange={(e) => {
+                          const car = stock?.cars.find(
+                            (c) => c.id === e.target.value,
+                          );
+                          if (car)
                             setDraft({
                               ...draft,
-                              customer: item.name,
-                              email: item.email,
-                              phone: item.phone,
-                              customerSource: item.id,
+                              vehicleId: car.id,
+                              vehicle: vehicleDisplayTitle(car),
+                              registration: vehicleRegistration(car),
+                              price: String(car.price || ""),
                             });
-                            setMessage(
-                              "Customer details copied. Please check them below.",
-                            );
-                          }}
-                        >
-                          <strong>{item.name}</strong>
-                          <span className="block text-sm text-muted-foreground">
-                            {item.id} ·{" "}
-                            {new Date(item.date).toLocaleDateString("en-GB")}
-                          </span>
-                        </button>
-                      ))}
-                      {!recentCustomers.length &&
-                        !enquiries.isLoading &&
-                        !reservations.isLoading && (
-                          <p className="py-4 text-sm">
-                            No matching recent customers.
-                          </p>
+                        }}
+                      >
+                        <option value="">Choose a car</option>
+                        {draft.vehicleId && !selected && (
+                          <option value={draft.vehicleId}>
+                            {draft.vehicle} · Saved on this sale
+                          </option>
                         )}
+                        {stock?.cars.map((car) => (
+                          <option key={car.id} value={car.id}>
+                            {vehicleDisplayTitle(car)} ·{" "}
+                            {vehicleRegistrationLabel(car)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {draft.vehicleId && !selected && (
+                      <p className="sales-panel-note">
+                        The vehicle is saved on this sale and is no longer in
+                        the current stock list. You can continue recording
+                        payments and arranging handover.
+                      </p>
+                    )}
+                    {selected && (
+                      <div className="sales-selected-vehicle">
+                        <img
+                          src={getThumbnailUrl(selected)}
+                          alt={draft.vehicle}
+                          className="sales-selected-vehicle-photo"
+                        />
+                        <div>
+                          <p className="sales-eyebrow">Selected vehicle</p>
+                          <h3>{draft.vehicle}</h3>
+                          <p>{vehicleRegistrationLabel(selected)}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="sales-field-grid mt-6">
+                      {field("registration", "Vehicle registration")}
+                      {field("price", "Agreed vehicle price (£)")}
                     </div>
-                  </details>
-                  {draft.customerSource && (
-                    <p className="mb-4 text-sm text-muted-foreground">
-                      Copied from {draft.customerSource}
-                    </p>
-                  )}
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    {field("customer", "Customer name")}
-                    {field("phone", "Telephone", "tel")}
-                    {field("email", "Email", "email")}
                   </div>
-                  <label className="mt-6 grid gap-2 text-sm font-medium">
-                    Address
-                    <Textarea
-                      rows={3}
-                      value={draft.address}
-                      onChange={(e) => update("address", e.target.value)}
-                    />
-                  </label>
-                </div>
-              )}
-              {tab === 1 && (
-                <div className="sales-form-panel">
-                  <label className="grid gap-2 text-sm font-medium">
-                    Vehicle
-                    <select
-                      aria-label="Vehicle"
-                      className="h-12 w-full border border-input bg-white px-3"
-                      value={draft.vehicleId}
-                      onChange={(e) => {
-                        const car = stock?.cars.find(
-                          (c) => c.id === e.target.value,
-                        );
-                        if (car)
-                          setDraft({
-                            ...draft,
-                            vehicleId: car.id,
-                            vehicle: vehicleDisplayTitle(car),
-                            registration: vehicleRegistration(car),
-                            price: String(car.price || ""),
-                          });
-                      }}
+                )}
+                {tab === 2 && (
+                  <div className="sales-form-panel sales-exchange-panel">
+                    <div className="sales-panel-heading">
+                      <h2>Part-exchange cars</h2>
+                      <p>
+                        Record up to three cars and the allowance agreed for
+                        each.
+                      </p>
+                    </div>
+                    {!exchanges(draft).length && (
+                      <div className="sales-entry-empty">
+                        <ArrowLeftRight size={23} aria-hidden="true" />
+                        <div>
+                          <h3>No part-exchange cars</h3>
+                          <p>
+                            Add a car if a part exchange is included in this
+                            sale.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {exchanges(draft).map((row, index) => (
+                      <fieldset key={index} className="sales-entry-group">
+                        <legend className="mb-4 font-semibold">
+                          Part exchange {index + 1}
+                        </legend>
+                        <div className="sales-exchange-fields">
+                          {(
+                            [
+                              ["registration", "Registration"],
+                              ["description", "Make and model"],
+                              ["value", "Allowance (£)"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <label key={key} className="grid gap-2 text-sm">
+                              {label}
+                              <Input
+                                aria-label={`${label} ${index + 1}`}
+                                inputMode={
+                                  key === "value" ? "decimal" : undefined
+                                }
+                                value={row[key]}
+                                onChange={(e) =>
+                                  update(
+                                    "exchanges",
+                                    exchanges(draft).map((r, i) =>
+                                      i === index
+                                        ? { ...r, [key]: e.target.value }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                              />
+                            </label>
+                          ))}
+                        </div>
+                        <Button
+                          className="sales-remove-entry mt-3"
+                          variant="ghost"
+                          onClick={() =>
+                            update(
+                              "exchanges",
+                              exchanges(draft).filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          Remove part exchange {index + 1}
+                        </Button>
+                      </fieldset>
+                    ))}
+                    <Button
+                      className="sales-add-entry"
+                      variant="outline"
+                      disabled={exchanges(draft).length >= 3}
+                      onClick={() =>
+                        update("exchanges", [
+                          ...exchanges(draft),
+                          { registration: "", description: "", value: "" },
+                        ])
+                      }
                     >
-                      <option value="">Choose a car</option>
-                      {stock?.cars.map((car) => (
-                        <option key={car.id} value={car.id}>
-                          {vehicleDisplayTitle(car)} ·{" "}
-                          {car.registration || car.plate || ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {selected && (
-                    <div className="my-6 flex flex-wrap items-center gap-5">
-                      <img
-                        src={getThumbnailUrl(selected)}
-                        alt={draft.vehicle}
-                        className="aspect-[4/3] w-48 object-cover"
-                      />
-                      <p className="text-lg font-semibold">{draft.vehicle}</p>
-                    </div>
-                  )}
-                  <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                    {field("registration", "Vehicle registration")}
-                    {field("price", "Agreed vehicle price (£)")}
+                      <Plus size={16} />
+                      Add part-exchange car
+                    </Button>
+                    <p className="sales-panel-note">
+                      Up to three cars. Total allowance:{" "}
+                      {money(amount!.allowance)}
+                    </p>
                   </div>
-                </div>
-              )}
-              {tab === 2 && (
-                <div className="sales-form-panel space-y-6">
-                  {exchanges(draft).map((row, index) => (
-                    <fieldset key={index} className="border-b pb-6">
-                      <legend className="mb-4 font-semibold">
-                        Part exchange {index + 1}
-                      </legend>
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        {(
-                          [
-                            ["registration", "Registration"],
-                            ["description", "Make and model"],
-                            ["value", "Allowance (£)"],
-                          ] as const
-                        ).map(([key, label]) => (
-                          <label key={key} className="grid gap-2 text-sm">
-                            {label}
-                            <Input
-                              aria-label={`${label} ${index + 1}`}
-                              value={row[key]}
+                )}
+                {tab === 3 && (
+                  <div className="sales-form-panel sales-payments-panel">
+                    <section className="sales-payment-section">
+                      <div className="sales-panel-heading">
+                        <h2>Fees and discounts</h2>
+                        <p>
+                          Add agreed charges or deductions to the vehicle price.
+                        </p>
+                      </div>
+                      {(draft.adjustments ?? []).map((row, index) => (
+                        <fieldset
+                          key={index}
+                          className="sales-entry-group sales-field-grid"
+                        >
+                          <legend className="mb-2 font-medium">
+                            Adjustment {index + 1}
+                          </legend>
+                          <label>
+                            Type
+                            <select
+                              className="block h-12 w-full border bg-white px-3"
+                              value={row.kind}
                               onChange={(e) =>
                                 update(
-                                  "exchanges",
-                                  exchanges(draft).map((r, i) =>
+                                  "adjustments",
+                                  draft.adjustments!.map((r, i) =>
                                     i === index
-                                      ? { ...r, [key]: e.target.value }
+                                      ? {
+                                          ...r,
+                                          kind: e.target.value as
+                                            "fee" | "discount",
+                                        }
                                       : r,
                                   ),
                                 )
                               }
-                            />
+                            >
+                              <option value="fee">Add fee</option>
+                              <option value="discount">
+                                Subtract discount
+                              </option>
+                            </select>
                           </label>
-                        ))}
-                      </div>
-                      <Button
-                        className="mt-3"
-                        variant="ghost"
-                        onClick={() =>
-                          update(
-                            "exchanges",
-                            exchanges(draft).filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        Remove part exchange {index + 1}
-                      </Button>
-                    </fieldset>
-                  ))}
-                  <Button
-                    variant="outline"
-                    disabled={exchanges(draft).length >= 3}
-                    onClick={() =>
-                      update("exchanges", [
-                        ...exchanges(draft),
-                        { registration: "", description: "", value: "" },
-                      ])
-                    }
-                  >
-                    Add part-exchange car
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Up to three cars. Total allowance:{" "}
-                    {money(amount!.allowance)}
-                  </p>
-                </div>
-              )}
-              {tab === 3 && (
-                <div className="sales-form-panel space-y-6">
-                  <h2 className="text-lg font-semibold">Fees and discounts</h2>
-                  {(draft.adjustments ?? []).map((row, index) => (
-                    <fieldset
-                      key={index}
-                      className="grid gap-3 border-b pb-4 sm:grid-cols-2"
-                    >
-                      <legend className="mb-2 font-medium">
-                        Adjustment {index + 1}
-                      </legend>
-                      <label>
-                        Type
-                        <select
-                          className="block h-12 w-full border bg-white px-3"
-                          value={row.kind}
-                          onChange={(e) =>
-                            update(
-                              "adjustments",
-                              draft.adjustments!.map((r, i) =>
-                                i === index
-                                  ? {
-                                      ...r,
-                                      kind: e.target.value as
-                                        "fee" | "discount",
-                                    }
-                                  : r,
-                              ),
-                            )
-                          }
-                        >
-                          <option value="fee">Add fee</option>
-                          <option value="discount">Subtract discount</option>
-                        </select>
-                      </label>
-                      {(
-                        [
-                          ["description", "Description"],
-                          ["amount", "Amount (£)"],
-                        ] as const
-                      ).map(([key, label]) => (
-                        <label key={key}>
-                          {label}
-                          <Input
-                            aria-label={`${label} adjustment ${index + 1}`}
-                            value={row[key]}
-                            onChange={(e) =>
+                          {(
+                            [
+                              ["description", "Description"],
+                              ["amount", "Amount (£)"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <label key={key}>
+                              {label}
+                              <Input
+                                aria-label={`${label} adjustment ${index + 1}`}
+                                inputMode={
+                                  key === "amount" ? "decimal" : undefined
+                                }
+                                value={row[key]}
+                                onChange={(e) =>
+                                  update(
+                                    "adjustments",
+                                    draft.adjustments!.map((r, i) =>
+                                      i === index
+                                        ? { ...r, [key]: e.target.value }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                              />
+                            </label>
+                          ))}
+                          <Button
+                            className="sales-remove-entry"
+                            variant="ghost"
+                            onClick={() =>
                               update(
                                 "adjustments",
-                                draft.adjustments!.map((r, i) =>
-                                  i === index
-                                    ? { ...r, [key]: e.target.value }
-                                    : r,
+                                draft.adjustments!.filter(
+                                  (_, i) => i !== index,
                                 ),
                               )
                             }
-                          />
-                        </label>
+                          >
+                            Remove adjustment {index + 1}
+                          </Button>
+                        </fieldset>
                       ))}
                       <Button
-                        variant="ghost"
+                        className="sales-add-entry"
+                        variant="outline"
                         onClick={() =>
-                          update(
-                            "adjustments",
-                            draft.adjustments!.filter((_, i) => i !== index),
-                          )
+                          update("adjustments", [
+                            ...(draft.adjustments ?? []),
+                            { description: "", amount: "", kind: "fee" },
+                          ])
                         }
                       >
-                        Remove adjustment {index + 1}
+                        <Plus size={16} />
+                        Add fee or discount
                       </Button>
-                    </fieldset>
-                  ))}
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      update("adjustments", [
-                        ...(draft.adjustments ?? []),
-                        { description: "", amount: "", kind: "fee" },
-                      ])
-                    }
-                  >
-                    Add fee or discount
-                  </Button>
-                  <h2 className="text-lg font-semibold">Payment entries</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Record each instalment separately. Entries are illustrative
-                    in this demo.
-                  </p>
-                  {payments(draft).map((row, index) => (
-                    <fieldset
-                      key={index}
-                      className="grid gap-3 border-b pb-4 sm:grid-cols-2"
-                    >
-                      <legend className="mb-2 font-medium">
-                        Payment {index + 1}
-                      </legend>
-                      {(
-                        [
-                          ["amount", "Amount (£)", "text"],
-                          ["date", "Date", "date"],
-                          ["reference", "Reference / note", "text"],
-                        ] as const
-                      ).map(([key, label, type]) => (
-                        <label key={key}>
-                          {label}
-                          <Input
-                            aria-label={`${label} payment ${index + 1}`}
-                            type={type}
-                            value={row[key]}
-                            onChange={(e) =>
-                              update(
-                                "payments",
-                                payments(draft).map((r, i) =>
-                                  i === index
-                                    ? { ...r, [key]: e.target.value }
-                                    : r,
-                                ),
-                              )
-                            }
-                          />
-                        </label>
-                      ))}
+                    </section>
+                    <PaymentLedger
+                      entries={record?.payments ?? []}
+                      documents={record?.documents ?? []}
+                      busy={busy}
+                      onRecord={() => {
+                        setPendingConfirmation(undefined);
+                        setActionProblem("");
+                        setPaymentDialog(true);
+                      }}
+                      onDocument={showReceipt}
+                      onConfirm={(payment) => {
+                        setPendingConfirmation(payment);
+                        setActionProblem("");
+                        setPaymentDialog(true);
+                      }}
+                      onReverse={(payment) => {
+                        setActionProblem("");
+                        setReversePayment(payment);
+                      }}
+                    />
+                    <p className="sales-payment-notice">
+                      Recording a payment does not charge a card or change the
+                      vehicle’s stock availability.
+                    </p>
+                  </div>
+                )}
+                {tab === 4 && (
+                  <>
+                    <div className="sales-chrome sales-document-toolbar">
+                      <div className="sales-document-issue-actions">
+                        <Button
+                          variant="outline"
+                          onClick={() => issueDocument("invoice")}
+                        >
+                          Issue sales invoice
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => issueDocument("statement")}
+                        >
+                          Create balance statement
+                        </Button>
+                      </div>
+                      <Button
+                        className="sales-primary-action"
+                        onClick={print}
+                        disabled={preparingPrint}
+                      >
+                        <Printer size={16} />
+                        {preparingPrint
+                          ? "Preparing print…"
+                          : "Print / Save PDF"}
+                      </Button>
+                    </div>
+                    <div className="sales-document-selector sales-chrome">
                       <label>
-                        Method
+                        Document
                         <select
-                          aria-label={`Method payment ${index + 1}`}
-                          className="block h-12 w-full border bg-white px-3"
-                          value={row.method}
+                          aria-label="Document"
+                          value={selectedDocumentId ?? "preview"}
                           onChange={(e) =>
-                            update(
-                              "payments",
-                              payments(draft).map((r, i) =>
-                                i === index
-                                  ? { ...r, method: e.target.value }
-                                  : r,
-                              ),
+                            setSelectedDocumentId(
+                              e.target.value === "preview"
+                                ? null
+                                : e.target.value,
                             )
                           }
                         >
-                          {["Bank transfer", "Cash", "Card", "Other"].map(
-                            (method) => (
-                              <option key={method}>{method}</option>
-                            ),
-                          )}
+                          <option value="preview">
+                            Draft invoice preview — not issued
+                          </option>
+                          {[...(record?.documents ?? [])]
+                            .reverse()
+                            .map((doc) => (
+                              <option key={doc.id} value={doc.id}>
+                                {doc.title} · {doc.number}
+                              </option>
+                            ))}
                         </select>
                       </label>
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          update(
-                            "payments",
-                            payments(draft).filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        Remove payment {index + 1}
-                      </Button>
-                    </fieldset>
-                  ))}
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      update("payments", [
-                        ...payments(draft),
-                        {
-                          amount: "",
-                          method: "Bank transfer",
-                          date: new Date().toISOString().slice(0, 10),
-                          reference: "",
-                        },
-                      ])
-                    }
+                      {selectedDocument && (
+                        <p>
+                          Issued{" "}
+                          {new Date(
+                            selectedDocument.issuedAt,
+                          ).toLocaleDateString("en-GB", {
+                            timeZone: "Europe/London",
+                          })}{" "}
+                          by {saleStaffLabel(selectedDocument.issuedBy)}. This
+                          saved copy stays unchanged.
+                        </p>
+                      )}
+                    </div>
+                    <div className="sales-document-workbench">
+                      {selectedDocument ? (
+                        <SalesDocument issuedDocument={selectedDocument} />
+                      ) : (
+                        <SalesDocument
+                          draft={draft}
+                          dealer={settings}
+                          vehicle={selected}
+                          documentType={documentType}
+                        />
+                      )}
+                      <aside className="sales-chrome sales-document-controls">
+                        <div className="sales-panel-heading">
+                          <h2>Receipts & documents</h2>
+                          <p>
+                            Every issued document remains available, including
+                            earlier versions.
+                          </p>
+                        </div>
+                        <div className="sales-saved-documents">
+                          {[...(record?.documents ?? [])]
+                            .reverse()
+                            .map((doc) => (
+                              <button
+                                key={doc.id}
+                                onClick={() => setSelectedDocumentId(doc.id)}
+                                aria-pressed={selectedDocumentId === doc.id}
+                              >
+                                <FileText size={18} />
+                                <span>
+                                  <strong>{doc.title}</strong>
+                                  <small>
+                                    {doc.number} ·{" "}
+                                    {new Date(doc.issuedAt).toLocaleDateString(
+                                      "en-GB",
+                                    )}
+                                  </small>
+                                </span>
+                              </button>
+                            ))}
+                          {!record?.documents.length && (
+                            <p>
+                              No documents issued yet. Confirm a payment for its
+                              receipt, or issue a sales invoice.
+                            </p>
+                          )}
+                        </div>
+                        <DocumentDelivery record={record} document={selectedDocument} busy={busy} onEmail={emailDocument} onDownload={downloadDocument} />
+                        <label className="grid gap-2 text-sm font-medium mt-6">
+                          Document notes
+                          <Textarea
+                            rows={4}
+                            value={draft.notes}
+                            onChange={(e) => update("notes", e.target.value)}
+                            placeholder="Agreed details for future documents"
+                          />
+                        </label>
+                        <p className="sales-panel-note">
+                          Changes to notes appear on future documents. Saved
+                          documents stay unchanged.
+                        </p>
+                      </aside>
+                    </div>
+                  </>
+                )}
+                {tab === 5 && (
+                  <>
+                    <SalesConnections record={record} busy={busy} customerUrl={customerUrl} onLink={createCustomerLink} onEmailLink={emailCustomerLink} onRevoke={() => void run(async () => { await command("/customer-links/revoke", {}); setCustomerUrl(""); setMessage("Customer access revoked."); })} onLifecycle={updateLifecycle} />
+                    <DeliveryPanel
+                      draft={draft}
+                      busy={busy}
+                      onChange={(value) => update("fulfilment", value)}
+                      onReview={update}
+                      onComplete={() => {
+                        setActionProblem("");
+                        setHandoverDialog(true);
+                      }}
+                    />
+                    {record && (
+                      <details className="sales-activity-history">
+                        <summary>Sale history ({record.events.length})</summary>
+                        <ol>
+                          {[...record.events].reverse().map((event) => (
+                            <li key={event.id}>
+                              <strong>{event.description}</strong>
+                              <span>
+                                {new Date(event.occurredAt).toLocaleString(
+                                  "en-GB",
+                                  { timeZone: "Europe/London" },
+                                )}{" "}
+                                · {saleStaffLabel(event.actor)}
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
+                  </>
+                )}
+              </fieldset>
+              {tab !== 4 && (
+                <aside
+                  className="sales-chrome sales-deal-overview"
+                  aria-label="Sale overview"
+                  data-expanded={showBreakdown || tab === 3}
+                >
+                  <div className="sales-overview-heading">
+                    <h2>Sale overview</h2>
+                    <span>{record ? "Saved sale" : "Unsaved"}</span>
+                  </div>
+                  <div className="sales-overview-customer">
+                    <UserRound size={17} aria-hidden="true" />
+                    <div>
+                      <p>{draft.customer || "Customer not entered"}</p>
+                      <span>
+                        {draft.email ||
+                          draft.phone ||
+                          "Add customer contact details"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="sales-overview-vehicle">
+                    {selected ? (
+                      <img src={getThumbnailUrl(selected)} alt="" />
+                    ) : (
+                      <CarFront size={26} aria-hidden="true" />
+                    )}
+                    <div>
+                      <p>{draft.vehicle || "Vehicle not selected"}</p>
+                      <span>
+                        {draft.registration ||
+                          (draft.vehicleId
+                            ? "Registration not entered"
+                            : "Choose a car from stock")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="sales-overview-balance">
+                    <span>{amount!.balance < 0 ? "Customer credit" : "Outstanding balance"}</span>
+                    <strong>{money(Math.abs(amount!.balance))}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    className="sales-breakdown-toggle"
+                    aria-expanded={showBreakdown || tab === 3}
+                    aria-controls="sales-price-breakdown"
+                    onClick={() => setShowBreakdown((current) => !current)}
+                    hidden={tab === 3}
                   >
-                    Add payment
-                  </Button>
-                  <dl className="divide-y">
+                    Price breakdown <ChevronDown size={16} aria-hidden="true" />
+                  </button>
+                  <dl
+                    className="sales-price-breakdown"
+                    id="sales-price-breakdown"
+                  >
                     {[
                       ["Vehicle price", amount!.price],
                       ["Fees less discounts", amount!.adjustments],
                       ["Part-exchange allowance", -amount!.allowance],
-                      ["Illustrative payments", -amount!.deposit],
-                      ["Illustrative balance", amount!.balance],
+                      ["Confirmed payments", -amount!.deposit],
                     ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="flex justify-between gap-4 py-4"
-                      >
+                      <div key={label}>
                         <dt>{label}</dt>
-                        <dd className="font-semibold">
-                          {money(Number(value))}
-                        </dd>
+                        <dd>{money(Number(value))}</dd>
                       </div>
                     ))}
                   </dl>
-                  <p className="text-sm text-amber-800">
-                    No payment has been received. This screen does not reserve
-                    or sell the vehicle.
+                  <p className="sales-overview-note">
+                    {dirty
+                      ? "Unsaved changes shown. Save before recording payments or issuing documents."
+                      : "Confirmed payments are deducted. Pending payments do not reduce the balance."}
                   </p>
-                </div>
-              )}
-              {tab === 4 && (
-                <>
-                  <div className="sales-chrome mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex items-center gap-3 text-sm">
-                      Document
-                      <select
-                        aria-label="Document"
-                        value={documentType}
-                        onChange={(e) =>
-                          setDocumentType(e.target.value as typeof documentType)
-                        }
-                        className="h-11 border border-input bg-white px-3"
-                      >
-                        <option>Sales invoice</option>
-                        <option>Deposit receipt</option>
-                      </select>
-                    </label>
-                    <Button variant="outline" onClick={print}>
-                      <Printer size={16} />
-                      Print / Save PDF
-                    </Button>
-                  </div>
-                  <article className="sales-document bg-white">
-                    <div className="flex flex-wrap justify-between gap-4 border-b-2 border-slate-800 pb-6">
-                      <div>
-                        <h2 className="text-2xl font-semibold">
-                          {settings.identity.name}
-                        </h2>
-                        <p className="mt-2 text-sm">
-                          {settings.address?.street}
-                          <br />
-                          {settings.address?.city} {settings.address?.postcode}
-                        </p>
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold">
-                          {documentType}
-                        </h2>
-                        <p className="mt-2 text-sm">
-                          {draft.id}
-                          <br />
-                          Draft · {new Date().toLocaleDateString("en-GB")}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="my-5 border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-                      DEMO — NOT ISSUED · NO PAYMENT RECEIVED
-                    </p>
-                    <section className="my-6">
-                      <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Prepared for
-                      </h3>
-                      <p className="mt-2 font-semibold">
-                        {draft.customer || "Customer name"}
-                      </p>
-                      <p className="whitespace-pre-line text-sm">
-                        {draft.address}
-                      </p>
-                      <p className="mt-1 text-sm">
-                        {draft.email} {draft.phone}
-                      </p>
-                    </section>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-y border-border bg-slate-50">
-                          <th className="p-3 text-left">Description</th>
-                          <th className="p-3 text-right">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="p-3">
-                            {draft.vehicle || "Vehicle not selected"}
-                            <br />
-                            <span className="text-muted-foreground">
-                              {draft.registration}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right">
-                            {money(amount!.price)}
-                          </td>
-                        </tr>
-                        {(draft.adjustments ?? []).map((row, i) => (
-                          <tr key={`a${i}`}>
-                            <td className="p-3">
-                              {row.description || "Adjustment"}
-                            </td>
-                            <td className="p-3 text-right">
-                              {money(
-                                pence(row.amount) *
-                                  (row.kind === "discount" ? -1 : 1),
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        {exchanges(draft).map((row, i) => (
-                          <tr key={`x${i}`}>
-                            <td className="p-3">
-                              Part exchange · {row.description} ·{" "}
-                              {row.registration}
-                            </td>
-                            <td className="p-3 text-right">
-                              {money(-pence(row.value))}
-                            </td>
-                          </tr>
-                        ))}
-                        {payments(draft).map((row, i) => (
-                          <tr key={`p${i}`}>
-                            <td className="p-3">
-                              Illustrative payment · {row.method} · {row.date}
-                              <span className="block">{row.reference}</span>
-                            </td>
-                            <td className="p-3 text-right">
-                              {money(-pence(row.amount))}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-slate-800">
-                          <th className="p-3 text-left">
-                            Illustrative balance remaining
-                          </th>
-                          <td className="p-3 text-right text-lg font-semibold">
-                            {money(amount!.balance)}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                    {documentType === "Deposit receipt" && (
-                      <p className="mt-5 text-sm">
-                        Receipt layout preview only. A real receipt will be
-                        issued only after payment is confirmed.
-                      </p>
-                    )}
-                    <label className="sales-chrome mt-6 grid gap-2 text-sm font-medium">
-                      Document notes
-                      <Textarea
-                        value={draft.notes}
-                        onChange={(e) => update("notes", e.target.value)}
-                        placeholder="Agreed details to appear on the document"
-                      />
-                    </label>
-                    <p className="mt-6 whitespace-pre-line text-sm">
-                      {draft.notes}
-                    </p>
-                    <footer className="mt-10 border-t border-border pt-4 text-xs text-muted-foreground">
-                      Design preview only. Tax treatment and dealership terms
-                      are not configured. Not a VAT invoice or proof of
-                      purchase.
-                    </footer>
-                  </article>
-                </>
-              )}
-              {tab === 5 && (
-                <div className="sales-form-panel">
-                  {field("collection", "Planned collection date", "date")}
-                  <div className="mt-6 divide-y divide-border">
-                    {(["preparation", "documents", "handover"] as const).map(
-                      (key, i) => (
-                        <label
-                          key={key}
-                          className="flex min-h-14 items-center gap-3"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={draft[key]}
-                            onChange={(e) => update(key, e.target.checked)}
-                          />
-                          {
-                            [
-                              "Vehicle preparation reviewed",
-                              "Documents reviewed with customer",
-                              "Handover checklist reviewed",
-                            ][i]
-                          }
-                        </label>
-                      ),
-                    )}
-                  </div>
-                  <p className="mt-5 text-sm text-muted-foreground">
-                    These are draft checklist notes. Completing them does not
-                    mark stock sold.
-                  </p>
-                </div>
+                </aside>
               )}
             </div>
           </main>
-          <footer className="sales-chrome flex shrink-0 items-center justify-between gap-3 border-t border-border bg-white px-4 py-3 md:px-8">
-            <p role="status" className="text-sm text-muted-foreground">
-              {message || "Draft workspace · Changes stay local"}
+          <footer className="sales-chrome sales-workspace-footer">
+            <p role="status">
+              {message ||
+                (dirty
+                  ? "Unsaved changes"
+                  : "Shared sale file · Receipts remain available")}
             </p>
-            <div className="flex gap-3">
+            <div className="sales-footer-actions">
               <Button
                 variant="outline"
                 disabled={tab === 0}
@@ -931,17 +1538,90 @@ export default function SalesDemo() {
                 Previous
               </Button>
               {tab < tabs.length - 1 ? (
-                <Button onClick={() => changeTab(tab + 1)}>
+                <Button
+                  className="sales-primary-action"
+                  onClick={() => changeTab(tab + 1)}
+                >
                   Next
                   <ArrowRight size={16} />
                 </Button>
               ) : (
-                <Button onClick={save}>Save draft</Button>
+                <Button
+                  className="sales-primary-action"
+                  onClick={save}
+                  disabled={busy}
+                >
+                  {busy ? "Saving…" : "Save sale"}
+                </Button>
               )}
             </div>
           </footer>
         </>
       )}
+      {paymentDialog && draft && (
+        <PaymentDialog
+          balance={amount!.balance}
+          hasPayments={Boolean(
+            record?.payments.some(
+              (p) => p.status === "confirmed" && p.signedAmountPence > 0,
+            ),
+          )}
+          busy={busy}
+          problem={actionProblem}
+          pending={pendingConfirmation}
+          onClose={() => {
+            setPaymentDialog(false);
+            setPendingConfirmation(undefined);
+          }}
+          onSave={recordPayment}
+        />
+      )}
+      {reversePayment && record && (
+        <ReversePaymentDialog
+          payment={reversePayment}
+          availablePence={
+            reversePayment.amountPence +
+            record.payments
+              .filter((p) => p.reversesPaymentId === reversePayment.id)
+              .reduce((sum, p) => sum + p.signedAmountPence, 0)
+          }
+          busy={busy}
+          problem={actionProblem}
+          onClose={() => setReversePayment(null)}
+          onSave={(input) =>
+            void run(async () => {
+              await command(`/payments/${reversePayment.id}/reverse`, input);
+              setReversePayment(null);
+              setMessage(
+                "Payment adjustment recorded. Original receipts remain unchanged.",
+              );
+              changeTab(4);
+            })
+          }
+        />
+      )}
+      {handoverDialog && draft && (
+        <HandoverDialog
+          draft={draft}
+          balance={amount!.balance}
+          busy={busy}
+          problem={actionProblem}
+          onClose={() => setHandoverDialog(false)}
+          onSave={(recipient, acknowledgeOutstanding) =>
+            void run(async () => {
+              await command("/handover", { recipient, acknowledgeOutstanding });
+              setHandoverDialog(false);
+              await queryClient.invalidateQueries({ queryKey: getGetStockQueryKey() });
+              setMessage("Handover recorded. Confirmation is ready to print.");
+              changeTab(4);
+            })
+          }
+        />
+      )}
     </div>
   );
+}
+
+export default function SalesDemo() {
+  return <SalesWorkspace />;
 }

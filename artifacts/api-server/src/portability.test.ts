@@ -9,7 +9,7 @@ import { serveFrontend } from './lib/serve-frontend';
 import { siteUrl } from './lib/enquiry-links';
 
 const savedFetch = globalThis.fetch;
-const keys = ['RESEND_API_KEY', 'RESEND_FROM_EMAIL', 'PUBLIC_SITE_URL', 'PUBLIC_SITE_BASE_PATH', 'NODE_ENV'] as const;
+const keys = ['RESEND_ENABLED', 'RESEND_API_KEY', 'RESEND_FROM_EMAIL', 'PUBLIC_SITE_URL', 'PUBLIC_SITE_BASE_PATH', 'NODE_ENV'] as const;
 const original = Object.fromEntries(keys.map(key => [key, process.env[key]]));
 afterEach(() => {
   globalThis.fetch = savedFetch;
@@ -20,13 +20,14 @@ afterEach(() => {
 });
 
 test('direct email preserves sender, attachments and idempotency without any platform credentials', async () => {
-  process.env.RESEND_API_KEY = 'synthetic-key';
+  process.env.RESEND_ENABLED = 'true';
+  process.env.RESEND_API_KEY = 're_syntheticIntegrationTestOnly';
   process.env.RESEND_FROM_EMAIL = 'Dealer <hello@dealer.example>';
   let called = false;
   globalThis.fetch = async (url, init) => {
     called = true;
     assert.equal(url, 'https://api.resend.com/emails');
-    assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer synthetic-key');
+    assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer re_syntheticIntegrationTestOnly');
     assert.equal(new Headers(init?.headers).get('Idempotency-Key'), 'enquiry-test');
     assert.deepEqual(JSON.parse(String(init?.body)), { from: process.env.RESEND_FROM_EMAIL, to: ['buyer@example.test'], subject: 'Viewing', html: '<p>Booked</p>', attachments: [{filename:'viewing.ics',content:'YQ=='}] });
     assert.ok(init?.signal);
@@ -37,15 +38,16 @@ test('direct email preserves sender, attachments and idempotency without any pla
 });
 
 test('missing email credentials fail before any network request', async () => {
+  process.env.RESEND_ENABLED = 'true';
   delete process.env.RESEND_API_KEY;
   globalThis.fetch = async () => { throw new Error('Unexpected network'); };
   await assert.rejects(sendEmail('x','x','x','x','x'), /Configure RESEND/);
 });
 
 test('provider rejection does not leak response contents', async () => {
-  process.env.RESEND_API_KEY = 'synthetic'; process.env.RESEND_FROM_EMAIL = 'dealer@example.test';
+  process.env.RESEND_ENABLED = 'true'; process.env.RESEND_API_KEY = 're_syntheticIntegrationTestOnly'; process.env.RESEND_FROM_EMAIL = 'dealer@example.test';
   globalThis.fetch = async () => new Response('sensitive provider response', {status:429});
-  await assert.rejects(sendEmail('x','x','x','x','x'), /^Error: Email provider returned HTTP 429\.$/);
+  await assert.rejects(sendEmail('buyer@example.test','Receipt','<p>Confirmed</p>','receipt-test','Dealer'), /^Error: Email provider returned HTTP 429\.$/);
 });
 
 test('production links require an explicit public URL and preserve base path', () => {

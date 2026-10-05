@@ -337,6 +337,123 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /staff/directory:
+    get:
+      operationId: getStaffDirectory
+      tags: [portal]
+      summary: Staff in the current dealership
+      responses:
+        "200":
+          description: Current staff identity and assignment choices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffDirectory"
+  /staff/enquiries/{id}/workspace:
+    patch:
+      operationId: updateEnquiryWorkspace
+      tags: [portal]
+      summary: Assign an enquiry, record call outcome or update attendance
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnquiryWorkspaceUpdate"
+      responses:
+        "200":
+          description: Updated enquiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "409":
+          description: Record changed or invalid attendance transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /staff/enquiries/{id}/merge:
+    post:
+      operationId: mergeEnquiries
+      tags: [enquiries]
+      summary: Combine complete enquiry cases while preserving every original record
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnquiryMergeInput" }
+      responses:
+        "200":
+          description: Case merged; refetch records and appointments
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnquiryMergeResult" }
+        "400":
+          description: Invalid selection or explicit appointment choices
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Staff sign-in required
+        "403":
+          description: Staff role cannot manage enquiries
+        "404":
+          description: Selected enquiry not found in this dealership
+        "409":
+          description: A record changed, incomplete case selection, or confirmation required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /staff/enquiries/{id}/conversations:
+    post:
+      operationId: logEnquiryConversation
+      tags: [enquiries]
+      summary: Append a staff conversation and atomically save its outcome and optional follow-up
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnquiryConversationInput"
+      responses:
+        "200":
+          description: Updated enquiry including its complete conversation timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enquiry"
+        "400":
+          description: Invalid conversation or follow-up details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401":
+          description: Staff sign-in required
+        "403":
+          description: Staff role cannot manage enquiries
+        "404":
+          description: Enquiry not found in this dealership
+        "409":
+          description: Enquiry or follow-up changed, or invalid outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /staff/enquiries:
     post:
       operationId: createStaffEnquiry
@@ -1934,6 +2051,7 @@ components:
         reference: { type: string }
         vehicleId: { type: string }
         vehicleTitle: { type: string }
+        vehicleRegistration: { type: [string, "null"] }
         depositPence: { type: number, multipleOf: 1, minimum: 100, maximum: 1000000 }
         amountReceivedPence: { type: number, multipleOf: 1, enum: [0] }
         paymentStatus: { type: string, enum: [simulated] }
@@ -2728,10 +2846,63 @@ components:
           minLength: 1
       required:
         - error
+    StaffDirectory:
+      type: object
+      properties:
+        currentUserId: { type: string }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+            required: [id, name]
+      required: [currentUserId, members]
+    EnquiryConversationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        expectedRevision: { type: number, multipleOf: 1, minimum: 0 }
+        expectedFollowUpRevision: { type: number, multipleOf: 1, minimum: 0 }
+        note: { type: string, minLength: 1, maxLength: 2000 }
+        callOutcome:
+          type: string
+          enum: [information_given, test_drive_booked, callback_requested, no_answer, not_interested]
+        followUpAt:
+          type: string
+          format: date-time
+          description: Optional future follow-up. Omitting this keeps the existing follow-up unchanged.
+        followUpNote: { type: string, maxLength: 500 }
+      required: [expectedRevision, expectedFollowUpRevision, note, callOutcome]
+    EnquiryWorkspaceUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        expectedRevision: { type: number, multipleOf: 1, minimum: 0 }
+        expectedAppointmentRevision: { type: number, multipleOf: 1, minimum: 0 }
+        assignedToId: { type: [string, "null"], maxLength: 200 }
+        callOutcome:
+          type: [string, "null"]
+          enum: [information_given, test_drive_booked, callback_requested, no_answer, not_interested]
+        staffNote: { type: [string, "null"], maxLength: 2000 }
+        attendance:
+          type: string
+          enum: [scheduled, arrived, completed, no_show]
+      required: [expectedRevision]
     Enquiry:
       type: object
       additionalProperties: false
       properties:
+        mergedIntoId: { type: [string, "null"], description: Main case ID; originals remain editable and retain their own appointments and history. }
+        mergedAt: { type: [string, "null"], format: date-time }
+        mergedBy: { type: [string, "null"] }
+        assignedToId: { type: [string, "null"] }
+        assignedToName: { type: [string, "null"] }
+        callOutcome: { type: [string, "null"] }
+        staffNote: { type: [string, "null"] }
+        attendance: { type: string, enum: [scheduled, arrived, completed, no_show] }
+        workspaceRevision: { type: number, multipleOf: 1 }
         appointmentOutsideHours:
           type: boolean
           description: Staff arranged outside configured booking hours or a closed date.
@@ -2890,10 +3061,55 @@ components:
         - source
         - createdAt
         - updatedAt
+    EnquiryMergeInput:
+      type: object
+      additionalProperties: false
+      properties:
+        recordIds:
+          type: array
+          minItems: 2
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string }
+          description: Includes the main record and every original from selected existing cases.
+        expectedRevisions:
+          type: array
+          minItems: 2
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id: { type: string }
+              workspaceRevision: { type: number, multipleOf: 1, minimum: 0 }
+              appointmentRevision: { type: number, multipleOf: 1, minimum: 0 }
+              followUpRevision: { type: number, multipleOf: 1, minimum: 0 }
+            required: [id, workspaceRevision, appointmentRevision, followUpRevision]
+        keepAppointmentIds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string }
+          description: Explicit set of selected active appointments to keep. Other active selected appointments are cancelled on their original records.
+        reason: { type: string, minLength: 2, maxLength: 1000 }
+        confirmDifferentCustomers: { type: boolean }
+        allowOverlappingAppointments: { type: boolean }
+      required: [recordIds, expectedRevisions, keepAppointmentIds, reason, confirmDifferentCustomers, allowOverlappingAppointments]
+    EnquiryMergeResult:
+      type: object
+      additionalProperties: false
+      properties:
+        primaryId: { type: string }
+        recordIds: { type: array, items: { type: string } }
+        cancelledAppointmentIds: { type: array, items: { type: string } }
+      required: [primaryId, recordIds, cancelledAppointmentIds]
     EnquiryInput:
       type: object
       additionalProperties: false
       properties:
+        requestCallback:
+          type: boolean
+          description: Request a showroom callback. Public general enquiries only, with a required phone number; no appointment. Email is optional.
         vehicleId:
           type: [string, "null"]
         type:
@@ -2904,7 +3120,7 @@ components:
           minLength: 2
           maxLength: 120
         email:
-          type: string
+          type: [string, "null"]
           minLength: 3
         phone:
           type: [string, "null"]
@@ -2944,7 +3160,6 @@ components:
         - vehicleId
         - type
         - customerName
-        - email
         - phone
         - preferredContact
         - message
@@ -2953,6 +3168,10 @@ components:
       type: object
       additionalProperties: false
       properties:
+        assignedToId: { type: [string, "null"], maxLength: 200 }
+        callOutcome:
+          type: [string, "null"]
+          enum: [information_given, test_drive_booked, callback_requested, no_answer, not_interested]
         allowOutsideHours:
           type: boolean
           description: Explicit staff override for a time outside configured booking hours.
@@ -3132,6 +3351,8 @@ components:
             - viewing_cancelled
             - call_intent
             - whatsapp_intent
+            - conversation_logged
+            - records_merged
         actor:
           type: string
           enum: [customer, dealer, system]
@@ -3143,6 +3364,15 @@ components:
           type: [string, "null"]
         vehicleUrl:
           type: [string, "null"]
+        note: { type: string }
+        staffId: { type: string }
+        staffName: { type: string }
+        callOutcome:
+          type: string
+          enum: [information_given, test_drive_booked, callback_requested, no_answer, not_interested]
+        followUpAt:
+          type: [string, "null"]
+          format: date-time
         occurredAt:
           type: string
           format: date-time

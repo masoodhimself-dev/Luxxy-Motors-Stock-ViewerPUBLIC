@@ -1,12 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateReservationResponse, ListReservationsResponse, CancelReservationResponse } from "@workspace/api-zod";
 import {
-  db, dealerSettingsTable, leadEventsTable, leadsTable, salesTable, vehiclesTable,
+  db, dealerSettingsTable, leadEventsTable, leadsTable, salesTable, vehiclesTable, saleWorkspaceTable,
   type Lead, type LeadEvent,
 } from "@workspace/db";
-import { requireStaff, staffLabel } from "../middlewares/staff-auth";
+import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { requireStaff, requirePermission, staffLabel } from "../middlewares/staff-auth";
 import {
   assertReservationCanBeCancelled, createOnlineReservation, ReservationError,
   reservationView, type ReservationRecord, type ReservationRepository, type ReservationTransaction,
@@ -21,6 +23,7 @@ const cancellationKind = "online_reservation_cancelled";
 
 const recordSchema = z.object({
   id: z.uuid(), dealerId: z.string(), reference: z.string(), vehicleId: z.uuid(), vehicleTitle: z.string(),
+  vehicleRegistration: z.string().nullable().optional(),
   depositPence: z.number().int().positive(), amountReceivedPence: z.literal(0), paymentStatus: z.literal("simulated"),
   status: z.enum(["reserved", "cancelled"]), createdAt: z.iso.datetime(),
   idempotencyKey: z.uuid(), requestFingerprint: z.string(),
@@ -118,7 +121,7 @@ function transactionAdapter(tx: Tx, id: string): ReservationTransaction {
       const createdAt = new Date(record.createdAt);
       await tx.insert(leadsTable).values({
         id: record.id, dealerId: id, vehicleId: vehicle.id, vehicleTitle: record.vehicleTitle,
-        vehicleRegistration: vehicle.registration || vehicle.vrm || vehicle.plate || null,
+        vehicleRegistration: record.vehicleRegistration ?? null,
         vehiclePrice: record.expectedPricePence / 100,
         stage: "reserved", source: "website_form", customerName: record.customerName,
         email: record.email, phone: record.phone, preferredContact: "phone",
@@ -208,7 +211,7 @@ router.get("/reservations", requireStaff, async (req, res): Promise<void> => {
   } catch (error) { sendError(error, req, res); }
 });
 
-router.post("/reservations/:id/cancel", requireStaff, async (req, res): Promise<void> => {
+router.post("/reservations/:id/cancel", requireStaff, requirePermission("sales.manage"), async (req, res): Promise<void> => {
   res.set("Cache-Control", "no-store");
   if (!z.uuid().safeParse(req.params.id).success) {
     res.status(400).json({ error: "Invalid reservation." });
@@ -219,6 +222,8 @@ router.post("/reservations/:id/cancel", requireStaff, async (req, res): Promise<
     const result = await db.transaction(async (tx) => {
       const found = await getReservation(tx, id, req.params.id);
       if (!found) throw new ReservationError("Reservation not found.", 404);
+      // Sales use dealer then vehicle locks; preserve that order to avoid deadlocks.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`sale-workspace:${id}`}))`);
       const adapter = transactionAdapter(tx, id);
       await adapter.lockVehicle(found.record.vehicleId);
       const vehicle = await adapter.getVehicle(found.record.vehicleId);
@@ -229,12 +234,24 @@ router.post("/reservations/:id/cancel", requireStaff, async (req, res): Promise<
       if (lead.vehicleId !== found.record.vehicleId) {
         throw new ReservationError("The vehicle linked to this lead has changed. Review the lead before releasing the car.", 409);
       }
+      const connected = await tx.select().from(saleWorkspaceTable).where(and(eq(saleWorkspaceTable.dealerId, id), sql`${saleWorkspaceTable.state}#>>'{draft,sourceReservationId}' = ${lead.id}`)).for('update');
+      if (connected.some(row => (row.state as unknown as SaleWorkspaceRecord).lifecycle?.status === 'sold')) throw new ReservationError('This reservation belongs to a sold vehicle. Review its sale file.', 409);
       assertReservationCanBeCancelled({
         inventoryStatus: vehicle?.inventoryStatus, leadStage: lead.stage, depositPence: lead.depositPence,
         hasActiveSale: await adapter.hasActiveSale(found.record.vehicleId),
         hasCompetingReservation: await adapter.hasCompetingReservation(found.record.vehicleId, lead.id),
       });
-      await tx.update(vehiclesTable).set({ inventoryStatus: "available", updatedAt: new Date() })
+      const cancelledAt = new Date().toISOString();
+      for (const row of connected) {
+        const sale = row.state as unknown as SaleWorkspaceRecord;
+        if (sale.lifecycle?.status === 'reserved') {
+          sale.lifecycle = { ...sale.lifecycle, status: 'released', changedAt: cancelledAt };
+          sale.revision += 1; sale.updatedAt = cancelledAt;
+          sale.events.push({ id: randomUUID(), type: 'reservation-cancelled', description: 'Linked online reservation cancelled; car released', actor: staffLabel(req), occurredAt: cancelledAt });
+          await tx.update(saleWorkspaceTable).set({ state: sale as unknown as Record<string, unknown>, revision: sale.revision, updatedAt: new Date(cancelledAt) }).where(eq(saleWorkspaceTable.id, sale.id));
+        }
+      }
+      await tx.update(vehiclesTable).set({ inventoryStatus: "available", auditMetadata: sql`${vehiclesTable.auditMetadata} || ${JSON.stringify({ saleWorkspaceId: null, saleWorkspaceStatus: 'released' })}::jsonb`, updatedAt: new Date() })
         .where(and(eq(vehiclesTable.dealerId, id), eq(vehiclesTable.id, found.record.vehicleId), eq(vehiclesTable.inventoryStatus, "reserved")));
       await tx.update(leadsTable).set({ stage: "qualifying", nextAction: "Contact the customer following cancellation of their online reservation.", updatedAt: new Date() })
         .where(and(eq(leadsTable.dealerId, id), eq(leadsTable.id, lead.id)));

@@ -221,6 +221,7 @@ describe('showroom data resilience', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError'); });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Blocked', 'QuotaExceededError'); });
     renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Display & sharing' }));
     expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('button-stock-view-compact'));
     expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
@@ -388,6 +389,7 @@ describe('showroom search filters', () => {
 
   it('switches between full cards and the compact stock list', () => {
     renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Display & sharing' }));
 
     expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
     expect(screen.getByTestId('button-stock-view-cards')).toHaveAttribute('aria-pressed', 'true');
@@ -407,6 +409,7 @@ describe('showroom search filters', () => {
   it('restores the saved stock display preference', () => {
     window.localStorage.setItem('luxxy.stock-view.v1', 'compact');
     renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Display & sharing' }));
 
     expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();

@@ -547,6 +547,7 @@ export const CreateReservationResponse = zod.object({
   "reference": zod.string(),
   "vehicleId": zod.string(),
   "vehicleTitle": zod.string(),
+  "vehicleRegistration": zod.string().nullish(),
   "depositPence": zod.number().min(createReservationResponseDepositPenceMin).max(createReservationResponseDepositPenceMax).multipleOf(createReservationResponseDepositPenceMultipleOf),
   "amountReceivedPence": zod.literal(0),
   "paymentStatus": zod.enum(['simulated']),
@@ -572,6 +573,7 @@ export const ListReservationsResponse = zod.object({
   "reference": zod.string(),
   "vehicleId": zod.string(),
   "vehicleTitle": zod.string(),
+  "vehicleRegistration": zod.string().nullish(),
   "depositPence": zod.number().min(listReservationsResponseReservationsItemDepositPenceMin).max(listReservationsResponseReservationsItemDepositPenceMax).multipleOf(listReservationsResponseReservationsItemDepositPenceMultipleOf),
   "amountReceivedPence": zod.literal(0),
   "paymentStatus": zod.enum(['simulated']),
@@ -608,6 +610,7 @@ export const CancelReservationResponse = zod.object({
   "reference": zod.string(),
   "vehicleId": zod.string(),
   "vehicleTitle": zod.string(),
+  "vehicleRegistration": zod.string().nullish(),
   "depositPence": zod.number().min(cancelReservationResponseDepositPenceMin).max(cancelReservationResponseDepositPenceMax).multipleOf(cancelReservationResponseDepositPenceMultipleOf),
   "amountReceivedPence": zod.literal(0),
   "paymentStatus": zod.enum(['simulated']),
@@ -617,8 +620,316 @@ export const CancelReservationResponse = zod.object({
 
 
 /**
+ * @summary Staff in the current dealership
+ */
+export const GetStaffDirectoryResponse = zod.object({
+  "currentUserId": zod.string(),
+  "members": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+}))
+})
+
+
+/**
+ * @summary Assign an enquiry, record call outcome or update attendance
+ */
+export const UpdateEnquiryWorkspaceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateEnquiryWorkspaceBodyExpectedRevisionMin = 0;
+export const updateEnquiryWorkspaceBodyExpectedRevisionMultipleOf = 1;
+
+export const updateEnquiryWorkspaceBodyExpectedAppointmentRevisionMin = 0;
+export const updateEnquiryWorkspaceBodyExpectedAppointmentRevisionMultipleOf = 1;
+
+export const updateEnquiryWorkspaceBodyAssignedToIdMax = 200;
+
+export const updateEnquiryWorkspaceBodyStaffNoteMax = 2000;
+
+
+
+export const UpdateEnquiryWorkspaceBody = zod.object({
+  "expectedRevision": zod.number().min(updateEnquiryWorkspaceBodyExpectedRevisionMin).multipleOf(updateEnquiryWorkspaceBodyExpectedRevisionMultipleOf),
+  "expectedAppointmentRevision": zod.number().min(updateEnquiryWorkspaceBodyExpectedAppointmentRevisionMin).multipleOf(updateEnquiryWorkspaceBodyExpectedAppointmentRevisionMultipleOf).optional(),
+  "assignedToId": zod.string().max(updateEnquiryWorkspaceBodyAssignedToIdMax).nullish(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).nullish(),
+  "staffNote": zod.string().max(updateEnquiryWorkspaceBodyStaffNoteMax).nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional()
+})
+
+export const updateEnquiryWorkspaceResponseWorkspaceRevisionMultipleOf = 1;
+
+export const updateEnquiryWorkspaceResponseFollowUpNoteMax = 1000;
+
+export const updateEnquiryWorkspaceResponseFollowUpRevisionMin = 0;
+export const updateEnquiryWorkspaceResponseFollowUpRevisionMultipleOf = 1;
+
+
+
+
+export const updateEnquiryWorkspaceResponseVehiclePriceMultipleOf = 1;
+
+export const updateEnquiryWorkspaceResponseAppointmentRevisionMin = 0;
+export const updateEnquiryWorkspaceResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const updateEnquiryWorkspaceResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const UpdateEnquiryWorkspaceResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(updateEnquiryWorkspaceResponseWorkspaceRevisionMultipleOf).optional(),
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(updateEnquiryWorkspaceResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(updateEnquiryWorkspaceResponseFollowUpRevisionMin).multipleOf(updateEnquiryWorkspaceResponseFollowUpRevisionMultipleOf).optional(),
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(updateEnquiryWorkspaceResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(updateEnquiryWorkspaceResponseAppointmentRevisionMin).multipleOf(updateEnquiryWorkspaceResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(updateEnquiryWorkspaceResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Combine complete enquiry cases while preserving every original record
+ */
+export const MergeEnquiriesParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const mergeEnquiriesBodyRecordIdsMin = 2;
+export const mergeEnquiriesBodyRecordIdsMax = 20;
+
+export const mergeEnquiriesBodyExpectedRevisionsItemWorkspaceRevisionMin = 0;
+export const mergeEnquiriesBodyExpectedRevisionsItemWorkspaceRevisionMultipleOf = 1;
+
+export const mergeEnquiriesBodyExpectedRevisionsItemAppointmentRevisionMin = 0;
+export const mergeEnquiriesBodyExpectedRevisionsItemAppointmentRevisionMultipleOf = 1;
+
+export const mergeEnquiriesBodyExpectedRevisionsItemFollowUpRevisionMin = 0;
+export const mergeEnquiriesBodyExpectedRevisionsItemFollowUpRevisionMultipleOf = 1;
+
+export const mergeEnquiriesBodyExpectedRevisionsMin = 2;
+export const mergeEnquiriesBodyExpectedRevisionsMax = 20;
+
+export const mergeEnquiriesBodyKeepAppointmentIdsMax = 20;
+
+export const mergeEnquiriesBodyReasonMin = 2;
+export const mergeEnquiriesBodyReasonMax = 1000;
+
+
+
+export const MergeEnquiriesBody = zod.object({
+  "recordIds": zod.array(zod.string()).min(mergeEnquiriesBodyRecordIdsMin).max(mergeEnquiriesBodyRecordIdsMax).describe('Includes the main record and every original from selected existing cases.'),
+  "expectedRevisions": zod.array(zod.object({
+  "id": zod.string(),
+  "workspaceRevision": zod.number().min(mergeEnquiriesBodyExpectedRevisionsItemWorkspaceRevisionMin).multipleOf(mergeEnquiriesBodyExpectedRevisionsItemWorkspaceRevisionMultipleOf),
+  "appointmentRevision": zod.number().min(mergeEnquiriesBodyExpectedRevisionsItemAppointmentRevisionMin).multipleOf(mergeEnquiriesBodyExpectedRevisionsItemAppointmentRevisionMultipleOf),
+  "followUpRevision": zod.number().min(mergeEnquiriesBodyExpectedRevisionsItemFollowUpRevisionMin).multipleOf(mergeEnquiriesBodyExpectedRevisionsItemFollowUpRevisionMultipleOf)
+})).min(mergeEnquiriesBodyExpectedRevisionsMin).max(mergeEnquiriesBodyExpectedRevisionsMax),
+  "keepAppointmentIds": zod.array(zod.string()).max(mergeEnquiriesBodyKeepAppointmentIdsMax).describe('Explicit set of selected active appointments to keep. Other active selected appointments are cancelled on their original records.'),
+  "reason": zod.string().min(mergeEnquiriesBodyReasonMin).max(mergeEnquiriesBodyReasonMax),
+  "confirmDifferentCustomers": zod.boolean(),
+  "allowOverlappingAppointments": zod.boolean()
+})
+
+export const MergeEnquiriesResponse = zod.object({
+  "primaryId": zod.string(),
+  "recordIds": zod.array(zod.string()),
+  "cancelledAppointmentIds": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Append a staff conversation and atomically save its outcome and optional follow-up
+ */
+export const LogEnquiryConversationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const logEnquiryConversationBodyExpectedRevisionMin = 0;
+export const logEnquiryConversationBodyExpectedRevisionMultipleOf = 1;
+
+export const logEnquiryConversationBodyExpectedFollowUpRevisionMin = 0;
+export const logEnquiryConversationBodyExpectedFollowUpRevisionMultipleOf = 1;
+
+export const logEnquiryConversationBodyNoteMax = 2000;
+
+export const logEnquiryConversationBodyFollowUpNoteMax = 500;
+
+
+
+export const LogEnquiryConversationBody = zod.object({
+  "expectedRevision": zod.number().min(logEnquiryConversationBodyExpectedRevisionMin).multipleOf(logEnquiryConversationBodyExpectedRevisionMultipleOf),
+  "expectedFollowUpRevision": zod.number().min(logEnquiryConversationBodyExpectedFollowUpRevisionMin).multipleOf(logEnquiryConversationBodyExpectedFollowUpRevisionMultipleOf),
+  "note": zod.string().min(1).max(logEnquiryConversationBodyNoteMax),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']),
+  "followUpAt": zod.coerce.date().optional().describe('Optional future follow-up. Omitting this keeps the existing follow-up unchanged.'),
+  "followUpNote": zod.string().max(logEnquiryConversationBodyFollowUpNoteMax).optional()
+})
+
+export const logEnquiryConversationResponseWorkspaceRevisionMultipleOf = 1;
+
+export const logEnquiryConversationResponseFollowUpNoteMax = 1000;
+
+export const logEnquiryConversationResponseFollowUpRevisionMin = 0;
+export const logEnquiryConversationResponseFollowUpRevisionMultipleOf = 1;
+
+
+
+
+export const logEnquiryConversationResponseVehiclePriceMultipleOf = 1;
+
+export const logEnquiryConversationResponseAppointmentRevisionMin = 0;
+export const logEnquiryConversationResponseAppointmentRevisionMultipleOf = 1;
+
+
+
+export const logEnquiryConversationResponsePartExchangeMileageMultipleOf = 1;
+
+
+
+export const LogEnquiryConversationResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(logEnquiryConversationResponseWorkspaceRevisionMultipleOf).optional(),
+  "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
+  "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
+  "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
+  "followUpAt": zod.coerce.date().nullish(),
+  "followUpNote": zod.string().max(logEnquiryConversationResponseFollowUpNoteMax).nullish(),
+  "followUpCompletedAt": zod.coerce.date().nullish(),
+  "followUpRevision": zod.number().min(logEnquiryConversationResponseFollowUpRevisionMin).multipleOf(logEnquiryConversationResponseFollowUpRevisionMultipleOf).optional(),
+  "id": zod.string().min(1),
+  "reference": zod.string().min(1),
+  "dealerId": zod.string().min(1),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleRegistration": zod.string().nullable(),
+  "vehiclePrice": zod.number().multipleOf(logEnquiryConversationResponseVehiclePriceMultipleOf).nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "appointmentAt": zod.coerce.date().nullable(),
+  "appointmentRevision": zod.number().min(logEnquiryConversationResponseAppointmentRevisionMin).multipleOf(logEnquiryConversationResponseAppointmentRevisionMultipleOf).optional(),
+  "appointmentStatus": zod.union([zod.literal('pending'),zod.literal('confirmed'),zod.literal(null)]).nullish(),
+  "appointmentDurationMinutes": zod.number().nullish(),
+  "appointmentBufferMinutes": zod.number().nullish(),
+  "appointmentCancelledAt": zod.coerce.date().nullable(),
+  "managePath": zod.string().nullable().describe('Customer self-service reschedule\/cancel path. Only returned when the enquiry is created.'),
+  "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
+  "events": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
+  "actor": zod.enum(['customer', 'dealer', 'system']),
+  "summary": zod.string(),
+  "vehicleId": zod.string().nullable(),
+  "vehicleTitle": zod.string().nullable(),
+  "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
+  "occurredAt": zod.coerce.date()
+})),
+  "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
+  "status": zod.enum(['new', 'contacted', 'closed']),
+  "customerName": zod.string().min(1),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "preferredContact": zod.string().nullable(),
+  "message": zod.string(),
+  "partExchangeRegistration": zod.string().nullable(),
+  "partExchangeMileage": zod.number().multipleOf(logEnquiryConversationResponsePartExchangeMileageMultipleOf).nullable(),
+  "partExchangeCondition": zod.string().nullable(),
+  "customerNotificationStatus": zod.string(),
+  "customerNotificationError": zod.string().nullable(),
+  "customerNotificationSentAt": zod.coerce.date().nullable(),
+  "dealerNotificationStatus": zod.string(),
+  "dealerNotificationError": zod.string().nullable(),
+  "dealerNotificationSentAt": zod.coerce.date().nullable(),
+  "reminderStatus": zod.string(),
+  "reminderError": zod.string().nullable(),
+  "reminderSentAt": zod.coerce.date().nullable(),
+  "source": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Staff-only createStaffEnquiry
  */
+export const createStaffEnquiryBodyAssignedToIdMax = 200;
+
 export const createStaffEnquiryBodyFollowUpNoteMax = 1000;
 
 export const createStaffEnquiryBodyAdHocVehicleTitleMin = 2;
@@ -651,6 +962,8 @@ export const createStaffEnquiryBodyVisitorIdMax = 64;
 
 
 export const CreateStaffEnquiryBody = zod.object({
+  "assignedToId": zod.string().max(createStaffEnquiryBodyAssignedToIdMax).nullish(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).nullish(),
   "allowOutsideHours": zod.boolean().optional().describe('Explicit staff override for a time outside configured booking hours.'),
   "allowDoubleBooking": zod.boolean().optional().describe('Explicit staff override for an overlapping appointment or full day.'),
   "followUpAt": zod.coerce.date().nullish(),
@@ -676,6 +989,8 @@ export const CreateStaffEnquiryBody = zod.object({
   "appointmentAt": zod.coerce.date().nullable()
 })
 
+export const createStaffEnquiryResponseWorkspaceRevisionMultipleOf = 1;
+
 export const createStaffEnquiryResponseFollowUpNoteMax = 1000;
 
 export const createStaffEnquiryResponseFollowUpRevisionMin = 0;
@@ -696,6 +1011,15 @@ export const createStaffEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateStaffEnquiryResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(createStaffEnquiryResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -721,12 +1045,17 @@ export const CreateStaffEnquiryResponse = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -775,6 +1104,8 @@ export const ChangeStaffFollowUpBody = zod.object({
   "followUpNote": zod.string().max(changeStaffFollowUpBodyFollowUpNoteMax).nullish()
 })
 
+export const changeStaffFollowUpResponseWorkspaceRevisionMultipleOf = 1;
+
 export const changeStaffFollowUpResponseFollowUpNoteMax = 1000;
 
 export const changeStaffFollowUpResponseFollowUpRevisionMin = 0;
@@ -795,6 +1126,15 @@ export const changeStaffFollowUpResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffFollowUpResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(changeStaffFollowUpResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -820,12 +1160,17 @@ export const ChangeStaffFollowUpResponse = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -873,6 +1218,8 @@ export const ChangeStaffAppointmentBody = zod.object({
   "expectedRevision": zod.number().min(changeStaffAppointmentBodyExpectedRevisionMin).multipleOf(changeStaffAppointmentBodyExpectedRevisionMultipleOf)
 })
 
+export const changeStaffAppointmentResponseWorkspaceRevisionMultipleOf = 1;
+
 export const changeStaffAppointmentResponseFollowUpNoteMax = 1000;
 
 export const changeStaffAppointmentResponseFollowUpRevisionMin = 0;
@@ -893,6 +1240,15 @@ export const changeStaffAppointmentResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const ChangeStaffAppointmentResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(changeStaffAppointmentResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -918,12 +1274,17 @@ export const ChangeStaffAppointmentResponse = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -959,6 +1320,8 @@ export const GetEnquiriesQueryParams = zod.object({
   "status": zod.enum(['new', 'contacted', 'closed']).optional()
 })
 
+export const getEnquiriesResponseWorkspaceRevisionMultipleOf = 1;
+
 export const getEnquiriesResponseFollowUpNoteMax = 1000;
 
 export const getEnquiriesResponseFollowUpRevisionMin = 0;
@@ -979,6 +1342,15 @@ export const getEnquiriesResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetEnquiriesResponseItem = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(getEnquiriesResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -1004,12 +1376,17 @@ export const GetEnquiriesResponseItem = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -1063,10 +1440,11 @@ export const createEnquiryBodyVisitorIdMax = 64;
 
 
 export const CreateEnquiryBody = zod.object({
+  "requestCallback": zod.boolean().optional().describe('Request a showroom callback. Public general enquiries only, with a required phone number; no appointment. Email is optional.'),
   "vehicleId": zod.string().nullable(),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
   "customerName": zod.string().min(createEnquiryBodyCustomerNameMin).max(createEnquiryBodyCustomerNameMax),
-  "email": zod.string().min(createEnquiryBodyEmailMin),
+  "email": zod.string().min(createEnquiryBodyEmailMin).nullish(),
   "phone": zod.string().min(createEnquiryBodyPhoneMin).max(createEnquiryBodyPhoneMax).nullable(),
   "preferredContact": zod.enum(['email', 'phone', 'whatsapp']).nullable(),
   "message": zod.string().min(1).max(createEnquiryBodyMessageMax),
@@ -1078,6 +1456,8 @@ export const CreateEnquiryBody = zod.object({
   "visitorId": zod.string().max(createEnquiryBodyVisitorIdMax).nullish().describe('Anonymous browser identifier used to attach earlier call\/WhatsApp taps to this lead.'),
   "appointmentAt": zod.coerce.date().nullable()
 })
+
+export const createEnquiryResponseWorkspaceRevisionMultipleOf = 1;
 
 export const createEnquiryResponseFollowUpNoteMax = 1000;
 
@@ -1099,6 +1479,15 @@ export const createEnquiryResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const CreateEnquiryResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(createEnquiryResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -1124,12 +1513,17 @@ export const CreateEnquiryResponse = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -1225,6 +1619,8 @@ export const UpdateEnquiryStatusBody = zod.object({
   "status": zod.enum(['new', 'contacted', 'closed'])
 })
 
+export const updateEnquiryStatusResponseWorkspaceRevisionMultipleOf = 1;
+
 export const updateEnquiryStatusResponseFollowUpNoteMax = 1000;
 
 export const updateEnquiryStatusResponseFollowUpRevisionMin = 0;
@@ -1245,6 +1641,15 @@ export const updateEnquiryStatusResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const UpdateEnquiryStatusResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(updateEnquiryStatusResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -1270,12 +1675,17 @@ export const UpdateEnquiryStatusResponse = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -4764,6 +5174,8 @@ export const CreateLeadActivityResponse = zod.object({
 /**
  * @summary List test-drive appointments for dealership staff
  */
+export const getTestDriveBookingsResponseWorkspaceRevisionMultipleOf = 1;
+
 export const getTestDriveBookingsResponseFollowUpNoteMax = 1000;
 
 export const getTestDriveBookingsResponseFollowUpRevisionMin = 0;
@@ -4784,6 +5196,15 @@ export const getTestDriveBookingsResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const GetTestDriveBookingsResponseItem = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(getTestDriveBookingsResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -4809,12 +5230,17 @@ export const GetTestDriveBookingsResponseItem = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),
@@ -4863,6 +5289,8 @@ export const DecideTestDriveBookingBody = zod.object({
   "expectedRevision": zod.number().min(decideTestDriveBookingBodyExpectedRevisionMin).multipleOf(decideTestDriveBookingBodyExpectedRevisionMultipleOf)
 })
 
+export const decideTestDriveBookingResponseWorkspaceRevisionMultipleOf = 1;
+
 export const decideTestDriveBookingResponseFollowUpNoteMax = 1000;
 
 export const decideTestDriveBookingResponseFollowUpRevisionMin = 0;
@@ -4883,6 +5311,15 @@ export const decideTestDriveBookingResponsePartExchangeMileageMultipleOf = 1;
 
 
 export const DecideTestDriveBookingResponse = zod.object({
+  "mergedIntoId": zod.string().nullish().describe('Main case ID; originals remain editable and retain their own appointments and history.'),
+  "mergedAt": zod.coerce.date().nullish(),
+  "mergedBy": zod.string().nullish(),
+  "assignedToId": zod.string().nullish(),
+  "assignedToName": zod.string().nullish(),
+  "callOutcome": zod.string().nullish(),
+  "staffNote": zod.string().nullish(),
+  "attendance": zod.enum(['scheduled', 'arrived', 'completed', 'no_show']).optional(),
+  "workspaceRevision": zod.number().multipleOf(decideTestDriveBookingResponseWorkspaceRevisionMultipleOf).optional(),
   "appointmentOutsideHours": zod.boolean().optional().describe('Staff arranged outside configured booking hours or a closed date.'),
   "appointmentDoubleBooked": zod.boolean().optional().describe('Staff explicitly allowed an overlapping active appointment.'),
   "appointmentOverCapacity": zod.boolean().optional().describe('Staff explicitly allowed a booking above daily capacity.'),
@@ -4908,12 +5345,17 @@ export const DecideTestDriveBookingResponse = zod.object({
   "calendarIcs": zod.string().nullable().describe('iCalendar invite for a booked viewing. Only returned when the enquiry is created.'),
   "events": zod.array(zod.object({
   "id": zod.string().min(1),
-  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent']),
+  "kind": zod.enum(['enquiry_received', 'viewing_booked', 'viewing_rescheduled', 'viewing_cancelled', 'call_intent', 'whatsapp_intent', 'conversation_logged', 'records_merged']),
   "actor": zod.enum(['customer', 'dealer', 'system']),
   "summary": zod.string(),
   "vehicleId": zod.string().nullable(),
   "vehicleTitle": zod.string().nullable(),
   "vehicleUrl": zod.string().nullable(),
+  "note": zod.string().optional(),
+  "staffId": zod.string().optional(),
+  "staffName": zod.string().optional(),
+  "callOutcome": zod.enum(['information_given', 'test_drive_booked', 'callback_requested', 'no_answer', 'not_interested']).optional(),
+  "followUpAt": zod.coerce.date().nullish(),
   "occurredAt": zod.coerce.date()
 })),
   "type": zod.enum(['viewing', 'general', 'delivery', 'warranty', 'part_exchange']),

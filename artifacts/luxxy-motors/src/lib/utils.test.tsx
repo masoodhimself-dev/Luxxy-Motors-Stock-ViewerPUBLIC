@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isUKNumberPlate, vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
+import { isUKNumberPlate, vehicleDisplayTitle, vehicleRegistration, vehicleRegistrationLabel } from '@/lib/utils';
 
 describe('vehicleRegistration', () => {
   it('prefers the authoritative plate, then the vrm', () => {
@@ -27,6 +27,26 @@ describe('vehicleRegistration', () => {
 
   it('accepts a genuine plate held in the registration column', () => {
     expect(vehicleRegistration({ registration: 'nv24 lnz', registrationBand: '2024 (24 reg)' })).toBe('NV24 LNZ');
+  });
+
+  it('skips placeholders and bands in supplied plate fields', () => {
+    expect(vehicleRegistration({ plate: 'Not supplied', vrm: 'sd15 dyp' })).toBe('SD15 DYP');
+    expect(vehicleRegistration({ plate: '2015 (15 reg)', registrationBand: '2015 (15 reg)' })).toBe('');
+  });
+});
+
+describe('vehicleRegistrationLabel', () => {
+  it('uses the real plate before a registration year or band', () => {
+    expect(vehicleRegistrationLabel({ plate: 'sd15 dyp', registration: '2015 (15 reg)', year: 2015 })).toBe('SD15 DYP');
+    expect(vehicleRegistrationLabel({ plate: ' ', vrm: 'MP65 FWC', registration: '2016 (65 reg)' })).toBe('MP65 FWC');
+  });
+
+  it('keeps registration bands and year fallback when a plate is absent', () => {
+    expect(vehicleRegistrationLabel({ registration: '2015 (65 reg)', year: 2015 })).toBe('2015 (65 reg)');
+    expect(vehicleRegistrationLabel({ registrationBand: '65', year: 2015 })).toBe('2015 (65 reg)');
+    expect(vehicleRegistrationLabel({ registrationBand: '65' })).toBe('65');
+    expect(vehicleRegistrationLabel({ registration: 'Not supplied', year: 2015 })).toBe('2015');
+    expect(vehicleRegistrationLabel({})).toBe('');
   });
 });
 

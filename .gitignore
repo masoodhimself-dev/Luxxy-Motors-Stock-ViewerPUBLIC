@@ -53,6 +53,7 @@ Thumbs.db
 .local/
 
 # Local service credentials
+.private/
 .env
 .env.*
 !.env.example

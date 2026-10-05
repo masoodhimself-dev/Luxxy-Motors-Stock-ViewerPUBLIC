@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useSearch } from 'wouter';
+import { HistoryLinks } from './history-links';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetLeadQueryKey,
@@ -40,8 +42,9 @@ function cancellationError(error: unknown) {
   return 'The reservation could not be cancelled. Please try again.';
 }
 
-function ReservationRow({ reservation }: {
+function ReservationRow({ reservation, selected = false }: {
   reservation: StaffOnlineReservation;
+  selected?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const leadId = reservation.leadId;
@@ -60,9 +63,10 @@ function ReservationRow({ reservation }: {
   } });
 
   return (
-    <li className="grid gap-4 p-4 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-start" data-testid={`staff-reservation-${reservation.id}`}>
+    <li id={`reservation-${reservation.id}`} tabIndex={selected ? -1 : undefined} className={`portal-record-row grid gap-4 p-4 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-start ${selected ? 'ring-2 ring-inset ring-primary' : ''}`} data-testid={`staff-reservation-${reservation.id}`}>
       <div className="min-w-0">
         <p className="font-semibold text-primary">{reservation.vehicleTitle}</p>
+        {reservation.vehicleRegistration && <p className="mt-1 text-sm text-muted-foreground">{reservation.vehicleRegistration}</p>}
         <p className="mt-1 font-mono text-xs text-muted-foreground">{reservation.reference}</p>
         <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(reservation.createdAt)}</p>
       </div>
@@ -79,6 +83,8 @@ function ReservationRow({ reservation }: {
         <p className="mt-1 text-muted-foreground">Payment simulated · {money(reservation.amountReceivedPence)} received</p>
       </div>
       <div className="flex flex-wrap gap-2 lg:flex-col">
+        <HistoryLinks vehicleId={reservation.vehicleId} recordType="reservation" recordId={reservation.id} />
+        <Button asChild size="sm"><Link href={`/portal?section=sales&reservationId=${reservation.id}`}>Start sale</Link></Button>
         {reservation.status === 'reserved' && (
           <AlertDialog open={confirming} onOpenChange={(open) => {
             if (!cancel.isPending) {
@@ -89,7 +95,7 @@ function ReservationRow({ reservation }: {
             <AlertDialogTrigger asChild>
               <Button type="button" variant="ghost" className="text-destructive">Cancel reservation</Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="w-[calc(100%-2rem)] rounded-md">
+            <AlertDialogContent className="portal-action-dialog w-[calc(100%-2rem)] rounded-md">
               <AlertDialogHeader>
                 <AlertDialogTitle>Cancel this reservation?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -116,13 +122,23 @@ function ReservationRow({ reservation }: {
 }
 
 export function ReservationsPanel() {
-  const [status, setStatus] = useState('reserved');
+  const routeSearch = useSearch();
+  const selectedId = new URLSearchParams(routeSearch).get('reservationId');
+  const focusedId = useRef<string | null>(null);
+  const [status, setStatus] = useState(selectedId ? 'all' : 'reserved');
   const query = useListReservations({ query: { queryKey: getListReservationsQueryKey(), refetchInterval: 60_000 } });
   const reservations = (query.data?.reservations ?? []).filter((reservation) => status === 'all' || reservation.status === status);
+  useEffect(() => { if (selectedId) setStatus('all'); }, [selectedId]);
+  useEffect(() => {
+    if (!selectedId) { focusedId.current = null; return; }
+    if (focusedId.current === selectedId || status !== 'all' || !query.data?.reservations.some(item => item.id === selectedId)) return;
+    const frame = requestAnimationFrame(() => { const row = document.getElementById(`reservation-${selectedId}`); if (row) { focusedId.current = selectedId; row.scrollIntoView({ block: 'center' }); row.focus({ preventScroll: true }); } });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedId, status, query.data?.reservations]);
 
   return (
     <Panel>
-      <PanelHeader title="Online reservations" meta="Cars reserved through the website. The reservation is real; payments are currently simulated and no money has been received." action={
+      <PanelHeader title="Online reservations" meta="Customer reservations with recorded payment status and a direct link to start the sale." action={
         <Button type="button" variant="outline" size="icon" aria-label="Refresh reservations" onClick={() => query.refetch()} disabled={query.isFetching}>
           <RefreshCw className={`h-4 w-4 ${query.isFetching ? 'animate-spin' : ''}`} />
         </Button>
@@ -146,7 +162,7 @@ export function ReservationsPanel() {
           <Button type="button" variant="outline" onClick={() => query.refetch()}>Try again</Button>
         </div>
       ) : reservations.length ? (
-        <ul className="divide-y divide-border">{reservations.map((reservation) => <ReservationRow key={reservation.id} reservation={reservation} />)}</ul>
+        <ul className="divide-y divide-border">{reservations.map((reservation) => <ReservationRow key={reservation.id} reservation={reservation} selected={selectedId === reservation.id} />)}</ul>
       ) : (
         <div className="p-4"><EmptyState icon={BookmarkCheck} title={status === 'cancelled' ? 'No cancelled reservations' : 'No reservations to show'} body={status === 'reserved' ? 'New online reservations will appear here with the car and customer details.' : 'Choose another status to see other reservations.'} /></div>
       )}

@@ -23,6 +23,7 @@ describe("buyer information preserves the source of a claim", () => {
       },
     } as unknown as Car);
     expect(result.map((item) => item.value)).toEqual([
+      null, // No previous-keeper count was supplied.
       "Partial history",
       "2027-02-10",
       "0 keys",

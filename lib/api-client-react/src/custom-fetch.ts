@@ -322,6 +322,11 @@ async function parseSuccessBody(
   }
 }
 
+const settingsRevisions = new WeakMap<object, number>();
+export function getSettingsRevision(value: unknown): number | null {
+  return value !== null && typeof value === 'object' ? settingsRevisions.get(value) ?? null : null;
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
@@ -367,5 +372,8 @@ export async function customFetch<T = unknown>(
     throw new ApiError(response, errorData, requestInfo);
   }
 
-  return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+  const result = await parseSuccessBody(response, responseType, requestInfo);
+  const revisionHeader = response.headers.get('x-settings-revision');
+  if (result !== null && typeof result === 'object' && revisionHeader !== null && /^\d+$/.test(revisionHeader)) settingsRevisions.set(result, Number(revisionHeader));
+  return result as T;
 }

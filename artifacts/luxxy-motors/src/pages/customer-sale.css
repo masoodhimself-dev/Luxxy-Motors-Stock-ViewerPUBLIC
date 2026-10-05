@@ -1,0 +1,25 @@
+.customer-purchase { max-width: 1050px; margin: auto; padding: 2rem 1rem 4rem; color: #183038; }
+.customer-purchase-heading { margin-bottom: 1.5rem; }
+.customer-purchase-heading > span { display:flex;gap:.5rem;align-items:center;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:#53717d; }
+.customer-purchase-heading h1 { font-size:clamp(1.75rem,4vw,2.75rem);font-family:var(--font-display,inherit);margin:.5rem 0;line-height:1.15; }
+.customer-purchase-heading > p { font-size:.875rem; color:#53717d; margin-top:.75rem; }
+.customer-purchase-card { background:white; border:1px solid #d9e3e7; border-radius:1rem; padding:1.5rem; margin-bottom:1.25rem;box-shadow:0 4px 18px #18303805; }
+.customer-purchase-card h2 { display:flex;align-items:center;gap:.6rem;font-size:1.125rem;font-weight:600;margin-bottom:1rem; }
+.customer-purchase-card p { color:#53717d;font-size:.875rem;line-height:1.6; }
+.customer-purchase-vehicle { display:flex;gap:1rem;align-items:center; }
+.customer-purchase-vehicle h2 { margin-bottom:.5rem; }
+.customer-purchase-registration { color:#183038!important;font-weight:600;letter-spacing:.08em; }
+.customer-purchase-grid { display:grid;grid-template-columns:1fr 1fr;gap:1.25rem; }
+.customer-purchase-balance { display:block;font-size:2.5rem;letter-spacing:-.03em;margin-bottom:.3rem; }
+.customer-purchase-card dl { margin-top:1.25rem;font-size:.875rem; }
+.customer-purchase-card dl>div { display:flex;gap:1rem;justify-content:space-between;margin-top:.75rem; }
+.customer-purchase-card dd { font-weight:600;white-space:nowrap; }
+.customer-purchase-list li { display:flex;align-items:center;gap:1rem;flex-wrap:wrap;border-top:1px solid #e3ebee;padding:1rem 0; }
+.customer-purchase-list li>div:first-child { flex:1; min-width:180px; }
+.customer-purchase-list strong { font-size:.875rem; }
+.customer-purchase-appointment { border-top:1px solid #e3ebee;margin-top:1.5rem;padding-top:1rem; }
+.customer-purchase-appointment h3 { display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem;font-weight:600; }
+.customer-purchase-footer { font-size:.75rem;line-height:1.8;color:#53717d; }
+.customer-purchase-footer a { text-decoration:underline; }
+.customer-document-toolbar { display:flex;justify-content:space-between;gap:1rem;margin-bottom:1.5rem; }
+@media(max-width:650px) { .customer-purchase-grid { grid-template-columns:1fr;gap:0; }.customer-purchase-card { padding:1.25rem; }.customer-purchase-list li>div:first-child { flex-basis:65%; } }

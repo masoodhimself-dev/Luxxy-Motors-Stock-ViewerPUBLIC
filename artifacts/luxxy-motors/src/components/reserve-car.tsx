@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, CreditCard } from 'lucide-react';
-import { getGetStockQueryKey, getGetDealerSettingsQueryKey, useCreateReservation, type OnlineReservationInput } from '@workspace/api-client-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, CheckCircle2, CircleAlert, CreditCard } from 'lucide-react';
+import { customFetch, getGetStockQueryKey, getGetDealerSettingsQueryKey, useCreateReservation, type OnlineReservationInput } from '@workspace/api-client-react';
 import type { Car } from '@/lib/stock-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -29,18 +29,21 @@ export function ReserveCar({ car, className, customer, partExchange }: {
   partExchange?: { registration: string; mileage: number };
 }) {
   const { settings } = useDealerSettings();
+  const dialogTheme = useVehicleDialogTheme();
   const options = settings.onlineReservation;
   const cache = useQueryClient();
   const mutation = useCreateReservation();
+  const readiness = useQuery({ queryKey: ['reservation-payment-readiness'], queryFn: () => customFetch<{ enabled: boolean; mode: 'test' | 'live' | null }>('/api/reservations/payment-readiness'), staleTime: 30000, retry: false });
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const paymentEnabled = readiness.data?.enabled === true;
+  const pending = mutation.isPending || checkoutPending;
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<'details' | 'payment'>('details');
   const [contact, setContact] = useState<Contact>({ customerName: '', email: '', phone: '' });
   const [accepted, setAccepted] = useState(false);
   const [formError, setFormError] = useState('');
-  const [photoFailed, setPhotoFailed] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const attempt = useRef<{ data: string; key: string } | null>(null);
-  const photo = getThumbnailUrl(car);
   const result = mutation.data;
   const pricePence = Math.round((car.price ?? 0) * 100);
   const eligible = (!car.inventoryStatus || car.inventoryStatus === 'available') && pricePence > 0 && (!car.currency || car.currency.toUpperCase() === 'GBP');
@@ -72,8 +75,8 @@ export function ReserveCar({ car, className, customer, partExchange }: {
     setStep('payment');
   }
 
-  function reserve() {
-    if (!accepted || !options || mutation.isPending) return;
+  async function reserve() {
+    if (!accepted || !options || pending) return;
     const body = {
       vehicleId: car.id,
       customerName: contact.customerName.trim(), email: contact.email.trim(), phone: contact.phone,
@@ -83,6 +86,17 @@ export function ReserveCar({ car, className, customer, partExchange }: {
     };
     const data = JSON.stringify(body);
     if (attempt.current?.data !== data) attempt.current = { data, key: reservationRequestKey() };
+    if (readiness.isError || !readiness.data) { setFormError('Payment availability could not be checked. Please try again or contact the showroom.'); return; }
+    if (paymentEnabled) {
+      setCheckoutPending(true); setFormError('');
+      try {
+        const result = await customFetch<{ checkoutUrl: string }>('/api/reservations/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, idempotencyKey: attempt.current.key }) });
+        const destination = new URL(result.checkoutUrl);
+        if (destination.protocol !== 'https:' || destination.hostname !== 'checkout.stripe.com') throw new Error('The secure payment link is unavailable. Please contact the showroom.');
+        window.location.assign(destination.href);
+      } catch (error) { setFormError(error instanceof Error ? error.message : 'Secure payment could not be opened.'); setCheckoutPending(false); }
+      return;
+    }
     mutation.mutate({ data: { ...body, idempotencyKey: attempt.current.key } as OnlineReservationInput }, {
       onSuccess: () => {
         void cache.invalidateQueries({ queryKey: getGetStockQueryKey() });
@@ -99,61 +113,81 @@ export function ReserveCar({ car, className, customer, partExchange }: {
   const error = mutation.error as { data?: { error?: string } } | null;
   return (
     <Dialog open={open} onOpenChange={next => {
-      if (mutation.isPending) return;
+      if (pending) return;
       setOpen(next);
       if (next && !result) {
         setContact(customer ?? { customerName: '', email: '', phone: '' });
-        setStep('details'); setAccepted(false); setFormError(''); setPhotoFailed(false); mutation.reset();
+        setStep('details'); setAccepted(false); setFormError(''); mutation.reset();
       }
     }}>
       {options?.enabled && <DialogTrigger asChild>
-        <Button type="button" variant="outline" className={className}>
+        <Button id="reserve-car-online" type="button" variant="outline" className={className}>
           <CreditCard className="h-4 w-4" aria-hidden="true" />{result ? 'View reservation' : 'Reserve car online'}
         </Button>
       </DialogTrigger>}
-      <DialogContent data-testid="reserve-car-dialog" onEscapeKeyDown={event => { if (mutation.isPending) event.preventDefault(); }} onInteractOutside={event => { if (mutation.isPending) event.preventDefault(); }}>
-        <div className="pr-12">
-          <p className="luxxy-label mb-3 text-accent">{result ? 'Your reservation' : 'Reserve car online'}</p>
+      <DialogContent className="vehicle-action-dialog vehicle-reservation-dialog" style={dialogTheme} data-testid="reserve-car-dialog" onEscapeKeyDown={event => { if (pending) event.preventDefault(); }} onInteractOutside={event => { if (pending) event.preventDefault(); }}>
+        <div className="vehicle-dialog-header">
+          <p className="vehicle-dialog-eyebrow">{result ? 'Your reservation' : 'Online reservation'}</p>
           <DialogTitle ref={heading} tabIndex={-1} className="focus:outline-none">
-            {result ? (result.status === 'cancelled' ? 'Reservation cancelled' : 'Your car is reserved') : step === 'details' ? 'Make it your next car.' : 'Review your reservation'}
+            {result ? (result.status === 'cancelled' ? 'Reservation cancelled' : 'Your car is reserved') : step === 'details' ? 'Reserve this car' : 'Review your reservation'}
           </DialogTitle>
-          <DialogDescription className="mt-3 font-normal">
-            {result ? (result.status === 'cancelled' ? 'This reservation has been cancelled. No money was received and this reservation no longer holds the car.' : 'Keep your reference below. The team can now find your reservation and contact details.') : 'Reserve this car for the team to follow up with you. Only the payment is simulated for now.'}
+          <DialogDescription>
+            {result ? (result.status === 'cancelled' ? 'This reservation has been cancelled. No money was received and this reservation no longer holds the car.' : 'Keep your reference below. The team will follow up with you about the car.') : step === 'details' ? 'Leave your contact details, then review the deposit and reservation terms.' : 'Check your details and the terms before confirming.'}
           </DialogDescription>
         </div>
-        <div className="flex items-center gap-3 border-y border-border py-4">
-          {photo && !photoFailed && <img src={photo} alt={vehicleDisplayTitle(car)} width={120} height={90} onError={() => setPhotoFailed(true)} className="aspect-[4/3] w-24 shrink-0 rounded-sm object-cover" />}
-          <div className="min-w-0"><p className="text-sm font-semibold">{vehicleDisplayTitle(car)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{[car.year, car.transmission].filter(Boolean).join(' · ')}</p>
-            <p className="mt-2 font-semibold">{formatPrice(car.price ?? 0, 'GBP')}</p>
+        {!result && <ol className="vehicle-dialog-steps" aria-label="Reservation progress">
+          <li aria-current={step === 'details' ? 'step' : undefined} data-complete={step === 'payment' || undefined}>
+            <span aria-hidden="true">{step === 'payment' ? <Check className="h-4 w-4" /> : '1'}</span>Your details
+          </li>
+          <li aria-current={step === 'payment' ? 'step' : undefined}><span aria-hidden="true">2</span>Review & confirm</li>
+        </ol>}
+        <VehicleDialogVehicle car={car} />
+        {result ? <div className="vehicle-dialog-result" data-status={result.status} data-testid="reservation-success">
+          <div className="vehicle-dialog-confirmation" role="status">
+            {result.status === 'cancelled' ? <CircleAlert className="h-5 w-5 shrink-0" aria-hidden="true" /> : <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />}
+            <div><p className="vehicle-dialog-eyebrow">Reservation reference</p><p className="vehicle-dialog-reference">{result.reference}</p></div>
           </div>
-        </div>
-        {result ? <div className="space-y-4" data-testid="reservation-success">
-          <div className="flex gap-3 bg-secondary/50 p-4"><CheckCircle2 className="mt-1 h-5 w-5 shrink-0" aria-hidden="true" /><div>
-            <p className="text-xs text-muted-foreground">Reservation reference</p><p className="mt-1 break-all font-mono text-lg font-semibold">{result.reference}</p>
-            <p className="mt-2 text-sm">Deposit: {pounds(result.depositPence)} · Payment simulated</p>
-            <p className="mt-2 text-sm text-muted-foreground">£0 received. Your full vehicle balance is still outstanding. This is a reservation record, not a payment receipt.</p>
-          </div></div>
-          <p className="text-sm leading-6 text-muted-foreground">{result.status === 'cancelled' ? 'Contact the dealership or refresh the vehicle page to check its current availability.' : 'Contact the dealership with this reference if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
-          <DialogClose asChild><Button type="button" className="w-full">Done</Button></DialogClose>
-        </div> : step === 'details' ? <form onSubmit={review} className="space-y-4">
+          <dl className="vehicle-dialog-review-summary">
+            <div><dt>Reservation deposit</dt><dd>{pounds(result.depositPence)}</dd></div>
+            <div><dt>Amount received</dt><dd>£0</dd></div>
+            <div><dt>Payment status</dt><dd>Simulated</dd></div>
+          </dl>
+          <p className="vehicle-dialog-notice">Your full vehicle balance is still outstanding. This is a reservation record, not a payment receipt.</p>
+          <p className="vehicle-dialog-muted">{result.status === 'cancelled' ? 'Contact the dealership or refresh the vehicle page to check its current availability.' : 'Contact the dealership with this reference if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
+          <div className="vehicle-dialog-actions"><DialogClose asChild><Button type="button" className="vehicle-dialog-primary">Done</Button></DialogClose></div>
+        </div> : <>
+          <div className="vehicle-dialog-deposit">
+            <dl><div><dt>Reservation deposit</dt><dd>{pounds(depositPence)}</dd></div></dl>
+            <p>{paymentEnabled ? (readiness.data?.mode === 'test' ? 'Stripe test payment · no real charge' : 'Pay securely by card with Stripe') : 'Payment simulated · £0 charged now'}</p>
+          </div>
+          {step === 'details' ? <form onSubmit={review} className="vehicle-dialog-form">
           <label className="block"><span className="field-label">Your name</span><Input required minLength={2} maxLength={120} autoComplete="name" value={contact.customerName} onChange={e => setContact({ ...contact, customerName: e.target.value })} /></label>
           <label className="block"><span className="field-label">Email address</span><Input required type="email" maxLength={254} autoComplete="email" value={contact.email} onChange={e => setContact({ ...contact, email: e.target.value })} /></label>
           <label className="block"><span className="field-label">Phone number</span><Input required type="tel" maxLength={30} autoComplete="tel" value={contact.phone} onChange={e => setContact({ ...contact, phone: e.target.value })} /></label>
-          {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
-          <Button type="submit" className="w-full">Continue · {pounds(depositPence)} deposit</Button>
-        </form> : <div className="space-y-4">
-          <dl className="space-y-3 text-sm">
-            <div className="flex justify-between gap-3"><dt>Reservation deposit</dt><dd className="font-semibold">{pounds(depositPence)}</dd></div>
-            <div className="flex justify-between gap-3"><dt>Charged now</dt><dd className="font-semibold">£0 · simulated payment</dd></div>
-          </dl>
-          <div className="border-y border-border py-4"><h3 className="text-sm font-semibold">Reservation terms</h3><p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{options?.terms}</p></div>
-          <label className="flex cursor-pointer items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-primary" checked={accepted} onChange={e => setAccepted(e.target.checked)} />I accept these reservation terms and understand that no money will be taken during this simulated payment.</label>
-          <p className="text-xs leading-6 text-muted-foreground">Confirming creates a reservation for this car. It does not record a paid deposit.</p>
-          {mutation.isError && <p role="alert" className="text-sm text-destructive">{error?.data?.error || 'We could not confirm your reservation. Please try again. No payment has been taken.'}</p>}
-          <Button type="button" className="w-full" disabled={!accepted || mutation.isPending} onClick={reserve}>{mutation.isPending ? 'Reserving your car…' : 'Confirm reservation · simulate payment'}</Button>
-          <Button type="button" variant="ghost" className="w-full" disabled={mutation.isPending} onClick={() => { setStep('details'); mutation.reset(); }}>Back to your details</Button>
+          {formError && <p role="alert" className="vehicle-dialog-error">{formError}</p>}
+          <p className="vehicle-dialog-muted">The team will use these details to follow up on this reservation.</p>
+          <div className="vehicle-dialog-actions"><Button type="submit" className="vehicle-dialog-primary">Continue · {pounds(depositPence)} deposit</Button></div>
+        </form> : <div className="vehicle-dialog-review" aria-busy={pending}>
+          <section className="vehicle-dialog-contact-summary" aria-label="Your reservation contact details">
+            <h3>Your details</h3>
+            <dl className="vehicle-dialog-review-summary">
+              <div><dt>Name</dt><dd>{contact.customerName.trim()}</dd></div>
+              <div><dt>Email</dt><dd>{contact.email.trim()}</dd></div>
+              <div><dt>Phone</dt><dd>{contact.phone}</dd></div>
+            </dl>
+          </section>
+          <section className="vehicle-dialog-terms" aria-label="Reservation terms"><h3>Reservation terms</h3><p className="whitespace-pre-line">{options?.terms}</p></section>
+          <label className="vehicle-dialog-consent"><input type="checkbox" className="h-5 w-5 shrink-0" checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>I accept these reservation terms. {paymentEnabled ? (readiness.data?.mode === 'test' ? 'This is a test payment; no real money will be received.' : `I will pay ${pounds(depositPence)} securely on Stripe.`) : 'No money will be taken during this simulated payment.'}</span></label>
+          <p className="vehicle-dialog-notice">{paymentEnabled ? 'Your deposit is recorded only after Stripe confirms a successful payment.' : 'Confirming creates a reservation for this car. It does not record a paid deposit.'}</p>
+          {formError && <p role="alert" className="vehicle-dialog-error">{formError}</p>}
+          {mutation.isError && <p role="alert" className="vehicle-dialog-error">{error?.data?.error || 'We could not confirm your reservation. Please try again. No payment has been taken.'}</p>}
+          {mutation.isPending && <p role="status" className="vehicle-dialog-muted">We’re confirming the reservation. Please keep this window open.</p>}
+          <div className="vehicle-dialog-actions">
+            <Button type="button" className="vehicle-dialog-primary" disabled={!accepted || pending || readiness.isLoading || readiness.isError} onClick={reserve}>{pending ? 'Preparing your reservation…' : paymentEnabled ? `Continue to secure payment · ${pounds(depositPence)}` : 'Confirm reservation · simulate payment'}</Button>
+            <Button type="button" variant="ghost" className="vehicle-dialog-back" disabled={pending} onClick={() => { setStep('details'); mutation.reset(); }}>Back to your details</Button>
+          </div>
         </div>}
+        </>}
       </DialogContent>
     </Dialog>
   );

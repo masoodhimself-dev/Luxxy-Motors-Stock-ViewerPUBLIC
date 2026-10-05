@@ -24,7 +24,7 @@ export function vehicleHistoryFacts(car: Car): Fact[] {
   const ownerValue = text(owners?.value) ?? text(byKey("OWNERS")?.value) ?? (car.owners != null ? String(car.owners) : null);
   const serviceValue = text(service?.description) ?? text(byKey("SERVICE_HISTORY")?.value) ?? text(car.sourceExtras?.serviceHistory);
   const keysRaw = text(byKey("KEYS")?.value);
-  const keys = keysRaw === "Contact seller" ? "Please ask the team to confirm" : keysRaw;
+  const keys = keysRaw && /^(contact seller|unknown|not supplied)$/i.test(keysRaw) ? null : keysRaw;
   return [ownerValue ? { label: "Previous keepers", value: ownerValue } : null, serviceValue ? { label: "Service history", value: serviceValue } : null, keys ? { label: "Keys supplied", value: keys } : null].filter((x): x is Fact => Boolean(x));
 }
 
@@ -48,4 +48,25 @@ export function vehicleEconomySummary(car: Car): string[] {
   const average = costs.find(x => x.label.toLowerCase() === "average");
   const tax = costs.find(x => /tax per year/i.test(x.label));
   return [average ? `${average.value} average` : null, tax ? `${tax.value} annual road tax` : null].filter((x): x is string => Boolean(x));
+}
+
+/** Read named specification rows, never dump arbitrary import metadata into the page. */
+export function vehicleSpecificationGroups(car: Car): { title: string; facts: Fact[] }[] {
+  const source = car.sourceExtras?.specCategories;
+  if (!Array.isArray(source)) return [];
+  return source.flatMap(item => {
+    const group = record(item); const title = text(group?.category);
+    if (!title || /finance|monthly|payment/i.test(title) || !Array.isArray(group?.items)) return [];
+    const facts = group.items.flatMap(item => {
+      const row = record(item); const label = text(row?.name ?? row?.label); const value = text(row?.value);
+      return label && value && !/finance|monthly|payment/i.test(label) ? [{ label, value }] : [];
+    });
+    return facts.length ? [{ title, facts }] : [];
+  });
+}
+export function vehicleBootSpace(car: Car): string | null {
+  const row = vehicleSpecificationGroups(car).flatMap(group => group.facts).find(item => /^boot space \(seats up\)$/i.test(item.label));
+  if (row) return row.value;
+  const litres = car.specifications?.bootSpaceLitres ?? car.sourceExtras?.bootSpaceLitres;
+  return typeof litres === 'number' && Number.isFinite(litres) && litres >= 0 ? `${litres} litres` : null;
 }

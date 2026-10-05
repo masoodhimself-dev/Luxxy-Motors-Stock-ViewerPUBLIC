@@ -96,6 +96,39 @@ test("same request is safely replayed, including after reservations are switched
   assert.equal(repo.records.length, 1);
 });
 
+test("new reservations snapshot the supplied plate before VRM or registration year labels", async () => {
+  const cases = [
+    { fields: { plate: " ab12 cde ", vrm: "XY34 ZZZ", registration: "2019 (19 reg)", registrationBand: "19" }, expected: "AB12 CDE" },
+    { fields: { plate: "  ", vrm: " xy34 zzz ", registration: "2019 (19 reg)" }, expected: "XY34 ZZZ" },
+    { fields: { plate: null, vrm: null, registration: " ab12 cde ", registrationBand: "19" }, expected: "AB12 CDE" },
+    { fields: { registration: "2019 (19 reg)", registrationBand: "19" }, expected: "2019 (19 reg)" },
+    { fields: { registration: null, registrationBand: "19" }, expected: "19" },
+    { fields: { registration: null, registrationBand: null, year: 2019 }, expected: "2019" },
+  ];
+  for (const { fields, expected } of cases) {
+    const repo = new MemoryRepository();
+    Object.assign(repo.vehicle!, fields);
+    const created = await createOnlineReservation(request, context, repo);
+    assert.equal(repo.records[0].vehicleRegistration, expected);
+    assert.equal(created.reservation.vehicleRegistration, expected);
+    Object.assign(repo.vehicle!, { plate: "ZZ99 ZZZ", registration: "Different stock label" });
+    await createOnlineReservation(request, context, repo);
+    assert.equal(repo.records[0].vehicleRegistration, expected, "a retry preserves the original vehicle snapshot");
+  }
+});
+
+test("replaying an existing reservation does not add or rewrite its registration snapshot", async () => {
+  const repo = new MemoryRepository();
+  await createOnlineReservation(request, context, repo);
+  delete repo.records[0].vehicleRegistration;
+  const before = structuredClone(repo.records[0]);
+  repo.vehicle!.plate = "AB12 CDE";
+  const replay = await createOnlineReservation(request, context, repo);
+  assert.equal(replay.replayed, true);
+  assert.equal("vehicleRegistration" in replay.reservation, false);
+  assert.deepEqual(repo.records[0], before);
+});
+
 test("a reused request key with changed contact, car, price, terms or part exchange is rejected", async () => {
   for (const patch of [
     { customerName: "Other Customer" }, { email: "other@example.test" }, { phone: "07700900124" },
@@ -232,7 +265,11 @@ test("staff cancellation cannot release a sold car, changed lead, competing sale
 
 test("public serializer omits all customer and internal fields even when record is extended", async () => {
   const repo = new MemoryRepository(); await createOnlineReservation(request, context, repo);
+  Object.assign(repo.records[0], { vehicleRegistration: "AB12 CDE", internalNote: "Private" });
+  assert.equal(reservationView(repo.records[0]).vehicleRegistration, "AB12 CDE");
   assert.deepEqual(Object.keys(reservationView(repo.records[0])).sort(), [
-    "id", "reference", "vehicleId", "vehicleTitle", "depositPence", "amountReceivedPence", "paymentStatus", "status", "createdAt",
+    "id", "reference", "vehicleId", "vehicleTitle", "vehicleRegistration", "depositPence", "amountReceivedPence", "paymentStatus", "status", "createdAt",
   ].sort());
+  delete repo.records[0].vehicleRegistration;
+  assert.equal("vehicleRegistration" in reservationView(repo.records[0]), false);
 });

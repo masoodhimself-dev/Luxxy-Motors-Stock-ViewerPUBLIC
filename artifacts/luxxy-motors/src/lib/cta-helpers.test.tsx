@@ -15,6 +15,7 @@ describe('vehicle contact message', () => {
     const message = getVehicleContactMessage({ ...car, plate: null }, 'ask');
     expect(message).toContain('Year / plate: 2024 (24 REG)');
     expect(message).not.toContain('Registration:');
+    expect(getVehicleContactMessage({ ...car, plate: null, registrationBand: null }, 'ask')).toContain('Year / plate: 2024 (24 REG)');
   });
 });
 

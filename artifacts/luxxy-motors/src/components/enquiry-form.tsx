@@ -1,3 +1,4 @@
+import { showroomHours } from '@/lib/showroom-hours';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
@@ -15,6 +16,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Car } from '@/lib/stock-context';
 import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { getPhoneHref, getWhatsAppHref, type EnquiryType } from '@/lib/cta-helpers';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getVisitorId } from '@/lib/visitor';
@@ -80,7 +82,7 @@ export function EnquiryForm({
     const draft = readVehicleExchange(vehicle?.id);
     if (draft) { setExchange(draft); setHasPartExchange(true); }
   }, [vehicle?.id]);
-  const exchangeSummary = hasPartExchange && vehicle ? [
+  const exchangeSummary = !embedded && hasPartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
     `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
   ].join('\n') : '';
@@ -111,7 +113,7 @@ export function EnquiryForm({
     if (draft) {
       setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
       setMessage(draft.message); messageTouched.current=Boolean(draft.message);
-      setPreferredContact(draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
+      setPreferredContact(embedded && draft.preferredContact === 'whatsapp' ? 'phone' : draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
       setDraftSaved(true);
     } else setDraftSaved(false);
   }, [draftKey]);
@@ -158,13 +160,14 @@ export function EnquiryForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (message.trim().length > messageLimit) return;
-    const normalizedPhone = normalisePhone(phone);
-    if (phone.trim() && !normalizedPhone) {
+    const contactPhone = embedded && preferredContact === 'email' ? '' : phone;
+    const normalizedPhone = normalisePhone(contactPhone);
+    if (contactPhone.trim() && !normalizedPhone) {
       setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
       focusPhone();
       return;
     }
-    if (!embedded && !normalizedPhone && phoneRequired) {
+    if (!normalizedPhone && phoneRequired) {
       setPhoneError(preferredContact === 'whatsapp' ? 'Enter a mobile number so we can WhatsApp you.' : 'Enter a phone number so we can reach you.');
       focusPhone();
       return;
@@ -173,9 +176,9 @@ export function EnquiryForm({
       vehicleId: vehicle?.id ?? null,
       type,
       customerName: customerName.trim(),
-      email: email.trim(),
-      phone: normalizedPhone,
-      preferredContact: embedded ? 'email' : preferredContact,
+      email: embedded && preferredContact !== 'email' ? null : email.trim() || null,
+      phone: embedded && preferredContact === 'email' ? null : normalizedPhone,
+      preferredContact,
       message: [message.trim(), embedded ? '' : exchangeSummary].filter(Boolean).join('\n\n'),
       appointmentAt: null,
       partExchange: !embedded && hasPartExchange && vehicle ? {
@@ -236,14 +239,14 @@ export function EnquiryForm({
             <Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
               <p className="luxxy-label text-primary/70">
-                {mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Confirmation email not sent'}
+                {(!email.trim() || embedded && preferredContact !== 'email') ? 'We’ll reply by phone' : mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Your enquiry is saved'}
               </p>
               <p className="mt-1 text-xs leading-5 text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent'
                   ? `We sent your reference and enquiry details to ${email.trim()}.`
-                  : `Please contact the showroom by phone or WhatsApp and quote ${mutation.data.reference}.`}
+                  : `Your enquiry is saved. We’ll reply using your chosen contact details. You do not need to send it again.`}
               </p>
-              {mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
+              {(!embedded || preferredContact === 'email') && email.trim() && mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
                 <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-accent">
                   {phoneHref && <a href={phoneHref} className="underline underline-offset-4" data-testid="link-fallback-call">Call {dealerConfig.contact.phone}</a>}
                   {whatsAppHref && <a href={whatsAppHref} className="underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp us</a>}
@@ -269,16 +272,14 @@ export function EnquiryForm({
     );
   }
 
-  if (embedded) return <form onSubmit={submit} className="space-y-4" data-testid="form-enquiry">
-    <div className="grid gap-4 sm:grid-cols-2">
-      <label className="block"><span className={labelClass}>Your name</span><Input required minLength={2} maxLength={120} autoComplete="name" value={customerName} onChange={event => setCustomerName(event.target.value)} data-testid="input-customer-name" /></label>
-      <label className="block"><span className={labelClass}>Email address</span><Input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} data-testid="input-customer-email" /></label>
-    </div>
-    <label className="block"><span className={labelClass}>Phone number <span className="font-normal text-muted-foreground">(optional)</span></span><Input type="tel" autoComplete="tel" value={phone} onChange={event => {setPhone(event.target.value);setPhoneError('');}} aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'inline-phone-error' : undefined} data-testid="input-customer-phone" />{phoneError && <span id="inline-phone-error" role="alert" className="text-sm text-destructive">{phoneError}</span>}</label>
-    <label className="block"><span className={labelClass}>Your message</span><Textarea required rows={4} maxLength={messageLimit} value={message} onChange={event => {messageTouched.current = true;setMessage(event.target.value);}} placeholder="What would you like to know about this car?" data-testid="textarea-enquiry-message" /></label>
+  if (embedded) return <form onSubmit={submit} className="space-y-5" data-testid="form-enquiry">
+    <label className="block"><span className={labelClass}>What would you like to know?</span><Textarea required rows={3} maxLength={messageLimit} value={message} onChange={event => { messageTouched.current = true; setMessage(event.target.value); }} placeholder="Ask your question about this car" data-testid="textarea-enquiry-message" /></label>
+    <fieldset><legend className={labelClass}>How should we reply?</legend><div className="grid grid-cols-2 gap-3">{(['email', 'phone'] as const).map(method => <label key={method} className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-sm ${preferredContact === method ? 'border-primary bg-secondary' : 'border-border'}`}><input type="radio" name="enquiry-reply" value={method} checked={preferredContact === method} onChange={() => { setPreferredContact(method); setPhoneError(''); }} />{method === 'email' ? 'Email' : 'Phone'}</label>)}</div></fieldset>
+    <label className="block"><span className={labelClass}>Your name</span><Input ref={nameInputRef} required minLength={2} maxLength={120} autoComplete="name" value={customerName} onChange={event => setCustomerName(event.target.value)} data-testid="input-customer-name" /></label>
+    {preferredContact === 'email' ? <label className="block"><span className={labelClass}>Email address</span><Input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} data-testid="input-customer-email" /></label> : <label className="block"><span className={labelClass}>Phone number</span><Input required type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => { setPhone(event.target.value); setPhoneError(''); }} aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'inline-phone-error' : undefined} data-testid="input-customer-phone" />{phoneError && <span id="inline-phone-error" role="alert" className="text-sm text-destructive">{phoneError}</span>}</label>}
     {mutation.isError && <p role="alert" className="text-sm text-destructive">{apiErrorMessage(mutation.error)}</p>}
     <Button type="submit" disabled={mutation.isPending} className="min-h-12 w-full" data-testid="button-submit-enquiry">{mutation.isPending ? 'Sending…' : 'Send enquiry'}<ArrowRight className="h-4 w-4" /></Button>
-    <p className="text-xs leading-5 text-muted-foreground">We’ll reply by email. Your enquiry is about {vehicleLabel}.</p>
+    <p className="text-sm leading-6 text-muted-foreground">Your question is attached to {vehicleLabel}. {showroomHours(dealerConfig.hours ?? []).state === 'closed' ? 'The showroom is closed. The team will aim to reply after reopening.' : 'The team will reply during opening hours.'}</p>
   </form>;
 
   return (
@@ -314,7 +315,7 @@ export function EnquiryForm({
           <div className="min-w-0 flex-1">
             <p className="luxxy-label text-primary/70">Your selected car</p>
             <p className="mt-1.5 text-base font-semibold leading-snug text-primary">{vehicleDisplayTitle(vehicle)}</p>
-            {(vehicle.year || vehicle.transmission) && <p className="mt-1 text-sm text-muted-foreground">{[vehicle.year, vehicle.transmission].filter(Boolean).join(' · ')}</p>}
+            {(customerRegistrationDetails(vehicle) || vehicle.transmission) && <p className="mt-1 text-sm text-muted-foreground">{[customerRegistrationDetails(vehicle), vehicle.transmission].filter(Boolean).join(' · ')}</p>}
             <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
             {vehicle.price != null && <p className="luxxy-price-inline text-base font-semibold text-primary">{formatPrice(vehicle.price, vehicle.currency)}</p>}
             <Link href="/stock" onClick={(event) => { if (onChangeCar) { event.preventDefault(); onChangeCar(); } }} className="inline-flex min-h-11 items-center text-sm text-accent underline underline-offset-4 transition-colors hover:text-primary">
@@ -333,7 +334,7 @@ export function EnquiryForm({
             </label>
             <label className="block">
               <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
-              <Input required type="email" value={email} onChange={(event) => {setEmail(event.target.value);setEmailError('');}} onInvalid={()=>setEmailError("Enter an email address such as name@example.com.")} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-help" : undefined} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
+              <Input required={preferredContact === 'email'} type="email" value={email} onChange={(event) => {setEmail(event.target.value);setEmailError('');}} onInvalid={()=>setEmailError("Enter an email address such as name@example.com.")} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-help" : undefined} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
               {emailError && <span id="customer-email-help" role="alert" className="mt-2 block text-sm text-destructive">{emailError}</span>}
             </label>
           </div>

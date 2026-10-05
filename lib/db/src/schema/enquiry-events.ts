@@ -19,6 +19,8 @@ export const enquiryEventKindEnum = pgEnum("enquiry_event_kind", [
   "viewing_cancelled",
   "call_intent",
   "whatsapp_intent",
+  "conversation_logged",
+  "records_merged",
 ]);
 
 export const enquiryEventActorEnum = pgEnum("enquiry_event_actor", [

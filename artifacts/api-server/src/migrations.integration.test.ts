@@ -33,7 +33,7 @@ test("migrations build the current schema and preserve existing stock and enquir
   );
   assert.equal(
     journal.entries.at(-1).tag,
-    "0014_staff_booking_exceptions",
+    "0016_sale_workspace",
   );
   const historical = await mkdtemp(
     path.join(tmpdir(), "luxxy-migration-history-"),
@@ -81,7 +81,7 @@ test("migrations build the current schema and preserve existing stock and enquir
 
     const snapshot = JSON.parse(
       await readFile(
-        path.join(migrationsFolder, "meta/0014_snapshot.json"),
+        path.join(migrationsFolder, "meta/0016_snapshot.json"),
         "utf8",
       ),
     );
@@ -120,7 +120,7 @@ test("migrations build the current schema and preserve existing stock and enquir
           name,
         );
     }
-    assert.equal(tables.rowCount, 27);
+    assert.equal(tables.rowCount, 29);
     await pool.query(
       `update enquiries set appointment_cancelled_at=now() where id=$1`,
       [enquiry.rows[0].id],
@@ -149,7 +149,7 @@ test("migrations build the current schema and preserve existing stock and enquir
       beforeReplay.rows,
       "replaying applied migrations is a no-op",
     );
-    assert.equal(afterReplay.rows[0].count, 13);
+    assert.equal(afterReplay.rows[0].count, 14);
   } finally {
     await rm(historical, { recursive: true, force: true });
   }

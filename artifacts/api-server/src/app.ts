@@ -21,7 +21,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0],
+          url: req.url?.split("?")[0]?.replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/, '$1[private]'),
         };
       },
       res(res) {
@@ -36,12 +36,15 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
-app.use(express.json({ limit: "25mb" }));
+app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
+  if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+} }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 
 app.use("/api", router);
+app.use(['/my-purchase', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api
 // because the URL is handed to buyers.
 app.use("/share", shareRouter);

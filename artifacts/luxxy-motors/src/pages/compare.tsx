@@ -1,3 +1,8 @@
+import { VehicleFactIcon } from '@/components/vehicle-fact-icon';
+import { vehicleBootSpace } from '@/lib/vehicle-extra-facts';
+import { buyerInformation } from '@/lib/buyer-information';
+import { vehicleContent } from '@/lib/vehicle-content';
+import { vehicleAvailability } from '@/lib/customer-convenience';
 import { websiteText } from "@/lib/website-content";
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { ShowroomPhoto } from '@/components/showroom-photo';
@@ -10,7 +15,7 @@ import { useStock, type Car } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getPhoneHref, getVehicleBookingHref, getVehicleWhatsAppHref, recordBookingIntent, recordContactIntent } from '@/lib/cta-helpers';
-import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';
+import { cn, formatMileage, formatPrice, getSafeImageUrl, getThumbnailUrl, vehicleRegistration, vehicleRegistrationLabel } from '@/lib/utils';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { vehicleLabelFor } from '@/components/saved-car-controls';
 import { trackEvent } from '@/lib/analytics';
@@ -28,7 +33,14 @@ type CompareRow = {
   };
 };
 
+const fact = (car: Car, label: string) => buyerInformation(car).find(item => item.label === label)?.value || 'Not supplied';
 const rows: CompareRow[] = [
+  { label: 'Availability', render: car => vehicleAvailability(car.inventoryStatus) },
+  { label: 'Service history', render: car => fact(car, 'Service history') },
+  { label: 'Keys', render: car => fact(car, 'Keys') },
+  { label: 'MOT expiry', render: car => fact(car, 'MOT expiry') },
+  { label: 'Boot space (seats up)', render: car => vehicleBootSpace(car) || 'Not supplied' },
+  { label: 'Equipment', render: car => vehicleContent(car).features.join(' · ') || 'Not supplied' },
   {
     label: 'Price',
     render: (car) => (car.price != null ? formatPrice(car.price, car.currency) : 'POA'),
@@ -36,33 +48,33 @@ const rows: CompareRow[] = [
   },
   {
     label: 'Year',
-    render: (car) => (car.year ? String(car.year) : '—'),
+    render: (car) => (car.year ? String(car.year) : 'Not supplied'),
     preference: { pick: 'higher', value: (car) => car.year, hint: 'Newer' },
   },
   {
     label: 'Mileage',
-    render: (car) => (car.mileage != null ? formatMileage(car.mileage) : car.mileageText || '—'),
+    render: (car) => (car.mileage != null ? formatMileage(car.mileage) : car.mileageText || 'Not supplied'),
     preference: { pick: 'lower', value: (car) => car.mileage, hint: 'Fewer miles' },
   },
-  { label: 'Fuel', render: (car) => car.fuel || '—' },
-  { label: 'Gearbox', render: (car) => car.transmission || '—' },
-  { label: 'Engine', render: (car) => car.engineSize || (car.engineCC ? `${car.engineCC}cc` : '—') },
-  { label: 'Body', render: (car) => car.bodyType || '—' },
-  { label: 'Doors', render: (car) => (car.doors ? String(car.doors) : '—') },
-  { label: 'Seats', render: (car) => (car.seats ? String(car.seats) : '—') },
-  { label: 'Colour', render: (car) => car.colour || '—' },
-  { label: 'Drivetrain', render: (car) => car.drivetrain || '—' },
+  { label: 'Fuel', render: (car) => car.fuel || 'Not supplied' },
+  { label: 'Gearbox', render: (car) => car.transmission || 'Not supplied' },
+  { label: 'Engine', render: (car) => car.engineSize || (car.engineCC ? `${car.engineCC}cc` : 'Not supplied') },
+  { label: 'Body', render: (car) => car.bodyType || 'Not supplied' },
+  { label: 'Doors', render: (car) => (car.doors ? String(car.doors) : 'Not supplied') },
+  { label: 'Seats', render: (car) => (car.seats ? String(car.seats) : 'Not supplied') },
+  { label: 'Colour', render: (car) => car.colour || 'Not supplied' },
+  { label: 'Drivetrain', render: (car) => car.drivetrain || 'Not supplied' },
   {
     label: 'Owners',
-    render: (car) => (car.owners != null ? String(car.owners) : '—'),
+    render: (car) => fact(car, 'Previous keepers'),
     preference: { pick: 'lower', value: (car) => car.owners, hint: 'Fewer owners' },
   },
-  { label: 'Emissions', render: (car) => car.emissionClass || '—' },
+  { label: 'Emissions', render: (car) => car.emissionClass || 'Not supplied' },
   {
     label: 'History',
-    render: (car) => insuranceHistoryLabel(car.writeOffCategory),
+    render: (car) => car.writeOffCategory ? insuranceHistoryLabel(car.writeOffCategory) : 'Not supplied',
   },
-  { label: 'Registration', render: (car) => vehicleRegistration(car) || '—' },
+  { label: 'Registration', render: (car) => vehicleRegistrationLabel(car) || 'Not supplied' },
 ];
 
 const gridTemplate = 'grid grid-cols-2 gap-x-3 md:grid-cols-[minmax(8rem,.4fr)_minmax(0,1fr)_minmax(0,1fr)] md:gap-x-8';
@@ -138,8 +150,8 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
             asChild
             className="w-full h-11 px-2 rounded-md bg-primary font-display text-[12px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none"
           >
-            <a href={bookingHref} onClick={() => recordBookingIntent({ source: 'compare_page', vehicleContext: true })}>
-              <Calendar className="h-4 w-4" /> Book
+            <a href={car.inventoryStatus && car.inventoryStatus !== 'available' ? `/vehicle/${car.id}#vehicle-enquiry` : bookingHref} onClick={() => recordBookingIntent({ source: 'compare_page', vehicleContext: true })}>
+              <Calendar className="h-4 w-4" /> {car.inventoryStatus && car.inventoryStatus !== 'available' ? 'Enquire' : 'Book test drive'}
             </a>
           </Button>
           <div className="grid grid-cols-2 gap-2">
@@ -203,9 +215,10 @@ export default function Compare() {
 
   const cars = compareIds
     .map((id) => stock?.cars.find((car) => car.id === id))
-    .filter((car): car is Car => Boolean(car));
+    .filter((car): car is Car => Boolean(car) && !['sold', 'archived', 'hidden'].includes(String(car?.inventoryStatus)));
 
-  const visibleRows = differencesOnly && cars.length === 2 ? rows.filter((row) => row.render(cars[0]) !== row.render(cars[1])) : rows;
+  const suppliedRows = rows.filter(row => cars.some(car => !['Not supplied', 'Not provided'].includes(row.render(car))));
+  const visibleRows = differencesOnly && cars.length === 2 ? suppliedRows.filter(row => row.render(cars[0]) !== row.render(cars[1])) : suppliedRows;
 
   if (!settings.presentation?.comparisonEnabled) return <div className="container mx-auto px-4 py-16"><h1 className="heading-2">Browse your next car</h1><p className="mt-3 text-muted-foreground">Save the cars you like and ask our team for help choosing.</p><Link href="/saved" className="text-link mt-5 min-h-11">View saved cars</Link><Link href="/stock" className="text-link ml-6 min-h-11">Browse stock</Link></div>;
 
@@ -281,7 +294,7 @@ export default function Compare() {
 
                 return (
                   <div key={row.label} className={cn(gridTemplate, 'gap-y-2 border-b border-primary/10 py-4 last:border-0')}>
-                    <dt className="font-display text-[12px] font-semibold tracking-normal col-span-2 self-center text-muted-foreground md:col-span-1">{row.label}</dt>
+                    <dt className="font-display text-[12px] font-semibold tracking-normal col-span-2 self-center text-muted-foreground md:col-span-1"><span className="inline-flex items-center gap-2"><VehicleFactIcon label={row.label} />{row.label}</span></dt>
                     {cars.map((car, index) => (
                       <dd
                         key={car.id}
@@ -291,7 +304,7 @@ export default function Compare() {
                           best === index && 'text-primary bg-primary/5 -m-2 p-2 border border-primary/10',
                         )}
                       >
-                        <span className="min-w-0 break-words">{row.render(car)}</span>
+                        <span className="min-w-0 break-words">{row.label === 'Equipment' && vehicleContent(car).features.length > 5 ? <details><summary className="min-h-11 cursor-pointer py-2">{vehicleContent(car).features.length} supplied features</summary><ul className="space-y-2">{vehicleContent(car).features.map(feature => <li key={feature}>{feature}</li>)}</ul></details> : row.render(car)}</span>
                         {best === index && row.preference && (
                           <span
                             title={row.preference.hint}

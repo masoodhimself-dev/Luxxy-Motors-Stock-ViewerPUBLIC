@@ -7,6 +7,7 @@ import { DealerWordmark } from "@/components/brand/wordmark";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   getGetDealerSettingsQueryKey,
+  getSettingsRevision,
   type DealerSettings,
   type DealerService,
   type DealerPresentation,
@@ -16,7 +17,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStock } from '@/lib/stock-context';
-import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistrationLabel } from '@/lib/utils';
 import {
   ArrowDown,
   ArrowUp,
@@ -42,6 +43,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { dealerConfig } from '@/config/dealer';
 import { readSettingsDraft, writeSettingsDraft, clearSettingsDraft } from '@/lib/settings-draft';
+import './settings-workspace.css';
 
 type ServiceKey = 'warranty' | 'delivery' | 'partExchange';
 type FormSection =
@@ -209,18 +211,18 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block space-y-2">
-      <span className="flex items-baseline justify-between gap-3 text-[13px] font-semibold">
+    <label className="settings-field block space-y-2">
+      <span className="settings-field-label flex items-baseline justify-between gap-3 text-[13px] font-semibold">
         <span>{label}</span>
         {hint && (
-          <span className="text-[12px] font-normal text-primary/70">
+          <span className="settings-field-hint text-[12px] font-normal text-primary/70">
             {hint}
           </span>
         )}
       </span>
       {children}
       {error && (
-        <span className="block text-[12px] font-semibold text-destructive">
+        <span className="settings-field-error block text-[12px] font-semibold text-destructive">
           {error}
         </span>
       )}
@@ -246,17 +248,17 @@ function SectionCard({
   const active = useContext(ActiveSettingsSection);
   if (active && active !== id) return null;
   return (
-    <section tabIndex={-1} id={`settings-${id}`} className="scroll-mt-28 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
-      <div className="mb-8 flex flex-col items-start gap-4 border-b border-border pb-6 sm:flex-row">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-secondary/20 text-primary">
+    <section tabIndex={-1} id={`settings-${id}`} className="settings-section scroll-mt-28 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
+      <div className="settings-section-heading mb-8 flex flex-col items-start gap-4 border-b border-border pb-6 sm:flex-row">
+        <div aria-hidden="true" className="settings-section-icon flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-secondary/20 text-primary">
           {icon}
         </div>
         <div>
-          <p className="luxxy-kicker text-primary">{eyebrow}</p>
-          <h2 className="mt-2 font-display text-xl font-semibold leading-tight tracking-[-.02em] text-primary">
+          <p className="settings-section-eyebrow luxxy-kicker text-primary">{eyebrow}</p>
+          <h2 className="settings-section-title mt-2 font-display text-xl font-semibold leading-tight tracking-[-.02em] text-primary">
             {title}
           </h2>
-          <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-primary/70">
+          <p className="settings-section-description mt-2 max-w-2xl text-[14px] leading-relaxed text-primary/70">
             {description}
           </p>
         </div>
@@ -278,10 +280,10 @@ function ServiceEditor({
   onChange: (service: DealerService) => void;
 }) {
   return (
-    <div className={`rounded-md border p-6 transition-colors ${service.enabled ? 'border-primary/30 bg-primary/5' : 'bg-muted/10'}`}>
-      <div className="flex items-start justify-between gap-4">
+    <div className={`settings-service-card rounded-md border p-6 transition-colors ${service.enabled ? 'border-primary/30 bg-primary/5' : 'bg-muted/10'}`} data-enabled={service.enabled}>
+      <div className="settings-service-heading flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-11 w-11 items-center justify-center border border-border bg-background text-primary shadow-none">
+          <div aria-hidden="true" className="settings-service-icon flex h-11 w-11 items-center justify-center border border-border bg-background text-primary shadow-none">
             {icon}
           </div>
           <div>
@@ -291,12 +293,13 @@ function ServiceEditor({
             </p>
           </div>
         </div>
-        <label className="flex cursor-pointer items-center gap-2.5 text-[12px] font-medium text-primary/70">
+        <label className="settings-toggle flex cursor-pointer items-center gap-2.5 text-[12px] font-medium text-primary/70">
           <input
             type="checkbox"
             checked={service.enabled}
             onChange={(event) => onChange({ ...service, enabled: event.target.checked })}
             className="peer sr-only"
+            aria-label={`${label} service`}
             data-testid={`checkbox-service-${label.toLowerCase().replace(/\s+/g, '-')}`}
           />
           <span className="flex h-6 w-11 items-center rounded-sm bg-muted/60 p-1 transition-colors peer-checked:bg-primary">
@@ -305,7 +308,7 @@ function ServiceEditor({
           {service.enabled ? 'On' : 'Off'}
         </label>
       </div>
-      <div className="mt-6 grid gap-5 sm:grid-cols-2">
+      <div className="settings-service-fields mt-6 grid gap-5 sm:grid-cols-2">
         <Field label="Section title">
           <Input value={service.title} onChange={(event) => onChange({ ...service, title: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-title`} />
         </Field>
@@ -330,7 +333,7 @@ function TestDriveSettings({ value, onChange, errors }: {
   const update = <K extends keyof DealerTestDriveBooking>(key: K, next: DealerTestDriveBooking[K]) => onChange({ ...value, [key]: next });
   const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(`${date}T12:00:00Z`));
   return (
-    <div className="rounded-md border border-border p-4 sm:p-6" data-testid="test-drive-settings">
+    <div className="settings-subsection settings-booking-settings rounded-md border border-border p-4 sm:p-6" data-testid="test-drive-settings">
       <div className="border-b border-border pb-5">
         <h3 className="font-display text-xl font-semibold text-primary">Test-drive appointments</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose when customers can book and what they need for their visit. All appointment times use UK time.</p>
@@ -398,9 +401,10 @@ export function DealerSettingsPanel() {
     return (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
   }, [stock?.cars]);
 
-  const settingsQuery = useGetDealerSettings({ query: { queryKey: getGetDealerSettingsQueryKey() } });
+  const settingsQuery = useGetDealerSettings({ query: { queryKey: getGetDealerSettingsQueryKey(), structuralSharing: false } });
   const queryClient = useQueryClient();
-  const updateSettings = useUpdateDealerSettings();
+  const [savedRevision, setSavedRevision] = useState<number | null>(null);
+  const updateSettings = useUpdateDealerSettings({ request: { headers: savedRevision === null ? {} : { 'If-Match': String(savedRevision) } } });
   const [form, setForm] = useState<DealerSettings>(fallbackSettings);
   const [initialized, setInitialized] = useState(false);
   const [activeSection, setActiveSection] = useState<FormSection>('identity');
@@ -428,15 +432,16 @@ export function DealerSettingsPanel() {
       const draft = readSettingsDraft(saved);
       setForm(draft ? copySettings(draft.form) : saved);
       setSavedSnapshot(draft?.saved ?? JSON.stringify(saved));
+      setSavedRevision(draft ? draft.revision ?? (draft.saved === JSON.stringify(saved) ? getSettingsRevision(settingsQuery.data) : null) : getSettingsRevision(settingsQuery.data));
       setInitialized(true);
     }
   }, [initialized, settingsQuery.data]);
 
   useEffect(() => {
     if (!initialized) return;
-    if (dirty) setDraftStored(writeSettingsDraft(savedSnapshot, form));
+    if (dirty) setDraftStored(writeSettingsDraft(savedSnapshot, form, savedRevision));
     else clearSettingsDraft();
-  }, [dirty, form, initialized, savedSnapshot]);
+  }, [dirty, form, initialized, savedSnapshot, savedRevision]);
 
   useEffect(() => {
     if (!dirty || draftStored) return;
@@ -553,6 +558,7 @@ export function DealerSettingsPanel() {
     event.preventDefault();
     if (!initialized || !settingsQuery.data) return;
     setSaveMessage('');
+    if (savedRevision === null) { setSaveMessage('Reload the published settings before saving. Your draft has no publication version.'); return; }
     if (!validate()) return;
     if (guided && activeSection !== 'review') { scrollToSection('review'); return; }
     updateSettings.mutate(
@@ -561,6 +567,7 @@ export function DealerSettingsPanel() {
         onSuccess: (saved) => {
           setForm(copySettings(saved));
           setSavedSnapshot(JSON.stringify(copySettings(saved)));
+          setSavedRevision(getSettingsRevision(saved));
           clearSettingsDraft();
           setSaveMessage('Published to the showroom. Your changes are live.');
           queryClient.setQueryData(getGetDealerSettingsQueryKey(), saved);
@@ -629,19 +636,17 @@ export function DealerSettingsPanel() {
   }
 
   return (
-    <section className="settings-studio mb-12" aria-labelledby="settings-heading">
-      <div className="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+    <section className="settings-studio portal-settings-premium mb-12" aria-labelledby="settings-heading">
+      <div className="settings-studio-heading mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="luxxy-kicker text-primary">
-            <Store className="h-3.5 w-3.5" /> Showroom settings</p>
-          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Make this website yours.</h2>
+          <p className="settings-studio-eyebrow luxxy-kicker text-primary">Website configuration</p>
+          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Showroom settings</h2>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70">
-            Set up your dealership: branding, contact details, photographs,
-            visiting information and services. Publish when the information is
-            ready for customers.
+            Edit your dealership details, content and services. Review your
+            draft, then publish when it is ready for customers.
           </p>
         </div>
-        <div className="flex items-center gap-4 border border-border bg-card px-5 py-4 shadow-none luxxy-surface">
+        <div className="settings-profile-status flex items-center gap-4 border border-border bg-card px-5 py-4 shadow-none luxxy-surface">
           <p className="text-sm text-muted-foreground">
             Basic profile fields{" "}
             <span className="ml-2 font-semibold tabular-nums text-primary">
@@ -677,7 +682,7 @@ export function DealerSettingsPanel() {
       </nav>
 
       {dirty && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
+        <div className="settings-draft-notice mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
           <div className="text-sm">
             <p className="font-semibold">Unpublished changes</p>
             <p className="mt-1 text-muted-foreground">{draftStored ? 'Your draft stays in this browser tab for 24 hours, including when you view the published showroom.' : 'Your draft stays while this app is open. Browser storage is unavailable; keep this tab open until you publish.'}</p>
@@ -688,6 +693,7 @@ export function DealerSettingsPanel() {
             const saved = copySettings(settingsQuery.data ?? fallbackSettings);
             setForm(saved);
             setSavedSnapshot(JSON.stringify(saved));
+            setSavedRevision(getSettingsRevision(settingsQuery.data));
             setValidationErrors({});
             setSaveMessage('');
             clearSettingsDraft();
@@ -695,7 +701,17 @@ export function DealerSettingsPanel() {
         </div>
       )}
       <ActiveSettingsSection.Provider value={guided ? activeSection : null}>
-      <form onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate>
+      <form onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
+        const control = event.target;
+        if (!(control instanceof HTMLElement) || !control.matches('input, select, textarea')) return;
+        const editor = event.currentTarget;
+        requestAnimationFrame(() => {
+          const saveBar = editor.querySelector<HTMLElement>('.settings-save-bar');
+          if (saveBar && getComputedStyle(saveBar).position === 'sticky' && control.getBoundingClientRect().bottom > saveBar.getBoundingClientRect().top - 16) {
+            control.scrollIntoView({ block: 'center', behavior: 'instant' });
+          }
+        });
+      }}>
         <SectionCard id="identity" eyebrow="Brand" title="Brand identity" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Dealership name" error={validationErrors['identity.name']}>
@@ -718,7 +734,7 @@ export function DealerSettingsPanel() {
             <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Page and text colours</summary><p className="mb-4 text-xs text-muted-foreground">Keep text dark enough to read on your chosen backgrounds. Blank values retain the neutral design.</p><div className="grid gap-4 sm:grid-cols-2">{([['pageColour', 'Page background', '#f6f6f5'], ['panelColour', 'Cards and forms', '#ffffff'], ['headingColour', 'Headings and prices', '#202428'], ['linkColour', 'Links and accents', '#254e77']] as const).map(([key, label, fallback]) => <Field key={key} label={label} error={validationErrors[`presentation.${key}`]}><div className="flex gap-2"><input aria-label={`${label} colour picker`} type="color" value={form.presentation?.[key] || fallback} onChange={event => updatePresentation(key, event.target.value)} className="h-11 w-14" /><Input aria-label={`${label} hex value`} value={form.presentation?.[key] || ''} placeholder={fallback} maxLength={7} onChange={event => updatePresentation(key, event.target.value)} /></div></Field>)}</div></details>
             {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
+          <div className="settings-brand-preview mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
             <DealerWordmark {...form.identity} />
             <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.primaryHsl})` }} />
             <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.accentHsl})` }} />
@@ -760,7 +776,7 @@ export function DealerSettingsPanel() {
               </div>
             </Field>
           </div>
-          <div className="mt-8 border border-border bg-secondary/10 p-5 sm:p-6">
+          <div className="settings-subsection settings-opening-hours mt-8 border border-border bg-secondary/10 p-5 sm:p-6">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
@@ -826,7 +842,7 @@ export function DealerSettingsPanel() {
                 const isStale = !car;
 
                 return (
-                  <div key={`${id}-${index}`} className="flex items-center justify-between gap-4 border border-border bg-card p-2 pr-4 transition-colors" data-testid={`featured-vehicle-${index}`}>
+                  <div key={`${id}-${index}`} className="settings-featured-row flex items-center justify-between gap-4 border border-border bg-card p-2 pr-4 transition-colors" data-testid={`featured-vehicle-${index}`}>
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative h-12 w-16 shrink-0 bg-secondary/20">
                         {thumb ? (
@@ -888,7 +904,7 @@ export function DealerSettingsPanel() {
                           <option key={c.id} value={c.id}>
                             {vehicleDisplayTitle(c)} •{" "}
                             {c.price ? formatPrice(c.price, c.currency) : 'POA'}{" "}
-                            • {c.registration || 'No reg'}
+                            {vehicleRegistrationLabel(c) && ` • ${vehicleRegistrationLabel(c)}`}
                           </option>
                         ))}
                     </select>
@@ -903,12 +919,13 @@ export function DealerSettingsPanel() {
                   <Check className="h-4 w-4 text-accent" /> Recent handovers</p>
                 <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-primary/70">Show a small, anonymised list of completed handovers. No buyer, price, registration or transaction details are published.</p>
               </div>
-              <label className="flex cursor-pointer items-center gap-2.5 text-[12px] font-medium text-primary/70">
+              <label className="settings-toggle flex cursor-pointer items-center gap-2.5 text-[12px] font-medium text-primary/70">
                 <input
                   type="checkbox"
                   checked={form.recentHandovers.enabled}
                   onChange={(event) => updateNested('recentHandovers', 'enabled', event.target.checked)}
                   className="peer sr-only"
+                  aria-label="Show recent handovers"
                   data-testid="checkbox-recent-handovers"
                 />
                 <span className="flex h-6 w-11 items-center rounded-sm bg-muted/60 p-1 transition-colors peer-checked:bg-primary">
@@ -957,7 +974,7 @@ export function DealerSettingsPanel() {
           <div className="space-y-6">
             <TestDriveSettings value={form.testDriveBooking ?? defaultTestDriveBooking} onChange={value => updateGroup('testDriveBooking', value)} errors={validationErrors} />
             {(["hero", "showroom", "team", "visit", "contact", "reception"] as const).map((subject) => (
-              <div key={subject} className="grid gap-4 sm:grid-cols-2">
+              <div key={subject} className="settings-photo-group grid gap-4 sm:grid-cols-2">
                 <Field
                   label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : subject === "visit" ? "Visit / forecourt" : subject === "contact" ? "Contact page" : subject === "reception" ? "Reception" : "Showroom"} photograph URL`}
                   hint={subject === "hero" ? "HTTPS · independent of featured stock; use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to omit the showroom photo" : "HTTPS"}
@@ -1061,20 +1078,13 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="brochure" eyebrow="Customer downloads" title="Vehicle brochure" description="A printed companion to each car. Your dealership name, address and contact details come from Identity and Contact & hours. Vehicle facts and supplied insurance history are always included." icon={<FileText className="h-5 w-5" />}>
+        <SectionCard id="brochure" eyebrow="Customer printing" title="One-page vehicle sheet" description="A single A4 sheet with all supplied vehicle details. Your logo, name, address and contact details come from Identity and Contact & hours." icon={<FileText className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Brochure cover heading" hint="Up to 60 characters"><Input maxLength={60} value={form.brochure?.title ?? ''} placeholder="Your next car, in detail" onChange={e=>updateGroup('brochure',{...form.brochure,title:e.target.value})} /></Field>
-
-            <Field label="Showroom introduction" hint="Up to 300 characters"><Textarea maxLength={300} rows={3} value={form.brochure?.introduction ?? ''} placeholder="A short invitation to visit or speak to your team." onChange={e=>updateGroup('brochure',{...form.brochure,introduction:e.target.value})} /></Field>
-            <Field label="Closing note" hint="Up to 500 characters"><Textarea maxLength={500} rows={3} value={form.brochure?.footerNote ?? ''} placeholder="Your appointment instructions or other useful information." onChange={e=>updateGroup('brochure',{...form.brochure,footerNote:e.target.value})} /></Field>
-            <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Advanced brochure design</summary><div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Brochure accent colour" hint="Rules and decorative details" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#835b33'} onChange={e=>updateGroup('brochure',{...form.brochure,accentColour:e.target.value})} /></Field>
-            <Field label="Photo layout"><select className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.brochure?.galleryLayout ?? 'grid'} onChange={e=>updateGroup('brochure',{...form.brochure,galleryLayout:e.target.value as 'grid'|'large'})}><option value="grid">Gallery - four photos per page</option><option value="large">Large photos - two per page</option></select></Field>
-            <Field label="Maximum photos" hint="Includes the cover photo" error={validationErrors['brochure.photoLimit']}><Input type="number" min={1} max={80} step={1} value={form.brochure?.photoLimit ?? 12} onChange={e=>updateGroup('brochure',{...form.brochure,photoLimit:Number(e.target.value)})} /></Field>
-            </div></details>
+            <Field label="Print accent colour" hint="Headings, price and dividing lines" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#263c46'} onChange={e=>updateGroup('brochure',{...form.brochure,accentColour:e.target.value})} /></Field>
+            <Field label="Closing note" hint="Optional appointment instructions, up to 500 characters"><Textarea maxLength={500} rows={3} value={form.brochure?.footerNote ?? ''} placeholder="Useful information for customers who print this sheet." onChange={e=>updateGroup('brochure',{...form.brochure,footerNote:e.target.value})} /></Field>
           </div>
-          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2">{([['includeDescription','Include vehicle description'],['includeFeatures','Include features and equipment'],['includeGallery','Include photo gallery']] as const).map(([key,label])=><label key={key} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" checked={form.brochure?.[key] !== false} onChange={e=>updateGroup('brochure',{...form.brochure,[key]:e.target.checked})} />{label}</label>)}</div>
-          <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-5"><p className="max-w-lg text-sm text-muted-foreground">Publish your settings, then open a brochure to check the final PDF. Previously downloaded copies will keep their original design.</p>{stock?.cars[0] && <a className="text-link min-h-11 text-sm" href={`/api/vehicles/${encodeURIComponent(stock.cars[0].id)}/brochure.pdf`} target="_blank" rel="noopener noreferrer">Open saved brochure <ExternalLink className="h-4 w-4" /><span className="sr-only"> (opens in a new tab)</span></a>}</div>
+          <p className="mt-5 text-sm leading-6 text-muted-foreground">The full description, equipment, specifications, running costs and history are included when supplied. Missing details and unavailable photographs are omitted. Up to three supplied photographs are shown; the layout adjusts to keep everything on one A4 page.</p>
+          <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-border pt-5"><p className="max-w-lg text-sm text-muted-foreground">Publish your settings, open a vehicle and choose Print vehicle details to preview the sheet or save it as a PDF.</p>{stock?.cars[0] && <a className="text-link min-h-11 text-sm" href={`/vehicle/${encodeURIComponent(stock.cars[0].id)}#print-vehicle-details`} target="_blank" rel="noopener noreferrer">Open vehicle print option <ExternalLink className="h-4 w-4" /><span className="sr-only"> (opens in a new tab)</span></a>}</div>
         </SectionCard>
 
         <SectionCard id="services" eyebrow="Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
@@ -1083,7 +1093,7 @@ export function DealerSettingsPanel() {
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
             <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
             <ServiceEditor label="Part exchange" service={form.partExchange} icon={<Store className="h-5 w-5" />} onChange={(service) => updateGroup('partExchange', service)} />
-            <div className="rounded-md border border-border p-6" data-testid="settings-online-reservation">
+            <div className="settings-subsection rounded-md border border-border p-6" data-testid="settings-online-reservation">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
                   <h3 className="font-semibold">Reserve car online</h3>
@@ -1209,17 +1219,17 @@ export function DealerSettingsPanel() {
         </SectionCard>
         <SectionCard id="review" eyebrow="Ready when you are" title="Review your website" description="Check the content, preview your branding, then publish the complete draft." icon={<Check className="h-5 w-5" />}>
           <LaunchReadiness settings={form} /><SettingsPreview settings={form} />
-          <div className="mt-5 rounded-md border border-border p-4 text-sm">
+          <div className="settings-review-booking mt-5 rounded-md border border-border p-4 text-sm">
             <p className="font-semibold">Test-drive booking</p>
             <p className="mt-2 text-muted-foreground">{form.testDriveBooking?.enabled === false ? 'Online booking is turned off.' : `${form.testDriveBooking?.durationMinutes ?? 30}-minute appointments · ${form.testDriveBooking?.confirmationMode === 'approval' ? 'staff approval required' : 'confirmed immediately'} · up to ${form.testDriveBooking?.dailyCapacity ?? 16} appointments a day.`}</p>
             <Button type="button" variant="link" className="mt-1 h-auto min-h-11 px-0" onClick={() => scrollToSection('presentation')}>Review booking settings</Button>
           </div>
           <p className="text-sm leading-6 text-muted-foreground">Stock credentials, email keys, payment connections and your domain are private deployment settings. They are never stored in the public website settings. Stock photographs and prices come from your dealership’s stock feed.</p>
         </SectionCard>
-        {guided && <div className="flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={stepIndex === 0} onClick={() => scrollToSection(setupSteps[stepIndex - 1][0])}>Previous</Button>{stepIndex < setupSteps.length - 1 && <Button type="button" onClick={() => scrollToSection(setupSteps[stepIndex + 1][0])}>Continue to {setupSteps[stepIndex + 1][1]}</Button>}</div>}
+        {guided && <div className="settings-step-actions flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={stepIndex === 0} onClick={() => scrollToSection(setupSteps[stepIndex - 1][0])}>Previous</Button>{stepIndex < setupSteps.length - 1 && <Button type="button" onClick={() => scrollToSection(setupSteps[stepIndex + 1][0])}>Continue to {setupSteps[stepIndex + 1][1]}</Button>}</div>}
 
-        <div className="sticky bottom-0 z-20 flex flex-col gap-2 border border-border bg-card p-3 sm:p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-[13px]">
+        <div className="settings-save-bar sticky bottom-0 z-20 flex flex-col gap-2 border border-border bg-card p-3 sm:p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
+          <div className="settings-save-status text-[13px]" aria-live="polite">
             {saveMessage && (
               <p className="flex items-center gap-2 font-bold text-[#1b6543]" data-testid="status-settings-success">
                 <Check className="h-4 w-4" />
@@ -1240,7 +1250,7 @@ export function DealerSettingsPanel() {
                 <p className="text-primary/70">{dirty ? 'Unpublished changes — publish when ready.' : 'Showing published settings.'}</p>
               )}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
+          <div className="settings-save-actions grid grid-cols-2 gap-2 sm:flex">
             <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 border border-border bg-card px-2 sm:px-6 font-display text-[12px] font-semibold tracking-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="link-preview-showroom">
               <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
             <Button type="submit" disabled={updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">

@@ -10,6 +10,8 @@ import type { EnquiryInputPreferredContact } from './enquiryInputPreferredContac
 import type { EnquiryInputType } from './enquiryInputType';
 
 export interface EnquiryInput {
+  /** Request a showroom callback. Public general enquiries only, with a required phone number; no appointment. Email is optional. */
+  requestCallback?: boolean;
   /** @nullable */
   vehicleId: string | null;
   type: EnquiryInputType;
@@ -18,8 +20,11 @@ export interface EnquiryInput {
      * @maxLength 120
      */
   customerName: string;
-  /** @minLength 3 */
-  email: string;
+  /**
+     * @minLength 3
+     * @nullable
+     */
+  email?: string | null;
   /**
      * @minLength 5
      * @maxLength 40

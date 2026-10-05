@@ -3,7 +3,7 @@ import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
-import { formatPrice, vehicleRegistration } from '@/lib/utils';
+import { formatPrice, vehicleRegistration, vehicleRegistrationLabel } from '@/lib/utils';
 
 type DealerContactDetails = {
   contact: {
@@ -65,7 +65,8 @@ export function getVehicleContactMessage(car: Car, request: string, config: Deal
   const registration = vehicleRegistration(car);
   const price = car.price != null ? formatPrice(car.price, car.currency) : null;
   const summary = [getVehicleLabel(car), price].filter(Boolean).join(' · ');
-  const registrationLine = registration ? `Registration: ${registration}` : car.registrationBand ? `Year / plate: ${car.registrationBand}` : car.year ? `Year: ${car.year}` : null;
+  const registrationLabel = vehicleRegistrationLabel(car);
+  const registrationLine = registration ? `Registration: ${registration}` : registrationLabel ? `${registrationLabel === String(car.year) ? 'Year' : 'Year / plate'}: ${registrationLabel}` : null;
   const opening = request === 'get more information about this vehicle'
     ? 'Is it still available? I’d like to know a little more.'
     : `I’d like to ${request}.`;

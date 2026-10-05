@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import {
   formatVehicleName,
+  vehicleRegistration,
   type VehicleMetaSource,
 } from "@workspace/vehicle-meta";
 
@@ -207,7 +208,7 @@ export function brochureDetails(vehicle: BrochureVehicle) {
     ["Emissions standard", brochureText(vehicle.emissionClass)],
     ["Previous owners", numeric(vehicle.owners)],
   ];
-  const plate = brochureText(vehicle.plate) || brochureText(vehicle.vrm);
+  const plate = brochureText(vehicleRegistration(vehicle));
   if (plate) specs.push(["Number plate", plate]);
   return {
     name: brochureVehicleName(vehicle),
@@ -310,7 +311,7 @@ export function renderVehicleBrochure(input: {
     doc.setFontSize(7);
     doc.setTextColor(muted);
     doc.text(
-      input.preview ? "PREVIEW / ARCHIVED STOCK" : "VEHICLE BROCHURE",
+      "VEHICLE DETAILS",
       194,
       20,
       { align: "right" },
@@ -544,7 +545,7 @@ export function renderVehicleBrochure(input: {
   );
   if (input.preview)
     text(
-      "Local preview: this document contains archived stock and sample dealership information.",
+      "Stock information reflects the saved import. Sample dealership details are for demonstration only.",
       9,
       muted,
       true,

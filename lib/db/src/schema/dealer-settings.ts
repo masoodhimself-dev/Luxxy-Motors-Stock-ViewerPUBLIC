@@ -1,5 +1,6 @@
 import {
   jsonb,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -10,6 +11,7 @@ import { z } from "zod/v4";
 export const dealerSettingsTable = pgTable("dealer_settings", {
   dealerId: text("dealer_id").primaryKey(),
   config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+  revision: integer("revision").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()

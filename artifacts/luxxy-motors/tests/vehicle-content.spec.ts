@@ -4,7 +4,7 @@ test('enriched descriptions appear while heading-only equipment stays hidden',as
  const focus=stock.cars.find((c:any)=>c.make==='Ford');
  await page.goto(`/vehicle/${focus.id}`);
  await expect(page.locator('#vehicle-description-heading')).toBeVisible();
- await expect(page.getByText(focus.sourceExtras.advertDescription.trim(),{exact:true})).toBeVisible();
+ await expect(page.locator('section[aria-labelledby="vehicle-description-heading"]').getByText(focus.sourceExtras.advertDescription.trim(),{exact:true})).toBeVisible();
  await expect(page.getByText('Please note:',{exact:true})).toHaveCount(0);
  const mini=stock.cars.find((c:any)=>c.make==='MINI');
  await page.goto(`/vehicle/${mini.id}`);
@@ -18,9 +18,11 @@ for (const width of [390,1280]) test(`description deep link and navigation at ${
  await page.goto(`/vehicle/${focus.id}#vehicle-description-heading`);
  await expect.poll(async()=>page.locator('#vehicle-description-heading').evaluate(el=>el.getBoundingClientRect().top)).toBeLessThan(300);
  await page.evaluate(()=>window.scrollTo(0,0));
- await page.getByRole('link',{name:'Features & equipment',exact:true}).click();
+ const navigation=page.getByRole('navigation',{name:'Vehicle information sections',exact:true});
+ await expect(navigation).toHaveCount(1);
+ await navigation.getByRole('link',{name:'Features & equipment',exact:true}).click();
  await expect(page.locator('#features-heading')).toBeInViewport();
- await page.getByRole('link',{name:'Description',exact:true}).click();
+ await navigation.getByRole('link',{name:'Description',exact:true}).click();
  await expect(page.locator('#vehicle-description-heading')).toBeInViewport();
  const sections=await page.locator('#features-heading, #buyer-information-heading, #vehicle-enquiry-heading').evaluateAll(els=>Object.fromEntries(els.map(el=>[el.id,el.getBoundingClientRect().top])));
  expect(sections['features-heading']).toBeLessThan(sections['buyer-information-heading']);

@@ -2,6 +2,7 @@ import { siteOrigin } from "./lib/enquiry-links";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startReminderWorker } from "./lib/enquiry-notifications";
+import { startStripeReservationWorker } from './lib/stripe-reservation-worker';
 import { backfillLeadsFromEnquiries } from "./lib/leads";
 
 // Validate public links before listening or starting background database work.
@@ -29,6 +30,7 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startReminderWorker(logger);
+  startStripeReservationWorker(logger);
   // Enquiries taken before leads existed are carried across on boot. This is
   // idempotent, so it is safe on every restart.
   backfillLeadsFromEnquiries(logger).catch((err: unknown) => {

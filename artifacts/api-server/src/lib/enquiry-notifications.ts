@@ -1,6 +1,7 @@
-import { sendEmail } from "./email-provider";
+import { sendEmail, renderDealerEmail } from "./email-provider";
 import {
   and,
+  desc,
   eq,
   gt,
   isNull,
@@ -13,6 +14,7 @@ import {
   db,
   dealerSettingsTable,
   enquiriesTable,
+  enquiryEventsTable,
   type Enquiry,
 } from "@workspace/db";
 import type { Logger } from "pino";
@@ -208,81 +210,49 @@ function appointmentState(enquiry: Enquiry) {
   return enquiry.appointmentCancelledAt ? "cancelled" : enquiry.appointmentStatus === "pending" ? "requested — awaiting confirmation" : "confirmed";
 }
 
-function customerEmail(
-  enquiry: Enquiry,
-  reminder: boolean,
-  dealer: DealerProfile,
-) {
-  const dealerName = dealer.identity.name;
-  const appointment = formatAppointment(enquiry.appointmentAt);
-  const greeting = escapeHtml(enquiry.customerName);
-  const vehicle = escapeHtml(vehicleLabel(enquiry, dealerName));
-  const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
-  const intro = enquiry.appointmentCancelledAt
-    ? "Your test drive has been cancelled. Please contact the showroom if you would like help arranging another time."
-    : enquiry.appointmentStatus === "pending"
-      ? "We have received your test-drive request. The showroom will confirm whether this time is available. Your appointment is not confirmed yet."
-      : reminder ? "This is a reminder for your upcoming test drive."
-      : isViewing ? "Your test drive has been booked." : "We have received your enquiry.";
-  const appointmentRow = appointment
-    ? `<p><strong>Viewing time:</strong> ${escapeHtml(appointment)} (${bookingTimezone})</p>`
-    : "";
-  const manageUrl = isViewing && !enquiry.appointmentCancelledAt ? viewingManageUrl(enquiry.id) : null;
-  const manageBlock = manageUrl
-    ? `<p>Need to move or cancel it? <a href="${escapeHtml(manageUrl)}">Change your test drive</a>. ${enquiry.appointmentStatus === "pending" ? "We will send a calendar invite once your time is confirmed." : "A calendar invite is attached to this email."}</p>`
-    : "<p>If you need to make a change, please reply to this email or contact the showroom.</p>";
-  const contactLine = [
-    dealer.contact.phone ? `call ${dealer.contact.phone}` : null,
-    dealer.contact.whatsapp ? `WhatsApp ${dealer.contact.whatsapp}` : null,
-  ]
-    .filter((entry): entry is string => entry != null)
-    .join(" or ");
-
-  return `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
-       <h1 style="color:#172033">${reminder ? "Viewing reminder" : `${escapeHtml(dealerName)} enquiry confirmation`}</h1>
-      <p>Hi ${greeting},</p>
-      <p>${intro}</p>
-      <p><strong>Your reference:</strong> ${escapeHtml(enquiry.reference)}</p>
-      <p><strong>Vehicle:</strong> ${vehicle}</p>
-      ${appointmentRow}
-      ${isViewing ? row("Duration", `${enquiry.appointmentDurationMinutes ?? 30} minutes`) : ""}
-      ${isViewing ? row("Showroom", dealer.contact.address) : ""}
-      ${isViewing ? row("Before your visit", dealer.instructions) : ""}
-      ${isViewing ? row("Parking", dealer.parkingInstructions) : ""}
-      ${manageBlock}
-      ${contactLine ? `<p>Quote your reference when you ${escapeHtml(contactLine)}.</p>` : ""}
-       <p>Thanks,<br />${escapeHtml(dealerName)}</p>
-    </div>
-  `;
-}
-
-function dealerEmail(enquiry: Enquiry, dealerName: string) {
-  const appointment = formatAppointment(enquiry.appointmentAt);
-  const appointmentRow = appointment
-    ? `<p><strong>Viewing time:</strong> ${escapeHtml(appointment)} (${bookingTimezone})</p>`
-    : "";
-
-  return `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033">
-       <h1 style="color:#172033">New ${escapeHtml(dealerName)} enquiry</h1>
-      <p>${enquiry.type === "viewing" ? `Test drive ${appointmentState(enquiry)}.` : "A customer has submitted a new enquiry."}</p>
-      ${row("Reference", enquiry.reference)}
-      ${row("Customer", enquiry.customerName)}
-      ${row("Phone", enquiry.phone)}
-      ${row("Email", enquiry.email)}
-      ${row(
-        "Prefers",
-        enquiry.preferredContact
-          ? contactMethodLabels[enquiry.preferredContact] ?? enquiry.preferredContact
-          : null,
-      )}
-       <p><strong>Vehicle:</strong> ${escapeHtml(vehicleLabel(enquiry, dealerName))}</p>
-      ${appointmentRow}
-      ${partExchangeSection(enquiry)}
-      <p><strong>Message:</strong><br />${escapeHtml(enquiry.message)}</p>
-    </div>
-  `;
+async function enquiryEmail(enquiry: Enquiry, dealer: DealerProfile, audience: 'customer' | 'dealer', reminder = false) {
+  const isViewing = enquiry.type === 'viewing' && enquiry.appointmentAt != null;
+  let moved = false;
+  if (audience === 'customer' && isViewing && !reminder && !enquiry.appointmentCancelledAt && enquiry.appointmentStatus === 'confirmed' && enquiry.appointmentRevision > 0) {
+    const [latest] = await db.select({ kind: enquiryEventsTable.kind }).from(enquiryEventsTable)
+      .where(and(eq(enquiryEventsTable.dealerId, enquiry.dealerId), eq(enquiryEventsTable.enquiryId, enquiry.id)))
+      .orderBy(desc(enquiryEventsTable.occurredAt)).limit(1);
+    moved = latest?.kind === 'viewing_rescheduled';
+  }
+  const templateId = audience === 'dealer' ? 'dealer_notification' : isViewing
+    ? enquiry.appointmentCancelledAt ? 'booking_cancellation'
+      : enquiry.appointmentStatus === 'pending' ? 'booking_request'
+      : reminder ? 'booking_reminder'
+      : moved ? 'booking_change' : 'booking_confirmation'
+    : enquiry.preferredContact === 'phone' && /^Callback requested at next opening/.test(enquiry.message) ? 'callback' : 'enquiry_acknowledgement';
+  const facts = [
+    { label: 'Reference', value: enquiry.reference },
+    { label: 'Vehicle', value: vehicleLabel(enquiry, dealer.identity.name) },
+    ...(isViewing ? [
+      { label: 'Appointment status', value: appointmentState(enquiry) },
+      { label: 'Appointment', value: `${formatAppointment(enquiry.appointmentAt)} (${bookingTimezone})` },
+      { label: 'Duration', value: `${enquiry.appointmentDurationMinutes ?? 30} minutes` },
+      ...(dealer.contact.address ? [{ label: 'Showroom', value: dealer.contact.address }] : []),
+    ] : []),
+    ...(audience === 'dealer' ? [
+      { label: 'Customer', value: enquiry.customerName },
+      { label: 'Phone', value: enquiry.phone ?? 'Not provided' },
+      ...(enquiry.email ? [{ label: 'Email', value: enquiry.email }] : []),
+      ...(enquiry.partExchangeRegistration ? [{ label: 'Part-exchange registration', value: enquiry.partExchangeRegistration }] : []),
+      ...(enquiry.partExchangeMileage != null ? [{ label: 'Part-exchange mileage', value: `${enquiry.partExchangeMileage} miles` }] : []),
+    ] : []),
+  ];
+  return renderDealerEmail({ templateId, variables: {
+    dealer_name: dealer.identity.name, dealer_email: dealer.contact.email,
+    dealer_phone: dealer.contact.phone, dealer_address: dealer.contact.address,
+    customer_name: enquiry.customerName, customer_email: enquiry.email ?? '',
+    reference: enquiry.reference, vehicle_title: vehicleLabel(enquiry, dealer.identity.name),
+    appointment_time: formatAppointment(enquiry.appointmentAt) ?? '', appointment_status: appointmentState(enquiry),
+    duration: `${enquiry.appointmentDurationMinutes ?? 30} minutes`, visit_instructions: dealer.instructions ?? '',
+    parking_instructions: dealer.parkingInstructions ?? '',
+    manage_url: isViewing && !enquiry.appointmentCancelledAt ? viewingManageUrl(enquiry.id) ?? '' : '',
+    message: enquiry.message, preferred_contact: enquiry.preferredContact ? contactMethodLabels[enquiry.preferredContact] ?? enquiry.preferredContact : '',
+  }, facts });
 }
 
 function calendarAttachment(enquiry: Enquiry, dealer: DealerProfile) {
@@ -341,11 +311,7 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
 
   const result = await attemptEmail({
     to: claimed.email,
-    subject:
-      claimed.type === "viewing"
-          ? `Your ${dealer.identity.name} test drive ${appointmentState(claimed)}`
-          : `Your ${dealer.identity.name} enquiry`,
-    html: customerEmail(claimed, false, dealer),
+    ...await enquiryEmail(claimed, dealer, 'customer'),
     idempotencyKey: `enquiry-${claimed.id}-customer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Customer email address is missing.",
@@ -401,11 +367,7 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
 
   const result = await attemptEmail({
     to: process.env.DEALER_NOTIFICATION_EMAIL?.trim() || dealer.contact.email || null,
-    subject:
-      claimed.type === "viewing"
-        ? `Test drive ${appointmentState(claimed)} at ${dealer.identity.name}`
-        : `New enquiry at ${dealer.identity.name}`,
-    html: dealerEmail(claimed, dealer.identity.name),
+    ...await enquiryEmail(claimed, dealer, 'dealer'),
     idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Dealer notification email is not configured.",
@@ -482,8 +444,7 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
 
   const result = await attemptEmail({
     to: claimed.email,
-    subject: `Reminder: your upcoming ${dealer.identity.name} viewing`,
-    html: customerEmail(claimed, true, dealer),
+    ...await enquiryEmail(claimed, dealer, 'customer', true),
     // Retries deduplicate, while a later change back to the same time is new.
     idempotencyKey: `enquiry-${claimed.id}-customer-reminder-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,

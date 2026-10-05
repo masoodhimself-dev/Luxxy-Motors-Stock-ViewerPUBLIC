@@ -32,8 +32,12 @@ import type {
   DemoSignatureInput,
   Enquiry,
   EnquiryAvailability,
+  EnquiryConversationInput,
   EnquiryInput,
+  EnquiryMergeInput,
+  EnquiryMergeResult,
   EnquiryStatusUpdate,
+  EnquiryWorkspaceUpdate,
   FinalCheckFailure,
   FinalChecks,
   GetContactIntentsParams,
@@ -69,6 +73,7 @@ import type {
   SigningSession,
   SigningSessionCompletion,
   StaffAppointmentChange,
+  StaffDirectory,
   StaffEnquiryInput,
   StaffFollowUpChange,
   Stock,
@@ -784,6 +789,299 @@ export const useCancelReservation = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getCancelReservationMutationOptions(options));
+    }
+
+export const getGetStaffDirectoryUrl = () => {
+
+
+
+
+  return `/api/staff/directory`
+}
+
+/**
+ * @summary Staff in the current dealership
+ */
+export const getStaffDirectory = async ( options?: Parameters<typeof customFetch>[1]): Promise<StaffDirectory> => {
+
+  return customFetch<StaffDirectory>(getGetStaffDirectoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffDirectoryQueryKey = () => {
+    return [
+    `/api/staff/directory`
+    ] as const;
+    }
+
+
+export const getGetStaffDirectoryQueryOptions = <TData = Awaited<ReturnType<typeof getStaffDirectory>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffDirectory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffDirectoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffDirectory>>> = ({ signal }) => getStaffDirectory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaffDirectory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffDirectoryQueryResult = NonNullable<Awaited<ReturnType<typeof getStaffDirectory>>>
+export type GetStaffDirectoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Staff in the current dealership
+ */
+
+export function useGetStaffDirectory<TData = Awaited<ReturnType<typeof getStaffDirectory>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffDirectory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffDirectoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEnquiryWorkspaceUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/workspace`
+}
+
+/**
+ * @summary Assign an enquiry, record call outcome or update attendance
+ */
+export const updateEnquiryWorkspace = async (id: string,
+    enquiryWorkspaceUpdate: EnquiryWorkspaceUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getUpdateEnquiryWorkspaceUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryWorkspaceUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateEnquiryWorkspaceMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEnquiryWorkspace>>, TError,{id: string;data: BodyType<EnquiryWorkspaceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEnquiryWorkspace>>, TError,{id: string;data: BodyType<EnquiryWorkspaceUpdate>}, TContext> => {
+
+const mutationKey = ['updateEnquiryWorkspace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEnquiryWorkspace>>, {id: string;data: BodyType<EnquiryWorkspaceUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateEnquiryWorkspace(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEnquiryWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof updateEnquiryWorkspace>>>
+    export type UpdateEnquiryWorkspaceMutationBody = BodyType<EnquiryWorkspaceUpdate>
+    export type UpdateEnquiryWorkspaceMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Assign an enquiry, record call outcome or update attendance
+ */
+export const useUpdateEnquiryWorkspace = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEnquiryWorkspace>>, TError,{id: string;data: BodyType<EnquiryWorkspaceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEnquiryWorkspace>>,
+        TError,
+        {id: string;data: BodyType<EnquiryWorkspaceUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateEnquiryWorkspaceMutationOptions(options));
+    }
+
+export const getMergeEnquiriesUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/merge`
+}
+
+/**
+ * @summary Combine complete enquiry cases while preserving every original record
+ */
+export const mergeEnquiries = async (id: string,
+    enquiryMergeInput: EnquiryMergeInput, options?: Parameters<typeof customFetch>[1]): Promise<EnquiryMergeResult> => {
+
+  return customFetch<EnquiryMergeResult>(getMergeEnquiriesUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryMergeInput)
+  }
+);}
+
+
+
+
+
+export const getMergeEnquiriesMutationOptions = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeEnquiries>>, TError,{id: string;data: BodyType<EnquiryMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeEnquiries>>, TError,{id: string;data: BodyType<EnquiryMergeInput>}, TContext> => {
+
+const mutationKey = ['mergeEnquiries'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeEnquiries>>, {id: string;data: BodyType<EnquiryMergeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mergeEnquiries(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeEnquiriesMutationResult = NonNullable<Awaited<ReturnType<typeof mergeEnquiries>>>
+    export type MergeEnquiriesMutationBody = BodyType<EnquiryMergeInput>
+    export type MergeEnquiriesMutationError = ErrorType<ApiError | void>
+
+    /**
+ * @summary Combine complete enquiry cases while preserving every original record
+ */
+export const useMergeEnquiries = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeEnquiries>>, TError,{id: string;data: BodyType<EnquiryMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeEnquiries>>,
+        TError,
+        {id: string;data: BodyType<EnquiryMergeInput>},
+        TContext
+      > => {
+      return useMutation(getMergeEnquiriesMutationOptions(options));
+    }
+
+export const getLogEnquiryConversationUrl = (id: string,) => {
+
+
+
+
+  return `/api/staff/enquiries/${id}/conversations`
+}
+
+/**
+ * @summary Append a staff conversation and atomically save its outcome and optional follow-up
+ */
+export const logEnquiryConversation = async (id: string,
+    enquiryConversationInput: EnquiryConversationInput, options?: Parameters<typeof customFetch>[1]): Promise<Enquiry> => {
+
+  return customFetch<Enquiry>(getLogEnquiryConversationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(enquiryConversationInput)
+  }
+);}
+
+
+
+
+
+export const getLogEnquiryConversationMutationOptions = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logEnquiryConversation>>, TError,{id: string;data: BodyType<EnquiryConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logEnquiryConversation>>, TError,{id: string;data: BodyType<EnquiryConversationInput>}, TContext> => {
+
+const mutationKey = ['logEnquiryConversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logEnquiryConversation>>, {id: string;data: BodyType<EnquiryConversationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  logEnquiryConversation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogEnquiryConversationMutationResult = NonNullable<Awaited<ReturnType<typeof logEnquiryConversation>>>
+    export type LogEnquiryConversationMutationBody = BodyType<EnquiryConversationInput>
+    export type LogEnquiryConversationMutationError = ErrorType<ApiError | void>
+
+    /**
+ * @summary Append a staff conversation and atomically save its outcome and optional follow-up
+ */
+export const useLogEnquiryConversation = <TError = ErrorType<ApiError | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logEnquiryConversation>>, TError,{id: string;data: BodyType<EnquiryConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logEnquiryConversation>>,
+        TError,
+        {id: string;data: BodyType<EnquiryConversationInput>},
+        TContext
+      > => {
+      return useMutation(getLogEnquiryConversationMutationOptions(options));
     }
 
 export const getCreateStaffEnquiryUrl = () => {

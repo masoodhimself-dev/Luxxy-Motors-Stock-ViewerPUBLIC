@@ -149,7 +149,8 @@ export function Chip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-sm border px-2 py-0.5 font-display text-xs font-semibold tracking-normal shadow-none ${toneClasses[tone]} ${className}`}
+      data-tone={tone}
+      className={`portal-status-chip inline-flex items-center gap-2 rounded-sm border px-2 py-0.5 font-display text-xs font-semibold tracking-normal shadow-none ${toneClasses[tone]} ${className}`}
     >
       {children}
     </span>
@@ -205,7 +206,7 @@ export function PanelHeader({
   action?: ReactNode;
 }) {
   return (
-    <header className="flex items-start justify-between gap-3 border-b border-border bg-background/45 px-4 py-4">
+    <header className="portal-panel-header flex items-start justify-between gap-3 border-b border-border bg-background/45 px-4 py-4">
       <div className="min-w-0 flex-1">
         {kicker && <p className="luxxy-kicker mb-2 text-[11px]">{kicker}</p>}
         <h2 className="font-display text-lg font-semibold tracking-[-.03em] text-primary">
@@ -232,7 +233,7 @@ export function EmptyState({
   body: string;
 }) {
   return (
-    <div className="my-2 flex flex-col items-center gap-2 rounded-md border border-dashed border-primary/15 bg-background/55 px-4 py-6 text-center">
+    <div className="portal-empty-state my-2 flex flex-col items-center gap-2 rounded-md border border-dashed border-primary/15 bg-background/55 px-4 py-6 text-center">
       <Icon className="mb-2 h-6 w-6 text-primary/25" />
       <p className="font-display text-base font-medium tracking-[-.02em] text-muted-foreground">
         {title}
@@ -246,7 +247,7 @@ export function EmptyState({
 
 export function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="mb-2 block font-display text-[11px] font-semibold tracking-normal text-primary/75">
+    <span className="portal-field-label mb-2 block font-display text-[11px] font-semibold tracking-normal text-primary/75">
       {children}
     </span>
   );

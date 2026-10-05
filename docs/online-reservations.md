@@ -6,7 +6,7 @@ The website now creates a persisted reservation, not a demonstration receipt. On
 
 Staff portal → Settings → Services → Reserve car online controls the feature, the deposit amount (£1–£10,000) and the reservation terms. Enabling it requires terms. Existing deployments default to disabled. The local preview starts enabled with clearly labelled sample terms. Older settings clients preserve the stored reservation settings.
 
-Disabling removes customer actions and rejects new requests at the server. Existing reservations remain available to staff and can be cancelled. No automatic expiry is implemented: reservations remain until staff releases or processes them. Dealer-written terms must reflect that behaviour.
+Disabling removes customer actions and rejects new requests at the server. Existing reservations remain available to staff and can be cancelled. Simulated reservations remain until staff releases or processes them. Production Stripe checkout uses temporary holds with provider-confirmed expiry, described in [Email and reservation payments](integrations-email-payments.md).
 
 ## Customer and staff flow
 
@@ -24,9 +24,9 @@ Staff portal → Reservations lists customer/car/reference and payment status. S
 
 The backend uses one database transaction and the same vehicle advisory lock used by sales, plus row locks. Customer input cannot declare a payment paid or choose the charged amount. No schema change or migration is required: existing settings JSON, stock, leads and lead-event tables are used.
 
-Development API mode requires `RESERVATION_PAYMENT_MODE=simulated`. Missing/unsupported payment modes and `NODE_ENV=production` reject simulation requests. Switching the settings toggle on does not bypass this guard. No Stripe keys or SDKs have been added.
+Development API mode requires `RESERVATION_PAYMENT_MODE=simulated`. Missing/unsupported payment modes and `NODE_ENV=production` reject simulation requests. Switching the settings toggle on does not bypass this guard. The separate Stripe checkout adapter is prepared through private owner-only integration settings and starts disabled.
 
-Before enabling production payments, implement a payment-provider adapter and Stripe account routing per dealer, server-created Checkout/PaymentIntent amounts, signed idempotent webhook handling, pending-hold expiry, cancellation/refund policy and reconciliation. Only verified provider events should mark money received. Customer confirmation emails and public reservation retrieval are not implemented in this change; the screen gives a reference and staff can find the record. A refresh after a lost response still leaves the car safely reserved, but staff assistance is needed to retrieve the reference.
+The prepared Stripe flow now supplies server-created Checkout amounts, signed idempotent webhook handling, temporary-hold recovery/expiry, cumulative refunds, a connected deposit receipt and customisable Resend confirmation emails. Only verified live provider events mark real money received. See [Email and reservation payments](integrations-email-payments.md) for setup, private payment-status links and reconciliation behaviour. Existing simulated reservations continue to show £0 received.
 
 ## Local preview
 

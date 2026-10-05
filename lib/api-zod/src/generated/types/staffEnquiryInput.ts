@@ -6,11 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { StaffEnquiryInputAdHocVehicle } from './staffEnquiryInputAdHocVehicle';
+import type { StaffEnquiryInputCallOutcome } from './staffEnquiryInputCallOutcome';
 import type { StaffEnquiryInputPartExchange } from './staffEnquiryInputPartExchange';
 import type { StaffEnquiryInputPreferredContact } from './staffEnquiryInputPreferredContact';
 import type { StaffEnquiryInputType } from './staffEnquiryInputType';
 
 export interface StaffEnquiryInput {
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  assignedToId?: string | null;
+  /** @nullable */
+  callOutcome?: StaffEnquiryInputCallOutcome;
   /** Explicit staff override for a time outside configured booking hours. */
   allowOutsideHours?: boolean;
   /** Explicit staff override for an overlapping appointment or full day. */

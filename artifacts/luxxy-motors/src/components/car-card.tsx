@@ -1,5 +1,11 @@
+import { VehicleFactIcon } from './vehicle-fact-icon';
+import { HoverHelp, VehicleTerm } from './customer-help';
+import { VehicleSellingPoints } from './vehicle-selling-points';
+import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
+import { recordedWriteOffCategory } from '@/lib/vehicle-history';
 import { PriceReduction } from '@/components/price-reduction';
 import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
+import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { vehicleAvailability } from '@/lib/customer-convenience';
 import { rememberStockPosition } from "@/lib/browse-session";
@@ -19,7 +25,7 @@ import {
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
 import { ArrowRight, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
-import { vehicleEconomySummary } from '@/lib/vehicle-extra-facts';
+
 
 
 
@@ -31,6 +37,7 @@ export function CarCard({
   badges = [],
   photoControls = true,
   catalogue = false,
+  summaryOnly = false,
   analyticsSource = 'showroom',
 }: {
   car: Car;
@@ -40,6 +47,7 @@ export function CarCard({
   badges?: string[];
   photoControls?: boolean;
   catalogue?: boolean;
+  summaryOnly?: boolean;
   analyticsSource?: 'showroom' | 'similar_cars' | 'saved_cars';
 }) {
   const displayBadges = [...new Set([vehicleAvailability(car.inventoryStatus), ...badges])];
@@ -81,6 +89,7 @@ export function CarCard({
 
   const vehicleLabel = vehicleDisplayTitle(car);
   const registration = vehicleRegistration(car);
+  const registrationYear = stockRegistrationYear(car);
   const detailHref = `/vehicle/${car.id}`;
   const recordVehicleOpen = () => {
     rememberStockPosition(car.id);
@@ -98,7 +107,7 @@ export function CarCard({
   }, [car.id, imageSignature]);
 
   const specs = [
-    car.year ? { label: 'Year', value: stockRegistrationYear(car) } : null,
+    registrationYear ? { label: 'Year', value: registrationYear } : null,
     car.mileage != null
       ? { label: 'Mileage', value: formatMileage(car.mileage) }
       : car.mileageText
@@ -110,10 +119,14 @@ export function CarCard({
   ].filter(Boolean) as { label: string; value: string }[];
 
   const visibleSpecs = specs.slice(0, 4);
+  const catalogueHighlights = catalogue ? vehicleSellingPoints(car).slice(0, 2).map(point => ({ ...point, text: point.label === 'Mileage' ? 'Below average mileage' : point.text })) : [];
+  const category = catalogue ? recordedWriteOffCategory(car.writeOffCategory) : null;
   return (
     <article
       className={cn(
         'vehicle-card group flex relative',
+        catalogue && 'vehicle-card-catalogue',
+        catalogue && isCompact && 'vehicle-card-catalogue-compact',
         isRow
           ? 'flex-col md:flex-row'
           : isCompact
@@ -155,7 +168,7 @@ export function CarCard({
                 <img
                   key={url}
                   src={url}
-                  {...responsiveVehicleImage(url, "(max-width: 639px) 100vw, (pointer: coarse) and (min-width: 1100px) 33vw, (max-width: 1279px) 50vw, 440px")}
+                  {...responsiveVehicleImage(url, catalogue ? "(max-width: 767px) 100vw, (pointer: coarse) and (max-width: 1366px) 50vw, (max-width: 1199px) 50vw, (max-width: 1599px) 33vw, 500px" : "(max-width: 639px) 100vw, (pointer: coarse) and (min-width: 1100px) 33vw, (max-width: 1279px) 50vw, 440px")}
                   alt={url === galleryUrls[activeIndex] ? vehicleLabel : ""}
                   decoding="async"
                   width={800}
@@ -176,7 +189,7 @@ export function CarCard({
               ))
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Camera className="h-7 w-7" />
+              {!summaryOnly && <Camera className="h-7 w-7" />}
               <span className="text-xs">Photographs to follow</span>
             </div>
           )}
@@ -185,24 +198,24 @@ export function CarCard({
         {photoControls && <span className="sr-only" aria-live="polite" aria-atomic="true">{photoDirection !== 0 && galleryUrls.length > 0 ? `Photograph ${activeIndex + 1} of ${galleryUrls.length}` : ''}</span>}
         {photoControls && galleryUrls.length > 1 && (
           <div className="stock-photo-controls">
-            <button type="button" className="photo-glass-control stock-photo-arrow left-2"
+            <HoverHelp text="See the previous photograph without opening the vehicle page."><button type="button" className="photo-glass-control stock-photo-arrow left-2"
               aria-label={`Previous photo of ${vehicleLabel}`}
               onClick={() => changePhoto(-1)}>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <button type="button" className="photo-glass-control stock-photo-arrow right-2"
+            </button></HoverHelp>
+            <HoverHelp text="See the next photograph without opening the vehicle page."><button type="button" className="photo-glass-control stock-photo-arrow right-2"
               aria-label={`Next photo of ${vehicleLabel}`}
               onClick={() => changePhoto(1)}>
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </button>
+            </button></HoverHelp>
           </div>
         )}
         {photoControls && <SaveCarButton
           car={car}
           className="absolute right-3 top-3"
         />}
-        {photoControls && !catalogue && photoCount > 0 && (
-          <span className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white">
+        {photoControls && photoCount > 0 && (
+          <span className={cn("pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5 rounded-sm bg-black/65 px-2 py-1 text-xs text-white", catalogue && "stock-photo-count")}>
             <Camera className="h-3.5 w-3.5" />
             {galleryUrls.length > 1 ? `${activeIndex + 1} / ${galleryUrls.length}` : photoCount}
           </span>
@@ -230,51 +243,54 @@ export function CarCard({
                 {vehicleLabel}
               </Link>
             </h3>
-            {(car.variant || car.trim) && (
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            {!summaryOnly && (car.variant || car.trim) && (
+              <p className="vehicle-card-variant mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                 {shortTrim(car)}
               </p>
             )}
+            {registration && <p className="mt-1 text-xs text-muted-foreground">{summaryOnly ? customerRegistrationDetails(car) : registration}</p>}
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap items-baseline gap-2">
+        <div className="vehicle-card-price mt-2 flex flex-wrap items-baseline gap-2">
           <p className="luxxy-price text-2xl text-primary">
             {car.price
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
-          <PriceReduction car={car} />
-          {catalogue && car.inventoryStatus === 'reserved' && <span className="text-xs font-medium text-muted-foreground">Reserved</span>}
+          {!summaryOnly && <PriceReduction car={car} />}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
         </div>
-        <div className="vehicle-specs mb-3 mt-2">
-          {visibleSpecs.map((spec) => (
-            <span key={spec.label} aria-label={`${spec.label}: ${spec.value}`}>{spec.value}</span>
-          ))}
-        </div>
-        {stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
-        {vehicleEconomySummary(car).length > 0 && <p className="mb-3 text-xs font-medium text-muted-foreground">{vehicleEconomySummary(car).join(' · ')}</p>}
-        {registration && isRow && (
-          <p className="mb-4 text-xs text-muted-foreground">
-            Registration{" "}
-            <span className="font-medium text-primary">{registration}</span>
-          </p>
+        {!summaryOnly && (
+          <>
+            {catalogue && (car.inventoryStatus === 'reserved' || category) && <div className="stock-card-status">
+              {car.inventoryStatus === 'reserved' && <span>Reserved</span>}
+              {category && <VehicleTerm label="Insurance history" value={`Category ${category} recorded`}>Category {category} recorded</VehicleTerm>}
+            </div>}
+            {!catalogue && <VehicleSellingPoints car={car} compact />}
+            <div className="vehicle-specs mb-3 mt-2">
+              {visibleSpecs.map((spec) => (
+                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex items-center gap-1.5" ariaLabel={`${spec.label}: ${spec.value}`}><VehicleFactIcon label={spec.label} />{spec.value}</VehicleTerm>
+              ))}
+            </div>
+            {catalogueHighlights.length > 0 && <ul className="stock-catalogue-highlights" aria-label="Vehicle highlights">{catalogueHighlights.map(point => <li key={point.label}><VehicleTerm label={point.label} value={point.text}><VehicleFactIcon label={point.label} />{point.text}</VehicleTerm></li>)}</ul>}
+            {(!catalogue || catalogueHighlights.length === 0) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
+            <div
+              className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
+              data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
+            >
+              <Link href={detailHref} onClick={recordVehicleOpen} className="vehicle-card-view text-link text-sm">
+                View vehicle
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <CompareCarButton
+                car={car}
+                variant="compact"
+                className="min-h-11 px-2 text-xs font-medium text-muted-foreground"
+              />
+            </div>
+          </>
         )}
-        <div
-          className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
-          data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
-        >
-          <Link href={detailHref} onClick={recordVehicleOpen} className="text-link text-sm">
-            View vehicle
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <CompareCarButton
-            car={car}
-            variant="compact"
-            className="min-h-11 px-2 text-xs font-medium text-muted-foreground"
-          />
-        </div>
 
       </div>
     </article>

@@ -11,6 +11,7 @@ import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useStock } from '@/lib/stock-context';
 import { getEnquiryHref, getPhoneHref, getVehicleWhatsAppHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { formatPhoneDisplay, formatPrice, vehicleDisplayTitle } from '@/lib/utils';
+import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import { usePageMeta } from '@/hooks/use-page-meta';
 
 const policyQuestions = [
@@ -118,7 +119,7 @@ export default function Warranty() {
               <label htmlFor="warranty-vehicle" className="field-label">Which car are you asking about? <span className="font-normal text-muted-foreground">(optional)</span></label>
               <NativeSelect id="warranty-vehicle" className="mt-2" value={vehicle ? vehicleId : ''} onChange={event => setVehicleId(event.target.value)} disabled={stockLoading || Boolean(stockError)} aria-describedby="warranty-vehicle-help">
                 <option value="">A general question / another vehicle</option>
-                {(stock?.cars || []).map(car => <option key={car.id} value={car.id}>{[car.year, vehicleDisplayTitle(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}
+                {(stock?.cars || []).map(car => <option key={car.id} value={car.id}>{[customerRegistrationDetails(car), vehicleDisplayTitle(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}
               </NativeSelect>
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
                 {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That vehicle is no longer in the current list. Choose another car or send a general enquiry and tell us which vehicle you mean.' : !stock?.cars.length ? 'There are no cars listed at the moment. You can still ask about warranty.' : 'Selecting a car helps the team answer your question; it does not confirm warranty eligibility.'}

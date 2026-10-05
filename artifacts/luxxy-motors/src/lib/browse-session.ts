@@ -61,3 +61,10 @@ export function restoreBrowsePosition(skip = false) {
         ?.focus({ preventScroll: true });
   });
 }
+
+/** A local, shareable search URL; never an external return destination. */
+export function browseReturnHref() {
+  const params = new URLSearchParams();
+  Object.entries(readBrowseSession().filters ?? {}).forEach(([key, value]) => { if (value) params.set(key, String(value)); });
+  return '/stock' + (params.size ? '?' + params.toString() : '');
+}

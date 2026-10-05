@@ -85,6 +85,8 @@ export interface OnlineReservation {
   reference: string;
   vehicleId: string;
   vehicleTitle: string;
+  /** @nullable */
+  vehicleRegistration?: string | null;
   /**
      * @minimum 100
      * @maximum 1000000
@@ -124,6 +126,8 @@ export interface StaffOnlineReservation {
   reference: string;
   vehicleId: string;
   vehicleTitle: string;
+  /** @nullable */
+  vehicleRegistration?: string | null;
   /**
      * @minimum 100
      * @maximum 1000000
@@ -1043,6 +1047,98 @@ export interface ApiError {
   error: string;
 }
 
+export type StaffDirectoryMembersItem = {
+  id: string;
+  name: string;
+};
+
+export interface StaffDirectory {
+  currentUserId: string;
+  members: StaffDirectoryMembersItem[];
+}
+
+export type EnquiryConversationInputCallOutcome = typeof EnquiryConversationInputCallOutcome[keyof typeof EnquiryConversationInputCallOutcome];
+
+
+export const EnquiryConversationInputCallOutcome = {
+  information_given: 'information_given',
+  test_drive_booked: 'test_drive_booked',
+  callback_requested: 'callback_requested',
+  no_answer: 'no_answer',
+  not_interested: 'not_interested',
+} as const;
+
+export interface EnquiryConversationInput {
+  /** @minimum 0 */
+  expectedRevision: number;
+  /** @minimum 0 */
+  expectedFollowUpRevision: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  note: string;
+  callOutcome: EnquiryConversationInputCallOutcome;
+  /** Optional future follow-up. Omitting this keeps the existing follow-up unchanged. */
+  followUpAt?: string;
+  /** @maxLength 500 */
+  followUpNote?: string;
+}
+
+/**
+ * @nullable
+ */
+export type EnquiryWorkspaceUpdateCallOutcome = typeof EnquiryWorkspaceUpdateCallOutcome[keyof typeof EnquiryWorkspaceUpdateCallOutcome] | null;
+
+
+export const EnquiryWorkspaceUpdateCallOutcome = {
+  information_given: 'information_given',
+  test_drive_booked: 'test_drive_booked',
+  callback_requested: 'callback_requested',
+  no_answer: 'no_answer',
+  not_interested: 'not_interested',
+} as const;
+
+export type EnquiryWorkspaceUpdateAttendance = typeof EnquiryWorkspaceUpdateAttendance[keyof typeof EnquiryWorkspaceUpdateAttendance];
+
+
+export const EnquiryWorkspaceUpdateAttendance = {
+  scheduled: 'scheduled',
+  arrived: 'arrived',
+  completed: 'completed',
+  no_show: 'no_show',
+} as const;
+
+export interface EnquiryWorkspaceUpdate {
+  /** @minimum 0 */
+  expectedRevision: number;
+  /** @minimum 0 */
+  expectedAppointmentRevision?: number;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  assignedToId?: string | null;
+  /** @nullable */
+  callOutcome?: EnquiryWorkspaceUpdateCallOutcome;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  staffNote?: string | null;
+  attendance?: EnquiryWorkspaceUpdateAttendance;
+}
+
+export type EnquiryAttendance = typeof EnquiryAttendance[keyof typeof EnquiryAttendance];
+
+
+export const EnquiryAttendance = {
+  scheduled: 'scheduled',
+  arrived: 'arrived',
+  completed: 'completed',
+  no_show: 'no_show',
+} as const;
+
 /**
  * @nullable
  */
@@ -1084,6 +1180,8 @@ export const EnquiryEventKind = {
   viewing_cancelled: 'viewing_cancelled',
   call_intent: 'call_intent',
   whatsapp_intent: 'whatsapp_intent',
+  conversation_logged: 'conversation_logged',
+  records_merged: 'records_merged',
 } as const;
 
 export type EnquiryEventActor = typeof EnquiryEventActor[keyof typeof EnquiryEventActor];
@@ -1093,6 +1191,17 @@ export const EnquiryEventActor = {
   customer: 'customer',
   dealer: 'dealer',
   system: 'system',
+} as const;
+
+export type EnquiryEventCallOutcome = typeof EnquiryEventCallOutcome[keyof typeof EnquiryEventCallOutcome];
+
+
+export const EnquiryEventCallOutcome = {
+  information_given: 'information_given',
+  test_drive_booked: 'test_drive_booked',
+  callback_requested: 'callback_requested',
+  no_answer: 'no_answer',
+  not_interested: 'not_interested',
 } as const;
 
 export interface EnquiryEvent {
@@ -1107,10 +1216,35 @@ export interface EnquiryEvent {
   vehicleTitle: string | null;
   /** @nullable */
   vehicleUrl: string | null;
+  note?: string;
+  staffId?: string;
+  staffName?: string;
+  callOutcome?: EnquiryEventCallOutcome;
+  /** @nullable */
+  followUpAt?: string | null;
   occurredAt: string;
 }
 
 export interface Enquiry {
+  /**
+     * Main case ID; originals remain editable and retain their own appointments and history.
+     * @nullable
+     */
+  mergedIntoId?: string | null;
+  /** @nullable */
+  mergedAt?: string | null;
+  /** @nullable */
+  mergedBy?: string | null;
+  /** @nullable */
+  assignedToId?: string | null;
+  /** @nullable */
+  assignedToName?: string | null;
+  /** @nullable */
+  callOutcome?: string | null;
+  /** @nullable */
+  staffNote?: string | null;
+  attendance?: EnquiryAttendance;
+  workspaceRevision?: number;
   /** Staff arranged outside configured booking hours or a closed date. */
   appointmentOutsideHours?: boolean;
   /** Staff explicitly allowed an overlapping active appointment. */
@@ -1204,6 +1338,48 @@ export interface Enquiry {
   updatedAt: string;
 }
 
+export type EnquiryMergeInputExpectedRevisionsItem = {
+  id: string;
+  /** @minimum 0 */
+  workspaceRevision: number;
+  /** @minimum 0 */
+  appointmentRevision: number;
+  /** @minimum 0 */
+  followUpRevision: number;
+};
+
+export interface EnquiryMergeInput {
+  /**
+     * Includes the main record and every original from selected existing cases.
+     * @minItems 2
+     * @maxItems 20
+     */
+  recordIds: string[];
+  /**
+     * @minItems 2
+     * @maxItems 20
+     */
+  expectedRevisions: EnquiryMergeInputExpectedRevisionsItem[];
+  /**
+     * Explicit set of selected active appointments to keep. Other active selected appointments are cancelled on their original records.
+     * @maxItems 20
+     */
+  keepAppointmentIds: string[];
+  /**
+     * @minLength 2
+     * @maxLength 1000
+     */
+  reason: string;
+  confirmDifferentCustomers: boolean;
+  allowOverlappingAppointments: boolean;
+}
+
+export interface EnquiryMergeResult {
+  primaryId: string;
+  recordIds: string[];
+  cancelledAppointmentIds: string[];
+}
+
 export type EnquiryInputType = typeof EnquiryInputType[keyof typeof EnquiryInputType];
 
 
@@ -1261,6 +1437,8 @@ export type EnquiryInputPartExchange = {
 } | null;
 
 export interface EnquiryInput {
+  /** Request a showroom callback. Public general enquiries only, with a required phone number; no appointment. Email is optional. */
+  requestCallback?: boolean;
   /** @nullable */
   vehicleId: string | null;
   type: EnquiryInputType;
@@ -1269,8 +1447,11 @@ export interface EnquiryInput {
      * @maxLength 120
      */
   customerName: string;
-  /** @minLength 3 */
-  email: string;
+  /**
+     * @minLength 3
+     * @nullable
+     */
+  email?: string | null;
   /**
      * @minLength 5
      * @maxLength 40
@@ -1298,6 +1479,20 @@ export interface EnquiryInput {
   /** @nullable */
   appointmentAt: string | null;
 }
+
+/**
+ * @nullable
+ */
+export type StaffEnquiryInputCallOutcome = typeof StaffEnquiryInputCallOutcome[keyof typeof StaffEnquiryInputCallOutcome] | null;
+
+
+export const StaffEnquiryInputCallOutcome = {
+  information_given: 'information_given',
+  test_drive_booked: 'test_drive_booked',
+  callback_requested: 'callback_requested',
+  no_answer: 'no_answer',
+  not_interested: 'not_interested',
+} as const;
 
 /**
  * Caller-supplied vehicle attached only to this enquiry; does not create stock or imply availability.
@@ -1379,6 +1574,13 @@ export type StaffEnquiryInputPartExchange = {
 } | null;
 
 export interface StaffEnquiryInput {
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  assignedToId?: string | null;
+  /** @nullable */
+  callOutcome?: StaffEnquiryInputCallOutcome;
   /** Explicit staff override for a time outside configured booking hours. */
   allowOutsideHours?: boolean;
   /** Explicit staff override for an overlapping appointment or full day. */

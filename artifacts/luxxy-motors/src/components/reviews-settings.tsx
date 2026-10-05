@@ -22,13 +22,15 @@ export function ReviewsSettings({ value, onChange }: { value?: DealerPresentatio
   const [text, setText] = useState(saved);
   const [message, setMessage] = useState('');
   useEffect(() => { setText(saved); }, [saved]);
-  return <div className="space-y-3 border-t border-border pt-5">
+  return <div className="settings-reviews-import space-y-3 border-t border-border pt-5">
     <h3 className="font-semibold">Customer reviews</h3>
     <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={value?.reviewsEnabled === true} onChange={event => onChange({ ...value, reviewsEnabled: event.target.checked })} />Show customer reviews on the homepage</label>
     <label htmlFor="customer-reviews-json" className="block text-sm font-medium">Reviews JSON</label>
-    <p id="reviews-json-help" className="text-sm text-muted-foreground">Paste an array containing rating, review, name, date and source. Reviews display in this order. Optional verified and invited fields accept true or false. Only mark verified when confirmed. Apply the JSON, then save settings. Use [] to clear them.</p>
+    <p id="reviews-json-help" className="settings-import-help text-sm text-muted-foreground">Paste an array containing rating, review, name, date and source. Reviews display in this order. Optional verified and invited fields accept true or false. Only mark verified when confirmed. Apply the JSON, then save settings. Use [] to clear them.</p>
     <Textarea id="customer-reviews-json" aria-describedby="reviews-json-help" rows={8} value={text} onChange={event => { setText(event.target.value); setMessage(''); }} className="font-mono text-xs" />
-    <Button type="button" variant="outline" onClick={() => { try { const reviews = parseReviews(text); onChange({ ...value, reviews }); setMessage(`${reviews.length} reviews applied. Save settings to keep your changes.`); } catch (error) { setMessage(error instanceof SyntaxError ? 'Invalid JSON. Check quotation marks and commas.' : (error as Error).message); } }}>Apply reviews JSON</Button>
-    {message && <p role="status" className="text-sm">{message}</p>}
+    <div className="settings-import-actions">
+      <Button type="button" variant="outline" onClick={() => { try { const reviews = parseReviews(text); onChange({ ...value, reviews }); setMessage(`${reviews.length} reviews applied. Save settings to keep your changes.`); } catch (error) { setMessage(error instanceof SyntaxError ? 'Invalid JSON. Check quotation marks and commas.' : (error as Error).message); } }}>Apply reviews JSON</Button>
+      {message && <p role="status" className="settings-import-status text-sm">{message}</p>}
+    </div>
   </div>;
 }

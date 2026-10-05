@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
-import { formatPrice, getThumbnailUrl } from '@/lib/utils';
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
+import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
 import type { Car } from '@/lib/stock-context';
 import { buildPartExchangeMessage, type PartExchangeDetails } from '@/lib/part-exchange';
 
@@ -152,11 +153,11 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     {step === 2 && <fieldset className="min-w-0 space-y-5">
       <legend className="sr-only">Choose your next car</legend>
       <label className="block"><span className={labelClass}>Vehicle you are interested in</span><NativeSelect required value={vehicleId} disabled={!stockCars.length} onChange={event => { vehicleTouched.current = true; setVehicleId(event.target.value); setReviewed(false); }} data-testid="select-part-exchange-target-vehicle">
-        <option value="">Choose from our current stock</option>{stockCars.map(car => <option key={car.id} value={car.id}>{car.title || `${car.make} ${car.model}`}{car.year ? ` · ${car.year}` : ''}{car.price != null ? ` · ${formatPrice(car.price, car.currency)}` : ''}</option>)}
+        <option value="">Choose from our current stock</option>{stockCars.map(car => <option key={car.id} value={car.id}>{[vehicleDisplayTitle(car), customerRegistrationDetails(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}
       </NativeSelect></label>
       {selectedVehicle ? <div className="overflow-hidden border border-border" data-testid="card-part-exchange-target-vehicle">
         {getThumbnailUrl(selectedVehicle) && <img src={getThumbnailUrl(selectedVehicle)} alt={selectedVehicle.title || 'Selected stock vehicle'} referrerPolicy="no-referrer" className="aspect-[16/10] w-full object-cover" />}
-        <div className="p-4"><p className="text-xs text-accent">Your next car</p><h3 className="mt-1 font-display text-xl font-semibold">{selectedVehicle.title || `${selectedVehicle.make} ${selectedVehicle.model}`}</h3><p className="mt-2 text-lg font-semibold">{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p><p className="mt-2 text-sm text-muted-foreground">{[selectedVehicle.year, selectedVehicle.mileage != null ? `${selectedVehicle.mileage.toLocaleString('en-GB')} miles` : null, selectedVehicle.fuel, selectedVehicle.transmission].filter(Boolean).join(' · ')}</p></div>
+        <div className="p-4"><p className="text-xs text-accent">Your next car</p><h3 className="mt-1 font-display text-xl font-semibold">{vehicleDisplayTitle(selectedVehicle)}</h3><p className="mt-2 text-lg font-semibold">{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p><p className="mt-2 text-sm text-muted-foreground">{[customerRegistrationDetails(selectedVehicle), selectedVehicle.mileage != null ? `${selectedVehicle.mileage.toLocaleString('en-GB')} miles` : null, selectedVehicle.fuel, selectedVehicle.transmission].filter(Boolean).join(' · ')}</p></div>
       </div> : <p className="border-l-2 border-accent pl-4 text-sm leading-6 text-muted-foreground">{stockCars.length ? 'Choose a car to see its photograph and details here.' : 'No stock is available to select at the moment. Please contact the showroom before continuing.'}</p>}
     </fieldset>}
 

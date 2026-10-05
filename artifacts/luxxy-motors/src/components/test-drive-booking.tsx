@@ -23,7 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { UKNumberPlate } from "@/components/uk-number-plate";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { type Car } from "@/lib/stock-context";
-import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from "@/lib/utils";
+import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistrationLabel } from "@/lib/utils";
+import { customerRegistrationDetails } from "@/lib/customer-vehicle-meta";
 import { dealershipLocation } from "@/lib/dealership-location";
 import { getVisitorId } from "@/lib/visitor";
 import { trackEvent } from "@/lib/analytics";
@@ -115,15 +116,20 @@ export function TestDriveBooking({
   const [, setLocation] = useLocation();
   const cars = stockCars.filter(
     (car) =>
-      !["sold", "archived", "hidden"].includes(
-        String(car.inventoryStatus ?? ""),
-      ),
+      (!car.inventoryStatus || car.inventoryStatus === "available"),
   );
   const currentCar =
     vehicle && cars.some((car) => car.id === vehicle.id) ? vehicle : undefined;
   const [choosingCar, setChoosingCar] = useState(false);
   const [choiceId, setChoiceId] = useState(vehicle?.id ?? "");
   const [carSearch, setCarSearch] = useState("");
+  const searchTerm = carSearch.toLowerCase().replace(/\s+/g, "");
+  const matchingCars = cars.filter((car) =>
+    `${vehicleDisplayTitle(car)} ${car.year ?? ""} ${vehicleRegistrationLabel(car)}`
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .includes(searchTerm),
+  );
   const choice = cars.find((car) => car.id === choiceId);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [details, setDetails] = useState(() => initialDetails(vehicle));
@@ -342,7 +348,7 @@ export function TestDriveBooking({
           {vehicleDisplayTitle(currentCar)}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {[currentCar.year, currentCar.transmission]
+          {[customerRegistrationDetails(currentCar), currentCar.transmission]
             .filter(Boolean)
             .join(" · ")}
         </p>
@@ -574,7 +580,7 @@ export function TestDriveBooking({
                   <span className="field-label">Find a car</span>
                   <Input
                     type="search"
-                    placeholder="Search make or model"
+                    placeholder="Search make, model or registration"
                     value={carSearch}
                     onChange={(event) => setCarSearch(event.target.value)}
                   />
@@ -583,13 +589,7 @@ export function TestDriveBooking({
               <fieldset className="mt-5">
                 <legend className="sr-only">Choose your car</legend>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {cars
-                    .filter((car) =>
-                      `${vehicleDisplayTitle(car)} ${car.year ?? ""}`
-                        .toLowerCase()
-                        .includes(carSearch.toLowerCase().trim()),
-                    )
-                    .map((car) => (
+                  {matchingCars.map((car) => (
                       <label
                         key={car.id}
                         className={`flex cursor-pointer items-center gap-3 rounded-sm border p-3 focus-within:ring-2 focus-within:ring-ring ${choiceId === car.id ? "border-primary bg-secondary/60" : "border-border hover:border-primary/50"}`}
@@ -609,7 +609,7 @@ export function TestDriveBooking({
                             {vehicleDisplayTitle(car)}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {[car.year, car.transmission]
+                            {[customerRegistrationDetails(car), car.transmission]
                               .filter(Boolean)
                               .join(" · ")}
                           </p>
@@ -623,14 +623,9 @@ export function TestDriveBooking({
                     ))}
                 </div>
               </fieldset>
-              {cars.length > 0 &&
-                !cars.some((car) =>
-                  `${vehicleDisplayTitle(car)} ${car.year ?? ""}`
-                    .toLowerCase()
-                    .includes(carSearch.toLowerCase().trim()),
-                ) && (
+              {cars.length > 0 && matchingCars.length === 0 && (
                   <p className="my-5 text-sm text-muted-foreground">
-                    No cars match that search. Try a different make or model.
+                    No cars match that search. Try a different make, model or registration.
                   </p>
                 )}
               {!cars.length && (

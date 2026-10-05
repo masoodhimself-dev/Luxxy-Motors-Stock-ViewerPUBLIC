@@ -1,5 +1,6 @@
 // Read-only examples for visual review. No real customers or transactions.
 import { previewStock } from './stock';
+import { vehicleRegistrationLabel } from '@workspace/vehicle-meta';
 const now = Date.now();
 const at = (hours: number) => new Date(now + hours * 3600000).toISOString();
 export const leads = ['Amelia Clarke', 'James Bennett', 'Olivia Reed', 'Thomas Wilson'].map(
@@ -12,7 +13,7 @@ export const leads = ['Amelia Clarke', 'James Bennett', 'Olivia Reed', 'Thomas W
     stage: i === 0 ? 'viewing_booked' : i === 1 ? 'offer' : 'new',
     vehicleId: previewStock.cars[i].id,
     vehicleTitle: previewStock.cars[i].title,
-    vehicleRegistration: previewStock.cars[i].registration,
+    vehicleRegistration: vehicleRegistrationLabel(previewStock.cars[i]),
     owner: 'Alex',
     summary: 'Interested in a viewing. Please confirm availability and service history.',
     nextAction:
@@ -55,7 +56,7 @@ const sale = {
 };
 export function previewResponse(path: string, query: URLSearchParams): unknown {
   if (path === '/api/portal/session')
-    return { state: 'authorised', name: 'Alex', email: 'alex@example.com' };
+    return { state: 'allowed', name: 'Alex', email: 'alex@example.com' };
   if (path === '/api/portal/worklist')
     return {
       generatedAt: at(0),
@@ -153,7 +154,7 @@ export function previewResponse(path: string, query: URLSearchParams): unknown {
   if (path === '/api/signing/sample')
     return {
       developmentOnly: true,
-      warning: 'Visual preview only. No signature will be recorded.',
+      warning: 'Signing is unavailable. No signature will be recorded.',
       session: { status: 'pending', expiresAt: at(48) },
       sale,
       customer: sale.customer,
@@ -171,15 +172,15 @@ export function previewResponse(path: string, query: URLSearchParams): unknown {
         },
         documents: [{
           id: 'sample-order',
-          title: 'Development vehicle sale summary',
-          content: `DEVELOPMENT ONLY — NOT A LEGAL CONTRACT
+          title: 'Vehicle sale summary',
+          content: `SAMPLE DOCUMENT — NOT A LEGAL CONTRACT
 
 Vehicle: ${previewStock.cars[0].title}
 Customer: ${sale.customer.name}
 
 Review the vehicle, agreed price and disclosures with the dealer before proceeding.
 
-This sample document is for visual review. No signature will be recorded.`,
+This sample document cannot be signed. No signature will be recorded.`,
           contentHash: 'sample-content',
           required: true,
         }],

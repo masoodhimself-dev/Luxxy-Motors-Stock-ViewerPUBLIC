@@ -7,7 +7,7 @@ export const useUser = () => ({
 export const UserButton = () => (
   <span
     className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-sm font-semibold"
-    aria-label="Sample staff account"
+    aria-label="Staff account"
   >
     AL
   </span>

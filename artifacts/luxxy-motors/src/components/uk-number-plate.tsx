@@ -59,7 +59,7 @@ export function UKNumberPlate({
           spellCheck={false}
           aria-label="Your car’s UK registration number"
           aria-describedby={helpId}
-          className="h-full min-h-[56px] border-0 bg-transparent px-4 text-center font-sans text-xl font-black uppercase tracking-[0.12em] text-[hsl(var(--primary))] placeholder:font-bold placeholder:text-[hsl(var(--primary))]/40 focus-visible:ring-0 sm:text-2xl"
+          className="uk-number-plate-input h-full min-h-[56px] border-0 bg-transparent px-4 text-center font-sans text-xl font-black uppercase tracking-[0.12em] text-[hsl(var(--primary))] placeholder:font-bold placeholder:text-[hsl(var(--primary))]/40 focus-visible:ring-0 sm:text-2xl"
           data-testid={inputTestId ?? `${testId}-input`}
         />
       ) : (

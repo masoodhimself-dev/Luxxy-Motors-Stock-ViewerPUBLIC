@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { Car } from "@/lib/stock-context";
 import { vehicleContent } from "@/lib/vehicle-content";
 import { buyerInformation } from "@/lib/buyer-information";
-import { vehicleDisplayTitle, formatPrice } from "@/lib/utils";
+import { vehicleDisplayTitle, vehicleRegistrationLabel, formatPrice } from "@/lib/utils";
 import { Gallery } from "@/components/gallery";
+import { HistoryLinks } from './history-links';
 import { vehicleHistoryFacts, vehicleListingHighlights, vehicleRunningCosts } from "@/lib/vehicle-extra-facts";
 import {
   Dialog,
@@ -81,11 +82,13 @@ export function EnquiryVehicleInformation({
   car: Car;
   onClose: () => void;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const { description, features } = vehicleContent(car);
   const facts: [string, unknown][] = [
     ["Price", car.price == null ? null : formatPrice(car.price)],
     ["Year", car.year],
-    ["Registration / plate", car.plate || car.vrm || car.registration],
+    ["Registration / plate", vehicleRegistrationLabel(car)],
     [
       "Mileage",
       car.mileage == null
@@ -115,9 +118,20 @@ export function EnquiryVehicleInformation({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-5xl">
+      <DialogContent
+        className="portal-action-dialog portal-action-dialog-wide enquiry-vehicle-dialog max-w-5xl"
+        onOpenAutoFocus={event => {
+          event.preventDefault();
+          opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          heading.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+          if (opener.current?.isConnected) opener.current.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader>
-          <DialogTitle className="pr-10">
+          <DialogTitle ref={heading} tabIndex={-1} className="pr-10">
             {vehicleDisplayTitle(car)}
           </DialogTitle>
           <DialogDescription>
@@ -129,7 +143,8 @@ export function EnquiryVehicleInformation({
                 : "Availability unconfirmed"}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid min-w-0 gap-6 md:grid-cols-2">
+        <HistoryLinks vehicleId={car.id} />
+        <div className="enquiry-vehicle-overview grid min-w-0 gap-6 md:grid-cols-2">
           <div className="min-w-0">
             <Gallery
               images={car.images}
@@ -139,14 +154,14 @@ export function EnquiryVehicleInformation({
           </div>
           <section>
             <h3 className="mb-3 font-semibold">At a glance</h3>
-            <dl className="divide-y divide-border text-sm">
+            <dl className="enquiry-vehicle-facts divide-y divide-border text-sm">
               {facts
                 .filter(
                   ([, value]) =>
                     value !== null && value !== undefined && value !== "",
                 )
                 .map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-4 py-2">
+                  <div key={label} className="flex min-w-0 justify-between gap-4 py-2">
                     <dt className="text-muted-foreground">{label}</dt>
                     <dd className="text-right font-medium">{String(value)}</dd>
                   </div>

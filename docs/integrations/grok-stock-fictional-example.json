@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "runId": "8b2040c9-ead7-493e-bb81-93a8a08f51b7",
+  "source": "grok",
+  "retailerId": "FICTIONAL-RETAILER-ONLY",
+  "dealerName": "Fictional Example Motors",
+  "scrapedAt": "2026-10-05T07:00:00Z",
+  "complete": true,
+  "expectedAdvertCount": 1,
+  "count": 1,
+  "failedAdvertIds": [],
+  "errors": [],
+  "cars": [
+    {
+      "advertId": "FICTIONAL-ADVERT-001",
+      "title": "2021 Ford Focus",
+      "variant": "1.0 EcoBoost Titanium 5dr",
+      "make": "Ford",
+      "model": "Focus",
+      "trim": "Titanium",
+      "year": 2021,
+      "price": 14995,
+      "priceType": "Retail",
+      "currency": "GBP",
+      "mileage": 32000,
+      "mileageText": "32,000 miles",
+      "registration": "2021 (21 reg)",
+      "registrationBand": "21",
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": "Hatchback",
+      "engineSize": "1.0L",
+      "engineCC": 999,
+      "doors": 5,
+      "seats": 5,
+      "colour": "Blue",
+      "emissionClass": "Euro 6",
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://stock.example.test/adverts/FICTIONAL-ADVERT-001",
+      "dealerName": "Fictional Example Motors",
+      "dealerLocation": "Fictional Test Town",
+      "imageCount": 1,
+      "heroImage": "https://images.example.test/FICTIONAL-ADVERT-001/front-right.jpg",
+      "images": [
+        {
+          "url": "https://images.example.test/FICTIONAL-ADVERT-001/front-right.jpg",
+          "caption": "Front right"
+        }
+      ],
+      "specifications": null,
+      "sourceExtras": {
+        "description": "Fictional test listing only. Bluetooth and rear parking sensors are included in this example's supplied equipment list.",
+        "features": [
+          "Bluetooth",
+          "Rear parking sensors"
+        ]
+      }
+    }
+  ]
+}

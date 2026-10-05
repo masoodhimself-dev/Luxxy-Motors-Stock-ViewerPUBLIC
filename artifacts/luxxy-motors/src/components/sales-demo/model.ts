@@ -1,3 +1,7 @@
+import type {
+  SaleWorkspaceFulfilment,
+  SaleWorkspacePayment,
+} from "@workspace/vehicle-meta";
 export type Exchange = {
   registration: string;
   description: string;
@@ -8,7 +12,9 @@ export type Payment = {
   method: string;
   date: string;
   reference: string;
-};
+} & Partial<
+  Omit<SaleWorkspacePayment, "amount" | "method" | "date" | "reference">
+>;
 export type Adjustment = {
   description: string;
   amount: string;
@@ -19,6 +25,8 @@ export type SaleDraft = {
   payments?: Payment[];
   adjustments?: Adjustment[];
   customerSource?: string;
+  sourceEnquiryId?: string; sourceReservationId?: string;
+  appointment?: { at: string; status: string };
   id: string;
   customer: string;
   email: string;
@@ -39,9 +47,22 @@ export type SaleDraft = {
   preparation: boolean;
   documents: boolean;
   handover: boolean;
+  fulfilment?: SaleWorkspaceFulfilment;
 };
+/** Request references work on plain HTTP LAN previews too (randomUUID requires HTTPS). */
+export function saleRequestId() {
+  if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, (value) =>
+    value.toString(16).padStart(2, "0"),
+  ).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 export const emptyDraft = (): SaleDraft => ({
-  id: "DEMO-" + Date.now().toString(36).toUpperCase(),
+  id: "DRAFT-" + saleRequestId(),
   customer: "",
   email: "",
   phone: "",
@@ -61,7 +82,25 @@ export const emptyDraft = (): SaleDraft => ({
   preparation: false,
   documents: false,
   handover: false,
+  fulfilment: {
+    method: "collection",
+    viewed: "not-yet-viewed",
+    address: "",
+    recipient: "",
+    phone: "",
+    scheduledDate: "",
+    timeWindow: "",
+    instructions: "",
+  },
 });
+/** Display legacy environment tags only in staff attribution; never change saved records. */
+export function saleStaffLabel(value?: string | null): string {
+  const label = value?.trim() ?? "";
+  return label === "Local preview staff"
+    ? "Showroom staff"
+    : label.replace(/ \(preview\)$/, "");
+}
+
 export function pence(value: string) {
   if (!value.trim()) return 0;
   if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return NaN;
@@ -90,7 +129,11 @@ export function totals(draft: SaleDraft) {
     0,
   );
   const deposit = payments(draft).reduce(
-    (sum, row) => sum + pence(row.amount),
+    (sum, row) =>
+      sum +
+      (row.status && row.status !== "confirmed"
+        ? 0
+        : (row.signedAmountPence ?? pence(row.amount))),
     0,
   );
   const adjustments = (draft.adjustments ?? []).reduce(
@@ -105,8 +148,9 @@ export function totals(draft: SaleDraft) {
     balance: price + adjustments - allowance - deposit,
   };
 }
-export function errors(draft: SaleDraft): string[] {
+export function errors(draft: SaleDraft, previous?: SaleDraft): string[] {
   const amounts = totals(draft);
+  const previousBalance = previous ? totals({ ...previous, payments: draft.payments }).balance : 0;
   return [
     !draft.customer.trim() && "Enter the customer name.",
     !draft.vehicleId && "Select a vehicle.",
@@ -114,7 +158,7 @@ export function errors(draft: SaleDraft): string[] {
       "Enter a valid vehicle price greater than zero.",
     Object.values(amounts).some((value) => !Number.isSafeInteger(value)) &&
       "Enter valid non-negative amounts, with no more than two decimal places.",
-    amounts.balance < 0 &&
+    amounts.balance < 0 && (!previous || amounts.balance < previousBalance) &&
       "Part exchange, discounts and payments cannot exceed the total due.",
     exchanges(draft).length > 3 &&
       "A maximum of three part-exchange cars is allowed.",

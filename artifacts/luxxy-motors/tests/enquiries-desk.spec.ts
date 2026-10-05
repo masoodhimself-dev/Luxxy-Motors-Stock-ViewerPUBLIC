@@ -148,9 +148,8 @@ for (const width of [390, 820, 1440]) {
       .getByRole("tab", { name: "Find enquiry or appointment", exact: true })
       .click();
     await page.getByLabel("Find a customer or car").fill("07700900123");
-    await expect(page.getByTestId("enquiry-enquiry-one")).toContainText(
-      "Alex Caller",
-    );
+    await page.getByRole("button", { name: "Open enquiry for Alex Caller, CALL-123" }).click();
+    await expect(page.getByRole("region", { name: "Selected enquiry: Alex Caller" })).toContainText("Alex Caller");
     await page
       .getByRole("button", { name: "Change appointment", exact: true })
       .click();
@@ -178,6 +177,7 @@ test("staff must review an out-of-hours reschedule before it is sent", async ({ 
   });
   await page.getByRole("tab", { name: "Find enquiry or appointment", exact: true }).click();
   await page.getByLabel("Find a customer or car").fill("07700900123");
+    await page.getByRole("button", { name: "Open enquiry for Alex Caller, CALL-123" }).click();
   await page.getByRole("button", { name: "Change appointment", exact: true }).click();
   await page.getByRole("button", { name: "Choose a specific UK time" }).click();
   await page.getByLabel("Staff appointment date and time (UK)").fill("2027-01-06T20:00");
@@ -219,6 +219,7 @@ test("reserved stock cannot be booked and failed requests retain caller details"
   await expect(
     page.getByRole("button", { name: "Save test-drive booking" }),
   ).toBeDisabled();
+  await page.getByRole("button", { name: "Change selected car" }).click();
   await page.getByRole("button", { name: /Ford Focus/ }).click();
   await page
     .getByLabel("Customer name", { exact: true })
@@ -311,14 +312,15 @@ test('due follow-up queue can complete a request with the reviewed revision', as
   let entry = { ...existing, appointmentAt: null, followUpAt: '2026-01-01T10:00:00Z', followUpNote: 'Discuss delivery', followUpCompletedAt: null as string | null, followUpRevision: 2 };
   await page.route('**/api/enquiries', route => route.fulfill({ json: [entry] }));
   await page.getByRole('button', { name: 'Refresh enquiries and stock' }).click();
-  await page.getByRole('button', { name: 'Follow-ups due (1)' }).click();
-  await expect(page.getByTestId('enquiry-enquiry-one')).toContainText('Follow-up overdue');
+  await page.getByRole('button', { name: 'Overdue now (1)' }).click();
+  await page.getByRole('button', { name: 'Open enquiry for Alex Caller, CALL-123' }).click();
+  await expect(page.getByRole('region', { name: 'Selected enquiry: Alex Caller' })).toContainText('Follow-up overdue');
   let payload: any;
   await page.route('**/api/staff/enquiries/enquiry-one/follow-up', route => { payload = route.request().postDataJSON(); entry = { ...entry, followUpRevision: 3, followUpCompletedAt: new Date().toISOString() }; return route.fulfill({ json: entry }); });
   await page.getByRole('button', { name: 'Manage follow-up', exact: true }).click();
   await page.getByRole('button', { name: 'Mark follow-up done', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('follow-up completed');
-  await expect(page.getByRole('button', { name: 'Follow-ups due (0)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Overdue now (0)' })).toBeVisible();
   expect(payload).toMatchObject({ action: 'complete', expectedRevision: 2 });
 });
 test('a general call can be saved even if showroom stock cannot be loaded', async ({ page }) => {
@@ -386,5 +388,89 @@ for (const width of [390, 820, 1440]) {
     await panel.getByRole('button', { name: 'Next month' }).click();
     await expect(panel.getByLabel('Calendar month')).toHaveValue('2027-02');
     await expect(panel.getByText('No appointments on this day.')).toBeVisible();
+  });
+}
+
+test('workspace draft survives refresh and universal search opens the existing enquiry', async ({ page }) => {
+  await setup(page);
+  await page.getByLabel('Customer name', { exact: true }).fill('Draft Caller');
+  await page.getByLabel('Phone number', { exact: true }).fill('07700900456');
+  await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByTestId('tab-enquiries').click();
+  await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
+  await page.getByLabel('Search the workspace').fill('CALL-123');
+  await page.getByRole('button', { name: /CALL-123/ }).click();
+  await expect(page.getByRole('button', { name: 'Update enquiry', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Today', exact: true }).click();
+  await page.screenshot({ path: '/tmp/luxxy-today-workspace.png', fullPage: true });
+  await page.getByRole('tab', { name: 'New call', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard draft' }).click();
+  await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('');
+});
+
+for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
+  test(`desktop call desk keeps the save action in view with long details at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await setup(page);
+    await page.route('**/api/stock', route => route.fulfill({ json: {
+      schemaVersion: 1, count: 1, cars: [{ ...car, sourceExtras: {
+        ...car.sourceExtras,
+        advertDescription: 'Documented service and preparation information. '.repeat(80),
+        featureList: Array.from({ length: 40 }, (_, index) => `Supplied equipment item ${index + 1}`),
+      } }],
+    } }));
+    await page.getByRole('button', { name: 'Refresh enquiries and stock' }).click();
+    await page.getByRole('button', { name: /Select Ford Focus/ }).click();
+    await page.getByLabel('Customer name', { exact: true }).fill('Desktop Caller');
+    await page.getByLabel('Phone number', { exact: true }).fill('07700900456');
+    await page.getByLabel('Book a test drive', { exact: true }).check();
+    await page.getByRole('button', { name: '12:00', exact: true }).click();
+    await page.locator('.enquiry-vehicle-context summary').filter({ hasText: /^Description$/ }).click();
+    await page.getByLabel('Request a follow-up', { exact: true }).check();
+    await page.getByLabel('Follow-up date and time (UK)').fill('2027-01-07T10:00');
+    await page.getByLabel('Follow-up note (optional)').fill('Discuss delivery after the test drive.');
+    const save = page.getByRole('button', { name: 'Save test-drive booking', exact: true });
+    await expect(save).toBeEnabled();
+    // Inputs can scroll within their columns; a booking never pushes Save down the document.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const geometry = await page.evaluate(() => {
+      const sections = [...document.querySelectorAll('.enquiry-new-call > fieldset')].map(element => {
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight };
+      });
+      const box = document.querySelector('.enquiry-save-action')!.getBoundingClientRect();
+      const workspace = document.querySelector('.portal-workspace-inner')!.getBoundingClientRect();
+      return { sections, saveBottom: box.bottom, saveTop: box.top, workspaceWidth: workspace.width, scrollX: window.scrollX, overflow: document.documentElement.scrollWidth > window.innerWidth };
+    });
+    expect(geometry.sections).toHaveLength(3);
+    expect(geometry.sections[0].x).toBeLessThan(geometry.sections[1].x);
+    expect(geometry.sections[1].x).toBeLessThan(geometry.sections[2].x);
+    expect(Math.abs(geometry.sections[0].y - geometry.sections[2].y)).toBeLessThan(2);
+    expect(geometry.sections[0].scrollHeight).toBeGreaterThan(geometry.sections[0].clientHeight);
+    expect(geometry.saveBottom).toBeLessThanOrEqual(height);
+    expect(geometry.saveTop).toBeGreaterThan(0);
+    expect(geometry.workspaceWidth).toBeGreaterThanOrEqual(width - 50);
+    expect(geometry.overflow).toBe(false);
+    await page.screenshot({ path: `/tmp/luxxy-enquiry-desktop-fit-${width}.png` });
+    await page.getByRole('tab', { name: 'All cars', exact: true }).click();
+    await page.getByRole('tab', { name: 'New call', exact: true }).click();
+    await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Desktop Caller');
+    await expect(page.getByLabel('Request a follow-up', { exact: true })).toBeChecked();
+    await expect(page.getByRole('button', { name: '12:00', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+    await expect(page.locator('.enquiry-calendar-day')).toHaveCount(42);
+    const lastDay = page.locator('.enquiry-calendar-day').last();
+    if (height < 900) await lastDay.scrollIntoViewIfNeeded();
+    const diary = await page.evaluate(() => {
+      const month = document.querySelector('.enquiry-calendar-month')!.getBoundingClientRect();
+      const agenda = document.querySelector('.enquiry-calendar-agenda')!.getBoundingClientRect();
+      const days = [...document.querySelectorAll('.enquiry-calendar-day')];
+      return { monthRight: month.right, agendaLeft: agenda.left, monthBottom: month.bottom, lastBottom: days.at(-1)!.getBoundingClientRect().bottom };
+    });
+    expect(diary.monthRight).toBeLessThan(diary.agendaLeft);
+    expect(diary.lastBottom).toBeLessThanOrEqual(diary.monthBottom);
+    expect(diary.lastBottom).toBeLessThanOrEqual(height);
+    await page.screenshot({ path: `/tmp/luxxy-enquiry-calendar-fit-${width}.png` });
   });
 }

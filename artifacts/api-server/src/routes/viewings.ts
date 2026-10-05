@@ -10,7 +10,7 @@ import {
   RescheduleViewingParams,
   RescheduleViewingResponse,
 } from "@workspace/api-zod";
-import { db, enquiriesTable, type Enquiry } from "@workspace/db";
+import { db, enquiriesTable, vehiclesTable, type Enquiry } from "@workspace/db";
 import {
   bookingTimezone,
   formatAppointmentLabel,
@@ -193,9 +193,14 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
       await lockBookingDays(tx, dealerId(), [appointmentAt, ...(previous ? [previous] : [])]);
       const [current] = await tx.select().from(enquiriesTable).where(eq(enquiriesTable.id, enquiry.id)).for("update");
       if (!current || !canChange(current)) throw new BookingConflict("This booking has changed. Reload it before choosing another time.");
+      if (current.vehicleId) {
+        const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, current.vehicleId), eq(vehiclesTable.dealerId, dealerId()))).for("update");
+        if (!vehicle || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for online test-drive changes. Please contact the showroom.");
+      }
       await ensureBookingAvailable(tx, dealerId(), appointmentAt, policy, enquiry.id);
       const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt,
+        attendance: "scheduled",
         appointmentOutsideHours: false,
         appointmentDoubleBooked: false,
         appointmentOverCapacity: false,

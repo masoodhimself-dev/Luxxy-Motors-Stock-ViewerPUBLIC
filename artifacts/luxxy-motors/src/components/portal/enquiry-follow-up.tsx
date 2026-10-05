@@ -37,11 +37,13 @@ export function FollowUpFields({
   note,
   onTime,
   onNote,
+  noteMaxLength = 1000,
 }: {
   time: string;
   note: string;
   onTime: (value: string) => void;
   onNote: (value: string) => void;
+  noteMaxLength?: number;
 }) {
   return (
     <div className="grid gap-3 rounded-sm border border-border bg-muted/30 p-3">
@@ -58,7 +60,7 @@ export function FollowUpFields({
         Follow-up note (optional)
         <Textarea
           rows={2}
-          maxLength={1000}
+          maxLength={noteMaxLength}
           value={note}
           onChange={(e) => onNote(e.target.value)}
           placeholder="For example: call back about the service history"
@@ -127,7 +129,7 @@ export function FollowUpEditor({
         if (!open && !busy.current) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent className="portal-action-dialog enquiry-action-dialog">
         <DialogHeader>
           <DialogTitle className="pr-10">
             {outstanding ? "Manage follow-up" : "Request a follow-up"}

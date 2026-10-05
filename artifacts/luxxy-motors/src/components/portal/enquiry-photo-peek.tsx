@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Car } from "@/lib/stock-context";
-import { vehicleDisplayTitle } from "@/lib/utils";
+import { vehicleDisplayTitle, vehicleRegistration, vehicleRegistrationLabel } from "@/lib/utils";
 
 export function EnquiryPhotoPeek({ car, className }: { car: Car; className: string }) {
   const [failed, setFailed] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   if (!car.heroImage || failed) return null;
 
-  const suppliedRegistration = car.registration?.trim() ?? "";
-  const plate = car.plate || car.vrm || (/^[A-Z]{2}\d{2}\s?[A-Z]{3}$/i.test(suppliedRegistration) ? suppliedRegistration : null);
-  const registrationBand = !plate ? car.registration || car.registrationBand : null;
+  const plate = vehicleRegistration(car);
+  const registrationBand = !plate ? vehicleRegistrationLabel(car) : "";
   const show = (element: HTMLElement) => {
     // Keep the full photograph on-screen even for cars at the edge of the grid.
     const rect = element.getBoundingClientRect();

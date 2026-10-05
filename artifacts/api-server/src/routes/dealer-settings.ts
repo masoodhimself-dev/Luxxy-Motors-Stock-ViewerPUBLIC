@@ -1,9 +1,10 @@
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
 import { preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
-import { requireStaff } from "../middlewares/staff-auth";
+import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
 import { eq } from "drizzle-orm";
-import { db, dealerSettingsTable, vehiclesTable } from "@workspace/db";
+import { db, pool, dealerSettingsTable, vehiclesTable } from "@workspace/db";
+import { expectedSettingsRevision, PostgresSettingsVersionStore, SettingsVersionError, type SettingsQueryClient } from '../lib/settings-versions';
 import {
   GetDealerSettingsResponse,
   UpdateDealerSettingsBody,
@@ -56,7 +57,8 @@ const defaultSettings = {
 
 type Settings = typeof UpdateDealerSettingsBody._output;
 
-function stockIsVisible(vehicle: typeof vehiclesTable.$inferSelect): boolean {
+type FeaturedVehicle = Pick<typeof vehiclesTable.$inferSelect, 'id' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>;
+function stockIsVisible(vehicle: FeaturedVehicle): boolean {
   const missingHideThreshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD);
   const threshold = Number.isFinite(missingHideThreshold) && missingHideThreshold >= 0 ? missingHideThreshold : 2;
   return (
@@ -66,9 +68,13 @@ function stockIsVisible(vehicle: typeof vehiclesTable.$inferSelect): boolean {
   );
 }
 
-async function cleanFeaturedVehicles(settings: Settings): Promise<Settings> {
+async function cleanFeaturedVehicles(settings: Settings, client?: SettingsQueryClient): Promise<Settings> {
   if (settings.featuredVehicleIds.length === 0) return settings;
-  const vehicles = await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, dealerId()));
+  // A publisher already owns a transaction connection and a settings lock.
+  // Reuse it rather than waiting for a second pool connection under that lock.
+  const vehicles = client
+    ? (await client.query('SELECT id, inventory_status AS "inventoryStatus", missing_count AS "missingCount", price_review_required AS "priceReviewRequired", source_price AS "sourcePrice", website_price_override AS "websitePriceOverride" FROM vehicles WHERE dealer_id=$1', [dealerId()])).rows as FeaturedVehicle[]
+    : await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, dealerId()));
   const visibleIds = new Set(vehicles.filter(stockIsVisible).map((vehicle) => vehicle.id));
   const featuredVehicleIds = settings.featuredVehicleIds.filter((id) => visibleIds.has(id));
   return featuredVehicleIds.length === settings.featuredVehicleIds.length
@@ -76,7 +82,7 @@ async function cleanFeaturedVehicles(settings: Settings): Promise<Settings> {
     : { ...settings, featuredVehicleIds };
 }
 
-export async function getOrCreateSettings() {
+async function settingsSnapshot(): Promise<{ config: Settings; revision: number }> {
   const id = dealerId();
   const [existing] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, id));
   if (existing) {
@@ -88,14 +94,12 @@ export async function getOrCreateSettings() {
         : [],
     });
     const cleaned = await cleanFeaturedVehicles(parsed);
-    if (cleaned.featuredVehicleIds.length !== parsed.featuredVehicleIds.length) {
-      await db.update(dealerSettingsTable).set({ config: cleaned, updatedAt: new Date() }).where(eq(dealerSettingsTable.dealerId, id));
-    }
-    return cleaned;
+    return { config: cleaned, revision: existing.revision };
   }
   await db.insert(dealerSettingsTable).values({ dealerId: id, config: defaultSettings }).onConflictDoNothing();
-  return defaultSettings;
+  return settingsSnapshot();
 }
+export async function getOrCreateSettings() { return (await settingsSnapshot()).config; }
 
 function readText(source: unknown, key: string): string {
   if (!source || typeof source !== "object") return "";
@@ -117,34 +121,54 @@ export async function getDealerIdentity(): Promise<{ name: string; location: str
   };
 }
 
-router.get("/dealer-settings", async (_req, res): Promise<void> => {
-  const config = await getOrCreateSettings();
-  res.json(GetDealerSettingsResponse.parse(config));
-});
-
-router.patch("/dealer-settings", requireStaff, async (req, res): Promise<void> => {
-  const parsed = UpdateDealerSettingsBody.safeParse(req.body);
+async function validatePublication(incoming: Record<string, unknown>, previous: Record<string, unknown>, client: SettingsQueryClient) {
+  const parsed = UpdateDealerSettingsBody.safeParse(incoming);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
+    throw new SettingsVersionError(parsed.error.message, 400);
   }
-  const [previous] = await db.select().from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId()));
-  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data, previous?.config), previous?.config), previous?.config), previous?.config));
+  const compatible = UpdateDealerSettingsBody.parse(preserveTestDriveBooking(preserveBrochure(preserveOnlineReservation(preservePresentation(parsed.data, previous), previous), previous), previous));
   const reservationError = reservationSettingsError(compatible.onlineReservation) ?? bookingPolicyError(compatible.testDriveBooking);
-  if (reservationError) {
-    res.status(400).json({ error: reservationError });
-    return;
+  if (reservationError) throw new SettingsVersionError(reservationError, 400);
+  return await cleanFeaturedVehicles(compatible, client) as Record<string, unknown>;
+}
+function settingsFailure(req: import('express').Request, res: import('express').Response, error: unknown) {
+  if (error instanceof SettingsVersionError) {
+    if (error.revision !== undefined) res.setHeader('x-settings-revision', String(error.revision));
+    res.status(error.status).json({ error: error.message, ...(error.revision === undefined ? {} : { revision: error.revision }) }); return;
   }
-  const cleaned = await cleanFeaturedVehicles(compatible);
-  const [settings] = await db
-    .insert(dealerSettingsTable)
-    .values({ dealerId: dealerId(), config: cleaned })
-    .onConflictDoUpdate({
-      target: dealerSettingsTable.dealerId,
-      set: { config: cleaned, updatedAt: new Date() },
-    })
-    .returning();
-  res.json(UpdateDealerSettingsResponse.parse(settings.config));
+  req.log.error({ err: error }, 'Settings request failed');
+  const schemaMissing = ['42P01', '42703'].includes((error as { code?: string }).code ?? '');
+  res.status(schemaMissing ? 503 : 500).json({ error: schemaMissing ? 'Settings history requires migration 0017 on this deployment.' : 'Settings could not be loaded or published.' });
+}
+router.get("/dealer-settings", async (req, res): Promise<void> => {
+  try {
+    const { config, revision } = await settingsSnapshot();
+    res.setHeader('x-settings-revision', String(revision));
+    res.setHeader('ETag', `"${revision}"`);
+    res.json(GetDealerSettingsResponse.parse(config));
+  } catch (error) { settingsFailure(req, res, error); }
+});
+router.patch("/dealer-settings", requireStaff, requirePermission('settings.publish'), async (req, res): Promise<void> => {
+  try {
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: validatePublication });
+    res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
+    res.json(UpdateDealerSettingsResponse.parse(result.config));
+  } catch (error) { settingsFailure(req, res, error); }
+});
+router.get('/staff/settings-history', requireStaff, requirePermission('settings.publish'), async (req, res) => {
+  try {
+    await getOrCreateSettings();
+    await pool.query("INSERT INTO dealer_settings_versions(dealer_id,revision,config,published_at,published_by,action) SELECT dealer_id,revision,config,updated_at,'Initial settings','initial' FROM dealer_settings WHERE dealer_id=$1 ON CONFLICT DO NOTHING", [dealerId()]);
+    const versions = await new PostgresSettingsVersionStore(dealerId(), pool).history();
+    res.setHeader('Cache-Control', 'no-store'); res.json({ revision: versions[0]?.revision ?? 0, versions });
+  } catch (error) { settingsFailure(req, res, error); }
+});
+router.post('/staff/settings-history/:version/restore', requireStaff, requirePermission('settings.publish'), async (req, res) => {
+  try {
+    if (!/^\d+$/.test(req.params.version)) throw new SettingsVersionError('Settings version not found.', 404);
+    const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), restoredFrom: Number(req.params.version), validate: validatePublication });
+    res.setHeader('x-settings-revision', String(result.revision)); res.json({ revision: result.revision, config: UpdateDealerSettingsResponse.parse(result.config) });
+  } catch (error) { settingsFailure(req, res, error); }
 });
 
 export default router;

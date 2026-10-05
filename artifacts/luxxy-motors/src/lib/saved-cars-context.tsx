@@ -1,3 +1,5 @@
+import type { Car } from './stock-context';
+import { rememberSavedCar, forgetSavedSnapshots } from './saved-car-snapshots';
 import {
   createContext,
   useCallback,
@@ -25,7 +27,7 @@ interface SavedCarsContextValue {
   isSaved: (id: string) => boolean;
   isComparing: (id: string) => boolean;
   /** Returns the saved state after the toggle. */
-  toggleSaved: (id: string) => boolean;
+  toggleSaved: (id: string, car?: Car) => boolean;
   toggleCompare: (id: string) => CompareResult;
   removeFromCompare: (id: string) => void;
   clearCompare: () => void;
@@ -115,9 +117,11 @@ export function SavedCarsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleSaved = useCallback(
-    (id: string) => {
+    (id: string, car?: Car) => {
       const current = savedRef.current;
       const nextSaved = !current.includes(id);
+      if (nextSaved && car) rememberSavedCar(car);
+      if (!nextSaved) forgetSavedSnapshots([id]);
       commitSaved(nextSaved ? [id, ...current] : current.filter((savedId) => savedId !== id));
       return nextSaved;
     },
@@ -161,6 +165,7 @@ export function SavedCarsProvider({ children }: { children: ReactNode }) {
 
   const clearSaved = useCallback(
     (ids?: string[]) => {
+      forgetSavedSnapshots(ids);
       if (!ids) {
         commitSaved([]);
         return;

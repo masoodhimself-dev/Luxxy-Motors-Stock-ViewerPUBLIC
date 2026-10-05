@@ -11,11 +11,14 @@ for (const width of [390, 1280]) {
   await expect(strip).toBeVisible();
   const boxes=await strip.locator('button').evaluateAll(items=>items.map(item=>item.getBoundingClientRect().top));
   expect(new Set(boxes).size).toBe(1);
-  await expect(page.getByRole('button',{name:'More photos',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Next photograph',exact:true}).click();
+  await expect(page.getByLabel('Photograph sections',{exact:true})).toHaveCount(0);
+  const firstThumbnail = strip.locator('button').first();
+  await firstThumbnail.focus();
+  await page.keyboard.press('ArrowRight');
   await expect(page.getByText(`2 / ${stock.cars[0].imageCount} photographs`,{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'View gallery fullscreen'}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByLabel('Photograph sections',{exact:true})).toHaveCount(0);
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('dialog')).toContainText(`3 / ${stock.cars[0].imageCount}`);
   await page.keyboard.press('Escape');

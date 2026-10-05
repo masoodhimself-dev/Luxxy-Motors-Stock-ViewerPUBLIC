@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { requireStaff } from "../middlewares/staff-auth";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { showroomAvailability, vehicleRegistrationLabel } from "@workspace/vehicle-meta";
+import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import {
   DecideTestDriveBookingBody,
   DecideTestDriveBookingResponse,
@@ -17,11 +18,16 @@ import {
   UpdateEnquiryStatusBody,
   UpdateEnquiryStatusParams,
   UpdateEnquiryStatusResponse,
+  UpdateEnquiryWorkspaceBody,
+  LogEnquiryConversationBody,
 } from "@workspace/api-zod";
 import {
   db,
   enquiriesTable,
+  enquiryEventsTable,
+  dealerSettingsTable,
   vehiclesTable,
+  portalUsersTable,
   type Enquiry,
   type Vehicle,
 } from "@workspace/db";
@@ -58,6 +64,8 @@ import {
 } from "../lib/enquiry-links";
 import { BookingConflict, bookingsForDate, checkStaffAppointment, ensureBookingAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
 import { openLeadForEnquiry } from "../lib/leads";
+import { attendanceError, outcomeError } from "../lib/enquiry-workspace";
+import { conversationChange, ConversationError } from "../lib/enquiry-conversations";
 
 const router: IRouter = Router();
 const uuidPattern =
@@ -70,6 +78,77 @@ const settings = () => ({
 });
 
 const errorResponse = (message: string) => ({ error: message });
+
+async function assignedStaff(id: string | null | undefined, req: Request) {
+  if (!id) return { assignedToId: null, assignedToName: null };
+  if (id === req.staff?.authUserId) return { assignedToId: id, assignedToName: req.staff.name || req.staff.email || "Staff member" };
+  const [member] = await db.select().from(portalUsersTable).where(and(eq(portalUsersTable.dealerId, settings().dealerId), eq(portalUsersTable.authUserId, id), isNull(portalUsersTable.disabledAt)));
+  if (!member) throw new BookingConflict("Choose a staff member from this dealership.");
+  return { assignedToId: id, assignedToName: member.name || member.email || "Staff member" };
+}
+
+router.get("/staff/directory", requireStaff, async (req, res) => {
+  try {
+    const rows = await db.select().from(portalUsersTable).where(and(eq(portalUsersTable.dealerId, settings().dealerId), isNull(portalUsersTable.disabledAt)));
+    const members = rows.map(row => ({ id: row.authUserId, name: row.name || row.email || "Staff member" }));
+    if (req.staff && !members.some(member => member.id === req.staff!.authUserId)) members.push({ id: req.staff.authUserId, name: req.staff.name || req.staff.email || "Staff member" });
+    res.json({ currentUserId: req.staff!.authUserId, members });
+  } catch (error) { req.log.error({ err: error }, "Unable to list staff"); res.status(500).json(errorResponse("Unable to load staff members.")); }
+});
+
+router.patch("/staff/enquiries/:id/workspace", requireStaff, async (req, res) => {
+  const parsed = UpdateEnquiryWorkspaceBody.safeParse(req.body);
+  if (!parsed.success || !uuidPattern.test(String(req.params.id))) { res.status(400).json(errorResponse("Check the enquiry update.")); return; }
+  const input = parsed.data;
+  try {
+    const assignment = input.assignedToId !== undefined ? await assignedStaff(input.assignedToId, req) : {};
+    const updated = await db.transaction(async tx => {
+      const [entry] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, String(req.params.id)), eq(enquiriesTable.dealerId, settings().dealerId))).for("update");
+      if (!entry) return null;
+      if (entry.workspaceRevision !== input.expectedRevision) throw new BookingConflict("This enquiry changed. Refresh and review it before saving.");
+      if (input.attendance) {
+        if (input.expectedAppointmentRevision !== entry.appointmentRevision) throw new BookingConflict("The appointment changed. Refresh before recording attendance.");
+        const error = attendanceError(entry, input.attendance);
+        if (error) throw new BookingConflict(error);
+      }
+      const error = outcomeError(entry, input.callOutcome);
+      if (error) throw new BookingConflict(error);
+      const [row] = await tx.update(enquiriesTable).set({ ...assignment,
+        ...(input.callOutcome !== undefined ? { callOutcome: input.callOutcome } : {}),
+        ...(input.staffNote !== undefined ? { staffNote: input.staffNote?.trim() || null } : {}),
+        ...(input.attendance ? { attendance: input.attendance } : {}),
+        workspaceRevision: entry.workspaceRevision + 1, updatedAt: new Date(),
+      }).where(eq(enquiriesTable.id, entry.id)).returning();
+      return row;
+    });
+    if (!updated) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
+    res.json(toEnquiryResponse(updated, { events: await eventsForEnquiry(updated.id) }));
+  } catch (error) {
+    if (error instanceof BookingConflict) { res.status(409).json(errorResponse(error.message)); return; }
+    req.log.error({ err: error }, "Unable to update enquiry workspace"); res.status(500).json(errorResponse("Unable to save the enquiry update."));
+  }
+});
+
+router.post("/staff/enquiries/:id/conversations", requireStaff, requirePermission('sales.manage'), async (req, res) => {
+  const parsed = LogEnquiryConversationBody.safeParse(req.body);
+  const id = String(req.params.id);
+  if (!parsed.success || !uuidPattern.test(id)) { res.status(400).json(errorResponse("Check the conversation details.")); return; }
+  try {
+    const updated = await db.transaction(async tx => {
+      const [entry] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId))).for("update");
+      if (!entry) return null;
+      const change = conversationChange(entry, parsed.data, { id: req.staff!.authUserId, name: staffLabel(req) });
+      const [row] = await tx.update(enquiriesTable).set(change.update).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId))).returning();
+      await tx.insert(enquiryEventsTable).values({ dealerId: entry.dealerId, enquiryId: id, vehicleId: entry.vehicleId, vehicleTitle: entry.vehicleTitle, vehicleUrl: entry.vehicleUrl, kind: 'conversation_logged', actor: 'dealer', summary: change.summary, detail: change.detail, occurredAt: change.occurredAt });
+      return row;
+    });
+    if (!updated) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
+    res.json(toEnquiryResponse(updated, { events: await eventsForEnquiry(updated.id) }));
+  } catch (error) {
+    if (error instanceof ConversationError) { res.status(error.status).json(errorResponse(error.message)); return; }
+    req.log.error({ err: error }, "Unable to log conversation"); res.status(500).json(errorResponse("Unable to save the conversation."));
+  }
+});
 
 function visibleVehicle(vehicle: Vehicle) {
   return (
@@ -135,7 +214,7 @@ async function insertEnquiryWithReference(
           await lockBookingDays(tx, values.dealerId, [values.appointmentAt]);
           if (staffOptions) exception = await checkStaffAppointment(tx, values.dealerId, values.appointmentAt, policy, staffOptions);
           else await ensureBookingAvailable(tx, values.dealerId, values.appointmentAt, policy);
-          if (values.source === "phone" && values.vehicleId) {
+          if (values.vehicleId) {
             const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, values.vehicleId), eq(vehiclesTable.dealerId, values.dealerId))).for("update");
             if (!vehicle || !visibleVehicle(vehicle) || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for a test drive.");
           }
@@ -164,7 +243,7 @@ function isReferenceConflict(error: unknown) {
 
 type EnquiryEventView = ReturnType<typeof serializeEnquiryEvent>;
 
-function toEnquiryResponse(
+export function toEnquiryResponse(
   enquiry: Enquiry,
   options: {
     events?: EnquiryEventView[];
@@ -253,16 +332,22 @@ router.get("/enquiries/availability", (req, res) => enquiryAvailability(req, res
 router.get("/staff/enquiries/:id/availability", requireStaff, (req, res) => enquiryAvailability(req, res, true));
 
 async function createEnquiry(req: Request, res: Response, staff = false): Promise<void> {
+  if (staff && req.body && Object.prototype.hasOwnProperty.call(req.body, 'requestCallback')) {
+    res.status(400).json(errorResponse("Website callback requests must use the public enquiry form.")); return;
+  }
   const parsed = (staff ? CreateStaffEnquiryBody : CreateEnquiryBody).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json(errorResponse(validationMessage(parsed.error)));
     return;
   }
 
-  const input = parsed.data;
+  const input = parsed.data as ReturnType<typeof CreateStaffEnquiryBody.parse>;
+  const requestCallback = !staff && "requestCallback" in input && input.requestCallback === true;
+  if (!staff && "requestCallback" in input && input.type !== "general") { res.status(400).json(errorResponse("Callback requests are only available for general enquiries.")); return; }
+  if (requestCallback && input.appointmentAt) { res.status(400).json(errorResponse("Callback requests cannot include an appointment.")); return; }
   const adHoc = staff && "adHocVehicle" in input ? input.adHocVehicle : null;
-  const followUpAt = staff && "followUpAt" in input ? input.followUpAt : null;
-  const followUpNote = staff && "followUpNote" in input ? input.followUpNote : null;
+  let followUpAt = staff && "followUpAt" in input ? input.followUpAt : null;
+  let followUpNote = staff && "followUpNote" in input ? input.followUpNote : null;
   const staffOptions = staff ? { allowOutsideHours: "allowOutsideHours" in input ? input.allowOutsideHours : false, allowDoubleBooking: "allowDoubleBooking" in input ? input.allowDoubleBooking : false } : undefined;
   if (staffOptions && input.type !== "viewing" && (staffOptions.allowOutsideHours || staffOptions.allowDoubleBooking)) { res.status(400).json(errorResponse("Appointment exceptions apply only to a test drive.")); return; }
   if (followUpAt && followUpAt.getTime() <= Date.now()) { res.status(400).json(errorResponse("Choose a future follow-up time.")); return; }
@@ -271,7 +356,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     res.status(400).json(errorResponse("Use an ad hoc car for an enquiry only, or choose a stock car for a test drive.")); return;
   }
   if (input.customerName.trim().length < 2) { res.status(400).json(errorResponse("Please provide the customer’s name.")); return; }
-  if (!staff && !input.email) {
+  if (!staff && !requestCallback && !input.email && (input.type === "viewing" || !input.preferredContact || input.preferredContact === "email")) {
     res.status(400).json(errorResponse("Please provide an email address for confirmation."));
     return;
   }
@@ -280,7 +365,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     return;
   }
 
-  const preferredContact = staff ? "phone" : input.preferredContact ?? "email";
+  const preferredContact = staff || requestCallback ? "phone" : input.preferredContact ?? "email";
   const phone = input.phone?.trim() ? normalisePhone(input.phone) : null;
   if (input.phone?.trim() && !phone) {
     res.status(400).json(errorResponse("Please provide a valid phone number."));
@@ -325,6 +410,12 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
 
   try {
     const policy = await getBookingPolicy(settings().dealerId);
+    if (requestCallback) {
+      const [dealerSettings] = await db.select({ config: dealerSettingsTable.config }).from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, settings().dealerId));
+      const config = dealerSettings?.config as { hours?: Array<{ days: string; times: string }> } | undefined;
+      followUpAt = showroomAvailability(config?.hours).callbackAt;
+      followUpNote = 'Website callback requested';
+    }
     if (input.appointmentAt && !(staff ? validStaffAppointmentDateTime(input.appointmentAt) : validBookingDateTime(input.appointmentAt, policy))) {
       res.status(400).json(errorResponse("That test-drive time is no longer available. Please choose another."));
       return;
@@ -354,13 +445,19 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       : adHoc?.title.trim() ?? null;
     const vehicleUrl = vehicle ? `/vehicle/${vehicle.id}` : null;
     const isViewing = input.type === "viewing";
+    const owner = staff ? await assignedStaff("assignedToId" in input ? input.assignedToId : null, req) : requestCallback ? { assignedToId: null, assignedToName: null } : {};
+    const callOutcome = staff ? ("callOutcome" in input ? input.callOutcome : undefined) ?? (isViewing ? "test_drive_booked" : "information_given") : requestCallback ? "callback_requested" : null;
+    const outcomeProblem = requestCallback ? null : outcomeError({ appointmentAt: input.appointmentAt, followUpAt }, callOutcome);
+    if (outcomeProblem) { res.status(400).json(errorResponse(outcomeProblem)); return; }
 
     const created = await insertEnquiryWithReference({
+      ...owner,
+      callOutcome,
       dealerId: settings().dealerId,
       vehicleId: vehicle?.id ?? null,
       vehicleTitle,
       vehicleRegistration: vehicle
-        ? vehicle.registration ?? vehicle.plate ?? vehicle.vrm
+        ? vehicleRegistrationLabel(vehicle)
         : adHoc?.registration?.trim() ? normaliseRegistration(adHoc.registration) : null,
       vehiclePrice: vehicle
         ? vehicle.websitePriceOverride ?? vehicle.sourcePrice
@@ -387,7 +484,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       customerNotificationStatus: input.email ? "pending" : "not_sent",
       dealerNotificationStatus: "pending",
       reminderStatus: Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
-      source: staff ? adHoc ? "phone_ad_hoc" : "phone" : "website",
+      source: staff ? adHoc ? "phone_ad_hoc" : "phone" : requestCallback ? "website_callback" : "website",
       status: staff ? "contacted" : "new",
     }, policy, staffOptions);
 
@@ -410,7 +507,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       actor: staff ? "dealer" : "customer",
       summary: isViewing
         ? `${created.appointmentStatus === "pending" ? "Test drive requested" : "Test drive booked"} for ${formatAppointmentLabel(created.appointmentAt)}`
-        : `${enquiryTypeLabel(created.type)} enquiry received`,
+        : requestCallback ? "Website callback requested" : `${enquiryTypeLabel(created.type)} enquiry received`,
       detail: { reference: created.reference, preferredContact, appointmentOutsideHours: created.appointmentOutsideHours, appointmentDoubleBooked: created.appointmentDoubleBooked, appointmentOverCapacity: created.appointmentOverCapacity },
       visitorId: created.visitorId,
     });
@@ -489,7 +586,7 @@ router.post("/staff/enquiries/:id/follow-up", requireStaff, async (req, res): Pr
       return changed;
     });
     if (!updated) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
-    res.json(toEnquiryResponse(updated));
+    res.json(toEnquiryResponse(updated, { events: await eventsForEnquiry(updated.id) }));
   } catch (error) {
     if (error instanceof BookingConflict) { res.status(409).json(errorResponse(error.message)); return; }
     req.log.error({ err: error }, "Unable to save follow-up"); res.status(500).json(errorResponse("Unable to save follow-up."));
@@ -519,6 +616,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
       const cancelled = input.action === "cancel";
       const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt: cancelled ? current.appointmentAt : input.appointmentAt!,
+        attendance: cancelled ? current.attendance : "scheduled",
         appointmentOutsideHours: cancelled ? current.appointmentOutsideHours : exception!.appointmentOutsideHours,
         appointmentDoubleBooked: cancelled ? current.appointmentDoubleBooked : exception!.appointmentDoubleBooked,
         appointmentOverCapacity: cancelled ? current.appointmentOverCapacity : exception!.appointmentOverCapacity,
@@ -539,7 +637,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
     await recordEnquiryEvent({ dealerId: updated.dealerId, enquiryId: id, vehicleId: updated.vehicleId, vehicleTitle: updated.vehicleTitle, vehicleUrl: updated.vehicleUrl, kind: input.action === "cancel" ? "viewing_cancelled" : "viewing_rescheduled", actor: "dealer", summary: input.action === "cancel" ? "Staff cancelled the appointment" : `Staff moved the appointment to ${formatAppointmentLabel(updated.appointmentAt)}`, detail: { expectedRevision: input.expectedRevision, appointmentOutsideHours: updated.appointmentOutsideHours, appointmentDoubleBooked: updated.appointmentDoubleBooked, appointmentOverCapacity: updated.appointmentOverCapacity }, visitorId: null });
     let notified = updated;
     try { notified = await deliverEnquiryNotifications(updated, req.log); } catch (error) { req.log.error({ err: error }, "Staff appointment notification failed"); }
-    res.json(toEnquiryResponse(notified));
+    res.json(toEnquiryResponse(notified, { events: await eventsForEnquiry(notified.id) }));
   } catch (error) {
     if (error instanceof BookingConflict || isUniqueViolation(error)) { res.status(409).json(errorResponse("The appointment or availability changed. Refresh before trying again.")); return; }
     req.log.error({ err: error }, "Unable to update staff appointment");
@@ -562,7 +660,7 @@ router.patch("/enquiries/:id/status", requireStaff, async (req, res): Promise<vo
   try {
     const [updated] = await db
       .update(enquiriesTable)
-      .set({ status: parsedBody.data.status })
+      .set({ status: parsedBody.data.status, workspaceRevision: sql`${enquiriesTable.workspaceRevision} + 1` })
       .where(
         and(
           eq(enquiriesTable.id, parsedParams.data.id),
@@ -589,7 +687,8 @@ router.patch("/enquiries/:id/status", requireStaff, async (req, res): Promise<vo
 router.get("/test-drive-bookings", requireStaff, async (req, res): Promise<void> => {
   try {
     const appointments = await db.select().from(enquiriesTable).where(and(eq(enquiriesTable.dealerId, settings().dealerId), eq(enquiriesTable.type, "viewing"))).orderBy(desc(enquiriesTable.createdAt));
-    res.json(GetTestDriveBookingsResponse.parse(appointments.map((entry) => toEnquiryResponse(entry))));
+    const events = await eventsForEnquiries(appointments.map(entry => entry.id));
+    res.json(GetTestDriveBookingsResponse.parse(appointments.map((entry) => toEnquiryResponse(entry, { events: events.get(entry.id) ?? [] }))));
   } catch (error) {
     req.log.error({ err: error }, "Unable to list test-drive appointments");
     res.status(500).json(errorResponse("Unable to load test drives."));
@@ -626,7 +725,7 @@ router.post("/test-drive-bookings/:id/decision", requireStaff, async (req, res):
       await recordEnquiryEvent({ dealerId: outcome.booking.dealerId, enquiryId: outcome.booking.id, vehicleId: outcome.booking.vehicleId, vehicleTitle: outcome.booking.vehicleTitle, vehicleUrl: outcome.booking.vehicleUrl, kind: parsed.data.decision === "confirm" ? "viewing_booked" : "viewing_cancelled", actor: "dealer", summary: parsed.data.decision === "confirm" ? "Staff confirmed the test drive" : "Staff declined the test-drive request", detail: { decision: parsed.data.decision }, visitorId: outcome.booking.visitorId });
       try { outcome.booking = await deliverEnquiryNotifications(outcome.booking, req.log); } catch (error) { req.log.error({ err: error }, "Unable to deliver booking decision notification"); }
     }
-    res.json(DecideTestDriveBookingResponse.parse(toEnquiryResponse(outcome.booking)));
+    res.json(DecideTestDriveBookingResponse.parse(toEnquiryResponse(outcome.booking, { events: await eventsForEnquiry(outcome.booking.id) })));
   } catch (error) {
     if (error instanceof BookingConflict) { res.status(409).json(errorResponse(error.message)); return; }
     req.log.error({ err: error }, "Unable to decide test-drive booking");

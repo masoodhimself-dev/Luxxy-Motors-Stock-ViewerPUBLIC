@@ -1,10 +1,11 @@
 import { parseStockSearch } from '@/lib/natural-stock-search';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { arrivalTime } from '@/lib/stock-presentation';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ChevronDown,
   Search,
+  SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -58,7 +59,7 @@ function Field({
 }) {
   return (
     <label className="block min-w-0">
-       <span className="mb-2 block font-display text-sm font-semibold tracking-normal text-primary/70">
+       <span className="stock-filter-label mb-2 block text-sm font-medium text-primary/70">
         {label}
       </span>
       {children}
@@ -71,11 +72,13 @@ function Select({
   onChange,
   children,
   disabled = false,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   children: React.ReactNode;
   disabled?: boolean;
+  ariaLabel?: string;
 }) {
   return (
     <span className="relative block">
@@ -83,7 +86,8 @@ function Select({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="h-12 w-full appearance-none rounded-md border border-input bg-card pl-3 pr-8 text-base font-normal tracking-normal text-primary shadow-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
+        aria-label={ariaLabel}
+        className="stock-filter-select h-12 w-full appearance-none rounded-md border border-input bg-card pl-3 pr-8 text-base font-normal tracking-normal text-primary shadow-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20"
       >
         {children}
       </NativeSelect>
@@ -95,7 +99,21 @@ function Select({
 export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, matchCount, quickFilters }: FiltersProps) {
   const filterButton = useRef<HTMLButtonElement>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [dialogBrandStyle, setDialogBrandStyle] = useState<React.CSSProperties>();
   const [budgetNotice, setBudgetNotice] = useState('');
+  const toggleFilters = () => {
+    if (!showAdvanced && filterButton.current) {
+      // The Stock dialog is portalled outside the dealer's branded page shell.
+      const style = window.getComputedStyle(filterButton.current);
+      setDialogBrandStyle({
+        '--premium-accent': style.getPropertyValue('--premium-accent').trim() || '#215a7e',
+        '--premium-accent-foreground': style.getPropertyValue('--premium-accent-foreground').trim() || '#fff',
+        '--premium-panel': style.getPropertyValue('--premium-panel').trim() || '#fff',
+        '--premium-ink': style.getPropertyValue('--premium-ink').trim() || '#192a36',
+      } as React.CSSProperties);
+    }
+    setShowAdvanced(!showAdvanced);
+  };
   useEffect(() => {
     // Older saved browsing sessions may contain an impossible range.
     if (filters.minPrice && filters.maxPrice && Number(filters.minPrice) > Number(filters.maxPrice)) {
@@ -165,6 +183,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     Number(filters.catS) +
     Number(filters.catN);
 
+  const maxBudgets = Array.from(new Set([5000, 10000, 15000, 20000, 30000, 40000, 50000, 75000, 100000, ...(filters.maxPrice && Number.isFinite(Number(filters.maxPrice)) ? [Number(filters.maxPrice)] : [])])).sort((a, b) => a - b);
+
   const handleSearchClick = () => {
     setFilters(current => {const parsed = parseStockSearch(current.search, cars); return {...current, ...(parsed.make && parsed.make !== current.make ? {model:''} : {}), ...parsed};});
     onSearch?.();
@@ -177,14 +197,14 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
 
   return (
     <div className="stock-toolbar border-y border-border bg-background py-3" data-testid="stock-search-toolbar">
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_200px] lg:gap-3">
-        <label className="relative col-span-2 block min-w-0 lg:col-span-1">
+      <div className="stock-search-row">
+        <label className="stock-search-input relative block min-w-0">
           <span className="sr-only">Find your next car</span>
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             aria-label="Search the showroom"
             data-testid="input-showroom-search"
-            placeholder="Try automatic under £15k, make or registration"
+            placeholder="Make or model"
             value={filters.search}
             onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
             onKeyDown={(event) => {
@@ -206,23 +226,24 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             </button>
           )}
         </label>
+        <button type="button" className="stock-search-submit" onClick={handleSearchClick}>Search</button>
         <button
           type="button"
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-secondary"
-          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="stock-filter-trigger flex min-h-11 items-center justify-center gap-2 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-secondary"
+          onClick={toggleFilters}
           aria-expanded={showAdvanced}
           ref={filterButton}
           aria-label="Advanced search"
           aria-controls="advanced-stock-filters"
         >
+          <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
           Filters{activeFilterCount > 0 && <span className="tabular-nums"> ({activeFilterCount})</span>}
-          <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
         </button>
         <NativeSelect
           aria-label="Sort results"
           value={filters.sort}
           onChange={(event) => setFilters((current) => ({ ...current, sort: event.target.value as FilterState['sort'] }))}
-          className="h-11 min-w-0 w-full border-input bg-card pl-3 pr-6 text-base shadow-none"
+          className="stock-sort h-11 min-w-0 w-full border-input bg-card pl-3 pr-6 text-base shadow-none"
         >
           <option value="">Stock order</option>
           {cars.some(car => arrivalTime(car) !== null) && <option value="arrival-desc">Recently added</option>}
@@ -233,7 +254,30 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
           <option value="mileage-desc">Highest mileage</option>
         </NativeSelect>
       </div>
-      {filters.search && <button type="button" className="mt-2 min-h-11 text-sm font-medium underline underline-offset-4" onClick={handleSearchClick}>Apply search</button>}
+      <div className="stock-basic-filters">
+        <div className="min-w-0">
+          <span className="stock-filter-label">Make</span>
+          <Select ariaLabel="Quick filter by make" value={filters.make} onChange={make => setFilters(current => ({ ...current, make, model: '' }))}>
+            <option value="">Any make</option>
+            {makes.map(make => <option key={make} value={make}>{make}</option>)}
+          </Select>
+        </div>
+        <div className="min-w-0">
+          <span className="stock-filter-label">Model</span>
+          <Select ariaLabel="Quick filter by model" value={filters.model} disabled={!filters.make || models.length === 0} onChange={model => setFilters(current => ({ ...current, model }))}>
+            <option value="">Any model</option>
+            {models.map(model => <option key={model} value={model}>{model}</option>)}
+          </Select>
+        </div>
+        <div className="min-w-0">
+          <span className="stock-filter-label">Maximum price</span>
+          <Select ariaLabel="Quick filter by maximum price" value={filters.maxPrice} onChange={value => changeBudget('maxPrice', value)}>
+            <option value="">Any price</option>
+            {maxBudgets.map(price => <option key={price} value={String(price)}>£{price.toLocaleString('en-GB')}</option>)}
+          </Select>
+        </div>
+        <p className="stock-search-hint">Search by registration, or try “automatic under £15k”.</p>
+      </div>
       {(activeFilterCount > 0 || filters.sort) && (
         <div className="mt-2 flex items-center gap-4 overflow-x-auto whitespace-nowrap" aria-label="Applied filters">
           {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex shrink-0 min-h-11 items-center gap-2 text-xs font-medium text-primary" onClick={() => {
@@ -244,9 +288,10 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
         </div>
       )}
       {budgetNotice && <p className="mt-2 text-sm text-muted-foreground" role="status">{budgetNotice}</p>}
-      <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}><DialogContent onCloseAutoFocus={event => {event.preventDefault(); filterButton.current?.focus({preventScroll:true});}} className="stock-filter-dialog flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl"><DialogTitle>Filter used cars</DialogTitle>
-         <section id="advanced-stock-filters" className="min-h-0 flex-1 overflow-y-auto border-t border-border py-4">
-          {quickFilters && <div className="mb-5" onClick={event => {if ((event.target as HTMLElement).closest("button")) setShowAdvanced(false);}}><p className="mb-2 text-xs font-medium text-muted-foreground">Quick choices</p>{quickFilters}</div>}
+      <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}><DialogContent style={dialogBrandStyle} onCloseAutoFocus={event => {event.preventDefault(); filterButton.current?.focus({preventScroll:true});}} className="stock-filter-dialog premium-stock-filter-dialog flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl">
+        <div className="stock-filter-heading"><DialogTitle>Filter used cars</DialogTitle><DialogDescription>Choose what matters to you. Results update as you go.</DialogDescription></div>
+         <section id="advanced-stock-filters" className="stock-filter-body min-h-0 flex-1 overflow-y-auto border-t border-border py-4">
+          {quickFilters && <div className="stock-quick-choices mb-5" onClick={event => {if ((event.target as HTMLElement).closest("button")) setShowAdvanced(false);}}><p className="mb-2 text-xs font-medium text-muted-foreground">Quick choices</p>{quickFilters}</div>}
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             <Field label="Make">
               <Select
@@ -284,8 +329,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
                 onChange={(value) => changeBudget('maxPrice', value)}
               >
                 <option value="">Any</option>
-                {Array.from(new Set([5000, 10000, 20000, 30000, 40000, 50000, 75000, 100000, ...(filters.maxPrice && Number.isFinite(Number(filters.maxPrice)) ? [Number(filters.maxPrice)] : [])])).sort((a,b) => a-b).map((price) => (
-                  <option key={price} value={String(price)}>£{price.toLocaleString()}</option>
+                {maxBudgets.map((price) => (
+                  <option key={price} value={String(price)}>£{price.toLocaleString('en-GB')}</option>
                 ))}
               </Select>
             </Field>
@@ -303,14 +348,14 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
                 value={filters.transmission}
                 onChange={(transmission) => setFilters((current) => ({ ...current, transmission }))}
               >
-                <option value="">Any transmission</option>
+                <option value="">Any</option>
                 {transmissions.map((transmission) => <option key={transmission} value={transmission}>{transmission}</option>)}
               </Select>
             </Field>
           </div>
-          <fieldset className="mt-8 border-t border-primary/10 pt-6">
-             <legend className="font-display text-[11px] font-semibold tracking-normal text-primary">Insurance history</legend>
-             <p className="mt-2 max-w-2xl text-[12px] font-medium leading-relaxed text-primary/65">
+          <fieldset className="stock-insurance-filters mt-8 border-t border-primary/10 pt-6">
+             <legend className="text-sm font-semibold text-primary">Insurance history</legend>
+             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               Choose one or more recorded categories. Category S records structural damage; Category N records non-structural damage. Ask for available repair and inspection records.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
@@ -319,7 +364,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
                 ['catS', 'Category S'],
                 ['catN', 'Category N'],
               ].map(([key, label]) => (
-                 <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-primary/15 bg-primary/5 p-3 text-[12px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
+                 <label key={key} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-background p-3 text-sm font-medium text-primary transition-colors hover:bg-secondary">
                   <input
                     type="checkbox"
                     checked={filters[key as 'noWriteOff' | 'catS' | 'catN']}
@@ -332,7 +377,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             </div>
           </fieldset>
         </section>
-        <div className="flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline" onClick={resetFilters}>Reset filters</button><button type="button" className="min-h-12 bg-primary px-6 text-primary-foreground" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} {(matchCount ?? vehicleCount) === 1 ? 'car' : 'cars'}</button></div>
+        <div className="stock-filter-footer flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline underline-offset-4" onClick={resetFilters}>Reset filters</button><button type="button" className="stock-search-submit min-h-12 px-6" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} {(matchCount ?? vehicleCount) === 1 ? 'car' : 'cars'}</button></div>
       </DialogContent></Dialog>
     </div>
   );

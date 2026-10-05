@@ -3,6 +3,7 @@ import { EnquiryPhotoPeek } from "./enquiry-photo-peek";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnquiryStockDesk } from "./enquiry-stock-desk";
 import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
+import { Link, useSearch } from 'wouter';
 import {
   FollowUpEditor,
   FollowUpFields,
@@ -14,6 +15,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetEnquiries,
+  useGetStaffDirectory,
+  useListReservations,
+  getListReservationsQueryKey,
+  type StaffOnlineReservation,
   useCreateStaffEnquiry,
   useChangeStaffAppointment,
   useGetEnquiryAvailability,
@@ -28,7 +33,6 @@ import {
   Search,
   Phone,
   RefreshCw,
-  CalendarDays,
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,10 +55,21 @@ import {
   defaultBookingSettings,
   londonDate,
 } from "@/lib/test-drive-dates";
-import { formatPrice, vehicleDisplayTitle } from "@/lib/utils";
-import { Panel, PanelHeader, Chip } from "./portal-ui";
+import { formatPrice, vehicleDisplayTitle, vehicleRegistrationLabel } from "@/lib/utils";
+import { Panel, PanelHeader } from "./portal-ui";
 
-const field = "grid gap-1.5 text-sm font-medium";
+import { callOutcomes, readCallDraft, saveCallDraft, removeCallDraft, type CallOutcome, type CallDraft } from "@/lib/enquiry-desk-model";
+import { OwnerSelect, WorkspaceEditor, TodayDesk, CustomerHistory, type Contact } from "./enquiry-workspace-tools";
+import { VehicleDeskContext, DeskSearchResults } from "./enquiry-desk-context";
+import { ConversationEditor } from "./enquiry-conversation";
+import { EnquiryMergeDialog } from "./enquiry-merge";
+import { enquiryGroup, enquiryGroupSearchText, enquiryRootRecords, primaryEnquiry } from "@/lib/enquiry-groups";
+import { EnquiryRecordBrowser, type EnquiryRecordActions } from "./enquiry-record-browser";
+import { CallbacksDesk } from "./enquiry-callbacks";
+import { isOutstandingCallback } from "./enquiry-callback-model";
+import "./enquiries-workspace.css";
+
+const field = "enquiry-field grid gap-1.5 text-sm font-medium";
 function errorMessage(error: unknown) {
   if (
     error &&
@@ -160,7 +175,7 @@ function Slots({
   if (!config.enabled)
     return <p>Test-drive scheduling is switched off in Settings.</p>;
   return (
-    <div className="space-y-3">
+    <div className="enquiry-slots space-y-3">
       <label className={field}>
         Appointment date
         <NativeSelect
@@ -251,7 +266,7 @@ function StaffAppointmentPicker({ bookingId, time, onTime, manual, onManual, all
   const occupied = (query.data ?? []).filter(item => item.appointmentAt && !item.appointmentCancelledAt).map(item => ({ id: item.id, appointmentAt: new Date(item.appointmentAt!), appointmentDurationMinutes: item.appointmentDurationMinutes, appointmentBufferMinutes: item.appointmentBufferMinutes }));
   const outside = appointment && validStaffAppointmentDateTime(appointment) && !withinBookingHours(appointment, policy);
   const pressure = appointment && validStaffAppointmentDateTime(appointment) ? bookingPressure(appointment, policy, occupied, bookingId) : null;
-  return <div className="space-y-3 border-t border-border pt-4">
+  return <div className="enquiry-appointment-picker space-y-3 border-t border-border pt-4">
     <div className="flex flex-wrap gap-2">
       <Button type="button" size="sm" variant={!manual ? "default" : "outline"} aria-pressed={!manual} onClick={() => { setLocal(""); onManual(false); onTime(""); onOutsideHours(false); onDoubleBooking(false); }}>Available slots</Button>
       <Button type="button" size="sm" variant={manual ? "default" : "outline"} aria-pressed={manual} onClick={() => { setLocal(""); onManual(true); onTime(""); }}>Choose a specific UK time</Button>
@@ -261,7 +276,7 @@ function StaffAppointmentPicker({ bookingId, time, onTime, manual, onManual, all
         <Input type="datetime-local" step={900} value={local} onChange={event => { setLocal(event.target.value); onTime(followUpIso(event.target.value) ?? ""); }} />
       </label>
       {local && !time && <p role="alert" className="text-sm text-destructive">Choose a valid UK date and time in 15-minute steps.</p>}
-      <fieldset className="space-y-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+      <fieldset className="enquiry-booking-exceptions space-y-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
         <legend className="px-1 font-semibold">Staff booking exceptions</legend>
         <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={allowOutsideHours} onChange={event => onOutsideHours(event.target.checked)} />Allow outside normal booking hours or a closed date</label>
         <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={allowDoubleBooking} onChange={event => onDoubleBooking(event.target.checked)} />Allow overlapping appointments or a full day</label>
@@ -274,10 +289,20 @@ function StaffAppointmentPicker({ bookingId, time, onTime, manual, onManual, all
   </div>;
 }
 
-function StaffExceptionReview({ time, outside, double, onConfirm, onClose }: { time: string; outside: boolean; double: boolean; onConfirm: () => void; onClose: () => void }) {
-  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent><DialogHeader><DialogTitle>Review staff booking exception</DialogTitle><DialogDescription>{appointmentLabel(time)}</DialogDescription></DialogHeader>
+function AppointmentConflicts({ time, bookingId }: { time: string; bookingId?: string }) {
+  const query = useGetEnquiries();
+  const { settings } = useDealerSettings();
+  const at = new Date(time);
+  if (!validStaffAppointmentDateTime(at)) return null;
+  const clashes = (query.data ?? []).filter(entry => entry.appointmentAt && !entry.appointmentCancelledAt && bookingPressure(at, settings.testDriveBooking ?? defaultBookingSettings, [{ ...entry, appointmentAt: new Date(entry.appointmentAt) }], bookingId).overlapping);
+  return <div className="text-sm">{query.isLoading ? <p>Checking the diary…</p> : query.isError ? <p role="alert">The diary could not be loaded. Refresh before overriding a booking.</p> : clashes.length ? <><p className="font-semibold">Appointments already at this time</p><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{clashes.map(entry => <li key={entry.id} className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-950"><p className="font-semibold">{entry.vehicleTitle} · {entry.reference}</p><p>{appointmentLabel(entry.appointmentAt!)} · {entry.appointmentDurationMinutes ?? 30} minutes</p><p>Staff: {entry.assignedToName || 'Unassigned'} · {entry.customerName}</p></li>)}</ul></> : <p>No overlapping appointments currently shown. Capacity is checked again when saving.</p>}</div>;
+}
+
+function StaffExceptionReview({ time, bookingId, outside, double, onConfirm, onClose }: { time: string; bookingId?: string; outside: boolean; double: boolean; onConfirm: () => void; onClose: () => void }) {
+  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="portal-action-dialog enquiry-action-dialog"><DialogHeader><DialogTitle>Review staff booking exception</DialogTitle><DialogDescription>{appointmentLabel(time)}</DialogDescription></DialogHeader>
     <p className="text-sm">This appointment will be saved even if the selected time is outside the normal diary or another booking is already there. Check the customer, car and time before continuing.</p>
     <ul className="list-inside list-disc text-sm">{outside && <li>Outside normal booking hours or a closed date</li>}{double && <li>Possible double booking or exceeded daily capacity</li>}</ul>
+    {double && <AppointmentConflicts time={time} bookingId={bookingId} />}
     <p className="text-sm text-muted-foreground">The diary will label the actual exception. If an email address is provided, the usual booking notification may be sent.</p>
     <div className="flex flex-wrap gap-2"><Button type="button" onClick={onConfirm}>Confirm staff exception</Button><Button type="button" variant="outline" onClick={onClose}>Go back</Button></div>
   </DialogContent></Dialog>;
@@ -285,14 +310,14 @@ function StaffExceptionReview({ time, outside, double, onConfirm, onClose }: { t
 
 function CarSummary({ car }: { car: Car }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="enquiry-car-summary flex items-center gap-3">
       <EnquiryPhotoPeek key={car.id} car={car} className="h-16 w-24 rounded-sm object-cover" />
       <div className="min-w-0">
         <p className="font-semibold leading-5">{vehicleDisplayTitle(car)}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {[
             car.year,
-            car.plate || car.vrm || car.registration,
+            vehicleRegistrationLabel(car),
             car.transmission,
           ]
             .filter(Boolean)
@@ -316,32 +341,39 @@ function CarSummary({ car }: { car: Car }) {
 function NewCall({
   initial,
   selection,
+  enquiries, reservations, draftKey, defaultOwnerId, onDiscard,
   onSaved,
 }: {
+  enquiries: Enquiry[]; reservations: StaffOnlineReservation[]; draftKey: string | null; defaultOwnerId: string; onDiscard: () => void;
   initial?: Enquiry;
   selection?: { id: string; booking: boolean };
   onSaved: (booking: Enquiry) => void;
 }) {
   const { stock, isLoading, error } = useStock();
+  const [restored] = useState(() => draftKey && !initial ? readCallDraft(draftKey) : null);
+  const [draftStatus, setDraftStatus] = useState(restored ? "Draft restored" : "");
+  const draftSaved = useRef(false);
+  const [assignedToId, setAssignedToId] = useState(restored?.assignedToId ?? defaultOwnerId);
+  const [outcome, setOutcome] = useState(restored?.outcome ?? "information_given");
   const [vehicleMode, setVehicleMode] = useState<"stock" | "adhoc" | "none">(
-    "stock",
+    restored?.vehicleMode ?? "stock",
   );
-  const [adHocTitle, setAdHocTitle] = useState("");
-  const [adHocRegistration, setAdHocRegistration] = useState("");
-  const [adHocPrice, setAdHocPrice] = useState("");
+  const [adHocTitle, setAdHocTitle] = useState(restored?.adHocTitle ?? "");
+  const [adHocRegistration, setAdHocRegistration] = useState(restored?.adHocRegistration ?? "");
+  const [adHocPrice, setAdHocPrice] = useState(restored?.adHocPrice ?? "");
   const [information, setInformation] = useState<Car | null>(null);
-  const [followUp, setFollowUp] = useState(false);
-  const [followUpTime, setFollowUpTime] = useState("");
-  const [followUpNote, setFollowUpNote] = useState("");
+  const [followUp, setFollowUp] = useState(restored?.followUp ?? false);
+  const [followUpTime, setFollowUpTime] = useState(restored?.followUpTime ?? "");
+  const [followUpNote, setFollowUpNote] = useState(restored?.followUpNote ?? "");
   const [search, setSearch] = useState("");
-  const [carId, setCarId] = useState(initial?.vehicleId ?? "");
-  const [name, setName] = useState(initial?.customerName ?? "");
-  const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [email, setEmail] = useState(initial?.email ?? "");
-  const [message, setMessage] = useState("");
-  const [booking, setBooking] = useState(Boolean(initial));
-  const [time, setTime] = useState("");
-  const [manualTime, setManualTime] = useState(false);
+  const [carId, setCarId] = useState(initial?.vehicleId ?? restored?.carId ?? "");
+  const [name, setName] = useState(initial?.customerName ?? restored?.name ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? restored?.phone ?? "");
+  const [email, setEmail] = useState(initial?.email ?? restored?.email ?? "");
+  const [message, setMessage] = useState(restored?.message ?? "");
+  const [booking, setBooking] = useState(initial ? true : restored?.booking ?? false);
+  const [time, setTime] = useState(restored?.time ?? "");
+  const [manualTime, setManualTime] = useState(restored?.manualTime ?? false);
   const [allowOutsideHours, setAllowOutsideHours] = useState(false);
   const [allowDoubleBooking, setAllowDoubleBooking] = useState(false);
   const [reviewException, setReviewException] = useState(false);
@@ -350,6 +382,17 @@ function NewCall({
     if (!selection) return;
     setVehicleMode("stock"); setCarId(selection.id); setBooking(selection.booking); setTime(""); setManualTime(false); setAllowOutsideHours(false); setAllowDoubleBooking(false);
   }, [selection]);
+  useEffect(() => {
+    if (!initial) return;
+    setName(initial.customerName); setPhone(initial.phone ?? ""); setEmail(initial.email ?? ""); setCarId(initial.vehicleId ?? ""); setVehicleMode("stock"); setBooking(true); setTime("");
+  }, [initial]);
+  const draft: CallDraft = { vehicleMode, carId, adHocTitle, adHocRegistration, adHocPrice, name, phone, email, message, booking, time, followUp, followUpTime, followUpNote, manualTime, assignedToId, outcome };
+  const serialDraft = JSON.stringify(draft);
+  useEffect(() => {
+    if (!draftKey || draftSaved.current) return;
+    if (![name,phone,email,message,carId,adHocTitle,followUpNote].some(Boolean)) { removeCallDraft(draftKey); setDraftStatus(""); return; }
+    setDraftStatus(saveCallDraft(draftKey, JSON.parse(serialDraft)) ? "Draft saved" : "Draft could not be saved on this browser — keep this page open");
+  }, [draftKey, serialDraft]);
   const mutation = useCreateStaffEnquiry();
   const submitting = useRef(false);
   const cars = stock?.cars ?? [];
@@ -366,6 +409,7 @@ function NewCall({
         entry.plate,
         entry.vrm,
         entry.registration,
+        vehicleRegistrationLabel(entry),
         entry.advertId,
       ].join(" "),
       search,
@@ -407,6 +451,8 @@ function NewCall({
     try {
       const result = await mutation.mutateAsync({
         data: {
+          assignedToId: assignedToId || null,
+          callOutcome: booking ? "test_drive_booked" : followUp && outcome === "information_given" ? "callback_requested" : outcome as CallOutcome,
           vehicleId: car?.id ?? null,
           adHocVehicle:
             vehicleMode === "adhoc"
@@ -433,6 +479,8 @@ function NewCall({
           allowDoubleBooking: booking && manualTime && allowDoubleBooking,
         },
       });
+      draftSaved.current = true;
+      if (draftKey) removeCallDraft(draftKey);
       onSaved(result);
     } catch {
       /* Keep caller details for retry. */
@@ -441,8 +489,8 @@ function NewCall({
     }
   }
   return (
-    <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-      <fieldset disabled={mutation.isPending} className="min-w-0 space-y-4">
+    <form onSubmit={submit} className="enquiry-new-call grid gap-6">
+      <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-vehicle-section min-w-0 space-y-4">
         <legend className="mb-4 font-semibold">1. Vehicle information</legend>
         <label className={field}>
           Vehicle source
@@ -461,7 +509,7 @@ function NewCall({
           </NativeSelect>
         </label>
         {vehicleMode === "adhoc" && (
-          <div className="space-y-4 border border-border bg-muted/30 p-4">
+          <div className="enquiry-ad-hoc-vehicle space-y-4 border border-border bg-muted/30 p-4">
             <p className="text-sm text-muted-foreground">
               Attach a vehicle to this enquiry. This does not add it to stock or
               confirm availability.
@@ -526,12 +574,12 @@ function NewCall({
               </p>
             )}
             {car && (
-              <div className="border border-primary/25 bg-primary/5 p-3">
+              <div className="enquiry-selected-car border border-primary/25 bg-primary/5 p-3">
                 <CarSummary car={car} />
+                <div className="enquiry-selected-car-actions flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-3"
                   onClick={() => setInformation(car)}
                 >
                   View full vehicle information
@@ -540,7 +588,6 @@ function NewCall({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="mt-2"
                   onClick={() => {
                     setCarId("");
                     setTime("");
@@ -548,10 +595,12 @@ function NewCall({
                 >
                   Change selected car
                 </Button>
+                </div>
+                <VehicleDeskContext car={car} />
               </div>
             )}
             <div
-              className={`max-h-96 divide-y divide-border overflow-y-auto rounded-sm border border-border ${car ? "hidden lg:block" : ""}`}
+              className={`enquiry-stock-picker max-h-96 divide-y divide-border overflow-y-auto rounded-sm border border-border ${car ? "hidden" : ""}`}
               aria-label="Showroom cars"
             >
               {matches.map((entry) => (
@@ -584,8 +633,8 @@ function NewCall({
           </>
         )}
       </fieldset>
-      <fieldset disabled={mutation.isPending} className="min-w-0 space-y-4">
-        <legend className="mb-4 font-semibold">2. Caller and next step</legend>
+      <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-caller-section min-w-0 space-y-4">
+        <legend className="mb-4 font-semibold">2. Customer and call notes</legend>
         <label className={field}>
           Customer name
           <Input
@@ -597,7 +646,7 @@ function NewCall({
             onChange={(e) => setName(e.target.value)}
           />
         </label>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="enquiry-contact-fields grid gap-4 sm:grid-cols-2">
           <label className={field}>
             Phone number
             <Input
@@ -628,8 +677,13 @@ function NewCall({
             placeholder="Questions, requests or anything to prepare"
           />
         </label>
-        <fieldset className="space-y-2 border-t border-border pt-4">
-          <legend className="text-sm font-semibold">Next step</legend>
+        <OwnerSelect value={assignedToId} onChange={setAssignedToId} />
+        <CustomerHistory contact={{ customerName: name, phone, email }} enquiries={enquiries} reservations={reservations} compact onReuse={contact => { setName(contact.customerName); setPhone(contact.phone ?? ""); setEmail(contact.email ?? ""); }} />
+      </fieldset>
+      <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-action-section min-w-0 space-y-4">
+        <legend className="mb-4 font-semibold">3. Next step</legend>
+        <fieldset className="enquiry-next-step space-y-2 border-t border-border pt-4">
+          <legend className="sr-only">Call action</legend>
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
             <input
               type="radio"
@@ -661,6 +715,20 @@ function NewCall({
             </p>
           )}
         </fieldset>
+        {booking &&
+          (car && available(car) ? (
+            <StaffAppointmentPicker time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Choose an available car first.
+            </p>
+          ))}
+        {time && booking && (
+          <p className="border-l-2 border-primary pl-3 text-sm">
+            {appointmentLabel(time)}
+          </p>
+        )}
+        {!booking && <label className={field}>Call outcome<NativeSelect value={outcome} onChange={e => setOutcome(e.target.value)}>{Object.entries(callOutcomes).filter(([value]) => value !== "test_drive_booked").map(([value,label]) => <option key={value} value={value} disabled={value === "callback_requested" && !followUp}>{label}</option>)}</NativeSelect></label>}
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
           <input
             type="checkbox"
@@ -678,19 +746,10 @@ function NewCall({
             onNote={setFollowUpNote}
           />
         )}
-        {booking &&
-          (car && available(car) ? (
-            <StaffAppointmentPicker time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Choose an available car first.
-            </p>
-          ))}
-        {time && booking && (
-          <p className="border-l-2 border-primary pl-3 text-sm">
-            {appointmentLabel(time)}
-          </p>
-        )}
+      </fieldset>
+      <div className="enquiry-call-footer">
+        <div className="enquiry-call-feedback min-w-0 space-y-1">
+        <div className="enquiry-draft-bar flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span aria-live="polite">{draftStatus || (draftKey ? "Drafts save automatically on this browser for 7 days" : "Draft storage unavailable until staff identity loads")}</span>{draftStatus && <Button type="button" size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => { draftSaved.current = true; if (draftKey) removeCallDraft(draftKey); onDiscard(); }}>Discard draft</Button>}</div>
         <p className="text-xs leading-5 text-muted-foreground">
           {email.trim()
             ? "A confirmation will be emailed using the dealership’s configured email service."
@@ -701,9 +760,10 @@ function NewCall({
             {localError || errorMessage(mutation.error)}
           </p>
         )}
+        </div>
         <Button
           type="submit"
-          className="w-full"
+          className="enquiry-save-action w-full"
           disabled={
             mutation.isPending ||
             (booking && (isLoading || Boolean(error))) ||
@@ -716,7 +776,7 @@ function NewCall({
               ? manualTime && (allowOutsideHours || allowDoubleBooking) ? "Review staff exception" : "Save test-drive booking"
               : "Save phone enquiry"}
         </Button>
-      </fieldset>
+      </div>
       {information && (
         <EnquiryVehicleInformation
           car={information}
@@ -773,7 +833,7 @@ function AppointmentEditor({
         if (!open && !mutation.isPending) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent className="portal-action-dialog enquiry-action-dialog">
         <DialogHeader>
           <DialogTitle className="pr-10">
             {cancelling ? "Cancel this appointment?" : "Change appointment"}
@@ -782,7 +842,7 @@ function AppointmentEditor({
             {booking.customerName} · {booking.reference}
           </DialogDescription>
         </DialogHeader>
-        <div className="border-y border-border py-3 text-sm">
+        <div className="enquiry-appointment-summary border-y border-border py-3 text-sm">
           <p className="font-semibold">{booking.vehicleTitle}</p>
           <p className="mt-1">
             {booking.appointmentAt && appointmentLabel(booking.appointmentAt)}
@@ -840,14 +900,30 @@ function AppointmentEditor({
             Cancel appointment instead
           </Button>
         )}
-        {reviewException && time && <StaffExceptionReview time={time} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void save(true); }} />}
+        {reviewException && time && <StaffExceptionReview time={time} bookingId={booking.id} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void save(true); }} />}
       </DialogContent>
     </Dialog>
   );
 }
 
 export function EnquiriesPanel() {
-  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar">("new");
+  const routeSearch = useSearch();
+  const requestedEnquiry = new URLSearchParams(routeSearch).get('enquiryId');
+  const openedEnquiry = useRef<string | null>(null);
+  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar" | "today" | "callbacks">("new");
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [ownerScope, setOwnerScope] = useState("all");
+  const [workspaceEntry, setWorkspaceEntry] = useState<Enquiry | null>(null);
+  const [conversationEntry, setConversationEntry] = useState<Enquiry | null>(null);
+  const [mergeEntry, setMergeEntry] = useState<Enquiry | null>(null);
+  const [selectedEnquiryId, setSelectedEnquiryId] = useState<string | null>(null);
+  const [callbackFilter, setCallbackFilter] = useState("all");
+  const [callbackSearch, setCallbackSearch] = useState("");
+  const [historyContact, setHistoryContact] = useState<Contact | null>(null);
+  const directory = useGetStaffDirectory();
+  const reservations = useListReservations({ query: { queryKey: getListReservationsQueryKey(), refetchInterval: 30_000 } });
+  const { settings: deskSettings } = useDealerSettings();
+  const draftKey = directory.data ? `luxxy.staff-call-draft.v1:${deskSettings.identity.name}:${directory.data.currentUserId}` : null;
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [information, setInformation] = useState<Car | null>(null);
@@ -862,6 +938,16 @@ export function EnquiriesPanel() {
     query: { queryKey: getGetEnquiriesQueryKey(), refetchInterval: 30_000 },
   });
   const { stock } = useStock();
+  useEffect(() => {
+    if (!requestedEnquiry) { openedEnquiry.current = null; return; }
+    if (!query.data || openedEnquiry.current === requestedEnquiry) return;
+    const requested = query.data.find(item => item.id === requestedEnquiry);
+    const entry = requested ? primaryEnquiry(requested, query.data) : undefined;
+    openedEnquiry.current = requestedEnquiry;
+    setMode('history'); setOwnerScope('all'); setFilter('all'); setGlobalSearch('');
+    if (entry) { setSearch(entry.reference); setSelectedEnquiryId(entry.id); setNotice(''); }
+    else { setSearch(''); setNotice('This enquiry could not be found. Refresh or search by customer details.'); }
+  }, [requestedEnquiry, query.data]);
   async function saved(entry: Enquiry) {
     setEditing(null);
     setInitial(undefined);
@@ -871,7 +957,11 @@ export function EnquiriesPanel() {
       `${entry.reference} saved — ${entry.appointmentCancelledAt ? "appointment cancelled" : entry.appointmentAt ? `${status(entry)}: ${appointmentLabel(entry.appointmentAt)}` : "phone enquiry recorded"}.${entry.customerNotificationStatus === "failed" ? " Customer email failed; confirm by phone." : ""}`,
     );
     setMode("history");
-    setSearch(entry.reference);
+    setGlobalSearch("");
+    setOwnerScope("all");
+    const primary = primaryEnquiry(entry, query.data ?? []);
+    setSearch(primary.reference);
+    setSelectedEnquiryId(primary.id);
     setFilter("all");
     await Promise.all([
       client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }),
@@ -882,265 +972,109 @@ export function EnquiriesPanel() {
       }),
     ]);
   }
-  const dueCount = (query.data ?? []).filter(
+  const scoped = (query.data ?? []).filter(entry => ownerScope === "all" || (ownerScope === "mine" ? entry.assignedToId === directory.data?.currentUserId : !entry.assignedToId));
+  const callbackEntries = (query.data ?? []).filter(entry => ownerScope === "all" || (ownerScope === "mine" ? entry.assignedToId === directory.data?.currentUserId || !entry.assignedToId : !entry.assignedToId));
+  const dueCount = (mode === "callbacks" ? callbackEntries.filter(isOutstandingCallback) : scoped).filter(
     (entry) =>
       entry.followUpAt &&
       !entry.followUpCompletedAt &&
-      londonDate(new Date(entry.followUpAt)) <= londonDate(),
+      Date.parse(entry.followUpAt) <= Date.now(),
   ).length;
-  const entries = (query.data ?? [])
-    .filter(
-      (entry) =>
-        contains(
-          [
-            entry.customerName,
-            entry.phone,
-            entry.email,
-            entry.reference,
-            entry.vehicleTitle,
-            entry.vehicleRegistration,
-          ].join(" "),
-          search,
-        ) &&
-        (filter === "all" ||
-          (filter === "followups"
-            ? Boolean(entry.followUpAt && !entry.followUpCompletedAt)
-            : filter === "due"
-              ? Boolean(
-                  entry.followUpAt &&
-                  !entry.followUpCompletedAt &&
-                  londonDate(new Date(entry.followUpAt)) <= londonDate(),
-                )
-              : filter === "upcoming"
-                ? Boolean(
-                    entry.appointmentAt &&
-                    !entry.appointmentCancelledAt &&
-                    new Date(entry.appointmentAt).getTime() > Date.now(),
-                  )
-                : entry.appointmentAt &&
-                  londonDate(new Date(entry.appointmentAt)) === londonDate())),
-    )
-    .sort((a, b) =>
-      ["due", "followups"].includes(filter)
-        ? (a.followUpAt ?? "").localeCompare(b.followUpAt ?? "")
-        : 0,
-    );
+  const allEntries = query.data ?? [];
+  const entries = enquiryRootRecords(allEntries)
+    .filter(entry => enquiryGroup(entry, allEntries).some(original => scoped.some(item => item.id === original.id)))
+    .filter(entry => contains(enquiryGroupSearchText(entry, allEntries), search) && enquiryGroup(entry, allEntries).some(original =>
+      filter === "all" || (filter === "followups" ? Boolean(original.followUpAt && !original.followUpCompletedAt)
+        : filter === "due" ? Boolean(original.followUpAt && !original.followUpCompletedAt && Date.parse(original.followUpAt) <= Date.now())
+        : filter === "upcoming" ? Boolean(original.appointmentAt && !original.appointmentCancelledAt && Date.parse(original.appointmentAt) > Date.now())
+        : Boolean(original.appointmentAt && !original.appointmentCancelledAt && londonDate(new Date(original.appointmentAt)) === londonDate()))))
+    .sort((a, b) => ["due", "followups"].includes(filter)
+      ? (enquiryGroup(a, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? "").localeCompare(enquiryGroup(b, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? "")
+      : 0);
+  function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); setGlobalSearch(""); setMode("history"); setSearch(primary.reference); setFilter("all"); setSelectedEnquiryId(primary.id); }
+  const callbackCount = callbackEntries.filter(isOutstandingCallback).length;
+  const recordActions: EnquiryRecordActions = {
+    onUpdate: setWorkspaceEntry, onConversation: setConversationEntry, onMerge: entry => setMergeEntry(primaryEnquiry(entry, allEntries)), onFollowUp: entry => setFollowUpEntry({ ...entry }),
+    onAppointment: entry => setEditing({ ...entry }), onVehicle: setInformation,
+    onBook: entry => { setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
+  };
   return (
-    <Panel>
-      <div className="bg-[#213e61] px-5 py-4 text-white">
+    <Panel className="enquiries-premium-workspace">
+      <div className="enquiry-workspace-heading bg-[#213e61] px-5 py-4 text-white">
+        <div>
         <h2 className="text-xl font-semibold">Enquiry workspace</h2>
         <p className="mt-1 text-sm text-white/75">Calls, cars and appointments · Showroom desk</p>
+        </div>
+        <span className="enquiry-stock-count text-xs">{stock?.cars.length ?? 0} {stock?.cars.length === 1 ? "car" : "cars"} in current stock</span>
       </div>
-      <Tabs value={mode} onValueChange={(value) => setMode(value as typeof mode)}>
-        <TabsList aria-label="Enquiry workspace" className="flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-[#e8eef5] p-2">
+      <Tabs value={mode} onValueChange={(value) => { setMode(value as typeof mode); setGlobalSearch(""); }}>
+        <TabsList aria-label="Enquiry workspace" className="enquiry-workspace-tabs flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-[#e8eef5] p-2">
+          <TabsTrigger value="today" id="desk-tab-today" aria-controls="desk-panel-today" className="min-h-11 rounded-sm px-5">Today</TabsTrigger>
           <TabsTrigger value="new" id="desk-tab-new" aria-controls="desk-panel-new" className="min-h-11 rounded-sm px-5">New call</TabsTrigger>
+          <TabsTrigger value="callbacks" id="desk-tab-callbacks" aria-controls="desk-panel-callbacks" className="min-h-11 rounded-sm px-5">Callbacks ({callbackCount})</TabsTrigger>
           <TabsTrigger value="stock" id="desk-tab-stock" aria-controls="desk-panel-stock" className="min-h-11 rounded-sm px-5">All cars</TabsTrigger>
           <TabsTrigger value="calendar" id="desk-tab-calendar" aria-controls="desk-panel-calendar" className="min-h-11 rounded-sm px-5">Calendar</TabsTrigger>
           <TabsTrigger value="history" id="desk-tab-history" aria-controls="desk-panel-history" className="min-h-11 rounded-sm px-5">Find enquiry or appointment</TabsTrigger>
         </TabsList>
       </Tabs>
-      <div aria-label="Workspace actions" className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
-        <Button variant="outline" size="sm" aria-label="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
-        <Button variant="outline" size="sm" onClick={() => { setMode("history"); setFilter("due"); setSearch(""); }}>Follow-ups due ({dueCount})</Button>
-        <span className="ml-auto text-xs text-muted-foreground">{stock?.cars.length ?? 0} cars in current stock · Draft retained when switching tabs</span>
+      <div aria-label="Workspace actions" data-record-mode={mode === "history" || mode === "callbacks" ? "true" : "false"} className="enquiry-workspace-ribbon flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
+        <Button variant="outline" size="sm" aria-label="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); directory.refetch(); reservations.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
+        <Button variant="outline" size="sm" onClick={() => { if (mode === "callbacks") { setCallbackFilter("overdue"); setCallbackSearch(""); } else { setMode("history"); setFilter("due"); setSearch(""); } setGlobalSearch(""); setSelectedEnquiryId(null); }}>Overdue now ({dueCount})</Button>
+        {mode === "history" ? <>
+          <label className="grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { setSearch(event.target.value); setSelectedEnquiryId(null); }} placeholder="Name, phone, email, reference or car" /></label>
+          <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); setSelectedEnquiryId(null); }}>
+            <option value="all">All enquiries</option><option value="upcoming">Upcoming test drives</option><option value="today">Today’s test drives</option><option value="followups">Follow-ups</option><option value="due">Overdue follow-ups</option>
+          </NativeSelect></label>
+        </> : mode === "callbacks" ? <>
+          <label className="grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); setSelectedEnquiryId(null); }} placeholder="Customer, contact, registration or reference" /></label>
+          <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show callbacks</span><NativeSelect value={callbackFilter} onChange={event => { setCallbackFilter(event.target.value); setSelectedEnquiryId(null); }}>
+            <option value="all">All callbacks</option><option value="overdue">Overdue now</option><option value="upcoming">Upcoming</option><option value="unscheduled">Needs a time</option><option value="website">Website requests</option><option value="unassigned">Unassigned</option>
+          </NativeSelect></label>
+        </> : <label className="grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Search the workspace</span><Input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Search customer, phone, registration, car or reference" /></label>}
+        <label className="grid gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Enquiry ownership</span><NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">{mode === "history" || mode === "callbacks" ? "All owners" : "All enquiries"}</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>
       </div>
-      <div className="space-y-5 bg-slate-100/70 p-3 sm:p-6">
+      <div className="enquiry-workspace-canvas space-y-5 bg-slate-100/70 p-3 sm:p-6">
         {notice && (
           <div
             role="status"
-            className="flex gap-2 border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950"
+            className="enquiry-saved-notice flex gap-2 border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950"
           >
             <CheckCircle2 className="h-5 w-5 shrink-0" />
             {notice}
           </div>
         )}
-        <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby="desk-tab-new" className="border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <NewCall key={formKey} initial={initial} selection={selection} onSaved={saved} />
+        {globalSearch.trim() && <><Button size="sm" variant="outline" onClick={() => setGlobalSearch("")}>Clear workspace search</Button>{(query.isError || reservations.isError) && <p role="alert" className="text-sm">Some records could not be loaded. Refresh to retry.</p>}<DeskSearchResults search={globalSearch} entries={scoped} allEntries={allEntries} reservations={reservations.data?.reservations ?? []} cars={stock?.cars ?? []} onEntry={openEntry} onCar={setInformation} onContact={setHistoryContact} /></>}
+        <div hidden={Boolean(globalSearch.trim())} className="enquiry-workspace-views space-y-5">
+        {mode === "today" && <div role="tabpanel" id="desk-panel-today" aria-labelledby="desk-tab-today">{query.isLoading ? <p role="status">Loading today’s work…</p> : query.isError ? <p role="alert">Today’s work could not be loaded. Refresh to retry.</p> : <TodayDesk entries={scoped} onOpen={openEntry} />}</div>}
+        <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby="desk-tab-new" className="enquiry-ledger-sheet border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          {directory.isLoading ? <p role="status">Loading your workspace…</p> : <NewCall key={`${formKey}:${directory.data?.currentUserId ?? "unknown"}`} initial={initial} selection={selection} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} draftKey={draftKey} defaultOwnerId={directory.data?.currentUserId ?? ""} onDiscard={() => { setInitial(undefined); setSelection(undefined); setFormKey(key => key + 1); }} onSaved={saved} />}
+          {(query.isError || reservations.isError) && <p className="mt-3 text-sm text-amber-900">Some customer history is unavailable. Use Refresh before assuming this is a new customer.</p>}
         </div>
         <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-labelledby="desk-tab-stock">
           <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { setSelection({ id: car.id, booking }); setMode("new"); }} />
         </div>
         <div hidden={mode !== "calendar"} role="tabpanel" id="desk-panel-calendar" aria-labelledby="desk-tab-calendar">
-          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <p role="alert">Appointments could not be loaded. Use Refresh to try again.</p> : <EnquiryCalendar entries={query.data ?? []} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
+          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <p role="alert">Appointments could not be loaded. Use Refresh to try again.</p> : <EnquiryCalendar entries={scoped} allEntries={allEntries} onOpen={openEntry} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
         </div>
+        {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-labelledby="desk-tab-callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={setSelectedEnquiryId} onBack={() => setSelectedEnquiryId(null)} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
         {mode === "history" && (
-          <div role="tabpanel" id="desk-panel-history" aria-labelledby="desk-tab-history" className="space-y-4 border border-slate-200 bg-white p-4 sm:p-6">
-            <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
-              <label className={field}>
-                Find a customer or car
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Name, phone, email, reference or car"
-                />
-              </label>
-              <label className={field}>
-                Show
-                <NativeSelect
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                >
-                  <option value="all">All enquiries</option>
-                  <option value="upcoming">Upcoming appointments</option>
-                  <option value="today">Today’s appointments</option>
-                  <option value="followups">Outstanding follow-ups</option>
-                  <option value="due">Follow-ups: overdue / due today</option>
-                </NativeSelect>
-              </label>
-            </div>
+          <div role="tabpanel" id="desk-panel-history" aria-labelledby="desk-tab-history" className="enquiry-ledger-sheet enquiry-record-sheet enquiry-history-sheet border border-slate-200 bg-white">
+
             {query.isLoading && <p role="status">Loading enquiries…</p>}
-            {query.isError && (
-              <p role="alert">
-                Enquiries could not be loaded. Use Refresh to try again.
-              </p>
-            )}
-            <ul className="divide-y divide-border border-y border-border">
-              {entries.map((entry) => {
-                const car = stock?.cars.find(
-                  (car) => car.id === entry.vehicleId,
-                );
-                const future =
-                  entry.appointmentAt &&
-                  new Date(entry.appointmentAt).getTime() > Date.now() &&
-                  !entry.appointmentCancelledAt;
-                return (
-                  <li
-                    key={entry.id}
-                    className="py-4"
-                    data-testid={`enquiry-${entry.id}`}
-                  >
-                    <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                      <div>
-                        <p className="font-semibold">{entry.customerName}</p>
-                        <p className="mt-1 text-sm">
-                          {entry.phone || "No phone supplied"}
-                        </p>
-                        {entry.email && (
-                          <p className="break-all text-sm text-muted-foreground">
-                            {entry.email}
-                          </p>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {entry.reference}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">
-                          {entry.vehicleTitle || "General showroom enquiry"}
-                        </p>
-                        {entry.vehicleId && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {car
-                              ? stockStatus(car)
-                              : "No longer in current stock"}
-                          </p>
-                        )}
-                        {!entry.vehicleId && entry.vehicleTitle && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Ad hoc vehicle — not showroom stock
-                            {entry.vehicleRegistration
-                              ? ` · ${entry.vehicleRegistration}`
-                              : ""}
-                            {entry.vehiclePrice != null
-                              ? ` · ${formatPrice(entry.vehiclePrice)}`
-                              : ""}
-                          </p>
-                        )}
-                        {entry.followUpAt && (
-                          <div className="mt-3 border-l-2 border-primary pl-3 text-sm">
-                            <p className="font-medium">
-                              {entry.followUpCompletedAt
-                                ? "Follow-up completed"
-                                : new Date(entry.followUpAt).getTime() <
-                                    Date.now()
-                                  ? "Follow-up overdue"
-                                  : "Follow-up requested"}
-                            </p>
-                            <p>{appointmentLabel(entry.followUpAt)}</p>
-                            {entry.followUpNote && (
-                              <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
-                                {entry.followUpNote}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        {entry.appointmentAt && (
-                          <div className="mt-2 space-y-1 text-sm"><p>{appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} /></div>
-                        )}
-                        <div className="mt-2">
-                          <Chip>{status(entry)}</Chip>
-                        </div>
-                      </div>
-                      <div className="flex max-w-sm flex-wrap items-start gap-2">
-                        {car && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setInformation(car)}
-                          >
-                            Vehicle information
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setFollowUpEntry({ ...entry })}
-                        >
-                          {entry.followUpAt && !entry.followUpCompletedAt
-                            ? "Manage follow-up"
-                            : "Request follow-up"}
-                        </Button>
-                        {future && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditing({ ...entry })}
-                          >
-                            <CalendarDays className="mr-1 h-4 w-4" />
-                            Change appointment
-                          </Button>
-                        )}
-                        {!entry.appointmentAt && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelection(undefined);
-                              setInitial(entry);
-                              setFormKey((key) => key + 1);
-                              setMode("new");
-                              setNotice(
-                                "Customer details copied. Saving creates a new test-drive booking.",
-                              );
-                            }}
-                          >
-                            Book test drive
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    {entry.message && (
-                      <details className="mt-2 text-sm">
-                        <summary className="min-h-11 cursor-pointer py-3 font-medium">
-                          Call notes
-                        </summary>
-                        <p className="whitespace-pre-wrap break-words text-muted-foreground">
-                          {entry.message}
-                        </p>
-                      </details>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            {!query.isLoading && !query.isError && !entries.length && (
-              <p className="py-6 text-center text-muted-foreground">
-                No matching enquiries. Try another name or phone number.
-              </p>
-            )}
+            {query.isError && <p role="alert">Enquiries could not be loaded. Use Refresh to try again.</p>}
+            {!query.isLoading && !query.isError && <EnquiryRecordBrowser entries={entries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={setSelectedEnquiryId} onBack={() => setSelectedEnquiryId(null)} actions={recordActions} />}
           </div>
         )}
       </div>
+      </div>
+      {mergeEntry && <EnquiryMergeDialog entry={mergeEntry} entries={allEntries} onClose={() => setMergeEntry(null)} onRefresh={async () => { const fresh = await query.refetch(); if (fresh.error || !fresh.data) throw fresh.error ?? new Error("Enquiries unavailable"); return fresh.data; }} onSaved={async result => {
+        setMergeEntry(null); setMode("history"); setOwnerScope("all"); setFilter("all"); setGlobalSearch(""); setSearch(""); setSelectedEnquiryId(result.primaryId);
+        setNotice(`${result.recordIds.length} records merged into one case. ${result.cancelledAppointmentIds.length ? `${result.cancelledAppointmentIds.length} appointments cancelled.` : "All active appointments retained."}`);
+        await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith("/availability") })]);
+      }} />}
+      {conversationEntry && <ConversationEditor entry={conversationEntry} onClose={() => setConversationEntry(null)} onSaved={async entry => { client.setQueryData(getGetEnquiriesQueryKey(), (current: Enquiry[] | undefined) => current?.map(item => item.id === entry.id ? entry : item)); setConversationEntry(null); setSelectedEnquiryId(mode === "callbacks" ? entry.id : primaryEnquiry(entry, allEntries).id); setNotice(`${entry.reference}: conversation saved.`); await Promise.all([query.refetch(), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]); }} />}
+      {workspaceEntry && <WorkspaceEditor entry={workspaceEntry} onClose={() => setWorkspaceEntry(null)} />}
+      {historyContact && <Dialog open onOpenChange={open => { if (!open) setHistoryContact(null); }}><DialogContent className="portal-action-dialog portal-action-dialog-wide enquiry-action-dialog max-w-2xl"><DialogHeader><DialogTitle>{historyContact.customerName} — customer history</DialogTitle><DialogDescription>Enquiries, appointments and reservations matched by contact details.</DialogDescription></DialogHeader><CustomerHistory contact={historyContact} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} />{(query.isError || reservations.isError) && <p role="alert">Some records could not be loaded. Refresh to retry.</p>}</DialogContent></Dialog>}
       {information && (
         <EnquiryVehicleInformation
           car={information}

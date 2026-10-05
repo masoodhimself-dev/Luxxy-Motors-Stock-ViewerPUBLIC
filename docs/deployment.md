@@ -27,6 +27,14 @@ terminal run `pnpm --filter @workspace/luxxy-motors dev`. Vite defaults to port
 4175 and proxies `/api` and `/share` to localhost:8080. The fixture-only design
 preview remains available with `pnpm dev:preview`; never deploy that preview.
 
+For a local-network preview, set `LUXXY_PREVIEW_LAN_HOST` to the Mac’s current private network IP and bind Vite to all interfaces. From `artifacts/luxxy-motors`, run:
+
+```sh
+LUXXY_PREVIEW_LAN_HOST=192.168.1.103 PORT=4175 BASE_PATH=/ pnpm exec vite --config vite.preview.config.ts --host 0.0.0.0 --port 4175
+```
+
+Replace the IP if the network changes. Open that same IP and port on devices connected to the local network. Binding Vite alone does not enable preview API access; the LAN host setting is also required.
+
 ## Database
 
 No migration runs during installation, build or startup. A fresh database needs
@@ -100,3 +108,11 @@ were removed so pnpm can install the binaries appropriate to the host OS/CPU.
 Provider setup references: [Clerk React](https://clerk.com/docs/react/getting-started/quickstart),
 [optional Clerk proxy](https://clerk.com/docs/guides/dashboard/dns-domains/proxy-fapi),
 [Resend email API](https://resend.com/docs/api-reference/emails/send-email).
+
+## Email, payments and staff operations
+
+Prepare migrations `0016_sale_workspace.sql` and `0017_staff_roles_settings_history.sql` for the target dealership database using the normal deployment migration procedure. They are not automatically applied or run by this work. The first authorised owner manages website settings, publication history, staff roles and private integrations.
+
+Configure a persistent private directory for `INTEGRATIONS_PRIVATE_DIR` outside the frontend/static directory and set `INTEGRATIONS_ENCRYPTION_KEY` before using private settings in production. On Render, mount a persistent disk and point this directory at it. The same encryption key is required to restore an encrypted backup. The integration store supports a single API process; deploy each dealership independently.
+
+Resend and Stripe start disabled. Owners use **Settings → Email templates** for all 16 email subjects/bodies and shared branding, and **Settings → API integrations** for provider credentials. Domain verification, live Stripe keys and the signed webhook must be configured before enabling delivery or payment. See [Email and reservation payments](integrations-email-payments.md) and [Dealer operations](dealer-operations.md) for setup, permissions, safe payment recovery and settings history.

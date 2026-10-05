@@ -6,6 +6,7 @@ import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { useToast } from '@/hooks/use-toast';
 import { cn, vehicleDisplayTitle } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
+import { HoverHelp } from '@/components/customer-help';
 
 export function vehicleLabelFor(car: Car) {
   return vehicleDisplayTitle(car);
@@ -26,16 +27,16 @@ export function SaveCarButton({
   const label = vehicleLabelFor(car);
 
   return (
+    <HoverHelp text={saved ? 'Remove this car from your saved list.' : 'Keep this car in Saved so you can return to it later on this browser.'}>
     <button
       type="button"
       onClick={(e) => {
         e.preventDefault();
-        toggleSaved(car.id);
+        toggleSaved(car.id, car);
         if (!saved) toast({title: 'Car saved', description: <Link href="/saved" className="underline underline-offset-4">View saved cars</Link>, duration: 5000});
       }}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${label} from your saved cars` : `Save ${label} to your saved cars`}
-      title={saved ? 'Saved — click to remove' : 'Save this car'}
       data-testid={`button-save-${car.id}`}
       className={cn(
         'inline-flex items-center justify-center gap-2 border transition-colors  focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
@@ -52,6 +53,7 @@ export function SaveCarButton({
       <Heart className={cn('h-4 w-4', saved ? 'fill-current' : variant === 'inline' ? 'text-accent' : '')} />
       {variant === 'inline' && (saved ? 'Saved' : 'Save')}
     </button>
+    </HoverHelp>
   );
 }
 
@@ -61,6 +63,9 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
   const { toast } = useToast();
   const comparing = isComparing(car.id);
   const label = vehicleLabelFor(car);
+  const helpText = comparing
+    ? 'Remove this car from your comparison.'
+    : `Choose up to ${MAX_COMPARE} cars to compare their prices and details side by side.`;
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -72,7 +77,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
     if (result === 'full') {
       toast({
         title: `You can compare ${MAX_COMPARE} cars at a time`,
-        description: 'Remove one from the compare bar to add this car instead.',
+        description: 'Open Compare selected cars and remove one to add this car instead.',
       });
     }
   };
@@ -81,6 +86,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
 
   if (variant === 'compact') {
     return (
+      <HoverHelp text={helpText}>
       <button
         type="button"
         onClick={handleClick}
@@ -88,7 +94,7 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
         aria-label={comparing ? `Remove ${label} from your comparison` : `Add ${label} to your comparison`}
         data-testid={`button-compare-${car.id}`}
         className={cn(
-          'inline-flex w-fit max-w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-bold  tracking-normal transition-colors  focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          'inline-flex min-h-11 w-fit max-w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-bold  tracking-normal transition-colors  focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
           comparing ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
           className
         )}
@@ -96,10 +102,12 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
         {comparing ? <Check className="h-3.5 w-3.5" /> : <Scale className="h-3.5 w-3.5" />}
         <span>{comparing ? 'Comparing' : 'Compare'}</span>
       </button>
+      </HoverHelp>
     );
   }
 
   return (
+    <HoverHelp text={helpText}>
     <button
       type="button"
       onClick={handleClick}
@@ -117,5 +125,13 @@ export function CompareCarButton({ car, className, variant = 'default' }: { car:
       {comparing ? <Check className="h-4 w-4 text-primary" /> : <Scale className="h-4 w-4 text-accent" />}
       <span>{comparing ? 'Comparing' : 'Compare'}</span>
     </button>
+    </HoverHelp>
   );
+}
+
+export function CompareSelectionLink() {
+  const { settings } = useDealerSettings();
+  const { compareCount } = useSavedCars();
+  if (!settings.presentation?.comparisonEnabled || !compareCount) return null;
+  return <Link href="/compare" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline underline-offset-4"><Scale className="h-4 w-4" aria-hidden="true" />Compare selected cars ({compareCount}/2)</Link>;
 }

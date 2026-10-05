@@ -1,3 +1,7 @@
+import { CompareSelectionLink } from '@/components/saved-car-controls';
+import { readSavedSnapshots, savedPriceReduction } from '@/lib/saved-car-snapshots';
+import { formatPrice } from '@/lib/utils';
+import { ShowroomPhoto } from '@/components/showroom-photo';
 import { SavedCarDetails } from '@/components/saved-car-details';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
@@ -24,6 +28,7 @@ export default function Saved() {
     description: 'Review your shortlisted cars, explore their details and arrange a test drive.',
   });
   const shownIds = sharedIds ?? savedIds;
+  const snapshots = readSavedSnapshots();
   const [shareStatus, setShareStatus] = useState("");
   const [copyLink, setCopyLink] = useState("");
   const share = async () => {
@@ -43,11 +48,11 @@ export default function Saved() {
   };
   const cars = shownIds
     .map((id) => stock?.cars.find((car) => car.id === id))
-    .filter((car): car is Car => Boolean(car));
+    .filter((car): car is Car => Boolean(car) && !['sold', 'archived', 'hidden'].includes(String(car?.inventoryStatus)));
 
   const unavailableIds =
     !isLoading && stock
-      ? shownIds.filter((id) => !stock.cars.some((car) => car.id === id))
+      ? shownIds.filter((id) => !stock.cars.some((car) => car.id === id && !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))))
       : [];
 
   if (isLoading && shownIds.length > 0) {
@@ -117,6 +122,7 @@ export default function Saved() {
           />
         </div>
 
+        <CompareSelectionLink />
         {shareStatus && (
           <p role="status" className="mt-3 text-sm">
             {shareStatus}
@@ -138,7 +144,7 @@ export default function Saved() {
             View my saved cars
           </Link>
         )}
-        {unavailableIds.length > 0 && (
+        {!error && unavailableIds.length > 0 && (
           <div className="mt-8 flex flex-col gap-4 border border-border bg-accent/5 px-6 py-4 font-normal text-[12px] leading-relaxed text-primary/80 sm:flex-row sm:items-center sm:justify-between">
             <p>
               {unavailableIds.length === 1
@@ -159,6 +165,7 @@ export default function Saved() {
           </div>
         )}
 
+        {!error && !sharedIds && unavailableIds.length > 0 && <div className="mt-4 grid gap-4 sm:grid-cols-2">{unavailableIds.map(id => <article key={id} className="flex items-start gap-4 rounded-md border border-border bg-card p-4">{snapshots[id]?.photo && <ShowroomPhoto src={snapshots[id].photo} alt="" className="aspect-[4/3] w-24 shrink-0" fit="contain" />}<div className="min-w-0"><h2 className="font-semibold">{snapshots[id]?.title || 'Previously saved car'}</h2>{snapshots[id]?.registration && <p className="mt-1 text-xs text-muted-foreground">{snapshots[id].registration}</p>}<p className="mt-1 text-sm text-muted-foreground">No longer available in current stock.</p><Link href="/stock" className="text-link min-h-11 text-sm">Browse alternatives</Link><button onClick={() => clearSaved([id])} className="ml-4 min-h-11 text-sm underline">Remove</button></div></article>)}</div>}
         {error ? (
           <div role="alert">
             <PageEmptyState
@@ -176,7 +183,7 @@ export default function Saved() {
         ) : cars.length > 0 ? (
           <div className="mt-6 flex flex-col gap-6">
             {cars.map((car) => (
-              <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card"><CarCard car={car} layout="row" /><SavedCarDetails car={car} /></div>
+              <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">{!sharedIds && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">{savedPriceReduction(snapshots[car.id], car) != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(savedPriceReduction(snapshots[car.id], car)!, car.currency)} since you saved it</p>}{car.inventoryStatus === 'reserved' && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}</div>}<CarCard car={car} layout="row" /><SavedCarDetails car={car} /></div>
             ))}
           </div>
         ) : (

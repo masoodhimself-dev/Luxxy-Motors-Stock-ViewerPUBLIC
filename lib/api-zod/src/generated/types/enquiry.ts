@@ -6,11 +6,31 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EnquiryAppointmentStatus } from './enquiryAppointmentStatus';
+import type { EnquiryAttendance } from './enquiryAttendance';
 import type { EnquiryEvent } from './enquiryEvent';
 import type { EnquiryStatus } from './enquiryStatus';
 import type { EnquiryType } from './enquiryType';
 
 export interface Enquiry {
+  /**
+     * Main case ID; originals remain editable and retain their own appointments and history.
+     * @nullable
+     */
+  mergedIntoId?: string | null;
+  /** @nullable */
+  mergedAt?: Date | null;
+  /** @nullable */
+  mergedBy?: string | null;
+  /** @nullable */
+  assignedToId?: string | null;
+  /** @nullable */
+  assignedToName?: string | null;
+  /** @nullable */
+  callOutcome?: string | null;
+  /** @nullable */
+  staffNote?: string | null;
+  attendance?: EnquiryAttendance;
+  workspaceRevision?: number;
   /** Staff arranged outside configured booking hours or a closed date. */
   appointmentOutsideHours?: boolean;
   /** Staff explicitly allowed an overlapping active appointment. */

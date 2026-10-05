@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EnquiryEventActor } from './enquiryEventActor';
+import type { EnquiryEventCallOutcome } from './enquiryEventCallOutcome';
 import type { EnquiryEventKind } from './enquiryEventKind';
 
 export interface EnquiryEvent {
@@ -20,5 +21,11 @@ export interface EnquiryEvent {
   vehicleTitle: string | null;
   /** @nullable */
   vehicleUrl: string | null;
+  note?: string;
+  staffId?: string;
+  staffName?: string;
+  callOutcome?: EnquiryEventCallOutcome;
+  /** @nullable */
+  followUpAt?: Date | null;
   occurredAt: Date;
 }

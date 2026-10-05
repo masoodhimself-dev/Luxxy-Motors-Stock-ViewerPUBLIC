@@ -11,6 +11,9 @@ const basePath = process.env.BASE_PATH ?? '/';
 export default defineConfig({
   base: basePath,
   envDir: path.resolve(import.meta.dirname, "../.."),
+  // Clerk CLI writes this public key without the Vite prefix. Never expose
+  // CLERK_SECRET_KEY or use the broad CLERK_ prefix here.
+  envPrefix: ['VITE_', 'CLERK_PUBLISHABLE_KEY'],
   plugins: [
     react(),
     tailwindcss({ optimize: false }),

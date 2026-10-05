@@ -99,13 +99,13 @@ for (const width of [375, 820, 1280]) {
     );
     const secondary = page.getByTestId('vehicle-secondary-actions');
     const more = secondary.getByRole('button', { name: 'More options', exact: true });
-    const call = secondary.locator('[data-vehicle-contact="call"]');
-    const whatsapp = secondary.getByRole('button', { name: /^WhatsApp about / });
+    const call = purchase.locator('[data-vehicle-contact="call"]');
+    const whatsapp = purchase.getByRole('button', { name: /^WhatsApp about / });
     const reserve = secondary.getByRole('button', { name: 'Reserve car online', exact: true });
     if (width < 768) {
       await expect(more).toHaveAttribute('aria-expanded', 'false');
-      await expect(call).toBeHidden();
-      await expect(whatsapp).toBeHidden();
+      await expect(call).toBeVisible();
+      await expect(whatsapp).toBeVisible();
       await expect(reserve).toBeHidden();
       await more.click();
       await expect(more).toHaveAttribute('aria-expanded', 'true');
@@ -132,7 +132,7 @@ for (const width of [375, 820, 1280]) {
     expect(new URL(whatsappHref!).searchParams.get('text')).toBe('Could I arrange a test drive?');
     await closeDialog(page, whatsapp);
 
-    const walkaround = (width < 768 ? secondary : page).getByRole('button', { name: 'Request a walkaround video', exact: true });
+    const walkaround = page.getByRole('button', { name: 'Request a walkaround video', exact: true });
     await walkaround.click();
     await expect(page.getByRole('dialog').getByLabel('Your message')).toHaveValue(/walkaround video/);
     await closeDialog(page, walkaround);
@@ -147,7 +147,7 @@ for (const width of [375, 820, 1280]) {
     if (width < 768) {
       await more.click();
       await expect(more).toHaveAttribute('aria-expanded', 'false');
-      await expect(call).toBeHidden();
+      await expect(call).toBeVisible();
       await purchase.scrollIntoViewIfNeeded();
       await expect(page.getByTestId('mobile-conversion-bar')).toBeHidden();
       await screenshot(page, `vehicle-primary-${width}`);
@@ -167,17 +167,13 @@ for (const width of [375, 820, 1280]) {
     await expect(page.locator('.browse-stock .vehicle-card').first()).toBeVisible();
     const secondary = page.getByTestId('stock-secondary-actions');
     const trigger = secondary.getByRole('button', { name: 'Display & sharing', exact: true });
-    const viewControls = width < 768 ? secondary : page;
+    const viewControls = secondary;
     const list = viewControls.getByRole('button', { name: 'List', exact: true });
     const copy = secondary.getByRole('button', { name: 'Copy search link', exact: true });
-    if (width < 768) {
-      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-      await expect(list).toBeHidden();
-      await expect(copy).toBeHidden();
-      await trigger.click();
-    } else {
-      await expect(trigger).toBeHidden();
-    }
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(list).toBeHidden();
+    await expect(copy).toBeHidden();
+    await trigger.click();
     await expect(secondary.getByRole('link', { name: /^Saved cars/ })).toHaveAttribute('href', '/saved');
     await list.click();
     await expect(list).toHaveAttribute('aria-pressed', 'true');
@@ -187,15 +183,13 @@ for (const width of [375, 820, 1280]) {
     await expect(page.getByRole('status').filter({ hasText: 'Search link copied' })).toBeVisible();
     await screenshot(page, `stock-options-${width}`);
     await page.reload();
-    if (width < 768) await trigger.click();
+    await trigger.click();
     await expect(list).toHaveAttribute('aria-pressed', 'true');
     await viewControls.getByRole('button', { name: 'Grid', exact: true }).click();
     await expect(page.locator('.browse-stock [data-testid^="card-vehicle-"]').first()).toBeVisible();
-    if (width < 768) {
-      await trigger.click();
-      await expect(copy).toBeHidden();
-      await expect(trigger).toBeFocused();
-    }
+    await trigger.click();
+    await expect(copy).toBeHidden();
+    await expect(trigger).toBeFocused();
     const toolbar = page.getByTestId('stock-search-toolbar');
     await expect(toolbar).toHaveCSS('position', 'static');
     await toolbar.evaluate(element => window.scrollTo(0, window.scrollY + element.getBoundingClientRect().bottom + 100));

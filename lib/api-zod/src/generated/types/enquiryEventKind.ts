@@ -16,4 +16,6 @@ export const EnquiryEventKind = {
   viewing_cancelled: 'viewing_cancelled',
   call_intent: 'call_intent',
   whatsapp_intent: 'whatsapp_intent',
+  conversation_logged: 'conversation_logged',
+  records_merged: 'records_merged',
 } as const;

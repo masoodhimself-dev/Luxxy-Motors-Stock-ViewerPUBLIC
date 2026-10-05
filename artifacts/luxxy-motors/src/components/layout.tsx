@@ -9,9 +9,14 @@ import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CompareTray } from '@/components/compare-tray';
+import { CustomerChat } from '@/components/customer-chat';
 import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
+import './premium-showroom.css';
+import './portal/portal-workspace.css';
+import { readableForegroundForHsl } from '@/lib/brand-colour';
+export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
   'inline-flex min-h-11 items-center whitespace-nowrap font-display text-[14px] font-semibold tracking-normal text-primary/75 transition-colors hover:text-accent';
@@ -23,41 +28,13 @@ const footerHeadingClass = 'font-display text-lg font-semibold text-primary-fore
 const socialLinkClass =
   'grid h-11 w-11 place-items-center rounded-lg bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground';
 
-function hslToRelativeLuminance(hsl: string) {
-  const values = hsl.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
-  if (!values || values.length < 3) return null;
-  const [rawHue, rawSaturation, rawLightness] = values;
-  const hue = ((rawHue % 360) + 360) % 360 / 360;
-  const saturation = Math.min(100, Math.max(0, rawSaturation)) / 100;
-  const lightness = Math.min(100, Math.max(0, rawLightness)) / 100;
-  const channel = (offset: number) => {
-    const k = (offset + hue * 12) % 12;
-    const a = saturation * Math.min(lightness, 1 - lightness);
-    return lightness - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-  };
-  const linear = (value: number) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  const [red, green, blue] = [channel(0), channel(8), channel(4)].map(linear);
-  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-}
-
-export function readableForegroundForHsl(hsl: string) {
-  const backgroundLuminance = hslToRelativeLuminance(hsl);
-  if (backgroundLuminance == null) return '0 0% 100%';
-  const dark = '0 0% 8%';
-  const light = '0 0% 100%';
-  const darkLuminance = hslToRelativeLuminance(dark) ?? 0;
-  const lightLuminance = hslToRelativeLuminance(light) ?? 1;
-  const contrastWithDark = (Math.max(backgroundLuminance, darkLuminance) + 0.05) / (Math.min(backgroundLuminance, darkLuminance) + 0.05);
-  const contrastWithLight = (Math.max(backgroundLuminance, lightLuminance) + 0.05) / (Math.min(backgroundLuminance, lightLuminance) + 0.05);
-  return contrastWithDark >= contrastWithLight ? dark : light;
-}
-
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [, vehicleRoute] = useRoute('/vehicle/:id');
   const testDriveHref = vehicleRoute?.id ? `/enquire?type=viewing&vehicleId=${encodeURIComponent(vehicleRoute.id)}` : getEnquiryHref('viewing');
   const isStaff = location.startsWith('/portal');
-  const isCustomerTask = /^\/(sign|customer-details|viewing)\//.test(location);
+  const isCustomerTask = /^\/(sign|customer-details|viewing|my-purchase)\//.test(location);
+  const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const { settings: dealerConfig } = useDealerSettings();
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -71,6 +48,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl === '161.538 16.883% 15.098%' ? '195 22% 13%' : dealerConfig.identity.brandColors?.primaryHsl;
   const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
   const brandStyle = {
+    '--premium-accent': brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? `hsl(${brandAccent})` : '#215a7e',
+    '--premium-accent-foreground': brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? `hsl(${readableForegroundForHsl(brandAccent)})` : '#ffffff',
     ...Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })),
     ...(brandPrimary
       ? {
@@ -181,7 +160,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} className="luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground">
+    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ''}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       <header
         ref={headerRef}
@@ -286,7 +265,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
-          <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
+          <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" onBlur={(event) => {
+            if (!isPremiumShowroom) return;
+            const nextFocus = event.relatedTarget;
+            if (!nextFocus || (!event.currentTarget.contains(nextFocus) && nextFocus !== menuButtonRef.current)) setMobileMenuOpen(false);
+          }} className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationStock")} <ArrowRight className="w-5 h-5 text-accent" />
             </button>
@@ -467,6 +450,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
       {!isCustomerTask && <CompareTray />}
+      {!isStaff && !isCustomerTask && <CustomerChat />}
     </div>
   );
 }

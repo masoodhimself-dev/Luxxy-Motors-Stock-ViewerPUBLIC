@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetTestDriveBookingsQueryKey,
+  getGetEnquiriesQueryKey,
   useDecideTestDriveBooking,
+  useGetEnquiries,
   useGetTestDriveBookings,
   type Enquiry,
 } from '@workspace/api-client-react';
@@ -21,6 +23,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Chip, EmptyState, Panel, PanelHeader, formatDateTime } from './portal-ui';
 import { AppointmentExceptionLabels } from './enquiry-calendar';
+import { AttendanceControls } from './enquiry-workspace-tools';
+import { HistoryLinks } from './history-links';
+import { EnquiryMergeDialog } from './enquiry-merge';
 
 type Decision = 'confirm' | 'decline';
 const bookingStatus = (booking: Enquiry) => booking.appointmentCancelledAt ? 'cancelled' : booking.appointmentStatus === 'pending' ? 'pending' : 'confirmed';
@@ -35,7 +40,7 @@ function decisionError(error: unknown) {
   return 'The appointment could not be updated. Please try again.';
 }
 
-function BookingRow({ booking, now, onDecision }: { booking: Enquiry; now: number; onDecision: (message: string) => void }) {
+function BookingRow({ booking, now, onDecision, onMerge }: { booking: Enquiry; now: number; onDecision: (message: string) => void; onMerge: (entry: Enquiry) => void }) {
   const [review, setReview] = useState<{ decision: Decision; booking: Enquiry } | null>(null);
   const decision = review?.decision ?? null;
   const reviewedBooking = review?.booking ?? booking;
@@ -53,12 +58,13 @@ function BookingRow({ booking, now, onDecision }: { booking: Enquiry; now: numbe
   const openDecision = (next: Decision) => { mutation.reset(); setReview({ decision: next, booking: { ...booking } }); };
 
   return (
-    <li className="p-4 sm:p-5" data-testid={`staff-test-drive-${booking.id}`}>
+    <li className="portal-record-row p-4 sm:p-5" data-testid={`staff-test-drive-${booking.id}`}>
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr]">
         <div className="min-w-0">
           <p className="font-semibold text-primary">{booking.vehicleTitle || 'Vehicle to be arranged'}</p>
           <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
           <AppointmentExceptionLabels booking={booking} />
+          <div className="mt-2"><AttendanceControls entry={booking} /></div>
           <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes · {booking.reference}</p>
         </div>
         <div className="min-w-0 text-sm">
@@ -74,13 +80,14 @@ function BookingRow({ booking, now, onDecision }: { booking: Enquiry; now: numbe
           </div>}
         </div>
       </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3"><Button type="button" variant="outline" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} /></div>
       {(booking.message || booking.partExchangeRegistration) && <details className="mt-4 border-t border-border pt-2 text-sm">
         <summary className="min-h-11 cursor-pointer py-3 font-medium">Visit details</summary>
         {booking.message && <p className="whitespace-pre-wrap break-words leading-6 text-muted-foreground">{booking.message}</p>}
         {booking.partExchangeRegistration && <p className="mt-2 text-muted-foreground">Part exchange: <span className="font-medium text-primary">{booking.partExchangeRegistration}</span>{booking.partExchangeMileage != null ? ` · ${booking.partExchangeMileage.toLocaleString('en-GB')} miles` : ''}</p>}
       </details>}
       <AlertDialog open={decision !== null} onOpenChange={open => { if (!open && !mutation.isPending) setReview(null); }}>
-        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-md">
+        <AlertDialogContent className="portal-action-dialog w-[calc(100%-2rem)] rounded-md">
           <AlertDialogHeader>
             <AlertDialogTitle>{decision === 'confirm' ? 'Confirm this test drive?' : 'Decline this request?'}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -108,6 +115,9 @@ function BookingRow({ booking, now, onDecision }: { booking: Enquiry; now: numbe
 export function TestDriveBookingsPanel() {
   const [status, setStatus] = useState('active');
   const [notice, setNotice] = useState('');
+  const [mergeEntry, setMergeEntry] = useState<Enquiry | null>(null);
+  const client = useQueryClient();
+  const enquiries = useGetEnquiries(undefined, { query: { queryKey: getGetEnquiriesQueryKey(), enabled: Boolean(mergeEntry), staleTime: 0 } });
   const query = useGetTestDriveBookings({ query: { queryKey: getGetTestDriveBookingsQueryKey(), refetchInterval: 60_000 } });
   const now = Date.now();
   const bookings = (query.data ?? []).filter(booking => status === 'all' || (status === 'active' ? bookingStatus(booking) !== 'cancelled' && isFutureAppointment(booking, now) : bookingStatus(booking) === status))
@@ -135,8 +145,11 @@ export function TestDriveBookingsPanel() {
       {notice && <p role="status" className="flex items-start gap-2 border-b border-border bg-secondary/30 p-4 text-sm"><Check className="h-4 w-4 shrink-0" />{notice}</p>}
       {query.isLoading ? <p role="status" className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" /> Loading appointments…</p>
         : query.isError ? <div role="alert" className="p-6 text-sm"><p className="mb-3 text-destructive">Test-drive appointments could not be loaded.</p><Button type="button" variant="outline" onClick={() => query.refetch()}>Try again</Button></div>
-        : bookings.length ? <ul className="divide-y divide-border">{bookings.map(booking => <BookingRow key={booking.id} booking={booking} now={now} onDecision={setNotice} />)}</ul>
+        : bookings.length ? <ul className="divide-y divide-border">{bookings.map(booking => <BookingRow key={booking.id} booking={booking} now={now} onDecision={setNotice} onMerge={setMergeEntry} />)}</ul>
         : <div className="p-4"><EmptyState icon={CalendarClock} title={status === 'pending' ? 'No requests awaiting approval' : 'No appointments to show'} body={status === 'active' ? 'New test-drive bookings will appear here with the car, time and customer details.' : 'Choose another status to see other appointments.'} /></div>}
+      {mergeEntry && enquiries.isLoading && <p role="status" className="p-4 text-sm">Loading records to merge…</p>}
+      {mergeEntry && enquiries.isError && !enquiries.data && <div role="alert" className="p-4 text-sm"><p>Records could not be loaded for merging.</p><Button variant="outline" onClick={() => enquiries.refetch()}>Retry records</Button><Button variant="ghost" onClick={() => setMergeEntry(null)}>Cancel</Button></div>}
+      {mergeEntry && enquiries.data && <EnquiryMergeDialog entry={enquiries.data.find(item => item.id === mergeEntry.id) ?? mergeEntry} entries={enquiries.data} onClose={() => setMergeEntry(null)} onRefresh={async () => { const fresh = await enquiries.refetch(); if (fresh.error || !fresh.data) throw fresh.error ?? new Error('Enquiries unavailable'); return fresh.data; }} onSaved={async result => { setMergeEntry(null); setNotice(`${result.recordIds.length} records merged into one case. ${result.cancelledAppointmentIds.length} appointments cancelled.`); await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith('/availability') })]); }} />}
     </Panel>
   );
 }

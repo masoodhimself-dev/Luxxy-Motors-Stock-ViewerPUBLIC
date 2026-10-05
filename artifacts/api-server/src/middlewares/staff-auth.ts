@@ -1,7 +1,9 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, portalUsersTable, type PortalUser } from "@workspace/db";
+import { isStaffRole, operationPermission, permissionsForRole, roleHasPermission, type StaffPermission, type StaffRole } from '../lib/staff-permissions';
+export type { StaffPermission, StaffRole } from '../lib/staff-permissions';
 
 /**
  * Portal authorization.
@@ -24,6 +26,8 @@ export type StaffIdentity = {
   authUserId: string;
   email: string | null;
   name: string | null;
+  role?: StaffRole;
+  permissions?: readonly StaffPermission[];
 };
 
 declare global {
@@ -54,7 +58,7 @@ function machineToken(req: Request): StaffIdentity | null {
   if (!expected) return null;
   const provided = req.get("x-portal-token");
   if (!provided || provided !== expected) return null;
-  return { authUserId: "machine", email: null, name: "Automation" };
+  return { authUserId: "machine", email: null, name: "Automation", role: 'owner', permissions: permissionsForRole('owner') };
 }
 
 async function clerkIdentity(req: Request): Promise<StaffIdentity | null> {
@@ -83,12 +87,15 @@ async function clerkIdentity(req: Request): Promise<StaffIdentity | null> {
 async function resolveStaffRow(
   identity: StaffIdentity,
 ): Promise<PortalUser | null> {
-  const [existing] = await db
+  return db.transaction(async tx => {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`portal-staff:${dealerId()}`}))`);
+  const [existing] = await tx
     .select()
     .from(portalUsersTable)
-    .where(eq(portalUsersTable.authUserId, identity.authUserId));
+    .where(and(eq(portalUsersTable.authUserId, identity.authUserId), eq(portalUsersTable.dealerId, dealerId())));
   if (existing) {
-    await db
+    if (existing.disabledAt || !isStaffRole(existing.role)) return null;
+    await tx
       .update(portalUsersTable)
       .set({
         lastSeenAt: new Date(),
@@ -105,31 +112,31 @@ async function resolveStaffRow(
     identity.email != null &&
     listed.includes(identity.email.toLowerCase());
 
+  const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(portalUsersTable).where(eq(portalUsersTable.dealerId, dealerId()));
   if (!emailAllowed) {
     if (listed.length > 0) return null;
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(portalUsersTable);
     if (count > 0) return null;
   }
 
-  const [created] = await db
+  const [created] = await tx
     .insert(portalUsersTable)
     .values({
       dealerId: dealerId(),
       authUserId: identity.authUserId,
       email: identity.email,
       name: identity.name,
+      role: count === 0 ? 'owner' : 'salesperson',
     })
     .onConflictDoNothing()
     .returning();
   if (created) return created;
 
-  const [row] = await db
+  const [row] = await tx
     .select()
     .from(portalUsersTable)
-    .where(eq(portalUsersTable.authUserId, identity.authUserId));
-  return row ?? null;
+    .where(and(eq(portalUsersTable.authUserId, identity.authUserId), eq(portalUsersTable.dealerId, dealerId())));
+  return row && !row.disabledAt && isStaffRole(row.role) ? row : null;
+  });
 }
 
 export type PortalAccess =
@@ -148,7 +155,7 @@ export async function portalAccess(req: Request): Promise<PortalAccess> {
   if (!user) return { state: "forbidden", identity };
   return {
     state: "allowed",
-    identity: { ...identity, name: identity.name ?? user.name },
+    identity: { ...identity, name: identity.name ?? user.name, role: user.role, permissions: permissionsForRole(user.role) },
     user,
   };
 }
@@ -164,6 +171,7 @@ export const requireStaff: RequestHandler<any> = (
   res: Response,
   next: NextFunction,
 ) => {
+  if (req.staff) { next(); return; }
   void portalAccess(req)
     .then((access) => {
       if (access.state === "signed_out") {
@@ -188,3 +196,23 @@ export const requireStaff: RequestHandler<any> = (
 export function staffLabel(req: Request): string {
   return req.staff?.name || req.staff?.email || "Dealer";
 }
+
+export function staffHasPermission(req: Request, permission: StaffPermission): boolean {
+  return roleHasPermission(req.staff?.role, permission);
+}
+/** Mount after requireStaff so every role decision uses the server's identity. */
+export function requirePermission(permission: StaffPermission): RequestHandler<any> {
+  return (req, res, next) => {
+    if (!req.staff) { res.status(401).json({ error: 'Sign in to use the dealer portal.' }); return; }
+    if (!staffHasPermission(req, permission)) { res.status(403).json({ error: 'Your staff role does not allow this action.', permission }); return; }
+    next();
+  };
+}
+export const requireStaffOperationAccess: RequestHandler = (req, res, next) => {
+  const permission = operationPermission(req.method, req.path);
+  if (!permission) { next(); return; }
+  requireStaff(req, res, error => {
+    if (error) { next(error); return; }
+    requirePermission(permission)(req, res, next);
+  });
+};

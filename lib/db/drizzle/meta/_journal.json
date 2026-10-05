@@ -106,6 +106,48 @@
       "when": 1791013345677,
       "tag": "0014_staff_booking_exceptions",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791024105744,
+      "tag": "0015_enquiry_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791115200000,
+      "tag": "0016_sale_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791115200001,
+      "tag": "0017_staff_roles_settings_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791183197130,
+      "tag": "0018_dealer_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791208800000,
+      "tag": "0019_enquiry_conversations",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791208800001,
+      "tag": "0020_enquiry_merges",
+      "breakpoints": true
     }
   ]
 }
