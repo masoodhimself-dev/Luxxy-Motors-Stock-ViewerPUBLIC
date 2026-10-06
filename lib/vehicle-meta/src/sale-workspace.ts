@@ -37,11 +37,12 @@ export type SaleWorkspaceBranding = {
   legal: { companyName: string; companyNumber: string; vatNumber: string; termsUrl?: string; privacyUrl?: string; cookieUrl?: string };
   presentation?: { linkColour?: string };
 };
-export type SaleWorkspaceVehicleSnapshot = { id?: string; title?: string; year?: number | null; fuel?: string | null; transmission?: string | null; mileage?: number | null };
+export type SaleWorkspaceVehicleSnapshot = { id?: string; title?: string; year?: number | null; fuel?: string | null; transmission?: string | null; mileage?: number | null; colour?: string | null; owners?: number | null; writeOffCategory?: string | null; serviceHistory?: string | null; description?: string | null };
 export type SaleWorkspaceDocument = {
-  id: string; number: string; type: 'invoice' | 'statement' | 'receipt' | 'handover';
+  id: string; number: string; type: 'invoice' | 'statement' | 'receipt' | 'handover' | 'terms' | 'reservation' | 'vehicle-details';
   title: string; issuedAt: string; issuedBy: string; version: number;
   paymentId?: string; paymentAmountPence?: number; balanceAtIssue: number;
+  content?: string;
   snapshot: { draft: SaleWorkspaceDraft; payments: SaleWorkspacePayment[]; totals: SaleWorkspaceTotals; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot };
 };
 export type SaleWorkspaceEvent = { id: string; type: string; description: string; occurredAt: string; actor: string };
@@ -51,6 +52,7 @@ export type SaleWorkspaceRecord = {
   createdAt: string; updatedAt: string;
   /** Server-private retry records. Responses omit these entries. */
   requests?: Record<string, { fingerprint: string; documentId?: string }>;
+  completedAt?: string; packDocumentIds?: string[];
   lifecycle?: { status: "draft" | "reserved" | "sold" | "released"; vehicleId: string; changedAt: string };
   customerAccess?: { tokenHash: string; expiresAt: string; revokedAt?: string };
   documentArchives?: Record<string, { content: string; sha256: string }>;
@@ -63,7 +65,9 @@ export type SaleWorkspacePaymentInput = { amount: string; method: string; date: 
 export type SaleWorkspaceCommand =
   | { action: 'update'; draft: SaleWorkspaceDraft }
   | { action: 'payment'; payment: SaleWorkspacePaymentInput }
-  | { action: 'confirm'; paymentId: string; date?: string }
+  | { action: 'take-deposit'; payment: SaleWorkspacePaymentInput }
+  | { action: 'complete-sale'; acknowledge: boolean }
+  | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean }
   | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string }
   /** Internal provider reconciliation; there is no staff API for this command. */
   | { action: 'provider-refund-correction'; paymentId: string; amount: string; reason: string; date: string }
@@ -78,6 +82,7 @@ export type SaleWorkspaceContext = {
   now: string; actor: string; nextId: () => string;
   nextNumber: (type: SaleWorkspaceDocument['type']) => string;
   branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
+  paperwork?: { saleTerms: string; reservationTerms: string };
 };
 
 export class SaleWorkspaceError extends Error {
@@ -237,6 +242,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {
     const updated = cleanSaleWorkspaceDraft(command.draft, record.reference, record.payments, record.draft);
+    if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','price','exchanges','adjustments'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft]) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft]))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
     if (record.lifecycle && ['reserved', 'sold'].includes(record.lifecycle.status) && updated.vehicleId !== record.draft.vehicleId) throw new SaleWorkspaceError('Release the sale reservation before changing its vehicle.', 409);
     if (record.customerAccess && (updated.customer !== record.draft.customer || updated.email !== record.draft.email || updated.vehicleId !== record.draft.vehicleId)) record.customerAccess.revokedAt = context.now;
     record.draft = updated;
@@ -245,6 +251,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     ready(record);
     if (!['reserved', 'sold', 'released'].includes(command.status)) throw new SaleWorkspaceError('Choose a valid stock action.');
     if (record.lifecycle?.status === 'sold' && command.status !== 'sold') throw new SaleWorkspaceError('A sold vehicle cannot be released from this sale.', 409);
+    if (command.status === 'released' && saleWorkspaceTotals(record.draft, record.payments).confirmedPaid !== 0) throw new SaleWorkspaceError('Record the refund or payment correction before releasing this reservation.', 409);
     if (command.status === 'released' && record.lifecycle?.status !== 'reserved') throw new SaleWorkspaceError('Only a car reserved by this sale can be released.', 409);
     record.lifecycle = { status: command.status, vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
@@ -267,8 +274,13 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const index = rows.findIndex(row => row.id === command.delivery.id);
     if (index < 0) rows.push(clone(command.delivery)); else rows[index] = clone(command.delivery);
     event(record, context, 'document-email-' + command.delivery.status, 'Document email ' + command.delivery.status);
-  } else if (command.action === 'payment') {
+  } else if (command.action === 'payment' || command.action === 'take-deposit') {
     ready(record);
+    if (command.action === 'take-deposit') {
+      if (record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('This sale is already completed.', 409);
+      if (command.payment?.kind !== 'deposit' || command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Confirm a received deposit to reserve this car.');
+      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → API integrations → Sales paperwork first.');
+    }
     const { amount, amountPence } = positiveMoney(command.payment?.amount);
     if (!['pending', 'confirmed'].includes(command.payment?.status) || !['deposit', 'part-payment', 'final-payment'].includes(command.payment?.kind)) throw new SaleWorkspaceError('Check the payment type and status.');
     const method = text(command.payment.method, 100, 'the payment method');
@@ -279,13 +291,33 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     record.payments.push(payment);
     event(record, context, 'payment-recorded', `${payment.status === 'pending' ? 'Pending' : 'Confirmed'} ${payment.kind.replaceAll('-', ' ')}: £${amount} (${payment.date})`);
     if (payment.status === 'confirmed') document = receipt(record, context, payment);
+    if (command.action === 'take-deposit') {
+      record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
+      const agreement = issueDocument(record, context, 'reservation', 'Reservation agreement');
+      agreement.content = context.paperwork!.reservationTerms.trim();
+      const statement = issueDocument(record, context, 'statement', 'Deposit balance statement');
+      record.packDocumentIds = [document!.id, agreement.id, statement.id];
+      event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
+    }
   } else if (command.action === 'confirm') {
     ready(record);
     const payment = record.payments.find(row => row.id === command.paymentId);
     if (!payment || payment.status !== 'pending') throw new SaleWorkspaceError('Only a pending payment can be confirmed.', 409);
+    if (command.reserveVehicle) {
+      if (payment.kind !== 'deposit' || record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('Only an active sale deposit can reserve this car.', 409);
+      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → API integrations → Sales paperwork first.');
+    }
     confirmable(record, payment); payment.status = 'confirmed'; payment.date = receivedDate(command.date ?? payment.date, context.now); payment.recordedBy = context.actor; payment.recordedAt = context.now;
     event(record, context, 'payment-confirmed', `Payment confirmed: £${payment.amount}`);
     document = receipt(record, context, payment);
+    if (command.reserveVehicle) {
+      record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
+      const agreement = issueDocument(record, context, 'reservation', 'Reservation agreement');
+      agreement.content = context.paperwork!.reservationTerms.trim();
+      const statement = issueDocument(record, context, 'statement', 'Deposit balance statement');
+      record.packDocumentIds = [document.id, agreement.id, statement.id];
+      event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
+    }
   } else if (command.action === 'reverse') {
     const original = record.payments.find(row => row.id === command.paymentId);
     if (!original || original.status === 'cancelled' || original.signedAmountPence <= 0 || original.kind === 'refund-correction') throw new SaleWorkspaceError('Choose an active original payment.', 409);
@@ -319,6 +351,23 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     ready(record);
     if (!['invoice', 'statement'].includes(command.type)) throw new SaleWorkspaceError('Choose an invoice or statement.');
     document = issueDocument(record, context, command.type, command.type === 'invoice' ? 'Sales invoice' : 'Balance statement');
+  } else if (command.action === 'complete-sale') {
+    ready(record);
+    if (record.completedAt) throw new SaleWorkspaceError('This sale is already completed. Reopen its saved documents.', 409);
+    if (command.acknowledge !== true) throw new SaleWorkspaceError('Review and confirm the customer, vehicle, payments and terms.');
+    if (saleWorkspaceTotals(record.draft, record.payments).balance !== 0) throw new SaleWorkspaceError('Record the remaining payment or resolve the customer credit before completing this sale.');
+    if (!context.paperwork?.saleTerms.trim()) throw new SaleWorkspaceError('Add approved terms of sale in Settings → API integrations → Sales paperwork first.');
+    const f = record.draft.fulfilment;
+    if (f?.method === 'delivery' && !f.address.trim()) throw new SaleWorkspaceError('Enter the delivery address before completing this sale.');
+    const invoice = issueDocument(record, context, 'invoice', 'Sales invoice');
+    const terms = issueDocument(record, context, 'terms', 'Terms and conditions of sale');
+    terms.content = context.paperwork.saleTerms.trim();
+    const details = issueDocument(record, context, 'vehicle-details', 'Vehicle details and disclosures');
+    record.packDocumentIds = [invoice.id, ...record.documents.filter(d => d.type === 'receipt').map(d => d.id), terms.id, details.id];
+    record.completedAt = context.now;
+    record.lifecycle = { status: 'sold', vehicleId: record.draft.vehicleId, changedAt: context.now };
+    document = invoice;
+    event(record, context, 'sale-completed', 'Sale completed; invoice and document pack issued; vehicle removed from public stock');
   } else if (command.action === 'handover') {
     ready(record);
     if (record.draft.fulfilment?.completedAt) throw new SaleWorkspaceError('Handover is already recorded.', 409);
@@ -364,6 +413,6 @@ export function saleWorkspaceNumber(numbers: Record<string, number>, type: strin
   const sequence = (numbers[key] ?? 0) + 1;
   if (!Number.isSafeInteger(sequence)) throw new SaleWorkspaceError('The document number could not be allocated.', 500);
   numbers[key] = sequence;
-  const prefixes: Record<string, string> = { sale: 'SALE', invoice: 'INV', statement: 'STM', receipt: 'RCP', handover: 'HND' };
+  const prefixes: Record<string, string> = { sale: 'SALE', invoice: 'INV', statement: 'STM', receipt: 'RCP', handover: 'HND', terms: 'TERMS', reservation: 'RES', 'vehicle-details': 'VEH' };
   return `${prefixes[type] ?? type.toUpperCase()}-${year}-${String(sequence).padStart(5, '0')}`;
 }

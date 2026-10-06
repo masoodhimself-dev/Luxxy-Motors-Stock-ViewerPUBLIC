@@ -1,4 +1,5 @@
 // Local network sandbox only. The production entry never imports this file.
+import { previewIntegrationsStore } from './dealer-integrations';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -14,10 +15,10 @@ export type PreviewSalesState = { schemaVersion: 1; sales: SaleWorkspaceRecord[]
 const defaultFilename = fileURLToPath(new URL('../../../.local/sales-workspace-preview.json', import.meta.url));
 export class PreviewSaleWorkspaceStore {
   private queue: Promise<unknown> = Promise.resolve();
-  constructor(private filename = defaultFilename, private assets: (draft: SaleWorkspaceDraft) => Promise<{ branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot }> = async (draft: SaleWorkspaceDraft) => {
+  constructor(private filename = defaultFilename, private assets: (draft: SaleWorkspaceDraft) => Promise<{ branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } }> = async (draft: SaleWorkspaceDraft) => {
     const settings = await readPreviewSettings();
     const vehicle = previewStock.cars.find(car => car.id === draft?.vehicleId);
-    return { branding: saleWorkspaceBranding(settings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage } } : {}) };
+    return { paperwork: await previewIntegrationsStore.readSalesPaperwork(), branding: saleWorkspaceBranding(settings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
   }) {}
   private serial<T>(work: () => Promise<T>): Promise<T> {
     const next = this.queue.then(work, work); this.queue = next.catch(() => {}); return next;
@@ -93,8 +94,8 @@ export class PreviewSaleWorkspaceStore {
         : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(state.numbers, 'sale', now));
       if (!mutation.replayed) {
         if (input.command?.action === 'customer-link' && state.sales.some(s => s.id !== mutation.sale.id && s.customerAccess?.tokenHash === (input.command as { tokenHash: string }).tokenHash)) throw new SaleWorkspaceError('Create a new unique customer link.', 409);
-        if (input.command?.action === 'lifecycle' || input.command?.action === 'handover') {
-          const status = input.command.action === 'handover' ? 'sold' : input.command.status;
+        if (input.command?.action === 'lifecycle' || input.command?.action === 'handover' || input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) {
+          const status = input.command.action === 'take-deposit' || input.command.action === 'confirm' ? 'reserved' : input.command.action === 'handover' || input.command.action === 'complete-sale' ? 'sold' : input.command.status;
           const car = previewStock.cars.find(c => c.id === mutation.sale.draft.vehicleId);
           if (!car) throw new SaleWorkspaceError('Choose a current stock vehicle before changing availability.');
           const competing = state.sales.some(s => s.id !== mutation.sale.id && s.draft.vehicleId === car.id && ['reserved','sold'].includes(s.lifecycle?.status ?? ''));
@@ -113,7 +114,7 @@ export class PreviewSaleWorkspaceStore {
           if (mutation.sale.draft.sourceEnquiryId && state.sales.some(s => s.id !== mutation.sale.id && s.draft.sourceEnquiryId === mutation.sale.draft.sourceEnquiryId)) throw new SaleWorkspaceError('A sale already exists for this enquiry.', 409);
           if (mutation.sale.draft.sourceReservationId && state.sales.some(s => s.id !== mutation.sale.id && s.draft.sourceReservationId === mutation.sale.draft.sourceReservationId)) throw new SaleWorkspaceError('A sale already exists for this reservation.', 409);
         }
-        if (mutation.document) (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
+        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
         if (current) state.sales[state.sales.findIndex(sale => sale.id === current.id)] = mutation.sale; else state.sales.push(mutation.sale);
         await this.save(state);
       }
@@ -189,7 +190,8 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       const mutation = await store.mutate({ id: saleId, command, expectedRevision: input.expectedRevision, requestId: input.requestId });
       send(res, 200, { ...mutation, ...(token ? { customerUrl: `/my-purchase/${token}`, expiresAt: mutation.sale.customerAccess?.expiresAt } : {}) }); return true;
     }
-    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
+    if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms }); return true; }
+    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
     if (!route) throw new SaleWorkspaceError('Sale action not found.', 404);
     const [, id, section, paymentId, action] = route;
     if (req.method === 'GET' && !section) { send(res, 200, id ? { sale: await store.get(id), preview: true } : { sales: await store.list(), preview: true }); return true; }
@@ -199,9 +201,11 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
     if (req.method === 'PUT' && id && !section) command = { action: 'update', draft: input.draft };
     if (req.method === 'POST' && id) {
       if (section === 'payments' && !paymentId) command = { action: 'payment', payment: input.payment };
-      if (section === 'payments' && paymentId && action === 'confirm') command = { action: 'confirm', paymentId, date: input.date };
+      if (section === 'payments' && paymentId && action === 'confirm') command = { action: 'confirm', paymentId, date: input.date, reserveVehicle: input.reserveVehicle === true };
       if (section === 'payments' && paymentId && action === 'reverse') command = { action: 'reverse', paymentId, amount: input.amount, kind: input.kind, reason: input.reason, date: input.date };
       if (section === 'documents') command = { action: 'document', type: input.type };
+      if (section === 'take-deposit') command = { action: 'take-deposit', payment: input.payment };
+      if (section === 'complete-sale') command = { action: 'complete-sale', acknowledge: input.acknowledge };
       if (section === 'handover') command = { action: 'handover', recipient: input.recipient, completedAt: input.completedAt, acknowledgeOutstanding: input.acknowledgeOutstanding };
     }
     if (!id || !command) throw new SaleWorkspaceError('Sale action not found.', 405);

@@ -155,3 +155,39 @@ test('production store loads branding and vehicle facts on its held transaction 
   assert.equal(connectionCalls, 3); assert.equal(outsideQueries, 0); assert.equal(assetQueries.length, 6); assert.equal(held, false);
   assert.equal((await store.list())[0].payments.length, 1); assert.equal(numbers['receipt-2026'], 1);
 });
+
+test('deposit reservation and completion issue frozen packs, require terms and replay without duplicates', () => {
+  const c = { ...context(), paperwork: { saleTerms: 'APPROVED TEST SALE TERMS', reservationTerms: 'APPROVED TEST DEPOSIT TERMS' } };
+  let sale = create();
+  const deposit = { action: 'take-deposit', payment: { amount: '500', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: '' } } as const;
+  assert.throws(() => changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: 'missing-terms' }, context()), /approved reservation terms/);
+  const reserved = changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: 'deposit-and-reserve' }, c);
+  assert.equal(reserved.sale.lifecycle?.status, 'reserved');
+  assert.equal(reserved.sale.documents.length, 3); assert.equal(reserved.sale.packDocumentIds?.length, 3);
+  assert.equal(reserved.sale.documents.find(d => d.type === 'reservation')?.content, 'APPROVED TEST DEPOSIT TERMS');
+  assert.throws(() => changeSaleWorkspace(reserved.sale, { action: 'lifecycle', status: 'released' }, { expectedRevision: reserved.sale.revision, requestId: 'release-paid' }, c), /refund/);
+  assert.throws(() => changeSaleWorkspace(reserved.sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: reserved.sale.revision, requestId: 'finish-unpaid' }, c), /remaining payment/);
+  sale = changeSaleWorkspace(reserved.sale, payment('11500', 'final-payment'), { expectedRevision: reserved.sale.revision, requestId: 'final-payment-new' }, c).sale;
+  const input = { expectedRevision: sale.revision, requestId: 'complete-new-sale' };
+  const finished = changeSaleWorkspace(sale, { action: 'complete-sale', acknowledge: true }, input, c);
+  assert.equal(finished.sale.lifecycle?.status, 'sold'); assert.ok(finished.sale.completedAt); assert.equal(finished.sale.draft.handover, false);
+  assert.equal(finished.sale.documents.find(d => d.type === 'terms')?.content, 'APPROVED TEST SALE TERMS');
+  assert.equal(finished.sale.documents.filter(d => d.type === 'invoice').length, 1);
+  const retry = changeSaleWorkspace(finished.sale, { action: 'complete-sale', acknowledge: true }, input, { ...c, paperwork: { saleTerms: 'CHANGED', reservationTerms: 'CHANGED' } });
+  assert.equal(retry.replayed, true); assert.equal(retry.sale.documents.length, finished.sale.documents.length);
+  assert.throws(() => changeSaleWorkspace(finished.sale, { action: 'update', draft: { ...finished.sale.draft, price: '13000' } }, { expectedRevision: finished.sale.revision, requestId: 'rewrite-completed' }, c), /locked/);
+});
+
+
+test('confirming a pending deposit reserves only with approved terms and creates the receipt pack', () => {
+  const initial = create();
+  const pending = changeSaleWorkspace(initial, payment('500', 'deposit', 'pending'), { expectedRevision: initial.revision, requestId: 'pending-deposit-new' }, context()).sale;
+  const command = { action: 'confirm', paymentId: pending.payments[0].id, reserveVehicle: true } as const;
+  assert.throws(() => changeSaleWorkspace(pending, command, { expectedRevision: pending.revision, requestId: 'confirm-no-terms' }, context()), /approved reservation terms/);
+  assert.equal(pending.payments[0].status, 'pending');
+  const c = { ...context(), paperwork: { saleTerms: 'TEST', reservationTerms: 'APPROVED TEST RESERVATION' } };
+  const reserved = changeSaleWorkspace(pending, command, { expectedRevision: pending.revision, requestId: 'confirm-reserved' }, c).sale;
+  assert.equal(reserved.lifecycle?.status, 'reserved');
+  assert.equal(reserved.documents.length, 3);
+  assert.equal(reserved.documents.find(d => d.type === 'reservation')?.content, c.paperwork.reservationTerms);
+});

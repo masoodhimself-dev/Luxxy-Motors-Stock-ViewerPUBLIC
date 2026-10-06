@@ -865,3 +865,16 @@
     margin-top: 0.5mm;
   }
 }
+.sales-decision-bar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:18px 28px; background:#eef3f6; border-bottom:1px solid #d8e1e7; }
+.sales-decision-bar > div { flex:1; min-width:220px; display:grid; gap:4px; }
+.sales-decision-bar span { font-size:13px; color:#53636f; }
+.sales-completion-summary { display:grid; grid-template-columns:110px 1fr; gap:10px; padding:16px; background:#f2f5f7; border-radius:10px; }
+.sales-completion-summary dt { color:#53636f; }
+.sales-completion-summary dd { font-weight:600; }
+.sales-pack-actions { display:flex; align-items:center; gap:16px; padding:12px 0; }
+.invoice-terms-body { margin:24px 0; line-height:1.65; font-size:12px; overflow-wrap:anywhere; }
+@media(max-width:640px) { .sales-decision-bar { padding:16px; } .sales-decision-bar > button { flex:1; } .sales-pack-actions { flex-direction:column; align-items:flex-start; } }
+@media print { body > .sales-print-copy { break-after:page; } body > .sales-print-copy:last-child { break-after:auto; } .invoice-terms-body { white-space:pre-wrap; } }
+.sales-optional-panel { margin:20px 0; border:1px solid #d8e1e7; border-radius:10px; padding:14px; }
+.sales-optional-panel > summary { cursor:pointer; font-weight:600; color:#253b4c; }
+.sales-optional-panel[open] > summary { margin-bottom:16px; }

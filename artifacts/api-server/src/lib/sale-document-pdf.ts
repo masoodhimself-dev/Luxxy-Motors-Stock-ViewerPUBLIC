@@ -25,6 +25,9 @@ export function saleDocumentPdf(input: SaleWorkspaceDocument): Buffer {
   line(draft.vehicle, 12, true); if (draft.registration) line('Registration: ' + draft.registration);
   const v = d.snapshot.vehicle;
   if (v) line([v.year, v.fuel, v.transmission, typeof v.mileage === 'number' ? `${v.mileage.toLocaleString('en-GB')} miles` : ''].filter(Boolean).join(' | ')); y += 5;
+  if (d.content) { line(d.title, 12, true); for (const paragraph of d.content.split('\n')) line(paragraph); y += 5; }
+  if (d.type === 'vehicle-details') for (const [key, value] of Object.entries(v ?? {})) if (key !== 'id' && value != null && value !== '') line(`${key}: ${value}`);
+  if (draft.notes && d.type === 'vehicle-details') line(draft.notes);
   line('Sale breakdown', 12, true); line('Vehicle price: ' + money(t.price));
   for (const a of draft.adjustments ?? []) line(`${a.description}: ${money(Number(a.amount) * 100 * (a.kind === 'discount' ? -1 : 1))}`);
   for (const px of draft.exchanges ?? []) line(`Part exchange ${px.registration} ${px.description}: -${money(Number(px.value) * 100)}`);
@@ -36,6 +39,7 @@ export function saleDocumentPdf(input: SaleWorkspaceDocument): Buffer {
   if (typeof d.paymentAmountPence === 'number') line('This receipt: ' + money(d.paymentAmountPence), 12, true);
   const f = draft.fulfilment;
   if (f) { y += 5; line(f.method === 'delivery' ? 'Delivery arrangements' : 'Collection arrangements', 12, true); line([f.scheduledDate, f.timeWindow].filter(Boolean).join(' | ')); if (f.address) line(f.address); if (f.completedAt) line(`Completed ${f.completedAt.slice(0, 10)} | ${f.completedRecipient ?? ''}`); }
+  if (['terms', 'reservation'].includes(d.type)) { y += 8; line('Customer signature: ____________________  Date: __________'); line('Dealer signature: ____________________  Date: __________'); }
   y += 5; line([b.legal.companyName, b.legal.companyNumber ? `Company ${b.legal.companyNumber}` : '', b.legal.vatNumber ? `VAT ${b.legal.vatNumber}` : ''].filter(Boolean).join(' | '), 9);
   return Buffer.from(pdf.output('arraybuffer'));
 }

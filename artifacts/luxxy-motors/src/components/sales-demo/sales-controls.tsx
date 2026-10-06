@@ -63,6 +63,7 @@ export function PaymentDialog({
   onClose,
   onSave,
   pending,
+  initialKind,
 }: {
   balance: number;
   hasPayments: boolean;
@@ -71,19 +72,20 @@ export function PaymentDialog({
   onClose: () => void;
   onSave: (payment: SaleWorkspacePaymentInput) => void;
   pending?: SaleWorkspacePayment;
+  initialKind?: 'deposit' | 'part-payment' | 'final-payment';
 }) {
   const [form, setForm] = useState<SaleWorkspacePaymentInput>({
-    amount: pending?.amount ?? "",
+    amount: pending?.amount ?? (initialKind === 'final-payment' ? (balance / 100).toFixed(2) : ''),
     method: pending?.method ?? "Bank transfer",
     date: pending ? todayLondon() : todayLondon(),
     reference: pending?.reference ?? "",
-    kind:
+    kind: initialKind ?? (
       pending?.kind === "deposit"
         ? "deposit"
         : hasPayments
           ? "part-payment"
-          : "deposit",
-    status: "pending",
+          : "deposit"),
+    status: pending ? 'pending' : 'confirmed',
   });
   const confirmed = form.status === "confirmed";
   const valid =
@@ -535,6 +537,7 @@ export function PaymentLedger({
 }
 
 export function DeliveryPanel({
+  saleCompleted = false,
   draft,
   busy,
   onChange,
@@ -542,6 +545,7 @@ export function DeliveryPanel({
   onReview,
 }: {
   draft: SaleDraft;
+  saleCompleted?: boolean;
   busy: boolean;
   onChange: (value: SaleWorkspaceFulfilment) => void;
   onComplete: () => void;
@@ -720,10 +724,10 @@ export function DeliveryPanel({
       {!value.completedAt && (
         <Button
           className="sales-primary-action mt-6"
-          disabled={busy}
+          disabled={busy || !saleCompleted}
           onClick={onComplete}
         >
-          {delivery ? "Mark delivered" : "Mark collected"}
+          {!saleCompleted ? "Complete the sale before recording handover" : delivery ? "Mark delivered" : "Mark collected"}
         </Button>
       )}
     </div>

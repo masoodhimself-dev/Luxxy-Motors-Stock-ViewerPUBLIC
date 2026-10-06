@@ -1,9 +1,10 @@
+import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
 import { archiveSaleDocument } from './sale-document-pdf';
 import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
 import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
 
-export type SaleWorkspaceAssets = { branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot };
+export type SaleWorkspaceAssets = { branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } };
 export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
 export type SaleWorkspaceTransactionClient = SaleWorkspaceReadClient & { release: () => void };
 export type SaleWorkspaceDatabase = SaleWorkspaceReadClient & { connect: () => Promise<SaleWorkspaceTransactionClient> };
@@ -13,9 +14,9 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
   const settings = await client.query('SELECT config FROM dealer_settings WHERE dealer_id = $1', [dealerId]);
   const validVehicleId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft?.vehicleId ?? '');
   const vehicle = validVehicleId
-    ? (await client.query("SELECT id, coalesce(website_title_override, title, '') AS title, year, fuel, transmission, mileage FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid", [dealerId, draft.vehicleId])).rows[0]
+    ? (await client.query("SELECT id, coalesce(website_title_override, title, '') AS title, year, fuel, transmission, mileage, colour, owners, write_off_category, website_description, raw_source_data FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid", [dealerId, draft.vehicleId])).rows[0]
     : undefined;
-  return { branding: saleWorkspaceBranding(settings.rows[0]?.config), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage } } : {}) };
+  return { paperwork: await dealerIntegrationsStore.readSalesPaperwork(), branding: saleWorkspaceBranding(settings.rows[0]?.config), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.write_off_category, description: vehicle.website_description || vehicle.raw_source_data?.sourceExtras?.description || null, serviceHistory: typeof vehicle.raw_source_data?.sourceExtras?.serviceHistory === 'string' ? vehicle.raw_source_data.sourceExtras.serviceHistory : vehicle.raw_source_data?.sourceExtras?.historyExtras?.serviceHistory?.description || null } } : {}) };
 }
 
 export class PostgresSaleWorkspaceStore {
@@ -155,11 +156,12 @@ export class PostgresSaleWorkspaceStore {
           if (collision.rows.length) throw new SaleWorkspaceError('Create a new unique customer link.', 409);
         }
         if (input.command?.action === 'lifecycle') await this.stock(mutation.sale, input.command.status, client, input.actor);
+        if (input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) await this.stock(mutation.sale, input.command.action === 'complete-sale' ? 'sold' : 'reserved', client, input.actor);
         if (input.command?.action === 'handover') {
           await this.stock(mutation.sale, 'sold', client, input.actor);
           mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
         }
-        if (mutation.document) (mutation.sale.documentArchives ??= {})[mutation.document.id] = archiveSaleDocument(mutation.document);
+        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
         await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, this.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
         await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [this.dealerId, JSON.stringify(numbers)]);
       }

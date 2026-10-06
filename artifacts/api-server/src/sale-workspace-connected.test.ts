@@ -40,7 +40,7 @@ function fixture() {
     const before = { records: clone([...records.entries()]), numbers: clone(numbers), vehicle: clone(vehicle) };
     return { query: async (q, p) => { if (q === 'ROLLBACK') { records = new Map(before.records); numbers = before.numbers; vehicle = before.vehicle; } return query(q, p); }, release: () => {} };
   } };
-  const store = new PostgresSaleWorkspaceStore('fixture-dealer', (d, client) => readSaleWorkspaceAssets(d, 'fixture-dealer', client), database);
+  const store = new PostgresSaleWorkspaceStore('fixture-dealer', async (d, client) => ({ ...await readSaleWorkspaceAssets(d, 'fixture-dealer', client), paperwork: { saleTerms: 'TEST APPROVED TERMS', reservationTerms: 'TEST APPROVED RESERVATION' } }), database);
   return { database, store, vehicle: () => clone(vehicle), statements };
 }
 
@@ -124,4 +124,22 @@ test('email acceptance merges into the current revision without overwriting a co
   const paid = await f.store.mutate({ id: a.id, expectedRevision: a.revision, requestId: randomUUID(), actor: 'Other staff', command: { action: 'payment', payment: { amount: '500', method: 'Cash', date, reference: '', kind: 'deposit', status: 'confirmed' } } });
   const finished = await f.store.finishEmail(a.id, 'email-finish-test', { action: 'email-status', delivery: { ...delivery, status: 'sent', sentAt: new Date().toISOString(), providerId: 'resend-test' } }, 'Staff');
   assert.equal(finished.sale.revision, paid.sale.revision + 1); assert.equal(finished.sale.payments.length, 1); assert.equal(finished.sale.documents.length, 2); assert.equal(finished.sale.emailDeliveries?.[0].status, 'sent');
+});
+
+test('deposit and completion atomically update stock and archives; stock conflict rolls back payment and numbering', async () => {
+  const f = fixture();
+  const a = (await f.store.mutate({ requestId: randomUUID(), draft: draft(), actor: 'Staff' })).sale;
+  const b = (await f.store.mutate({ requestId: randomUUID(), draft: draft(), actor: 'Other staff' })).sale;
+  const payment = { amount: '500', method: 'Cash', date: new Date().toISOString().slice(0,10), reference: '', kind: 'deposit', status: 'confirmed' } as const;
+  const reserved = await f.store.mutate({ id: a.id, requestId: randomUUID(), expectedRevision: a.revision, actor: 'Staff', command: { action: 'take-deposit', payment } });
+  assert.equal(f.vehicle().inventory_status, 'reserved'); assert.equal(reserved.sale.documents.length, 3);
+  await assert.rejects(f.store.mutate({ id: b.id, requestId: randomUUID(), expectedRevision: b.revision, actor: 'Other staff', command: { action: 'take-deposit', payment } }), /another customer/);
+  assert.equal((await f.store.get(b.id)).payments.length, 0);
+  const paid = await f.store.mutate({ id: a.id, requestId: randomUUID(), expectedRevision: reserved.sale.revision, actor: 'Staff', command: { action: 'payment', payment: { ...payment, amount: '11500', kind: 'final-payment' } } });
+  const requestId = randomUUID();
+  const finished = await f.store.mutate({ id: a.id, requestId, expectedRevision: paid.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
+  assert.equal(f.vehicle().inventory_status, 'sold'); assert.ok(finished.sale.completedAt); assert.equal(finished.sale.draft.fulfilment?.completedAt, undefined);
+  for (const id of finished.sale.packDocumentIds!) assert.ok((await f.store.pdf(a.id, id)).archive.content);
+  const retry = await f.store.mutate({ id: a.id, requestId, expectedRevision: paid.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
+  assert.equal(retry.replayed, true); assert.equal(retry.sale.documents.length, finished.sale.documents.length);
 });

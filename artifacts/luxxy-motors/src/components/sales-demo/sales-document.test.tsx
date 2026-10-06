@@ -253,19 +253,60 @@ describe("issued sale documents", () => {
   });
 
   it("identifies a refund correction as restored funds and shows customer credit", () => {
-    const doc = document({ title: "Refund correction receipt", paymentId: "refund-correction", paymentAmountPence: 100000, balanceAtIssue: -100000 });
+    const doc = document({
+      title: "Refund correction receipt",
+      paymentId: "refund-correction",
+      paymentAmountPence: 100000,
+      balanceAtIssue: -100000,
+    });
     doc.snapshot.draft.price = "1000";
     doc.snapshot.payments = [
-      payment({ amount: "1000", amountPence: 100000, signedAmountPence: 100000 }),
-      payment({ id: "refund", kind: "refund", amount: "1000", amountPence: 100000, signedAmountPence: -100000 }),
-      payment({ id: "later-payment", kind: "final-payment", amount: "1000", amountPence: 100000, signedAmountPence: 100000 }),
-      payment({ id: "refund-correction", kind: "refund-correction", amount: "1000", amountPence: 100000, signedAmountPence: 100000, reason: "The provider refund failed. No new payment was charged." }),
+      payment({
+        amount: "1000",
+        amountPence: 100000,
+        signedAmountPence: 100000,
+      }),
+      payment({
+        id: "refund",
+        kind: "refund",
+        amount: "1000",
+        amountPence: 100000,
+        signedAmountPence: -100000,
+      }),
+      payment({
+        id: "later-payment",
+        kind: "final-payment",
+        amount: "1000",
+        amountPence: 100000,
+        signedAmountPence: 100000,
+      }),
+      payment({
+        id: "refund-correction",
+        kind: "refund-correction",
+        amount: "1000",
+        amountPence: 100000,
+        signedAmountPence: 100000,
+        reason: "The provider refund failed. No new payment was charged.",
+      }),
     ];
-    doc.snapshot.totals = { price: 100000, allowance: 0, adjustments: 0, totalDue: 100000, deposit: 200000, confirmedPaid: 200000, pending: 0, balance: -100000 };
+    doc.snapshot.totals = {
+      price: 100000,
+      allowance: 0,
+      adjustments: 0,
+      totalDue: 100000,
+      deposit: 200000,
+      confirmedPaid: 200000,
+      pending: 0,
+      balance: -100000,
+    };
     render(<SalesDocument issuedDocument={doc} />);
     expect(screen.getByText("Refund amount restored")).toBeInTheDocument();
     expect(screen.getByText("Customer credit at issue")).toBeInTheDocument();
-    expect(screen.getByText("The provider refund failed. No new payment was charged.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The provider refund failed. No new payment was charged.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Payment received")).not.toBeInTheDocument();
   });
 
@@ -327,5 +368,30 @@ describe("issued sale documents", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Draft preview")).toBeInTheDocument();
     expect(screen.queryByText("Issued document")).not.toBeInTheDocument();
+  });
+});
+
+describe("approved agreement documents", () => {
+  it("prints the frozen approved wording, identity and signature spaces without invoice wording", () => {
+    const doc = document({
+      type: "terms",
+      title: "Terms and conditions of sale",
+      content: "Approved wording supplied by the dealership.",
+    });
+    render(<SalesDocument issuedDocument={doc} />);
+    expect(
+      screen.getByText("Approved wording supplied by the dealership."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Customer signature:/)).toBeInTheDocument();
+    expect(screen.queryByText(/This invoice records/)).not.toBeInTheDocument();
+  });
+  it("omits absent vehicle facts instead of inventing them", () => {
+    const doc = document({
+      type: "vehicle-details",
+      title: "Vehicle details and disclosures",
+    });
+    render(<SalesDocument issuedDocument={doc} />);
+    expect(screen.getByText("Supplied vehicle facts")).toBeInTheDocument();
+    expect(screen.queryByText(/write off category/i)).not.toBeInTheDocument();
   });
 });

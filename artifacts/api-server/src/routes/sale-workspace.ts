@@ -1,3 +1,4 @@
+import { dealerIntegrationsStore } from '../lib/dealer-integrations-store';
 import { createHash, randomBytes } from 'node:crypto';
 import { siteUrl } from '../lib/enquiry-links';
 import { sendTemplatedEmail } from '../lib/email-provider';
@@ -28,6 +29,7 @@ router.use('/sale-workspace', requireStaff, (req, res, next) => {
 router.get('/sale-workspace', async (req, res) => {
   try { res.json({ sales: await store().list(), preview: false }); } catch (error) { failure(req, res, error); }
 });
+router.get('/sale-workspace/paperwork', async (req, res) => { try { const p = await dealerIntegrationsStore.readSalesPaperwork(); res.json({ saleTerms: p.saleTerms, reservationTerms: p.reservationTerms }); } catch (error) { failure(req, res, error); } });
 router.get('/sale-workspace/:id', async (req, res) => {
   try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404); res.json({ sale: await store().get(req.params.id), preview: false }); } catch (error) { failure(req, res, error); }
 });
@@ -47,9 +49,11 @@ async function mutate(req: Request, res: Response, command: SaleWorkspaceCommand
 }
 router.put('/sale-workspace/:id', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'update', draft: req.body?.draft }); });
 router.post('/sale-workspace/:id/payments', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'payment', payment: req.body?.payment }); });
-router.post('/sale-workspace/:id/payments/:paymentId/confirm', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'confirm', paymentId: String(req.params.paymentId), date: req.body?.date }); });
+router.post('/sale-workspace/:id/payments/:paymentId/confirm', requirePermission('payments.record'), (req, res, next) => req.body?.reserveVehicle === true ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'confirm', paymentId: String(req.params.paymentId), date: req.body?.date, reserveVehicle: req.body?.reserveVehicle === true }); });
 router.post('/sale-workspace/:id/payments/:paymentId/reverse', requirePermission('payments.refund'), async (req, res) => { await mutate(req, res, { action: 'reverse', paymentId: String(req.params.paymentId), amount: req.body?.amount, kind: req.body?.kind, reason: req.body?.reason, date: req.body?.date }); });
 router.post('/sale-workspace/:id/documents', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'document', type: req.body?.type }); });
+router.post('/sale-workspace/:id/take-deposit', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'take-deposit', payment: req.body?.payment }); });
+router.post('/sale-workspace/:id/complete-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'complete-sale', acknowledge: req.body?.acknowledge }); });
 router.post('/sale-workspace/:id/handover', requirePermission('sales.handover'), async (req, res) => { await mutate(req, res, { action: 'handover', recipient: req.body?.recipient, completedAt: req.body?.completedAt, acknowledgeOutstanding: req.body?.acknowledgeOutstanding }); });
 router.post('/sale-workspace/:id/lifecycle', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'lifecycle', status: req.body?.status }); });
 router.post('/sale-workspace/:id/customer-links', requirePermission('sales.manage'), async (req, res) => {

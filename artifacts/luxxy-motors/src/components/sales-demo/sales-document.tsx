@@ -717,7 +717,11 @@ function IssuedBalanceSummary({
         )}
       </dl>
       <div className="invoice-balance">
-        <span>{document.balanceAtIssue < 0 ? "Customer credit at issue" : "Balance remaining at issue"}</span>
+        <span>
+          {document.balanceAtIssue < 0
+            ? "Customer credit at issue"
+            : "Balance remaining at issue"}
+        </span>
         <strong>{money(Math.abs(document.balanceAtIssue))}</strong>
         {document.balanceAtIssue === 0 && <small>Balance paid in full</small>}
       </div>
@@ -839,7 +843,11 @@ function IssuedDocumentFooter({
             ? "This statement records the sale balance at the date shown. Pending payments do not reduce the balance."
             : document.type === "handover"
               ? "Handover and payment status are recorded separately. Any outstanding balance is shown above."
-              : "This invoice records the agreed sale details at issue. Separate receipts record payments received."}
+              : ["terms", "reservation"].includes(document.type)
+                ? "This document preserves the approved wording and sale details at the time of issue."
+                : document.type === "vehicle-details"
+                  ? "This record contains supplied vehicle information at the time of issue."
+                  : "This invoice records the agreed sale details at issue. Separate receipts record payments received."}
       </p>
       <p>Issued by showroom staff.</p>
       <div className="invoice-footer-reference">
@@ -858,6 +866,74 @@ function IssuedSalesDocument({
   document: SaleWorkspaceDocument;
 }) {
   const { draft, branding, totals: amount } = document.snapshot;
+  if (["terms", "reservation", "vehicle-details"].includes(document.type))
+    return (
+      <article
+        className="sales-document invoice-sheet invoice-issued"
+        aria-label={document.title}
+      >
+        <header className="invoice-header">
+          <div>
+            <h2>{branding.identity.name}</h2>
+            <p>
+              {document.number} · {draft.id}
+            </p>
+          </div>
+          <div>
+            <h1>{document.title}</h1>
+            <p>
+              Issued {new Date(document.issuedAt).toLocaleDateString("en-GB")}
+            </p>
+          </div>
+        </header>
+        <section className="invoice-parties">
+          <div>
+            <h3>Customer</h3>
+            <p>{draft.customer}</p>
+            <p className="whitespace-pre-line">{draft.address}</p>
+          </div>
+          <div>
+            <h3>Vehicle</h3>
+            <p>{draft.vehicle}</p>
+            {draft.registration && <p>{draft.registration}</p>}
+          </div>
+        </section>
+        {document.content && (
+          <section className="invoice-terms-body whitespace-pre-wrap">
+            {document.content}
+          </section>
+        )}
+        {document.type === "vehicle-details" && (
+          <section className="invoice-terms-body">
+            <h3>Supplied vehicle facts</h3>
+            {Object.entries(document.snapshot.vehicle ?? {})
+              .filter(
+                ([key, value]) => key !== "id" && value != null && value !== "",
+              )
+              .map(([key, value]) => (
+                <p key={key}>
+                  <strong>{key.replace(/([A-Z])/g, " $1")}: </strong>
+                  {String(value)}
+                </p>
+              ))}
+            {draft.notes && (
+              <p className="whitespace-pre-wrap">{draft.notes}</p>
+            )}
+          </section>
+        )}
+        <p className="invoice-terms-body">
+          Total due: {money(amount.totalDue)} · Balance at issue:{" "}
+          {money(document.balanceAtIssue)}
+        </p>
+        {["terms", "reservation"].includes(document.type) && (
+          <section className="invoice-terms-body">
+            <p>Customer signature: ____________________ Date: __________</p>
+            <p>Dealer signature: ____________________ Date: __________</p>
+          </section>
+        )}
+        <IssuedDocumentFooter document={document} />
+      </article>
+    );
   const receipt = document.type === "receipt";
   const statement = document.type === "statement";
   const handover = document.type === "handover";
@@ -867,7 +943,9 @@ function IssuedSalesDocument({
       )
     : undefined;
   const adjustmentReceipt =
-    payment?.kind === "refund" || payment?.kind === "reversal" || payment?.kind === "refund-correction";
+    payment?.kind === "refund" ||
+    payment?.kind === "reversal" ||
+    payment?.kind === "refund-correction";
   const confirmedPayments = document.snapshot.payments.filter(
     (row) => row.status === "confirmed",
   );
@@ -1025,11 +1103,11 @@ function IssuedSalesDocument({
                               ? "Reversal"
                               : row.kind === "refund-correction"
                                 ? "Refund correction"
-                              : row.kind === "deposit"
-                                ? "Deposit"
-                                : row.kind === "final-payment"
-                                  ? "Final payment"
-                                  : "Part payment"}
+                                : row.kind === "deposit"
+                                  ? "Deposit"
+                                  : row.kind === "final-payment"
+                                    ? "Final payment"
+                                    : "Part payment"}
                           {supplied(row.reference) && ` · ${row.reference}`}
                         </small>
                         {supplied(row.reason) && <small>{row.reason}</small>}

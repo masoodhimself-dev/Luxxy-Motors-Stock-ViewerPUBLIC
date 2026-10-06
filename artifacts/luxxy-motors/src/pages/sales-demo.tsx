@@ -1,3 +1,4 @@
+import { CompleteSaleDialog } from "@/components/sales-demo/complete-sale-dialog";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,8 +21,11 @@ import {
   HandoverDialog,
   salePaymentState,
 } from "@/components/sales-demo/sales-controls";
-import { SalesConnections, DocumentDelivery } from "@/components/sales-demo/sales-connections";
-import { HistoryLinks } from '@/components/portal/history-links';
+import {
+  SalesConnections,
+  DocumentDelivery,
+} from "@/components/sales-demo/sales-connections";
+import { HistoryLinks } from "@/components/portal/history-links";
 import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft,
@@ -132,8 +136,12 @@ export function SalesWorkspace({
   const sourceCustomers = [
     ...(enquiries.data ?? []).map((item) => ({
       id: "Enquiry " + item.reference,
-      sourceEnquiryId: item.id, sourceReservationId: "",
-      vehicleId: item.vehicleId ?? "", vehicle: item.vehicleTitle ?? "", registration: item.vehicleRegistration ?? "", price: item.vehiclePrice ? String(item.vehiclePrice) : "",
+      sourceEnquiryId: item.id,
+      sourceReservationId: "",
+      vehicleId: item.vehicleId ?? "",
+      vehicle: item.vehicleTitle ?? "",
+      registration: item.vehicleRegistration ?? "",
+      price: item.vehiclePrice ? String(item.vehiclePrice) : "",
       name: item.customerName,
       email: item.email ?? "",
       phone: item.phone ?? "",
@@ -141,16 +149,22 @@ export function SalesWorkspace({
     })),
     ...(reservations.data?.reservations ?? []).map((item) => ({
       id: "Reservation " + item.reference,
-      sourceEnquiryId: "", sourceReservationId: item.id,
-      vehicleId: item.vehicleId, vehicle: item.vehicleTitle, registration: item.vehicleRegistration ?? "", price: stock?.cars.find(car => car.id === item.vehicleId)?.price ? String(stock!.cars.find(car => car.id === item.vehicleId)!.price) : "",
+      sourceEnquiryId: "",
+      sourceReservationId: item.id,
+      vehicleId: item.vehicleId,
+      vehicle: item.vehicleTitle,
+      registration: item.vehicleRegistration ?? "",
+      price: stock?.cars.find((car) => car.id === item.vehicleId)?.price
+        ? String(stock!.cars.find((car) => car.id === item.vehicleId)!.price)
+        : "",
       name: item.customerName,
       email: item.email,
       phone: item.phone,
       date: item.createdAt,
     })),
-  ]
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const recentCustomers = sourceCustomers.filter((item) =>
+  ].sort((a, b) => b.date.localeCompare(a.date));
+  const recentCustomers = sourceCustomers
+    .filter((item) =>
       `${item.name} ${item.email} ${item.phone} ${item.id}`
         .toLowerCase()
         .includes(customerSearch.toLowerCase()),
@@ -177,6 +191,18 @@ export function SalesWorkspace({
   const retryIds = useRef(new Map<string, string>());
   const [actionProblem, setActionProblem] = useState("");
   const [paymentDialog, setPaymentDialog] = useState(false);
+  const [paymentIntent, setPaymentIntent] = useState<
+    "deposit" | "part-payment" | "final-payment"
+  >();
+  const [completeDialog, setCompleteDialog] = useState(false);
+  const paperworkQuery = useQuery({
+    queryKey: ["sale-paperwork"],
+    queryFn: () =>
+      customFetch<{ saleTerms: string; reservationTerms: string }>(
+        "/api/sale-workspace/paperwork",
+      ),
+    refetchOnWindowFocus: true,
+  });
   const [pendingConfirmation, setPendingConfirmation] = useState<
     SaleWorkspacePayment | undefined
   >();
@@ -245,7 +271,8 @@ export function SalesWorkspace({
     if (operationLock.current) return;
     setRecord(saved ?? null);
     setSelectedDocumentId(null);
-    setCustomerUrl(""); linkRequest.current = null;
+    setCustomerUrl("");
+    linkRequest.current = null;
     setDraft(structuredClone(sale));
     setSnapshot(JSON.stringify(sale));
     setTab(0);
@@ -266,23 +293,69 @@ export function SalesWorkspace({
     const params = new URLSearchParams(searchParams);
     // History also deep-links to enquiries and reservations. A hidden sale
     // workspace must never interpret those links as a request to start a sale.
-    if (embedded && params.get('section') !== 'sales') return;
-    const sourceEnquiryId = params.get('enquiryId') ?? '', sourceReservationId = params.get('reservationId') ?? '', saleId = params.get('saleId') ?? '';
-    const key = [sourceEnquiryId, sourceReservationId, saleId].join(':');
-    if (key === '::' || consumedSource.current === key || salesQuery.isLoading || operationLock.current) return;
-    if (dirty && !window.confirm('Leave without saving these changes?')) { consumedSource.current = key; return; }
-    const existing = records.find(s => saleId ? s.id === saleId : sourceEnquiryId ? s.draft.sourceEnquiryId === sourceEnquiryId : s.draft.sourceReservationId === sourceReservationId);
-    if (existing) { consumedSource.current = key; open(existing.draft, existing); return; }
+    if (embedded && params.get("section") !== "sales") return;
+    const sourceEnquiryId = params.get("enquiryId") ?? "",
+      sourceReservationId = params.get("reservationId") ?? "",
+      saleId = params.get("saleId") ?? "";
+    const key = [sourceEnquiryId, sourceReservationId, saleId].join(":");
+    if (
+      key === "::" ||
+      consumedSource.current === key ||
+      salesQuery.isLoading ||
+      operationLock.current
+    )
+      return;
+    if (dirty && !window.confirm("Leave without saving these changes?")) {
+      consumedSource.current = key;
+      return;
+    }
+    const existing = records.find((s) =>
+      saleId
+        ? s.id === saleId
+        : sourceEnquiryId
+          ? s.draft.sourceEnquiryId === sourceEnquiryId
+          : s.draft.sourceReservationId === sourceReservationId,
+    );
+    if (existing) {
+      consumedSource.current = key;
+      open(existing.draft, existing);
+      return;
+    }
     if (saleId) return;
-    const source = sourceCustomers.find(item => sourceEnquiryId ? item.sourceEnquiryId === sourceEnquiryId : item.sourceReservationId === sourceReservationId);
+    const source = sourceCustomers.find((item) =>
+      sourceEnquiryId
+        ? item.sourceEnquiryId === sourceEnquiryId
+        : item.sourceReservationId === sourceReservationId,
+    );
     if (!source) return;
     consumedSource.current = key;
-    const car = stock?.cars.find(c => c.id === source.vehicleId);
-    open({ ...emptyDraft(), customer: source.name, email: source.email, phone: source.phone, customerSource: source.id,
-      sourceEnquiryId: source.sourceEnquiryId, sourceReservationId: source.sourceReservationId,
-      vehicleId: source.vehicleId, vehicle: source.vehicle || (car ? vehicleDisplayTitle(car) : ''), registration: source.registration || (car ? vehicleRegistration(car) : ''), price: source.price || (car?.price ? String(car.price) : '') });
-    setMessage('Source linked. Check the agreed sale details before saving. Payments are recorded separately.');
-  }, [searchParams, salesQuery.data, enquiries.data, reservations.data, stock, busy, embedded]);
+    const car = stock?.cars.find((c) => c.id === source.vehicleId);
+    open({
+      ...emptyDraft(),
+      customer: source.name,
+      email: source.email,
+      phone: source.phone,
+      customerSource: source.id,
+      sourceEnquiryId: source.sourceEnquiryId,
+      sourceReservationId: source.sourceReservationId,
+      vehicleId: source.vehicleId,
+      vehicle: source.vehicle || (car ? vehicleDisplayTitle(car) : ""),
+      registration:
+        source.registration || (car ? vehicleRegistration(car) : ""),
+      price: source.price || (car?.price ? String(car.price) : ""),
+    });
+    setMessage(
+      "Source linked. Check the agreed sale details before saving. Payments are recorded separately.",
+    );
+  }, [
+    searchParams,
+    salesQuery.data,
+    enquiries.data,
+    reservations.data,
+    stock,
+    busy,
+    embedded,
+  ]);
   const update = <K extends keyof SaleDraft>(key: K, value: SaleDraft[K]) => {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
     setMessage("");
@@ -395,39 +468,93 @@ export function SalesWorkspace({
       }),
     );
   };
-  const createCustomerLink = () => void run(async () => {
-    const saved = await saveInternal();
-    if (!linkRequest.current) {
-      const bytes = crypto.getRandomValues(new Uint8Array(32));
-      linkRequest.current = { token: Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''), expiresAt: new Date(Date.now() + 30 * 86400000).toISOString() };
-    }
-    const payload = { expectedRevision: saved.revision, days: 30, ...linkRequest.current };
-    const key = JSON.stringify(payload); const requestId = retryIds.current.get(key) ?? saleRequestId(); retryIds.current.set(key, requestId);
-    const result = await customFetch<SaleWorkspaceMutation & { customerUrl: string }>(`/api/sale-workspace/${saved.id}/customer-links`, { method: 'POST', body: JSON.stringify({ ...payload, requestId }) });
-    accept(result); retryIds.current.delete(key); linkRequest.current = null;
-    setCustomerUrl(new URL(import.meta.env.BASE_URL.replace(/\/$/, "") + result.customerUrl, window.location.origin).href); setMessage('Customer link created. Share it with this buyer.');
-  });
-  const emailCustomerLink = () => void run(async () => {
-    if (!customerUrl) return;
-    const saved = await saveInternal(); const token = new URL(customerUrl).pathname.split('/').pop();
-    accept(await request(`/api/sale-workspace/${saved.id}/customer-links/email`, 'POST', { expectedRevision: saved.revision, token }));
-    setMessage('Customer link email status updated.');
-  });
-  const updateLifecycle = (status: 'reserved' | 'sold' | 'released') => void run(async () => {
-    await command('/lifecycle', { status }); await queryClient.invalidateQueries({ queryKey: getGetStockQueryKey() });
-    setMessage(status === 'released' ? 'Reservation released. Stock availability updated.' : `Vehicle marked ${status}. Stock availability updated.`);
-  });
-  const emailDocument = () => void run(async () => {
-    if (!record || !selectedDocument) return;
-    const saved = await saveInternal();
-    const result = await request(`/api/sale-workspace/${saved.id}/documents/${selectedDocument.id}/email`, 'POST', { expectedRevision: saved.revision });
-    accept(result); setMessage('Document email status updated.');
-  });
-  const downloadDocument = () => void run(async () => {
-    if (!record || !selectedDocument) return;
-    const response = await customFetch<Blob>(`/api/sale-workspace/${record.id}/documents/${selectedDocument.id}/pdf`, { responseType: 'blob' });
-    const url = URL.createObjectURL(response); const a = window.document.createElement('a'); a.href = url; a.download = selectedDocument.number + '.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000);
-  });
+  const createCustomerLink = () =>
+    void run(async () => {
+      const saved = await saveInternal();
+      if (!linkRequest.current) {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        linkRequest.current = {
+          token: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+            "",
+          ),
+          expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+        };
+      }
+      const payload = {
+        expectedRevision: saved.revision,
+        days: 30,
+        ...linkRequest.current,
+      };
+      const key = JSON.stringify(payload);
+      const requestId = retryIds.current.get(key) ?? saleRequestId();
+      retryIds.current.set(key, requestId);
+      const result = await customFetch<
+        SaleWorkspaceMutation & { customerUrl: string }
+      >(`/api/sale-workspace/${saved.id}/customer-links`, {
+        method: "POST",
+        body: JSON.stringify({ ...payload, requestId }),
+      });
+      accept(result);
+      retryIds.current.delete(key);
+      linkRequest.current = null;
+      setCustomerUrl(
+        new URL(
+          import.meta.env.BASE_URL.replace(/\/$/, "") + result.customerUrl,
+          window.location.origin,
+        ).href,
+      );
+      setMessage("Customer link created. Share it with this buyer.");
+    });
+  const emailCustomerLink = () =>
+    void run(async () => {
+      if (!customerUrl) return;
+      const saved = await saveInternal();
+      const token = new URL(customerUrl).pathname.split("/").pop();
+      accept(
+        await request(
+          `/api/sale-workspace/${saved.id}/customer-links/email`,
+          "POST",
+          { expectedRevision: saved.revision, token },
+        ),
+      );
+      setMessage("Customer link email status updated.");
+    });
+  const updateLifecycle = (status: "reserved" | "sold" | "released") =>
+    void run(async () => {
+      await command("/lifecycle", { status });
+      await queryClient.invalidateQueries({ queryKey: getGetStockQueryKey() });
+      setMessage(
+        status === "released"
+          ? "Reservation released. Stock availability updated."
+          : `Vehicle marked ${status}. Stock availability updated.`,
+      );
+    });
+  const emailDocument = () =>
+    void run(async () => {
+      if (!record || !selectedDocument) return;
+      const saved = await saveInternal();
+      const result = await request(
+        `/api/sale-workspace/${saved.id}/documents/${selectedDocument.id}/email`,
+        "POST",
+        { expectedRevision: saved.revision },
+      );
+      accept(result);
+      setMessage("Document email status updated.");
+    });
+  const downloadDocument = () =>
+    void run(async () => {
+      if (!record || !selectedDocument) return;
+      const response = await customFetch<Blob>(
+        `/api/sale-workspace/${record.id}/documents/${selectedDocument.id}/pdf`,
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(response);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download = selectedDocument.number + ".pdf";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    });
   const showReceipt = (id: string) => {
     setSelectedDocumentId(id);
     changeTab(4);
@@ -437,16 +564,33 @@ export function SalesWorkspace({
       if (pendingConfirmation)
         await command(`/payments/${pendingConfirmation.id}/confirm`, {
           date: payment.date,
+          reserveVehicle:
+            pendingConfirmation.kind === "deposit" && !record?.completedAt,
         });
-      else await command("/payments", { payment });
+      else
+        await command(
+          payment.kind === "deposit" &&
+            payment.status === "confirmed" &&
+            !record?.completedAt
+            ? "/take-deposit"
+            : "/payments",
+          { payment },
+        );
+      await queryClient.invalidateQueries({ queryKey: getGetStockQueryKey() });
       setPaymentDialog(false);
       setPendingConfirmation(undefined);
       setMessage(
         payment.status === "confirmed"
-          ? "Payment recorded. The receipt is ready to print."
+          ? payment.kind === "deposit"
+            ? "Deposit received. Car reserved; receipt, agreement and balance statement are ready."
+            : "Payment recorded. The receipt is ready to print."
           : "Pending payment saved. The balance is unchanged.",
       );
-      if (payment.status === "confirmed") changeTab(4);
+      if (payment.status === "confirmed") {
+        changeTab(4);
+        if (payment.kind === "final-payment") setCompleteDialog(true);
+      }
+      setPaymentIntent(undefined);
     });
   const issueDocument = (type: "invoice" | "statement") =>
     void run(async () => {
@@ -476,7 +620,7 @@ export function SalesWorkspace({
       setMessage("Latest saved sale loaded.");
     });
   const changeTab = (index: number) => {
-    setTab(index);
+    setTab(index <= 2 ? 0 : index >= 4 ? 4 : 3);
     setProblems([]);
     requestAnimationFrame(() => {
       heading.current?.focus({ preventScroll: embedded });
@@ -509,7 +653,8 @@ export function SalesWorkspace({
       matches &&
       (saleFilter === "all" ||
         (saleFilter === "balance" && totals(d).balance > 0) ||
-        (saleFilter === "completed" && Boolean(d.fulfilment?.completedAt)) ||
+        (saleFilter === "completed" &&
+          Boolean(item.completedAt || d.fulfilment?.completedAt)) ||
         (saleFilter === "delivery" &&
           d.fulfilment?.method === "delivery" &&
           Boolean(d.fulfilment.scheduledDate) &&
@@ -529,7 +674,7 @@ export function SalesWorkspace({
     if (!found.length) {
       printCleanup.current?.();
       const sheet = document
-        .querySelector(".sales-document")
+        .querySelector(".sales-document-workbench .sales-document")
         ?.cloneNode(true) as HTMLElement | undefined;
       if (!sheet) return;
       sheet.classList.add("sales-print-copy");
@@ -620,7 +765,7 @@ export function SalesWorkspace({
                 disabled={busy}
               >
                 <Save size={16} />
-                {busy ? "Saving…" : "Save sale"}
+                {busy ? "Saving…" : "Save progress"}
               </Button>
             )}
           </div>
@@ -643,23 +788,16 @@ export function SalesWorkspace({
             </span>
           </div>
           <div>
-            {record && <HistoryLinks vehicleId={record.draft.vehicleId} recordType="sale" recordId={record.id} vehicle={Boolean(record.draft.vehicleId || record.draft.vehicle)} />}
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                setPendingConfirmation(undefined);
-                setActionProblem("");
-                setPaymentDialog(true);
-              }}
-            >
-              <WalletCards size={16} />
-              Record payment
-            </Button>
-            <Button variant="outline" onClick={() => changeTab(4)}>
-              <FileText size={16} />
-              Receipts & documents
-            </Button>
+            {record && (
+              <HistoryLinks
+                vehicleId={record.draft.vehicleId}
+                recordType="sale"
+                recordId={record.id}
+                vehicle={Boolean(
+                  record.draft.vehicleId || record.draft.vehicle,
+                )}
+              />
+            )}
           </div>
         </div>
       )}
@@ -730,7 +868,7 @@ export function SalesWorkspace({
                 <option value="balance">Awaiting balance</option>
                 <option value="delivery">Delivery booked</option>
                 <option value="collection">Ready for collection</option>
-                <option value="completed">Handover complete</option>
+                <option value="completed">Sale completed</option>
               </select>
             </label>
             <Button
@@ -854,12 +992,20 @@ export function SalesWorkspace({
             aria-label="Sale sections"
             className="sales-chrome sales-section-ribbon"
           >
-            {tabs.map((label, index) => {
+            {[
+              { label: "Deal details", index: 0, group: 0 },
+              { label: "Payments", index: 3, group: 1 },
+              { label: "Documents & handover", index: 4, group: 2 },
+            ].map(({ label, index, group }) => {
               const Icon = sectionIcons[index];
               return (
                 <button
                   key={label}
-                  aria-current={tab === index ? "step" : undefined}
+                  aria-current={
+                    (tab <= 2 ? 0 : tab === 3 ? 1 : 2) === group
+                      ? "step"
+                      : undefined
+                  }
                   onClick={() => changeTab(index)}
                   className="sales-section-tab"
                   disabled={busy}
@@ -870,19 +1016,83 @@ export function SalesWorkspace({
               );
             })}
           </nav>
+          <div className="sales-chrome sales-decision-bar">
+            <div>
+              <strong>
+                {record?.completedAt
+                  ? "Sale completed"
+                  : record?.lifecycle?.status === "reserved"
+                    ? "Reserved for this customer"
+                    : "Sale in progress"}
+              </strong>
+              <span>
+                {record?.documents.some((d) => d.type === "invoice")
+                  ? "Invoice issued"
+                  : "Invoice not issued"}{" "}
+                ·{" "}
+                {draft.fulfilment?.completedAt
+                  ? "Handover recorded"
+                  : "Handover pending"}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              disabled={
+                busy ||
+                Boolean(record?.completedAt) ||
+                !draft.customer ||
+                !draft.vehicle ||
+                !(Number(draft.price) > 0)
+              }
+              onClick={() => {
+                setPaymentIntent("deposit");
+                setPendingConfirmation(undefined);
+                setActionProblem("");
+                setPaymentDialog(true);
+              }}
+            >
+              Take deposit & reserve
+            </Button>
+            <Button
+              disabled={
+                busy ||
+                Boolean(record?.completedAt) ||
+                !draft.customer ||
+                !draft.vehicle ||
+                !(Number(draft.price) > 0)
+              }
+              onClick={() => {
+                setActionProblem("");
+                if (amount!.balance > 0) {
+                  setPaymentIntent("final-payment");
+                  setPendingConfirmation(undefined);
+                  setPaymentDialog(true);
+                } else setCompleteDialog(true);
+              }}
+            >
+              Complete sale
+            </Button>
+            <Button variant="outline" onClick={() => changeTab(4)}>
+              Print documents
+            </Button>
+          </div>
           <main className="sales-workspace-content sales-premium-content">
             <div className="sales-sheet-layout" data-document={tab === 4}>
               <fieldset disabled={busy} className="sales-active-sheet">
                 <div className="sales-chrome sales-section-intro">
                   <p className="sales-eyebrow">
-                    Section {tab + 1} of {tabs.length}
+                    Step {tab <= 2 ? 1 : tab === 3 ? 2 : 3} of 3
                   </p>
                   <h1
                     ref={heading}
                     tabIndex={-1}
                     className="sales-section-title"
                   >
-                    {tabs[tab]}
+                    {tab <= 2
+                      ? "Deal details"
+                      : tab === 3
+                        ? "Payments"
+                        : "Documents & handover"}
                   </h1>
                   <p className="sales-section-description">
                     {
@@ -907,7 +1117,7 @@ export function SalesWorkspace({
                     ))}
                   </ul>
                 )}
-                {tab === 0 && (
+                {tab <= 2 && (
                   <div className="sales-form-panel sales-customer-panel">
                     <details className="sales-customer-import">
                       <summary>
@@ -922,7 +1132,8 @@ export function SalesWorkspace({
                         onChange={(e) => setCustomerSearch(e.target.value)}
                       />
                       <p className="my-3 text-sm text-muted-foreground">
-                        Selecting a customer links their enquiry or reservation and vehicle. Payments are recorded separately.
+                        Selecting a customer links their enquiry or reservation
+                        and vehicle. Payments are recorded separately.
                       </p>
                       {(enquiries.isLoading || reservations.isLoading) && (
                         <p role="status">Loading recent customers…</p>
@@ -945,8 +1156,12 @@ export function SalesWorkspace({
                                 email: item.email,
                                 phone: item.phone,
                                 customerSource: item.id,
-                                sourceEnquiryId: item.sourceEnquiryId, sourceReservationId: item.sourceReservationId,
-                                vehicleId: item.vehicleId, vehicle: item.vehicle, registration: item.registration, price: item.price,
+                                sourceEnquiryId: item.sourceEnquiryId,
+                                sourceReservationId: item.sourceReservationId,
+                                vehicleId: item.vehicleId,
+                                vehicle: item.vehicle,
+                                registration: item.registration,
+                                price: item.price,
                               });
                               setMessage(
                                 "Customer details copied. Please check them below.",
@@ -993,7 +1208,7 @@ export function SalesWorkspace({
                     </label>
                   </div>
                 )}
-                {tab === 1 && (
+                {tab <= 2 && (
                   <div className="sales-form-panel">
                     <div className="sales-panel-heading">
                       <h2>Vehicle &amp; selling price</h2>
@@ -1063,95 +1278,98 @@ export function SalesWorkspace({
                     </div>
                   </div>
                 )}
-                {tab === 2 && (
-                  <div className="sales-form-panel sales-exchange-panel">
-                    <div className="sales-panel-heading">
-                      <h2>Part-exchange cars</h2>
-                      <p>
-                        Record up to three cars and the allowance agreed for
-                        each.
+                {tab <= 2 && (
+                  <details className="sales-optional-panel">
+                    <summary>Part exchange (optional)</summary>
+                    <div className="sales-form-panel sales-exchange-panel">
+                      <div className="sales-panel-heading">
+                        <h2>Part-exchange cars</h2>
+                        <p>
+                          Record up to three cars and the allowance agreed for
+                          each.
+                        </p>
+                      </div>
+                      {!exchanges(draft).length && (
+                        <div className="sales-entry-empty">
+                          <ArrowLeftRight size={23} aria-hidden="true" />
+                          <div>
+                            <h3>No part-exchange cars</h3>
+                            <p>
+                              Add a car if a part exchange is included in this
+                              sale.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {exchanges(draft).map((row, index) => (
+                        <fieldset key={index} className="sales-entry-group">
+                          <legend className="mb-4 font-semibold">
+                            Part exchange {index + 1}
+                          </legend>
+                          <div className="sales-exchange-fields">
+                            {(
+                              [
+                                ["registration", "Registration"],
+                                ["description", "Make and model"],
+                                ["value", "Allowance (£)"],
+                              ] as const
+                            ).map(([key, label]) => (
+                              <label key={key} className="grid gap-2 text-sm">
+                                {label}
+                                <Input
+                                  aria-label={`${label} ${index + 1}`}
+                                  inputMode={
+                                    key === "value" ? "decimal" : undefined
+                                  }
+                                  value={row[key]}
+                                  onChange={(e) =>
+                                    update(
+                                      "exchanges",
+                                      exchanges(draft).map((r, i) =>
+                                        i === index
+                                          ? { ...r, [key]: e.target.value }
+                                          : r,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          <Button
+                            className="sales-remove-entry mt-3"
+                            variant="ghost"
+                            onClick={() =>
+                              update(
+                                "exchanges",
+                                exchanges(draft).filter((_, i) => i !== index),
+                              )
+                            }
+                          >
+                            Remove part exchange {index + 1}
+                          </Button>
+                        </fieldset>
+                      ))}
+                      <Button
+                        className="sales-add-entry"
+                        variant="outline"
+                        disabled={exchanges(draft).length >= 3}
+                        onClick={() =>
+                          update("exchanges", [
+                            ...exchanges(draft),
+                            { registration: "", description: "", value: "" },
+                          ])
+                        }
+                      >
+                        <Plus size={16} />
+                        Add part-exchange car
+                      </Button>
+                      <p className="sales-panel-note">
+                        Up to three cars. Total allowance:{" "}
+                        {money(amount!.allowance)}
                       </p>
                     </div>
-                    {!exchanges(draft).length && (
-                      <div className="sales-entry-empty">
-                        <ArrowLeftRight size={23} aria-hidden="true" />
-                        <div>
-                          <h3>No part-exchange cars</h3>
-                          <p>
-                            Add a car if a part exchange is included in this
-                            sale.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {exchanges(draft).map((row, index) => (
-                      <fieldset key={index} className="sales-entry-group">
-                        <legend className="mb-4 font-semibold">
-                          Part exchange {index + 1}
-                        </legend>
-                        <div className="sales-exchange-fields">
-                          {(
-                            [
-                              ["registration", "Registration"],
-                              ["description", "Make and model"],
-                              ["value", "Allowance (£)"],
-                            ] as const
-                          ).map(([key, label]) => (
-                            <label key={key} className="grid gap-2 text-sm">
-                              {label}
-                              <Input
-                                aria-label={`${label} ${index + 1}`}
-                                inputMode={
-                                  key === "value" ? "decimal" : undefined
-                                }
-                                value={row[key]}
-                                onChange={(e) =>
-                                  update(
-                                    "exchanges",
-                                    exchanges(draft).map((r, i) =>
-                                      i === index
-                                        ? { ...r, [key]: e.target.value }
-                                        : r,
-                                    ),
-                                  )
-                                }
-                              />
-                            </label>
-                          ))}
-                        </div>
-                        <Button
-                          className="sales-remove-entry mt-3"
-                          variant="ghost"
-                          onClick={() =>
-                            update(
-                              "exchanges",
-                              exchanges(draft).filter((_, i) => i !== index),
-                            )
-                          }
-                        >
-                          Remove part exchange {index + 1}
-                        </Button>
-                      </fieldset>
-                    ))}
-                    <Button
-                      className="sales-add-entry"
-                      variant="outline"
-                      disabled={exchanges(draft).length >= 3}
-                      onClick={() =>
-                        update("exchanges", [
-                          ...exchanges(draft),
-                          { registration: "", description: "", value: "" },
-                        ])
-                      }
-                    >
-                      <Plus size={16} />
-                      Add part-exchange car
-                    </Button>
-                    <p className="sales-panel-note">
-                      Up to three cars. Total allowance:{" "}
-                      {money(amount!.allowance)}
-                    </p>
-                  </div>
+                  </details>
                 )}
                 {tab === 3 && (
                   <div className="sales-form-panel sales-payments-panel">
@@ -1346,6 +1564,48 @@ export function SalesWorkspace({
                         </p>
                       )}
                     </div>
+                    {record?.packDocumentIds?.length ? (
+                      <div className="sales-chrome sales-pack-actions">
+                        <Button
+                          onClick={() => {
+                            const pages = document.querySelectorAll(
+                              ".sales-pack-source .sales-document",
+                            );
+                            if (!pages.length) return;
+                            printCleanup.current?.();
+                            const clones = Array.from(pages).map((page) => {
+                              const clone = page.cloneNode(true) as HTMLElement;
+                              clone.classList.add("sales-print-copy");
+                              document.body.appendChild(clone);
+                              return clone;
+                            });
+                            const cleanup = () => {
+                              clones.forEach((c) => c.remove());
+                              window.removeEventListener("afterprint", cleanup);
+                            };
+                            printCleanup.current = cleanup;
+                            window.addEventListener("afterprint", cleanup, {
+                              once: true,
+                            });
+                            window.print();
+                          }}
+                        >
+                          Print full document pack
+                        </Button>
+                        <p>
+                          Includes the issued invoice or reservation agreement,
+                          receipts and supporting paperwork.
+                        </p>
+                      </div>
+                    ) : null}
+                    <div className="sales-pack-source" hidden>
+                      {record?.packDocumentIds
+                        ?.map((id) => record.documents.find((d) => d.id === id))
+                        .filter((d): d is SaleWorkspaceDocument => Boolean(d))
+                        .map((d) => (
+                          <SalesDocument key={d.id} issuedDocument={d} />
+                        ))}
+                    </div>
                     <div className="sales-document-workbench">
                       {selectedDocument ? (
                         <SalesDocument issuedDocument={selectedDocument} />
@@ -1393,7 +1653,13 @@ export function SalesWorkspace({
                             </p>
                           )}
                         </div>
-                        <DocumentDelivery record={record} document={selectedDocument} busy={busy} onEmail={emailDocument} onDownload={downloadDocument} />
+                        <DocumentDelivery
+                          record={record}
+                          document={selectedDocument}
+                          busy={busy}
+                          onEmail={emailDocument}
+                          onDownload={downloadDocument}
+                        />
                         <label className="grid gap-2 text-sm font-medium mt-6">
                           Document notes
                           <Textarea
@@ -1411,10 +1677,33 @@ export function SalesWorkspace({
                     </div>
                   </>
                 )}
-                {tab === 5 && (
+                {tab >= 4 && (
                   <>
-                    <SalesConnections record={record} busy={busy} customerUrl={customerUrl} onLink={createCustomerLink} onEmailLink={emailCustomerLink} onRevoke={() => void run(async () => { await command("/customer-links/revoke", {}); setCustomerUrl(""); setMessage("Customer access revoked."); })} onLifecycle={updateLifecycle} />
+                    <details className="sales-optional-panel">
+                      <summary>
+                        Customer links, history & reservation controls
+                      </summary>
+                      <SalesConnections
+                        record={record}
+                        busy={busy}
+                        customerUrl={customerUrl}
+                        onLink={createCustomerLink}
+                        onEmailLink={emailCustomerLink}
+                        onRevoke={() =>
+                          void run(async () => {
+                            await command("/customer-links/revoke", {});
+                            setCustomerUrl("");
+                            setMessage("Customer access revoked.");
+                          })
+                        }
+                        onLifecycle={updateLifecycle}
+                      />
+                    </details>
                     <DeliveryPanel
+                      saleCompleted={Boolean(
+                        record?.completedAt ||
+                        record?.lifecycle?.status === "sold",
+                      )}
                       draft={draft}
                       busy={busy}
                       onChange={(value) => update("fulfilment", value)}
@@ -1484,7 +1773,11 @@ export function SalesWorkspace({
                     </div>
                   </div>
                   <div className="sales-overview-balance">
-                    <span>{amount!.balance < 0 ? "Customer credit" : "Outstanding balance"}</span>
+                    <span>
+                      {amount!.balance < 0
+                        ? "Customer credit"
+                        : "Outstanding balance"}
+                    </span>
                     <strong>{money(Math.abs(amount!.balance))}</strong>
                   </div>
                   <button
@@ -1532,15 +1825,15 @@ export function SalesWorkspace({
             <div className="sales-footer-actions">
               <Button
                 variant="outline"
-                disabled={tab === 0}
-                onClick={() => changeTab(tab - 1)}
+                disabled={tab <= 2}
+                onClick={() => changeTab(tab === 3 ? 0 : 3)}
               >
                 Previous
               </Button>
-              {tab < tabs.length - 1 ? (
+              {tab < 4 ? (
                 <Button
                   className="sales-primary-action"
-                  onClick={() => changeTab(tab + 1)}
+                  onClick={() => changeTab(tab <= 2 ? 3 : 4)}
                 >
                   Next
                   <ArrowRight size={16} />
@@ -1548,18 +1841,49 @@ export function SalesWorkspace({
               ) : (
                 <Button
                   className="sales-primary-action"
-                  onClick={save}
+                  onClick={() =>
+                    record?.completedAt ? save() : setCompleteDialog(true)
+                  }
                   disabled={busy}
                 >
-                  {busy ? "Saving…" : "Save sale"}
+                  {busy
+                    ? "Working…"
+                    : record?.completedAt
+                      ? "Save progress"
+                      : "Complete sale"}
                 </Button>
               )}
             </div>
           </footer>
         </>
       )}
+      {completeDialog && draft && (
+        <CompleteSaleDialog
+          draft={draft}
+          total={amount!.price + amount!.adjustments - amount!.allowance}
+          balance={amount!.balance}
+          terms={paperworkQuery.data?.saleTerms ?? ""}
+          busy={busy}
+          problem={actionProblem}
+          onClose={() => setCompleteDialog(false)}
+          onComplete={() =>
+            void run(async () => {
+              await command("/complete-sale", { acknowledge: true });
+              setCompleteDialog(false);
+              await queryClient.invalidateQueries({
+                queryKey: getGetStockQueryKey(),
+              });
+              changeTab(4);
+              setMessage(
+                "Sale completed. Invoice and document pack issued; car removed from public stock.",
+              );
+            })
+          }
+        />
+      )}
       {paymentDialog && draft && (
         <PaymentDialog
+          initialKind={paymentIntent}
           balance={amount!.balance}
           hasPayments={Boolean(
             record?.payments.some(
@@ -1571,6 +1895,7 @@ export function SalesWorkspace({
           pending={pendingConfirmation}
           onClose={() => {
             setPaymentDialog(false);
+            setPaymentIntent(undefined);
             setPendingConfirmation(undefined);
           }}
           onSave={recordPayment}
@@ -1611,7 +1936,9 @@ export function SalesWorkspace({
             void run(async () => {
               await command("/handover", { recipient, acknowledgeOutstanding });
               setHandoverDialog(false);
-              await queryClient.invalidateQueries({ queryKey: getGetStockQueryKey() });
+              await queryClient.invalidateQueries({
+                queryKey: getGetStockQueryKey(),
+              });
               setMessage("Handover recorded. Confirmation is ready to print.");
               changeTab(4);
             })
