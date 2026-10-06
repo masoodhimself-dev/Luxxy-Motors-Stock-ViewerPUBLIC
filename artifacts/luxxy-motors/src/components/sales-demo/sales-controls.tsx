@@ -703,7 +703,7 @@ export function DeliveryPanel({
           />
         </label>
         <p className="sales-panel-note">
-          Add an agreed delivery charge under Payments & receipts → Fees and
+          Add an agreed delivery charge under Payments → Fees and
           discounts. It is included once in the sale total.
         </p>
         <div className="sales-handover-checklist">

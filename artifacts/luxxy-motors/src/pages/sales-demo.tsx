@@ -1492,8 +1492,9 @@ export function SalesWorkspace({
                       }}
                     />
                     <p className="sales-payment-notice">
-                      Recording a payment does not charge a card or change the
-                      vehicle’s stock availability.
+                      Record money already received; this does not charge a card.
+                      A confirmed deposit reserves the car and issues its receipt
+                      and agreement. Other payments update the balance.
                     </p>
                   </div>
                 )}
