@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter } from "express";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { GetRecentHandoversResponse } from "@workspace/api-zod";
@@ -7,7 +8,7 @@ import { getOrCreateSettings } from "./dealer-settings";
 const router: IRouter = Router();
 
 function dealerId() {
-  return process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+  return currentDealerId();
 }
 
 function handoverMonth(completedAt: Date) {

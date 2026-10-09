@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter, type Request, type Response } from 'express';
 import { pool } from '@workspace/db';
 import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
@@ -9,7 +10,7 @@ import { ReservationError } from '../lib/online-reservations';
 import { assertStripeReady, verifyStripeWebhook } from '../lib/stripe-payments';
 import { createStripeReservation, listStripeReservations, processStripeReservationEvent, readCustomerStripeStatus, recordStripeNotification, stripeReservationView, type StripeReservationRecord } from '../lib/stripe-reservation-store';
 const router: IRouter = Router();
-const dealerId = () => process.env.STOCK_DEALER_ID ?? 'luxxy-motors';
+const dealerId = () => currentDealerId();
 function failure(error: unknown, _req: Request, res: Response) { res.status(error instanceof ReservationError ? error.status : 503).json({ error: error instanceof ReservationError ? error.message : 'The reservation payment service is unavailable. Please contact the dealership.' }); }
 const attempts = new Map<string, { count: number; until: number }>();
 const statusAttempts = new Map<string, { count: number; until: number }>();

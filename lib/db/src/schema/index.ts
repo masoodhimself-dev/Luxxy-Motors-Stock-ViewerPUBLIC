@@ -32,3 +32,5 @@ export * from "./sale-checklist";
 export * from "./portal-users";
 export * from "./sale-workspace";
 export * from './dealer-chat';
+
+export * from "./tenants";

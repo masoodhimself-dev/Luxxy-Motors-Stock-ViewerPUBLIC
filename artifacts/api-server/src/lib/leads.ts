@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "./tenant-context";
 import { and, asc, desc, eq, notExists, sql } from "drizzle-orm";
 import type { Logger } from "pino";
 import {
@@ -62,7 +64,7 @@ export class LeadError extends Error {
 }
 
 export function leadDealerId(): string {
-  return process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+  return currentDealerId();
 }
 
 export function isClosedStage(stage: LeadStage): boolean {
@@ -288,7 +290,7 @@ export async function backfillLeadsFromEnquiries(
             tx
               .select({ present: sql`1` })
               .from(leadsTable)
-              .where(eq(leadsTable.enquiryId, enquiriesTable.id)),
+              .where(tenantAnd(eq(leadsTable.enquiryId, enquiriesTable.id), tenantEq(leadsTable.dealerId, currentDealerId()))),
           ),
         )
         .orderBy(asc(enquiriesTable.createdAt))
@@ -354,7 +356,7 @@ export async function loadLeadDetail(
       completedAt: salesTable.completedAt,
     })
     .from(salesTable)
-    .where(eq(salesTable.leadId, lead.id))
+    .where(tenantAnd(eq(salesTable.leadId, lead.id), tenantEq(salesTable.dealerId, currentDealerId())))
     .orderBy(desc(salesTable.createdAt));
   return { lead, events, sales };
 }
@@ -466,7 +468,7 @@ export async function changeLeadStage(
           }
         : {}),
     })
-    .where(eq(leadsTable.id, lead.id));
+    .where(tenantAnd(eq(leadsTable.id, lead.id), tenantEq(leadsTable.dealerId, currentDealerId())));
 
   await appendLeadEvent(tx, {
     leadId: lead.id,
@@ -517,7 +519,7 @@ export async function closeLead(
       outcomeReason: reason,
       closedAt,
     })
-    .where(eq(leadsTable.id, lead.id));
+    .where(tenantAnd(eq(leadsTable.id, lead.id), tenantEq(leadsTable.dealerId, currentDealerId())));
   await appendLeadEvent(tx, {
     leadId: lead.id,
     type: "outcome_recorded",
@@ -627,7 +629,7 @@ export async function advanceLeadForSale(
   await tx
     .update(leadsTable)
     .set({ stage: "sale_agreed" })
-    .where(eq(leadsTable.id, lead.id));
+    .where(tenantAnd(eq(leadsTable.id, lead.id), tenantEq(leadsTable.dealerId, currentDealerId())));
   await appendLeadEvent(tx, {
     leadId: lead.id,
     type: "stage_changed",

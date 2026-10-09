@@ -30,7 +30,8 @@
     "test:chat": "node ./test-build.mjs src/dealer-chat.test.ts && node --enable-source-maps --test ./dist-test/dealer-chat.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/chat.test.ts && node --enable-source-maps --test ./dist-test/chat.test.mjs",
     "test:enquiry-merges": "node ./test-build.mjs src/enquiry-merges.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges.test.mjs && node ./test-build.mjs src/enquiry-merges-route.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges-route.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/enquiry-merges.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges.test.mjs",
     "test:stock-feed": "node ./test-build.mjs src/stock-feed.test.ts && node --test ./dist-test/stock-feed.test.mjs",
-    "build:cazoo-demo": "node build-cazoo-demo.mjs"
+    "build:cazoo-demo": "node build-cazoo-demo.mjs",
+    "test:tenancy": "node test-tenancy-build.mjs && node --test dist-test/multitenancy.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",
@@ -49,6 +50,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter, type RequestHandler } from "express";
 import { pool } from "@workspace/db";
 import {
@@ -10,7 +11,7 @@ import { PostgresChatStore } from "../lib/dealer-chat-store";
 import { findVisibleStockVehicle } from "./stock";
 import { getOrCreateSettings } from "./dealer-settings";
 
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 export function productionChatService() {
   return new DealerChatService(new PostgresChatStore(pool), {
     dealerId,

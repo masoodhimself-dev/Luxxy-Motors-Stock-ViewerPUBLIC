@@ -1,3 +1,5 @@
+import platformDealersRouter from "./routes/platform-dealers";
+import { resolveTenant } from "./middlewares/tenant";
 import { serveFrontend } from "./lib/serve-frontend";
 import express, { type Express } from "express";
 import cors from "cors";
@@ -43,6 +45,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 
+app.use("/api/platform", platformDealersRouter);
+app.use(resolveTenant);
 app.use("/api", router);
 app.use(['/my-purchase', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api

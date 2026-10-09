@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { showroomAvailability, vehicleRegistrationLabel } from "@workspace/vehicle-meta";
@@ -72,7 +74,7 @@ const router: IRouter = Router();
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const settings = () => ({
-  dealerId: process.env.STOCK_DEALER_ID ?? "luxxy-motors",
+  dealerId: currentDealerId(),
   missingHideThreshold: Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD))
     ? Number(process.env.STOCK_MISSING_HIDE_THRESHOLD)
     : 2,
@@ -119,7 +121,7 @@ router.patch("/staff/enquiries/:id/workspace", requireStaff, async (req, res) =>
         ...(input.staffNote !== undefined ? { staffNote: input.staffNote?.trim() || null } : {}),
         ...(input.attendance ? { attendance: input.attendance } : {}),
         workspaceRevision: entry.workspaceRevision + 1, updatedAt: new Date(),
-      }).where(eq(enquiriesTable.id, entry.id)).returning();
+      }).where(tenantAnd(eq(enquiriesTable.id, entry.id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).returning();
       return row;
     });
     if (!updated) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
@@ -495,7 +497,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       await db
         .update(enquiriesTable)
         .set({ manageTokenHash: viewingTokenHash(viewingToken(created.id)) })
-        .where(eq(enquiriesTable.id, created.id));
+        .where(tenantAnd(eq(enquiriesTable.id, created.id), tenantEq(enquiriesTable.dealerId, currentDealerId())));
     }
 
     await recordEnquiryEvent({
@@ -583,7 +585,7 @@ router.post("/staff/enquiries/:id/follow-up", requireStaff, async (req, res): Pr
         followUpNote: input.action === "schedule" ? input.followUpNote?.trim() || null : entry.followUpNote,
         followUpCompletedAt: input.action === "complete" ? new Date() : null,
         followUpRevision: entry.followUpRevision + 1, updatedAt: new Date(),
-      }).where(eq(enquiriesTable.id, id)).returning();
+      }).where(tenantAnd(eq(enquiriesTable.id, id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).returning();
       return changed;
     });
     if (!updated) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
@@ -611,7 +613,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
       const [before] = await tx.select().from(enquiriesTable).where(and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, settings().dealerId)));
       if (!before?.appointmentAt || before.type !== "viewing") return null;
       await lockBookingDays(tx, settings().dealerId, [before.appointmentAt, ...(input.appointmentAt ? [input.appointmentAt] : [])]);
-      const [current] = await tx.select().from(enquiriesTable).where(eq(enquiriesTable.id, id)).for("update");
+      const [current] = await tx.select().from(enquiriesTable).where(tenantAnd(eq(enquiriesTable.id, id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).for("update");
       if (!current || current.appointmentRevision !== input.expectedRevision || current.appointmentCancelledAt || !current.appointmentAt || current.appointmentAt.getTime() <= Date.now()) throw new BookingConflict("This appointment changed. Refresh and try again.");
       const exception = input.action === "reschedule" ? await checkStaffAppointment(tx, settings().dealerId, input.appointmentAt!, policy, input, id) : null;
       const cancelled = input.action === "cancel";
@@ -631,7 +633,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
         reminderStatus: !cancelled && current.email && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
         reminderError: null, reminderSentAt: null, reminderAttemptedAt: null, reminderProviderId: null,
         updatedAt: new Date(),
-      }).where(eq(enquiriesTable.id, id)).returning();
+      }).where(tenantAnd(eq(enquiriesTable.id, id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).returning();
       return changed;
     });
     if (!updated) { res.status(404).json(errorResponse("Appointment not found.")); return; }
@@ -718,7 +720,7 @@ router.post("/test-drive-bookings/:id/decision", requireStaff, async (req, res):
         reminderStatus: confirm && booking.email ? "pending" : "not_scheduled",
         customerNotificationStatus: booking.email ? "pending" : "not_sent", customerNotificationError: null, customerNotificationAttemptedAt: null, customerNotificationSentAt: null,
         dealerNotificationStatus: "pending", dealerNotificationError: null, dealerNotificationAttemptedAt: null, dealerNotificationSentAt: null,
-      }).where(eq(enquiriesTable.id, booking.id)).returning();
+      }).where(tenantAnd(eq(enquiriesTable.id, booking.id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).returning();
       return { booking: updated, changed: true };
     });
     if (!outcome) { res.status(404).json(errorResponse("Test drive not found.")); return; }

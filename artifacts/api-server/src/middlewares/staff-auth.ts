@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { and, eq, sql } from "drizzle-orm";
@@ -39,7 +41,7 @@ declare global {
   }
 }
 
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 
 function allowedEmails(): string[] {
   return (process.env.PORTAL_STAFF_EMAILS ?? "")
@@ -54,6 +56,7 @@ function allowedEmails(): string[] {
  * access at all, so this can never silently weaken a deployed portal.
  */
 function machineToken(req: Request): StaffIdentity | null {
+  if (multiTenantEnabled()) return null;
   const expected = process.env.PORTAL_API_TOKEN;
   if (!expected) return null;
   const provided = req.get("x-portal-token");
@@ -84,7 +87,7 @@ async function clerkIdentity(req: Request): Promise<StaffIdentity | null> {
   return { authUserId, email, name };
 }
 
-async function resolveStaffRow(
+export async function resolveStaffRow(
   identity: StaffIdentity,
 ): Promise<PortalUser | null> {
   return db.transaction(async tx => {
@@ -102,10 +105,11 @@ async function resolveStaffRow(
         email: identity.email ?? existing.email,
         name: identity.name ?? existing.name,
       })
-      .where(eq(portalUsersTable.id, existing.id));
+      .where(tenantAnd(eq(portalUsersTable.id, existing.id), tenantEq(portalUsersTable.dealerId, currentDealerId())));
     return existing;
   }
 
+  if (multiTenantEnabled()) return null; // Memberships are provisioned explicitly; no first-user owner claim.
   const listed = allowedEmails();
   const emailAllowed =
     listed.length > 0 &&

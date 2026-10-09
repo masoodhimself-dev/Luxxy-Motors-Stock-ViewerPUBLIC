@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type Response } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
@@ -50,7 +51,7 @@ function rejectRateLimited(res: Response, retryAfterSeconds: number) {
 }
 
 function dealerId() {
-  return process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+  return currentDealerId();
 }
 
 function tokenHash(token: string) {

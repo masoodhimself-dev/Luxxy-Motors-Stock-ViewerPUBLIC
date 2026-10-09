@@ -1,0 +1,78 @@
+# Proposed isolated paid Cazoo test environment. Creation requires cost approval.
+# No connection to the existing Auto Trader staging database or worker.
+# Select this file explicitly as the Blueprint path (it is not render.yaml).
+services:
+  - type: web
+    name: luxxy-shared-staging
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: corepack pnpm install --frozen-lockfile --prod=false && corepack pnpm build
+    startCommand: PUBLIC_SITE_URL="${PUBLIC_SITE_URL:-$RENDER_EXTERNAL_URL}" corepack pnpm start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 24.21.0
+      - key: NODE_ENV
+        value: production
+      - key: BASE_PATH
+        value: /
+      - key: DATABASE_URL
+        fromDatabase:
+          name: luxxy-shared-staging-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: INTEGRATIONS_ENCRYPTION_KEY
+        generateValue: true
+      - key: MULTI_TENANT_ENABLED
+        value: "true"
+      - key: VITE_MULTI_TENANT_ENABLED
+        value: "true"
+      - key: PLATFORM_ADMIN_HOST
+        sync: false
+      - key: STOCK_IMPORT_API_HOST
+        sync: false
+      - key: PLATFORM_ADMIN_USER_IDS
+        sync: false
+      - key: STOCK_MAX_AGE_HOURS
+        value: "24"
+      - key: STOCK_MAX_DROP_PERCENT
+        value: "30"
+      - key: STOCK_MIN_PRICE
+        value: "500"
+      - key: STOCK_MAX_PRICE_CHANGE_PERCENT
+        value: "50"
+      - key: STOCK_MISSING_HIDE_THRESHOLD
+        value: "2"
+      - key: STOCK_STALE_AFTER_HOURS
+        value: "36"
+      - key: DEALER_TIMEZONE
+        value: Europe/London
+      - key: RESEND_ENABLED
+        value: "false"
+      - key: RESERVATION_PAYMENT_MODE
+        value: disabled
+      - key: CLERK_PROXY_ENABLED
+        value: "false"
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: PORTAL_STAFF_EMAILS
+        sync: false
+
+databases:
+  - name: luxxy-shared-staging-db
+    region: frankfurt
+    plan: 0.1c-256mb
+    diskSizeGB: 1
+    postgresMajorVersion: "16"
+    databaseName: luxxy_shared_staging_db
+    user: luxxy_shared_staging_db_user
+    # Restrict public database connections; service uses internal connectionString.
+    ipAllowList: []

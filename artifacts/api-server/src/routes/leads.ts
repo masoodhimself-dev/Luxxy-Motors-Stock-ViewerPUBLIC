@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter, type Request } from "express";
 import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import {
@@ -48,7 +50,7 @@ import {
 } from "../lib/leads";
 
 const router: IRouter = Router();
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -355,7 +357,7 @@ async function leadDetail(row: LeadView, query: QueryDb = db) {
         completedAt: salesTable.completedAt,
       })
       .from(salesTable)
-      .where(eq(salesTable.id, row.saleId));
+      .where(tenantAnd(eq(salesTable.id, row.saleId), tenantEq(salesTable.dealerId, currentDealerId())));
     deal = sale ?? null;
   }
 
@@ -364,7 +366,7 @@ async function leadDetail(row: LeadView, query: QueryDb = db) {
     const [enquiry] = await query
       .select({ message: enquiriesTable.message })
       .from(enquiriesTable)
-      .where(eq(enquiriesTable.id, row.enquiryId));
+      .where(tenantAnd(eq(enquiriesTable.id, row.enquiryId), tenantEq(enquiriesTable.dealerId, currentDealerId())));
     enquiryMessage = enquiry?.message ?? null;
   }
 
@@ -626,7 +628,7 @@ async function vehicleSnapshot(vehicleId: string | null | undefined) {
       pricePence: sql<number | null>`coalesce(${vehiclesTable.websitePriceOverride}, ${vehiclesTable.sourcePrice})`,
     })
     .from(vehiclesTable)
-    .where(eq(vehiclesTable.id, vehicleId));
+    .where(tenantAnd(eq(vehiclesTable.id, vehicleId), tenantEq(vehiclesTable.dealerId, currentDealerId())));
   if (!vehicle) return null;
   return {
     vehicleId: vehicle.id,
@@ -795,7 +797,7 @@ router.patch("/leads/:id", requireStaff, async (req, res): Promise<void> => {
     }
   }
 
-  await db.update(leadsTable).set(patch).where(eq(leadsTable.id, existing.id));
+  await db.update(leadsTable).set(patch).where(tenantAnd(eq(leadsTable.id, existing.id), tenantEq(leadsTable.dealerId, currentDealerId())));
 
   const events: Array<typeof leadEventsTable.$inferInsert> = [];
   if (data.appointmentAt !== undefined && data.appointmentAt) {
@@ -899,7 +901,7 @@ router.post(
     }
 
     await db.insert(leadEventsTable).values(events);
-    await db.update(leadsTable).set(patch).where(eq(leadsTable.id, existing.id));
+    await db.update(leadsTable).set(patch).where(tenantAnd(eq(leadsTable.id, existing.id), tenantEq(leadsTable.dealerId, currentDealerId())));
 
     const updated = await loadLead(existing.id);
     res.status(201).json(GetLeadResponse.parse(await leadDetail(updated!)));
@@ -944,7 +946,7 @@ router.post("/leads/:id/touches", requireStaff, async (req, res): Promise<void> 
         occurredAt,
       });
       if (kind.contact && (!lead.lastContactedAt || lead.lastContactedAt < occurredAt)) {
-        await tx.update(leadsTable).set({ lastContactedAt: occurredAt }).where(eq(leadsTable.id, lead.id));
+        await tx.update(leadsTable).set({ lastContactedAt: occurredAt }).where(tenantAnd(eq(leadsTable.id, lead.id), tenantEq(leadsTable.dealerId, currentDealerId())));
       }
       const row = await loadLead(lead.id, tx);
       return row ? leadDetail(row, tx) : null;
@@ -1019,7 +1021,7 @@ router.post("/leads/:id/owner", requireStaff, async (req, res): Promise<void> =>
       const lead = await loadCoreLead(tx, params.data.id);
       if (!lead) return null;
       const owner = parsed.data.owner?.trim() || null;
-      await tx.update(leadsTable).set({ owner }).where(eq(leadsTable.id, lead.id));
+      await tx.update(leadsTable).set({ owner }).where(tenantAnd(eq(leadsTable.id, lead.id), tenantEq(leadsTable.dealerId, currentDealerId())));
       await appendLeadEvent(tx, {
         leadId: lead.id,
         type: "owner_assigned",
@@ -1070,7 +1072,7 @@ router.post("/leads/:id/next-action", requireStaff, async (req, res): Promise<vo
       if (isClosedStage(lead.stage)) {
         throw new LeadError(`This lead was closed as ${lead.stage}; there is nothing left to chase.`, 409);
       }
-      await tx.update(leadsTable).set({ nextAction, nextActionDueAt: dueAt }).where(eq(leadsTable.id, lead.id));
+      await tx.update(leadsTable).set({ nextAction, nextActionDueAt: dueAt }).where(tenantAnd(eq(leadsTable.id, lead.id), tenantEq(leadsTable.dealerId, currentDealerId())));
       await appendLeadEvent(tx, {
         leadId: lead.id,
         type: "next_action_set",

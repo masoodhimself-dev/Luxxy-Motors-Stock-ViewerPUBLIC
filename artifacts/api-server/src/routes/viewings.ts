@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter, type Response } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
@@ -29,7 +31,7 @@ import { deliverEnquiryNotifications, dealerProfile } from "../lib/enquiry-notif
 const router: IRouter = Router();
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
 
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 const errorResponse = (message: string) => ({ error: message });
 
 function checkRateLimit(key: string, max: number, windowMs: number) {
@@ -191,7 +193,7 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
     const previous = enquiry.appointmentAt;
     const updated = await db.transaction(async (tx) => {
       await lockBookingDays(tx, dealerId(), [appointmentAt, ...(previous ? [previous] : [])]);
-      const [current] = await tx.select().from(enquiriesTable).where(eq(enquiriesTable.id, enquiry.id)).for("update");
+      const [current] = await tx.select().from(enquiriesTable).where(tenantAnd(eq(enquiriesTable.id, enquiry.id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).for("update");
       if (!current || !canChange(current)) throw new BookingConflict("This booking has changed. Reload it before choosing another time.");
       if (current.vehicleId) {
         const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, current.vehicleId), eq(vehiclesTable.dealerId, dealerId()))).for("update");

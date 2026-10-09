@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter } from 'express';
 import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, enquiriesTable, enquiryEventsTable } from '@workspace/db';
@@ -5,7 +6,7 @@ import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge } from '@wo
 import { requirePermission, requireStaff, staffLabel } from '../middlewares/staff-auth';
 
 const router: IRouter = Router();
-const dealerId = () => process.env.STOCK_DEALER_ID ?? 'luxxy-motors';
+const dealerId = () => currentDealerId();
 
 router.post('/staff/enquiries/:id/merge', requireStaff, requirePermission('sales.manage'), async (req, res) => {
   try {

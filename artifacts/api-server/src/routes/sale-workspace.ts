@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from '../lib/dealer-integrations-store';
 import { createHash, randomBytes } from 'node:crypto';
 import { siteUrl } from '../lib/enquiry-links';
@@ -9,7 +10,7 @@ import { requireStaff, requirePermission, staffLabel } from '../middlewares/staf
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets } from '../lib/sale-workspace-store';
 
 const router = Router();
-const dealerId = () => process.env.STOCK_DEALER_ID ?? 'luxxy-motors';
+const dealerId = () => currentDealerId();
 const uuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 function store() {
   const id = dealerId();

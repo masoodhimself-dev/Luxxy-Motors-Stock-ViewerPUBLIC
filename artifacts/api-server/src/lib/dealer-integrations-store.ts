@@ -1,3 +1,4 @@
+import { currentDealerId, currentTenant, multiTenantEnabled } from "./tenant-context";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -9,7 +10,7 @@ export type ResendSettings = { enabled: boolean; apiKey: string; from: string; r
 export type StripeSettings = { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey: string; webhookSecret: string };
 export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body'>>; appearance: EmailAppearance; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string }; stockConnection?: StockConnection };
 const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance } });
-export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { return settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
+export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { return multiTenantEnabled() || settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
 const clean = z.string().trim().max(512).refine(value => !/[\r\n\u0000-\u001f\u007f]/.test(value), 'Use a single line without control characters.');
 const updateSchema = z.object({
   expectedRevision: z.number().int().nonnegative(),
@@ -64,8 +65,8 @@ export function applyIntegrationUpdate(current: PrivateDealerSettings, raw: unkn
 export class DealerIntegrationsStore {
   private queue: Promise<unknown> = Promise.resolve();
   readonly filename: string;
-  constructor(private options: { filename?: string; dealerId?: string; encryptionKey?: string; production?: boolean } = {}) {
-    const dealer = options.dealerId ?? process.env.STOCK_DEALER_ID ?? 'luxxy-motors';
+  constructor(private options: { filename?: string; dealerId?: string; encryptionKey?: string; production?: boolean; databaseBacked?: boolean } = {}) {
+    const dealer = options.dealerId ?? currentDealerId();
     this.filename = options.filename ?? resolve(process.env.INTEGRATIONS_PRIVATE_DIR ?? '.private/dealer-integrations', `${createHash('sha256').update(dealer).digest('hex').slice(0, 24)}.json`);
     if (process.env.FRONTEND_DIST_DIR && this.filename.startsWith(resolve(process.env.FRONTEND_DIST_DIR) + '/')) throw new IntegrationSettingsError('Private integration storage must be outside the public website directory.', 503);
   }
@@ -77,9 +78,15 @@ export class DealerIntegrationsStore {
     if (key.length !== 32) throw new IntegrationSettingsError('INTEGRATIONS_ENCRYPTION_KEY must contain 32 random bytes encoded as base64 or hex.', 503);
     return key;
   }
-  private async load(): Promise<PrivateDealerSettings> {
+  private async load(transaction?: unknown): Promise<PrivateDealerSettings> {
     let source: string;
-    try { source = await readFile(this.filename, 'utf8'); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return empty(); throw new IntegrationSettingsError('Private integration settings could not be read.', 503); }
+    try {
+      if (this.options.databaseBacked) {
+        const { db, dealerPrivateSettingsTable } = await import('@workspace/db'); const { eq } = await import('drizzle-orm');
+        const [row] = await ((transaction ?? db) as typeof db).select().from(dealerPrivateSettingsTable).where(eq(dealerPrivateSettingsTable.dealerId, this.options.dealerId!));
+        if (!row) return empty(); source = JSON.stringify(row.encryptedPayload);
+      } else source = await readFile(this.filename, 'utf8');
+    } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return empty(); throw new IntegrationSettingsError('Private integration settings could not be read.', 503); }
     try {
       const stored = JSON.parse(source) as { encrypted?: boolean; iv: string; tag: string; data: string };
       if (stored.encrypted) {
@@ -92,26 +99,40 @@ export class DealerIntegrationsStore {
       return { ...state, appearance: state.appearance ?? { ...defaultEmailAppearance } };
     } catch { throw new IntegrationSettingsError('Private integration settings could not be decrypted. Check the server encryption configuration.', 503); }
   }
-  private async save(state: PrivateDealerSettings) {
+  private async save(state: PrivateDealerSettings, transaction?: unknown) {
     const key = this.key(); let source = JSON.stringify(state);
     if (key) { const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, iv); const encrypted = Buffer.concat([cipher.update(source, 'utf8'), cipher.final()]); source = JSON.stringify({ encrypted: true, iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64'), data: encrypted.toString('base64') }); }
+    if (this.options.databaseBacked) {
+      const { db, dealerPrivateSettingsTable } = await import('@workspace/db'); const { eq } = await import('drizzle-orm');
+      const rows = await ((transaction ?? db) as typeof db).insert(dealerPrivateSettingsTable).values({ dealerId: this.options.dealerId!, revision: state.revision, encryptedPayload: JSON.parse(source) }).onConflictDoUpdate({ target: dealerPrivateSettingsTable.dealerId, set: { revision: state.revision, encryptedPayload: JSON.parse(source), updatedAt: new Date() }, setWhere: eq(dealerPrivateSettingsTable.revision, state.revision - 1) }).returning();
+      if (!rows.length) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); return;
+    }
     await mkdir(dirname(this.filename), { recursive: true, mode: 0o700 }); await chmod(dirname(this.filename), 0o700);
     const temp = `${this.filename}.${randomUUID()}.tmp`; await writeFile(temp, source, { mode: 0o600 }); await rename(temp, this.filename); await chmod(this.filename, 0o600);
   }
-  async readStockConnection(): Promise<{ revision: number; connection: StockConnection }> {
-    const state = await this.readPrivate();
-    if (state.stockConnection) return { revision: state.revision, connection: state.stockConnection };
+  async readStockConnection(transaction?: unknown): Promise<{ revision: number; connection: StockConnection }> {
+    const state = await this.readPrivate(transaction);
+    const scoped = currentTenant();
+    if (state.stockConnection) {
+      if (scoped && (state.stockConnection.platform !== scoped.platform || state.stockConnection.retailerId !== scoped.retailerId)) throw new IntegrationSettingsError('Stock settings do not match the registered dealership.', 503);
+      return { revision: state.revision, connection: state.stockConnection };
+    }
+    const tenant = currentTenant();
+    if (tenant) return { revision: state.revision, connection: { platform: tenant.platform, retailerId: tenant.retailerId, sourceUrl: tenant.sourceUrl, enabled: true } };
+    if (multiTenantEnabled()) throw new IntegrationSettingsError('Verified dealership context required.', 503);
     const platform = process.env.STOCK_PLATFORM ?? 'autotrader';
     if (platform !== 'autotrader' && platform !== 'cazoo') throw new IntegrationSettingsError('STOCK_PLATFORM must be autotrader or cazoo.', 503);
     return { revision: state.revision, connection: { platform, retailerId: process.env.STOCK_RETAILER_ID ?? '', sourceUrl: process.env.STOCK_SOURCE_URL ?? '', enabled: true } };
   }
-  async updateStockConnection(raw: unknown) {
+  async updateStockConnection(raw: unknown, transaction?: unknown) {
     const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), connection: z.object({ platform: z.enum(['autotrader', 'cazoo']), retailerId: clean.min(1).max(128), sourceUrl: clean.url(), enabled: z.boolean() }).strict() }).strict().safeParse(raw);
     if (!parsed.success) throw new IntegrationSettingsError('Choose a stock platform, retailer reference and valid HTTPS source URL.');
+    const tenant = currentTenant();
+    if (tenant && (tenant.platform !== parsed.data.connection.platform || tenant.retailerId !== parsed.data.connection.retailerId)) throw new IntegrationSettingsError('Change source identity through the dealership registry after reviewing existing stock.', 409);
     const url = new URL(parsed.data.connection.sourceUrl);
     const hosts = parsed.data.connection.platform === 'cazoo' ? ['cazoo.co.uk', 'www.cazoo.co.uk'] : ['autotrader.co.uk', 'www.autotrader.co.uk'];
     if (url.protocol !== 'https:' || !hosts.includes(url.hostname) || url.username || url.password || (url.port && url.port !== '443')) throw new IntegrationSettingsError('Use an HTTPS dealership URL on the selected marketplace.');
-    return this.serial(async () => { const state = await this.load(); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.stockConnection = parsed.data.connection; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, connection: state.stockConnection }; });
+    return this.serial(async () => { const state = await this.load(transaction); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.stockConnection = parsed.data.connection; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state, transaction); return { revision: state.revision, connection: state.stockConnection }; });
   }
   async readSalesPaperwork() { const state = await this.readPrivate(); return { revision: state.revision, saleTerms: state.salesPaperwork?.saleTerms ?? '', reservationTerms: state.salesPaperwork?.reservationTerms ?? '' }; }
   async updateSalesPaperwork(raw: unknown) {
@@ -119,7 +140,7 @@ export class DealerIntegrationsStore {
     if (!parsed.success) throw new IntegrationSettingsError('Use valid terms of up to 20,000 characters each.');
     return this.serial(async () => { const state = await this.load(); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.salesPaperwork = { saleTerms: parsed.data.saleTerms, reservationTerms: parsed.data.reservationTerms }; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, ...state.salesPaperwork }; });
   }
-  async readPrivate() { return this.serial(() => this.load()); }
+  async readPrivate(transaction?: unknown) { return this.serial(() => this.load(transaction)); }
   async readMasked() { return maskedIntegrationSettings(await this.readPrivate()); }
   async update(raw: unknown) { return this.serial(async () => { const next = applyIntegrationUpdate(await this.load(), raw); await this.save(next); return maskedIntegrationSettings(next); }); }
   async listTemplates() { const state = await this.readPrivate(); return { revision: state.revision, templates: defaultEmailTemplates.map(template => ({ ...template, ...state.templates[template.id] })), appearance: state.appearance }; }
@@ -136,4 +157,9 @@ export class DealerIntegrationsStore {
     return this.serial(async () => { const state = await this.load(); if (state.revision !== input.expectedRevision) throw new EmailTemplateError('These settings changed in another session. Reload before saving.', 409); if (copy) state.templates[input.id as string] = copy; else delete state.templates[input.id as string]; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, templates: defaultEmailTemplates.map(template => ({ ...template, ...state.templates[template.id] })), appearance: state.appearance }; });
   }
 }
-export const dealerIntegrationsStore = new DealerIntegrationsStore();
+const stores = new Map<string, DealerIntegrationsStore>();
+function scopedStore(): DealerIntegrationsStore {
+  const id = currentDealerId(), shared = multiTenantEnabled(); const key = `${shared ? 'shared' : 'legacy'}:${id}`;
+  let store = stores.get(key); if (!store) { store = new DealerIntegrationsStore({ dealerId: id, ...(shared ? { databaseBacked: true, production: true } : {}) }); stores.set(key, store); } return store;
+}
+export const dealerIntegrationsStore = new Proxy({} as DealerIntegrationsStore, { get(_target, prop) { const store = scopedStore(); const value = Reflect.get(store, prop); return typeof value === 'function' ? value.bind(store) : value; } });

@@ -344,7 +344,7 @@ describe('quiet customer chat', () => {
     fetchMock.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path === '/api/chat/config') return json(configuration);
       if (path === '/api/chat/conversations/chat-a') return json({ error: 'Expired' }, 401);
-      return json({ ...conversation(), sessionToken: tokenOf(init) });
+      return json({ ...conversation('chat-fresh'), sessionToken: tokenOf(init) });
     });
     render(<CustomerChat />);
     await openChat();

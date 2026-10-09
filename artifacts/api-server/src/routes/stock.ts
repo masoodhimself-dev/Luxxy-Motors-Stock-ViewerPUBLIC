@@ -1,3 +1,6 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { matchesImportSecret } from "../middlewares/tenant";
+import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
 import { stockPlatformIssues } from "../lib/stock-platform";
 import { stockDescriptionExtras } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
@@ -31,8 +34,8 @@ const envNumber = (name: string, fallback: number): number => {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value >= 0 ? value : fallback;
 };
-const config = async () => { const { connection } = await dealerIntegrationsStore.readStockConnection(); return ({
-  dealerId: process.env.STOCK_DEALER_ID ?? "luxxy-motors",
+const config = async (transaction?: unknown) => { const { connection } = await dealerIntegrationsStore.readStockConnection(transaction); return ({
+  dealerId: currentDealerId(),
   retailerId: connection.retailerId,
   platform: connection.platform,
   enabled: connection.enabled,
@@ -66,6 +69,8 @@ const safeUrl = (value: string | null): value is string => {
   try { return new URL(value).protocol === "https:"; } catch { return false; }
 };
 const validSecret = (provided: string | undefined): boolean => {
+  const tenant = currentTenant();
+  if (multiTenantEnabled()) return Boolean(tenant?.kind === "import" && tenant.importSecretHash && provided && matchesImportSecret(provided, tenant.importSecretHash));
   const expected = process.env.STOCK_IMPORT_SECRET;
   if (!expected || !provided) return false;
   const a = Buffer.from(expected), b = Buffer.from(provided);
@@ -100,7 +105,7 @@ async function recordRejected(body: unknown, status: "failed" | "quarantined", p
   const scrapedAt = new Date(typeof candidate.scrapedAt === "string" ? candidate.scrapedAt : "");
   if (Number.isNaN(scrapedAt.getTime())) return "stored";
   try {
-    const [existing] = await db.select().from(stockImportRunsTable).where(eq(stockImportRunsTable.runId, candidate.runId));
+    const [existing] = await db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.runId, candidate.runId), eq(stockImportRunsTable.dealerId, currentDealerId())));
     if (existing) return hash(existing.rawSnapshot) === hash(body) ? "existing" : "conflict";
     await db.insert(stockImportRunsTable).values({
       runId: candidate.runId, dealerId: (await config()).dealerId, retailerId: candidate.retailerId, source: (await config()).platform,
@@ -224,14 +229,14 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
   try {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${settings.dealerId}`}))`);
-      const [prior] = await tx.select().from(stockImportRunsTable).where(eq(stockImportRunsTable.runId, data.runId));
+      const [prior] = await tx.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.runId, data.runId), eq(stockImportRunsTable.dealerId, currentDealerId())));
       if (prior) {
         if (hash(prior.rawSnapshot) !== payloadHash) return { conflict: true as const };
         if (prior.status === "quarantined") return { priorQuarantined: true as const };
         if (prior.status !== "completed") return { conflict: true as const };
         return { replay: true as const, prior };
       }
-      const active = await config();
+      const active = await config(tx);
       if (!active.enabled || active.platform !== settings.platform || active.retailerId !== settings.retailerId) return { connectionChanged: true as const };
       const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform)));
       const liveCount = current.filter((v) => v.sourceStatus === "live").length;
@@ -271,7 +276,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           await tx.update(vehiclesTable).set({
             ...databaseChanges, importRunId: run.id, lastSeenAt: now,
             ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0 }),
-          }).where(eq(vehiclesTable.id, existing.id));
+          }).where(tenantAnd(eq(vehiclesTable.id, existing.id), tenantEq(vehiclesTable.dealerId, currentDealerId())));
           const changes = Object.entries(auditChanges).map(([fieldName, change]) => ({
             vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue,
           }));
@@ -280,9 +285,9 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         }
       }
       for (const vehicle of current) if (!incomingIds.has(vehicle.advertId)) {
-        await tx.update(vehiclesTable).set({ sourceStatus: "missing", missingCount: vehicle.missingCount + 1, importRunId: run.id }).where(eq(vehiclesTable.id, vehicle.id)); missing++;
+        await tx.update(vehiclesTable).set({ sourceStatus: "missing", missingCount: vehicle.missingCount + 1, importRunId: run.id }).where(tenantAnd(eq(vehiclesTable.id, vehicle.id), tenantEq(vehiclesTable.dealerId, currentDealerId()))); missing++;
       }
-      await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(eq(stockImportRunsTable.id, run.id));
+      await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(tenantAnd(eq(stockImportRunsTable.id, run.id), tenantEq(stockImportRunsTable.dealerId, currentDealerId())));
       return { created, updated, unchanged, missing };
     });
     if ("connectionChanged" in result) { res.status(409).json({ status: "rejected", errors: [issue("connection_changed", "Stock connection changed during import; check the active connection before retrying")] }); return; }
@@ -303,6 +308,10 @@ router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
   await importStock(req, res, "autotrader");
 });
 
+router.post("/stock/imports/:dealerId/grok", async (req, res): Promise<void> => {
+  if (!multiTenantEnabled() || req.params.dealerId !== currentDealerId()) { res.status(404).json({ error: "Stock connection not found" }); return; }
+  await importStock(req, res, "grok");
+});
 router.post("/stock/imports/grok", async (req, res): Promise<void> => {
   await importStock(req, res, "grok");
 });

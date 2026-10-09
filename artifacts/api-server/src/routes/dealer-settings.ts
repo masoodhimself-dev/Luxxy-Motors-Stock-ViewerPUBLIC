@@ -1,3 +1,4 @@
+import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
 import { preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
@@ -12,9 +13,9 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 
-const defaultSettings = {
+export const defaultSettings = {
   testDriveBooking: defaultBookingPolicy,
   identity: {
     name: "Luxxy Motors",
@@ -96,6 +97,7 @@ async function settingsSnapshot(): Promise<{ config: Settings; revision: number 
     const cleaned = await cleanFeaturedVehicles(parsed);
     return { config: cleaned, revision: existing.revision };
   }
+  if (multiTenantEnabled()) throw new Error("Dealership settings must be provisioned before activation.");
   await db.insert(dealerSettingsTable).values({ dealerId: id, config: defaultSettings }).onConflictDoNothing();
   return settingsSnapshot();
 }

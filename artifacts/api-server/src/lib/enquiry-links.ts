@@ -1,3 +1,4 @@
+import { currentTenant } from "./tenant-context";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { Enquiry } from "@workspace/db";
 
@@ -55,7 +56,7 @@ export function viewingManagePath(token: string) {
 }
 
 export function siteOrigin() {
-  const configured = process.env.PUBLIC_SITE_URL?.trim();
+  const configured = currentTenant()?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL?.trim();
   if (configured) {
     const url = new URL(configured);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') {

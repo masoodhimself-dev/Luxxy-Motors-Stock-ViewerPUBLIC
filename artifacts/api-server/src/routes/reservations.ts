@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { randomUUID } from 'node:crypto';
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -18,7 +19,7 @@ import {
 const router: IRouter = Router();
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Query = Tx | typeof db;
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 const reservationKind = "online_reservation";
 const cancellationKind = "online_reservation_cancelled";
 

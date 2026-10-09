@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type Request, type Response } from 'express';
 import { clerkClient } from '@clerk/express';
 import { and, desc, eq, sql } from 'drizzle-orm';
@@ -7,7 +9,7 @@ import { requirePermission, requireStaff, staffLabel } from '../middlewares/staf
 import { isStaffRole } from '../lib/staff-permissions';
 import { dealerOperationsSummary, paymentLedgerCsv, stockHealth } from '../lib/dealer-operations';
 const router = Router();
-const dealerId = () => process.env.STOCK_DEALER_ID ?? 'luxxy-motors';
+const dealerId = () => currentDealerId();
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 class OperationError extends Error { constructor(message: string, public status = 400) { super(message); } }
 function fail(req: Request, res: Response, error: unknown) {
@@ -68,7 +70,7 @@ router.patch('/staff/vehicles/:id/price', requireStaff, requirePermission('stock
       const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, req.params.id), eq(vehiclesTable.dealerId, dealerId()))).for('update');
       if (!vehicle) throw new OperationError('Vehicle not found.', 404);
       if (req.body?.expectedUpdatedAt && new Date(req.body.expectedUpdatedAt).getTime() !== vehicle.updatedAt.getTime()) throw new OperationError('This vehicle has changed. Refresh before changing its price.', 409);
-      const [result] = await tx.update(vehiclesTable).set({ websitePriceOverride: price, updatedAt: new Date() }).where(eq(vehiclesTable.id, vehicle.id)).returning();
+      const [result] = await tx.update(vehiclesTable).set({ websitePriceOverride: price, updatedAt: new Date() }).where(tenantAnd(eq(vehiclesTable.id, vehicle.id), tenantEq(vehiclesTable.dealerId, currentDealerId()))).returning();
       await tx.insert(vehicleChangesTable).values({ vehicleId: vehicle.id, fieldName: 'websitePriceOverride', oldValue: vehicle.websitePriceOverride, newValue: price, auditMetadata: { actor: staffLabel(req), authUserId: req.staff?.authUserId, reason: 'Staff price override' } });
       return { id: result.id, price: result.websitePriceOverride ?? result.sourcePrice, websitePriceOverride: result.websitePriceOverride, updatedAt: result.updatedAt };
     });

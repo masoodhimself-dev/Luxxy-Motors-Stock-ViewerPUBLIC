@@ -30,7 +30,7 @@ export const portalUsersTable = pgTable(
   },
   (table) => [
     check('portal_users_role_check', sql`${table.role} in ('owner','salesperson','accounts')`),
-    uniqueIndex("portal_users_auth_user_uidx").on(table.authUserId),
+    uniqueIndex("portal_users_dealer_auth_user_uidx").on(table.dealerId, table.authUserId),
     index("portal_users_dealer_idx").on(table.dealerId),
   ],
 );

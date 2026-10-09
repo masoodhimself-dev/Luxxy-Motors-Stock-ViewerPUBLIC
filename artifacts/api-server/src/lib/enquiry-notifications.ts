@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "./tenant-context";
 import { sendEmail, renderDealerEmail } from "./email-provider";
 import {
   and,
@@ -88,7 +90,7 @@ async function getDealerProfile(): Promise<DealerProfile> {
     .where(
       eq(
         dealerSettingsTable.dealerId,
-        process.env.STOCK_DEALER_ID ?? "luxxy-motors",
+        currentDealerId(),
       ),
     );
   const config = settings?.config as DealerSettingsConfig | undefined;
@@ -408,7 +410,7 @@ export async function deliverEnquiryNotifications(
   const [updated] = await db
     .select()
     .from(enquiriesTable)
-    .where(eq(enquiriesTable.id, enquiry.id));
+    .where(tenantAnd(eq(enquiriesTable.id, enquiry.id), tenantEq(enquiriesTable.dealerId, currentDealerId())));
   return updated ?? enquiry;
 }
 

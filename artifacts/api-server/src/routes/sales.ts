@@ -1,3 +1,5 @@
+import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { currentDealerId } from "../lib/tenant-context";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type Request } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
@@ -126,7 +128,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryDb = Tx | typeof db;
 
 function dealerId() {
-  return process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+  return currentDealerId();
 }
 
 function canonicalJson(value: unknown): string {
@@ -238,7 +240,7 @@ async function loadSale(tx: QueryDb, saleId: string) {
   const [vehicle] = await tx
     .select()
     .from(vehiclesTable)
-    .where(eq(vehiclesTable.id, sale.vehicleId));
+    .where(tenantAnd(eq(vehiclesTable.id, sale.vehicleId), tenantEq(vehiclesTable.dealerId, currentDealerId())));
   const revisions = await tx
     .select()
     .from(saleRevisionsTable)
@@ -1227,7 +1229,7 @@ async function createRevisionAndSession(tx: Tx, saleId: string, req: Request) {
   await tx
     .update(salesTable)
     .set({ status: "signing", signedRevisionId: null })
-    .where(eq(salesTable.id, saleId));
+    .where(tenantAnd(eq(salesTable.id, saleId), tenantEq(salesTable.dealerId, currentDealerId())));
   await recordEvent(tx, saleId, "revision.prepared", "staff", {
     revisionId: revision.id,
     revisionNumber,
@@ -1605,7 +1607,7 @@ router.post("/sales/:id/complete", requireStaff, async (req, res) => {
       await tx
         .update(vehiclesTable)
         .set({ inventoryStatus: "sold", sourceStatus: "live" })
-        .where(eq(vehiclesTable.id, context.sale.vehicleId));
+        .where(tenantAnd(eq(vehiclesTable.id, context.sale.vehicleId), tenantEq(vehiclesTable.dealerId, currentDealerId())));
       const invoiceNumber = `DEV-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${context.sale.id.slice(0, 8).toUpperCase()}`;
       const invoiceSnapshot = {
         developmentOnly: true,
@@ -1806,7 +1808,7 @@ router.post("/signing/:token/complete", async (req, res) => {
       await tx
         .update(salesTable)
         .set({ status: "signed", signedRevisionId: revision.id })
-        .where(eq(salesTable.id, session.saleId));
+        .where(tenantAnd(eq(salesTable.id, session.saleId), tenantEq(salesTable.dealerId, currentDealerId())));
       await recordEvent(tx, session.saleId, "customer.demo_signed", "customer", {
         revisionId: revision.id,
         signatureHash,
@@ -1835,7 +1837,7 @@ router.post("/sales/:id/revoke-signing", requireStaff, async (req, res) => {
       await tx.update(signingSessionsTable)
         .set({ status: "revoked", revokedAt: new Date() })
         .where(eq(signingSessionsTable.id, pending.id));
-      await tx.update(salesTable).set({ status: "ready" }).where(eq(salesTable.id, req.params.id));
+      await tx.update(salesTable).set({ status: "ready" }).where(tenantAnd(eq(salesTable.id, req.params.id), tenantEq(salesTable.dealerId, currentDealerId())));
       await recordEvent(tx, req.params.id, "signing.revoked", "staff", {
         sessionId: pending.id, revisionId: pending.revisionId,
       });

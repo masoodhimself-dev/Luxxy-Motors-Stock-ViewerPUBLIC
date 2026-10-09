@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db, dealerSettingsTable } from '@workspace/db';
@@ -11,7 +12,7 @@ const generate = createBrochureHandler({
   readDealer: async () => {
     // Deliberately do not use getOrCreateSettings: this endpoint must never write.
     const [settings] = await db.select({ config: dealerSettingsTable.config }).from(dealerSettingsTable)
-      .where(eq(dealerSettingsTable.dealerId, process.env.STOCK_DEALER_ID ?? 'luxxy-motors'));
+      .where(eq(dealerSettingsTable.dealerId, currentDealerId()));
     return brochureDealer(settings?.config);
   },
 });

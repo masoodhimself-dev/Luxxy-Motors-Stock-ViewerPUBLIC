@@ -20,6 +20,7 @@ import { clerkAppearance } from '@/lib/clerk-appearance';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import Home from '@/pages/home';
+const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const Compare = lazy(() => import("@/pages/compare"));
@@ -73,6 +74,7 @@ function Router() {
           <Route path="/vehicle/:id" component={CarDetail} />
           <Route path="/saved" component={Saved} />
           <Route path="/compare" component={Compare} />
+          <Route path="/platform" component={Platform} />
           <Route path="/portal" component={Portal} />
           <Route path="/portal/leads/:id" component={Portal} />
           <Route path="/enquire" component={Enquire} />
@@ -137,13 +139,13 @@ function ClerkProviderWithRoutes() {
         signIn: {
           start: {
             title: 'Sign in',
-            subtitle: 'Staff access to the Luxxy Motors staff portal',
+            subtitle: import.meta.env.VITE_MULTI_TENANT_ENABLED === 'true' ? 'Sign in to your staff account' : 'Staff access to the Luxxy Motors staff portal',
           },
         },
         signUp: {
           start: {
             title: 'Create your staff account',
-            subtitle: 'Staff access to the Luxxy Motors staff portal',
+            subtitle: import.meta.env.VITE_MULTI_TENANT_ENABLED === 'true' ? 'Sign in to your staff account' : 'Staff access to the Luxxy Motors staff portal',
           },
         },
       }}

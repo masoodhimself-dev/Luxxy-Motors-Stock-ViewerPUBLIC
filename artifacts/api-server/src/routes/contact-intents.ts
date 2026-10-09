@@ -1,3 +1,4 @@
+import { currentDealerId } from "../lib/tenant-context";
 import { Router, type IRouter } from "express";
 import { requireStaff } from "../middlewares/staff-auth";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
@@ -21,7 +22,7 @@ const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const intentListLimit = 50;
 
-const dealerId = () => process.env.STOCK_DEALER_ID ?? "luxxy-motors";
+const dealerId = () => currentDealerId();
 const errorResponse = (message: string) => ({ error: message });
 
 function checkRateLimit(key: string, max: number, windowMs: number) {
