@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { createServer, request as httpRequest } from 'node:http';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
-import { engine, db, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, vehiclesTable, dealerPrivateSettingsTable, portalUsersTable, dealerSettingsTable, enquiriesTable } from './test/tenant-test-db';
+import { engine, db, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, vehiclesTable, dealerPrivateSettingsTable, portalUsersTable, dealerSettingsTable, enquiriesTable, leadsTable } from './test/tenant-test-db';
 import { randomUUID } from "node:crypto";
 import type { SaleWorkspaceDraft } from "@workspace/vehicle-meta";
 import fixture from './test/fixtures/cazoo-stock.json';
@@ -92,6 +92,18 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     const submittedA = await request('/api/enquiries','dealer-a.example.test','POST',enquiry); assert.equal(submittedA.status,201,await submittedA.clone().text());
     const submittedB = await request('/api/enquiries','dealer-b.example.test','POST',{ ...enquiry, vehicleId: stockB.cars[0].id }); assert.equal(submittedB.status,201,await submittedB.clone().text());
     const entries = await db.select().from(enquiriesTable); assert.equal(entries.filter(e => e.dealerId === a.dealerId).length,1); assert.equal(entries.filter(e => e.dealerId === b.dealerId).length,1);
+    const { forEachActiveDealer } = await import('./lib/tenant-jobs');
+    const visited: string[] = [];
+    await forEachActiveDealer(async () => { visited.push(currentDealerId()); });
+    assert.deepEqual(visited.sort(), ['dealer-a', 'dealer-b']);
+    const { backfillLeadsFromEnquiries } = await import('./lib/leads');
+    const { logger } = await import('./lib/logger');
+    // Leave B with an enquiry requiring backfill; A must not process it.
+    await db.delete(leadsTable).where(eq(leadsTable.dealerId, b.dealerId));
+    await runWithTenant(a, () => backfillLeadsFromEnquiries(logger));
+    const carried = await db.select().from(leadsTable);
+    assert.ok(carried.some(row => row.dealerId === a.dealerId));
+    assert.ok(!carried.some(row => row.dealerId === b.dealerId));
     const brandingA = await request('/api/dealer-settings','dealer-a.example.test').then(r=>r.json()) as {identity:{name:string}};
     const brandingB = await request('/api/dealer-settings','dealer-b.example.test').then(r=>r.json()) as {identity:{name:string}};
     assert.equal(brandingA.identity.name,a.dealerId); assert.equal(brandingB.identity.name,b.dealerId);

@@ -286,12 +286,12 @@ export async function backfillLeadsFromEnquiries(
         .select()
         .from(enquiriesTable)
         .where(
-          notExists(
+          and(eq(enquiriesTable.dealerId, currentDealerId()), notExists(
             tx
               .select({ present: sql`1` })
               .from(leadsTable)
               .where(tenantAnd(eq(leadsTable.enquiryId, enquiriesTable.id), tenantEq(leadsTable.dealerId, currentDealerId()))),
-          ),
+          )),
         )
         .orderBy(asc(enquiriesTable.createdAt))
         .limit(batchSize);

@@ -1,3 +1,4 @@
+import { forEachActiveDealer } from './tenant-jobs';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { currentDealerId } from "./tenant-context";
 import { sendEmail, renderDealerEmail } from "./email-provider";
@@ -486,7 +487,7 @@ export async function processDueNotifications(log: Logger) {
     .select()
     .from(enquiriesTable)
     .where(
-      or(
+      and(eq(enquiriesTable.dealerId, currentDealerId()), or(
         claimable(
           enquiriesTable.customerNotificationStatus,
           enquiriesTable.customerNotificationAttemptedAt,
@@ -497,7 +498,7 @@ export async function processDueNotifications(log: Logger) {
           enquiriesTable.dealerNotificationAttemptedAt,
           staleBefore,
         ),
-      ),
+      )),
     );
 
   for (const enquiry of pending) {
@@ -510,6 +511,7 @@ export async function processDueNotifications(log: Logger) {
     .from(enquiriesTable)
     .where(
       and(
+        eq(enquiriesTable.dealerId, currentDealerId()),
         eq(enquiriesTable.type, "viewing"),
         or(eq(enquiriesTable.appointmentStatus, "confirmed"), isNull(enquiriesTable.appointmentStatus)),
         isNull(enquiriesTable.appointmentCancelledAt),
@@ -534,6 +536,7 @@ export async function processDueNotifications(log: Logger) {
     })
     .where(
       and(
+        eq(enquiriesTable.dealerId, currentDealerId()),
         eq(enquiriesTable.type, "viewing"),
         or(eq(enquiriesTable.appointmentStatus, "confirmed"), isNull(enquiriesTable.appointmentStatus)),
         isNull(enquiriesTable.appointmentCancelledAt),
@@ -553,10 +556,14 @@ export async function processDueNotifications(log: Logger) {
 }
 
 export function startReminderWorker(log: Logger) {
-  const run = () =>
-    processDueNotifications(log).catch((error) => {
+  let running = false;
+  const run = async () => {
+    if (running) return;
+    running = true;
+    await forEachActiveDealer(() => processDueNotifications(log)).catch((error) => {
       log.error({ err: error }, "Notification worker failed");
-    });
+    }).finally(() => { running = false; });
+  };
   void run();
   const interval = setInterval(run, 5 * 60 * 1000);
   interval.unref();

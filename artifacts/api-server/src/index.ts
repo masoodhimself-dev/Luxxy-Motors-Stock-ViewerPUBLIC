@@ -1,3 +1,4 @@
+import { forEachActiveDealer } from './lib/tenant-jobs';
 import { siteOrigin } from "./lib/enquiry-links";
 import app from "./app";
 import { logger } from "./lib/logger";
@@ -33,7 +34,7 @@ app.listen(port, (err) => {
   startStripeReservationWorker(logger);
   // Enquiries taken before leads existed are carried across on boot. This is
   // idempotent, so it is safe on every restart.
-  backfillLeadsFromEnquiries(logger).catch((err: unknown) => {
+  forEachActiveDealer(() => backfillLeadsFromEnquiries(logger)).catch((err: unknown) => {
     logger.error(
       { err },
       "Unable to carry existing enquiries across into leads",
