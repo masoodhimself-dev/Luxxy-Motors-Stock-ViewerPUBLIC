@@ -56,3 +56,19 @@ Prepared `render.multi-tenant-staging.yaml`: one paid shared web service and a s
 In-memory PostgreSQL engine (PGlite), not a mocked SQL implementation: all committed SQL migrations run on a fresh isolated database; two fake dealerships use separate domains and import credentials. HTTP tests cover incorrect domains/keys, same advert IDs producing different vehicle records, identical retries, cross-dealer vehicle lookups, enquiry ownership and branding. Staff-membership checks reject uninvited users and users belonging only to another dealership. Encrypted settings and canonical links remain separate. A real database-backed draft sale, deposit/receipt, final payment and completion change only dealer A's stock; dealer B remains unaffected. Concurrent context tests verify no identity mixing.
 
 Frontend regression: 312 existing tests passed with NODE_OPTIONS=--no-experimental-webstorage on the local Node 25 runtime. An existing expired-chat test fixture was corrected to give the new chat a fresh ID rather than reusing the expired ID. Two additional platform-console tests cover access denial and draft/DNS instructions (314 frontend tests total). Typechecks and builds pass. This is not a claim that Render DNS/TLS, live Clerk or every end-to-end provider workflow has been verified.
+
+
+## Local stock-import contract verification — 9 October 2026
+
+These changes are local only; no Render deployment, live migration or Grok activation was performed.
+
+- Import errors echo `runId` and `retailerId` where the request contains them (otherwise null), with explicit status and structured errors.
+- Invalid credentials return 401; an active credential belonging to another dealer returns 403. Import-host mismatches return 421.
+- Shared imports require every car to declare `sourceExtras.sourcePlatform`. Marketplace/retailer semantic mismatches return 422 rejected; malformed schema remains 400 rejected.
+- Completed identical retries return 200 replayed even after the freshness window or a newer applied snapshot. Authentication, current connection and payload matching still apply. Comparison uses canonical JSON SHA-256, not raw-byte hashing; whitespace/object key order do not create conflicts.
+- Under a per-dealer transaction lock, new snapshots older than the greatest completed `scrapedAt` return 409 rejected with `superseded_snapshot`. Freshness checks follow replay detection. Equal timestamps are allowed; workers must retain their generation-order safeguards.
+- Stale new runs and incomplete/drop snapshots return 422 quarantined. Conflicting run-ID reuse returns 409 rejected. Quarantined runs remain blocked.
+- Oversized request bodies return 413 rejected with `payload_too_large` rather than the former generic 500. Malformed JSON cannot supply a trustworthy run ID and returns null identity.
+- The existing bounded server-error retry policy still applies; Retry-After provisioning for capacity/rate limiting is not implemented here.
+
+Verification: the in-memory PostgreSQL-compatible two-dealer HTTP suite exercises invalid/wrong-dealer keys, host/retailer/marketplace rejection, complete imports, price updates, conflict/replay handling, 48-hour replay, stale new runs, delayed older snapshots, independent vehicle/settings/enquiry/staff access, and preservation of reserved/sold status through imports. Stock-feed regression tests and API TypeScript checks also pass. This is not yet a real Render/Grok connection test.

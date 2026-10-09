@@ -1,15 +1,18 @@
-# Proposed isolated paid Cazoo test environment. Creation requires cost approval.
+# Isolated shared multi-dealer staging. Paid creation approved 9 October 2026.
 # No connection to the existing Auto Trader staging database or worker.
 # Select this file explicitly as the Blueprint path (it is not render.yaml).
 services:
   - type: web
     name: luxxy-shared-staging
+    branch: codex/multi-tenant-foundation
     runtime: node
     region: frankfurt
     plan: 0.5c-512mb
     numInstances: 1
     autoDeployTrigger: "off"
     buildCommand: corepack pnpm install --frozen-lockfile --prod=false && corepack pnpm build
+    # Runs only against this Blueprint's new isolated database.
+    preDeployCommand: corepack pnpm --filter @workspace/db migrate
     startCommand: PUBLIC_SITE_URL="${PUBLIC_SITE_URL:-$RENDER_EXTERNAL_URL}" corepack pnpm start
     healthCheckPath: /api/healthz
     envVars:
@@ -32,9 +35,9 @@ services:
       - key: VITE_MULTI_TENANT_ENABLED
         value: "true"
       - key: PLATFORM_ADMIN_HOST
-        sync: false
+        value: luxxy-shared-staging.onrender.com
       - key: STOCK_IMPORT_API_HOST
-        sync: false
+        value: luxxy-shared-staging.onrender.com
       - key: PLATFORM_ADMIN_USER_IDS
         sync: false
       - key: STOCK_MAX_AGE_HOURS
@@ -62,8 +65,6 @@ services:
       - key: VITE_CLERK_PUBLISHABLE_KEY
         sync: false
       - key: CLERK_SECRET_KEY
-        sync: false
-      - key: PORTAL_STAFF_EMAILS
         sync: false
 
 databases:

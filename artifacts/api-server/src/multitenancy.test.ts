@@ -51,12 +51,37 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
   const snapshot = (tenant: TenantContext, id: string) => ({ ...fixture, runId: id, retailerId: tenant.retailerId, dealerName: tenant.dealerId, scrapedAt: new Date().toISOString() });
   try {
     assert.equal((await request('/api/stock', 'unknown.example.test')).status, 421);
-    assert.equal((await request('/api/stock/imports/dealer-a/grok', 'imports.example.test', 'POST', snapshot(a,'bad-key'), 'fictional-key-b')).status, 401);
+    assert.equal((await request('/api/stock/imports/dealer-a/grok', 'imports.example.test', 'POST', snapshot(a,'bad-key'), 'fictional-key-b')).status, 403);
     assert.equal((await request('/api/stock/imports/dealer-a/grok', 'dealer-a.example.test', 'POST', snapshot(a,'bad-host'), 'fictional-key-a')).status, 421);
     const payloadA = snapshot(a,'run-a'), payloadB = snapshot(b,'run-b');
     assert.equal((await request('/api/stock/imports/dealer-a/grok', 'imports.example.test', 'POST', payloadA, 'fictional-key-a')).status, 201);
     assert.equal((await request('/api/stock/imports/dealer-b/grok', 'imports.example.test', 'POST', payloadB, 'fictional-key-b')).status, 201);
     assert.equal((await request('/api/stock/imports/dealer-a/grok', 'imports.example.test', 'POST', payloadA, 'fictional-key-a')).status, 200);
+    const postA = (body: unknown, key = 'fictional-key-a') => request('/api/stock/imports/dealer-a/grok', 'imports.example.test', 'POST', body, key);
+    const errorCheck = async (response: Response, expectedStatus: number, runId: string, code: string) => {
+      assert.equal(response.status, expectedStatus, await response.clone().text());
+      const body = await response.json() as { status: string; runId: string; errors: Array<{ code: string }> };
+      assert.equal(body.runId, runId); assert.ok(body.errors.some(e => e.code === code));
+    };
+    await errorCheck(await postA(snapshot(a, 'invalid-secret'), 'unknown-key'), 401, 'invalid-secret', 'unauthorized');
+    await errorCheck(await postA(snapshot(a, 'wrong-dealer'), 'fictional-key-b'), 403, 'wrong-dealer', 'dealer_credential_mismatch');
+    await errorCheck(await postA({ ...snapshot(a, 'wrong-retailer'), retailerId: b.retailerId }), 422, 'wrong-retailer', 'retailer_not_allowed');
+    await errorCheck(await postA({ ...snapshot(a, 'wrong-platform'), cars: fixture.cars.map(car => ({ ...car, sourceExtras: { ...car.sourceExtras, sourcePlatform: 'autotrader' } })) }), 422, 'wrong-platform', 'platform_mismatch');
+    await errorCheck(await postA({ ...snapshot(a, 'incomplete'), complete: false }), 422, 'incomplete', 'incomplete_snapshot');
+    await errorCheck(await postA({ ...payloadA, dealerName: 'Changed body' }), 409, payloadA.runId, 'run_id_conflict');
+    const updated = { ...snapshot(a, 'newer-price'), scrapedAt: new Date(Date.now() + 1000).toISOString(), cars: fixture.cars.map(car => ({ ...car, price: 8995 })) };
+    assert.equal((await postA(updated)).status, 201);
+    const older = { ...snapshot(a, 'late-older'), scrapedAt: new Date(new Date(payloadA.scrapedAt).getTime() - 1000).toISOString() };
+    await errorCheck(await postA(older), 409, 'late-older', 'superseded_snapshot');
+    assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].sourcePrice, 8995);
+    const realNow = Date.now;
+    try {
+      Date.now = () => realNow() + 48 * 3600000;
+      const replay = await postA(payloadA); assert.equal(replay.status, 200);
+      assert.equal((await replay.json() as { status: string }).status, 'replayed');
+      await errorCheck(await postA({ ...payloadA, runId: 'stale-new-run' }), 422, 'stale-new-run', 'stale_snapshot');
+    } finally { Date.now = realNow; }
+    assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].sourcePrice, 8995);
     const stockA = await request('/api/stock','dealer-a.example.test').then(r => r.json()) as { cars: Array<{ id: string }> };
     const stockB = await request('/api/stock','dealer-b.example.test').then(r => r.json()) as { cars: Array<{ id: string }> };
     assert.equal(stockA.cars.length,1); assert.equal(stockB.cars.length,1); assert.notEqual(stockA.cars[0].id,stockB.cars[0].id);
@@ -90,9 +115,15 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     const reserved = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: created.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'take-deposit', payment: { amount: '500', kind: 'deposit', status: 'confirmed', method: 'Bank transfer', date: '2026-10-09', reference: 'Fixture only' } } }));
     assert.equal(reserved.sale.lifecycle?.status,'reserved'); assert.ok(reserved.sale.documents.some(d=>d.type==='receipt'));
     const cars = await db.select().from(vehiclesTable); assert.equal(cars.find(c=>c.dealerId===a.dealerId)?.inventoryStatus,'reserved'); assert.equal(cars.find(c=>c.dealerId===b.dealerId)?.inventoryStatus,'available');
+    assert.equal((await postA({ ...updated, runId: 'reserved-refresh', scrapedAt: new Date(Date.now() + 2000).toISOString() })).status, 201);
+    assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].inventoryStatus, 'reserved');
     const paid = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'payment', payment: { amount: '8495', kind: 'final-payment', status: 'confirmed', method: 'Bank transfer', date: '2026-10-09', reference: 'Fixture only' } } }));
     const sold = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: paid.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'complete-sale', acknowledge: true } }));
     assert.equal(sold.sale.lifecycle?.status,'sold'); assert.ok(sold.sale.documents.some(d=>d.type==='invoice')); assert.equal((await storeB.list()).length,0);
+    assert.equal((await postA({ ...updated, runId: 'sold-refresh', scrapedAt: new Date(Date.now() + 3000).toISOString() })).status, 201);
+    assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].inventoryStatus, 'sold');
+    assert.equal((await request('/api/stock', 'dealer-a.example.test').then(r => r.json()) as { cars: unknown[] }).cars.length, 0);
+    assert.equal((await request('/api/stock', 'dealer-b.example.test').then(r => r.json()) as { cars: unknown[] }).cars.length, 1);
     await db.update(dealershipsTable).set({ status: 'suspended' }).where(eq(dealershipsTable.id,a.dealerId));
     assert.equal((await request('/api/stock','dealer-a.example.test')).status,421);
     assert.equal((await request('/api/stock','dealer-b.example.test')).status,200);

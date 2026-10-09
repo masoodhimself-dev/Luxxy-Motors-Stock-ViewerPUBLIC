@@ -59,13 +59,22 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
   req.log.error({ err: error }, "Unhandled API error");
   if (res.headersSent) return;
 
+  const identity = /^\/api\/stock\/imports(?:\/|$)/.test(req.path) ? {
+    runId: typeof req.body?.runId === "string" ? req.body.runId : null,
+    retailerId: typeof req.body?.retailerId === "string" ? req.body.retailerId : null,
+  } : {};
+  if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
+    res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });
+    return;
+  }
+
   if (
     error instanceof SyntaxError &&
     "status" in error &&
     (error as SyntaxError & { status?: number }).status === 400
   ) {
     res.status(400).json({
-      status: "rejected",
+      ...identity, status: "rejected",
       errors: [
         {
           code: "invalid_json",
@@ -79,7 +88,7 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
   }
 
   res.status(500).json({
-    status: "rejected",
+    ...identity, status: "rejected",
     errors: [
       {
         code: "unexpected_error",

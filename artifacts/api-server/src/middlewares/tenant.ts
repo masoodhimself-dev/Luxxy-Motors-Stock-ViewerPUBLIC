@@ -11,6 +11,11 @@ export function matchesImportSecret(secret: string, digest: string): boolean {
 export const resolveTenant: RequestHandler = (req, res, next) => {
   if (!multiTenantEnabled() || req.path === '/api/healthz') { next(); return; }
   void (async () => {
+    const rejectImport = (httpStatus: number, code: string, message: string) => res.status(httpStatus).json({
+      status: 'rejected', runId: typeof req.body?.runId === 'string' ? req.body.runId : null,
+      retailerId: typeof req.body?.retailerId === 'string' ? req.body.retailerId : null,
+      errors: [{ code, message, path: null, advertId: null }],
+    });
     const hostname = normaliseTenantHost(req.get('host') ?? '');
     if (!hostname) { res.status(421).json({ error: 'Unrecognised dealership domain.' }); return; }
     const administratorHost = normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '');
@@ -18,13 +23,16 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
     const importRoute = /^\/api\/stock\/imports\/([a-z0-9-]+)\/grok\/?$/.exec(req.path);
     let tenant: TenantContext;
     if (importRoute) {
-      if (hostname !== normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '')) { res.status(421).json({ error: 'Use the approved stock import host.' }); return; }
+      if (hostname !== normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST ?? '')) { rejectImport(421, 'wrong_import_host', 'Use the approved stock import host.'); return; }
       const [dealer] = await db.select().from(dealershipsTable).where(and(eq(dealershipsTable.id, importRoute[1]), eq(dealershipsTable.status, 'active')));
-      if (!dealer) { res.status(401).json({ error: 'Invalid stock connection.' }); return; }
+      if (!dealer) { rejectImport(401, 'unauthorized', 'Invalid stock connection.'); return; }
       const keys = await db.select().from(dealerImportKeysTable).where(and(eq(dealerImportKeysTable.dealerId, dealer.id), isNull(dealerImportKeysTable.disabledAt)));
       const supplied = req.get('x-stock-import-secret') ?? '';
       const key = keys.find(k => matchesImportSecret(supplied, k.secretHash));
-      if (!key) { res.status(401).json({ error: 'Invalid stock connection.' }); return; }
+      if (!key) {
+        const [otherKey] = supplied ? await db.select().from(dealerImportKeysTable).where(and(eq(dealerImportKeysTable.secretHash, importSecretDigest(supplied)), isNull(dealerImportKeysTable.disabledAt))) : [];
+        rejectImport(otherKey ? 403 : 401, otherKey ? 'dealer_credential_mismatch' : 'unauthorized', 'Invalid stock connection.'); return;
+      }
       tenant = { dealerId: dealer.id, canonicalOrigin: dealer.canonicalOrigin, platform: dealer.stockPlatform, retailerId: dealer.retailerId, sourceUrl: dealer.sourceUrl, importSecretHash: key.secretHash, kind: 'import' };
     } else {
       // Never trust a client tenant ID or arbitrary X-Forwarded-Host value.

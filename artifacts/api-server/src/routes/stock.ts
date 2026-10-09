@@ -185,45 +185,49 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
 }
 
 async function importStock(req: Request, res: Response, source: ImportSource): Promise<void> {
+  const identity = {
+    runId: typeof req.body?.runId === "string" ? req.body.runId : null,
+    retailerId: typeof req.body?.retailerId === "string" ? req.body.retailerId : null,
+  };
   if (!validSecret(req.get("x-stock-import-secret"))) {
     req.log.warn("Rejected unauthorized stock import");
-    res.status(401).json({ status: "rejected", errors: [issue("unauthorized", "Invalid import secret")] }); return;
+    res.status(401).json({ ...identity, status: "rejected", errors: [issue("unauthorized", "Invalid import secret")] }); return;
   }
   const settings = await config();
   if (!settings.retailerId) {
     req.log.error("STOCK_RETAILER_ID is not configured");
-    res.status(500).json({ status: "rejected", errors: [issue("configuration_error", "Stock import is not configured")] }); return;
+    res.status(500).json({ ...identity, status: "rejected", errors: [issue("configuration_error", "Stock import is not configured")] }); return;
   }
   const parsed = (source === "grok" ? ImportGrokStockBody : ImportAutotraderStockBody).safeParse(req.body);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((e) => issue("invalid_structure", e.message, e.path.join(".")));
     const recorded = await recordRejected(req.body, "failed", problems);
-    if (recorded === "conflict") { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
-    res.status(400).json({ status: "rejected", errors: problems }); return;
+    if (recorded === "conflict") { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
+    res.status(400).json({ ...identity, status: "rejected", errors: problems }); return;
   }
   // Persist marketplace identity separately from the transport adapter.
   const data = parsed.data;
-  if (!settings.enabled) { res.status(409).json({ status: "rejected", errors: [issue("feed_paused", "Stock imports are paused")] }); return; }
-  if (source === "autotrader" && settings.platform !== "autotrader") { res.status(400).json({ status: "rejected", errors: [issue("platform_mismatch", "Use the Grok route for the configured marketplace")] }); return; }
+  if (!settings.enabled) { res.status(409).json({ ...identity, status: "rejected", errors: [issue("feed_paused", "Stock imports are paused")] }); return; }
+  if (source === "autotrader" && settings.platform !== "autotrader") { res.status(400).json({ ...identity, status: "rejected", errors: [issue("platform_mismatch", "Use the Grok route for the configured marketplace")] }); return; }
   const platformProblems = stockPlatformIssues(data.cars, settings.platform);
-  if (platformProblems.length) { res.status(400).json({ status: "rejected", errors: platformProblems.map(message => issue("platform_mismatch", message)) }); return; }
+  if (multiTenantEnabled() && data.cars.some(car => car.sourceExtras?.sourcePlatform !== settings.platform))
+    platformProblems.push("Every car must declare the configured sourceExtras.sourcePlatform");
+  if (platformProblems.length) { res.status(422).json({ ...identity, status: "rejected", errors: platformProblems.map(message => issue("platform_mismatch", message)) }); return; }
   const quarantineProblems: Issue[] = [];
   if (!data.complete) quarantineProblems.push(issue("incomplete_snapshot", "Snapshot must be complete"));
   if (data.count !== data.cars.length || data.expectedAdvertCount !== data.cars.length) quarantineProblems.push(issue("count_mismatch", "count and expectedAdvertCount must equal cars.length"));
   if (data.failedAdvertIds.length) quarantineProblems.push(issue("failed_adverts", "Snapshot contains failed advert IDs"));
   if (data.errors.length) quarantineProblems.push(issue("source_errors", "Snapshot contains source errors"));
-  if (Date.now() - data.scrapedAt.getTime() > settings.maxAgeHours * 3_600_000 || data.scrapedAt.getTime() > Date.now() + 300_000)
-    quarantineProblems.push(issue("stale_snapshot", "Snapshot is outside the allowed freshness window", "scrapedAt"));
   if (quarantineProblems.length) {
     const recorded = await recordRejected(req.body, "quarantined", quarantineProblems);
-    if (recorded === "conflict") { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
-    res.status(422).json({ status: "quarantined", errors: quarantineProblems }); return;
+    if (recorded === "conflict") { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
+    res.status(422).json({ ...identity, status: "quarantined", errors: quarantineProblems }); return;
   }
   const problems = semanticIssues(data, settings).filter((problem) => problem.code !== "count_mismatch" && problem.code !== "stale_snapshot");
   if (problems.length) {
     const recorded = await recordRejected(req.body, "failed", problems);
-    if (recorded === "conflict") { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
-    res.status(400).json({ status: "rejected", errors: problems }); return;
+    if (recorded === "conflict") { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
+    res.status(422).json({ ...identity, status: "rejected", errors: problems }); return;
   }
   const payloadHash = hash(req.body);
   try {
@@ -236,6 +240,14 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         if (prior.status !== "completed") return { conflict: true as const };
         return { replay: true as const, prior };
       }
+      // Replay detection precedes freshness/order checks, under the same dealer lock.
+      if (Date.now() - data.scrapedAt.getTime() > settings.maxAgeHours * 3_600_000 || data.scrapedAt.getTime() > Date.now() + 300_000) {
+        const errors = [issue("stale_snapshot", "Snapshot is outside the allowed freshness window", "scrapedAt")];
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors, rawSnapshot: req.body });
+        return { freshnessQuarantine: true as const, errors };
+      }
+      const [latest] = await tx.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"))).orderBy(desc(stockImportRunsTable.scrapedAt)).limit(1);
+      if (latest && data.scrapedAt.getTime() < latest.scrapedAt.getTime()) return { superseded: true as const };
       const active = await config(tx);
       if (!active.enabled || active.platform !== settings.platform || active.retailerId !== settings.retailerId) return { connectionChanged: true as const };
       const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform)));
@@ -290,17 +302,19 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
       await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(tenantAnd(eq(stockImportRunsTable.id, run.id), tenantEq(stockImportRunsTable.dealerId, currentDealerId())));
       return { created, updated, unchanged, missing };
     });
-    if ("connectionChanged" in result) { res.status(409).json({ status: "rejected", errors: [issue("connection_changed", "Stock connection changed during import; check the active connection before retrying")] }); return; }
-    if ("conflict" in result) { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
-    if ("priorQuarantined" in result) { res.status(422).json({ status: "quarantined", errors: [issue("previously_quarantined", "This import run was previously quarantined")] }); return; }
-    if ("quarantined" in result) { res.status(422).json({ status: "quarantined", errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")] }); return; }
+    if ("freshnessQuarantine" in result) { res.status(422).json({ ...identity, status: "quarantined", errors: result.errors }); return; }
+    if ("superseded" in result) { res.status(409).json({ ...identity, status: "rejected", errors: [issue("superseded_snapshot", "A newer snapshot has already been applied", "scrapedAt")] }); return; }
+    if ("connectionChanged" in result) { res.status(409).json({ ...identity, status: "rejected", errors: [issue("connection_changed", "Stock connection changed during import; check the active connection before retrying")] }); return; }
+    if ("conflict" in result) { res.status(409).json({ ...identity, status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
+    if ("priorQuarantined" in result) { res.status(422).json({ ...identity, status: "quarantined", errors: [issue("previously_quarantined", "This import run was previously quarantined")] }); return; }
+    if ("quarantined" in result) { res.status(422).json({ ...identity, status: "quarantined", errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")] }); return; }
     const replayed = result.replay === true;
     const replayUnchanged = replayed ? Math.max(0, data.cars.length - result.prior!.addedCount - result.prior!.changedCount) : result.unchanged;
     const reply = (source === "grok" ? ImportGrokStockResponse : ImportAutotraderStockResponse).parse({ schemaVersion: 1, status: replayed ? "replayed" : "imported", runId: data.runId, source, retailerId: data.retailerId, received: data.cars.length, created: replayed ? result.prior!.addedCount : result.created, updated: replayed ? result.prior!.changedCount : result.updated, deleted: 0, unchanged: replayUnchanged, errors: [] });
     res.status(replayed ? 200 : 201).json(reply);
   } catch (error) {
     req.log.error({ err: error }, "Stock import failed");
-    res.status(500).json({ status: "rejected", errors: [issue("unexpected_error", "Unable to import stock")] });
+    res.status(500).json({ ...identity, status: "rejected", errors: [issue("unexpected_error", "Unable to import stock")] });
   }
 }
 
