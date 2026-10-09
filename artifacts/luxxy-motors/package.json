@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:mobile-layout": "playwright test --config playwright.config.ts",
-    "dev:preview": "vite --config vite.preview.config.ts"
+    "dev:preview": "vite --config vite.preview.config.ts",
+    "build:cazoo-demo": "vite build --config vite.cazoo-demo.config.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

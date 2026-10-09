@@ -191,7 +191,7 @@ export function EnquiryVehicleInformation({
         </section>
         {description && (
           <section className="border-t border-border pt-4">
-            <h3 className="mb-2 font-semibold">Advert description</h3>
+            <h3 className="mb-2 font-semibold">{car.sourceExtras?.descriptionOrigin === 'generated-facts' ? 'Vehicle description · Generated from supplied facts' : 'Advert description'}</h3>
             <p className="whitespace-pre-wrap break-words text-sm leading-6">
               {description}
             </p>

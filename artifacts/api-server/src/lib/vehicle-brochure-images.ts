@@ -19,7 +19,7 @@ export function isPublicImageAddress(address: string): boolean {
 export function permittedBrochureImage(value: string, extraHosts = ''): URL | null {
   try {
     const url = new URL(value);
-    const hosts = new Set(['m.atcdn.co.uk', 'images.autotrader.co.uk', ...extraHosts.split(',').map((host) => host.trim().toLowerCase()).filter(Boolean)]);
+    const hosts = new Set(['m.atcdn.co.uk', 'images.autotrader.co.uk', 'cdn.images.autoexposure.co.uk', ...extraHosts.split(',').map((host) => host.trim().toLowerCase()).filter(Boolean)]);
     if (url.protocol !== 'https:' || (url.port && url.port !== '443') || url.username || url.password || isIP(url.hostname) || !hosts.has(url.hostname.toLowerCase())) return null;
     url.hash = '';
     return url;

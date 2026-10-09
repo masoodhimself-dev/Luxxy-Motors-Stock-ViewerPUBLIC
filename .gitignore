@@ -57,3 +57,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Separate read-only showcase build output
+artifacts/api-server/dist-cazoo/

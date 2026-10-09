@@ -1,3 +1,4 @@
+import { StockConnectionSettings } from "./stock-connection-settings";
 import { SalesPaperworkSettings } from './sales-paperwork-settings';
 import { useEffect, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
@@ -42,6 +43,7 @@ export function DealerIntegrationsSettings() {
     </div></div>
     <div className="integration-actions"><Button type="button" disabled={busy} onClick={() => void save()}><KeyRound size={16} />{busy ? 'Working…' : 'Save private settings'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => void validate()}>Validate saved settings</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => void load()}>Reload</Button></div><p className="integration-footnote">Validation checks the saved configuration locally. Your keys are never returned to the browser, included in public settings or saved in browser storage.</p>
     </>}
+    <StockConnectionSettings />
     <SalesPaperworkSettings />
   </section>;
 }

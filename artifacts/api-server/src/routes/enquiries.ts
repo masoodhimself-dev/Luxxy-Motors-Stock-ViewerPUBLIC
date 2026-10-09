@@ -1,3 +1,4 @@
+import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { showroomAvailability, vehicleRegistrationLabel } from "@workspace/vehicle-meta";
 import { requirePermission, requireStaff, staffLabel } from "../middlewares/staff-auth";
@@ -150,10 +151,10 @@ router.post("/staff/enquiries/:id/conversations", requireStaff, requirePermissio
   }
 });
 
-function visibleVehicle(vehicle: Vehicle) {
+async function visibleVehicle(vehicle: Vehicle) {
   return (
     vehicle.dealerId === settings().dealerId &&
-    vehicle.source === "autotrader" &&
+    vehicle.source === (await dealerIntegrationsStore.readStockConnection()).connection.platform &&
     ["available", "reserved"].includes(vehicle.inventoryStatus) &&
     vehicle.missingCount < settings().missingHideThreshold &&
     !(
@@ -216,7 +217,7 @@ async function insertEnquiryWithReference(
           else await ensureBookingAvailable(tx, values.dealerId, values.appointmentAt, policy);
           if (values.vehicleId) {
             const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, values.vehicleId), eq(vehiclesTable.dealerId, values.dealerId))).for("update");
-            if (!vehicle || !visibleVehicle(vehicle) || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for a test drive.");
+            if (!vehicle || !(await visibleVehicle(vehicle)) || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for a test drive.");
           }
         }
         const [created] = await tx
@@ -430,11 +431,11 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
             and(
               eq(vehiclesTable.id, input.vehicleId),
               eq(vehiclesTable.dealerId, settings().dealerId),
-              eq(vehiclesTable.source, "autotrader"),
+              eq(vehiclesTable.source, (await dealerIntegrationsStore.readStockConnection()).connection.platform),
             ),
           )
       )[0];
-      if (!vehicle || !visibleVehicle(vehicle)) {
+      if (!vehicle || !(await visibleVehicle(vehicle))) {
         res.status(404).json(errorResponse("That vehicle is no longer available."));
         return;
       }

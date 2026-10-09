@@ -217,3 +217,5 @@ export * from './dealer-relationships.ts';
 export * from './dealer-chat.ts';
 export * from './showroom-hours.ts';
 export * from './enquiry-merge.ts';
+
+export * from "./stock-feed.ts";

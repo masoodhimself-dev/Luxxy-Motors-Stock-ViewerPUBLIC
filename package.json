@@ -9,7 +9,9 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "dev:preview": "PORT=4175 BASE_PATH=/ pnpm --filter @workspace/luxxy-motors run dev:preview",
     "start": "NODE_ENV=production FRONTEND_DIST_DIR=artifacts/luxxy-motors/dist/public node --env-file-if-exists=.env artifacts/api-server/dist/index.mjs",
-    "dev:api": "PORT=8080 node --env-file-if-exists=.env artifacts/api-server/dist/index.mjs"
+    "dev:api": "PORT=8080 node --env-file-if-exists=.env artifacts/api-server/dist/index.mjs",
+    "build:cazoo-demo": "pnpm --filter @workspace/luxxy-motors build:cazoo-demo && pnpm --filter @workspace/api-server build:cazoo-demo",
+    "start:cazoo-demo": "node artifacts/api-server/dist-cazoo/server.mjs"
   },
   "private": true,
   "dependencies": {},

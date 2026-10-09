@@ -1,3 +1,4 @@
+import { dealerIntegrationsStore } from "./dealer-integrations-store";
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { pool } from '@workspace/db';
 import { vehicleRegistrationLabel } from '@workspace/vehicle-meta';
@@ -48,7 +49,7 @@ export async function createStripeReservation(raw: unknown, dealerId: string, se
     const result = await client.query('SELECT * FROM vehicles WHERE dealer_id=$1 AND id=$2::uuid FOR UPDATE', [dealerId, input.vehicleId]); const row = result.rows[0];
     const vehicle: ReservationVehicle | undefined = row ? { id: row.id, dealerId: row.dealer_id, source: row.source, inventoryStatus: row.inventory_status, sourceStatus: row.source_status, missingCount: row.missing_count, currency: row.currency, sourcePrice: row.source_price, websitePriceOverride: row.website_price_override, title: row.title, websiteTitleOverride: row.website_title_override, make: row.make, model: row.model, registration: row.registration, registrationBand: row.registration_band, plate: row.plate, vrm: row.vrm, year: row.year } : undefined;
     const threshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD ?? 2);
-    assertReservableVehicle(vehicle, input, policy, { dealerId, missingHideThreshold: Number.isFinite(threshold) ? threshold : 2 });
+    assertReservableVehicle(vehicle, input, policy, { dealerId, stockPlatform: (await dealerIntegrationsStore.readStockConnection()).connection.platform, missingHideThreshold: Number.isFinite(threshold) ? threshold : 2 });
     const competing = await client.query("SELECT id FROM leads WHERE dealer_id=$1 AND vehicle_id=$2::uuid AND stage IN ('reserved','sale_agreed','collected') LIMIT 1", [dealerId, input.vehicleId]);
     if (competing.rows.length || await competingSale(client, dealerId, input.vehicleId)) throw new ReservationError('This car is already being purchased or reserved.', 409);
     const id = randomUUID(), now = new Date();

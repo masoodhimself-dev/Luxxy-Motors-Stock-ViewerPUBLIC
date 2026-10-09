@@ -14,6 +14,15 @@ export async function dealerIntegrationsPreview(req: IncomingMessage, res: Serve
   if (!integrationPath && !paymentPath) return false;
   if (!local(req)) { send(res, 403, { error: 'Private settings are available only on the authorised local network.' }); return true; }
   try {
+    if (url.pathname === '/api/dealer-integrations/stock-connection') {
+      // A development-only operator surface. LAN visitors do not gain platform privileges.
+      const host = new URL(`http://${req.headers.host}`).hostname;
+      const remote = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+      if (!['127.0.0.1', '::1'].includes(remote) || !['127.0.0.1', 'localhost', '[::1]'].includes(host)) send(res, 403, { error: 'Open operator stock settings on this computer using localhost.' });
+      else if (req.method === 'GET') send(res, 200, { ...await privateStore.readStockConnection(), importSecretConfigured: false, latest: null, fixtureOnly: true });
+      else send(res, 409, { error: 'This development server uses fixed stock fixtures. Configure a real isolated backend to change the feed; existing stock is preserved.' });
+      return true;
+    }
     if (req.method === 'GET' && url.pathname === '/api/reservations/payment-readiness') send(res, 200, { enabled: false, mode: null, prepared: true });
     else if (req.method === 'GET' && url.pathname === '/api/staff/stripe-reservations') send(res, 200, { reservations: [] });
     else if (url.pathname === '/api/reservations/checkout' || url.pathname === '/api/reservations/payment-status') send(res, 503, { error: 'Email and payment requests are disabled on this server.' });

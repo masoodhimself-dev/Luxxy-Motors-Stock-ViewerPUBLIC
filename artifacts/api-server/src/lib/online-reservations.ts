@@ -28,6 +28,7 @@ export type ReservationContext = {
   paymentMode?: string;
   nodeEnv?: string;
   missingHideThreshold?: number;
+  stockPlatform?: 'autotrader' | 'cazoo';
 };
 export type ReservationVehicle = {
   id: string;
@@ -132,11 +133,11 @@ export function assertReservableVehicle(
   vehicle: ReservationVehicle | undefined,
   input: OnlineReservationInput,
   settings: OnlineReservationSettings,
-  context: Pick<ReservationContext, "dealerId" | "missingHideThreshold">,
+  context: Pick<ReservationContext, "dealerId" | "missingHideThreshold" | "stockPlatform">,
 ): asserts vehicle is ReservationVehicle {
   const threshold = context.missingHideThreshold ?? 2;
   if (!vehicle || vehicle.dealerId !== context.dealerId || vehicle.id !== input.vehicleId ||
-      vehicle.source !== "autotrader" || vehicle.inventoryStatus !== "available" || vehicle.sourceStatus !== "live" ||
+      vehicle.source !== (context.stockPlatform ?? "autotrader") || vehicle.inventoryStatus !== "available" || vehicle.sourceStatus !== "live" ||
       vehicle.missingCount >= threshold) {
     throw new ReservationError("This car is no longer available to reserve. Please choose another car or contact the dealership.", 409);
   }

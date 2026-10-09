@@ -1,0 +1,4461 @@
+{
+  "schemaVersion": 1,
+  "runId": "ccd1062a-23bb-4e0f-9442-52c3f202faee",
+  "source": "grok",
+  "retailerId": "cazoo-42656",
+  "dealerName": "Radlett Cars",
+  "scrapedAt": "2026-10-08T14:37:49.164973Z",
+  "complete": true,
+  "expectedAdvertCount": 33,
+  "count": 33,
+  "failedAdvertIds": [],
+  "errors": [],
+  "cars": [
+    {
+      "advertId": "80087729",
+      "title": "2010 Lexus IS",
+      "variant": "250 FSport 4dr Auto",
+      "make": "Lexus",
+      "model": "IS",
+      "trim": null,
+      "year": 2010,
+      "price": 8995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 47000,
+      "mileageText": "47,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/80087729/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV53978072_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "47,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "80087729",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "250 FSport 4dr Auto",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "80076963",
+      "title": "2016 Jaguar XF",
+      "variant": "3.0d V6 S 4dr Auto",
+      "make": "Jaguar",
+      "model": "XF",
+      "trim": null,
+      "year": 2016,
+      "price": 11995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 58000,
+      "mileageText": "58,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Diesel",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/80076963/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV45255836_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "58,000 miles",
+        "FUELTYPE": "Diesel",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "80076963",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "3.0d V6 S 4dr Auto",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79825941",
+      "title": "2005 Porsche Boxster",
+      "variant": "3.2 987 S 2dr",
+      "make": "Porsche",
+      "model": "Boxster",
+      "trim": null,
+      "year": 2005,
+      "price": 10995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 75000,
+      "mileageText": "75,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79825941/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV30896511_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "75,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79825941",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "3.2 987 S 2dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79834269",
+      "title": "2016 Vauxhall Astra GTC",
+      "variant": "2.0 T VXR 3dr",
+      "make": "Vauxhall",
+      "model": "Astra GTC",
+      "trim": null,
+      "year": 2016,
+      "price": 14995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 25000,
+      "mileageText": "25,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79834269/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV48080412_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "25,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79834269",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0 T VXR 3dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "80049211",
+      "title": "2019 Abarth 595",
+      "variant": "1.4 Tjet 145hp 3dr",
+      "make": "Abarth",
+      "model": "595",
+      "trim": null,
+      "year": 2019,
+      "price": 9495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 36000,
+      "mileageText": "36,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/80049211/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV16466835_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "36,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "80049211",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.4 Tjet 145hp 3dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79967405",
+      "title": "2012 Mercedes-Benz SLK",
+      "variant": "200 BlueEFFICIENCY AMG Sport 2dr Tip Auto",
+      "make": "Mercedes-Benz",
+      "model": "SLK",
+      "trim": null,
+      "year": 2012,
+      "price": 6995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 76000,
+      "mileageText": "76,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79967405/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV87151725_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "76,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79967405",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "200 BlueEFFICIENCY AMG Sport 2dr Tip Auto",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79996924",
+      "title": "2015 BMW M6",
+      "variant": "4dr DCT",
+      "make": "BMW",
+      "model": "M6",
+      "trim": null,
+      "year": 2015,
+      "price": 23995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 85000,
+      "mileageText": "85,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79996924/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92114218_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "85,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79996924",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "4dr DCT",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79637660",
+      "title": "2002 Porsche Boxster",
+      "variant": "3.2 986 S 2dr",
+      "make": "Porsche",
+      "model": "Boxster",
+      "trim": null,
+      "year": 2002,
+      "price": 9995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 43000,
+      "mileageText": "43,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79637660/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 13,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_12.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50310440_13.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "43,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79637660",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 10995,
+        "priceReduced": true,
+        "rawVariantText": "3.2 986 S 2dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79475012",
+      "title": "2016 Ford Focus",
+      "variant": "2.0 T EcoBoost ST3 5dr",
+      "make": "Ford",
+      "model": "Focus",
+      "trim": null,
+      "year": 2016,
+      "price": 14995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 28000,
+      "mileageText": "28,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79475012/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 1,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV26897131_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV26897131_1.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "28,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79475012",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0 T EcoBoost ST3 5dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79543814",
+      "title": "2000 MG MGF",
+      "variant": "1.8 i VVC SE 2dr",
+      "make": "MG",
+      "model": "MGF",
+      "trim": null,
+      "year": 2000,
+      "price": 4995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 41000,
+      "mileageText": "41,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79543814/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69303554_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "41,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79543814",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.8 i VVC SE 2dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79222992",
+      "title": "2016 Jaguar F-Pace",
+      "variant": "3.0 D300 V6 S 5dr",
+      "make": "Jaguar",
+      "model": "F-Pace",
+      "trim": null,
+      "year": 2016,
+      "price": 12495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 94000,
+      "mileageText": "94,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Diesel",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79222992/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 13,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_12.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV52342589_13.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "94,000 miles",
+        "FUELTYPE": "Diesel",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79222992",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 12995,
+        "priceReduced": true,
+        "rawVariantText": "3.0 D300 V6 S 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79246535",
+      "title": "2017 MINI Clubman",
+      "variant": "2.0 Cooper S 6dr",
+      "make": "MINI",
+      "model": "Clubman",
+      "trim": null,
+      "year": 2017,
+      "price": 10495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 85000,
+      "mileageText": "85,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79246535/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 9,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55252971_9.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "85,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79246535",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0 Cooper S 6dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79725187",
+      "title": "2007 BMW Z4",
+      "variant": "2.0i Sport Roadster 2dr",
+      "make": "BMW",
+      "model": "Z4",
+      "trim": null,
+      "year": 2007,
+      "price": 5495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 67000,
+      "mileageText": "67,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79725187/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 13,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_12.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV42411089_13.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "67,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79725187",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0i Sport Roadster 2dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78876487",
+      "title": "2022 BMW X1",
+      "variant": "1.5 xDrive25e M Sport 5dr",
+      "make": "BMW",
+      "model": "X1",
+      "trim": null,
+      "year": 2022,
+      "price": 17495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 47000,
+      "mileageText": "47,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Hybrid",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78876487/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 11,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV56462663_11.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "47,000 miles",
+        "FUELTYPE": "Hybrid",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78876487",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 17995,
+        "priceReduced": true,
+        "rawVariantText": "1.5 xDrive25e M Sport 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79697167",
+      "title": "2016 Audi A7",
+      "variant": "3.0 TDI Quattro 272 Black Edition 5dr S Tronic",
+      "make": "Audi",
+      "model": "A7",
+      "trim": null,
+      "year": 2016,
+      "price": 13495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 94000,
+      "mileageText": "94,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Diesel",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79697167/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV65317423_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "94,000 miles",
+        "FUELTYPE": "Diesel",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79697167",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "3.0 TDI Quattro 272 Black Edition 5dr S Tronic",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79588833",
+      "title": "2005 Mercedes-Benz SLK",
+      "variant": "1.8 200 Kompressor 2dr",
+      "make": "Mercedes-Benz",
+      "model": "SLK",
+      "trim": null,
+      "year": 2005,
+      "price": 2995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 82000,
+      "mileageText": "82,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79588833/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV76168739_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "82,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79588833",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.8 200 Kompressor 2dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79329968",
+      "title": "2015 BMW X4",
+      "variant": "2.0 xDrive20d M Sport 5dr",
+      "make": "BMW",
+      "model": "X4",
+      "trim": null,
+      "year": 2015,
+      "price": 10995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 89000,
+      "mileageText": "89,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Diesel",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79329968/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 5,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55749505_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55749505_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55749505_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55749505_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55749505_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV55749505_5.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "89,000 miles",
+        "FUELTYPE": "Diesel",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79329968",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 11495,
+        "priceReduced": true,
+        "rawVariantText": "2.0 xDrive20d M Sport 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79593814",
+      "title": "2017 Vauxhall Astra GTC",
+      "variant": "1.4 i Turbo Limited Edition 3dr",
+      "make": "Vauxhall",
+      "model": "Astra GTC",
+      "trim": null,
+      "year": 2017,
+      "price": 4995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 53000,
+      "mileageText": "53,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79593814/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV54253277_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "53,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79593814",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.4 i Turbo Limited Edition 3dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78852635",
+      "title": "2019 Mazda CX-30",
+      "variant": "2.0 SKYACTIV-X MHEV GT Sport Tech 5dr",
+      "make": "Mazda",
+      "model": "CX-30",
+      "trim": null,
+      "year": 2019,
+      "price": 14495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 43000,
+      "mileageText": "43,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78852635/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 13,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_12.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV14852538_13.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "43,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78852635",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0 SKYACTIV-X MHEV GT Sport Tech 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79335516",
+      "title": "2012 MINI Convertible",
+      "variant": "1.6 Cooper S 2dr",
+      "make": "MINI",
+      "model": "Convertible",
+      "trim": null,
+      "year": 2012,
+      "price": 5995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 83000,
+      "mileageText": "83,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79335516/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 11,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31092464_11.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "83,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79335516",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.6 Cooper S 2dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78489204",
+      "title": "2017 Abarth 595",
+      "variant": "1.4 Turismo Tjet 165hp 3dr",
+      "make": "Abarth",
+      "model": "595",
+      "trim": null,
+      "year": 2017,
+      "price": 7495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 76000,
+      "mileageText": "76,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78489204/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV99785501_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "76,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78489204",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 7995,
+        "priceReduced": true,
+        "rawVariantText": "1.4 Turismo Tjet 165hp 3dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79320392",
+      "title": "2016 Mazda MX-5",
+      "variant": "2.0 SKYACTIV-G Sport Nav 2dr",
+      "make": "Mazda",
+      "model": "MX-5",
+      "trim": null,
+      "year": 2016,
+      "price": 11995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 53000,
+      "mileageText": "53,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79320392/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 11,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44829588_11.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "53,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79320392",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0 SKYACTIV-G Sport Nav 2dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null,
+        "yearNote": "Year taken from the listing card only (not confirmed elsewhere on the page)."
+      }
+    },
+    {
+      "advertId": "78901410",
+      "title": "2016 MINI Hatch",
+      "variant": "2.0 5-Door Cooper S",
+      "make": "MINI",
+      "model": "Hatch",
+      "trim": null,
+      "year": 2016,
+      "price": 7995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 34000,
+      "mileageText": "34,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78901410/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV31377297_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "34,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78901410",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 8495,
+        "priceReduced": true,
+        "rawVariantText": "2.0 5-Door Cooper S",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78727267",
+      "title": "2018 Toyota Yaris",
+      "variant": "1.5 VVT-i Icon Tech 5dr",
+      "make": "Toyota",
+      "model": "Yaris",
+      "trim": null,
+      "year": 2018,
+      "price": 10495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 36000,
+      "mileageText": "36,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78727267/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 7,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV62339421_7.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "36,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78727267",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.5 VVT-i Icon Tech 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "79115480",
+      "title": "2015 MINI Paceman",
+      "variant": "1.6 Cooper S ALL4 3dr",
+      "make": "MINI",
+      "model": "Paceman",
+      "trim": null,
+      "year": 2015,
+      "price": 6995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 56000,
+      "mileageText": "56,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/79115480/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 8,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV29771035_8.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "56,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "79115480",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.6 Cooper S ALL4 3dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78285908",
+      "title": "2019 Audi A5",
+      "variant": "2.0 TFSI 35 Black Edition 2dr",
+      "make": "Audi",
+      "model": "A5",
+      "trim": null,
+      "year": 2019,
+      "price": 12995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 89800,
+      "mileageText": "89,800 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78285908/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 11,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV35492943_11.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "89,800 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78285908",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 13495,
+        "priceReduced": true,
+        "rawVariantText": "2.0 TFSI 35 Black Edition 2dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "76769679",
+      "title": "2017 MINI Countryman",
+      "variant": "2.0 John Cooper Works ALL4 5dr",
+      "make": "MINI",
+      "model": "Countryman",
+      "trim": null,
+      "year": 2017,
+      "price": 14495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 61000,
+      "mileageText": "61,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/76769679/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 13,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_12.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV73578695_13.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "61,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "76769679",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "2.0 John Cooper Works ALL4 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "76762155",
+      "title": "2015 Land Rover Range Rover Sport",
+      "variant": "3.0 SD V6 HSE Dynamic 5dr",
+      "make": "Land Rover",
+      "model": "Range Rover Sport",
+      "trim": null,
+      "year": 2015,
+      "price": 14995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 77000,
+      "mileageText": "77,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Diesel",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/76762155/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 13,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_12.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV44156674_13.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "77,000 miles",
+        "FUELTYPE": "Diesel",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "76762155",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "3.0 SD V6 HSE Dynamic 5dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "77438410",
+      "title": "2012 Fiat 500C",
+      "variant": "1.2 Lounge 2dr",
+      "make": "Fiat",
+      "model": "500C",
+      "trim": null,
+      "year": 2012,
+      "price": 1995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 96000,
+      "mileageText": "96,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/77438410/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV92073917_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "96,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "77438410",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.2 Lounge 2dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78285916",
+      "title": "2011 Peugeot RCZ",
+      "variant": "1.6 THP GT 2dr",
+      "make": "Peugeot",
+      "model": "RCZ",
+      "trim": null,
+      "year": 2011,
+      "price": 5495,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 62000,
+      "mileageText": "62,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78285916/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 9,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV69134227_9.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "62,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78285916",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.6 THP GT 2dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "78944678",
+      "title": "2014 Honda CR-Z",
+      "variant": "Coupe 2dr, Japanese import",
+      "make": "Honda",
+      "model": "CR-Z",
+      "trim": null,
+      "year": 2014,
+      "price": 6995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 49000,
+      "mileageText": "49,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Hybrid",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78944678/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV67478054_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "49,000 miles",
+        "FUELTYPE": "Hybrid",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78944678",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "Coupe 2dr, Japanese import",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null,
+        "yearNote": "Year conflict on Cazoo: listing card says 2014, page heading says 2024; 2014 used (likely site error)."
+      }
+    },
+    {
+      "advertId": "78285915",
+      "title": "2012 Lexus IS",
+      "variant": "2.5 250 V6 Advance 4dr",
+      "make": "Lexus",
+      "model": "IS",
+      "trim": null,
+      "year": 2012,
+      "price": 10995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 18250,
+      "mileageText": "18,250 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/78285915/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 12,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_10.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_11.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV50079301_12.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "18,250 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "78285915",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": 11495,
+        "priceReduced": true,
+        "rawVariantText": "2.5 250 V6 Advance 4dr",
+        "rawGearbox": "Auto",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    },
+    {
+      "advertId": "77991644",
+      "title": "2011 MINI Countryman",
+      "variant": "1.6 Cooper S ALL4 5dr",
+      "make": "MINI",
+      "model": "Countryman",
+      "trim": null,
+      "year": 2011,
+      "price": 3995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 73000,
+      "mileageText": "73,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Manual",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/77991644/",
+      "dealerName": "Radlett Cars",
+      "dealerLocation": "Radlett",
+      "imageCount": 10,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_1.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_1.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_2.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_3.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_4.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_5.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_6.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_7.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_8.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_9.jpg",
+          "caption": null
+        },
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/AETA37958/AETV49638306_10.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "73,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Manual"
+      },
+      "sourceExtras": {
+        "advertDescription": null,
+        "attentionGrabber": null,
+        "dealerAddress": "Ivorys Industrial Est, Harper Lane",
+        "dealerPhone": null,
+        "dealerPostcode": "WD7 7HU",
+        "dealerTown": "Radlett",
+        "derivativeId": null,
+        "description": null,
+        "detailCapturedAt": "2026-10-08T14:37:49.164973Z",
+        "detailSource": "cazoo-listing-card",
+        "engineCC": null,
+        "engineFormatted": null,
+        "engineLitres": null,
+        "featureList": [],
+        "features": [],
+        "featuresHighlights": null,
+        "generationId": null,
+        "historyExtras": null,
+        "insuranceGroup": null,
+        "lastCheckedAt": "2026-10-08T14:37:49.164973Z",
+        "marketPriceRating": null,
+        "plateCheckedAt": null,
+        "plateImageUrl": null,
+        "plateSource": null,
+        "retailerDescription": null,
+        "runningCosts": null,
+        "serviceHistory": null,
+        "specCategories": null,
+        "stockListUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+        "vehicleCheckId": null,
+        "vehicleCheckStatus": null,
+        "vehicleCheckStatusText": null,
+        "vehicleHighlights": null,
+        "vehicleRegisteredText": null,
+        "writeOffCheck": null,
+        "writeOffStatusExplicit": null,
+        "sourcePlatform": "cazoo",
+        "cazooListingId": "77991644",
+        "cazooDealerId": "42656",
+        "cazooDealerSlug": "radlett-cars-42656",
+        "wasPrice": null,
+        "priceReduced": false,
+        "rawVariantText": "1.6 Cooper S ALL4 5dr",
+        "rawGearbox": "Manual",
+        "plateNote": "Cazoo does not show the registration plate as text; plate left null (no OCR run).",
+        "imagesSource": "cazoo-listing-html",
+        "imagesNote": null
+      }
+    }
+  ],
+  "sourceExtrasMeta": {
+    "sourcePlatform": "cazoo",
+    "sourceName": "Cazoo",
+    "notAutoTrader": true,
+    "cazooDealerId": "42656",
+    "dealerProfileUrl": "https://www.cazoo.co.uk/dealers/radlett-cars-42656/",
+    "dealerAddress": "Ivorys Industrial Est, Harper Lane, Radlett, WD7 7HU",
+    "dealerProfileCarCount": 33,
+    "generatedAt": "2026-10-08T15:02:34.172636Z",
+    "derivation": "built from /workspace/cazoo-radlett-cars-42656.csv (Cazoo listing cards); collect-only, not delivered",
+    "deliveryEnabled": false
+  }
+}

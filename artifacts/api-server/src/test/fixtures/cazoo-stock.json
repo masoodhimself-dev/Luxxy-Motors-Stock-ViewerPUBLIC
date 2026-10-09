@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "runId": "fictional-cazoo-run-1",
+  "source": "grok",
+  "retailerId": "cazoo-example",
+  "dealerName": "Example Cars",
+  "scrapedAt": "2026-10-09T08:00:00Z",
+  "complete": true,
+  "expectedAdvertCount": 1,
+  "count": 1,
+  "failedAdvertIds": [],
+  "errors": [],
+  "cars": [
+    {
+      "advertId": "fictional-cazoo-1",
+      "title": "2010 Lexus IS",
+      "variant": "250 FSport 4dr Auto",
+      "make": "Lexus",
+      "model": "IS",
+      "trim": null,
+      "year": 2010,
+      "price": 8995,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 47000,
+      "mileageText": "47,000 miles",
+      "registration": null,
+      "registrationBand": null,
+      "plate": null,
+      "vrm": null,
+      "vrmVerified": null,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": null,
+      "engineSize": null,
+      "engineCC": null,
+      "doors": null,
+      "seats": null,
+      "colour": null,
+      "emissionClass": null,
+      "drivetrain": null,
+      "owners": null,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.cazoo.co.uk/cars-for-sale/fictional-cazoo-1/",
+      "dealerName": "Example Cars",
+      "dealerLocation": "Example town",
+      "imageCount": 1,
+      "heroImage": "https://cdn.images.autoexposure.co.uk/example/car.jpg",
+      "images": [
+        {
+          "url": "https://cdn.images.autoexposure.co.uk/example/car.jpg",
+          "caption": null
+        }
+      ],
+      "specifications": {
+        "MILEAGE": "47,000 miles",
+        "FUELTYPE": "Petrol",
+        "GEARBOX": "Automatic"
+      },
+      "sourceExtras": {
+        "sourcePlatform": "cazoo",
+        "description": null,
+        "features": []
+      }
+    }
+  ]
+}

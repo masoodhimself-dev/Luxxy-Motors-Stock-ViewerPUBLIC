@@ -1,3 +1,4 @@
+import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { randomUUID } from 'node:crypto';
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
@@ -186,7 +187,7 @@ router.post("/reservations", async (req, res): Promise<void> => {
   try {
     const configuredThreshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD ?? 2);
     const result = await createOnlineReservation(req.body, {
-      dealerId: dealerId(), paymentMode: process.env.RESERVATION_PAYMENT_MODE, nodeEnv: process.env.NODE_ENV,
+      stockPlatform: (await dealerIntegrationsStore.readStockConnection()).connection.platform, dealerId: dealerId(), paymentMode: process.env.RESERVATION_PAYMENT_MODE, nodeEnv: process.env.NODE_ENV,
       missingHideThreshold: Number.isFinite(configuredThreshold) && configuredThreshold >= 0 ? configuredThreshold : 2,
     }, repository(dealerId()));
     res.status(result.replayed ? 200 : 201).json(CreateReservationResponse.parse(result.reservation));

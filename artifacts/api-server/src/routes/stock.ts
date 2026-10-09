@@ -1,3 +1,6 @@
+import { stockPlatformIssues } from "../lib/stock-platform";
+import { stockDescriptionExtras } from "@workspace/vehicle-meta";
+import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
@@ -28,15 +31,17 @@ const envNumber = (name: string, fallback: number): number => {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value >= 0 ? value : fallback;
 };
-const config = () => ({
+const config = async () => { const { connection } = await dealerIntegrationsStore.readStockConnection(); return ({
   dealerId: process.env.STOCK_DEALER_ID ?? "luxxy-motors",
-  retailerId: process.env.STOCK_RETAILER_ID,
+  retailerId: connection.retailerId,
+  platform: connection.platform,
+  enabled: connection.enabled,
   maxAgeHours: envNumber("STOCK_MAX_AGE_HOURS", 24),
   maxDrop: envNumber("STOCK_MAX_DROP_PERCENT", 30),
   minPrice: envNumber("STOCK_MIN_PRICE", 500),
   maxPriceChange: envNumber("STOCK_MAX_PRICE_CHANGE_PERCENT", 50),
   missingHideThreshold: envNumber("STOCK_MISSING_HIDE_THRESHOLD", 2),
-});
+}); };
 const issue = (code: string, message: string, path: string | null = null, advertId: string | null = null): Issue => ({ code, message, path, advertId });
 /** Stable JSON for idempotency: JSONB does not preserve object insertion order. */
 function canonicalJson(value: unknown): string {
@@ -67,7 +72,7 @@ const validSecret = (provided: string | undefined): boolean => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-function semanticIssues(data: Import, settings: ReturnType<typeof config>): Issue[] {
+function semanticIssues(data: Import, settings: Awaited<ReturnType<typeof config>>): Issue[] {
   const problems: Issue[] = [];
   if (data.retailerId !== settings.retailerId) problems.push(issue("retailer_not_allowed", "Retailer is not allowed", "retailerId"));
   if (Date.now() - data.scrapedAt.getTime() > settings.maxAgeHours * 3_600_000 || data.scrapedAt.getTime() > Date.now() + 300_000)
@@ -98,7 +103,7 @@ async function recordRejected(body: unknown, status: "failed" | "quarantined", p
     const [existing] = await db.select().from(stockImportRunsTable).where(eq(stockImportRunsTable.runId, candidate.runId));
     if (existing) return hash(existing.rawSnapshot) === hash(body) ? "existing" : "conflict";
     await db.insert(stockImportRunsTable).values({
-      runId: candidate.runId, dealerId: config().dealerId, retailerId: candidate.retailerId, source: candidate.source,
+      runId: candidate.runId, dealerId: (await config()).dealerId, retailerId: candidate.retailerId, source: (await config()).platform,
       schemaVersion: String(candidate.schemaVersion ?? "unknown"), scrapedAt, expectedCount: Number(candidate.expectedAdvertCount) || 0,
       receivedCount: Array.isArray(candidate.cars) ? candidate.cars.length : 0, complete: candidate.complete === true,
       status, failedAdvertIds: Array.isArray(candidate.failedAdvertIds) ? candidate.failedAdvertIds.filter((x): x is string => typeof x === "string") : [],
@@ -179,7 +184,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
     req.log.warn("Rejected unauthorized stock import");
     res.status(401).json({ status: "rejected", errors: [issue("unauthorized", "Invalid import secret")] }); return;
   }
-  const settings = config();
+  const settings = await config();
   if (!settings.retailerId) {
     req.log.error("STOCK_RETAILER_ID is not configured");
     res.status(500).json({ status: "rejected", errors: [issue("configuration_error", "Stock import is not configured")] }); return;
@@ -191,10 +196,12 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
     if (recorded === "conflict") { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
     res.status(400).json({ status: "rejected", errors: problems }); return;
   }
-  // Grok is an ingestion adapter for the existing dealership stock feed. Keep
-  // the stored vehicle source stable so existing public stock and enquiries
-  // continue to see the imported cars without a second source configuration.
-  const data = { ...parsed.data, source: "autotrader" } as Import;
+  // Persist marketplace identity separately from the transport adapter.
+  const data = parsed.data;
+  if (!settings.enabled) { res.status(409).json({ status: "rejected", errors: [issue("feed_paused", "Stock imports are paused")] }); return; }
+  if (source === "autotrader" && settings.platform !== "autotrader") { res.status(400).json({ status: "rejected", errors: [issue("platform_mismatch", "Use the Grok route for the configured marketplace")] }); return; }
+  const platformProblems = stockPlatformIssues(data.cars, settings.platform);
+  if (platformProblems.length) { res.status(400).json({ status: "rejected", errors: platformProblems.map(message => issue("platform_mismatch", message)) }); return; }
   const quarantineProblems: Issue[] = [];
   if (!data.complete) quarantineProblems.push(issue("incomplete_snapshot", "Snapshot must be complete"));
   if (data.count !== data.cars.length || data.expectedAdvertCount !== data.cars.length) quarantineProblems.push(issue("count_mismatch", "count and expectedAdvertCount must equal cars.length"));
@@ -216,7 +223,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
   const payloadHash = hash(req.body);
   try {
     const result = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('stock-autotrader-import'))`);
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${settings.dealerId}`}))`);
       const [prior] = await tx.select().from(stockImportRunsTable).where(eq(stockImportRunsTable.runId, data.runId));
       if (prior) {
         if (hash(prior.rawSnapshot) !== payloadHash) return { conflict: true as const };
@@ -224,13 +231,15 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         if (prior.status !== "completed") return { conflict: true as const };
         return { replay: true as const, prior };
       }
-      const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, "autotrader")));
+      const active = await config();
+      if (!active.enabled || active.platform !== settings.platform || active.retailerId !== settings.retailerId) return { connectionChanged: true as const };
+      const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform)));
       const liveCount = current.filter((v) => v.sourceStatus === "live").length;
       if (liveCount && data.cars.length < liveCount * (1 - settings.maxDrop / 100)) {
-        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: "autotrader", retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body });
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body });
         return { quarantined: true as const };
       }
-      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: "autotrader", retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body }).returning();
+      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body }).returning();
       let created = 0, updated = 0, unchanged = 0, missing = 0;
       const now = new Date(), incomingIds = new Set(data.cars.map((car) => car.advertId));
       for (const car of data.cars) {
@@ -240,7 +249,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         const suspicious = candidate != null && (candidate < settings.minPrice || (existing?.sourcePrice != null && Math.abs(candidate - existing.sourcePrice) / existing.sourcePrice * 100 > settings.maxPriceChange));
         const priceValues = suspicious ? { pendingSourcePrice: candidate, priceReviewRequired: true } : { sourcePrice: candidate, pendingSourcePrice: null, priceReviewRequired: false };
         if (!existing) {
-          const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, importRunId: run.id, dealerId: settings.dealerId, source: "autotrader", advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
+          const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, importRunId: run.id, dealerId: settings.dealerId, source: settings.platform, advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
           const imageChanges = await syncImages(tx, vehicle.id, car, now); created++;
           const changes = Object.entries({ ...values, ...priceValues })
             .filter(([, newValue]) => newValue !== null && newValue !== undefined)
@@ -276,6 +285,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
       await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(eq(stockImportRunsTable.id, run.id));
       return { created, updated, unchanged, missing };
     });
+    if ("connectionChanged" in result) { res.status(409).json({ status: "rejected", errors: [issue("connection_changed", "Stock connection changed during import; check the active connection before retrying")] }); return; }
     if ("conflict" in result) { res.status(409).json({ status: "rejected", errors: [issue("run_id_conflict", "runId was already used with a different payload")] }); return; }
     if ("priorQuarantined" in result) { res.status(422).json({ status: "quarantined", errors: [issue("previously_quarantined", "This import run was previously quarantined")] }); return; }
     if ("quarantined" in result) { res.status(422).json({ status: "quarantined", errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")] }); return; }
@@ -306,18 +316,18 @@ async function projectVehicles(vehicles: Vehicle[]) {
     const raw = vehicle.rawSourceData;
     const imported = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
     const specifications = imported?.specifications;
-    const sourceExtras = imported?.sourceExtras;
+    const sourceExtras = stockDescriptionExtras({ ...vehicle, title: vehicle.websiteTitleOverride ?? vehicle.title, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, specifications: imported?.specifications as Record<string, unknown> | null, sourceExtras: imported?.sourceExtras as Record<string, unknown> | null });
     return { id: vehicle.id, inventoryStatus: vehicle.inventoryStatus, advertId: vehicle.advertId, title: vehicle.websiteTitleOverride ?? vehicle.title, variant: vehicle.variant, make: vehicle.make, model: vehicle.model, trim: vehicle.trim, year: vehicle.year, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, priceType: vehicle.priceType, currency: vehicle.currency, mileage: vehicle.mileage, mileageText: vehicle.mileageText, registration: vehicle.registration, registrationBand: vehicle.registrationBand, plate: vehicle.plate, vrm: vehicle.vrm, vrmVerified: vehicle.vrmVerified, fuel: vehicle.fuel, transmission: vehicle.transmission, bodyType: vehicle.bodyType, engineSize: vehicle.engineSize, engineCC: vehicle.engineCC, doors: vehicle.doors, seats: vehicle.seats, colour: vehicle.colour, emissionClass: vehicle.emissionClass, drivetrain: vehicle.drivetrain, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, advertUrl: vehicle.advertUrl, dealerName: vehicle.dealerName, dealerLocation: vehicle.dealerLocation, imageCount: vehicle.imageCount, heroImage: hero, images: vehicleImages, specifications: specifications !== null && typeof specifications === "object" && !Array.isArray(specifications) ? specifications : null, sourceExtras: sourceExtras !== null && typeof sourceExtras === "object" && !Array.isArray(sourceExtras) ? sourceExtras : null };
   });
 }
-function visible(vehicle: Vehicle, settings: ReturnType<typeof config>) {
+function visible(vehicle: Vehicle, settings: Awaited<ReturnType<typeof config>>) {
   return ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
 }
 router.get("/stock", async (req, res): Promise<void> => {
-  const settings = config();
+  const settings = await config();
   const all = await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, settings.dealerId)).orderBy(vehiclesTable.advertId);
-  const cars = await projectVehicles(all.filter((vehicle) => visible(vehicle, settings)));
-  const [latest] = await db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
+  const cars = await projectVehicles(all.filter((vehicle) => vehicle.source === settings.platform && visible(vehicle, settings)));
+  const [latest] = await db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"), eq(stockImportRunsTable.source, settings.platform))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
   const snapshot = latest?.rawSnapshot as { dealerName?: unknown } | undefined;
   res.json(GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof snapshot?.dealerName === "string" ? snapshot.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
 });
@@ -328,9 +338,9 @@ export type PublicVehicle = Awaited<ReturnType<typeof projectVehicles>>[number];
 /** Read-only brochure lookup: match /stock across every import source. */
 export async function findVisibleStockVehicle(id: string): Promise<PublicVehicle | null> {
   if (!UUID_PATTERN.test(id)) return null;
-  const settings = config();
+  const settings = await config();
   const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId)));
-  if (!vehicle || !visible(vehicle, settings)) return null;
+  if (!vehicle || vehicle.source !== settings.platform || !visible(vehicle, settings)) return null;
   const [projected] = await projectVehicles([vehicle]);
   return projected ?? null;
 }
@@ -342,9 +352,9 @@ export async function findVisibleStockVehicle(id: string): Promise<PublicVehicle
  */
 export async function findPublicVehicle(id: string): Promise<PublicVehicle | null> {
   if (!UUID_PATTERN.test(id)) return null;
-  const settings = config();
-  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, "autotrader")));
-  if (!vehicle || !visible(vehicle, settings)) return null;
+  const settings = await config();
+  const [vehicle] = await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, id), eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform)));
+  if (!vehicle || vehicle.source !== settings.platform || !visible(vehicle, settings)) return null;
   const [projected] = await projectVehicles([vehicle]);
   return projected ?? null;
 }

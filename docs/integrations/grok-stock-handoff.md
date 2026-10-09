@@ -17,7 +17,7 @@ For each separate dealership deployment we will provide an HTTPS base URL, a ret
 | GET | `/api/vehicles/{id}` | Read one public vehicle using its website ID, not its source advertId |
 | GET | `/api/healthz` | Basic service liveness only; not a database/import readiness check |
 
-Use `Content-Type: application/json`. The backend body limit is 25 MB. Send image URLs, not base64 images. There is also a legacy `/api/stock/imports/autotrader` adapter; use the Grok route only. Internally both adapters share the existing stock namespace, so do not alternate sources as if they were separate inventories.
+Use `Content-Type: application/json`. The backend body limit is 25 MB. Send image URLs, not base64 images. There is also a legacy `/api/stock/imports/autotrader` adapter; use the Grok route only. Grok is the collector; the platform administrator selects one active marketplace (Auto Trader or Cazoo). Vehicles are stored in that marketplace namespace. Do not alternate marketplaces as if they were separate inventories. See [stock platform settings](stock-platforms.md).
 
 ### Payload rules
 
@@ -45,7 +45,7 @@ Create a new runId per new snapshot. After a timeout or transient 5xx, retry the
 | 200 | Identical completed run replayed safely |
 | 400 | Invalid fields/retailer/data; fix before sending a new run |
 | 401 | Import secret missing/incorrect; stop and check configuration |
-| 409 | runId conflict; do not retry changed content under that ID |
+| 409 | runId conflict, feed paused or connection changed; inspect the error code and resolve it before retrying |
 | 422 | Quarantined; investigate completeness, errors, age or stock-count drop; do not circumvent by repeatedly sending smaller snapshots |
 | 413 | Body too large; reduce metadata/image URL volume or agree a server limit change; do not split into partial stock snapshots |
 | 500 | Inspect error code: configuration_error needs setup correction; transient failures can use bounded retries |

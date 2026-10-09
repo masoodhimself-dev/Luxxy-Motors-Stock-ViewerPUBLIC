@@ -1,3 +1,4 @@
+import { stockDescriptionExtras } from "@workspace/vehicle-meta";
 import { createHash } from 'node:crypto';
 import type { StockData } from '../src/lib/stock-context';
 import snapshot from './grok-stock-10045264.json';
@@ -16,6 +17,6 @@ export const previewStock = {
     const digest = createHash('sha256').update(`${snapshot.retailerId}:${car.advertId}`).digest('hex');
     const id = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-8${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
     const images = car.images.filter((image, index, all) => all.findIndex(other => other.url === image.url) === index);
-    return { ...car, id, images, imageCount: images.length };
+    return { ...car, sourceExtras: stockDescriptionExtras(car), id, images, imageCount: images.length };
   }),
 } as StockData;

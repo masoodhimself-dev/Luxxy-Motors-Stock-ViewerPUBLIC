@@ -29,6 +29,9 @@ process.env.STOCK_MIN_PRICE = "500";
 process.env.STOCK_MAX_PRICE_CHANGE_PERCENT = "50";
 process.env.STOCK_MAX_DROP_PERCENT = "100";
 process.env.STOCK_MISSING_HIDE_THRESHOLD = "2";
+process.env.STOCK_PLATFORM = "autotrader";
+const privateDir = await mkdtemp(path.join(tmpdir(), "stock-integration-private-"));
+process.env.INTEGRATIONS_PRIVATE_DIR = privateDir;
 
 const secret = process.env.STOCK_IMPORT_SECRET;
 const { db, pool, stockImportRunsTable, vehicleChangesTable, vehicleImagesTable, vehiclesTable } = await import("@workspace/db");
@@ -63,6 +66,7 @@ after(async () => {
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await pool.end();
+    await rm(privateDir, { recursive: true, force: true });
   }
 });
 
@@ -97,7 +101,7 @@ function car(index: number, overrides: Record<string, unknown> = {}) {
     drivetrain: "AWD",
     owners: 1,
     writeOffCategory: null,
-    advertUrl: `https://example.test/adverts/${index}`,
+    advertUrl: `https://www.autotrader.co.uk/car-details/fictional-${index}`,
     dealerName: "Synthetic Stock Dealer",
     dealerLocation: "Test City",
     imageCount: 1,
@@ -590,4 +594,28 @@ test("serializes two concurrent identical imports", async () => {
   assert.deepEqual((await Promise.all(responses.map(async (response) => ImportAutotraderStockResponse.parse(await response.json())))).map((body) => body.status).sort(), ["imported", "replayed"]);
   assert.equal((await db.select().from(stockImportRunsTable)).length, 1);
   assert.equal((await db.select().from(vehiclesTable)).length, 2);
+});
+test("Cazoo imports, retries, public descriptions and dealer state preservation use the selected platform", async () => {
+  process.env.STOCK_PLATFORM = 'cazoo';
+  try {
+    const inputCar = car(1, { advertUrl: 'https://www.cazoo.co.uk/cars-for-sale/example-1/', sourceExtras: { sourcePlatform: 'cazoo', description: null, features: [] }, specifications: null });
+    const payload = snapshot('cazoo-first', [inputCar], { source: 'grok' });
+    const submit = (body: unknown) => request('/stock/imports/grok', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-stock-import-secret': secret! }, body: JSON.stringify(body) });
+    assert.equal((await submit(payload)).status, 201);
+    const stored = await vehicle(inputCar.advertId);
+    assert.equal(stored.source, 'cazoo');
+    assert.equal((await submit(payload)).status, 200);
+    const stock = GetStockResponse.parse(await request('/stock').then(r => r.json()));
+    assert.equal(stock.cars[0].sourceExtras?.descriptionOrigin, 'generated-facts');
+    assert.equal((await request(`/vehicles/${stored.id}`)).status, 200);
+    assert.equal((await submit({ ...payload, runId: 'cazoo-incomplete', complete: false, cars: [], count: 0 })).status, 422);
+    assert.equal(GetStockResponse.parse(await request('/stock').then(r => r.json())).count, 1);
+    await db.update(vehiclesTable).set({ inventoryStatus: 'reserved' }).where(eq(vehiclesTable.id, stored.id));
+    assert.equal((await submit(snapshot('cazoo-update', [{ ...inputCar, price: 9000 }], { source: 'grok' }))).status, 201);
+    assert.equal((await vehicle(inputCar.advertId)).inventoryStatus, 'reserved');
+    await db.update(vehiclesTable).set({ inventoryStatus: 'sold' }).where(eq(vehiclesTable.id, stored.id));
+    assert.equal((await submit(snapshot('cazoo-sold', [inputCar], { source: 'grok' }))).status, 201);
+    assert.equal((await vehicle(inputCar.advertId)).inventoryStatus, 'sold');
+    assert.equal(GetStockResponse.parse(await request('/stock').then(r => r.json())).count, 0);
+  } finally { process.env.STOCK_PLATFORM = 'autotrader'; }
 });

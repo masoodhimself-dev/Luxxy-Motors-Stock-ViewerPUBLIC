@@ -2,12 +2,12 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod/v4';
-import { defaultEmailAppearance, defaultEmailTemplates, EmailTemplateError, validateEmailAppearance, validateEmailTemplate, type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
+import { type StockConnection, defaultEmailAppearance, defaultEmailTemplates, EmailTemplateError, validateEmailAppearance, validateEmailTemplate, type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
 
 export class IntegrationSettingsError extends Error { constructor(message: string, readonly status = 400) { super(message); this.name = 'IntegrationSettingsError'; } }
 export type ResendSettings = { enabled: boolean; apiKey: string; from: string; replyTo: string };
 export type StripeSettings = { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey: string; webhookSecret: string };
-export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body'>>; appearance: EmailAppearance; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string } };
+export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body'>>; appearance: EmailAppearance; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string }; stockConnection?: StockConnection };
 const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance } });
 export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { return settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
 const clean = z.string().trim().max(512).refine(value => !/[\r\n\u0000-\u001f\u007f]/.test(value), 'Use a single line without control characters.');
@@ -97,6 +97,21 @@ export class DealerIntegrationsStore {
     if (key) { const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, iv); const encrypted = Buffer.concat([cipher.update(source, 'utf8'), cipher.final()]); source = JSON.stringify({ encrypted: true, iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64'), data: encrypted.toString('base64') }); }
     await mkdir(dirname(this.filename), { recursive: true, mode: 0o700 }); await chmod(dirname(this.filename), 0o700);
     const temp = `${this.filename}.${randomUUID()}.tmp`; await writeFile(temp, source, { mode: 0o600 }); await rename(temp, this.filename); await chmod(this.filename, 0o600);
+  }
+  async readStockConnection(): Promise<{ revision: number; connection: StockConnection }> {
+    const state = await this.readPrivate();
+    if (state.stockConnection) return { revision: state.revision, connection: state.stockConnection };
+    const platform = process.env.STOCK_PLATFORM ?? 'autotrader';
+    if (platform !== 'autotrader' && platform !== 'cazoo') throw new IntegrationSettingsError('STOCK_PLATFORM must be autotrader or cazoo.', 503);
+    return { revision: state.revision, connection: { platform, retailerId: process.env.STOCK_RETAILER_ID ?? '', sourceUrl: process.env.STOCK_SOURCE_URL ?? '', enabled: true } };
+  }
+  async updateStockConnection(raw: unknown) {
+    const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), connection: z.object({ platform: z.enum(['autotrader', 'cazoo']), retailerId: clean.min(1).max(128), sourceUrl: clean.url(), enabled: z.boolean() }).strict() }).strict().safeParse(raw);
+    if (!parsed.success) throw new IntegrationSettingsError('Choose a stock platform, retailer reference and valid HTTPS source URL.');
+    const url = new URL(parsed.data.connection.sourceUrl);
+    const hosts = parsed.data.connection.platform === 'cazoo' ? ['cazoo.co.uk', 'www.cazoo.co.uk'] : ['autotrader.co.uk', 'www.autotrader.co.uk'];
+    if (url.protocol !== 'https:' || !hosts.includes(url.hostname) || url.username || url.password || (url.port && url.port !== '443')) throw new IntegrationSettingsError('Use an HTTPS dealership URL on the selected marketplace.');
+    return this.serial(async () => { const state = await this.load(); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.stockConnection = parsed.data.connection; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, connection: state.stockConnection }; });
   }
   async readSalesPaperwork() { const state = await this.readPrivate(); return { revision: state.revision, saleTerms: state.salesPaperwork?.saleTerms ?? '', reservationTerms: state.salesPaperwork?.reservationTerms ?? '' }; }
   async updateSalesPaperwork(raw: unknown) {
