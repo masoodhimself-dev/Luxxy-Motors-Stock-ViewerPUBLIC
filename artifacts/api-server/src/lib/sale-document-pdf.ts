@@ -25,7 +25,7 @@ export function saleDocumentPdf(input: SaleWorkspaceDocument): Buffer {
   line(draft.vehicle, 12, true); if (draft.registration) line('Registration: ' + draft.registration);
   const v = d.snapshot.vehicle;
   if (v) line([v.year, v.fuel, v.transmission, typeof v.mileage === 'number' ? `${v.mileage.toLocaleString('en-GB')} miles` : ''].filter(Boolean).join(' | ')); y += 5;
-  if (d.content) { line(d.title, 12, true); for (const paragraph of d.content.split('\n')) line(paragraph); y += 5; }
+  if (d.content && d.type !== 'invoice') { line(d.title, 12, true); for (const paragraph of d.content.split('\n')) line(paragraph); y += 5; }
   if (d.type === 'vehicle-details') for (const [key, value] of Object.entries(v ?? {})) if (key !== 'id' && value != null && value !== '') line(`${key}: ${value}`);
   if (draft.notes && d.type === 'vehicle-details') line(draft.notes);
   line('Sale breakdown', 12, true); line('Vehicle price: ' + money(t.price));
@@ -40,6 +40,7 @@ export function saleDocumentPdf(input: SaleWorkspaceDocument): Buffer {
   const f = draft.fulfilment;
   if (f) { y += 5; line(f.method === 'delivery' ? 'Delivery arrangements' : 'Collection arrangements', 12, true); line([f.scheduledDate, f.timeWindow].filter(Boolean).join(' | ')); if (f.address) line(f.address); if (f.completedAt) line(`Completed ${f.completedAt.slice(0, 10)} | ${f.completedRecipient ?? ''}`); }
   if (['terms', 'reservation'].includes(d.type)) { y += 8; line('Customer signature: ____________________  Date: __________'); line('Dealer signature: ____________________  Date: __________'); }
+  if (d.type === 'invoice' && d.content) { y += 5; line('Terms of sale', 12, true); for (const paragraph of d.content.split('\n')) line(paragraph, 9); }
   y += 5; line([b.legal.companyName, b.legal.companyNumber ? `Company ${b.legal.companyNumber}` : '', b.legal.vatNumber ? `VAT ${b.legal.vatNumber}` : ''].filter(Boolean).join(' | '), 9);
   return Buffer.from(pdf.output('arraybuffer'));
 }

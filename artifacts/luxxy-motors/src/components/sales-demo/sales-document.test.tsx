@@ -395,3 +395,14 @@ describe("approved agreement documents", () => {
     expect(screen.queryByText(/write off category/i)).not.toBeInTheDocument();
   });
 });
+
+it("shows the invoice's frozen terms on staff and customer document views", () => {
+  const content = "Nothing in these terms limits your statutory rights.";
+  render(<SalesDocument issuedDocument={document({ type: "invoice", title: "Sales invoice", content })} />);
+  expect(within(screen.getByRole("region", { name: "Terms of sale" })).getByText(content)).toBeInTheDocument();
+});
+
+it("includes editable terms in the draft invoice preview", () => {
+  render(<SalesDocument draft={emptyDraft()} dealer={dealerConfig} documentType="Sales invoice" saleTerms="Draft terms for this dealership" />);
+  expect(screen.getByRole("region", { name: "Terms of sale" })).toHaveTextContent("Draft terms for this dealership");
+});
