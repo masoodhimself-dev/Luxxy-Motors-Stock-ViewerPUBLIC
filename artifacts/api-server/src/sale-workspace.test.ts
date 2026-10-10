@@ -191,3 +191,20 @@ test('confirming a pending deposit reserves only with approved terms and creates
   assert.equal(reserved.documents.length, 3);
   assert.equal(reserved.documents.find(d => d.type === 'reservation')?.content, c.paperwork.reservationTerms);
 });
+
+test('new invoices freeze editable seller details and terms without changing earlier invoices', () => {
+  const c = { ...context(), paperwork: { saleTerms: 'Nothing in these terms limits your statutory rights.', reservationTerms: '', invoiceDetails: { name: 'Invoice Motors', email: 'accounts@example.test', vatNumber: 'GB123' } } };
+  const sale = create();
+  const first = changeSaleWorkspace(sale, { action: 'document', type: 'invoice' }, { expectedRevision: sale.revision, requestId: 'first-invoice-settings' }, c);
+  assert.equal(first.document?.content, c.paperwork.saleTerms);
+  assert.equal(first.document?.snapshot.branding.identity.name, 'Invoice Motors');
+  assert.equal(first.document?.snapshot.branding.contact.phone, context().branding.contact.phone);
+  assert.equal(first.document?.snapshot.branding.legal.vatNumber, 'GB123');
+  const original = JSON.stringify(first.document);
+  const changed = { ...c, paperwork: { ...c.paperwork, saleTerms: 'Revised wording', invoiceDetails: { name: 'New Invoice Motors', vatNumber: '' } } };
+  const second = changeSaleWorkspace(first.sale, { action: 'document', type: 'invoice' }, { expectedRevision: first.sale.revision, requestId: 'second-invoice-settings' }, changed);
+  assert.equal(JSON.stringify(second.sale.documents[0]), original);
+  assert.equal(second.document?.content, 'Revised wording');
+  assert.equal(second.document?.snapshot.branding.legal.vatNumber, '');
+  assert.equal(c.branding.identity.name, 'Test Motors');
+});

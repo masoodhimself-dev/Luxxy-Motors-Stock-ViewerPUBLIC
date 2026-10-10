@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:invoice-settings",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -31,7 +31,8 @@
     "test:enquiry-merges": "node ./test-build.mjs src/enquiry-merges.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges.test.mjs && node ./test-build.mjs src/enquiry-merges-route.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges-route.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/enquiry-merges.test.ts && node --enable-source-maps --test ./dist-test/enquiry-merges.test.mjs",
     "test:stock-feed": "node ./test-build.mjs src/stock-feed.test.ts && node --test ./dist-test/stock-feed.test.mjs",
     "build:cazoo-demo": "node build-cazoo-demo.mjs",
-    "test:tenancy": "node test-tenancy-build.mjs && node --test dist-test/multitenancy.test.mjs"
+    "test:tenancy": "node test-tenancy-build.mjs && node --test dist-test/multitenancy.test.mjs",
+    "test:invoice-settings": "node ./test-build.mjs src/invoice-settings.test.ts && node --test ./dist-test/invoice-settings.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

@@ -51,7 +51,7 @@ function dateLabel(value: string) {
     : value;
 }
 
-type SalesDocumentProps =
+type SalesDocumentProps = { saleTerms?: string } & (
   | {
       issuedDocument: SaleWorkspaceDocument;
       draft?: SaleDraft;
@@ -65,7 +65,7 @@ type SalesDocumentProps =
       dealer: DealerConfig;
       vehicle?: Car;
       documentType: "Sales invoice" | "Deposit receipt";
-    };
+    });
 
 export const salesDocumentTitle = (document: SaleWorkspaceDocument) =>
   document.title;
@@ -80,6 +80,7 @@ export function SalesDocument(props: SalesDocumentProps) {
       dealer={props.dealer}
       vehicle={props.vehicle}
       documentType={props.documentType}
+      saleTerms={props.saleTerms}
     />
   );
 }
@@ -89,11 +90,13 @@ function DraftSalesDocument({
   dealer,
   vehicle,
   documentType,
+  saleTerms,
 }: {
   draft: SaleDraft;
   dealer: DealerConfig;
   vehicle?: Car;
   documentType: "Sales invoice" | "Deposit receipt";
+  saleTerms?: string;
 }) {
   const amount = totals(draft);
   const exchangeRows = exchanges(draft);
@@ -437,6 +440,9 @@ function DraftSalesDocument({
         </p>
       )}
 
+      {!receipt && saleTerms && <section className="invoice-terms-body" aria-label="Terms of sale">
+        <h3>Terms of sale</h3><p className="whitespace-pre-wrap">{saleTerms}</p>
+      </section>}
       <footer className="invoice-footer">
         {(phone || printedEmail) && (
           <p className="invoice-contact">
@@ -458,8 +464,7 @@ function DraftSalesDocument({
           </p>
         )}
         <p>
-          Design preview only. Tax treatment and dealership terms are not
-          configured. Not a VAT invoice or proof of purchase.
+          {saleTerms ? "Draft preview only. Not a VAT invoice or proof of purchase." : "Design preview only. Tax treatment and dealership terms are not configured. Not a VAT invoice or proof of purchase."}
         </p>
         <div className="invoice-footer-reference">
           <span>{name}</span>
@@ -1177,6 +1182,12 @@ function IssuedSalesDocument({
         <section className="invoice-notes">
           <h3>Agreed notes</h3>
           <p className="invoice-multiline">{draft.notes}</p>
+        </section>
+      )}
+      {document.type === "invoice" && document.content && (
+        <section className="invoice-terms-body" aria-label="Terms of sale">
+          <h3>Terms of sale</h3>
+          <p className="whitespace-pre-wrap">{document.content}</p>
         </section>
       )}
       <IssuedDocumentFooter document={document} />

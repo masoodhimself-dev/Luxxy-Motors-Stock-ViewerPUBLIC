@@ -1,3 +1,4 @@
+import { invoiceBranding, type SalesPaperwork } from './invoice-settings.ts';
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
 export type SaleWorkspaceAdjustment = { description: string; amount: string; kind: 'fee' | 'discount' };
@@ -82,7 +83,7 @@ export type SaleWorkspaceContext = {
   now: string; actor: string; nextId: () => string;
   nextNumber: (type: SaleWorkspaceDocument['type']) => string;
   branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot;
-  paperwork?: { saleTerms: string; reservationTerms: string };
+  paperwork?: SalesPaperwork;
 };
 
 export class SaleWorkspaceError extends Error {
@@ -205,7 +206,8 @@ function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContex
     version: record.documents.filter(item => item.type === type).length + 1,
     ...(payment ? { paymentId: payment.id, paymentAmountPence: payment.signedAmountPence } : {}),
     balanceAtIssue: amount.balance,
-    snapshot: clone({ draft: { ...record.draft, payments: record.payments }, payments: record.payments, totals: amount, branding: context.branding, ...(vehicle ? { vehicle } : {}) }),
+    ...(type === 'invoice' && context.paperwork?.saleTerms.trim() ? { content: context.paperwork.saleTerms.trim() } : {}),
+    snapshot: clone({ draft: { ...record.draft, payments: record.payments }, payments: record.payments, totals: amount, branding: invoiceBranding(context.branding, context.paperwork?.invoiceDetails), ...(vehicle ? { vehicle } : {}) }),
   };
   if (payment) { payment.receiptId = document.id; document.snapshot.payments.find(row => row.id === payment.id)!.receiptId = document.id; document.snapshot.draft.payments = clone(document.snapshot.payments); }
   record.documents.push(document);
@@ -279,7 +281,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.action === 'take-deposit') {
       if (record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('This sale is already completed.', 409);
       if (command.payment?.kind !== 'deposit' || command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Confirm a received deposit to reserve this car.');
-      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → API integrations → Sales paperwork first.');
+      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → Invoice first.');
     }
     const { amount, amountPence } = positiveMoney(command.payment?.amount);
     if (!['pending', 'confirmed'].includes(command.payment?.status) || !['deposit', 'part-payment', 'final-payment'].includes(command.payment?.kind)) throw new SaleWorkspaceError('Check the payment type and status.');
@@ -305,7 +307,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (!payment || payment.status !== 'pending') throw new SaleWorkspaceError('Only a pending payment can be confirmed.', 409);
     if (command.reserveVehicle) {
       if (payment.kind !== 'deposit' || record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('Only an active sale deposit can reserve this car.', 409);
-      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → API integrations → Sales paperwork first.');
+      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → Invoice first.');
     }
     confirmable(record, payment); payment.status = 'confirmed'; payment.date = receivedDate(command.date ?? payment.date, context.now); payment.recordedBy = context.actor; payment.recordedAt = context.now;
     event(record, context, 'payment-confirmed', `Payment confirmed: £${payment.amount}`);
@@ -356,7 +358,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (record.completedAt) throw new SaleWorkspaceError('This sale is already completed. Reopen its saved documents.', 409);
     if (command.acknowledge !== true) throw new SaleWorkspaceError('Review and confirm the customer, vehicle, payments and terms.');
     if (saleWorkspaceTotals(record.draft, record.payments).balance !== 0) throw new SaleWorkspaceError('Record the remaining payment or resolve the customer credit before completing this sale.');
-    if (!context.paperwork?.saleTerms.trim()) throw new SaleWorkspaceError('Add approved terms of sale in Settings → API integrations → Sales paperwork first.');
+    if (!context.paperwork?.saleTerms.trim()) throw new SaleWorkspaceError('Add approved terms of sale in Settings → Invoice first.');
     const f = record.draft.fulfilment;
     if (f?.method === 'delivery' && !f.address.trim()) throw new SaleWorkspaceError('Enter the delivery address before completing this sale.');
     const invoice = issueDocument(record, context, 'invoice', 'Sales invoice');

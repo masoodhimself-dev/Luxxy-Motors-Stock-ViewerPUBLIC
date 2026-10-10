@@ -5,6 +5,7 @@ import {
   customFetch,
   HttpApiError as ApiError,
 } from "@workspace/api-client-react";
+import { invoiceBranding, type SalesPaperwork } from "@workspace/vehicle-meta";
 import type {
   SaleWorkspaceRecord,
   SaleWorkspaceMutation,
@@ -198,7 +199,7 @@ export function SalesWorkspace({
   const paperworkQuery = useQuery({
     queryKey: ["sale-paperwork"],
     queryFn: () =>
-      customFetch<{ saleTerms: string; reservationTerms: string }>(
+      customFetch<SalesPaperwork>(
         "/api/sale-workspace/paperwork",
       ),
     refetchOnWindowFocus: true,
@@ -1613,7 +1614,8 @@ export function SalesWorkspace({
                       ) : (
                         <SalesDocument
                           draft={draft}
-                          dealer={settings}
+                          dealer={invoiceBranding(settings, paperworkQuery.data?.invoiceDetails)}
+                          saleTerms={paperworkQuery.data?.saleTerms}
                           vehicle={selected}
                           documentType={documentType}
                         />
