@@ -36,3 +36,24 @@ it('exposes every message template and previews unsaved wording and branding wit
   expect(request.mock.calls.filter(([path]) => String(path).endsWith('/preview'))).toHaveLength(1);
   expect(request.mock.calls.filter(([path]) => String(path).includes('/email') && !String(path).includes('email-templates'))).toHaveLength(0);
 });
+it('protects unsaved email wording on template changes and retains branding when saving wording', async () => {
+  const initial = { revision: 1, templates: defaultEmailTemplates, appearance: defaultEmailAppearance, variables: [] };
+  request.mockImplementation(async (_path, init) => {
+    if (init?.method === 'PUT') {
+      const body = JSON.parse(String(init.body));
+      return Response.json({ ...initial, revision: 2, templates: initial.templates.map(template => template.id === body.id ? { ...template, subject: body.subject, body: body.body } : template) });
+    }
+    return Response.json(initial);
+  });
+  render(<EmailTemplatesSettings />);
+  const selector = await screen.findByLabelText('Email to customise');
+  fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Unsaved wording' } });
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  fireEvent.change(selector, { target: { value: 'payment_receipt' } });
+  expect(confirm).toHaveBeenCalled();
+  expect(screen.getByLabelText('Subject')).toHaveValue('Unsaved wording');
+  fireEvent.change(screen.getByLabelText('Email footer'), { target: { value: 'Unsaved brand footer' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
+  await screen.findByText('Email template saved. Future emails will use this wording.');
+  expect(screen.getByLabelText('Email footer')).toHaveValue('Unsaved brand footer');
+});

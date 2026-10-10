@@ -8,7 +8,7 @@ import { db, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, dealer
 import { isPlatformAdmin } from '../lib/platform-admin';
 import { normaliseTenantHost, multiTenantEnabled } from '../lib/tenant-context';
 import { importSecretDigest } from '../middlewares/tenant';
-import { defaultSettings } from './dealer-settings';
+import { newDealerSettings } from './dealer-settings';
 const router = Router();
 router.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -29,7 +29,7 @@ router.post('/dealers', async (req, res) => {
       await tx.insert(dealershipsTable).values({ id: d.id, name: d.name, canonicalOrigin: new URL(d.canonicalOrigin).origin, stockPlatform: d.platform, retailerId: d.retailerId, sourceUrl: d.sourceUrl });
       await tx.insert(dealerDomainsTable).values({ hostname: host, dealerId: d.id, verificationToken: token });
       await tx.insert(portalUsersTable).values({ dealerId: d.id, authUserId: d.ownerAuthUserId, role: 'owner' });
-      const config = { ...defaultSettings, identity: { ...defaultSettings.identity, name: d.name, logoText: d.name }, contact: { phone: '', whatsapp: '', email: '' }, address: { street: '', city: '', region: '', postcode: '', mapsUrl: '' }, legal: { companyName: d.name, companyNumber: '', vatNumber: '', termsUrl: '', privacyUrl: '', cookieUrl: '' }, onlineReservation: { enabled: false, depositPence: 10000, terms: '' }, warranty: { ...defaultSettings.warranty, enabled: false }, delivery: { ...defaultSettings.delivery, enabled: false }, partExchange: { ...defaultSettings.partExchange, enabled: false } };
+      const config = newDealerSettings(d.name);
       await tx.insert(dealerSettingsTable).values({ dealerId: d.id, config });
     });
     res.status(201).json({ dealerId: d.id, status: 'draft', dns: { type: 'TXT', name: `_dealer-verification.${host}`, value: token }, next: 'Verify DNS ownership and connect the domain in Render before activation.' });

@@ -8,6 +8,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
 import { DealerIntegrationsSettings } from '@/components/dealer-integrations-settings';
 import { EmailTemplatesSettings } from '@/components/email-templates-settings';
+import { SalesPaperworkSettings } from '@/components/sales-paperwork-settings';
 import { CustomerChatSettings } from '@/components/customer-chat-settings';
 import './dealer-administration.css';
 
@@ -66,10 +67,18 @@ function PublicationHistory() {
 }
 export function DealerSettingsHub() {
   const access = useStaffAccess(); const search = useSearch(); const [,navigate] = useLocation(); const [section, setSection] = useState(() => new URLSearchParams(search).get('settingsTab') ?? 'website');
-  useEffect(() => { const id = new URLSearchParams(search).get('settingsTab') ?? 'website'; setSection(['website','emails','integrations','chat','team','history'].includes(id) ? id : 'website'); }, [search]);
+  useEffect(() => { const id = new URLSearchParams(search).get('settingsTab') ?? 'website'; setSection(['website','emails','integrations','paperwork','chat','team','history'].includes(id) ? id : 'website'); }, [search]);
   if (access.isLoading) return <p role="status">Loading settings access…</p>;
   if (access.isError) return <Feedback error={access.error} />;
   if (!access.data?.permissions.includes('settings.publish')) return <div className="admin-card"><h2>Owner settings</h2><p>Your role does not have permission to publish dealership settings.</p></div>;
-  const sections = [['website','Website'], ['emails','Email templates'], ['integrations','API integrations'], ['chat','Website chat'], ['team','Team'], ['history','Publish history']];
-  return <div className="dealer-settings-hub"><nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => <button type="button" key={id} aria-current={section === id ? 'page' : undefined} onClick={() => { setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); }}>{label}</button>)}</nav><div key={section}>{section === 'website' && <DealerSettingsPanel />}{section === 'emails' && <EmailTemplatesSettings />}{section === 'integrations' && <DealerIntegrationsSettings />}{section === 'chat' && <CustomerChatSettings />}{section === 'team' && <TeamSettings />}{section === 'history' && <PublicationHistory />}</div></div>;
+  const sections = [
+    ['website','Website','Branding, showroom details, pages, bookings and customer services. Review the website draft before publishing.'],
+    ['emails','Email templates','Customise messages and email branding. Save templates separately; previews send no email.'],
+    ['integrations','Email & payments','Private Resend and Stripe connections for this dealership. Validate saved configuration before testing with the provider.'],
+    ['paperwork','Sales documents','Invoice design, reference sequences and approved sale/deposit wording. Existing issued copies stay unchanged.'],
+    ['chat','Website chat','Customer chat availability, automatic answers and welcome messages.'],
+    ['team','Team','Manage individual staff access and roles. Keep at least one active owner.'],
+    ['history','Publish history','Review and restore website publications. Private connections, email templates and sales terms are saved separately.'],
+  ];
+  return <div className="dealer-settings-hub"><nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => <button type="button" key={id} aria-current={section === id ? 'page' : undefined} onClick={() => { setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); }}>{label}</button>)}</nav><p className="settings-category-description" role="status">{sections.find(([id]) => id === section)?.[2]}</p><div key={section}>{section === 'website' && <DealerSettingsPanel />}{section === 'emails' && <EmailTemplatesSettings />}{section === 'integrations' && <DealerIntegrationsSettings />}{section === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{section === 'chat' && <CustomerChatSettings />}{section === 'team' && <TeamSettings />}{section === 'history' && <PublicationHistory />}</div></div>;
 }

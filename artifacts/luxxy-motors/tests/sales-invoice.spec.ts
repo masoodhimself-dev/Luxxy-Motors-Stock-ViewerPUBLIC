@@ -273,7 +273,7 @@ async function openDocument(
   );
   await page.goto("/portal?section=sales");
   await page.getByRole("button", { name: new RegExp(draft.customer) }).click();
-  await page.getByRole("button", { name: "Documents", exact: true }).click();
+  await page.getByRole("button", { name: "Documents & handover", exact: true }).click();
   if (!preview)
     await page
       .getByLabel("Document", { exact: true })
@@ -526,7 +526,7 @@ test("dense invoice continues on A4 pages and retains every record and final not
   expect(errors).toEqual([]);
 });
 
-test("invalid overpaid sale cannot create an issued or printed invoice", async ({
+test("an edit that worsens an existing credit cannot print a draft invoice", async ({
   page,
 }) => {
   const { writes } = await openDocument(
@@ -543,6 +543,10 @@ test("invalid overpaid sale cannot create an issued or printed invoice", async (
     }),
     { preview: true },
   );
+  // Existing customer credits are supported. A new edit cannot worsen one.
+  await page.getByRole("button", { name: "Edit sale details", exact: true }).click();
+  await page.getByLabel("Agreed vehicle price (£)").fill("14999");
+  await page.getByRole("button", { name: "Documents & handover", exact: true }).click();
   await page.evaluate(() => {
     window.print = () => {
       throw new Error("Invalid draft should not print");
@@ -559,4 +563,32 @@ test("invalid overpaid sale cannot create an issued or printed invoice", async (
   ).toBeVisible();
   await expect(page.locator(".sales-print-copy")).toHaveCount(0);
   expect(writes).toEqual([]);
+});
+
+for (const width of [390, 820, 1440]) test(`classic receipt and blank stationery at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({width,height:1000});
+  const draft = sale({payments:[{id:'deposit',date:'2026-10-10',amount:'500',method:'Bank transfer',reference:'Deposit payment',status:'confirmed',kind:'deposit'}]});
+  const audit = await openDocument(page,draft);
+  await page.getByLabel('Document',{exact:true}).selectOption('receipt');
+  await page.getByLabel('Receipt print style').selectOption('classic');
+  const receipt = page.locator('.sales-document-workbench .receipt-book');
+  await expect(receipt).toContainText('RCP-TEST-001');
+  await expect(receipt).toContainText('£500.00');
+  await expect(receipt).toContainText('£14,500.00');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await mkdir('output/ui-premium/classic-receipt',{recursive:true});
+  await receipt.screenshot({path:`output/ui-premium/classic-receipt/filled-${width}.png`});
+  if(width===1440){
+    await preparePrint(page);
+    const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true});
+    expect(pdfPageCount(pdf)).toBe(1);
+    await writeFile('../../output/pdf/classic-receipt-website-example.pdf',pdf);
+    await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));await page.emulateMedia({media:'screen'});
+  }
+  await page.getByLabel('Receipt print style').selectOption('blank');
+  await expect(receipt).not.toContainText(draft.customer);
+  await expect(receipt).not.toContainText('RCP-TEST-001');
+  await expect(receipt).not.toContainText('£500.00');
+  await expect(receipt).toContainText('Blank stationery');
+  expect(audit.writes).toEqual([]);expect(audit.errors).toEqual([]);
 });

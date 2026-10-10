@@ -9,7 +9,7 @@ export function launchChecks(settings: DealerSettings) {
     { label: 'Opening hours', issue: !settings.hours.length ? 'Add opening hours' : sample(settings.hours) ? 'Replace sample opening hours' : null },
     { label: 'Visiting information', issue: sample([settings.presentation?.visitInstructions, settings.presentation?.parkingInstructions]) ? 'Replace template visiting instructions' : null },
     { label: 'Dealership photography', issue: !settings.presentation?.showroomImageUrl ? 'Add a genuine showroom photo or confirm the illustration is suitable' : null },
-    { label: 'Online payments', issue: settings.onlineReservation?.enabled ? 'Payments are simulated — connect and test payments before launch' : null },
+    { label: 'Online payments', issue: settings.onlineReservation?.enabled ? 'Review Email & payments and test a reservation before launch; this content check does not verify the payment connection' : null },
   ];
 }
 export function LaunchReadiness({ settings }: { settings: DealerSettings }) {

@@ -109,7 +109,7 @@ describe("issued sale documents", () => {
       screen.queryByText(/DEMO|NOT ISSUED|NO PAYMENT RECEIVED/),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Payment recorded by staff")).toBeInTheDocument();
-    expect(screen.getByText("Issued document")).toBeInTheDocument();
+    expect(screen.queryByText("Issued document")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Local record|Local preview/),
     ).not.toBeInTheDocument();
@@ -394,4 +394,45 @@ describe("approved agreement documents", () => {
     expect(screen.getByText("Supplied vehicle facts")).toBeInTheDocument();
     expect(screen.queryByText(/write off category/i)).not.toBeInTheDocument();
   });
+});
+
+describe("document colour meaning", () => {
+  it.each([[0, "settled"], [-100, "credit"], [100, "outstanding"]] as const)("keeps balance %s distinct from other states", (balanceAtIssue, state) => {
+    const doc = document({ balanceAtIssue });
+    const { container } = render(<SalesDocument issuedDocument={doc} />);
+    expect(container.querySelector('.invoice-summary')).toHaveAttribute('data-balance', state);
+  });
+  it("derives document colours from saved branding rather than another dealer's current settings", () => {
+    const doc = document();
+    doc.snapshot.branding.presentation = { linkColour: '#bb7722' };
+    const { container } = render(<SalesDocument issuedDocument={doc} />);
+    expect((container.querySelector('.invoice-sheet') as HTMLElement).style.getPropertyValue('--invoice-accent')).toBe('#bb7722');
+  });
+});
+
+it('issued documents render saved design instructions without the hidden logo', async () => {
+  const { defaultInvoiceSettings, invoiceBranding } = await import('@workspace/vehicle-meta');
+  const issued = document();
+  issued.snapshot.branding = invoiceBranding(issued.snapshot.branding, { ...defaultInvoiceSettings, showLogo: false, style: 'premium', footer: 'Saved thank-you wording', paymentInstructions: 'Saved payment instructions' });
+  const { container } = render(<SalesDocument issuedDocument={issued} />);
+  expect(container.querySelector('.invoice-sheet')).toHaveAttribute('data-design', 'premium');
+  expect(container.querySelector('.invoice-logo,.invoice-wordmark')).toBeNull();
+  expect(screen.getByText('Saved thank-you wording')).toBeVisible();
+  expect(screen.getByText('Saved payment instructions')).toBeVisible();
+  expect(screen.getByText('£11,500.00')).toBeVisible();
+});
+
+it('classic receipt uses the saved payment and reference; blank stationery omits customer data', async () => {
+  const { ClassicReceipt } = await import('./classic-receipt');
+  const issued = document();
+  const view = render(<ClassicReceipt document={issued} branding={issued.snapshot.branding} />);
+  expect(screen.getByText('RCP-000001')).toBeVisible();
+  expect(screen.getByText('Alex Buyer')).toBeVisible();
+  expect(screen.getByText('£500.00')).toBeVisible();
+  expect(screen.getByText('£11,500.00')).toBeVisible();
+  view.rerender(<ClassicReceipt blank document={issued} branding={issued.snapshot.branding} />);
+  expect(screen.queryByText('Alex Buyer')).not.toBeInTheDocument();
+  expect(screen.queryByText('RCP-000001')).not.toBeInTheDocument();
+  expect(screen.queryByText('£500.00')).not.toBeInTheDocument();
+  expect(screen.getByText(/Blank stationery/)).toBeVisible();
 });

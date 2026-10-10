@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import { invoicePalette } from "@workspace/vehicle-meta";
 import type {
   SaleWorkspaceDocument,
   SaleWorkspaceBranding,
@@ -18,6 +19,17 @@ import {
   type SaleDraft,
 } from "./model";
 import "./sales-document.css";
+
+function documentAttributes(branding: SaleWorkspaceBranding) {
+  return { 'data-design': branding.invoiceSettings?.style ?? 'modern', 'data-logo-size': branding.invoiceSettings?.logoSize ?? 'medium', 'data-ink-saving': branding.invoiceSettings?.inkSaving ? 'true' : 'false' };
+}
+function DocumentExtras({ branding }: { branding: SaleWorkspaceBranding }) {
+  return <>{branding.invoiceSettings?.paymentInstructions && <section className="invoice-payment-instructions"><h3>Payment instructions</h3><p className="invoice-multiline">{branding.invoiceSettings.paymentInstructions}</p></section>}{branding.invoiceSettings?.footer && <p className="invoice-custom-footer invoice-multiline">{branding.invoiceSettings.footer}</p>}</>;
+}
+function documentColours(accent?: string | null): CSSProperties {
+  const palette = invoicePalette(accent);
+  return Object.fromEntries(Object.entries(palette).map(([key, value]) => [`--invoice-${key}`, value])) as CSSProperties;
+}
 
 const money = (value: number) =>
   Number.isFinite(value)
@@ -123,9 +135,6 @@ function DraftSalesDocument({
   const companyName = supplied(dealer.legal.companyName);
   const companyNumber = supplied(dealer.legal.companyNumber);
   const vatNumber = supplied(dealer.legal.vatNumber);
-  const accent = /^#[\da-f]{6}$/i.test(dealer.presentation?.linkColour ?? "")
-    ? dealer.presentation!.linkColour!
-    : "#215a7e";
   const preparedDate = new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
@@ -152,24 +161,25 @@ function DraftSalesDocument({
     <article
       className="sales-document invoice-sheet"
       aria-label={`${documentType} preview`}
-      style={{ "--invoice-accent": accent } as CSSProperties}
+      {...documentAttributes(dealer as SaleWorkspaceBranding)}
+      style={documentColours(dealer.presentation?.linkColour)}
     >
       <header className="invoice-header">
         <div className="invoice-dealer">
-          {dealer.identity.logoAsset && !failedLogo ? (
+          {(dealer as SaleWorkspaceBranding).invoiceSettings?.showLogo !== false && dealer.identity.logoAsset && !failedLogo ? (
             <img
               className="invoice-logo"
               src={dealer.identity.logoAsset}
               alt={name}
               onError={() => setFailedLogo(true)}
             />
-          ) : (
+          ) : (dealer as SaleWorkspaceBranding).invoiceSettings?.showLogo !== false ? (
             <DealerWordmark
               name={name}
               logoText={supplied(dealer.identity.logoText)}
               className="invoice-wordmark"
             />
-          )}
+          ) : null}
           {name && <p className="invoice-dealer-name">{name}</p>}
           {address.length > 0 && (
             <p className="invoice-dealer-address">{address.join(", ")}</p>
@@ -391,7 +401,7 @@ function DraftSalesDocument({
             )}
           </div>
         )}
-        <div className="invoice-summary">
+        <div className="invoice-summary" data-balance={amount.balance === 0 ? "settled" : amount.balance < 0 ? "credit" : "outstanding"}>
           <dl className="invoice-totals">
             <div>
               <dt>Total sale price</dt>
@@ -438,6 +448,7 @@ function DraftSalesDocument({
       )}
 
       <footer className="invoice-footer">
+      <DocumentExtras branding={dealer as SaleWorkspaceBranding} />
         {(phone || printedEmail) && (
           <p className="invoice-contact">
             {phone && <span>{formatPhoneDisplay(phone)}</span>}
@@ -499,20 +510,20 @@ function DocumentDealer({ branding }: { branding: SaleWorkspaceBranding }) {
     .filter(Boolean);
   return (
     <div className="invoice-dealer">
-      {supplied(branding.identity.logoAsset) && !failedLogo ? (
+      {branding.invoiceSettings?.showLogo !== false && supplied(branding.identity.logoAsset) && !failedLogo ? (
         <img
           className="invoice-logo"
           src={branding.identity.logoAsset}
           alt={name}
           onError={() => setFailedLogo(true)}
         />
-      ) : (
+      ) : branding.invoiceSettings?.showLogo !== false ? (
         <DealerWordmark
           name={name}
           logoText={supplied(branding.identity.logoText)}
           className="invoice-wordmark"
         />
-      )}
+      ) : null}
       {name && <p className="invoice-dealer-name">{name}</p>}
       {address.length > 0 && (
         <p className="invoice-dealer-address">{address.join(", ")}</p>
@@ -689,7 +700,7 @@ function IssuedBalanceSummary({
 }) {
   const amount = document.snapshot.totals;
   return (
-    <div className="invoice-summary">
+    <div className="invoice-summary" data-balance={document.balanceAtIssue === 0 ? "settled" : document.balanceAtIssue < 0 ? "credit" : "outstanding"}>
       <dl className="invoice-totals">
         <div>
           <dt>Total sale price</dt>
@@ -817,6 +828,7 @@ function IssuedDocumentFooter({
   const vatNumber = supplied(branding.legal.vatNumber);
   return (
     <footer className="invoice-footer">
+      <DocumentExtras branding={branding} />
       {(phone || printedEmail) && (
         <p className="invoice-contact">
           {phone && <span>{formatPhoneDisplay(phone)}</span>}
@@ -871,6 +883,8 @@ function IssuedSalesDocument({
       <article
         className="sales-document invoice-sheet invoice-issued"
         aria-label={document.title}
+        {...documentAttributes(branding)}
+      style={documentColours(branding.presentation?.linkColour)}
       >
         <header className="invoice-header">
           <div>
@@ -952,21 +966,16 @@ function IssuedSalesDocument({
   const pendingPayments = statement
     ? document.snapshot.payments.filter((row) => row.status === "pending")
     : [];
-  const accent = /^#[\da-f]{6}$/i.test(branding.presentation?.linkColour ?? "")
-    ? branding.presentation!.linkColour!
-    : "#215a7e";
   return (
     <article
       className={`sales-document invoice-sheet invoice-issued${receipt ? " invoice-issued-receipt" : ""}`}
       aria-label={document.title}
-      style={{ "--invoice-accent": accent } as CSSProperties}
+      {...documentAttributes(branding)}
+      style={documentColours(branding.presentation?.linkColour)}
     >
       <header className="invoice-header">
         <DocumentDealer branding={branding} />
         <div className="invoice-heading">
-          <span className="invoice-draft-label invoice-issued-label">
-            Issued document
-          </span>
           <h2>{document.title}</h2>
           <dl className="invoice-reference">
             <div>

@@ -1,3 +1,5 @@
+import { ClassicReceipt } from '@/components/sales-demo/classic-receipt';
+import { invoiceBranding } from '@workspace/vehicle-meta';
 import { CompleteSaleDialog } from "@/components/sales-demo/complete-sale-dialog";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -198,7 +200,7 @@ export function SalesWorkspace({
   const paperworkQuery = useQuery({
     queryKey: ["sale-paperwork"],
     queryFn: () =>
-      customFetch<{ saleTerms: string; reservationTerms: string }>(
+      customFetch<{ saleTerms: string; reservationTerms: string; invoiceSettings?: import('@workspace/vehicle-meta').InvoiceSettings }>(
         "/api/sale-workspace/paperwork",
       ),
     refetchOnWindowFocus: true,
@@ -215,6 +217,8 @@ export function SalesWorkspace({
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [snapshot, setSnapshot] = useState("");
   const [tab, setTab] = useState(0);
+  const [receiptStyle, setReceiptStyle] = useState<"modern" | "classic" | "blank">("modern");
+  const [editorView, setEditorView] = useState<"edit" | "preview">("edit");
   const [message, setMessage] = useState("");
   const [problems, setProblems] = useState<string[]>([]);
   const [preparingPrint, setPreparingPrint] = useState(false);
@@ -260,6 +264,7 @@ export function SalesWorkspace({
     setDraft(null);
     setRecord(null);
     setSelectedDocumentId(null);
+    setReceiptStyle("modern");
     setMessage("");
     setProblems([]);
     if (exit) {
@@ -271,11 +276,13 @@ export function SalesWorkspace({
     if (operationLock.current) return;
     setRecord(saved ?? null);
     setSelectedDocumentId(null);
+    setReceiptStyle("modern");
     setCustomerUrl("");
     linkRequest.current = null;
     setDraft(structuredClone(sale));
     setSnapshot(JSON.stringify(sale));
     setTab(0);
+    setEditorView("edit");
     setMessage("");
     setProblems([]);
   };
@@ -669,7 +676,7 @@ export function SalesWorkspace({
   const amount = draft ? totals(draft) : null;
   const print = async () => {
     if (!draft || preparingPrint) return;
-    const found = selectedDocument ? [] : errors(draft, record?.draft);
+    const found = selectedDocument || receiptStyle === "blank" ? [] : errors(draft, record?.draft);
     setProblems(found);
     if (!found.length) {
       printCleanup.current?.();
@@ -713,7 +720,7 @@ export function SalesWorkspace({
               : settings.identity.logoText || settings.identity.name;
             image.replaceWith(fallback);
           });
-        document.title = `${selectedDocument?.snapshot.branding.identity.name ?? settings.identity.name} - ${selectedDocument?.title ?? documentType} - ${selectedDocument?.number ?? draft.id}`;
+        document.title = receiptStyle === "blank" ? `${settings.identity.name} - Blank receipt stationery` : `${selectedDocument?.snapshot.branding.identity.name ?? settings.identity.name} - ${selectedDocument?.title ?? documentType} - ${selectedDocument?.number ?? draft.id}`;
         window.addEventListener("afterprint", cleanup, { once: true });
         window.print();
       } catch {
@@ -765,7 +772,7 @@ export function SalesWorkspace({
                 disabled={busy}
               >
                 <Save size={16} />
-                {busy ? "Saving…" : "Save progress"}
+                {busy ? "Saving…" : record?.completedAt ? "Save progress" : "Save draft"}
               </Button>
             )}
           </div>
@@ -1051,7 +1058,7 @@ export function SalesWorkspace({
                 setPaymentDialog(true);
               }}
             >
-              Take deposit & reserve
+              Deposit & receipt
             </Button>
             <Button
               disabled={
@@ -1073,10 +1080,14 @@ export function SalesWorkspace({
               Complete sale
             </Button>
             <Button variant="outline" onClick={() => changeTab(4)}>
-              Print documents
+              Receipts & documents
             </Button>
           </div>
-          <main className="sales-workspace-content sales-premium-content">
+          <main className="sales-workspace-content sales-premium-content" data-editor-view={editorView}>
+            {tab !== 4 && <div className="sales-editor-view-switch" aria-label="Invoice workspace view">
+              <button type="button" aria-pressed={editorView === "edit"} onClick={() => setEditorView("edit")}>Edit sale</button>
+              <button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Invoice preview</button>
+            </div>}
             <div className="sales-sheet-layout" data-document={tab === 4}>
               <fieldset disabled={busy} className="sales-active-sheet">
                 <div className="sales-chrome sales-section-intro">
@@ -1371,6 +1382,14 @@ export function SalesWorkspace({
                     </div>
                   </details>
                 )}
+                {tab <= 2 && <details className="sales-optional-panel">
+                  <summary>Agreed invoice notes (optional)</summary>
+                  <label className="grid gap-2 text-sm font-medium mt-4">
+                    Agreed invoice notes
+                    <Textarea rows={3} value={draft.notes} onChange={e => update("notes", e.target.value)} placeholder="Only include details agreed with the customer" />
+                  </label>
+                  <p className="sales-panel-note">Shown on the draft and future issued documents. Existing copies stay unchanged.</p>
+                </details>}
                 {tab === 3 && (
                   <div className="sales-form-panel sales-payments-panel">
                     <section className="sales-payment-section">
@@ -1500,8 +1519,10 @@ export function SalesWorkspace({
                 )}
                 {tab === 4 && (
                   <>
+                    {record?.documents.some(doc => doc.type === "invoice") && <p className="sales-panel-note">To correct an invoice, edit the sale details and issue a new version. Earlier issued copies remain available below.</p>}
                     <div className="sales-chrome sales-document-toolbar">
                       <div className="sales-document-issue-actions">
+                        <Button variant="outline" onClick={() => { setEditorView("edit"); changeTab(0); }}>Edit sale details</Button>
                         <Button
                           variant="outline"
                           onClick={() => issueDocument("invoice")}
@@ -1607,13 +1628,23 @@ export function SalesWorkspace({
                           <SalesDocument key={d.id} issuedDocument={d} />
                         ))}
                     </div>
+                    <div className="sales-chrome sales-document-selector">
+                      <label>Print style<select aria-label="Receipt print style" value={receiptStyle === 'classic' && selectedDocument?.type !== 'receipt' ? 'modern' : receiptStyle} onChange={e => setReceiptStyle(e.target.value as typeof receiptStyle)}>
+                        <option value="modern">Modern document</option>
+                        {selectedDocument?.type === 'receipt' && <option value="classic">Classic receipt book</option>}
+                        <option value="blank">Blank receipt - fill in by hand</option>
+                      </select></label>
+                      <p>Classic uses the selected saved receipt. Blank stationery does not issue a receipt. Download/email and the full document pack keep the saved standard documents.</p>
+                    </div>
                     <div className="sales-document-workbench">
-                      {selectedDocument ? (
-                        <SalesDocument issuedDocument={selectedDocument} />
+                      {receiptStyle === "blank" ? (
+                        <ClassicReceipt blank branding={invoiceBranding(settings, paperworkQuery.data?.invoiceSettings)} />
+                      ) : selectedDocument ? (
+                        receiptStyle === "classic" && selectedDocument.type === "receipt" ? <ClassicReceipt document={selectedDocument} branding={selectedDocument.snapshot.branding} /> : <SalesDocument issuedDocument={selectedDocument} />
                       ) : (
                         <SalesDocument
                           draft={draft}
-                          dealer={settings}
+                          dealer={invoiceBranding(settings, paperworkQuery.data?.invoiceSettings) as typeof settings}
                           vehicle={selected}
                           documentType={documentType}
                         />
@@ -1743,70 +1774,13 @@ export function SalesWorkspace({
                   data-expanded={showBreakdown || tab === 3}
                 >
                   <div className="sales-overview-heading">
-                    <h2>Sale overview</h2>
+                    <h2>Live invoice</h2>
                     <span>{record ? "Saved sale" : "Unsaved"}</span>
                   </div>
-                  <div className="sales-overview-customer">
-                    <UserRound size={17} aria-hidden="true" />
-                    <div>
-                      <p>{draft.customer || "Customer not entered"}</p>
-                      <span>
-                        {draft.email ||
-                          draft.phone ||
-                          "Add customer contact details"}
-                      </span>
-                    </div>
+                  <p className="sales-live-preview-help">Changes appear here as you type. This draft does not change issued documents.</p>
+                  <div className="sales-live-paper">
+                    <SalesDocument draft={draft} dealer={invoiceBranding(settings, paperworkQuery.data?.invoiceSettings) as typeof settings} vehicle={selected} documentType={documentType} />
                   </div>
-                  <div className="sales-overview-vehicle">
-                    {selected ? (
-                      <img src={getThumbnailUrl(selected)} alt="" />
-                    ) : (
-                      <CarFront size={26} aria-hidden="true" />
-                    )}
-                    <div>
-                      <p>{draft.vehicle || "Vehicle not selected"}</p>
-                      <span>
-                        {draft.registration ||
-                          (draft.vehicleId
-                            ? "Registration not entered"
-                            : "Choose a car from stock")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="sales-overview-balance">
-                    <span>
-                      {amount!.balance < 0
-                        ? "Customer credit"
-                        : "Outstanding balance"}
-                    </span>
-                    <strong>{money(Math.abs(amount!.balance))}</strong>
-                  </div>
-                  <button
-                    type="button"
-                    className="sales-breakdown-toggle"
-                    aria-expanded={showBreakdown || tab === 3}
-                    aria-controls="sales-price-breakdown"
-                    onClick={() => setShowBreakdown((current) => !current)}
-                    hidden={tab === 3}
-                  >
-                    Price breakdown <ChevronDown size={16} aria-hidden="true" />
-                  </button>
-                  <dl
-                    className="sales-price-breakdown"
-                    id="sales-price-breakdown"
-                  >
-                    {[
-                      ["Vehicle price", amount!.price],
-                      ["Fees less discounts", amount!.adjustments],
-                      ["Part-exchange allowance", -amount!.allowance],
-                      ["Confirmed payments", -amount!.deposit],
-                    ].map(([label, value]) => (
-                      <div key={label}>
-                        <dt>{label}</dt>
-                        <dd>{money(Number(value))}</dd>
-                      </div>
-                    ))}
-                  </dl>
                   <p className="sales-overview-note">
                     {dirty
                       ? "Unsaved changes shown. Save before recording payments or issuing documents."
@@ -1836,7 +1810,7 @@ export function SalesWorkspace({
                   className="sales-primary-action"
                   onClick={() => changeTab(tab <= 2 ? 3 : 4)}
                 >
-                  Next
+                  {tab <= 2 ? "Payments & adjustments" : "Receipts & documents"}
                   <ArrowRight size={16} />
                 </Button>
               ) : (

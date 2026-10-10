@@ -30,7 +30,24 @@ export type SaleWorkspaceTotals = {
   price: number; allowance: number; adjustments: number; totalDue: number;
   deposit: number; confirmedPaid: number; pending: number; balance: number;
 };
+export type InvoiceSettings = {
+  style: 'classic' | 'modern' | 'premium'; useWebsiteColour: boolean; accent: string;
+  showLogo: boolean; logoSize: 'small' | 'medium' | 'large'; inkSaving: boolean;
+  footer: string; paymentInstructions: string;
+  referencePrefix: string; startingSequence: number;
+};
+export const defaultInvoiceSettings: InvoiceSettings = {
+  style: 'modern', useWebsiteColour: true, accent: '#215a7e', showLogo: true,
+  logoSize: 'medium', inkSaving: false, footer: '', paymentInstructions: '',
+  referencePrefix: '', startingSequence: 1,
+};
+export function invoiceBranding(branding: SaleWorkspaceBranding, settings?: InvoiceSettings): SaleWorkspaceBranding {
+  const options = { ...defaultInvoiceSettings, ...settings };
+  return { ...branding, invoiceSettings: options,
+    presentation: { ...branding.presentation, linkColour: options.inkSaving ? '#34414b' : options.useWebsiteColour ? branding.presentation?.linkColour : options.accent } };
+}
 export type SaleWorkspaceBranding = {
+  invoiceSettings?: InvoiceSettings;
   identity: { name: string; logoText: string; logoAsset: string; brandColors?: { primaryHsl: string; accentHsl: string } };
   contact: { phone: string; email: string; whatsapp?: string };
   address: { street: string; city: string; region: string; postcode: string; mapsUrl?: string };
@@ -405,14 +422,31 @@ export function saleWorkspaceBranding(config: unknown): SaleWorkspaceBranding {
     address: { street: clean(source.address?.street), city: clean(source.address?.city), region: clean(source.address?.region), postcode: clean(source.address?.postcode), mapsUrl: clean(source.address?.mapsUrl) },
     legal: { companyName: clean(source.legal?.companyName), companyNumber: clean(source.legal?.companyNumber), vatNumber: clean(source.legal?.vatNumber), termsUrl: clean(source.legal?.termsUrl), privacyUrl: clean(source.legal?.privacyUrl), cookieUrl: clean(source.legal?.cookieUrl) },
     presentation: { linkColour: clean(source.presentation?.linkColour) },
+    ...(source.invoiceSettings ? { invoiceSettings: {
+      style: ['classic', 'modern', 'premium'].includes(source.invoiceSettings.style) ? source.invoiceSettings.style : 'modern',
+      useWebsiteColour: source.invoiceSettings.useWebsiteColour !== false,
+      accent: /^#[0-9a-fA-F]{6}$/.test(source.invoiceSettings.accent) ? source.invoiceSettings.accent : '#215a7e',
+      showLogo: source.invoiceSettings.showLogo !== false,
+      logoSize: ['small', 'medium', 'large'].includes(source.invoiceSettings.logoSize) ? source.invoiceSettings.logoSize : 'medium',
+      inkSaving: source.invoiceSettings.inkSaving === true,
+      footer: clean(source.invoiceSettings.footer).slice(0, 600),
+      paymentInstructions: clean(source.invoiceSettings.paymentInstructions).slice(0, 1200),
+      referencePrefix: /^[A-Z0-9]{0,12}$/.test(source.invoiceSettings.referencePrefix) ? source.invoiceSettings.referencePrefix : '',
+      startingSequence: Number.isSafeInteger(source.invoiceSettings.startingSequence) && source.invoiceSettings.startingSequence > 0 ? source.invoiceSettings.startingSequence : 1,
+    } } : {}),
   };
 }
-export function saleWorkspaceNumber(numbers: Record<string, number>, type: string, now: string): string {
+export function saleWorkspaceNumber(numbers: Record<string, number>, type: string, now: string, settings?: Pick<InvoiceSettings, 'referencePrefix' | 'startingSequence'>): string {
   const year = now.slice(0, 4);
   const key = `${type}-${year}`;
-  const sequence = (numbers[key] ?? 0) + 1;
+  // A starting sequence is a floor, never a reset. Existing per-dealer counters stay monotonic.
+  const floor = settings?.startingSequence ?? 1;
+  if (!Number.isSafeInteger(floor) || floor < 1 || floor > 999999999) throw new SaleWorkspaceError('Use a starting sequence between 1 and 999999999.');
+  const prefix = settings?.referencePrefix ?? '';
+  if (!/^[A-Z0-9]{0,12}$/.test(prefix)) throw new SaleWorkspaceError('Use up to 12 uppercase letters or numbers for the dealer prefix.');
+  const sequence = Math.max((numbers[key] ?? 0) + 1, floor);
   if (!Number.isSafeInteger(sequence)) throw new SaleWorkspaceError('The document number could not be allocated.', 500);
   numbers[key] = sequence;
   const prefixes: Record<string, string> = { sale: 'SALE', invoice: 'INV', statement: 'STM', receipt: 'RCP', handover: 'HND', terms: 'TERMS', reservation: 'RES', 'vehicle-details': 'VEH' };
-  return `${prefixes[type] ?? type.toUpperCase()}-${year}-${String(sequence).padStart(5, '0')}`;
+  return `${prefix ? prefix + '-' : ''}${prefixes[type] ?? type.toUpperCase()}-${year}-${String(sequence).padStart(5, '0')}`;
 }

@@ -37,7 +37,13 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     await db.insert(dealerImportKeysTable).values({ dealerId: tenant.dealerId, secretHash: importSecretDigest(secret) });
     await db.insert(portalUsersTable).values({ dealerId: tenant.dealerId, authUserId: 'user_same_identity', role: 'owner' });
   }
-  const { defaultSettings } = await import('./routes/dealer-settings');
+  const { defaultSettings, newDealerSettings } = await import('./routes/dealer-settings');
+  const fresh = newDealerSettings('Fictional new dealer');
+  assert.equal(fresh.identity.name, 'Fictional new dealer');
+  assert.deepEqual(fresh.hours, []); assert.deepEqual(fresh.trustItems, []); assert.deepEqual(fresh.whyBuy, []);
+  assert.equal(fresh.testDriveBooking.enabled, false);
+  assert.ok(fresh.testDriveBooking.weeklyHours.every(day => !day.enabled));
+  assert.equal(fresh.contact.phone, ''); assert.equal(fresh.onlineReservation.enabled, false);
   for (const tenant of [a,b]) await db.insert(dealerSettingsTable).values({ dealerId: tenant.dealerId, config: { ...defaultSettings, identity: { ...defaultSettings.identity, name: tenant.dealerId } } });
   const { default: app } = await import('./app');
   const server = createServer(app); await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
@@ -92,10 +98,31 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     const submittedA = await request('/api/enquiries','dealer-a.example.test','POST',enquiry); assert.equal(submittedA.status,201,await submittedA.clone().text());
     const submittedB = await request('/api/enquiries','dealer-b.example.test','POST',{ ...enquiry, vehicleId: stockB.cars[0].id }); assert.equal(submittedB.status,201,await submittedB.clone().text());
     const entries = await db.select().from(enquiriesTable); assert.equal(entries.filter(e => e.dealerId === a.dealerId).length,1); assert.equal(entries.filter(e => e.dealerId === b.dealerId).length,1);
+    const { dealerNotificationRecipient } = await import('./lib/enquiry-notifications');
+    const oldRecipient = process.env.DEALER_NOTIFICATION_EMAIL;
+    try {
+      process.env.DEALER_NOTIFICATION_EMAIL = 'legacy@example.test';
+      assert.equal(dealerNotificationRecipient('a@example.test'), 'a@example.test');
+      assert.equal(dealerNotificationRecipient('b@example.test'), 'b@example.test');
+      assert.equal(dealerNotificationRecipient(''), null);
+      process.env.MULTI_TENANT_ENABLED = 'false';
+      assert.equal(dealerNotificationRecipient('a@example.test'), 'legacy@example.test');
+    } finally {
+      process.env.MULTI_TENANT_ENABLED = 'true';
+      if (oldRecipient === undefined) delete process.env.DEALER_NOTIFICATION_EMAIL;
+      else process.env.DEALER_NOTIFICATION_EMAIL = oldRecipient;
+    }
     const { forEachActiveDealer } = await import('./lib/tenant-jobs');
     const visited: string[] = [];
     await forEachActiveDealer(async () => { visited.push(currentDealerId()); });
     assert.deepEqual(visited.sort(), ['dealer-a', 'dealer-b']);
+    const attempted: string[] = [];
+    await assert.rejects(forEachActiveDealer(async () => {
+      attempted.push(currentDealerId());
+      if (currentDealerId() === a.dealerId) throw new Error('Fictional dealer-specific outage');
+    }), AggregateError);
+    assert.deepEqual(attempted.sort(), ['dealer-a', 'dealer-b']);
+
     const { backfillLeadsFromEnquiries } = await import('./lib/leads');
     const { logger } = await import('./lib/logger');
     // Leave B with an enquiry requiring backfill; A must not process it.

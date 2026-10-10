@@ -5,7 +5,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceVehicleSnapshot, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, invoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceVehicleSnapshot, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { archiveSaleDocument } from '../../api-server/src/lib/sale-document-pdf';
 import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
 import { readPreviewSettings, readPreviewBookingState } from './reservations';
@@ -18,7 +18,8 @@ export class PreviewSaleWorkspaceStore {
   constructor(private filename = defaultFilename, private assets: (draft: SaleWorkspaceDraft) => Promise<{ branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } }> = async (draft: SaleWorkspaceDraft) => {
     const settings = await readPreviewSettings();
     const vehicle = previewStock.cars.find(car => car.id === draft?.vehicleId);
-    return { paperwork: await previewIntegrationsStore.readSalesPaperwork(), branding: saleWorkspaceBranding(settings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
+    const paperwork = await previewIntegrationsStore.readSalesPaperwork();
+    return { paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
   }) {}
   private serial<T>(work: () => Promise<T>): Promise<T> {
     const next = this.queue.then(work, work); this.queue = next.catch(() => {}); return next;
@@ -88,10 +89,11 @@ export class PreviewSaleWorkspaceStore {
       }
       const now = new Date().toISOString();
       const draft = input.command?.action === 'update' ? input.command.draft : current?.draft ?? input.draft as SaleWorkspaceDraft;
-      const context: SaleWorkspaceContext = { now, actor: input.actor ?? 'Showroom staff', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(state.numbers, type, now), ...await this.assets(draft) };
+      const assets = await this.assets(draft);
+      const context: SaleWorkspaceContext = { now, actor: input.actor ?? 'Showroom staff', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(state.numbers, type, now, assets.branding.invoiceSettings), ...assets };
       const mutation = current
         ? changeSaleWorkspace(current, input.command!, { expectedRevision: input.expectedRevision!, requestId: input.requestId }, context)
-        : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(state.numbers, 'sale', now));
+        : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(state.numbers, 'sale', now, assets.branding.invoiceSettings));
       if (!mutation.replayed) {
         if (input.command?.action === 'customer-link' && state.sales.some(s => s.id !== mutation.sale.id && s.customerAccess?.tokenHash === (input.command as { tokenHash: string }).tokenHash)) throw new SaleWorkspaceError('Create a new unique customer link.', 409);
         if (input.command?.action === 'lifecycle' || input.command?.action === 'handover' || input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) {
@@ -190,7 +192,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       const mutation = await store.mutate({ id: saleId, command, expectedRevision: input.expectedRevision, requestId: input.requestId });
       send(res, 200, { ...mutation, ...(token ? { customerUrl: `/my-purchase/${token}`, expiresAt: mutation.sale.customerAccess?.expiresAt } : {}) }); return true;
     }
-    if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms }); return true; }
+    if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings }); return true; }
     const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
     if (!route) throw new SaleWorkspaceError('Sale action not found.', 404);
     const [, id, section, paymentId, action] = route;

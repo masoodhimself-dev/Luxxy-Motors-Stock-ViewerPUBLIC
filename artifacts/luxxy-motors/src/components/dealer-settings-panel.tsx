@@ -486,7 +486,6 @@ export function DealerSettingsPanel() {
   const validate = () => {
     const errors: Record<string, string> = {};
     if (form.brochure?.accentColour && !/^#[0-9a-fA-F]{6}$/.test(form.brochure.accentColour)) errors['brochure.accentColour'] = 'Use a six-digit colour such as #835b33.';
-    if (form.brochure?.photoLimit !== undefined && (!Number.isInteger(form.brochure.photoLimit) || form.brochure.photoLimit < 1 || form.brochure.photoLimit > 80)) errors['brochure.photoLimit'] = 'Choose between 1 and 80 photographs.';
     if (!isValidHsl(form.identity.brandColors.primaryHsl) || !isValidHsl(form.identity.brandColors.accentHsl)) errors['identity.colours'] = 'Use a hue from 0–360 and saturation/lightness from 0–100%, or choose a colour using the picker.';
     for (const [key, value] of Object.entries(form.presentation || {})) {
       if (key.endsWith("Colour") && value && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) errors[`presentation.${key}`] = "Use a six-digit hex colour, or leave blank.";
@@ -510,9 +509,9 @@ export function DealerSettingsPanel() {
     if (!form.hero.copy.trim()) errors['hero.copy'] = 'Add a homepage headline.';
     if (!form.hero.subcopy.trim()) errors['hero.subcopy'] = 'Add a short supporting line.';
     if (!form.hero.primaryCta.trim()) errors['hero.primaryCta'] = 'Add a primary button label.';
-    if (!form.bookViewing.title.trim()) errors['bookViewing.title'] = 'Add a viewing title.';
-    if (!form.bookViewing.description.trim()) errors['bookViewing.description'] = 'Add a viewing description.';
-    if (!form.bookViewing.ctaLabel.trim()) errors['bookViewing.ctaLabel'] = 'Add a viewing button label.';
+    if (!form.bookViewing.title.trim()) errors['bookViewing.title'] = 'Add a test-drive title.';
+    if (!form.bookViewing.description.trim()) errors['bookViewing.description'] = 'Add a test-drive description.';
+    if (!form.bookViewing.ctaLabel.trim()) errors['bookViewing.ctaLabel'] = 'Add a test-drive button label.';
     const reservation = form.onlineReservation;
     if (reservation && (!Number.isInteger(reservation.depositPence) || reservation.depositPence < 100 || reservation.depositPence > 1000000)) errors['onlineReservation.depositPence'] = 'Enter a deposit between £1 and £10,000, in pounds and pence.';
     if (reservation?.enabled && !reservation.terms.trim()) errors['onlineReservation.terms'] = 'Add your reservation terms before enabling online reservations.';
@@ -558,7 +557,7 @@ export function DealerSettingsPanel() {
     event.preventDefault();
     if (!initialized || !settingsQuery.data) return;
     setSaveMessage('');
-    if (savedRevision === null) { setSaveMessage('Reload the published settings before saving. Your draft has no publication version.'); return; }
+    if (savedRevision === null) { setValidationErrors({ revision: 'Your draft has no publication version. Discard the draft to reload published settings before saving.' }); return; }
     if (!validate()) return;
     if (guided && activeSection !== 'review') { scrollToSection('review'); return; }
     updateSettings.mutate(
@@ -700,6 +699,10 @@ export function DealerSettingsPanel() {
           }}>Discard draft</Button>
         </div>
       )}
+      {Object.keys(validationErrors).length > 0 && <div role="alert" className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 p-4" data-testid="settings-error-summary">
+        <p className="font-semibold">Check these settings before publishing</p>
+        <ul className="mt-2 list-disc space-y-2 pl-5 text-sm">{Object.entries(validationErrors).map(([key, message]) => <li key={key}>{message}</li>)}</ul>
+      </div>}
       <ActiveSettingsSection.Provider value={guided ? activeSection : null}>
       <form onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
         const control = event.target;
@@ -1104,7 +1107,7 @@ export function DealerSettingsPanel() {
                   Enable online reservations
                 </label>
               </div>
-              <p className="mt-4 border-l-2 border-accent pl-3 text-sm leading-6 text-muted-foreground">Payment is currently simulated. Reservations are real, but no money is collected or recorded as received. Switching this off prevents new online reservations; existing reservations remain in the portal.</p>
+              <p className="mt-4 border-l-2 border-accent pl-3 text-sm leading-6 text-muted-foreground">This switch controls whether customers can reserve online. Payment availability and test/live mode are configured separately in Email & payments. Verify a complete reservation before enabling this service. Switching this off prevents new online reservations; existing reservations remain in the portal.</p>
               <div className="mt-6 grid gap-5 sm:grid-cols-[minmax(0,12rem)_1fr]">
                 <Field label="Reservation deposit (£)" hint="£1–£10,000" error={validationErrors['onlineReservation.depositPence']}>
                   <Input type="number" inputMode="decimal" min={1} max={10000} step="0.01" value={(form.onlineReservation?.depositPence ?? 10000) / 100} onChange={(event) => updateGroup('onlineReservation', { enabled: form.onlineReservation?.enabled ?? false, terms: form.onlineReservation?.terms ?? '', depositPence: Math.round(Number(event.target.value) * 100) })} data-testid="input-online-reservation-deposit" />
@@ -1117,7 +1120,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="proof" eyebrow="Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book the viewing." icon={<Check className="h-5 w-5" />}>
+        <SectionCard id="proof" eyebrow="Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book a test drive." icon={<Check className="h-5 w-5" />}>
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
               <div className="mb-4 flex items-end justify-between gap-4">

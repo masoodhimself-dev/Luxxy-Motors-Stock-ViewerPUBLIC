@@ -1665,3 +1665,34 @@
 .sales-document-delivery { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--border, #dbe1e5); border-radius: .75rem; }
 .sales-document-delivery h3 { font-weight: 600; margin-bottom: .5rem; }
 .sales-document-delivery > p { font-size: .875rem; margin-bottom: .75rem; }
+
+/* Invoice-first workspace: a readable editing column beside the actual document. */
+@media screen {
+  .sales-editor-view-switch { display: none; }
+  .sales-sheet-layout:not([data-document="true"]) { max-width: 1680px; grid-template-columns: minmax(360px, .9fr) minmax(480px, 1.1fr); gap: 28px; }
+  .sales-deal-overview { padding: 18px; background: #e9eef2; border-radius: 14px; }
+  .sales-live-preview-help { font-size: 13px; color: #516170; margin: 10px 0 18px; line-height: 1.5; }
+  .sales-live-paper { background: white; border-radius: 3px; box-shadow: 0 8px 26px #24394816; overflow: hidden; }
+  .sales-live-paper .invoice-sheet { padding: 24px; width: 100%; min-height: 0; }
+  .sales-live-paper .invoice-header { gap: 16px; }
+  .sales-live-paper .invoice-heading h2 { font-size: clamp(20px, 2vw, 30px); }
+  .sales-live-paper .invoice-sheet { font-size: 12px; }
+  .sales-live-paper .invoice-parties { gap: 18px; }
+  .sales-deal-overview .sales-overview-balance { margin-top: 18px; }
+  @media (max-width: 1100px) {
+    .sales-sheet-layout:not([data-document="true"]) { display: block; }
+    .sales-editor-view-switch { display: flex; gap: 4px; padding: 4px; margin-bottom: 20px; background: #e8edf1; border-radius: 10px; }
+    .sales-editor-view-switch button { flex: 1; min-height: 44px; font-weight: 600; border-radius: 7px; color: #526372; }
+    .sales-editor-view-switch button[aria-pressed="true"] { background: white; color: #192a36; box-shadow: 0 2px 6px #182a3612; }
+    [data-editor-view="edit"] .sales-sheet-layout:not([data-document="true"]) > .sales-deal-overview { display: none; }
+    [data-editor-view="preview"] .sales-sheet-layout:not([data-document="true"]) > .sales-active-sheet { display: none; }
+    [data-editor-view="preview"] .sales-deal-overview { display: block; position: static; max-width: 800px; margin: auto; }
+    .sales-live-paper .invoice-heading h2 { font-size: 24px; }
+  }
+  @media (max-width: 460px) {
+    .sales-deal-overview { padding: 10px; }
+    .sales-live-paper .invoice-sheet { padding: 16px; }
+    .sales-live-paper .invoice-heading h2 { font-size: 21px; }
+    .sales-live-paper .invoice-header { gap: 10px; }
+  }
+}

@@ -56,6 +56,23 @@ export const defaultSettings = {
   ],
 };
 
+/** New tenants must opt into their own hours, promises and customer services. */
+export function newDealerSettings(name: string) {
+  return {
+    ...defaultSettings,
+    identity: { ...defaultSettings.identity, name, logoText: name },
+    contact: { phone: '', whatsapp: '', email: '' },
+    address: { street: '', city: '', region: '', postcode: '', mapsUrl: '' },
+    legal: { companyName: name, companyNumber: '', vatNumber: '', termsUrl: '', privacyUrl: '', cookieUrl: '' },
+    hours: [], trustItems: [], whyBuy: [],
+    testDriveBooking: { ...defaultBookingPolicy, enabled: false, weeklyHours: defaultBookingPolicy.weeklyHours.map(day => ({ ...day, enabled: false })) },
+    onlineReservation: { enabled: false, depositPence: 10000, terms: '' },
+    warranty: { ...defaultSettings.warranty, enabled: false },
+    delivery: { ...defaultSettings.delivery, enabled: false },
+    partExchange: { ...defaultSettings.partExchange, enabled: false },
+  };
+}
+
 type Settings = typeof UpdateDealerSettingsBody._output;
 
 type FeaturedVehicle = Pick<typeof vehiclesTable.$inferSelect, 'id' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>;
