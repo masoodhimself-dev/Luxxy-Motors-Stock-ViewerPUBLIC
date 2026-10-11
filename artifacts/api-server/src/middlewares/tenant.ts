@@ -19,6 +19,7 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
     const hostname = normaliseTenantHost(req.get('host') ?? '');
     if (!hostname) { res.status(421).json({ error: 'Unrecognised dealership domain.' }); return; }
     const administratorHost = normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '');
+    if (hostname === administratorHost && req.path === '/') { res.redirect(302, '/platform'); return; }
     if (hostname === administratorHost && (req.path === '/platform' || /^\/(assets|sign-in|sign-up)(?:\/|$)/.test(req.path))) { next(); return; }
     const importRoute = /^\/api\/stock\/imports\/([a-z0-9-]+)\/grok\/?$/.exec(req.path);
     let tenant: TenantContext;

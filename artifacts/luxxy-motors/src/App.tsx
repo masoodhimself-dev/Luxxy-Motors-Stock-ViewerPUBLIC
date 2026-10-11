@@ -64,6 +64,9 @@ if (!clerkPubKey) {
 }
 
 function Router() {
+  const [location] = useLocation();
+  // Platform administration has its own identity and no dealership navigation or chat.
+  if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
     <Layout>
       <RoutedErrorBoundary>
@@ -125,6 +128,11 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function DealerProviders({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  return location === '/platform' ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
+}
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
@@ -155,11 +163,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
-          <StockProvider>
-            <SavedCarsProvider>
-              <Router />
-            </SavedCarsProvider>
-          </StockProvider>
+          <DealerProviders><Router /></DealerProviders>
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

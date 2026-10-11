@@ -1,3 +1,4 @@
+import { platformPreview } from "./preview/platform";
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
 import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
 import { operationsPreview } from './preview/operations';
@@ -28,6 +29,7 @@ export default mergeConfig(
       alias: { '@clerk/react': fileURLToPath(new URL('./preview/clerk.tsx', import.meta.url)) },
     },
     server: { host: '127.0.0.1' },
+    optimizeDeps: { entries: ['src/preview.tsx'] },
     plugins: [
       {
         name: 'local-showroom-preview',
@@ -47,6 +49,7 @@ export default mergeConfig(
               res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
               return;
             }
+            if (await platformPreview(req, res, url)) return;
             if (await operationsPreview(req, res, url, { readSettings: readPreviewSettings, writeSettings: writePreviewSettings, readEnquiries: readPreviewEnquiries })) return;
             if (await chatPreview(req, res, url)) return;
             if (await relationshipsPreview(req, res, url)) return;

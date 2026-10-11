@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Router, Switch } from 'wouter';
+import { Route, Router, Switch, useLocation } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
@@ -12,6 +12,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 const SalesDemo = lazy(() => import("@/pages/sales-demo"));
+const Platform = lazy(() => import("@/pages/platform"));
 const Portal = lazy(() => import("@/pages/portal"));
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
@@ -29,6 +30,11 @@ import './index.css';
 // This entry point is selected only by vite.preview.config.ts during development.
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
+function PreviewLayout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  return location === '/platform' ? <>{children}</> : <Layout>{children}</Layout>;
+}
+
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <Router>
@@ -37,10 +43,11 @@ createRoot(document.getElementById('root')!).render(
           <StockProvider>
             <SavedCarsProvider>
               <RouteScrollReset />
-              <Layout>
+              <PreviewLayout>
                 <Suspense fallback={<RouteLoading />}>
                   <Switch>
                   <Route path="/portal/sales-demo" component={SalesDemo} />
+                  <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
                   <Route path="/portal" component={Portal} />
                   <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/"><Home key="home" /></Route>
@@ -59,7 +66,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route component={NotFound} />
                 </Switch>
                 </Suspense>
-              </Layout>
+              </PreviewLayout>
             </SavedCarsProvider>
           </StockProvider>
           <Toaster />
