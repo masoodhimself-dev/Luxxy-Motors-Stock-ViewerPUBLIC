@@ -3,7 +3,7 @@ import { useParams, Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { customFetch } from '@workspace/api-client-react';
 import type { CustomerSaleView, SaleWorkspaceDocument } from '@workspace/vehicle-meta';
-import { SalesDocument } from '@/components/sales-demo/sales-document';
+import { PdfSalesDocument } from '@/components/sales-demo/sales-document';
 import { Button } from '@/components/ui/button';
 import { CarFront, WalletCards, CalendarDays, Truck, FileText, ArrowLeft, Download, LockKeyhole } from 'lucide-react';
 import './customer-sale.css';
@@ -30,7 +30,7 @@ export default function CustomerSale() {
     try { setDownloadError(''); const file = await customFetch<Blob>(`/api/customer-sale/${token}/documents/${documentId}/pdf`, { responseType: 'blob' }); const url = URL.createObjectURL(file); const a = window.document.createElement('a'); a.href = url; a.download = (doc.data?.document.number ?? 'sale-document') + '.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 10000); }
     catch { setDownloadError('The saved PDF could not be downloaded. Please try again.'); }
   };
-  if (documentId) return <div className="customer-purchase customer-purchase-document"><div className="customer-document-toolbar"><Button variant="outline" onClick={() => setDocumentId(null)}><ArrowLeft size={16} />Your purchase</Button><Button onClick={() => void download()} disabled={!doc.data}><Download size={16} />Download PDF</Button></div>{downloadError && <p role="alert">{downloadError}</p>}{doc.isLoading ? <p role="status">Opening saved document…</p> : doc.data ? <SalesDocument issuedDocument={doc.data.document} /> : <p role="alert">This document is unavailable. Please contact the showroom.</p>}</div>;
+  if (documentId) return <div className="customer-purchase customer-purchase-document"><div className="customer-document-toolbar"><Button variant="outline" onClick={() => setDocumentId(null)}><ArrowLeft size={16} />Your purchase</Button><Button onClick={() => void download()} disabled={!doc.data}><Download size={16} />Download PDF</Button></div>{downloadError && <p role="alert">{downloadError}</p>}{doc.isLoading ? <p role="status">Opening saved document…</p> : doc.data ? <PdfSalesDocument issuedDocument={doc.data.document} pdfUrl={"/api/customer-sale/" + token + "/documents/" + documentId + "/pdf"} /> : <p role="alert">This document is unavailable. Please contact the showroom.</p>}</div>;
   return <div className="customer-purchase">
     <header className="customer-purchase-heading"><span><LockKeyhole size={16} />Private customer page</span><p>{sale.dealer.identity.name}</p><h1>Your purchase, {sale.customer}</h1><p>Sale {sale.reference}</p></header>
     <section className="customer-purchase-card customer-purchase-vehicle"><CarFront size={26} /><div><h2>{sale.vehicle}</h2>{sale.registration && <p className="customer-purchase-registration">{sale.registration}</p>}<p>{sale.status === 'sold' ? 'Sale completed' : sale.status === 'reserved' ? 'Reserved for you' : 'Sale in progress'}</p></div></section>

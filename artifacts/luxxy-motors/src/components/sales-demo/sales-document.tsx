@@ -1,10 +1,12 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { invoicePalette } from "@workspace/vehicle-meta";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals } from "@workspace/vehicle-meta";
+import { customFetch } from "@workspace/api-client-react";
 import type {
   SaleWorkspaceDocument,
   SaleWorkspaceBranding,
   SaleWorkspaceDraft,
   SaleWorkspaceTotals,
+  SaleWorkspaceVehicleSnapshot,
 } from "@workspace/vehicle-meta";
 import type { DealerConfig } from "@/config/dealer";
 import type { Car } from "@/lib/stock-context";
@@ -63,7 +65,7 @@ function dateLabel(value: string) {
     : value;
 }
 
-type SalesDocumentProps =
+export type SalesDocumentProps =
   | {
       issuedDocument: SaleWorkspaceDocument;
       draft?: SaleDraft;
@@ -81,6 +83,187 @@ type SalesDocumentProps =
 
 export const salesDocumentTitle = (document: SaleWorkspaceDocument) =>
   document.title;
+
+export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot };
+type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot };
+
+/** The draft uses the same snapshot shape and renderer as the eventual issued archive. */
+export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, savedVehicle }: DraftDocumentProps): SaleWorkspaceDocument {
+  const ledger = payments(draft).map((payment, index) => ({
+    id: payment.id ?? `draft-payment-${index}`,
+    amount: payment.amount,
+    amountPence: payment.amountPence ?? pence(payment.amount),
+    signedAmountPence: payment.signedAmountPence ?? pence(payment.amount),
+    method: payment.method,
+    date: payment.date,
+    reference: payment.reference,
+    kind: payment.kind ?? 'part-payment' as const,
+    status: payment.status ?? 'pending' as const,
+    recordedBy: '',
+    recordedAt: payment.recordedAt ?? '',
+    ...(payment.receiptId ? { receiptId: payment.receiptId } : {}),
+  }));
+  const snapshotDraft = { ...draft, exchanges: exchanges(draft), payments: ledger };
+  const amount = saleWorkspaceTotals(snapshotDraft, ledger);
+  const receiptPayment = [...ledger].reverse().find(payment => payment.status === 'confirmed');
+  return {
+    id: `draft-${draft.id}`, number: 'DRAFT', type: documentType === 'Deposit receipt' ? 'receipt' : 'invoice',
+    title: documentType, issuedAt: new Date().toISOString(), issuedBy: '', version: 1,
+    balanceAtIssue: amount.balance,
+    ...(documentType === 'Deposit receipt' && receiptPayment ? { paymentId: receiptPayment.id, paymentAmountPence: receiptPayment.signedAmountPence } : {}),
+    snapshot: {
+      draft: snapshotDraft, payments: ledger, totals: amount, branding: saleWorkspaceBranding(dealer),
+      ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? undefined, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory } } : savedVehicle?.id === draft.vehicleId ? { vehicle: savedVehicle } : {}),
+    },
+  };
+}
+
+async function documentBlob(props: PdfSalesDocumentProps): Promise<Blob> {
+  if (props.pdfUrl) {
+    // Issued documents must display their original archive; a failed fetch never re-renders it.
+    if (!/^\/api\/(?:sale-workspace|customer-sale)\//.test(props.pdfUrl)) throw new Error('Use the saved document address from this dealership.');
+    const blob = await customFetch<Blob>(props.pdfUrl, { responseType: 'blob', cache: 'no-store' });
+    if ((await blob.slice(0, 5).text()) !== '%PDF-') throw new Error('The saved PDF is unavailable. Please try again.');
+    return blob;
+  }
+  if (props.issuedDocument) throw new Error('Open this issued document from its saved archive.');
+  const document = props.issuedDocument ?? buildDraftSaleDocument(props as DraftDocumentProps);
+  const { saleDocumentPdfBytes } = await import('@workspace/vehicle-meta/sale-document-pdf');
+  const bytes = saleDocumentPdfBytes(document, { draft: !props.issuedDocument });
+  return new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+}
+
+/** Print and download the actual saved PDF, rather than cloning the browser page. */
+export async function openSaleDocumentPdf(props: PdfSalesDocumentProps, action: 'print' | 'download' = 'print') {
+  const popup = action === 'print' ? window.open('about:blank', '_blank') : null;
+  if (action === 'print' && !popup) throw new Error('Allow the document window to open, then try printing again.');
+  if (popup) { popup.opener = null; popup.document.title = 'Opening document'; popup.document.body.textContent = 'Opening your PDF…'; }
+  try {
+    const blob = await documentBlob(props);
+    const url = URL.createObjectURL(blob);
+    if (action === 'download') {
+      const link = window.document.createElement('a'); link.href = url;
+      link.download = `${props.issuedDocument?.number ?? 'draft-invoice'}.pdf`;
+      link.click(); setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } else if (popup) {
+      popup.location.replace(url);
+      // Native PDF viewers retain their own print control if automatic printing is unavailable.
+      popup.addEventListener('load', () => { try { popup.focus(); popup.print(); } catch { /* Native PDF toolbar remains usable. */ } }, { once: true });
+      setTimeout(() => URL.revokeObjectURL(url), 300_000);
+    }
+  } catch (error) { popup?.close(); throw error; }
+}
+
+/** Staff preview uses the real PDF. The text equivalent also makes every value accessible. */
+function PdfCanvasPages({ blob, title }: { blob: Blob; title: string }) {
+  const container = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false, resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    let pdf: import('pdfjs-dist').PDFDocumentProxy | undefined;
+    let task: import('pdfjs-dist').PDFDocumentLoadingTask | undefined;
+    let renderTask: import('pdfjs-dist').RenderTask | undefined;
+    let observer: ResizeObserver | undefined;
+    let rendering = false, redraw = false, previousWidth = 0;
+    setLoading(true); setError('');
+    const render = async () => {
+      const target = container.current;
+      if (cancelled || !target || !pdf) return;
+      if (rendering) { redraw = true; return; }
+      rendering = true;
+      const displayWidth = Math.max(200, Math.round(target.clientWidth || 680));
+      previousWidth = displayWidth;
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+      const fragment = window.document.createDocumentFragment();
+      try {
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+          if (cancelled) return;
+          const page = await pdf.getPage(pageNumber);
+          const base = page.getViewport({ scale: 1 });
+          const viewport = page.getViewport({ scale: displayWidth * outputScale / base.width });
+          const canvas = window.document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+          canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `${title}, page ${pageNumber} of ${pdf.numPages}`);
+          canvas.className = 'sales-pdf-page';
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('The PDF canvas is unavailable.');
+          renderTask = page.render({ canvas, canvasContext: context, viewport, background: '#ffffff' });
+          await renderTask.promise;
+          if (cancelled) return;
+          canvas.dataset.rendered = 'true'; fragment.appendChild(canvas);
+        }
+        if (!cancelled) { target.replaceChildren(fragment); setLoading(false); }
+      } catch (failure) { if (!cancelled && !(failure instanceof Error && failure.name === 'RenderingCancelledException')) setError('This document could not display here. Use Open PDF to view the saved copy.'); }
+      finally { rendering = false; if (redraw && !cancelled) { redraw = false; void render(); } }
+    };
+    void (async () => {
+      try {
+        const [library, worker, data] = await Promise.all([
+          import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url'), blob.arrayBuffer(),
+        ]);
+        if (cancelled) return;
+        library.GlobalWorkerOptions.workerSrc = worker.default;
+        task = library.getDocument({ data: new Uint8Array(data), useSystemFonts: true, useWorkerFetch: false });
+        pdf = await task.promise;
+        if (cancelled) return;
+        await render();
+        if (typeof ResizeObserver !== 'undefined' && container.current) {
+          observer = new ResizeObserver(() => {
+            if (Math.abs((container.current?.clientWidth || 680) - previousWidth) < 3) return;
+            clearTimeout(resizeTimer); resizeTimer = setTimeout(() => void render(), 150);
+          });
+          observer.observe(container.current);
+        }
+      } catch { if (!cancelled) setError('This document could not display here. Use Open PDF to view the saved copy.'); }
+    })();
+    return () => { cancelled = true; clearTimeout(resizeTimer); observer?.disconnect(); renderTask?.cancel(); void task?.destroy(); };
+  }, [blob, title]);
+  return <div className="sales-pdf-document-frame" aria-busy={loading && !error}>
+    {loading && !error && <p role="status" className="sales-pdf-document-loading">Preparing pages…</p>}
+    {error && <p role="alert" className="sales-pdf-document-error">{error}</p>}
+    <div ref={container} className="sales-pdf-pages" />
+  </div>;
+}
+
+export function PdfSalesDocument(props: PdfSalesDocumentProps) {
+  const [url, setUrl] = useState('');
+  const [blob, setBlob] = useState<Blob | null>(null);
+  const [error, setError] = useState('');
+  // Polling and busy-state renders may create equivalent objects. Only content changes rebuild a draft.
+  const renderKey = JSON.stringify(props.issuedDocument ? { document: props.issuedDocument, pdfUrl: props.pdfUrl } : { draft: props.draft, dealer: props.dealer, vehicle: props.vehicle, savedVehicle: props.savedVehicle, documentType: props.documentType });
+  useEffect(() => {
+    let cancelled = false, objectUrl = '';
+    setUrl(''); setBlob(null); setError('');
+    const timeout = setTimeout(() => {
+      void documentBlob(props).then(blob => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); setBlob(blob);
+      }).catch(() => { if (!cancelled) setError('The PDF could not open. Please try again or download the saved document.'); });
+    }, props.issuedDocument ? 0 : 180);
+    return () => { cancelled = true; clearTimeout(timeout); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [renderKey]);
+  const document = customerSaleDocument(props.issuedDocument ?? buildDraftSaleDocument(props as DraftDocumentProps));
+  const { draft, totals: amount } = document.snapshot;
+  const payment = document.snapshot.payments.find(item => item.id === document.paymentId);
+  return <article className="sales-pdf-document sales-document" aria-label={`${document.title} PDF`}>
+    <div className="sales-pdf-document-meta">
+      <span>{props.issuedDocument ? document.number : 'Invoice preview'}</span>
+      {url && <a href={url} target="_blank" rel="noopener noreferrer">Open PDF</a>}
+    </div>
+    {error ? <p role="alert" className="sales-pdf-document-error">{error}</p> : blob ? <PdfCanvasPages blob={blob} title={document.title} /> : <p role="status" className="sales-pdf-document-loading">Preparing document…</p>}
+    <div className="sr-only" aria-label="Document text equivalent">
+      <h2>{document.title}</h2><p>{document.snapshot.branding.identity.name}</p><p>{document.number}</p><p>{draft.customer}</p><p>{draft.address}</p><p>{draft.email}</p><p>{draft.phone}</p><p>{draft.vehicle}</p><p>{draft.registration}</p>
+      {document.snapshot.vehicle && <dl>{Object.entries(document.snapshot.vehicle).filter(([key, value]) => !['id', 'title', 'description'].includes(key) && value != null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value)}</dd></div>)}</dl>}
+      {['invoice', 'statement'].includes(document.type) && <section aria-label="Agreed sale"><p>Vehicle price {money(amount.price)}</p>{draft.adjustments?.map((row, index) => <p key={index}>{row.description} {money(pence(row.amount) * (row.kind === 'discount' ? -1 : 1))}</p>)}{draft.exchanges?.map((row, index) => <p key={index}>Part exchange {row.registration} {row.description} {money(-pence(row.value))}</p>)}</section>}
+      {document.type === 'receipt' && payment && <section aria-label="Receipt payment"><h3>Payment received</h3><p>{money(document.paymentAmountPence ?? payment.signedAmountPence)}</p><p>{payment.date}</p><p>{payment.method}</p><p>{payment.reference}</p></section>}
+      <dl><dt>Total due</dt><dd>{money(amount.totalDue)}</dd><dt>Payments received</dt><dd>{money(amount.confirmedPaid)}</dd><dt>{document.balanceAtIssue < 0 ? 'Customer credit' : 'Balance remaining'}</dt><dd>{money(Math.abs(document.balanceAtIssue))}</dd></dl>
+      {document.content && <p>{document.content}</p>}
+      {document.type === 'statement' && <section aria-label="Payment history">{document.snapshot.payments.map(row => <p key={row.id}>{row.date} {row.kind} {row.method} {row.status} {row.reference} {money(row.signedAmountPence)}</p>)}</section>}
+      {document.type === 'vehicle-details' && document.snapshot.vehicle?.description && <p>{document.snapshot.vehicle.description}</p>}
+    </div>
+  </article>;
+}
 
 /** Rendering has no payment side effects. Issued documents read only their saved snapshot. */
 export function SalesDocument(props: SalesDocumentProps) {

@@ -18,9 +18,11 @@ import stripeReservationsRouter from './stripe-reservations';
 import dealerRelationshipsRouter from './dealer-relationships';
 import dealerChatRouter from './dealer-chat';
 import { requireStaffOperationAccess } from '../middlewares/staff-auth';
+import { enforceCustomerFeaturePolicy } from '../middlewares/customer-feature-policy';
 
 const router: IRouter = Router();
 router.use(requireStaffOperationAccess);
+router.use(enforceCustomerFeaturePolicy);
 router.use(dealerIntegrationsRouter);
 router.use(dealerOperationsRouter);
 router.use(stripeReservationsRouter);

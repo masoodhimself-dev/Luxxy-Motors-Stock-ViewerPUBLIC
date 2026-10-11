@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { archivedPdf, editView, expectA4, optionalPanel, pdfPageCount, pdfText, previewPdf, previewView, saleStep } from "./sales-pdf-fixture";
 import { totals, type SaleDraft } from "../src/components/sales-demo/model";
 import type {
   SaleWorkspaceDocument,
@@ -257,13 +258,20 @@ async function openDocument(
         paymentAmountPence: ledger[0].amountPence,
       }
     : undefined;
+  const disclosures: SaleWorkspaceDocument = { ...invoice, id: "vehicle-details", number: "VEH-TEST-001", type: "vehicle-details", title: "Vehicle details and disclosures" };
+  const documents = [invoice, statement, ...(receipt ? [receipt] : []), disclosures];
+  const archives = new Map(documents.map(document => [document.id, archivedPdf(document)]));
+  await page.route("**/api/sale-workspace/*/documents/*/pdf", route => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-2)!;
+    return route.fulfill({ contentType: "application/pdf", body: archives.get(id)! });
+  });
   const record: SaleWorkspaceRecord = {
     id: draft.id,
     reference: draft.id,
     revision: 1,
     draft: frozenDraft,
     payments: ledger,
-    documents: [invoice, statement, ...(receipt ? [receipt] : [])],
+    documents,
     events: [],
     createdAt: "2026-10-04T10:00:00Z",
     updatedAt: "2026-10-04T10:00:00Z",
@@ -273,322 +281,205 @@ async function openDocument(
   );
   await page.goto("/portal?section=sales");
   await page.getByRole("button", { name: new RegExp(draft.customer) }).click();
-  await page.getByRole("button", { name: "Documents & handover", exact: true }).click();
+  await saleStep(page, "Completion");
+  await previewView(page);
   if (!preview)
     await page
       .getByLabel("Document", { exact: true })
       .selectOption(documentType);
+  await previewView(page);
   await expect(page.locator(".sales-document")).toContainText("Example Motors");
-  return { writes, errors };
+  await previewPdf(page);
+  return { writes, errors, documents, archives, record };
 }
 
-async function preparePrint(page: Page) {
-  await page.evaluate(() => {
-    window.print = () => {};
-  });
-  await page
-    .getByRole("button", { name: "Print / Save PDF", exact: true })
-    .click();
-  await page.emulateMedia({ media: "print" });
-  await expect(page.locator("body > .sales-print-copy")).toBeVisible();
-  await expect(page.locator("#root")).toBeHidden();
-  await expect(page).toHaveTitle(
-    /Example Motors - (Sales invoice|Balance statement|Deposit receipt) - (INV|STM|RCP)-TEST-001/,
-  );
-  return page.locator("body > .sales-print-copy");
+async function downloadSaved(page: Page) {
+  const awaited = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download saved PDF", exact: true }).click();
+  const download = await awaited;
+  return { bytes: await readFile((await download.path())!), filename: download.suggestedFilename() };
 }
 
-function pdfPageCount(pdf: Buffer) {
-  return (pdf.toString("latin1").match(/\/Type\s*\/Page\b/g) ?? []).length;
-}
-
-function pdfTitle(pdf: Buffer) {
-  const title = pdf
-    .toString("latin1")
-    .match(/\/Title\s*(?:<([\da-f]+)>|\(([^)]*)\))/i);
-  if (!title) return "";
-  if (title[1]) {
-    const bytes = Buffer.from(title[1], "hex");
-    return bytes[0] === 0xfe && bytes[1] === 0xff
-      ? bytes.subarray(2).swap16().toString("utf16le")
-      : bytes.toString("utf8");
-  }
-  return title[2]
-    .replace(/\\([0-7]{1,3})/g, (_, octal) =>
-      String.fromCharCode(parseInt(octal, 8)),
-    )
-    .replace(/\\([\\()])/g, "$1");
-}
-
-function expectA4(pdf: Buffer) {
-  const mediaBoxes = [
-    ...pdf
-      .toString("latin1")
-      .matchAll(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/g),
-  ];
-  expect(mediaBoxes.length).toBeGreaterThan(0);
-  for (const box of mediaBoxes) {
-    expect(Number(box[1])).toBeCloseTo(595, -1);
-    expect(Number(box[2])).toBeCloseTo(842, -1);
-  }
-}
-
-test("invoice separates sale price, exchanges and mixed payment records accurately", async ({
-  page,
-}) => {
+test("invoice separates sale price, exchanges and mixed payment records accurately", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const { writes, errors } = await openDocument(page, completeSale, {
-    documentType: "statement",
-  });
+  const { writes, errors, archives } = await openDocument(page, completeSale, { documentType: "statement" });
   const invoice = page.locator(".sales-document");
-  await expect(invoice.locator(".invoice-items")).toContainText("£15,000.00");
-  await expect(invoice.locator(".invoice-items")).toContainText(
-    "Delivery to agreed address",
-  );
-  await expect(invoice.locator(".invoice-items")).toContainText("-£250.00");
+  await expect(invoice).toContainText("£15,000.00");
+  await expect(invoice).toContainText("Delivery to agreed address");
+  await expect(invoice).toContainText("-£250.00");
   for (const exchange of completeSale.exchanges!) {
-    await expect(invoice.locator(".invoice-exchanges")).toContainText(
-      exchange.registration,
-    );
-    await expect(invoice.locator(".invoice-exchanges")).toContainText(
-      exchange.description,
-    );
+    await expect(invoice).toContainText(exchange.registration);
+    await expect(invoice).toContainText(exchange.description);
   }
   for (const payment of completeSale.payments!) {
-    await expect(invoice.locator(".invoice-payments")).toContainText(
-      payment.method,
-    );
-    await expect(invoice.locator(".invoice-payments")).toContainText(
-      payment.reference,
-    );
+    await expect(invoice).toContainText(payment.method);
+    await expect(invoice).toContainText(payment.reference);
   }
-  await expect(invoice.locator(".invoice-payments")).toContainText(
-    /4\s+Oct(?:ober)?\s+2026|04\/10\/2026/,
-  );
-  await expect(invoice.locator(".invoice-totals")).toContainText("£14,950.00");
-  await expect(invoice.locator(".invoice-totals")).toContainText("-£4,750.00");
-  await expect(invoice.locator(".invoice-totals")).toContainText("£1,350.00");
-  await expect(invoice.locator(".invoice-balance")).toContainText("£8,850.00");
-  await expect(invoice).toContainText("Example Motors Limited");
-  await expect(invoice).toContainText("TEST012345");
-  await expect(invoice).toContainText("42,000");
-  await expect(invoice).toContainText("Petrol");
-  await expect(invoice).toContainText("Automatic");
-  await expect(invoice).toContainText("Balance statement at issue");
-  await expect(invoice).not.toContainText(
-    /DEMO.*NOT ISSUED|NO PAYMENT RECEIVED/i,
-  );
-  await expect(invoice).not.toContainText("VAT number");
+  await expect(invoice).toContainText("2026-10-04");
+  await expect(invoice).toContainText("£10,200.00");
+  await expect(invoice).toContainText("£1,350.00");
+  await expect(invoice).toContainText("£8,850.00");
+  const statementPdf = await previewPdf(page);
+  expect(statementPdf).toEqual(archives.get("statement"));
+  const text = statementPdf.toString("latin1");
+  for (const value of ["Example Motors Limited", "TEST012345", "42,000", "Petrol", "Automatic", "4 Oct 2026", "TRANSFER-EXAMPLE-102", "CASH-EXAMPLE-103"]) expect(text).toContain(value);
+  expect(text).not.toContain("DRAFT - not issued");
+  expect(text).not.toContain("VAT registration");
   await mkdir(output, { recursive: true });
   await invoice.screenshot({ path: `${output}/invoice-desktop.png` });
   await page.getByLabel("Document", { exact: true }).selectOption("receipt");
-  await expect(invoice.locator(".invoice-receipt-amount")).toContainText(
-    "£250.00",
-  );
-  await expect(invoice).toContainText("Payment recorded by staff");
+  await expect(invoice).toContainText("£250.00");
   await expect(invoice).not.toContainText("TRANSFER-EXAMPLE-102");
   await expect(invoice).not.toContainText("CASH-EXAMPLE-103");
-  expect(writes).toEqual([]);
-  expect(errors).toEqual([]);
+  expect(await previewPdf(page)).toEqual(archives.get("receipt"));
+  expect(writes).toEqual([]); expect(errors).toEqual([]);
 });
 
-test("phone invoice remains readable and omits missing optional details", async ({
-  page,
-}) => {
+test("phone invoice remains readable and omits missing optional details", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const minimalSale = sale({
-    email: "",
-    phone: "",
-    address: "",
-    registration: "",
-    notes: "",
-    collection: "",
-    exchanges: [],
-    payments: [],
-    adjustments: [],
-  });
-  const { writes, errors } = await openDocument(page, minimalSale, {
-    minimal: true,
-  });
+  const minimalSale = sale({ email: "", phone: "", address: "", registration: "", notes: "", collection: "", exchanges: [], payments: [], adjustments: [] });
+  const { writes, errors } = await openDocument(page, minimalSale, { minimal: true });
   const invoice = page.locator(".sales-document");
-  await expect(invoice.locator(".invoice-exchanges")).toHaveCount(0);
-  await expect(invoice.locator(".invoice-payments")).toHaveCount(0);
-  await expect(invoice).not.toContainText(
-    /Customer name|Vehicle not selected|Contact seller|undefined|null|VAT number|Company number|Registration:/i,
-  );
-  await expect(invoice.locator(".invoice-balance")).toContainText("£15,000.00");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
+  await expect(invoice).toContainText("£15,000.00");
+  const pdf = await previewPdf(page);
+  expect(pdfText(pdf)).toContain("Example Motors");
+  expect(pdfText(pdf)).not.toMatch(/Customer name|Vehicle not selected|Contact seller|undefined|null|VAT registration|Company number|Registration  /i);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await mkdir(output, { recursive: true });
   await invoice.screenshot({ path: `${output}/invoice-phone.png` });
-  const amount = invoice.locator(".invoice-items tbody td").last();
-  expect(
-    await amount.evaluate((node) =>
-      parseFloat(getComputedStyle(node).fontSize),
-    ),
-  ).toBeGreaterThanOrEqual(12);
-  expect(writes).toEqual([]);
-  expect(errors).toEqual([]);
+  const canvas = invoice.locator('canvas[data-rendered="true"]').first();
+  expect((await canvas.boundingBox())!.width).toBeGreaterThan(250);
+  expect(writes).toEqual([]); expect(errors).toEqual([]);
 });
 
-test("normal sale prints as one A4 page without editor controls", async ({
-  page,
-}) => {
+test("normal invoice preview and download are the same one-page A4 archive", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const { writes } = await openDocument(page, completeSale);
-  const originalTitle = await page.title();
-  const print = await preparePrint(page);
-  await expect(print.locator("input, textarea, select, button")).toHaveCount(0);
-  expect(await print.evaluate((node) => getComputedStyle(node).padding)).toBe(
-    "0px",
-  );
-  await expect(print).toContainText("£8,850.00");
-  await expect(print).toContainText(completeSale.notes);
-  const pdf = await page.pdf({
-    preferCSSPageSize: true,
-    printBackground: true,
-  });
-  await mkdir(output, { recursive: true });
-  await writeFile(`${output}/invoice-a4.pdf`, pdf);
-  expect(pdfTitle(pdf)).toBe("Example Motors - Sales invoice - INV-TEST-001");
-  expect(pdfPageCount(pdf)).toBe(1);
-  expectA4(pdf);
-  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
-  await expect(page.locator(".sales-print-copy")).toHaveCount(0);
-  await expect(page).toHaveTitle(originalTitle);
+  const { writes, archives } = await openDocument(page, completeSale);
+  const pdf = await previewPdf(page);
+  expect(pdf).toEqual(archives.get("invoice"));
+  expect(pdf.toString("latin1")).toContain("8,850.00");
+  expect(pdf.toString("latin1")).toContain("Sales invoice INV-TEST-001");
+  expect(pdfPageCount(pdf)).toBe(1); expectA4(pdf);
+  const download = await downloadSaved(page);
+  expect(download.filename).toBe("INV-TEST-001.pdf");
+  expect(download.bytes).toEqual(pdf);
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Print document", exact: true }).click();
+  const popup = await opened;
+  await expect.poll(() => popup.url()).toMatch(/^blob:/);
+  const openedBytes = await page.evaluate(async url => [...new Uint8Array(await (await fetch(url)).arrayBuffer())], popup.url());
+  expect(Buffer.from(openedBytes)).toEqual(pdf);
+  await popup.close();
+  await expect(page.locator("body > .sales-print-copy")).toHaveCount(0);
+  await expect(page.locator(".sales-pdf-document input, .sales-pdf-document textarea, .sales-pdf-document select, .sales-pdf-document button")).toHaveCount(0);
+  await page.getByLabel("Document", { exact: true }).selectOption("vehicle-details");
+  expect((await previewPdf(page)).toString("latin1")).toContain(completeSale.notes);
+  await mkdir(output, { recursive: true }); await writeFile(`${output}/invoice-a4.pdf`, pdf);
   expect(writes).toEqual([]);
 });
 
-test("dense invoice continues on A4 pages and retains every record and final note", async ({
-  page,
-}) => {
+test("dense statement continues on A4 pages and retains every payment, charge and disclosure", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const dense = sale({
-    price: "50000",
-    exchanges: completeSale.exchanges,
-    adjustments: Array.from({ length: 22 }, (_, index) => ({
-      description: `Agreed service item ${index + 1} with full details for the buyer`,
-      amount: "10",
-      kind: "fee" as const,
-    })),
-    payments: Array.from({ length: 24 }, (_, index) => ({
-      amount: "20",
-      method: index % 2 ? "Cash" : "Bank transfer",
-      date: "2026-10-04",
-      reference: `PAYMENT-RECORD-${index + 1}`,
-    })),
-    notes:
-      Array.from(
-        { length: 15 },
-        (_, index) =>
-          `Agreed collection note ${index + 1}: Full vehicle documentation is reviewed with the customer at handover.`,
-      ).join("\n") + "\nFINAL-INVOICE-NOTE-END",
+  const dense = sale({ price: "50000", exchanges: completeSale.exchanges,
+    adjustments: Array.from({ length: 22 }, (_, index) => ({ description: `Agreed service item ${index + 1} with full details for the buyer`, amount: "10", kind: "fee" as const })),
+    payments: Array.from({ length: 24 }, (_, index) => ({ amount: "20", method: index % 2 ? "Cash" : "Bank transfer", date: "2026-10-04", reference: `PAYMENT-RECORD-${index + 1}` })),
+    notes: Array.from({ length: 15 }, (_, index) => `Agreed collection note ${index + 1}: Full vehicle documentation is reviewed with the customer at handover.`).join("\n") + "\nFINAL-INVOICE-NOTE-END",
   });
-  const { writes, errors } = await openDocument(page, dense, {
-    documentType: "statement",
-  });
-  const print = await preparePrint(page);
-  await expect(print.locator(".invoice-items")).toContainText(
-    "Agreed service item 22",
-  );
-  await expect(print.locator(".invoice-payments")).toContainText(
-    "PAYMENT-RECORD-24",
-  );
-  await expect(print).toContainText("FINAL-INVOICE-NOTE-END");
-  await expect(print.locator(".invoice-balance")).toContainText("£44,990.00");
-  const clipping = await print.evaluate((sheet) =>
-    [
-      ...sheet.querySelectorAll<HTMLElement>(
-        ".invoice-items, .invoice-exchanges, .invoice-payments, .invoice-totals",
-      ),
-      sheet as HTMLElement,
-    ].some((node) => {
-      const style = getComputedStyle(node);
-      return (
-        ["hidden", "clip"].includes(style.overflowY) &&
-        node.scrollHeight > node.clientHeight + 1
-      );
-    }),
-  );
-  expect(clipping).toBe(false);
-  const pdf = await page.pdf({
-    preferCSSPageSize: true,
-    printBackground: true,
-  });
-  expect(pdfPageCount(pdf)).toBeGreaterThan(1);
-  expectA4(pdf);
-  await mkdir(output, { recursive: true });
-  await writeFile(`${output}/invoice-dense-a4.pdf`, pdf);
-  expect(writes).toEqual([]);
-  expect(errors).toEqual([]);
+  const { writes, errors, archives } = await openDocument(page, dense, { documentType: "statement" });
+  const pdf = await previewPdf(page);
+  expect(pdf).toEqual(archives.get("statement"));
+  for (const value of ["Agreed service item 22", "PAYMENT-RECORD-24", "44,990.00"]) expect(pdf.toString("latin1")).toContain(value);
+  expect(pdfPageCount(pdf)).toBeGreaterThan(1); expectA4(pdf);
+  await expect(page.locator('canvas[data-rendered="true"]')).toHaveCount(pdfPageCount(pdf));
+  await page.getByLabel("Document", { exact: true }).selectOption("vehicle-details");
+  const disclosures = await previewPdf(page);
+  expect(disclosures.toString("latin1")).toContain("FINAL-INVOICE-NOTE-END");
+  expectA4(disclosures);
+  await mkdir(output, { recursive: true }); await writeFile(`${output}/invoice-dense-a4.pdf`, pdf);
+  expect(writes).toEqual([]); expect(errors).toEqual([]);
 });
 
-test("an edit that worsens an existing credit cannot print a draft invoice", async ({
-  page,
-}) => {
-  const { writes } = await openDocument(
-    page,
-    sale({
-      payments: [
-        {
-          amount: "15001",
-          method: "Cash",
-          date: "2026-10-04",
-          reference: "OVERPAYMENT-TEST",
-        },
-      ],
-    }),
-    { preview: true },
-  );
-  // Existing customer credits are supported. A new edit cannot worsen one.
-  await page.getByRole("button", { name: "Edit sale details", exact: true }).click();
+test("an edit that worsens an existing credit cannot print a draft invoice", async ({ page }) => {
+  const { writes } = await openDocument(page, sale({ payments: [{ amount: "15001", method: "Cash", date: "2026-10-04", reference: "OVERPAYMENT-TEST" }] }), { preview: true });
+  await editView(page); await saleStep(page, "Deal details");
   await page.getByLabel("Agreed vehicle price (£)").fill("14999");
-  await page.getByRole("button", { name: "Documents & handover", exact: true }).click();
-  await page.evaluate(() => {
-    window.print = () => {
-      throw new Error("Invalid draft should not print");
-    };
-  });
-  await page
-    .getByRole("button", { name: "Print / Save PDF", exact: true })
-    .click();
-  await expect(
-    page.getByText(
-      "Part exchange, discounts and payments cannot exceed the total due.",
-      { exact: true },
-    ),
-  ).toBeVisible();
+  await previewView(page);
+  const popups: string[] = []; page.on("popup", popup => popups.push(popup.url()));
+  await page.getByRole("button", { name: "Print draft", exact: true }).click();
+  await editView(page);
+  await expect(page.getByRole("alert")).toContainText("Part exchange, discounts and payments cannot exceed the total due.");
+  expect(popups).toEqual([]);
   await expect(page.locator(".sales-print-copy")).toHaveCount(0);
   expect(writes).toEqual([]);
 });
 
-for (const width of [390, 820, 1440]) test(`classic receipt and blank stationery at ${width}px`, async ({ page }) => {
-  await page.setViewportSize({width,height:1000});
-  const draft = sale({payments:[{id:'deposit',date:'2026-10-10',amount:'500',method:'Bank transfer',reference:'Deposit payment',status:'confirmed',kind:'deposit'}]});
-  const audit = await openDocument(page,draft);
-  await page.getByLabel('Document',{exact:true}).selectOption('receipt');
-  await page.getByLabel('Receipt print style').selectOption('classic');
-  const receipt = page.locator('.sales-document-workbench .receipt-book');
-  await expect(receipt).toContainText('RCP-TEST-001');
-  await expect(receipt).toContainText('£500.00');
-  await expect(receipt).toContainText('£14,500.00');
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await mkdir('output/ui-premium/classic-receipt',{recursive:true});
-  await receipt.screenshot({path:`output/ui-premium/classic-receipt/filled-${width}.png`});
-  if(width===1440){
-    await preparePrint(page);
-    const pdf=await page.pdf({format:'A4',printBackground:true,preferCSSPageSize:true});
+for (const width of [390, 820, 1440]) test(`classic receipt and blank stationery remain secondary choices at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 1000 });
+  const draft = sale({ payments: [{ id: "deposit", date: "2026-10-10", amount: "500", method: "Bank transfer", reference: "Deposit payment", status: "confirmed", kind: "deposit" }] });
+  const audit = await openDocument(page, draft);
+  await page.getByLabel("Document", { exact: true }).selectOption("receipt");
+  await editView(page); await optionalPanel(page, "Other documents & receipt styles");
+  await page.getByLabel("Receipt print style").selectOption("classic");
+  await previewView(page);
+  const receipt = page.locator(".sales-document-workbench .receipt-book");
+  await expect(receipt).toContainText("RCP-TEST-001");
+  await expect(receipt).toContainText("£500.00");
+  await expect(receipt).toContainText("£14,500.00");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await mkdir("output/ui-premium/classic-receipt", { recursive: true });
+  await receipt.screenshot({ path: `output/ui-premium/classic-receipt/filled-${width}.png` });
+  if (width === 1440) {
+    await page.evaluate(() => { window.print = () => {}; });
+    await page.getByRole("button", { name: "Print document", exact: true }).click();
+    await page.emulateMedia({ media: "print" });
+    await expect(page.locator("body > .sales-print-copy")).toBeVisible();
+    await expect(page.locator("body > .sales-print-copy")).toContainText("£500.00");
+    const pdf = await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
     expect(pdfPageCount(pdf)).toBe(1);
-    await writeFile('../../output/pdf/classic-receipt-website-example.pdf',pdf);
-    await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));await page.emulateMedia({media:'screen'});
+    await mkdir("../../output/pdf", { recursive: true }); await writeFile("../../output/pdf/classic-receipt-website-example.pdf", pdf);
+    await page.evaluate(() => window.dispatchEvent(new Event("afterprint"))); await page.emulateMedia({ media: "screen" });
   }
-  await page.getByLabel('Receipt print style').selectOption('blank');
+  await editView(page); await page.getByLabel("Receipt print style").selectOption("blank"); await previewView(page);
   await expect(receipt).not.toContainText(draft.customer);
-  await expect(receipt).not.toContainText('RCP-TEST-001');
-  await expect(receipt).not.toContainText('£500.00');
-  await expect(receipt).toContainText('Blank stationery');
-  expect(audit.writes).toEqual([]);expect(audit.errors).toEqual([]);
+  await expect(receipt).not.toContainText("RCP-TEST-001");
+  await expect(receipt).not.toContainText("£500.00");
+  await expect(receipt).toContainText("Blank stationery");
+  expect(audit.writes).toEqual([]); expect(audit.errors).toEqual([]);
+});
+
+
+test("issuing an invoice after choosing classic receipt restores the standard PDF print path", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const fixture = await openDocument(page, sale({ payments: [{ amount: "500", method: "Cash", date: "2026-10-10", reference: "CLASSIC-PRINT-REGRESSION", status: "confirmed", kind: "deposit" }] }));
+  await page.getByLabel("Document", { exact: true }).selectOption("receipt");
+  await optionalPanel(page, "Other documents & receipt styles");
+  await page.getByLabel("Receipt print style").selectOption("classic");
+  await expect(page.locator(".sales-document-workbench .receipt-book")).toBeVisible();
+  const invoice = { ...structuredClone(fixture.documents.find(document => document.type === "invoice")!), id: "invoice-revised", number: "INV-TEST-002", version: 2 };
+  const bytes = archivedPdf(invoice); fixture.archives.set(invoice.id, bytes);
+  const mutations: string[] = [];
+  await page.route(`**/api/sale-workspace/${fixture.record.id}/documents`, route => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON().type).toBe("invoice");
+    mutations.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ json: { sale: { ...fixture.record, revision: 2, documents: [...fixture.documents, invoice] }, document: invoice, preview: true } });
+  });
+  await page.getByRole("button", { name: "Issue another invoice copy", exact: true }).click();
+  await expect(page.getByLabel("Receipt print style")).toHaveValue("modern");
+  expect(await previewPdf(page)).toEqual(bytes);
+  await expect(page.locator(".sales-document-workbench .receipt-book")).toHaveCount(0);
+  await page.evaluate(() => {
+    (window as typeof window & { stationeryPrintCalls: number }).stationeryPrintCalls = 0;
+    window.print = () => { (window as typeof window & { stationeryPrintCalls: number }).stationeryPrintCalls++; };
+  });
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Print document", exact: true }).click();
+  const popup = await opened; await expect.poll(() => popup.url()).toMatch(/^blob:/);
+  const printBytes = await page.evaluate(async url => [...new Uint8Array(await (await fetch(url)).arrayBuffer())], popup.url());
+  expect(Buffer.from(printBytes)).toEqual(bytes);
+  expect(await page.evaluate(() => (window as typeof window & { stationeryPrintCalls: number }).stationeryPrintCalls)).toBe(0);
+  await expect(page.locator("body > .sales-print-copy")).toHaveCount(0);
+  await popup.close();
+  expect(mutations).toEqual([`/api/sale-workspace/${fixture.record.id}/documents`]);
+  expect(fixture.writes).toEqual([]); expect(fixture.errors).toEqual([]);
 });

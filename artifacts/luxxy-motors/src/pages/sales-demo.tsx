@@ -1,5 +1,5 @@
-import { ClassicReceipt } from '@/components/sales-demo/classic-receipt';
-import { invoiceBranding } from '@workspace/vehicle-meta';
+import { ClassicReceipt } from "@/components/sales-demo/classic-receipt";
+import { invoiceBranding } from "@workspace/vehicle-meta";
 import { CompleteSaleDialog } from "@/components/sales-demo/complete-sale-dialog";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,6 @@ import {
 import type {
   SaleWorkspaceRecord,
   SaleWorkspaceMutation,
-  SaleWorkspaceDocument,
   SaleWorkspaceDraft,
   SaleWorkspacePayment,
   SaleWorkspacePaymentInput,
@@ -27,7 +26,6 @@ import {
   SalesConnections,
   DocumentDelivery,
 } from "@/components/sales-demo/sales-connections";
-import { HistoryLinks } from "@/components/portal/history-links";
 import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft,
@@ -40,11 +38,13 @@ import {
   CarFront,
   ArrowLeftRight,
   WalletCards,
-  ClipboardCheck,
   ChevronDown,
 } from "lucide-react";
 import "@/sales-workspace.css";
-import { SalesDocument } from "@/components/sales-demo/sales-document";
+import {
+  PdfSalesDocument,
+  openSaleDocumentPdf,
+} from "@/components/sales-demo/sales-document";
 import { useStock } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import {
@@ -62,8 +62,6 @@ import {
   totals,
   errors,
   exchanges,
-  payments,
-  pence,
   saleRequestId,
   saleStaffLabel,
 } from "@/components/sales-demo/model";
@@ -75,22 +73,6 @@ import {
 } from "@workspace/api-client-react";
 
 const KEY = "luxxy.sales-workspace-demo.v1";
-const tabs = [
-  "Customer",
-  "Vehicle",
-  "Part exchange",
-  "Payments & receipts",
-  "Documents",
-  "Delivery & handover",
-] as const;
-const sectionIcons = [
-  UserRound,
-  CarFront,
-  ArrowLeftRight,
-  WalletCards,
-  FileText,
-  ClipboardCheck,
-];
 const money = (pence: number) =>
   Number.isFinite(pence)
     ? new Intl.NumberFormat("en-GB", {
@@ -200,9 +182,11 @@ export function SalesWorkspace({
   const paperworkQuery = useQuery({
     queryKey: ["sale-paperwork"],
     queryFn: () =>
-      customFetch<{ saleTerms: string; reservationTerms: string; invoiceSettings?: import('@workspace/vehicle-meta').InvoiceSettings }>(
-        "/api/sale-workspace/paperwork",
-      ),
+      customFetch<{
+        saleTerms: string;
+        reservationTerms: string;
+        invoiceSettings?: import("@workspace/vehicle-meta").InvoiceSettings;
+      }>("/api/sale-workspace/paperwork"),
     refetchOnWindowFocus: true,
   });
   const [pendingConfirmation, setPendingConfirmation] = useState<
@@ -217,12 +201,13 @@ export function SalesWorkspace({
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [snapshot, setSnapshot] = useState("");
   const [tab, setTab] = useState(0);
-  const [receiptStyle, setReceiptStyle] = useState<"modern" | "classic" | "blank">("modern");
+  const [receiptStyle, setReceiptStyle] = useState<
+    "modern" | "classic" | "blank"
+  >("modern");
   const [editorView, setEditorView] = useState<"edit" | "preview">("edit");
   const [message, setMessage] = useState("");
   const [problems, setProblems] = useState<string[]>([]);
   const [preparingPrint, setPreparingPrint] = useState(false);
-  const [showBreakdown, setShowBreakdown] = useState(false);
   const documentType = "Sales invoice" as const;
   const selectedDocument = record?.documents.find(
     (doc) => doc.id === selectedDocumentId,
@@ -564,7 +549,7 @@ export function SalesWorkspace({
     });
   const showReceipt = (id: string) => {
     setSelectedDocumentId(id);
-    changeTab(4);
+    setEditorView("preview");
   };
   const recordPayment = (payment: SaleWorkspacePaymentInput) =>
     void run(async () => {
@@ -594,14 +579,16 @@ export function SalesWorkspace({
           : "Pending payment saved. The balance is unchanged.",
       );
       if (payment.status === "confirmed") {
-        changeTab(4);
-        if (payment.kind === "final-payment") setCompleteDialog(true);
+        setTab(3);
+        if (window.matchMedia("(max-width: 1100px)").matches)
+          setEditorView("preview");
       }
       setPaymentIntent(undefined);
     });
   const issueDocument = (type: "invoice" | "statement") =>
     void run(async () => {
       await command("/documents", { type });
+      setReceiptStyle("modern");
       changeTab(4);
       setMessage("Document saved. Reprints will keep these details.");
     });
@@ -631,7 +618,9 @@ export function SalesWorkspace({
     setProblems([]);
     requestAnimationFrame(() => {
       heading.current?.focus({ preventScroll: embedded });
-      if (embedded)
+      const content = heading.current?.closest(".sales-premium-content");
+      content?.scrollTo({ top: 0, behavior: "instant" });
+      if (embedded && window.matchMedia("(max-width: 1100px)").matches)
         heading.current?.scrollIntoView({
           block: "start",
           behavior: "instant",
@@ -642,6 +631,7 @@ export function SalesWorkspace({
     <label className="grid gap-2 text-sm font-medium">
       {label}
       <Input
+        disabled={Boolean(record?.completedAt)}
         type={type}
         inputMode={key === "price" ? "decimal" : undefined}
         value={String(draft?.[key] ?? "")}
@@ -674,66 +664,117 @@ export function SalesWorkspace({
   });
   const selected = stock?.cars.find((car) => car.id === draft?.vehicleId);
   const amount = draft ? totals(draft) : null;
+  const savedVehicle = record?.documents
+    .slice()
+    .reverse()
+    .find((doc) => doc.snapshot.vehicle?.id === draft?.vehicleId)
+    ?.snapshot.vehicle;
+  const documentPdfUrl =
+    record && selectedDocument
+      ? "/api/sale-workspace/" +
+        record.id +
+        "/documents/" +
+        selectedDocument.id +
+        "/pdf"
+      : undefined;
+  const completionProblems = draft
+    ? ([
+        ...errors(draft, record?.draft),
+        amount?.balance !== 0 &&
+          "Record the remaining balance or resolve the customer credit.",
+        !paperworkQuery.data?.saleTerms.trim() &&
+          (paperworkQuery.isLoading
+            ? "Loading your terms of sale…"
+            : paperworkQuery.isError
+              ? "Terms of sale could not be loaded. Refresh before completing."
+              : "Add approved terms of sale in Settings → Sales paperwork."),
+        draft.fulfilment?.method === "delivery" &&
+          !draft.fulfilment.address.trim() &&
+          "Enter the delivery address below.",
+      ].filter(Boolean) as string[])
+    : [];
   const print = async () => {
     if (!draft || preparingPrint) return;
-    const found = selectedDocument || receiptStyle === "blank" ? [] : errors(draft, record?.draft);
-    setProblems(found);
-    if (!found.length) {
-      printCleanup.current?.();
-      const sheet = document
-        .querySelector(".sales-document-workbench .sales-document")
-        ?.cloneNode(true) as HTMLElement | undefined;
-      if (!sheet) return;
-      sheet.classList.add("sales-print-copy");
-      sheet.querySelectorAll(".sales-chrome").forEach((node) => node.remove());
-      document.body.appendChild(sheet);
-      const originalTitle = document.title;
-      const cleanup = () => {
-        sheet.remove();
-        document.title = originalTitle;
-        window.removeEventListener("afterprint", cleanup);
-        if (printCleanup.current === cleanup) printCleanup.current = null;
-      };
-      printCleanup.current = cleanup;
-      setPreparingPrint(true);
-      try {
-        // Prepare the validated snapshot, so later form edits cannot change the document being printed.
-        await Promise.race([
-          Promise.allSettled([
-            document.fonts?.ready,
-            ...Array.from(sheet.querySelectorAll("img")).map((image) =>
-              image.decode(),
-            ),
-          ]),
-          new Promise((resolve) => setTimeout(resolve, 4000)),
-        ]);
-        if (!sheet.isConnected) return;
+    const found =
+      !selectedDocument && receiptStyle !== "blank"
+        ? errors(draft, record?.draft)
+        : [];
+    if (found.length) {
+      setProblems(found);
+      setMessage("Complete the deal details before printing the draft.");
+      setEditorView("edit");
+      return;
+    }
+    setPreparingPrint(true);
+    setProblems([]);
+    try {
+      if (
+        receiptStyle === "blank" ||
+        (receiptStyle === "classic" && selectedDocument?.type === "receipt")
+      ) {
+        const sheet = document
+          .querySelector(".sales-document-workbench .sales-document")
+          ?.cloneNode(true) as HTMLElement | undefined;
+        if (!sheet)
+          throw new Error("Choose a receipt before printing stationery.");
+        printCleanup.current?.();
+        sheet.classList.add("sales-print-copy");
         sheet
-          .querySelectorAll<HTMLImageElement>("img.invoice-logo")
-          .forEach((image) => {
-            if (image.naturalWidth) return;
-            const fallback = document.createElement("span");
-            fallback.className = "invoice-wordmark";
-            fallback.textContent = selectedDocument
-              ? selectedDocument.snapshot.branding.identity.logoText ||
-                selectedDocument.snapshot.branding.identity.name
-              : settings.identity.logoText || settings.identity.name;
-            image.replaceWith(fallback);
-          });
-        document.title = receiptStyle === "blank" ? `${settings.identity.name} - Blank receipt stationery` : `${selectedDocument?.snapshot.branding.identity.name ?? settings.identity.name} - ${selectedDocument?.title ?? documentType} - ${selectedDocument?.number ?? draft.id}`;
+          .querySelectorAll(".sales-chrome")
+          .forEach((node) => node.remove());
+        document.body.appendChild(sheet);
+        const cleanup = () => {
+          sheet.remove();
+          window.removeEventListener("afterprint", cleanup);
+        };
+        printCleanup.current = cleanup;
+        await document.fonts.ready;
         window.addEventListener("afterprint", cleanup, { once: true });
         window.print();
-      } catch {
-        cleanup();
-        setProblems(["The print preview could not open. Please try again."]);
-      } finally {
-        setPreparingPrint(false);
+      } else {
+        await openSaleDocumentPdf(
+          {
+            issuedDocument: selectedDocument,
+            pdfUrl: documentPdfUrl,
+            draft,
+            dealer: invoiceBranding(
+              settings,
+              paperworkQuery.data?.invoiceSettings,
+            ) as typeof settings,
+            vehicle: selected,
+            savedVehicle,
+            documentType,
+          },
+          "print",
+        );
       }
+    } catch (error) {
+      setMessage("The document could not open. Please try again.");
+      setProblems([
+        error instanceof Error
+          ? error.message
+          : "The PDF could not open. Please try again.",
+      ]);
+    } finally {
+      setPreparingPrint(false);
     }
+  };
+  const nextStep = () => {
+    if (!draft) return;
+    const found = errors(draft, record?.draft);
+    if (tab === 0 && found.length) {
+      setProblems(found);
+      setEditorView("edit");
+      return;
+    }
+    changeTab(tab === 0 ? 3 : 4);
+    setEditorView("edit");
+    setSelectedDocumentId(null);
+    setReceiptStyle("modern");
   };
   return (
     <div
-      className={`sales-workspace sales-premium-workspace flex flex-col ${embedded ? "sales-embedded-workspace" : "fixed inset-0 z-[70]"}`}
+      className={`sales-workspace sales-premium-workspace sales-practical-workspace flex flex-col ${embedded ? "sales-embedded-workspace" : "fixed inset-0 z-[70]"}`}
     >
       {(!embedded || draft) && (
         <header className="sales-chrome sales-titlebar">
@@ -772,59 +813,15 @@ export function SalesWorkspace({
                 disabled={busy}
               >
                 <Save size={16} />
-                {busy ? "Saving…" : record?.completedAt ? "Save progress" : "Save draft"}
+                {busy
+                  ? "Saving…"
+                  : record?.completedAt
+                    ? "Save progress"
+                    : "Save draft"}
               </Button>
             )}
           </div>
         </header>
-      )}
-      {draft && (
-        <div className="sales-chrome sales-quick-actions">
-          <div>
-            <span className="sales-status-tag">{salePaymentState(draft)}</span>
-            <span>
-              {draft.fulfilment?.completedAt
-                ? draft.fulfilment.method === "delivery"
-                  ? "Delivered"
-                  : "Collected"
-                : draft.fulfilment?.scheduledDate
-                  ? draft.fulfilment.method === "delivery"
-                    ? "Delivery booked"
-                    : "Collection booked"
-                  : "Handover not arranged"}
-            </span>
-          </div>
-          <div>
-            {record && (
-              <HistoryLinks
-                vehicleId={record.draft.vehicleId}
-                recordType="sale"
-                recordId={record.id}
-                vehicle={Boolean(
-                  record.draft.vehicleId || record.draft.vehicle,
-                )}
-              />
-            )}
-          </div>
-        </div>
-      )}
-      {draft && (
-        <dl className="sales-financial-summary sales-chrome">
-          <div>
-            <dt>Total due</dt>
-            <dd>
-              {money(amount!.price + amount!.adjustments - amount!.allowance)}
-            </dd>
-          </div>
-          <div>
-            <dt>Confirmed paid</dt>
-            <dd>{money(amount!.deposit)}</dd>
-          </div>
-          <div>
-            <dt>{amount!.balance < 0 ? "Customer credit" : "Outstanding"}</dt>
-            <dd>{money(Math.abs(amount!.balance))}</dd>
-          </div>
-        </dl>
       )}
       {(stale ||
         problems.some((p) => p.startsWith("Another staff member"))) && (
@@ -1000,95 +997,69 @@ export function SalesWorkspace({
             className="sales-chrome sales-section-ribbon"
           >
             {[
-              { label: "Deal details", index: 0, group: 0 },
-              { label: "Payments", index: 3, group: 1 },
-              { label: "Documents & handover", index: 4, group: 2 },
-            ].map(({ label, index, group }) => {
-              const Icon = sectionIcons[index];
-              return (
-                <button
-                  key={label}
-                  aria-current={
-                    (tab <= 2 ? 0 : tab === 3 ? 1 : 2) === group
-                      ? "step"
-                      : undefined
-                  }
-                  onClick={() => changeTab(index)}
-                  className="sales-section-tab"
-                  disabled={busy}
-                >
-                  <Icon size={19} aria-hidden="true" />
-                  <span>{label}</span>
-                </button>
-              );
-            })}
+              {
+                label: "Deal details",
+                index: 0,
+                description: "Customer & vehicle",
+              },
+              {
+                label: "Payments",
+                index: 3,
+                description: "Deposits & receipts",
+              },
+              {
+                label: "Completion",
+                index: 4,
+                description: "Invoice & handover",
+              },
+            ].map(({ label, index, description }, step) => (
+              <button
+                key={label}
+                aria-current={tab === index ? "step" : undefined}
+                onClick={() => {
+                  changeTab(index);
+                  setEditorView("edit");
+                  setReceiptStyle("modern");
+                }}
+                className="sales-section-tab"
+                disabled={busy}
+              >
+                <span className="sales-step-number" aria-hidden="true">
+                  {step + 1}
+                </span>
+                <span>
+                  <strong>{label}</strong>
+                  <small>{description}</small>
+                </span>
+              </button>
+            ))}
           </nav>
-          <div className="sales-chrome sales-decision-bar">
-            <div>
-              <strong>
-                {record?.completedAt
-                  ? "Sale completed"
-                  : record?.lifecycle?.status === "reserved"
-                    ? "Reserved for this customer"
-                    : "Sale in progress"}
-              </strong>
-              <span>
-                {record?.documents.some((d) => d.type === "invoice")
-                  ? "Invoice issued"
-                  : "Invoice not issued"}{" "}
-                ·{" "}
-                {draft.fulfilment?.completedAt
-                  ? "Handover recorded"
-                  : "Handover pending"}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              disabled={
-                busy ||
-                Boolean(record?.completedAt) ||
-                !draft.customer ||
-                !draft.vehicle ||
-                !(Number(draft.price) > 0)
-              }
-              onClick={() => {
-                setPaymentIntent("deposit");
-                setPendingConfirmation(undefined);
-                setActionProblem("");
-                setPaymentDialog(true);
-              }}
-            >
-              Deposit & receipt
-            </Button>
-            <Button
-              disabled={
-                busy ||
-                Boolean(record?.completedAt) ||
-                !draft.customer ||
-                !draft.vehicle ||
-                !(Number(draft.price) > 0)
-              }
-              onClick={() => {
-                setActionProblem("");
-                if (amount!.balance > 0) {
-                  setPaymentIntent("final-payment");
-                  setPendingConfirmation(undefined);
-                  setPaymentDialog(true);
-                } else setCompleteDialog(true);
-              }}
-            >
-              Complete sale
-            </Button>
-            <Button variant="outline" onClick={() => changeTab(4)}>
-              Receipts & documents
-            </Button>
-          </div>
-          <main className="sales-workspace-content sales-premium-content" data-editor-view={editorView}>
-            {tab !== 4 && <div className="sales-editor-view-switch" aria-label="Invoice workspace view">
-              <button type="button" aria-pressed={editorView === "edit"} onClick={() => setEditorView("edit")}>Edit sale</button>
-              <button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Invoice preview</button>
-            </div>}
-            <div className="sales-sheet-layout" data-document={tab === 4}>
+          <main
+            className="sales-workspace-content sales-premium-content"
+            data-editor-view={editorView}
+          >
+            {
+              <div
+                className="sales-editor-view-switch"
+                aria-label="Invoice workspace view"
+              >
+                <button
+                  type="button"
+                  aria-pressed={editorView === "edit"}
+                  onClick={() => setEditorView("edit")}
+                >
+                  Edit sale
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={editorView === "preview"}
+                  onClick={() => setEditorView("preview")}
+                >
+                  Invoice preview
+                </button>
+              </div>
+            }
+            <div className="sales-sheet-layout" data-document="false">
               <fieldset disabled={busy} className="sales-active-sheet">
                 <div className="sales-chrome sales-section-intro">
                   <p className="sales-eyebrow">
@@ -1103,7 +1074,7 @@ export function SalesWorkspace({
                       ? "Deal details"
                       : tab === 3
                         ? "Payments"
-                        : "Documents & handover"}
+                        : "Completion"}
                   </h1>
                   <p className="sales-section-description">
                     {
@@ -1111,8 +1082,8 @@ export function SalesWorkspace({
                         "Enter the customer once. Their details carry through to the paperwork.",
                         "Choose from current stock, then confirm the agreed selling price.",
                         "Record the allowance agreed for the customer’s car.",
-                        "Record payments received and keep every receipt. Fees and discounts update the balance.",
-                        "Issue an invoice or statement, or reopen an earlier receipt exactly as it was issued.",
+                        "Record each payment separately. Confirm received funds to create its receipt; a deposit reserves the car.",
+                        "Review the invoice, settle the balance and complete the sale. Collection or delivery can follow later.",
                         "Arrange collection or delivery independently of the payments and any viewing.",
                       ][tab]
                     }
@@ -1130,6 +1101,13 @@ export function SalesWorkspace({
                 )}
                 {tab <= 2 && (
                   <div className="sales-form-panel sales-customer-panel">
+                    {record?.completedAt && (
+                      <p className="sales-panel-note">
+                        Completed sale details are locked to protect the issued
+                        invoice. Receipts, refunds and handover remain
+                        available.
+                      </p>
+                    )}
                     <details className="sales-customer-import">
                       <summary>
                         <UserRound size={18} aria-hidden="true" />
@@ -1160,6 +1138,7 @@ export function SalesWorkspace({
                           <button
                             key={item.id}
                             className="block w-full py-3 text-left hover:bg-secondary"
+                            disabled={Boolean(record?.completedAt)}
                             onClick={() => {
                               setDraft({
                                 ...draft,
@@ -1214,6 +1193,7 @@ export function SalesWorkspace({
                       <Textarea
                         rows={3}
                         value={draft.address}
+                        disabled={Boolean(record?.completedAt)}
                         onChange={(e) => update("address", e.target.value)}
                       />
                     </label>
@@ -1232,6 +1212,10 @@ export function SalesWorkspace({
                       Vehicle
                       <select
                         aria-label="Vehicle"
+                        disabled={Boolean(
+                          record?.completedAt ||
+                          record?.lifecycle?.status === "reserved",
+                        )}
                         className="h-12 w-full border border-input bg-white px-3"
                         value={draft.vehicleId}
                         onChange={(e) => {
@@ -1271,11 +1255,16 @@ export function SalesWorkspace({
                     )}
                     {selected && (
                       <div className="sales-selected-vehicle">
-                        <img
-                          src={getThumbnailUrl(selected)}
-                          alt={draft.vehicle}
-                          className="sales-selected-vehicle-photo"
-                        />
+                        {getThumbnailUrl(selected) && (
+                          <img
+                            src={getThumbnailUrl(selected)}
+                            alt={draft.vehicle}
+                            onError={(e) => {
+                              e.currentTarget.hidden = true;
+                            }}
+                            className="sales-selected-vehicle-photo"
+                          />
+                        )}
                         <div>
                           <p className="sales-eyebrow">Selected vehicle</p>
                           <h3>{draft.vehicle}</h3>
@@ -1292,7 +1281,10 @@ export function SalesWorkspace({
                 {tab <= 2 && (
                   <details className="sales-optional-panel">
                     <summary>Part exchange (optional)</summary>
-                    <div className="sales-form-panel sales-exchange-panel">
+                    <fieldset
+                      disabled={Boolean(record?.completedAt)}
+                      className="sales-form-panel sales-exchange-panel"
+                    >
                       <div className="sales-panel-heading">
                         <h2>Part-exchange cars</h2>
                         <p>
@@ -1379,20 +1371,34 @@ export function SalesWorkspace({
                         Up to three cars. Total allowance:{" "}
                         {money(amount!.allowance)}
                       </p>
-                    </div>
+                    </fieldset>
                   </details>
                 )}
-                {tab <= 2 && <details className="sales-optional-panel">
-                  <summary>Agreed invoice notes (optional)</summary>
-                  <label className="grid gap-2 text-sm font-medium mt-4">
-                    Agreed invoice notes
-                    <Textarea rows={3} value={draft.notes} onChange={e => update("notes", e.target.value)} placeholder="Only include details agreed with the customer" />
-                  </label>
-                  <p className="sales-panel-note">Shown on the draft and future issued documents. Existing copies stay unchanged.</p>
-                </details>}
-                {tab === 3 && (
-                  <div className="sales-form-panel sales-payments-panel">
-                    <section className="sales-payment-section">
+                {tab <= 2 && (
+                  <details className="sales-optional-panel">
+                    <summary>Agreed vehicle disclosures (optional)</summary>
+                    <label className="grid gap-2 text-sm font-medium mt-4">
+                      Agreed vehicle disclosures
+                      <Textarea
+                        rows={3}
+                        value={draft.notes}
+                        onChange={(e) => update("notes", e.target.value)}
+                        placeholder="Condition, known issues or details agreed with the customer"
+                      />
+                    </label>
+                    <p className="sales-panel-note">
+                      Included in the vehicle disclosures issued with the
+                      completed sale. Earlier copies stay unchanged.
+                    </p>
+                  </details>
+                )}
+                {tab <= 2 && (
+                  <details className="sales-optional-panel">
+                    <summary>Fees & discounts (optional)</summary>
+                    <fieldset
+                      disabled={Boolean(record?.completedAt)}
+                      className="sales-payment-section"
+                    >
                       <div className="sales-panel-heading">
                         <h2>Fees and discounts</h2>
                         <p>
@@ -1489,8 +1495,41 @@ export function SalesWorkspace({
                         <Plus size={16} />
                         Add fee or discount
                       </Button>
-                    </section>
+                    </fieldset>
+                  </details>
+                )}
+                {tab === 3 && (
+                  <div className="sales-form-panel sales-payments-panel">
+                    <dl className="sales-payment-totals">
+                      <div>
+                        <dt>Sale total</dt>
+                        <dd>
+                          {money(
+                            amount!.price +
+                              amount!.adjustments -
+                              amount!.allowance,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Money received</dt>
+                        <dd>{money(amount!.deposit)}</dd>
+                      </div>
+                      <div>
+                        <dt>
+                          {amount!.balance < 0
+                            ? "Customer credit"
+                            : "Still to pay"}
+                        </dt>
+                        <dd>{money(Math.abs(amount!.balance))}</dd>
+                      </div>
+                    </dl>
                     <PaymentLedger
+                      canRecord={
+                        Number.isSafeInteger(amount!.balance) &&
+                        amount!.balance > 0 &&
+                        errors(draft, record?.draft).length === 0
+                      }
                       entries={record?.payments ?? []}
                       documents={record?.documents ?? []}
                       busy={busy}
@@ -1510,24 +1549,162 @@ export function SalesWorkspace({
                         setReversePayment(payment);
                       }}
                     />
+                    {errors(draft, record?.draft).length > 0 && (
+                      <p className="sales-panel-note">
+                        Finish the deal details before recording money.
+                      </p>
+                    )}
                     <p className="sales-payment-notice">
-                      Record money already received; this does not charge a card.
-                      A confirmed deposit reserves the car and issues its receipt
-                      and agreement. Other payments update the balance.
+                      Record money already received; this does not charge a
+                      card. A confirmed deposit reserves the car and issues its
+                      receipt and agreement. Other payments update the balance.
                     </p>
                   </div>
                 )}
                 {tab === 4 && (
                   <>
-                    {record?.documents.some(doc => doc.type === "invoice") && <p className="sales-panel-note">To correct an invoice, edit the sale details and issue a new version. Earlier issued copies remain available below.</p>}
-                    <div className="sales-chrome sales-document-toolbar">
+                    <section className="sales-form-panel sales-completion-review">
+                      <div className="sales-panel-heading">
+                        <h2>
+                          {record?.completedAt
+                            ? "Sale completed"
+                            : "Ready to finish?"}
+                        </h2>
+                        <p>
+                          {record?.completedAt
+                            ? "The invoice and terms are saved, and the car has left public stock."
+                            : "Check these details and the invoice before issuing the final documents."}
+                        </p>
+                      </div>
+                      <dl className="sales-review-details">
+                        <div>
+                          <dt>Customer</dt>
+                          <dd>{draft.customer || "Add a customer"}</dd>
+                        </div>
+                        <div>
+                          <dt>Vehicle</dt>
+                          <dd>
+                            {draft.vehicle || "Choose a vehicle"}
+                            {draft.registration && (
+                              <small>{draft.registration}</small>
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Sale total</dt>
+                          <dd>
+                            {money(
+                              amount!.price +
+                                amount!.adjustments -
+                                amount!.allowance,
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Confirmed paid</dt>
+                          <dd>{money(amount!.deposit)}</dd>
+                        </div>
+                        <div data-balance={amount!.balance !== 0}>
+                          <dt>
+                            {amount!.balance < 0
+                              ? "Customer credit"
+                              : "Balance to pay"}
+                          </dt>
+                          <dd>{money(Math.abs(amount!.balance))}</dd>
+                        </div>
+                        <div>
+                          <dt>Vehicle status</dt>
+                          <dd>
+                            {record?.completedAt
+                              ? "Sold"
+                              : record?.lifecycle?.status === "reserved"
+                                ? "Reserved for this customer"
+                                : "Sale in progress"}
+                          </dd>
+                        </div>
+                      </dl>
+                      {!record?.completedAt &&
+                        (completionProblems.length ? (
+                          <div className="sales-review-blockers" role="status">
+                            <h3>Before completing</h3>
+                            <ul>
+                              {completionProblems.map((text) => (
+                                <li key={text}>{text}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <p className="sales-ready-notice">
+                            Balance settled. Your invoice, terms and vehicle
+                            disclosures will be issued together.
+                          </p>
+                        ))}
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedDocumentId(null);
+                          changeTab(0);
+                          setEditorView("edit");
+                        }}
+                      >
+                        Review deal details
+                      </Button>
+                      {paperworkQuery.data?.saleTerms && (
+                        <details className="sales-terms-review">
+                          <summary>Terms included with the sale</summary>
+                          <p>{paperworkQuery.data.saleTerms}</p>
+                        </details>
+                      )}
+                    </section>
+                    {record?.packDocumentIds?.length ? (
+                      <section className="sales-form-panel sales-issued-pack">
+                        <div className="sales-panel-heading">
+                          <h2>Customer document pack</h2>
+                          <p>
+                            Every document has its own saved PDF. Select one to
+                            print, download or email.
+                          </p>
+                        </div>
+                        <ul>
+                          {record.packDocumentIds
+                            .map((id) =>
+                              record.documents.find((doc) => doc.id === id),
+                            )
+                            .filter(Boolean)
+                            .map((doc) => (
+                              <li key={doc!.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDocumentId(doc!.id);
+                                    setReceiptStyle("modern");
+                                    setEditorView("preview");
+                                  }}
+                                >
+                                  <span>{doc!.title}</span>
+                                  <small>{doc!.number}</small>
+                                </button>
+                              </li>
+                            ))}
+                        </ul>
+                      </section>
+                    ) : null}
+                    <details className="sales-optional-panel">
+                      <summary>Other documents & receipt styles</summary>
+                      <p className="sales-panel-note">
+                        Issue paperwork before completion if requested. Issuing
+                        alone does not sell or reserve a car.
+                      </p>
                       <div className="sales-document-issue-actions">
-                        <Button variant="outline" onClick={() => { setEditorView("edit"); changeTab(0); }}>Edit sale details</Button>
                         <Button
                           variant="outline"
                           onClick={() => issueDocument("invoice")}
                         >
-                          Issue sales invoice
+                          {record?.documents.some(
+                            (doc) => doc.type === "invoice",
+                          )
+                            ? "Issue another invoice copy"
+                            : "Issue invoice before completion"}
                         </Button>
                         <Button
                           variant="outline"
@@ -1536,177 +1713,34 @@ export function SalesWorkspace({
                           Create balance statement
                         </Button>
                       </div>
-                      <Button
-                        className="sales-primary-action"
-                        onClick={print}
-                        disabled={preparingPrint}
-                      >
-                        <Printer size={16} />
-                        {preparingPrint
-                          ? "Preparing print…"
-                          : "Print / Save PDF"}
-                      </Button>
-                    </div>
-                    <div className="sales-document-selector sales-chrome">
-                      <label>
-                        Document
+                      <label className="sales-stationery-choice">
+                        Receipt print style
                         <select
-                          aria-label="Document"
-                          value={selectedDocumentId ?? "preview"}
+                          aria-label="Receipt print style"
+                          value={receiptStyle}
                           onChange={(e) =>
-                            setSelectedDocumentId(
-                              e.target.value === "preview"
-                                ? null
-                                : e.target.value,
+                            setReceiptStyle(
+                              e.target.value as typeof receiptStyle,
                             )
                           }
                         >
-                          <option value="preview">
-                            Draft invoice preview — not issued
+                          <option value="modern">Standard PDF</option>
+                          {selectedDocument?.type === "receipt" && (
+                            <option value="classic">
+                              Classic receipt book
+                            </option>
+                          )}
+                          <option value="blank">
+                            Blank handwritten stationery
                           </option>
-                          {[...(record?.documents ?? [])]
-                            .reverse()
-                            .map((doc) => (
-                              <option key={doc.id} value={doc.id}>
-                                {doc.title} · {doc.number}
-                              </option>
-                            ))}
                         </select>
                       </label>
-                      {selectedDocument && (
-                        <p>
-                          Issued{" "}
-                          {new Date(
-                            selectedDocument.issuedAt,
-                          ).toLocaleDateString("en-GB", {
-                            timeZone: "Europe/London",
-                          })}{" "}
-                          by {saleStaffLabel(selectedDocument.issuedBy)}. This
-                          saved copy stays unchanged.
-                        </p>
-                      )}
-                    </div>
-                    {record?.packDocumentIds?.length ? (
-                      <div className="sales-chrome sales-pack-actions">
-                        <Button
-                          onClick={() => {
-                            const pages = document.querySelectorAll(
-                              ".sales-pack-source .sales-document",
-                            );
-                            if (!pages.length) return;
-                            printCleanup.current?.();
-                            const clones = Array.from(pages).map((page) => {
-                              const clone = page.cloneNode(true) as HTMLElement;
-                              clone.classList.add("sales-print-copy");
-                              document.body.appendChild(clone);
-                              return clone;
-                            });
-                            const cleanup = () => {
-                              clones.forEach((c) => c.remove());
-                              window.removeEventListener("afterprint", cleanup);
-                            };
-                            printCleanup.current = cleanup;
-                            window.addEventListener("afterprint", cleanup, {
-                              once: true,
-                            });
-                            window.print();
-                          }}
-                        >
-                          Print full document pack
-                        </Button>
-                        <p>
-                          Includes the issued invoice or reservation agreement,
-                          receipts and supporting paperwork.
-                        </p>
-                      </div>
-                    ) : null}
-                    <div className="sales-pack-source" hidden>
-                      {record?.packDocumentIds
-                        ?.map((id) => record.documents.find((d) => d.id === id))
-                        .filter((d): d is SaleWorkspaceDocument => Boolean(d))
-                        .map((d) => (
-                          <SalesDocument key={d.id} issuedDocument={d} />
-                        ))}
-                    </div>
-                    <div className="sales-chrome sales-document-selector">
-                      <label>Print style<select aria-label="Receipt print style" value={receiptStyle === 'classic' && selectedDocument?.type !== 'receipt' ? 'modern' : receiptStyle} onChange={e => setReceiptStyle(e.target.value as typeof receiptStyle)}>
-                        <option value="modern">Modern document</option>
-                        {selectedDocument?.type === 'receipt' && <option value="classic">Classic receipt book</option>}
-                        <option value="blank">Blank receipt - fill in by hand</option>
-                      </select></label>
-                      <p>Classic uses the selected saved receipt. Blank stationery does not issue a receipt. Download/email and the full document pack keep the saved standard documents.</p>
-                    </div>
-                    <div className="sales-document-workbench">
-                      {receiptStyle === "blank" ? (
-                        <ClassicReceipt blank branding={invoiceBranding(settings, paperworkQuery.data?.invoiceSettings)} />
-                      ) : selectedDocument ? (
-                        receiptStyle === "classic" && selectedDocument.type === "receipt" ? <ClassicReceipt document={selectedDocument} branding={selectedDocument.snapshot.branding} /> : <SalesDocument issuedDocument={selectedDocument} />
-                      ) : (
-                        <SalesDocument
-                          draft={draft}
-                          dealer={invoiceBranding(settings, paperworkQuery.data?.invoiceSettings) as typeof settings}
-                          vehicle={selected}
-                          documentType={documentType}
-                        />
-                      )}
-                      <aside className="sales-chrome sales-document-controls">
-                        <div className="sales-panel-heading">
-                          <h2>Receipts & documents</h2>
-                          <p>
-                            Every issued document remains available, including
-                            earlier versions.
-                          </p>
-                        </div>
-                        <div className="sales-saved-documents">
-                          {[...(record?.documents ?? [])]
-                            .reverse()
-                            .map((doc) => (
-                              <button
-                                key={doc.id}
-                                onClick={() => setSelectedDocumentId(doc.id)}
-                                aria-pressed={selectedDocumentId === doc.id}
-                              >
-                                <FileText size={18} />
-                                <span>
-                                  <strong>{doc.title}</strong>
-                                  <small>
-                                    {doc.number} ·{" "}
-                                    {new Date(doc.issuedAt).toLocaleDateString(
-                                      "en-GB",
-                                    )}
-                                  </small>
-                                </span>
-                              </button>
-                            ))}
-                          {!record?.documents.length && (
-                            <p>
-                              No documents issued yet. Confirm a payment for its
-                              receipt, or issue a sales invoice.
-                            </p>
-                          )}
-                        </div>
-                        <DocumentDelivery
-                          record={record}
-                          document={selectedDocument}
-                          busy={busy}
-                          onEmail={emailDocument}
-                          onDownload={downloadDocument}
-                        />
-                        <label className="grid gap-2 text-sm font-medium mt-6">
-                          Document notes
-                          <Textarea
-                            rows={4}
-                            value={draft.notes}
-                            onChange={(e) => update("notes", e.target.value)}
-                            placeholder="Agreed details for future documents"
-                          />
-                        </label>
-                        <p className="sales-panel-note">
-                          Changes to notes appear on future documents. Saved
-                          documents stay unchanged.
-                        </p>
-                      </aside>
-                    </div>
+                      <p className="sales-panel-note">
+                        Classic and blank stationery are optional print
+                        alternatives. The saved PDF remains the official
+                        document.
+                      </p>
+                    </details>
                   </>
                 )}
                 {tab >= 4 && (
@@ -1731,20 +1765,31 @@ export function SalesWorkspace({
                         onLifecycle={updateLifecycle}
                       />
                     </details>
-                    <DeliveryPanel
-                      saleCompleted={Boolean(
-                        record?.completedAt ||
-                        record?.lifecycle?.status === "sold",
-                      )}
-                      draft={draft}
-                      busy={busy}
-                      onChange={(value) => update("fulfilment", value)}
-                      onReview={update}
-                      onComplete={() => {
-                        setActionProblem("");
-                        setHandoverDialog(true);
-                      }}
-                    />
+                    <details
+                      className="sales-optional-panel sales-handover-panel"
+                      open={
+                        Boolean(
+                          record?.completedAt ||
+                          draft.fulfilment?.method === "delivery",
+                        ) || undefined
+                      }
+                    >
+                      <summary>Collection & delivery</summary>
+                      <DeliveryPanel
+                        saleCompleted={Boolean(
+                          record?.completedAt ||
+                          record?.lifecycle?.status === "sold",
+                        )}
+                        draft={draft}
+                        busy={busy}
+                        onChange={(value) => update("fulfilment", value)}
+                        onReview={update}
+                        onComplete={() => {
+                          setActionProblem("");
+                          setHandoverDialog(true);
+                        }}
+                      />
+                    </details>
                     {record && (
                       <details className="sales-activity-history">
                         <summary>Sale history ({record.events.length})</summary>
@@ -1767,27 +1812,101 @@ export function SalesWorkspace({
                   </>
                 )}
               </fieldset>
-              {tab !== 4 && (
-                <aside
-                  className="sales-chrome sales-deal-overview"
-                  aria-label="Sale overview"
-                  data-expanded={showBreakdown || tab === 3}
-                >
-                  <div className="sales-overview-heading">
-                    <h2>Live invoice</h2>
-                    <span>{record ? "Saved sale" : "Unsaved"}</span>
-                  </div>
-                  <p className="sales-live-preview-help">Changes appear here as you type. This draft does not change issued documents.</p>
-                  <div className="sales-live-paper">
-                    <SalesDocument draft={draft} dealer={invoiceBranding(settings, paperworkQuery.data?.invoiceSettings) as typeof settings} vehicle={selected} documentType={documentType} />
-                  </div>
-                  <p className="sales-overview-note">
-                    {dirty
-                      ? "Unsaved changes shown. Save before recording payments or issuing documents."
-                      : "Confirmed payments are deducted. Pending payments do not reduce the balance."}
-                  </p>
-                </aside>
-              )}
+              <aside
+                className="sales-chrome sales-deal-overview"
+                aria-label="Document preview"
+              >
+                <div className="sales-overview-heading">
+                  <h2>
+                    {selectedDocument ? selectedDocument.title : "Live invoice"}
+                  </h2>
+                  <span>
+                    {selectedDocument
+                      ? selectedDocument.number
+                      : "Draft · not issued"}
+                  </span>
+                </div>
+                <div className="sales-document-selector sales-chrome">
+                  <label>
+                    Document
+                    <select
+                      aria-label="Document"
+                      value={selectedDocumentId ?? "preview"}
+                      onChange={(e) => {
+                        setSelectedDocumentId(
+                          e.target.value === "preview" ? null : e.target.value,
+                        );
+                        setReceiptStyle("modern");
+                      }}
+                    >
+                      <option value="preview">Live draft invoice</option>
+                      {[...(record?.documents ?? [])].reverse().map((doc) => (
+                        <option key={doc.id} value={doc.id}>
+                          {doc.title} · {doc.number}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <p className="sales-live-preview-help">
+                  {selectedDocument
+                    ? "This is the saved PDF. Reprinting or emailing keeps its original details."
+                    : "Changes appear here as you type. Nothing is issued until you confirm it."}
+                </p>
+                <div className="sales-document-workbench sales-live-paper">
+                  {receiptStyle === "blank" ? (
+                    <ClassicReceipt
+                      blank
+                      branding={invoiceBranding(
+                        settings,
+                        paperworkQuery.data?.invoiceSettings,
+                      )}
+                    />
+                  ) : receiptStyle === "classic" &&
+                    selectedDocument?.type === "receipt" ? (
+                    <ClassicReceipt
+                      document={selectedDocument}
+                      branding={selectedDocument.snapshot.branding}
+                    />
+                  ) : (
+                    <PdfSalesDocument
+                      draft={draft}
+                      dealer={
+                        invoiceBranding(
+                          settings,
+                          paperworkQuery.data?.invoiceSettings,
+                        ) as typeof settings
+                      }
+                      vehicle={selected}
+                      savedVehicle={savedVehicle}
+                      documentType={documentType}
+                      issuedDocument={selectedDocument}
+                      pdfUrl={documentPdfUrl}
+                    />
+                  )}
+                </div>
+                <div className="sales-preview-actions">
+                  <Button
+                    variant="outline"
+                    onClick={print}
+                    disabled={busy || preparingPrint}
+                  >
+                    <Printer size={16} />
+                    {preparingPrint
+                      ? "Preparing…"
+                      : selectedDocument
+                        ? "Print document"
+                        : "Print draft"}
+                  </Button>
+                </div>
+                <DocumentDelivery
+                  record={record}
+                  document={selectedDocument}
+                  busy={busy}
+                  onEmail={emailDocument}
+                  onDownload={downloadDocument}
+                />
+              </aside>
             </div>
           </main>
           <footer className="sales-chrome sales-workspace-footer">
@@ -1795,12 +1914,12 @@ export function SalesWorkspace({
               {message ||
                 (dirty
                   ? "Unsaved changes"
-                  : "Shared sale file · Receipts remain available")}
+                  : "Receipts stay available at every stage")}
             </p>
             <div className="sales-footer-actions">
               <Button
                 variant="outline"
-                disabled={tab <= 2}
+                disabled={busy || tab <= 2}
                 onClick={() => changeTab(tab === 3 ? 0 : 3)}
               >
                 Previous
@@ -1808,24 +1927,46 @@ export function SalesWorkspace({
               {tab < 4 ? (
                 <Button
                   className="sales-primary-action"
-                  onClick={() => changeTab(tab <= 2 ? 3 : 4)}
+                  disabled={busy}
+                  onClick={nextStep}
                 >
-                  {tab <= 2 ? "Payments & adjustments" : "Receipts & documents"}
+                  {tab <= 2 ? "Continue to payments" : "Review & complete"}
                   <ArrowRight size={16} />
                 </Button>
               ) : (
                 <Button
                   className="sales-primary-action"
                   onClick={() =>
-                    record?.completedAt ? save() : setCompleteDialog(true)
+                    record?.completedAt
+                      ? save()
+                      : amount!.balance > 0
+                        ? (() => {
+                            setActionProblem("");
+                            setPaymentIntent("final-payment");
+                            setPendingConfirmation(undefined);
+                            setPaymentDialog(true);
+                          })()
+                        : (() => {
+                            setSelectedDocumentId(null);
+                            setReceiptStyle("modern");
+                            setCompleteDialog(true);
+                          })()
                   }
-                  disabled={busy}
+                  disabled={
+                    busy ||
+                    (!record?.completedAt &&
+                      (amount!.balance < 0 ||
+                        (amount!.balance === 0 &&
+                          completionProblems.length > 0)))
+                  }
                 >
                   {busy
                     ? "Working…"
                     : record?.completedAt
                       ? "Save progress"
-                      : "Complete sale"}
+                      : amount!.balance > 0
+                        ? "Record balance payment"
+                        : "Complete sale & issue documents"}
                 </Button>
               )}
             </div>

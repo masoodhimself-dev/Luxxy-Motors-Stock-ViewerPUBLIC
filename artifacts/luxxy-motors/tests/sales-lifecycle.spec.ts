@@ -6,6 +6,7 @@ import {
   type Route,
 } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import { archivedPdf, editView, optionalPanel, previewPdf, previewView, saleStep } from "./sales-pdf-fixture";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
@@ -99,7 +100,8 @@ class FixtureSalesApi {
   }> = [];
   reservations: unknown[] = [];
   loseNextPaymentResponse = false;
-  now = "2026-10-04T10:00:00.000Z";
+  archives = new Map<string, Buffer>();
+  now = new Date().toISOString();
   private ids = 0;
   private numbers: Record<string, number> = {};
 
@@ -108,6 +110,7 @@ class FixtureSalesApi {
       now: this.now,
       actor: "Fixture Staff",
       branding,
+      paperwork: { saleTerms: "Fictional sale terms for isolated lifecycle tests.", reservationTerms: "Fictional reservation terms for isolated lifecycle tests." },
       vehicle: {
         id: vehicleId,
         title: "2018 Fixture Touring 1.6",
@@ -144,7 +147,12 @@ class FixtureSalesApi {
       this.context(),
     );
     this.sales.set(id, result.sale);
+    this.archive(result.sale);
     return result;
+  }
+
+  private archive(sale: SaleWorkspaceRecord) {
+    for (const document of sale.documents) if (!this.archives.has(document.id)) this.archives.set(document.id, archivedPdf(document));
   }
 
   current() {
@@ -218,6 +226,11 @@ class FixtureSalesApi {
     this.calls.push({ method, path, body });
     try {
       if (method === "GET") {
+        if (segments[0] === "paperwork") return route.fulfill({ json: this.context().paperwork });
+        if (segments[1] === "documents" && segments[3] === "pdf") {
+          const bytes = this.archives.get(segments[2]);
+          return bytes ? route.fulfill({ contentType: "application/pdf", body: bytes }) : route.fulfill({ status: 404, json: { error: "Fixture archive not found." } });
+        }
         const result = segments.length
           ? {
               sale: publicSaleWorkspace(this.sales.get(segments[0])!),
@@ -257,7 +270,7 @@ class FixtureSalesApi {
       else if (section === "payments" && !target)
         command = { action: "payment", payment: body.payment };
       else if (section === "payments" && action === "confirm")
-        command = { action: "confirm", paymentId: target, date: body.date };
+        command = { action: "confirm", paymentId: target, date: body.date, reserveVehicle: body.reserveVehicle === true };
       else if (section === "payments" && action === "reverse")
         command = {
           action: "reverse",
@@ -267,6 +280,8 @@ class FixtureSalesApi {
           ...(body.amount !== undefined ? { amount: body.amount } : {}),
           ...(body.kind ? { kind: body.kind } : {}),
         };
+      else if (section === "take-deposit") command = { action: "take-deposit", payment: body.payment };
+      else if (section === "complete-sale") command = { action: "complete-sale", acknowledge: body.acknowledge };
       else if (section === "documents")
         command = { action: "document", type: body.type };
       else if (section === "handover")
@@ -289,7 +304,8 @@ class FixtureSalesApi {
         this.context(),
       );
       this.sales.set(id, result.sale);
-      if (section === "payments" && !target && this.loseNextPaymentResponse) {
+      this.archive(result.sale);
+      if ((section === "payments" || section === "take-deposit") && !target && this.loseNextPaymentResponse) {
         this.loseNextPaymentResponse = false;
         return route.fulfill({
           status: 503,
@@ -343,10 +359,9 @@ async function payment(
   method = "Bank transfer",
   received = true,
 ) {
-  await page
-    .locator(".sales-quick-actions")
-    .getByRole("button", { name: "Record payment", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
+  await page.getByRole("button", { name: "Record payment", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Payment amount (£)", { exact: true }).fill(amount);
   await dialog
@@ -371,6 +386,15 @@ async function payment(
   await expect(dialog).toBeHidden();
 }
 
+async function completeSale(page: Page) {
+  await editView(page); await saleStep(page, "Completion");
+  await page.getByRole("button", { name: "Complete sale & issue documents", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Complete sale & issue pack", exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
 test("deposit, part payment and final payment each retain their own printable receipt", async ({
   page,
   context,
@@ -388,18 +412,10 @@ test("deposit, part payment and final payment each retain their own printable re
   await expect(document).toContainText("£500.00");
   await expect(document).toContainText("£11,500.00");
   await mkdir(output, { recursive: true });
-  await page.evaluate(() => {
-    window.print = () => {};
-  });
-  await page
-    .getByRole("button", { name: "Print / Save PDF", exact: true })
-    .click();
-  await page.emulateMedia({ media: "print" });
-  await page
-    .locator("body > .sales-print-copy")
-    .screenshot({ path: `${output}/deposit-receipt-1440.png` });
-  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
-  await page.emulateMedia({ media: "screen" });
+  await previewView(page);
+  const originalBytes = await previewPdf(page);
+  expect(originalBytes).toEqual(api.archives.get(original.id));
+  await document.screenshot({ path: `${output}/deposit-receipt-1440.png` });
   await payment(page, "2000", "part-payment", "Cash");
   await payment(page, "9500", "final-payment", "Bank transfer");
   expect(
@@ -410,33 +426,24 @@ test("deposit, part payment and final payment each retain their own printable re
     "Cash",
     "Bank transfer",
   ]);
-  expect(api.current().documents).toHaveLength(3);
+  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(3);
   expect(api.current().documents[0]).toEqual(original);
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   await resetCapturePosition(page);
   await page.screenshot({
     path: `${output}/payments-1440.png`,
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "Receipts & documents", exact: true })
-    .click();
-  await page.getByRole("button", { name: new RegExp(original.number) }).click();
+  await editView(page);
+  await saleStep(page, "Completion");
+  await page.getByLabel("Document", { exact: true }).selectOption(original.id);
+  await previewView(page);
   await expect(document).toContainText("£11,500.00");
   await expect(document).not.toContainText("FIXTURE-final-payment");
-  await page.evaluate(() => {
-    window.print = () => {};
-  });
-  await page
-    .getByRole("button", { name: "Print / Save PDF", exact: true })
-    .click();
-  await page.emulateMedia({ media: "print" });
-  const print = page.locator("body > .sales-print-copy");
-  await expect(print).toContainText(original.number);
-  await expect(print).toContainText("£11,500.00");
-  await expect(print.locator("input, textarea, select, button")).toHaveCount(0);
+  expect(await previewPdf(page)).toEqual(api.archives.get(original.id));
+  expect(await previewPdf(page)).toEqual(originalBytes);
+  await expect(page.locator(".sales-pdf-document input, .sales-pdf-document textarea, .sales-pdf-document select, .sales-pdf-document button")).toHaveCount(0);
   expect(api.sales.get(sale.id)?.documents[0]).toEqual(original);
   expect(api.blockedWrites).toEqual([]);
 });
@@ -454,9 +461,8 @@ test("pending payment leaves the balance unchanged until staff confirm receipt o
   expect(
     saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
   ).toBe(1_200_000);
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   await expect(page.getByText("Pending", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "Confirm received", exact: true })
@@ -468,7 +474,7 @@ test("pending payment leaves the balance unchanged until staff confirm receipt o
     .click();
   await expect(confirm).toBeHidden();
   expect(api.current().payments[0].status).toBe("confirmed");
-  expect(api.current().documents).toHaveLength(1);
+  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
   await expect(page.locator(".sales-document")).toContainText("£11,500.00");
   expect(api.blockedWrites).toEqual([]);
 });
@@ -491,14 +497,14 @@ test("sale created by staff reopens on a second device and a stale edit cannot o
   await page.getByRole("button", { name: "New sale", exact: true }).click();
   await page.getByLabel("Customer name", { exact: true }).fill("Shared Buyer");
   await page.getByLabel("Telephone", { exact: true }).fill("07000 000999");
-  await page.getByRole("button", { name: "Vehicle", exact: true }).click();
+  await saleStep(page, "Deal details");
   await page.getByLabel("Vehicle", { exact: true }).selectOption(vehicleId);
   await page
     .getByLabel("Agreed vehicle price (£)", { exact: true })
     .fill("12000");
   await page
     .locator(".sales-titlebar-actions")
-    .getByRole("button", { name: "Save sale", exact: true })
+    .getByRole("button", { name: "Save draft", exact: true })
     .click();
   await expect.poll(() => api.sales.size).toBe(1);
   const secondContext = await browser.newContext({
@@ -515,11 +521,11 @@ test("sale created by staff reopens on a second device and a stale edit cannot o
     const secondPage = await secondContext.newPage();
     await openSale(secondPage, "Shared Buyer");
     await payment(secondPage, "500", "deposit", "Cash");
-    await page.getByRole("button", { name: "Customer", exact: true }).click();
+    await saleStep(page, "Deal details");
     await page.getByLabel("Customer name", { exact: true }).fill("Stale edit");
     await page
       .locator(".sales-titlebar-actions")
-      .getByRole("button", { name: "Save sale", exact: true })
+      .getByRole("button", { name: "Save draft", exact: true })
       .click();
     await expect(page.locator(".sales-conflict-banner")).toContainText(
       /newer version|reload/i,
@@ -573,11 +579,11 @@ test("simulated reservation imports customer details without crediting a deposit
   await expect(page.getByLabel("Customer name", { exact: true })).toHaveValue(
     "Reservation Buyer",
   );
-  await page.getByRole("button", { name: "Vehicle", exact: true }).click();
+  await saleStep(page, "Deal details");
   await page.getByLabel("Vehicle", { exact: true }).selectOption(vehicleId);
   await page
     .locator(".sales-titlebar-actions")
-    .getByRole("button", { name: "Save sale", exact: true })
+    .getByRole("button", { name: "Save draft", exact: true })
     .click();
   await expect.poll(() => api.sales.size).toBe(1);
   expect(api.current().payments).toEqual([]);
@@ -598,9 +604,9 @@ for (const viewed of [false, true]) {
     api.seed();
     await api.attach(context);
     await openSale(page);
-    await page
-      .getByRole("button", { name: "Delivery & handover", exact: true })
-      .click();
+    await editView(page);
+  await saleStep(page, "Completion");
+  await optionalPanel(page, "Collection & delivery");
     await page.getByRole("button", { name: "Delivery", exact: true }).click();
     await page
       .getByRole("checkbox", { name: /^Customer has viewed the car/ })
@@ -619,7 +625,7 @@ for (const viewed of [false, true]) {
       .fill("Call on arrival.");
     await page
       .locator(".sales-titlebar-actions")
-      .getByRole("button", { name: "Save sale", exact: true })
+      .getByRole("button", { name: "Save draft", exact: true })
       .click();
     await expect
       .poll(() => api.current().draft.fulfilment?.method)
@@ -632,9 +638,10 @@ for (const viewed of [false, true]) {
       saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
     ).toBe(1_200_000);
     await payment(page, "12000", "final-payment", "Bank transfer");
-    await page
-      .getByRole("button", { name: "Delivery & handover", exact: true })
-      .click();
+    await completeSale(page);
+    await editView(page);
+  await saleStep(page, "Completion");
+  await optionalPanel(page, "Collection & delivery");
     await page
       .getByRole("button", { name: "Mark delivered", exact: true })
       .click();
@@ -671,9 +678,8 @@ test("partial refund and correction retain original receipt and explain the bala
   const originalReceipt = structuredClone(original.document!);
   await api.attach(context);
   await openSale(page);
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   const originalRow = page.getByTestId(
     `payment-${original.sale.payments[0].id}`,
   );
@@ -699,9 +705,8 @@ test("partial refund and correction retain original receipt and explain the bala
   expect(api.current().documents[0]).toEqual(originalReceipt);
   await expect(page.locator(".sales-document")).toContainText("Refund receipt");
   await expect(page.locator(".sales-document")).toContainText("£11,600.00");
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   await originalRow
     .getByRole("button", { name: "Refund / correct", exact: true })
     .click();
@@ -725,9 +730,8 @@ test("partial refund and correction retain original receipt and explain the bala
   expect(
     api.current().events.some((event) => event.type === "payment-corrected"),
   ).toBe(true);
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   await expect(
     originalRow.getByRole("button", { name: "Refund / correct", exact: true }),
   ).toHaveCount(0);
@@ -750,10 +754,9 @@ test("a safely retried payment with a lost response creates one payment and one 
   await api.attach(context);
   await openSale(page);
   api.loseNextPaymentResponse = true;
-  await page
-    .locator(".sales-quick-actions")
-    .getByRole("button", { name: "Record payment", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
+  await page.getByRole("button", { name: "Record payment", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Payment amount (£)", { exact: true }).fill("500");
   await dialog.getByRole("checkbox", { name: /^Money received/ }).check();
@@ -770,9 +773,9 @@ test("a safely retried payment with a lost response creates one payment and one 
     .click();
   await expect(dialog).toBeHidden();
   expect(api.current().payments).toHaveLength(1);
-  expect(api.current().documents).toHaveLength(1);
+  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
   expect(api.current().documents[0]).toEqual(original);
-  const calls = api.calls.filter((call) => call.path.endsWith("/payments"));
+  const calls = api.calls.filter((call) => call.path.endsWith("/take-deposit"));
   expect(calls).toHaveLength(2);
   expect(calls[0].body.requestId).toBe(calls[1].body.requestId);
   expect(api.blockedWrites).toEqual([]);
@@ -791,28 +794,30 @@ test("an amended invoice and current balance statement preserve the original iss
   const original = structuredClone(issued);
   await api.attach(context);
   await openSale(page);
-  await page.getByRole("button", { name: "Vehicle", exact: true }).click();
+  await saleStep(page, "Deal details");
   await page
     .getByLabel("Agreed vehicle price (£)", { exact: true })
     .fill("12100");
-  await page.getByRole("button", { name: "Documents", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Issue sales invoice", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Completion");
+  await optionalPanel(page, "Other documents & receipt styles");
+  await page.getByRole("button", { name: "Issue another invoice copy", exact: true }).click();
   await expect.poll(() => api.current().documents.length).toBe(2);
   expect(api.current().documents[1].version).toBe(2);
   expect(api.current().documents[1].snapshot.totals.totalDue).toBe(1_210_000);
   expect(api.current().documents[0]).toEqual(original);
   await expect(page.locator(".sales-document")).toContainText("£12,100.00");
   await payment(page, "500", "deposit", "Cash");
-  await page
-    .getByRole("button", { name: "Create balance statement", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Completion");
+  await optionalPanel(page, "Other documents & receipt styles");
+  await page.getByRole("button", { name: "Create balance statement", exact: true }).click();
   await expect(page.locator(".sales-document")).toContainText(
     "Balance statement",
   );
   await expect(page.locator(".sales-document")).toContainText("£11,600.00");
-  await page.getByRole("button", { name: new RegExp(original.number) }).click();
+  await page.getByLabel("Document", { exact: true }).selectOption(original.id);
+  await previewView(page);
   await expect(page.locator(".sales-document")).toContainText("£12,000.00");
   await expect(page.locator(".sales-document")).not.toContainText(
     "FIXTURE-deposit",
@@ -840,9 +845,8 @@ test("cancelling a pending payment keeps its history without a receipt or balanc
   });
   await api.attach(context);
   await openSale(page);
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   await page
     .getByRole("button", { name: "Cancel pending", exact: true })
     .click();
@@ -860,9 +864,8 @@ test("cancelling a pending payment keeps its history without a receipt or balanc
   expect(
     saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
   ).toBe(1_200_000);
-  await page
-    .getByRole("button", { name: "Payments & receipts", exact: true })
-    .click();
+  await editView(page);
+  await saleStep(page, "Payments");
   await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "View receipt", exact: true }),
@@ -873,43 +876,19 @@ test("cancelling a pending payment keeps its history without a receipt or balanc
   expect(api.blockedWrites).toEqual([]);
 });
 
-test("collection with an outstanding balance requires explicit acknowledgement and stays unpaid", async ({
-  page,
-  context,
-}) => {
-  const api = new FixtureSalesApi();
-  api.seed();
-  await api.attach(context);
-  await openSale(page);
-  await page
-    .getByRole("button", { name: "Delivery & handover", exact: true })
-    .click();
+test("collection with an outstanding balance cannot bypass sale completion or credit unpaid funds", async ({ page, context }) => {
+  const api = new FixtureSalesApi(); api.seed(); await api.attach(context); await openSale(page);
+  await editView(page);
+  await saleStep(page, "Completion"); await optionalPanel(page, "Collection & delivery");
   await page.getByRole("button", { name: "Collection", exact: true }).click();
   await page.getByLabel("Recipient", { exact: true }).fill("Alex Lifecycle");
-  await page
-    .getByRole("button", { name: "Mark collected", exact: true })
-    .click();
-  const dialog = page.getByRole("dialog");
-  await expect(
-    dialog.getByRole("button", { name: "Confirm handover", exact: true }),
-  ).toBeDisabled();
-  await expect(dialog).toContainText("£12,000.00");
-  await dialog
-    .getByRole("checkbox", { name: /^I acknowledge the outstanding balance/ })
-    .check();
-  await dialog
-    .getByRole("button", { name: "Confirm handover", exact: true })
-    .click();
-  await expect(dialog).toBeHidden();
-  expect(api.current().draft.handover).toBe(true);
-  expect(api.current().documents.at(-1)?.title).toBe("Collection confirmation");
-  expect(
-    saleWorkspaceTotals(api.current().draft, api.current().payments).balance,
-  ).toBe(1_200_000);
-  await expect(page.locator(".sales-quick-actions")).toContainText(
-    "Awaiting payment",
-  );
-  await expect(page.locator(".sales-quick-actions")).toContainText("Collected");
+  await expect(page.getByRole("button", { name: "Mark collected", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Complete the sale before recording handover", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Record balance payment", exact: true })).toBeEnabled();
+  expect(api.current().draft.handover).toBe(false);
+  expect(api.current().completedAt).toBeUndefined();
+  expect(api.current().documents).toEqual([]);
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1_200_000);
   expect(api.blockedWrites).toEqual([]);
 });
 
@@ -934,10 +913,10 @@ for (const width of [390, 820]) {
     });
     await api.attach(context);
     await openSale(page);
-    await page
-      .locator(".sales-quick-actions")
-      .getByRole("button", { name: "Record payment", exact: true })
-      .click();
+    await editView(page);
+    await editView(page);
+  await saleStep(page, "Payments");
+    await page.getByRole("button", { name: "Record payment", exact: true }).click();
     await expect(
       page
         .getByRole("dialog")
@@ -952,18 +931,17 @@ for (const width of [390, 820]) {
       .getByRole("dialog")
       .getByRole("button", { name: "Cancel", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Payments & receipts", exact: true })
-      .click();
+    await editView(page);
+  await saleStep(page, "Payments");
     await mkdir(output, { recursive: true });
     await resetCapturePosition(page);
     await page.screenshot({
       path: `${output}/payments-${width}.png`,
       fullPage: true,
     });
-    await page
-      .getByRole("button", { name: "Delivery & handover", exact: true })
-      .click();
+    await editView(page);
+  await saleStep(page, "Completion");
+  await optionalPanel(page, "Collection & delivery");
     await page.getByRole("button", { name: "Delivery", exact: true }).click();
     await expect(
       page.getByLabel("Delivery address", { exact: true }),

@@ -3,7 +3,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { defaultInvoiceSettings, invoiceBranding, saleWorkspaceBranding, saleWorkspaceNumber, type InvoiceSettings } from '@workspace/vehicle-meta';
-import { SalesDocument } from './sales-demo/sales-document';
+import { PdfSalesDocument } from './sales-demo/sales-document';
 import { emptyDraft } from './sales-demo/model';
 import type { DealerConfig } from '@/config/dealer';
 import './invoice-settings.css';
@@ -97,7 +97,7 @@ export function SalesPaperworkSettings() {
               <p>Example format: <strong>{sampleReference}</strong>. Each document type has its own yearly sequence. The actual next number continues after the highest allocated number; this setting never resets it. Changing the prefix does not reset numbering.</p>
               <p>Invoice, receipt and sale references retain their fixed INV, RCP and SALE labels. Existing documents keep their original design and reference.</p>
             </div>
-            <div className="invoice-settings-preview"><p>Live design preview · fictional customer and vehicle · no document is issued</p><SalesDocument draft={sample} dealer={previewDealer} documentType="Sales invoice" /></div>
+            <div className="invoice-settings-preview"><p>Live design preview · fictional customer and vehicle · no document is issued</p><PdfSalesDocument draft={sample} dealer={previewDealer} documentType="Sales invoice" /></div>
           </div>
           <label className="integration-field">
             Terms and conditions of sale

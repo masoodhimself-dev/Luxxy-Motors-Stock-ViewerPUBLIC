@@ -1,5 +1,7 @@
 # Luxxy Motors — Complete Project Guide
 
+> **Practical release (11 October 2026):** Website chat, online card reservations, comparison and recent handovers are withdrawn through a shared release policy. Historical records and payment recovery remain available; staff deposits and manual holds still work. Sales now uses Deal details → Payments → Completion with one PDF document renderer. See [practical release](docs/practical-release.md) and [staff sales workflow](docs/sales-invoice-editor.md) for the current behavior. Older module descriptions below describe retained implementations, not currently enabled customer features.
+
 **Source review date:** 5 October 2026  
 **Purpose:** Owner guide, staff guide and technical handover for the current dealership website and portal.  
 **Scope:** The code in this repository. This document does not certify a production deployment, live provider credentials or a completed database migration.

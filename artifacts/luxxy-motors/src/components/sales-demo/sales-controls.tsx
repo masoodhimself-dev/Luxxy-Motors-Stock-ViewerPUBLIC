@@ -72,20 +72,23 @@ export function PaymentDialog({
   onClose: () => void;
   onSave: (payment: SaleWorkspacePaymentInput) => void;
   pending?: SaleWorkspacePayment;
-  initialKind?: 'deposit' | 'part-payment' | 'final-payment';
+  initialKind?: "deposit" | "part-payment" | "final-payment";
 }) {
   const [form, setForm] = useState<SaleWorkspacePaymentInput>({
-    amount: pending?.amount ?? (initialKind === 'final-payment' ? (balance / 100).toFixed(2) : ''),
+    amount:
+      pending?.amount ??
+      (initialKind === "final-payment" ? (balance / 100).toFixed(2) : ""),
     method: pending?.method ?? "Bank transfer",
     date: pending ? todayLondon() : todayLondon(),
     reference: pending?.reference ?? "",
-    kind: initialKind ?? (
-      pending?.kind === "deposit"
+    kind:
+      initialKind ??
+      (pending?.kind === "deposit"
         ? "deposit"
         : hasPayments
           ? "part-payment"
           : "deposit"),
-    status: pending ? 'pending' : 'confirmed',
+    status: "pending",
   });
   const confirmed = form.status === "confirmed";
   const valid =
@@ -127,7 +130,9 @@ export function PaymentDialog({
         >
           <fieldset disabled={busy} className="sales-dialog-fields">
             <div className="sales-dialog-balance">
-              <span>{balance < 0 ? "Customer credit" : "Outstanding balance"}</span>
+              <span>
+                {balance < 0 ? "Customer credit" : "Outstanding balance"}
+              </span>
               <strong>{saleMoney(Math.abs(balance))}</strong>
             </div>
             <label>
@@ -392,6 +397,7 @@ export function PaymentLedger({
   onDocument,
   onConfirm,
   onReverse,
+  canRecord = true,
 }: {
   entries: SaleWorkspacePayment[];
   documents: SaleWorkspaceDocument[];
@@ -400,6 +406,7 @@ export function PaymentLedger({
   onDocument: (id: string) => void;
   onConfirm: (payment: SaleWorkspacePayment) => void;
   onReverse: (payment: SaleWorkspacePayment) => void;
+  canRecord?: boolean;
 }) {
   return (
     <section className="sales-payment-section">
@@ -413,7 +420,7 @@ export function PaymentLedger({
         </div>
         <Button
           onClick={onRecord}
-          disabled={busy}
+          disabled={busy || !canRecord}
           className="sales-primary-action"
         >
           <WalletCards size={16} />
@@ -459,7 +466,7 @@ export function PaymentLedger({
                               ? "Correction"
                               : entry.kind === "refund-correction"
                                 ? "Refund correction"
-                              : "Part payment"}
+                                : "Part payment"}
                     </strong>
                     <span>
                       {entry.date} · {entry.method}
@@ -703,8 +710,8 @@ export function DeliveryPanel({
           />
         </label>
         <p className="sales-panel-note">
-          Add an agreed delivery charge under Payments → Fees and
-          discounts. It is included once in the sale total.
+          Add an agreed delivery charge under Deal details → Fees & discounts.
+          It is included once in the sale total.
         </p>
         <div className="sales-handover-checklist">
           {(["preparation", "documents"] as const).map((key) => (
@@ -727,7 +734,11 @@ export function DeliveryPanel({
           disabled={busy || !saleCompleted}
           onClick={onComplete}
         >
-          {!saleCompleted ? "Complete the sale before recording handover" : delivery ? "Mark delivered" : "Mark collected"}
+          {!saleCompleted
+            ? "Complete the sale before recording handover"
+            : delivery
+              ? "Mark delivered"
+              : "Mark collected"}
         </Button>
       )}
     </div>
@@ -795,7 +806,9 @@ export function HandoverDialog({
               />
             </label>
             <div className="sales-dialog-balance">
-              <span>{balance < 0 ? "Customer credit" : "Outstanding balance"}</span>
+              <span>
+                {balance < 0 ? "Customer credit" : "Outstanding balance"}
+              </span>
               <strong>{saleMoney(Math.abs(balance))}</strong>
             </div>
             {balance > 0 && (

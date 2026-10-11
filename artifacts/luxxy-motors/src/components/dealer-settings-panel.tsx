@@ -1,4 +1,5 @@
 import { WebsiteContentEditor } from "./website-content-editor";
+import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { LaunchReadiness, SettingsPreview } from './settings-preview';
 import { ShowroomPhoto } from './showroom-photo';
 import { ReviewsSettings } from './reviews-settings';
@@ -514,7 +515,7 @@ export function DealerSettingsPanel() {
     if (!form.bookViewing.ctaLabel.trim()) errors['bookViewing.ctaLabel'] = 'Add a test-drive button label.';
     const reservation = form.onlineReservation;
     if (reservation && (!Number.isInteger(reservation.depositPence) || reservation.depositPence < 100 || reservation.depositPence > 1000000)) errors['onlineReservation.depositPence'] = 'Enter a deposit between £1 and £10,000, in pounds and pence.';
-    if (reservation?.enabled && !reservation.terms.trim()) errors['onlineReservation.terms'] = 'Add your reservation terms before enabling online reservations.';
+    if (customerFeaturePolicy.onlineCardReservations && reservation?.enabled && !reservation.terms.trim()) errors['onlineReservation.terms'] = 'Add your reservation terms before enabling online reservations.';
     const booking = form.testDriveBooking;
     if (booking) {
       for (const [key, label, min, max] of [
@@ -915,7 +916,7 @@ export function DealerSettingsPanel() {
                 )}
             </div>
           </div>
-          <div className="mt-8 border-t border-border pt-8">
+          {customerFeaturePolicy.recentHandovers && <div className="mt-8 border-t border-border pt-8">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
@@ -950,7 +951,7 @@ export function DealerSettingsPanel() {
                 />
               </Field>
             </div>
-          </div>
+          </div>}
           <div className="mt-8 border-t border-border pt-8">
             <p className="mb-5 font-display text-[14px] font-semibold tracking-normal text-primary">Viewing invitation</p>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -1091,12 +1092,12 @@ export function DealerSettingsPanel() {
         </SectionCard>
 
         <SectionCard id="services" eyebrow="Offer" title="Services" description="Turn customer-facing services on or off, then make the wording sound like your team." icon={<Truck className="h-5 w-5" />}>
-          <label className="mb-6 flex items-start gap-3 border-b border-border pb-5"><input type="checkbox" className="mt-1 h-5 w-5" checked={form.presentation?.comparisonEnabled ?? false} onChange={event => updatePresentation('comparisonEnabled', event.target.checked)} data-testid="checkbox-vehicle-comparison" /><span><span className="block text-sm font-semibold">Vehicle comparison</span><span className="mt-1 block text-sm text-muted-foreground">Optional. Allow customers to compare two cars side by side. Saved cars remain available when this is off.</span></span></label>
+          {customerFeaturePolicy.vehicleComparison && <label className="mb-6 flex items-start gap-3 border-b border-border pb-5"><input type="checkbox" className="mt-1 h-5 w-5" checked={form.presentation?.comparisonEnabled ?? false} onChange={event => updatePresentation('comparisonEnabled', event.target.checked)} data-testid="checkbox-vehicle-comparison" /><span><span className="block text-sm font-semibold">Vehicle comparison</span><span className="mt-1 block text-sm text-muted-foreground">Optional. Allow customers to compare two cars side by side. Saved cars remain available when this is off.</span></span></label>}
           <div className="grid gap-5">
             <ServiceEditor label="Warranty" service={form.warranty} icon={<Check className="h-5 w-5" />} onChange={(service) => updateGroup('warranty', service)} />
             <ServiceEditor label="Nationwide delivery" service={form.delivery} icon={<Truck className="h-5 w-5" />} onChange={(service) => updateGroup('delivery', service)} />
             <ServiceEditor label="Part exchange" service={form.partExchange} icon={<Store className="h-5 w-5" />} onChange={(service) => updateGroup('partExchange', service)} />
-            <div className="settings-subsection rounded-md border border-border p-6" data-testid="settings-online-reservation">
+            {customerFeaturePolicy.onlineCardReservations && <div className="settings-subsection rounded-md border border-border p-6" data-testid="settings-online-reservation">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
                   <h3 className="font-semibold">Reserve car online</h3>
@@ -1116,7 +1117,7 @@ export function DealerSettingsPanel() {
                   <Textarea rows={5} maxLength={4000} value={form.onlineReservation?.terms ?? ''} onChange={(event) => updateGroup('onlineReservation', { enabled: form.onlineReservation?.enabled ?? false, depositPence: form.onlineReservation?.depositPence ?? 10000, terms: event.target.value })} placeholder="Explain how long you hold a vehicle, what happens next and your cancellation and refund arrangements." data-testid="textarea-online-reservation-terms" />
                 </Field>
               </div>
-            </div>
+            </div>}
           </div>
         </SectionCard>
 

@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type ChatConversationView, type ChatPublicConfig, type ChatSession } from '@workspace/vehicle-meta';
 import { CustomerChat, customerChatStorageKey, routeAllowsCustomerChat, safeChatAction } from './customer-chat';
 
+// Retained chat-module behaviour remains testable when that module returns in a later release.
+vi.mock('@workspace/vehicle-meta', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@workspace/vehicle-meta')>();
+  return { ...actual, customerFeaturePolicy: { ...actual.customerFeaturePolicy, websiteChat: true } };
+});
+
 const browsing = vi.hoisted(() => ({ location: '/vehicle/car-a', vehicleId: 'car-a' as string | null }));
 vi.mock('wouter', () => ({
   useLocation: () => [browsing.location, vi.fn()],

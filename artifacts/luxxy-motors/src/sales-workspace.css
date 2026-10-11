@@ -1652,47 +1652,557 @@
   }
 }
 @media screen {
-  .sales-dialog-fields .sales-handover-check { display: flex; align-items: center; gap: 12px; }
-  @media(max-width:1100px) { .sales-ledger-heading { flex-direction: column; } }
-  @media(max-width:760px) { .sales-quick-actions button { min-height: 48px !important; white-space: normal; line-height: 1.5; } }
+  .sales-dialog-fields .sales-handover-check {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  @media (max-width: 1100px) {
+    .sales-ledger-heading {
+      flex-direction: column;
+    }
+  }
+  @media (max-width: 760px) {
+    .sales-quick-actions button {
+      min-height: 48px !important;
+      white-space: normal;
+      line-height: 1.5;
+    }
+  }
 }
-.sales-connected-panels { display: grid; gap: 1.25rem; margin: 1.25rem 0; }
-.sales-connected-panels h2 { display: flex; gap: .5rem; align-items: center; }
-.sales-connection-status { margin: 1rem 0; font-size: .875rem; }
-.sales-customer-link { display: grid; gap: .75rem; margin-top: 1rem; }
-.sales-customer-link label { display: grid; gap: .5rem; font-size: .875rem; }
-.sales-customer-link a { font-size: .875rem; text-decoration: underline; }
-.sales-document-delivery { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--border, #dbe1e5); border-radius: .75rem; }
-.sales-document-delivery h3 { font-weight: 600; margin-bottom: .5rem; }
-.sales-document-delivery > p { font-size: .875rem; margin-bottom: .75rem; }
+.sales-connected-panels {
+  display: grid;
+  gap: 1.25rem;
+  margin: 1.25rem 0;
+}
+.sales-connected-panels h2 {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.sales-connection-status {
+  margin: 1rem 0;
+  font-size: 0.875rem;
+}
+.sales-customer-link {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.sales-customer-link label {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+.sales-customer-link a {
+  font-size: 0.875rem;
+  text-decoration: underline;
+}
+.sales-document-delivery {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border, #dbe1e5);
+  border-radius: 0.75rem;
+}
+.sales-document-delivery h3 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.sales-document-delivery > p {
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
 
 /* Invoice-first workspace: a readable editing column beside the actual document. */
 @media screen {
-  .sales-editor-view-switch { display: none; }
-  .sales-sheet-layout:not([data-document="true"]) { max-width: 1680px; grid-template-columns: minmax(360px, .9fr) minmax(480px, 1.1fr); gap: 28px; }
-  .sales-deal-overview { padding: 18px; background: #e9eef2; border-radius: 14px; }
-  .sales-live-preview-help { font-size: 13px; color: #516170; margin: 10px 0 18px; line-height: 1.5; }
-  .sales-live-paper { background: white; border-radius: 3px; box-shadow: 0 8px 26px #24394816; overflow: hidden; }
-  .sales-live-paper .invoice-sheet { padding: 24px; width: 100%; min-height: 0; }
-  .sales-live-paper .invoice-header { gap: 16px; }
-  .sales-live-paper .invoice-heading h2 { font-size: clamp(20px, 2vw, 30px); }
-  .sales-live-paper .invoice-sheet { font-size: 12px; }
-  .sales-live-paper .invoice-parties { gap: 18px; }
-  .sales-deal-overview .sales-overview-balance { margin-top: 18px; }
+  .sales-editor-view-switch {
+    display: none;
+  }
+  .sales-sheet-layout:not([data-document="true"]) {
+    max-width: 1680px;
+    grid-template-columns: minmax(360px, 0.9fr) minmax(480px, 1.1fr);
+    gap: 28px;
+  }
+  .sales-deal-overview {
+    padding: 18px;
+    background: #e9eef2;
+    border-radius: 14px;
+  }
+  .sales-live-preview-help {
+    font-size: 13px;
+    color: #516170;
+    margin: 10px 0 18px;
+    line-height: 1.5;
+  }
+  .sales-live-paper {
+    background: white;
+    border-radius: 3px;
+    box-shadow: 0 8px 26px #24394816;
+    overflow: hidden;
+  }
+  .sales-live-paper .invoice-sheet {
+    padding: 24px;
+    width: 100%;
+    min-height: 0;
+  }
+  .sales-live-paper .invoice-header {
+    gap: 16px;
+  }
+  .sales-live-paper .invoice-heading h2 {
+    font-size: clamp(20px, 2vw, 30px);
+  }
+  .sales-live-paper .invoice-sheet {
+    font-size: 12px;
+  }
+  .sales-live-paper .invoice-parties {
+    gap: 18px;
+  }
+  .sales-deal-overview .sales-overview-balance {
+    margin-top: 18px;
+  }
   @media (max-width: 1100px) {
-    .sales-sheet-layout:not([data-document="true"]) { display: block; }
-    .sales-editor-view-switch { display: flex; gap: 4px; padding: 4px; margin-bottom: 20px; background: #e8edf1; border-radius: 10px; }
-    .sales-editor-view-switch button { flex: 1; min-height: 44px; font-weight: 600; border-radius: 7px; color: #526372; }
-    .sales-editor-view-switch button[aria-pressed="true"] { background: white; color: #192a36; box-shadow: 0 2px 6px #182a3612; }
-    [data-editor-view="edit"] .sales-sheet-layout:not([data-document="true"]) > .sales-deal-overview { display: none; }
-    [data-editor-view="preview"] .sales-sheet-layout:not([data-document="true"]) > .sales-active-sheet { display: none; }
-    [data-editor-view="preview"] .sales-deal-overview { display: block; position: static; max-width: 800px; margin: auto; }
-    .sales-live-paper .invoice-heading h2 { font-size: 24px; }
+    .sales-sheet-layout:not([data-document="true"]) {
+      display: block;
+    }
+    .sales-editor-view-switch {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 20px;
+      background: #e8edf1;
+      border-radius: 10px;
+    }
+    .sales-editor-view-switch button {
+      flex: 1;
+      min-height: 44px;
+      font-weight: 600;
+      border-radius: 7px;
+      color: #526372;
+    }
+    .sales-editor-view-switch button[aria-pressed="true"] {
+      background: white;
+      color: #192a36;
+      box-shadow: 0 2px 6px #182a3612;
+    }
+    [data-editor-view="edit"]
+      .sales-sheet-layout:not([data-document="true"])
+      > .sales-deal-overview {
+      display: none;
+    }
+    [data-editor-view="preview"]
+      .sales-sheet-layout:not([data-document="true"])
+      > .sales-active-sheet {
+      display: none;
+    }
+    [data-editor-view="preview"] .sales-deal-overview {
+      display: block;
+      position: static;
+      max-width: 800px;
+      margin: auto;
+    }
+    .sales-live-paper .invoice-heading h2 {
+      font-size: 24px;
+    }
   }
   @media (max-width: 460px) {
-    .sales-deal-overview { padding: 10px; }
-    .sales-live-paper .invoice-sheet { padding: 16px; }
-    .sales-live-paper .invoice-heading h2 { font-size: 21px; }
-    .sales-live-paper .invoice-header { gap: 10px; }
+    .sales-deal-overview {
+      padding: 10px;
+    }
+    .sales-live-paper .invoice-sheet {
+      padding: 16px;
+    }
+    .sales-live-paper .invoice-heading h2 {
+      font-size: 21px;
+    }
+    .sales-live-paper .invoice-header {
+      gap: 10px;
+    }
+  }
+}
+
+/* Practical sales: one workflow, one document preview, one next step. */
+@media screen {
+  .sales-practical-workspace {
+    --sales-accent: #215a7e;
+    background: #f1f4f6;
+  }
+  .sales-practical-workspace .sales-titlebar {
+    min-height: 64px;
+    padding: 12px 24px;
+  }
+  .sales-practical-workspace .sales-section-ribbon {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    background: #fff;
+    padding: 0 24px;
+  }
+  .sales-practical-workspace .sales-section-tab {
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 76px;
+    padding: 12px 16px;
+    white-space: normal;
+    text-align: left;
+  }
+  .sales-practical-workspace .sales-section-tab strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .sales-practical-workspace .sales-section-tab small {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    margin-top: 4px;
+    color: #647380;
+  }
+  .sales-practical-workspace .sales-step-number {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #c9d4dc;
+    border-radius: 50%;
+    flex-shrink: 0;
+    color: #546674;
+  }
+  .sales-practical-workspace [aria-current="step"] .sales-step-number {
+    background: #215a7e;
+    color: #fff;
+    border-color: #215a7e;
+  }
+  .sales-practical-workspace .sales-premium-content {
+    padding: 24px;
+  }
+  .sales-practical-workspace .sales-sheet-layout:not([data-document="true"]) {
+    max-width: 1760px;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 24px;
+  }
+  .sales-practical-workspace .sales-form-panel {
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 18px;
+    border: 1px solid #dce3e8;
+    box-shadow: 0 2px 3px #24394804;
+  }
+  .sales-practical-workspace .sales-optional-panel {
+    border: 1px solid #dce3e8;
+    border-radius: 10px;
+    padding: 16px 20px;
+    background: #fff;
+    margin: 0 0 14px;
+  }
+  .sales-practical-workspace .sales-optional-panel > summary {
+    font-size: 14px;
+    font-weight: 600;
+    color: #263b4b;
+    min-height: 24px;
+    cursor: pointer;
+  }
+  .sales-practical-workspace .sales-optional-panel > .sales-form-panel {
+    padding: 18px 0 0;
+    border: 0;
+    box-shadow: none;
+    margin: 0;
+  }
+  .sales-practical-workspace .sales-optional-panel > fieldset {
+    margin-top: 16px;
+  }
+  .sales-practical-workspace .sales-deal-overview {
+    padding: 18px;
+    border: 1px solid #d8e1e7;
+    background: #e7edf1;
+    border-radius: 14px;
+    min-width: 0;
+    position: sticky;
+    top: 0;
+  }
+  .sales-practical-workspace .sales-overview-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sales-practical-workspace .sales-overview-heading h2 {
+    font-size: 17px;
+  }
+  .sales-practical-workspace .sales-document-selector {
+    margin: 14px 0 0;
+    padding: 0;
+  }
+  .sales-practical-workspace .sales-document-selector label {
+    width: 100%;
+  }
+  .sales-practical-workspace .sales-document-selector select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #cbd6de;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .sales-practical-workspace .sales-document-workbench {
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
+  .sales-practical-workspace .sales-preview-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .sales-practical-workspace .sales-document-delivery {
+    padding: 14px;
+    background: #fff;
+    margin: 14px 0 0;
+    border-radius: 8px;
+  }
+  .sales-practical-workspace .sales-payment-totals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding: 0 0 24px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid #dce3e8;
+  }
+  .sales-practical-workspace .sales-payment-totals dt {
+    font-size: 12px;
+    color: #586976;
+  }
+  .sales-practical-workspace .sales-payment-totals dd {
+    font-size: clamp(18px, 1.8vw, 24px);
+    font-weight: 700;
+    margin-top: 5px;
+    overflow-wrap: anywhere;
+  }
+  .sales-practical-workspace .sales-review-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+  }
+  .sales-practical-workspace .sales-review-details dt {
+    color: #586976;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+  .sales-practical-workspace .sales-review-details dd {
+    color: #192a36;
+    font-size: 16px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .sales-practical-workspace .sales-review-details dd small {
+    display: block;
+    font-weight: 400;
+    margin-top: 4px;
+  }
+  .sales-practical-workspace .sales-review-details [data-balance="true"] dd {
+    color: #915b20;
+  }
+  .sales-practical-workspace .sales-review-blockers {
+    background: #fff7e8;
+    border-left: 3px solid #bc8b42;
+    padding: 16px;
+    margin-bottom: 18px;
+    color: #674c25;
+    border-radius: 4px;
+  }
+  .sales-practical-workspace .sales-review-blockers h3 {
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .sales-practical-workspace .sales-review-blockers ul {
+    list-style: disc;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .sales-practical-workspace .sales-ready-notice {
+    background: #edf6f1;
+    color: #2c6550;
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 18px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .sales-practical-workspace .sales-terms-review {
+    margin-top: 20px;
+  }
+  .sales-practical-workspace .sales-terms-review summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .sales-practical-workspace .sales-terms-review p {
+    white-space: pre-wrap;
+    max-height: 240px;
+    overflow: auto;
+    padding: 14px 0;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .sales-practical-workspace .sales-stationery-choice {
+    display: grid;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .sales-practical-workspace .sales-stationery-choice select {
+    min-height: 42px;
+    border: 1px solid #dce3e8;
+    padding: 8px;
+    border-radius: 6px;
+  }
+  .sales-practical-workspace .sales-document-issue-actions {
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .sales-practical-workspace .sales-workspace-footer {
+    padding: 14px 24px;
+  }
+  .sales-practical-workspace .sales-embedded-workspace .sales-section-ribbon {
+    top: var(--site-header-height, 68px);
+  }
+  @media (max-width: 1100px) {
+    .sales-practical-workspace .sales-sheet-layout:not([data-document="true"]) {
+      display: block;
+    }
+    .sales-practical-workspace .sales-deal-overview {
+      position: static;
+    }
+  }
+  @media (max-width: 760px) {
+    .sales-practical-workspace .sales-titlebar {
+      padding: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .sales-practical-workspace .sales-titlebar-identity {
+      gap: 10px;
+    }
+    .sales-practical-workspace .sales-titlebar-actions {
+      gap: 8px;
+    }
+    .sales-practical-workspace .sales-section-ribbon {
+      padding: 0 4px;
+      position: static;
+    }
+    .sales-practical-workspace .sales-section-tab {
+      gap: 6px;
+      padding: 10px 6px;
+      min-height: 62px;
+    }
+    .sales-practical-workspace .sales-section-tab strong {
+      font-size: 12px;
+    }
+    .sales-practical-workspace .sales-section-tab small {
+      display: none;
+    }
+    .sales-practical-workspace .sales-step-number {
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+    }
+    .sales-practical-workspace .sales-premium-content {
+      padding: 16px 12px;
+    }
+    .sales-practical-workspace .sales-form-panel {
+      padding: 18px;
+    }
+    .sales-practical-workspace .sales-optional-panel {
+      padding: 16px;
+    }
+    .sales-practical-workspace .sales-payment-totals {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px 12px;
+    }
+    .sales-practical-workspace .sales-payment-totals > div:first-child {
+      grid-column: 1 / -1;
+    }
+    .sales-practical-workspace .sales-payment-totals dd {
+      font-size: 16px;
+      white-space: nowrap;
+    }
+    .sales-practical-workspace .sales-payment-totals > div:first-child dd {
+      font-size: 22px;
+    }
+    .sales-practical-workspace .sales-payment-totals dt {
+      font-size: 11px;
+    }
+    .sales-practical-workspace .sales-workspace-footer {
+      display: block;
+      padding: 12px;
+    }
+    .sales-practical-workspace .sales-workspace-footer p {
+      margin-bottom: 10px;
+    }
+    .sales-practical-workspace .sales-footer-actions {
+      display: flex;
+      width: 100%;
+    }
+    .sales-practical-workspace .sales-footer-actions button {
+      flex: 1;
+      min-width: 0;
+      white-space: normal;
+      line-height: 1.4;
+      height: auto;
+    }
+  }
+}
+@media screen {
+  .sales-practical-workspace .sales-issued-pack ul {
+    display: grid;
+    margin-top: 18px;
+    gap: 8px;
+  }
+  .sales-practical-workspace .sales-issued-pack li button {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    padding: 12px;
+    background: #f4f7f9;
+    border: 1px solid #dce3e8;
+  }
+  .sales-practical-workspace .sales-issued-pack li small {
+    color: #586976;
+    font-size: 11px;
+  }
+}
+@media screen and (min-width: 1101px) {
+  .portal-workspace[data-section="sales"] {
+    padding-top: 12px;
+  }
+  .portal-workspace[data-section="sales"] .portal-workspace-heading {
+    padding-bottom: 12px;
+    margin-bottom: 10px;
+  }
+  .portal-workspace[data-section="sales"] .portal-workspace-heading h1 {
+    font-size: 21px;
+  }
+  .portal-workspace[data-section="sales"] .portal-workspace-eyebrow {
+    display: none;
+  }
+  .portal-workspace[data-section="sales"] .portal-section-nav {
+    margin-bottom: 14px;
+  }
+  .portal-workspace[data-section="sales"] .portal-workspace-footer {
+    display: none;
+  }
+  .sales-practical-workspace.sales-embedded-workspace {
+    height: calc(100dvh - 215px);
+    min-height: 540px;
+  }
+  .sales-practical-workspace.sales-embedded-workspace .sales-section-ribbon {
+    position: static;
+  }
+  .sales-practical-workspace.sales-embedded-workspace .sales-premium-content {
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .sales-practical-workspace .sales-deal-overview {
+    position: sticky;
+    top: 0;
   }
 }

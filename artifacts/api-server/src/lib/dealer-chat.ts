@@ -6,6 +6,7 @@ import {
 } from "node:crypto";
 import {
   defaultChatSettings,
+  customerFeaturePolicy,
   vehicleRegistrationLabel,
   type ChatAction,
   type ChatAvailability,
@@ -668,7 +669,7 @@ export class DealerChatService {
       this.options.dealer(),
     ]);
     return {
-      settings: state.settings,
+      settings: { ...state.settings, enabled: customerFeaturePolicy.websiteChat && state.settings.enabled },
       availability: chatAvailability(dealer.hours, state.presence, this.now()),
       dealerName: dealer.identity.name,
     };

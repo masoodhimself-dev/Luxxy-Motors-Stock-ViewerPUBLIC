@@ -1,41 +1,35 @@
-# Invoice-first sales workspace
+# Practical sales workspace
 
-The local portal Sales section now shows the editing form beside a live draft invoice on desktop. At 1100px and below, Edit sale / Invoice preview switches between them without losing edits. The preview reads current draft values; it never modifies an issued snapshot.
+Sales is one three-step workspace at /portal?section=sales. It uses the existing dealer-scoped sale API and confirmed-payment ledger; rebuilding the interface does not replace existing records.
 
-Staff workflow:
-1. Select New sale, enter or import the customer, choose the vehicle and agree its price.
-2. Review the live invoice. Add part exchange if needed, agreed invoice notes, and fees/discounts in Payments.
-3. Save draft. This saves details without issuing a document or reserving/selling stock.
-4. Deposit & receipt records an actually received deposit using the existing confirmation and approved terms checks, reserves the car and issues its receipt/agreement. Later confirmed payments each have their own receipt.
-5. Complete sale uses the existing balance and terms checks, issues its invoice and supporting pack, and marks the car sold so it leaves public stock.
-6. Receipts & documents reopens saved copies. Edit sale details returns to the editor; issuing another invoice preserves earlier versions. Printing alone does not issue a document or change stock.
+## Staff journey
 
-The shared HTML document styling now uses stronger headings, dealer accent, clearer sections and a prominent balance. Newly archived A4 PDFs use the saved dealer name and accent, aligned amounts and page references. Existing archived PDFs remain unchanged. The PDF archive renderer uses text branding, while the browser print layout supports the configured logo. Long invoices/terms can continue over multiple A4 pages to retain the full contents.
+1. **Deal details.** Start New sale, enter the buyer or select a recent enquiry/reservation, choose the car and agree its price. Optional panels hold up to three part-exchange cars, fees/discounts and agreed vehicle disclosures. The invoice preview updates while typing.
+2. **Payments.** Record each actual payment separately, including cash and bank transfer. “Money received” starts unchecked. Pending entries do not reduce the balance or create receipts. Confirming a deposit uses the reservation operation, approved reservation terms and stock checks; it reserves the vehicle and creates a receipt, agreement and statement.
+3. **Completion.** Review the customer, vehicle, total, received money, remaining balance and terms. The workspace lists missing requirements before completion. Settle the exact balance, add a delivery address if required, and confirm completion. This issues the invoice, terms and vehicle disclosures, marks the car sold and removes it from public stock. Collection or delivery can happen later and gets its own confirmation.
 
-Verification: both TypeScript projects, frontend unit suite (317 tests), responsive checks at 390/820/1440, immutable receipt/stock lifecycle tests, isolated HTTP revision/idempotency checks, deterministic PDF test, and rendered PDF inspection. Browser tests use fictional data and block real writes.
+Saving a draft does not reserve or sell a car. Printing a draft does not issue an invoice. A payment, invoice or receipt is never created merely by previewing it.
 
-These changes are local; no Render deployment or database migration was performed.
+Existing receipts remain selectable at every step. The document pack lists its saved PDFs; staff can select each document to print, download or email. Balance statements and issuing an invoice before completion live under **Other documents & receipt styles**. Classic/blank receipt stationery is an optional print alternative and does not replace the saved standard PDF.
 
-## Colour refinement
+Completed customer/vehicle/price/allowance fields are locked. Payment refunds/corrections and handover remain available, with their existing audit and revision checks.
 
-Document colours derive from the dealer branding captured with the document. Richer headings and table bands, pale customer/vehicle panels, alternating row shading and a tinted total summary establish the hierarchy. The dark brand tone is adjusted to maintain at least 4.5:1 contrast with white text even for pale/yellow dealer colours. An issued zero balance gets a green balance panel; outstanding balances and credits retain their explicit text labels. Drafts never acquire the issued green settlement style.
+## One document renderer
 
-The archive renderer shares the palette calculation. It continues to use immutable snapshots, and previously archived files are not regenerated. Colour and grayscale A4 examples were visually checked. Eight browser tests, 23 document/palette unit checks and the deterministic archive PDF test passed, with frontend/backend TypeScript checks also passing.
+[The shared PDF renderer](../lib/vehicle-meta/src/sale-document-pdf.ts) creates the PDF for both the draft preview and newly issued server archives. The staff preview, settings design example and private customer document view use the PDF rather than a separately styled HTML invoice.
 
-## Dealer invoice settings and reference sequences
+Issued views fetch the original archived PDF from the authenticated sale endpoint (or token-scoped customer endpoint). They never silently regenerate an archive if its fetch fails. Downloaded and emailed documents retain the same saved bytes. Previously issued archives retain their original design and details.
 
-Settings → Sales documents now offers Classic, Modern and Premium styling, website or independent invoice colour, logo visibility/size, an ink-saving layout, optional payment instructions and footer wording. The design preview uses fictional customer/vehicle data and does not issue or save a sale. Identity/contact/legal details and the logo come from the dealership Website settings; email templates remain in their existing settings category.
+The invoice shows dealer identity/contact details, buyer and vehicle, charges/discounts/part exchange and a clear total/received/balance summary. A receipt leads with **this payment** and its method/date/reference; a statement shows the ledger. Terms and vehicle disclosures use matching headings on supporting A4 pages. Long content flows onto further pages rather than being clipped.
 
-Settings are persisted in private per-dealer sales paperwork, with the existing revision check. Legacy terms-only updates preserve saved design settings. Newly issued snapshots capture these options with branding; existing issued documents and archived PDF bytes remain unchanged. Browser documents use the logo, while the deterministic archive PDF continues to use text branding (no remote asset fetch).
+Only supplied facts are printed. No VAT amount, service history, ownership claim or registration is invented. Existing customer-document redaction remains: agreed vehicle disclosures appear in their dedicated sale-pack document, not as private notes on the invoice. No “Issued document” badge appears on customer paperwork.
 
-References support a 0–12 character uppercase alphanumeric dealer prefix and a starting-sequence floor (1–999999999). For example `LUX-INV-2026-00120`, `LUX-RCP-2026-00120` and `LUX-SALE-2026-00120`. Fixed document-type identifiers cannot be edited, avoiding cross-type collisions. The established per-dealer/type/year counter is retained: allocation is `max(previous + 1, configured floor)`, padded to at least five digits. Prefix changes and lowering the floor do not reset a counter. The year remains part of the reference and sequences start afresh each year under the existing policy. The settings example illustrates the format/minimum, not the next actual allocated number. Failed mutations and retries retain the existing transactional/idempotency protections. Staff changes, local preview, verified Stripe payments and refunds use the same allocator.
+PDFs use snapshot branding, the dealer colour and invoice settings. Embedded raster logos can be retained; URL-based logos use the dealer wordmark so rendering never fetches a mutable remote asset.
 
-Validation: isolated backend settings/reference tests, existing sales/domain/PDF/HTTP checks and responsive settings/live-editor browser tests. UI saves in browser tests are intercepted; no real sales, settings, payments or emails are modified. No migration or Render deployment is included.
+## Display and checks
 
-## Classic receipt book
+On desktop, the editor uses the available workspace height with a separate document column. Phone/tablet layouts switch between editing and the document preview without losing edits. Responsive canvases render the actual PDF pages, with a text equivalent for screen readers; native PDF opening remains available for printing.
 
-In Documents & handover, select an issued receipt, then choose **Classic receipt book** in **Print style**. Print / Save PDF uses cream stationery with blue handwritten-style values, the original payment/reference/balance and the receipt's saved dealership branding. A tilted car-details note uses only available year, fuel, transmission, mileage and colour from the issued snapshot. It is omitted when these facts are missing. Refunds/reversals/corrections are labelled separately; changing style never issues documents or records payments.
+Meaningful checks cover integer-pence totals, pending payments, receipts, exact-zero completion, immutable archived reprints, deposit/stock lifecycle, concurrent revisions/idempotent retries, full fictional browser journeys and responsive layouts. Production customer data is not used in these browser tests.
 
-**Blank receipt - fill in by hand** prints current dealership branding and unfilled lines, without copying any customer/payment/reference. It is stationery, not an issued receipt, and manual payments must still be recorded in the system. Email, archive download and full-pack printing continue to use the standard saved documents. Local-only; no backend changes or deployment. Handwritten fonts use platform fonts with readable fallbacks.
-
-Checks: 18 document unit tests, existing five invoice browser checks and three classic receipt checks at 390/820/1440px; standard and classic normal receipts print on one A4 page. Every browser-test API write was blocked. Long real details can flow onto additional pages rather than being clipped.
+The related temporary module withdrawal is documented in [practical-release.md](practical-release.md).

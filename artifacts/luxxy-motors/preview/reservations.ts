@@ -1,7 +1,7 @@
 // Local-only durable reservation sandbox. Never imported by the production entry point.
 import { randomUUID, randomBytes } from 'node:crypto';
 import type { Enquiry } from '@workspace/api-client-react';
-import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, showroomAvailability, vehicleRegistrationLabel } from '@workspace/vehicle-meta';
+import { applyCustomerFeaturePolicy, EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, showroomAvailability, vehicleRegistrationLabel } from '@workspace/vehicle-meta';
 import { bookingDateIsInWindow, bookingPolicyFromConfig, bookingPolicyError, bookingPressure, getSlotsForDate, isValidDateString, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy, type OccupiedBooking } from '../../api-server/src/lib/booking-slots';
 import { preserveTestDriveBooking } from '../../api-server/src/lib/settings-content';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -161,7 +161,7 @@ export async function reservationPreview(req: IncomingMessage, res: ServerRespon
       const bookingResult = await handlePreviewBooking(req, url, state, settings, options);
       if (bookingResult) { if (req.method !== "GET") await save(state, options.stateFile); return bookingResult; }
       if (req.method === 'GET') {
-        if (path === '/api/dealer-settings') return { status: 200, data: settings };
+        if (path === '/api/dealer-settings') return { status: 200, data: applyCustomerFeaturePolicy(settings) };
         if (path === '/api/stock') {
           const [{ readPreviewSaleInventory }, { readPreviewPriceOverrides }] = await Promise.all([import('./sales'), import('./operations')]);
           const [saleInventory, prices] = await Promise.all([readPreviewSaleInventory(), readPreviewPriceOverrides()]);

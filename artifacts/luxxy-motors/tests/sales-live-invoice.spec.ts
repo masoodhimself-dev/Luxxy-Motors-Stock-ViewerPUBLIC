@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
+import { previewPdf } from './sales-pdf-fixture';
 
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Isolated local UI checks');
 for (const width of [390, 820, 1440]) {
@@ -20,7 +21,7 @@ for (const width of [390, 820, 1440]) {
     await expect(preview).toBeVisible();
     await expect(preview).toContainText('Invoice Test Buyer');
     await expect(preview).toContainText('£12,500.00');
-    await expect(preview).toContainText('NOT ISSUED');
+    expect((await previewPdf(page)).toString('latin1')).toContain('DRAFT - not issued');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await mkdir('output/ui-premium/live-invoice', { recursive: true });
     await page.screenshot({ path: `output/ui-premium/live-invoice/preview-${width}.png`, fullPage: true });

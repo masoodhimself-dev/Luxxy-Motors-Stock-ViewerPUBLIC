@@ -10,6 +10,7 @@ import { DealerIntegrationsSettings } from '@/components/dealer-integrations-set
 import { EmailTemplatesSettings } from '@/components/email-templates-settings';
 import { SalesPaperworkSettings } from '@/components/sales-paperwork-settings';
 import { CustomerChatSettings } from '@/components/customer-chat-settings';
+import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import './dealer-administration.css';
 
 type Role = 'owner' | 'salesperson' | 'accounts';
@@ -74,11 +75,12 @@ export function DealerSettingsHub() {
   const sections = [
     ['website','Website','Branding, showroom details, pages, bookings and customer services. Review the website draft before publishing.'],
     ['emails','Email templates','Customise messages and email branding. Save templates separately; previews send no email.'],
-    ['integrations','Email & payments','Private Resend and Stripe connections for this dealership. Validate saved configuration before testing with the provider.'],
+    ['integrations','Email & stock','Private email delivery and the dealership’s stock connection.'],
     ['paperwork','Sales documents','Invoice design, reference sequences and approved sale/deposit wording. Existing issued copies stay unchanged.'],
     ['chat','Website chat','Customer chat availability, automatic answers and welcome messages.'],
     ['team','Team','Manage individual staff access and roles. Keep at least one active owner.'],
     ['history','Publish history','Review and restore website publications. Private connections, email templates and sales terms are saved separately.'],
-  ];
-  return <div className="dealer-settings-hub"><nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => <button type="button" key={id} aria-current={section === id ? 'page' : undefined} onClick={() => { setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); }}>{label}</button>)}</nav><p className="settings-category-description" role="status">{sections.find(([id]) => id === section)?.[2]}</p><div key={section}>{section === 'website' && <DealerSettingsPanel />}{section === 'emails' && <EmailTemplatesSettings />}{section === 'integrations' && <DealerIntegrationsSettings />}{section === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{section === 'chat' && <CustomerChatSettings />}{section === 'team' && <TeamSettings />}{section === 'history' && <PublicationHistory />}</div></div>;
+  ].filter(([id]) => id !== 'chat' || customerFeaturePolicy.websiteChat);
+  const selectedSection = sections.some(([id]) => id === section) ? section : 'website';
+  return <div className="dealer-settings-hub"><nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => <button type="button" key={id} aria-current={selectedSection === id ? 'page' : undefined} onClick={() => { setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); }}>{label}</button>)}</nav><p className="settings-category-description" role="status">{sections.find(([id]) => id === selectedSection)?.[2]}</p><div key={selectedSection}>{selectedSection === 'website' && <DealerSettingsPanel />}{selectedSection === 'emails' && <EmailTemplatesSettings />}{selectedSection === 'integrations' && <DealerIntegrationsSettings />}{selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{selectedSection === 'chat' && <CustomerChatSettings />}{selectedSection === 'team' && <TeamSettings />}{selectedSection === 'history' && <PublicationHistory />}</div></div>;
 }

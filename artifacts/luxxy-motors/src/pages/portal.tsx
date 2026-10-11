@@ -27,6 +27,7 @@ import { RelationshipsPanel } from '@/components/portal/relationships-panel';
 import { ChatPanel } from '@/components/portal/chat-panel';
 import { ChatUnreadBadge } from '@/components/portal/chat-notifications';
 import { SalesWorkspace } from '@/pages/sales-demo';
+import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 
 type TabKey = 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
 
@@ -111,7 +112,8 @@ function PortalDesk() {
   const access = useStaffAccess(sessionQuery.data?.state === 'allowed');
   useEffect(() => { const section = new URLSearchParams(search).get('section'); if (tabs.some(item => item.key === section)) { setTab(section as TabKey); if (section === 'sales') setSalesOpened(true); } }, [search]);
   const canSell = access.data?.permissions.includes('sales.manage') ?? false;
-  const visibleTabs = tabs.filter(item => item.key !== 'settings' || access.data?.permissions.includes('settings.publish'));
+  const visibleTabs = tabs.filter(item => (item.key !== 'chat' || customerFeaturePolicy.websiteChat)
+    && (item.key !== 'settings' || access.data?.permissions.includes('settings.publish')));
 
   useEffect(() => {
     const navigation = sectionNav.current;

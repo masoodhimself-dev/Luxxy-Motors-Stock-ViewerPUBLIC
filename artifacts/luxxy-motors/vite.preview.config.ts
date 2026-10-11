@@ -1,4 +1,5 @@
 import { platformPreview } from "./preview/platform";
+import { deferredCustomerFeatureResponse } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
 import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
 import { operationsPreview } from './preview/operations';
@@ -44,6 +45,8 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            const deferred = deferredCustomerFeatureResponse(url.pathname, req.method ?? 'GET');
+            if (deferred) { res.statusCode = deferred.status; res.end(JSON.stringify(deferred.body)); return; }
             if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {
               res.statusCode = 410;
               res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
