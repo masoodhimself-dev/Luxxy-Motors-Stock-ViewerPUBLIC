@@ -156,11 +156,10 @@ test('production store loads branding and vehicle facts on its held transaction 
   assert.equal((await store.list())[0].payments.length, 1); assert.equal(numbers['receipt-2026'], 1);
 });
 
-test('deposit reservation and completion issue frozen packs, require terms and replay without duplicates', () => {
+test('supplied reservation terms and required sale terms are frozen into their respective packs', () => {
   const c = { ...context(), paperwork: { saleTerms: 'APPROVED TEST SALE TERMS', reservationTerms: 'APPROVED TEST DEPOSIT TERMS' } };
   let sale = create();
   const deposit = { action: 'take-deposit', payment: { amount: '500', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: '' } } as const;
-  assert.throws(() => changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: 'missing-terms' }, context()), /approved reservation terms/);
   const reserved = changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: 'deposit-and-reserve' }, c);
   assert.equal(reserved.sale.lifecycle?.status, 'reserved');
   assert.equal(reserved.sale.documents.length, 3); assert.equal(reserved.sale.packDocumentIds?.length, 3);
@@ -179,15 +178,72 @@ test('deposit reservation and completion issue frozen packs, require terms and r
 });
 
 
-test('confirming a pending deposit reserves only with approved terms and creates the receipt pack', () => {
+test('confirming a pending deposit includes the dealer-supplied reservation agreement in its receipt pack', () => {
   const initial = create();
   const pending = changeSaleWorkspace(initial, payment('500', 'deposit', 'pending'), { expectedRevision: initial.revision, requestId: 'pending-deposit-new' }, context()).sale;
   const command = { action: 'confirm', paymentId: pending.payments[0].id, reserveVehicle: true } as const;
-  assert.throws(() => changeSaleWorkspace(pending, command, { expectedRevision: pending.revision, requestId: 'confirm-no-terms' }, context()), /approved reservation terms/);
   assert.equal(pending.payments[0].status, 'pending');
   const c = { ...context(), paperwork: { saleTerms: 'TEST', reservationTerms: 'APPROVED TEST RESERVATION' } };
   const reserved = changeSaleWorkspace(pending, command, { expectedRevision: pending.revision, requestId: 'confirm-reserved' }, c).sale;
   assert.equal(reserved.lifecycle?.status, 'reserved');
   assert.equal(reserved.documents.length, 3);
   assert.equal(reserved.documents.find(d => d.type === 'reservation')?.content, c.paperwork.reservationTerms);
+});
+
+test('received deposits reserve and issue receipts without missing, empty or whitespace reservation terms', () => {
+  for (const reservationTerms of [undefined, '', ' \n\t ']) {
+    const c = context();
+    if (reservationTerms !== undefined) c.paperwork = { saleTerms: '', reservationTerms };
+    const initial = create();
+    const command = { action: 'take-deposit', payment: { amount: '500.05', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: 'Received at showroom' } } as const;
+    const input = { expectedRevision: initial.revision, requestId: 'deposit-no-terms' };
+    const reserved = changeSaleWorkspace(initial, command, input, c);
+    assert.equal(reserved.sale.lifecycle?.status, 'reserved');
+    assert.equal(saleWorkspaceTotals(reserved.sale.draft, reserved.sale.payments).confirmedPaid, 50005);
+    assert.equal(reserved.document?.title, 'Deposit receipt');
+    assert.equal(reserved.document?.paymentAmountPence, 50005);
+    assert.equal(reserved.document?.balanceAtIssue, 1149995);
+    assert.deepEqual(reserved.sale.documents.map(d => d.type), ['receipt', 'statement']);
+    assert.deepEqual(reserved.sale.packDocumentIds, reserved.sale.documents.map(d => d.id));
+    const frozenReceipt = JSON.stringify(reserved.document);
+    // An identical retry must not suddenly add an agreement if settings change afterwards.
+    const retry = changeSaleWorkspace(reserved.sale, command, input, { ...c, paperwork: { saleTerms: 'Later sale terms', reservationTerms: 'Later reservation terms' } });
+    assert.equal(retry.replayed, true);
+    assert.equal(retry.sale.payments.length, 1);
+    assert.deepEqual(retry.sale.documents, reserved.sale.documents);
+    const paid = changeSaleWorkspace(reserved.sale, payment('11499.95', 'final-payment'), { expectedRevision: reserved.sale.revision, requestId: 'remaining-no-terms' }, c);
+    assert.equal(JSON.stringify(paid.sale.documents[0]), frozenReceipt);
+    assert.throws(() => changeSaleWorkspace(paid.sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: paid.sale.revision, requestId: 'complete-no-sale-terms' }, c), /approved terms of sale/);
+    const completed = changeSaleWorkspace(paid.sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: paid.sale.revision, requestId: 'complete-approved-sale' }, { ...c, paperwork: { saleTerms: 'Approved sale terms', reservationTerms: '' } });
+    assert.equal(completed.sale.lifecycle?.status, 'sold');
+    assert.deepEqual(completed.sale.documents.filter(d => completed.sale.packDocumentIds?.includes(d.id)).map(d => d.type).sort(), ['invoice', 'receipt', 'receipt', 'terms', 'vehicle-details'].sort());
+    assert.equal(completed.sale.documents.find(d => d.type === 'terms')?.content, 'Approved sale terms');
+    assert.equal(JSON.stringify(completed.sale.documents[0]), frozenReceipt);
+  }
+});
+
+test('confirming a pending deposit without reservation terms records money once and reserves the car', () => {
+  for (const reservationTerms of [undefined, '', ' \n ']) {
+    const c = context();
+    if (reservationTerms !== undefined) c.paperwork = { saleTerms: '', reservationTerms };
+    const initial = create();
+    const pending = changeSaleWorkspace(initial, payment('500', 'deposit', 'pending'), { expectedRevision: initial.revision, requestId: 'pending-without-terms' }, c).sale;
+    assert.equal(pending.documents.length, 0);
+    assert.equal(saleWorkspaceTotals(pending.draft, pending.payments).confirmedPaid, 0);
+    const command = { action: 'confirm', paymentId: pending.payments[0].id, reserveVehicle: true } as const;
+    const input = { expectedRevision: pending.revision, requestId: 'confirmed-without-terms' };
+    const reserved = changeSaleWorkspace(pending, command, input, c);
+    assert.equal(reserved.sale.lifecycle?.status, 'reserved');
+    assert.equal(reserved.sale.payments[0].status, 'confirmed');
+    assert.equal(reserved.document?.paymentAmountPence, 50000);
+    assert.equal(saleWorkspaceTotals(reserved.sale.draft, reserved.sale.payments).balance, 1150000);
+    assert.deepEqual(reserved.sale.documents.map(d => d.type), ['receipt', 'statement']);
+    assert.deepEqual(reserved.sale.packDocumentIds, reserved.sale.documents.map(d => d.id));
+    const replay = changeSaleWorkspace(reserved.sale, command, input, c);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.sale.revision, reserved.sale.revision);
+    assert.equal(replay.sale.payments.length, 1);
+    assert.equal(replay.sale.documents.length, 2);
+    assert.equal(pending.payments[0].status, 'pending');
+  }
 });

@@ -73,10 +73,10 @@ export function SalesPaperworkSettings() {
     <section className="integration-card" aria-label="Sales paperwork settings">
       <h3>Sales paperwork</h3>
       <p>
-        Paste your approved dealership wording. Taking a deposit and completing
-        a sale save a dated copy with the customer’s document pack.
+        Add your approved dealership wording. Terms of sale are required to
+        complete a sale; reservation terms are optional for recording a deposit.
       </p>
-      <p className="integration-footnote">These terms are stored with staff-issued documents. The customer website’s online reservation terms are configured separately in Website → Services.</p>
+      <p className="integration-footnote">A confirmed deposit always reserves the car and creates a receipt. If reservation terms are supplied, a dated reservation agreement is included too. Existing documents keep their original wording.</p>
       {error && <p role="alert" className="integration-error">{error}</p>}
       {value ? (
         <>

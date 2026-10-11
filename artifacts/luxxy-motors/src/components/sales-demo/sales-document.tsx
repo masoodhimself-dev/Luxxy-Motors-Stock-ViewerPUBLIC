@@ -85,10 +85,10 @@ export const salesDocumentTitle = (document: SaleWorkspaceDocument) =>
   document.title;
 
 export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot };
-type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot };
+type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot; preparedAt?: string };
 
 /** The draft uses the same snapshot shape and renderer as the eventual issued archive. */
-export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, savedVehicle }: DraftDocumentProps): SaleWorkspaceDocument {
+export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, savedVehicle, preparedAt }: DraftDocumentProps): SaleWorkspaceDocument {
   const ledger = payments(draft).map((payment, index) => ({
     id: payment.id ?? `draft-payment-${index}`,
     amount: payment.amount,
@@ -108,7 +108,7 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
   const receiptPayment = [...ledger].reverse().find(payment => payment.status === 'confirmed');
   return {
     id: `draft-${draft.id}`, number: 'DRAFT', type: documentType === 'Deposit receipt' ? 'receipt' : 'invoice',
-    title: documentType, issuedAt: new Date().toISOString(), issuedBy: '', version: 1,
+    title: documentType, issuedAt: preparedAt ?? new Date().toISOString(), issuedBy: '', version: 1,
     balanceAtIssue: amount.balance,
     ...(documentType === 'Deposit receipt' && receiptPayment ? { paymentId: receiptPayment.id, paymentAmountPence: receiptPayment.signedAmountPence } : {}),
     snapshot: {
@@ -118,7 +118,7 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
   };
 }
 
-async function documentBlob(props: PdfSalesDocumentProps): Promise<Blob> {
+async function documentBlob(props: PdfSalesDocumentProps, draftDocument?: SaleWorkspaceDocument): Promise<Blob> {
   if (props.pdfUrl) {
     // Issued documents must display their original archive; a failed fetch never re-renders it.
     if (!/^\/api\/(?:sale-workspace|customer-sale)\//.test(props.pdfUrl)) throw new Error('Use the saved document address from this dealership.');
@@ -127,7 +127,7 @@ async function documentBlob(props: PdfSalesDocumentProps): Promise<Blob> {
     return blob;
   }
   if (props.issuedDocument) throw new Error('Open this issued document from its saved archive.');
-  const document = props.issuedDocument ?? buildDraftSaleDocument(props as DraftDocumentProps);
+  const document = draftDocument ?? buildDraftSaleDocument(props as DraftDocumentProps);
   const { saleDocumentPdfBytes } = await import('@workspace/vehicle-meta/sale-document-pdf');
   const bytes = saleDocumentPdfBytes(document, { draft: !props.issuedDocument });
   return new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
@@ -155,18 +155,35 @@ export async function openSaleDocumentPdf(props: PdfSalesDocumentProps, action: 
 }
 
 /** Staff preview uses the real PDF. The text equivalent also makes every value accessible. */
-function PdfCanvasPages({ blob, title }: { blob: Blob; title: string }) {
+function PdfCanvasPages({ blob, title, unavailable, onRendered, onRenderFailed }: { blob: Blob | null; title: string; unavailable?: boolean; onRendered: (blob: Blob) => void; onRenderFailed: (blob: Blob) => void }) {
   const container = useRef<HTMLDivElement>(null);
+  const hasRendered = useRef(false);
+  const onRenderedRef = useRef(onRendered);
+  onRenderedRef.current = onRendered;
+  const onRenderFailedRef = useRef(onRenderFailed);
+  onRenderFailedRef.current = onRenderFailed;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => {
+    if (!blob) return;
     let cancelled = false, resizeTimer: ReturnType<typeof setTimeout> | undefined;
     let pdf: import('pdfjs-dist').PDFDocumentProxy | undefined;
     let task: import('pdfjs-dist').PDFDocumentLoadingTask | undefined;
     let renderTask: import('pdfjs-dist').RenderTask | undefined;
     let observer: ResizeObserver | undefined;
-    let rendering = false, redraw = false, previousWidth = 0;
+    let rendering = false, redraw = false, previousWidth = 0, renderFailed = false;
     setLoading(true); setError('');
+    const showNativeFallback = () => {
+      if (cancelled) return;
+      renderFailed = true;
+      // A good PDF archive can still fail in PDFjs. Remove any older draft's
+      // canvases before exposing this candidate's native PDF and text equivalent.
+      container.current?.replaceChildren();
+      hasRendered.current = false;
+      setLoading(false);
+      setError('This document could not display here. Use Open PDF to view the saved copy.');
+      onRenderFailedRef.current(blob);
+    };
     const render = async () => {
       const target = container.current;
       if (cancelled || !target || !pdf) return;
@@ -193,8 +210,15 @@ function PdfCanvasPages({ blob, title }: { blob: Blob; title: string }) {
           if (cancelled) return;
           canvas.dataset.rendered = 'true'; fragment.appendChild(canvas);
         }
-        if (!cancelled) { target.replaceChildren(fragment); setLoading(false); }
-      } catch (failure) { if (!cancelled && !(failure instanceof Error && failure.name === 'RenderingCancelledException')) setError('This document could not display here. Use Open PDF to view the saved copy.'); }
+        if (!cancelled) {
+          // Every page is painted off-screen first. Typing and resizing leave the
+          // previous finished invoice in place until the entire replacement is ready.
+          target.replaceChildren(fragment);
+          hasRendered.current = true;
+          setLoading(false);
+          onRenderedRef.current(blob);
+        }
+      } catch (failure) { if (!cancelled && !(failure instanceof Error && failure.name === 'RenderingCancelledException')) showNativeFallback(); }
       finally { rendering = false; if (redraw && !cancelled) { redraw = false; void render(); } }
     };
     void (async () => {
@@ -208,50 +232,83 @@ function PdfCanvasPages({ blob, title }: { blob: Blob; title: string }) {
         pdf = await task.promise;
         if (cancelled) return;
         await render();
-        if (typeof ResizeObserver !== 'undefined' && container.current) {
+        if (!renderFailed && typeof ResizeObserver !== 'undefined' && container.current) {
           observer = new ResizeObserver(() => {
             if (Math.abs((container.current?.clientWidth || 680) - previousWidth) < 3) return;
             clearTimeout(resizeTimer); resizeTimer = setTimeout(() => void render(), 150);
           });
           observer.observe(container.current);
         }
-      } catch { if (!cancelled) setError('This document could not display here. Use Open PDF to view the saved copy.'); }
+      } catch { showNativeFallback(); }
     })();
     return () => { cancelled = true; clearTimeout(resizeTimer); observer?.disconnect(); renderTask?.cancel(); void task?.destroy(); };
   }, [blob, title]);
   return <div className="sales-pdf-document-frame" aria-busy={loading && !error}>
-    {loading && !error && <p role="status" className="sales-pdf-document-loading">Preparing pages…</p>}
+    {loading && !hasRendered.current && !error && !unavailable && <p role="status" className="sales-pdf-document-loading">Preparing pages…</p>}
     {error && <p role="alert" className="sales-pdf-document-error">{error}</p>}
     <div ref={container} className="sales-pdf-pages" />
   </div>;
 }
 
 export function PdfSalesDocument(props: PdfSalesDocumentProps) {
-  const [url, setUrl] = useState('');
-  const [blob, setBlob] = useState<Blob | null>(null);
-  const [error, setError] = useState('');
+  type Preview = { identity: string; blob: Blob; document: SaleWorkspaceDocument };
+  type DisplayedPreview = Preview & { url: string };
+  const [candidate, setCandidate] = useState<Preview | null>(null);
+  const [displayed, setDisplayed] = useState<DisplayedPreview | null>(null);
+  const displayedRef = useRef(displayed);
+  displayedRef.current = displayed;
+  const [failure, setFailure] = useState<{ identity: string; message: string } | null>(null);
+  const preparedAt = useRef(new Date().toISOString());
+  // A different issued document must never inherit the previous invoice's pages
+  // or link. Draft edits within one sale can safely retain the last finished view.
+  const identity = props.issuedDocument
+    ? `issued:${props.issuedDocument.id}:${props.pdfUrl ?? ''}`
+    : `draft:${props.draft.id}:${props.documentType}`;
+  const currentIdentity = useRef(identity);
+  currentIdentity.current = identity;
   // Polling and busy-state renders may create equivalent objects. Only content changes rebuild a draft.
   const renderKey = JSON.stringify(props.issuedDocument ? { document: props.issuedDocument, pdfUrl: props.pdfUrl } : { draft: props.draft, dealer: props.dealer, vehicle: props.vehicle, savedVehicle: props.savedVehicle, documentType: props.documentType });
   useEffect(() => {
-    let cancelled = false, objectUrl = '';
-    setUrl(''); setBlob(null); setError('');
+    let cancelled = false;
     const timeout = setTimeout(() => {
-      void documentBlob(props).then(blob => {
+      const document = props.issuedDocument ?? buildDraftSaleDocument({ ...props as DraftDocumentProps, preparedAt: preparedAt.current });
+      void documentBlob(props, document).then(blob => {
         if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); setBlob(blob);
-      }).catch(() => { if (!cancelled) setError('The PDF could not open. Please try again or download the saved document.'); });
-    }, props.issuedDocument ? 0 : 180);
-    return () => { cancelled = true; clearTimeout(timeout); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+        setFailure(null);
+        setCandidate({ identity, blob, document });
+      }).catch(() => { if (!cancelled) setFailure({ identity, message: 'The PDF could not open. Please try again or download the saved document.' }); });
+    }, props.issuedDocument ? 0 : 500);
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [renderKey]);
-  const document = customerSaleDocument(props.issuedDocument ?? buildDraftSaleDocument(props as DraftDocumentProps));
+  useEffect(() => {
+    if (displayed && displayed.identity !== identity) setDisplayed(null);
+  }, [identity, displayed]);
+  useEffect(() => {
+    if (!displayed) return;
+    return () => URL.revokeObjectURL(displayed.url);
+  }, [displayed?.url]);
+  const visible = displayed?.identity === identity ? displayed : null;
+  const next = candidate?.identity === identity ? candidate : null;
+  const error = failure?.identity === identity ? failure.message : '';
+  const document = customerSaleDocument(visible?.document ?? props.issuedDocument ?? buildDraftSaleDocument({ ...props as DraftDocumentProps, preparedAt: preparedAt.current }));
   const { draft, totals: amount } = document.snapshot;
   const payment = document.snapshot.payments.find(item => item.id === document.paymentId);
+  const publishCandidate = (blob: Blob) => {
+    if (!next || next.blob !== blob || currentIdentity.current !== identity) return;
+    // Normal publication happens after canvas rendering. On a PDFjs failure,
+    // the same valid bytes remain available in the browser's native PDF viewer.
+    if (displayedRef.current?.blob === blob && displayedRef.current.identity === identity) return;
+    const replacement = { ...next, url: URL.createObjectURL(blob) };
+    displayedRef.current = replacement;
+    setDisplayed(replacement);
+  };
   return <article className="sales-pdf-document sales-document" aria-label={`${document.title} PDF`}>
     <div className="sales-pdf-document-meta">
       <span>{props.issuedDocument ? document.number : 'Invoice preview'}</span>
-      {url && <a href={url} target="_blank" rel="noopener noreferrer">Open PDF</a>}
+      {visible && <a href={visible.url} target="_blank" rel="noopener noreferrer">Open PDF</a>}
     </div>
-    {error ? <p role="alert" className="sales-pdf-document-error">{error}</p> : blob ? <PdfCanvasPages blob={blob} title={document.title} /> : <p role="status" className="sales-pdf-document-loading">Preparing document…</p>}
+    {error && <p role="alert" className="sales-pdf-document-error">{error}</p>}
+    <PdfCanvasPages key={identity} blob={next?.blob ?? null} title={next?.document.title ?? document.title} unavailable={Boolean(error)} onRendered={publishCandidate} onRenderFailed={publishCandidate} />
     <div className="sr-only" aria-label="Document text equivalent">
       <h2>{document.title}</h2><p>{document.snapshot.branding.identity.name}</p><p>{document.number}</p><p>{draft.customer}</p><p>{draft.address}</p><p>{draft.email}</p><p>{draft.phone}</p><p>{draft.vehicle}</p><p>{draft.registration}</p>
       {document.snapshot.vehicle && <dl>{Object.entries(document.snapshot.vehicle).filter(([key, value]) => !['id', 'title', 'description'].includes(key) && value != null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value)}</dd></div>)}</dl>}

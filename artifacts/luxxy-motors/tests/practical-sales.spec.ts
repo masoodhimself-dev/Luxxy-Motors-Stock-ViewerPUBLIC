@@ -26,6 +26,7 @@ const branding: SaleWorkspaceBranding = {
 
 /** HTTP fixture backed by the application's real reducer. No live sale or dealership is mutated. */
 class PracticalSalesApi {
+  reservationTerms = "Fictional dealer reservation terms for this isolated test.";
   sales = new Map<string, SaleWorkspaceRecord>();
   blockedWrites: string[] = [];
   commands: SaleWorkspaceCommand[] = [];
@@ -38,7 +39,7 @@ class PracticalSalesApi {
     return {
       now: new Date().toISOString(), actor: "Fixture Staff", branding,
       vehicle: { id: vehicleId, title: "2018 Fixture Touring 1.6", year: 2018, fuel: "Petrol", transmission: "Automatic", mileage: 42000 },
-      paperwork: { reservationTerms: "Fictional dealer reservation terms for this isolated test.", saleTerms: "Fictional dealer terms of sale for this isolated test." },
+      paperwork: { reservationTerms: this.reservationTerms, saleTerms: "Fictional dealer terms of sale for this isolated test." },
       nextId: () => crypto.randomUUID(),
       nextNumber: type => `${type.toUpperCase()}-TEST-${String(this.numbers[type] = (this.numbers[type] ?? 0) + 1).padStart(4, "0")}`,
     };
@@ -256,6 +257,45 @@ test("a newly received deposit uses the reserving action and creates its own rec
   expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1150000);
   await expect(page.getByRole("heading", { name: "Payments", exact: true, level: 1 })).toBeVisible();
   await expect(page.locator(".sales-live-paper")).toContainText("£500.00");
+  expect(api.blockedWrites).toEqual([]);
+});
+
+test("a dealer without reservation terms can receive a deposit, reserve the car and print its receipt", async ({ page, context }) => {
+  const api = new PracticalSalesApi(); api.reservationTerms = "";
+  await api.attach(context); await startDeal(page);
+  await page.getByRole("button", { name: "Continue to payments", exact: true }).click();
+  await receivedPayment(page, "500", "Bank transfer");
+  expect(api.current().lifecycle?.status).toBe("reserved");
+  expect(api.current().documents.filter(document => document.type === "receipt")).toHaveLength(1);
+  expect(api.current().documents.filter(document => document.type === "statement")).toHaveLength(1);
+  expect(api.current().documents.filter(document => document.type === "reservation")).toHaveLength(0);
+  expect(api.current().packDocumentIds).toHaveLength(2);
+  expect(saleWorkspaceTotals(api.current().draft, api.current().payments).balance).toBe(1150000);
+  await expect(page.getByText("Deposit received. Car reserved; receipt and balance statement are ready.", { exact: true })).toBeVisible();
+  await expect(page.locator('.sales-pdf-page[data-rendered="true"]').first()).toBeVisible();
+  const receipt = api.current().documents.find(document => document.type === "receipt")!;
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download saved PDF", exact: true }).click();
+  expect(await readFile((await (await download).path())!)).toEqual(Buffer.from(api.archives.get(receipt.id)!));
+  expect(api.blockedWrites).toEqual([]);
+});
+
+test("typing keeps the displayed invoice stable and replaces it only after a pause", async ({ page, context }) => {
+  const api = new PracticalSalesApi(); await api.attach(context);
+  await page.setViewportSize({ width: 1440, height: 1000 }); await startDeal(page);
+  const canvas = page.locator('.sales-pdf-page[data-rendered="true"]').first();
+  await expect(canvas).toBeVisible();
+  const originalCanvas = await canvas.elementHandle();
+  const pdfLink = page.locator(".sales-pdf-document-meta").getByRole("link", { name: "Open PDF", exact: true });
+  const originalHref = await pdfLink.getAttribute("href");
+  const customer = page.getByLabel("Customer name", { exact: true });
+  await customer.fill(""); await customer.pressSequentially("Jordan Blake", { delay: 60 });
+  expect(await originalCanvas!.evaluate(element => element.isConnected)).toBe(true);
+  expect(await pdfLink.getAttribute("href")).toBe(originalHref);
+  await expect(page.getByText("Preparing document…", { exact: true })).toHaveCount(0);
+  await expect.poll(() => pdfLink.getAttribute("href")).not.toBe(originalHref);
+  const bytes = await pdfLink.evaluate(async link => [...new Uint8Array(await (await fetch((link as HTMLAnchorElement).href)).arrayBuffer())]);
+  expect(Buffer.from(bytes).toString("latin1")).toContain("Jordan Blake");
   expect(api.blockedWrites).toEqual([]);
 });
 

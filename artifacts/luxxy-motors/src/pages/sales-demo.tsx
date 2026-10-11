@@ -574,7 +574,7 @@ export function SalesWorkspace({
       setMessage(
         payment.status === "confirmed"
           ? payment.kind === "deposit"
-            ? "Deposit received. Car reserved; receipt, agreement and balance statement are ready."
+            ? "Deposit received. Car reserved; receipt and balance statement are ready."
             : "Payment recorded. The receipt is ready to print."
           : "Pending payment saved. The balance is unchanged.",
       );
@@ -1557,7 +1557,8 @@ export function SalesWorkspace({
                     <p className="sales-payment-notice">
                       Record money already received; this does not charge a
                       card. A confirmed deposit reserves the car and issues its
-                      receipt and agreement. Other payments update the balance.
+                      receipt. Other payments update the balance and get their
+                      own receipt.
                     </p>
                   </div>
                 )}
@@ -1851,7 +1852,7 @@ export function SalesWorkspace({
                 <p className="sales-live-preview-help">
                   {selectedDocument
                     ? "This is the saved PDF. Reprinting or emailing keeps its original details."
-                    : "Changes appear here as you type. Nothing is issued until you confirm it."}
+                    : "The preview updates after a short pause in typing. Nothing is issued until you confirm it."}
                 </p>
                 <div className="sales-document-workbench sales-live-paper">
                   {receiptStyle === "blank" ? (

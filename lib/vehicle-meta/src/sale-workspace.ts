@@ -233,6 +233,21 @@ function receipt(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, pay
   const titles: Record<SaleWorkspacePaymentKind, string> = { deposit: 'Deposit receipt', 'part-payment': 'Payment receipt', 'final-payment': 'Final payment receipt', refund: 'Refund receipt', reversal: 'Payment reversal', 'refund-correction': 'Refund correction receipt' };
   return issueDocument(record, context, 'receipt', titles[payment.kind], payment);
 }
+function reserveReceivedDeposit(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, paymentReceipt: SaleWorkspaceDocument) {
+  record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
+  const documentIds = [paymentReceipt.id];
+  // Recording money received must not depend on optional reservation paperwork.
+  // Issue an agreement only when the dealer has supplied its approved wording.
+  const reservationTerms = context.paperwork?.reservationTerms.trim();
+  if (reservationTerms) {
+    const agreement = issueDocument(record, context, 'reservation', 'Reservation agreement');
+    agreement.content = reservationTerms;
+    documentIds.push(agreement.id);
+  }
+  const statement = issueDocument(record, context, 'statement', 'Deposit balance statement');
+  record.packDocumentIds = [...documentIds, statement.id];
+  event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
+}
 function confirmable(record: SaleWorkspaceRecord, payment: SaleWorkspacePayment) {
   const balance = saleWorkspaceTotals(record.draft, record.payments).balance;
   if (payment.amountPence > balance) throw new SaleWorkspaceError('This payment exceeds the outstanding balance.');
@@ -296,7 +311,6 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.action === 'take-deposit') {
       if (record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('This sale is already completed.', 409);
       if (command.payment?.kind !== 'deposit' || command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Confirm a received deposit to reserve this car.');
-      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → API integrations → Sales paperwork first.');
     }
     const { amount, amountPence } = positiveMoney(command.payment?.amount);
     if (!['pending', 'confirmed'].includes(command.payment?.status) || !['deposit', 'part-payment', 'final-payment'].includes(command.payment?.kind)) throw new SaleWorkspaceError('Check the payment type and status.');
@@ -309,12 +323,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'payment-recorded', `${payment.status === 'pending' ? 'Pending' : 'Confirmed'} ${payment.kind.replaceAll('-', ' ')}: £${amount} (${payment.date})`);
     if (payment.status === 'confirmed') document = receipt(record, context, payment);
     if (command.action === 'take-deposit') {
-      record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
-      const agreement = issueDocument(record, context, 'reservation', 'Reservation agreement');
-      agreement.content = context.paperwork!.reservationTerms.trim();
-      const statement = issueDocument(record, context, 'statement', 'Deposit balance statement');
-      record.packDocumentIds = [document!.id, agreement.id, statement.id];
-      event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
+      reserveReceivedDeposit(record, context, document!);
     }
   } else if (command.action === 'confirm') {
     ready(record);
@@ -322,18 +331,12 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (!payment || payment.status !== 'pending') throw new SaleWorkspaceError('Only a pending payment can be confirmed.', 409);
     if (command.reserveVehicle) {
       if (payment.kind !== 'deposit' || record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('Only an active sale deposit can reserve this car.', 409);
-      if (!context.paperwork?.reservationTerms.trim()) throw new SaleWorkspaceError('Add approved reservation terms in Settings → API integrations → Sales paperwork first.');
     }
     confirmable(record, payment); payment.status = 'confirmed'; payment.date = receivedDate(command.date ?? payment.date, context.now); payment.recordedBy = context.actor; payment.recordedAt = context.now;
     event(record, context, 'payment-confirmed', `Payment confirmed: £${payment.amount}`);
     document = receipt(record, context, payment);
     if (command.reserveVehicle) {
-      record.lifecycle = { status: 'reserved', vehicleId: record.draft.vehicleId, changedAt: context.now };
-      const agreement = issueDocument(record, context, 'reservation', 'Reservation agreement');
-      agreement.content = context.paperwork!.reservationTerms.trim();
-      const statement = issueDocument(record, context, 'statement', 'Deposit balance statement');
-      record.packDocumentIds = [document.id, agreement.id, statement.id];
-      event(record, context, 'deposit-reserved', 'Deposit received; vehicle reserved for this customer');
+      reserveReceivedDeposit(record, context, document);
     }
   } else if (command.action === 'reverse') {
     const original = record.payments.find(row => row.id === command.paymentId);
