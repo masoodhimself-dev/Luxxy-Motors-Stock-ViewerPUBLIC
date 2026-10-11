@@ -48,3 +48,23 @@ it('keeps administrator authentication on the platform dashboard', () => {
   expect(signIn).toHaveAttribute('data-return', '/platform');
   expect(signIn).toHaveAttribute('data-sign-up-return', '/platform');
 });
+it('issues a dealer-specific secret once and clears it when leaving the tab', async () => {
+  vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+  const fetch = vi.fn(async (path, init) => {
+    if (init?.method === 'POST') {
+      expect(String(path)).toBe('/api/platform/dealers/example-dealer/import-key');
+      return Response.json({secret:'fictional-test-secret',endpointPath:'/api/stock/imports/example-dealer/grok'}, {status:201});
+    }
+    if (String(path).endsWith('/workspace')) return Response.json(workspace);
+    return Response.json({dealers:[dealer],activity:[]});
+  });
+  vi.stubGlobal('fetch',fetch); render(<Platform />);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  fireEvent.click(await screen.findByRole('tab',{name:'Stock connection'}));
+  fireEvent.click(screen.getByRole('button',{name:'Create import credential'}));
+  await screen.findByText('Save this secret now');
+  expect(screen.getByLabelText('Import secret')).toHaveAttribute('type','password');
+  expect(screen.getByRole('button',{name:'Create import credential'})).toBeDisabled();
+  fireEvent.click(screen.getByRole('tab',{name:'Setup'}));
+  expect(screen.queryByLabelText('Import secret')).not.toBeInTheDocument();
+});
