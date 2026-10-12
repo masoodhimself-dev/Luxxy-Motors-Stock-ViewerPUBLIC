@@ -10,7 +10,6 @@ export function SavedCarDetails({car}: {car: Car}) {
  const facts=[['Registration',vehicleRegistrationLabel(car)],['Engine',car.engineSize],['Body',car.bodyType],['Colour',car.colour],['Doors',car.doors],['Seats',car.seats],['Emissions',car.emissionClass],['Previous owners',car.owners]].filter(([,value])=>value!==null && value!==undefined && value!=='');
  const costs=vehicleRunningCosts(car), history=vehicleHistoryFacts(car), highlights=vehicleListingHighlights(car);
  return <div className="border-t border-border px-4 py-3 sm:px-6">
-   {car.variant && <p className="mb-2 text-sm text-muted-foreground">{car.variant}</p>}
    <details>
     <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold" aria-label={`More details about ${vehicleDisplayTitle(car)}`}>More details</summary>
     {facts.length>0 && <dl className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">{facts.map(([label,value])=><div key={label} className="flex justify-between gap-4 border-b border-border py-3 text-sm"><dt className="text-muted-foreground">{label}</dt><dd className="text-right font-medium">{value}</dd></div>)}</dl>}

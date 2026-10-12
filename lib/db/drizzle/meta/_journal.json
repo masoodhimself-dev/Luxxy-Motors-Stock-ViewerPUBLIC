@@ -162,6 +162,13 @@
       "when": 1791837883693,
       "tag": "0022_staff_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791839715533,
+      "tag": "0023_enquiry_emails",
+      "breakpoints": true
     }
   ]
 }

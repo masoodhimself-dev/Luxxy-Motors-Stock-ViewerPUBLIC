@@ -1,5 +1,7 @@
 # Luxxy Motors — Complete Project Guide
 
+> **Usability audit (12 October 2026):** Public enquiries, booking dates, saved cars, dealer dashboard, enquiry workspace, owner settings and sales controls have been simplified. Sales shares exact integer-pence calculations with the backend. Staff can review and email customer messages, vehicle/appointment details and selected private service-book photos. See [audit and optional-feature review](docs/audits/2026-10-12-practical-website-audit.md) and [enquiry customer emails](docs/features/enquiry-customer-emails.md).
+
 > **Practical release (11 October 2026):** Website chat, online card reservations, comparison and recent handovers are withdrawn through a shared release policy. Historical records and payment recovery remain available; staff deposits and manual holds still work. Sales now uses Deal details → Payments → Completion with one PDF document renderer. See [practical release](docs/practical-release.md) and [staff sales workflow](docs/sales-invoice-editor.md) for the current behavior. Older module descriptions below describe retained implementations, not currently enabled customer features.
 
 **Source review date:** 5 October 2026  

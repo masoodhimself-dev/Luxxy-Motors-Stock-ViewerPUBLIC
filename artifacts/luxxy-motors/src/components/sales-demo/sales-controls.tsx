@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { FileText, WalletCards, Truck, CheckCircle2 } from "lucide-react";
-import { pence, saleStaffLabel, type SaleDraft } from "./model";
+import { pence, saleStaffLabel, totals, type SaleDraft } from "./model";
 import type {
   SaleWorkspacePayment,
   SaleWorkspacePaymentInput,
@@ -38,21 +38,83 @@ export function todayLondon() {
     .join("-");
 }
 export function salePaymentState(draft: SaleDraft) {
-  const paid = (draft.payments ?? [])
-    .filter((p) => p.status === "confirmed")
-    .reduce((sum, p) => sum + (p.signedAmountPence ?? 0), 0);
-  const price =
-    pence(draft.price) +
-    (draft.adjustments ?? []).reduce(
-      (sum, a) => sum + pence(a.amount) * (a.kind === "fee" ? 1 : -1),
-      0,
-    ) -
-    (draft.exchanges ?? []).reduce((sum, e) => sum + pence(e.value), 0);
-  return paid > 0 && paid === price
+  const amount = totals(draft);
+  if (!Number.isSafeInteger(amount.balance)) return "Check amounts";
+  if (amount.balance < 0) return "Customer credit";
+  if (amount.totalDue === 0 && amount.price > 0) return "Balance settled";
+  return amount.confirmedPaid > 0 && amount.balance === 0
     ? "Paid in full"
-    : paid > 0
+    : amount.confirmedPaid > 0
       ? "Part paid"
       : "Awaiting payment";
+}
+
+function validPaymentDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return (
+    Number.isFinite(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
+/** A small, expandable calculation keeps the payable amount visible on phones. */
+export function SaleFinancialSummary({ draft }: { draft: SaleDraft }) {
+  const amount = totals(draft);
+  return (
+    <details className="sales-total-breakdown">
+      <summary>
+        <span>Agreed total to pay</span>
+        <strong>{saleMoney(amount.totalDue)}</strong>
+      </summary>
+      <dl>
+        <div>
+          <dt>Vehicle price</dt>
+          <dd>{saleMoney(amount.price)}</dd>
+        </div>
+        {(draft.adjustments ?? []).map((row, index) => (
+          <div key={index}>
+            <dt>
+              {row.description.trim() ||
+                (row.kind === "discount" ? "Discount" : "Fee")}
+            </dt>
+            <dd>
+              {saleMoney(
+                pence(row.amount) * (row.kind === "discount" ? -1 : 1),
+              )}
+            </dd>
+          </div>
+        ))}
+        {amount.allowance !== 0 && (
+          <div>
+            <dt>Part-exchange allowance</dt>
+            <dd>{saleMoney(-amount.allowance)}</dd>
+          </div>
+        )}
+        <div className="sales-total-breakdown-total">
+          <dt>Total to pay</dt>
+          <dd>{saleMoney(amount.totalDue)}</dd>
+        </div>
+        {amount.confirmedPaid !== 0 && (
+          <div>
+            <dt>Money received, less refunds</dt>
+            <dd>{saleMoney(amount.confirmedPaid)}</dd>
+          </div>
+        )}
+        {amount.confirmedPaid !== 0 && (
+          <div>
+            <dt>{amount.balance < 0 ? "Customer credit" : "Balance to pay"}</dt>
+            <dd>{saleMoney(Math.abs(amount.balance))}</dd>
+          </div>
+        )}
+      </dl>
+      {amount.pending > 0 && (
+        <p>
+          {saleMoney(amount.pending)} pending. This has not reduced the balance.
+        </p>
+      )}
+    </details>
+  );
 }
 
 export function PaymentDialog({
@@ -79,22 +141,38 @@ export function PaymentDialog({
       pending?.amount ??
       (initialKind === "final-payment" ? (balance / 100).toFixed(2) : ""),
     method: pending?.method ?? "Bank transfer",
-    date: pending ? todayLondon() : todayLondon(),
+    date: todayLondon(),
     reference: pending?.reference ?? "",
     kind:
       initialKind ??
-      (pending?.kind === "deposit"
-        ? "deposit"
+      (pending
+        ? (pending.kind as SaleWorkspacePaymentInput["kind"])
         : hasPayments
           ? "part-payment"
           : "deposit"),
     status: "pending",
   });
   const confirmed = form.status === "confirmed";
+  const paymentAmount = pence(form.amount);
+  const localProblem =
+    form.amount && (!Number.isSafeInteger(paymentAmount) || paymentAmount <= 0)
+      ? "Enter an amount greater than zero, with no more than two decimal places."
+      : Number.isSafeInteger(paymentAmount) && paymentAmount > balance
+        ? "The payment exceeds the outstanding balance."
+        : paymentAmount > 0 &&
+            form.kind === "final-payment" &&
+            paymentAmount !== balance
+          ? "A final payment must settle the balance. Choose part payment for a smaller amount."
+          : !validPaymentDate(form.date)
+            ? "Choose a valid payment date."
+            : confirmed && form.date > todayLondon()
+              ? "Money received cannot have a future date."
+              : "";
   const valid =
-    pence(form.amount) > 0 &&
-    pence(form.amount) <= balance &&
-    Boolean(form.date) &&
+    Number.isSafeInteger(paymentAmount) &&
+    paymentAmount > 0 &&
+    !localProblem &&
+    Boolean(form.method.trim()) &&
     (!pending || confirmed);
   return (
     <Dialog
@@ -140,6 +218,7 @@ export function PaymentDialog({
               <Input
                 autoFocus
                 inputMode="decimal"
+                maxLength={16}
                 value={form.amount}
                 readOnly={Boolean(pending)}
                 onChange={(e) =>
@@ -173,39 +252,47 @@ export function PaymentDialog({
                 Payment date
                 <Input
                   type="date"
+                  max={confirmed ? todayLondon() : undefined}
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />
               </label>
             </div>
-            <label>
-              Payment reference
-              <Input
-                value={form.reference}
-                readOnly={Boolean(pending)}
-                onChange={(e) =>
-                  setForm({ ...form, reference: e.target.value })
-                }
-              />
-            </label>
-            {!pending && (
+            <details
+              className="sales-payment-options"
+              open={pending?.reference ? true : undefined}
+            >
+              <summary>Payment reference &amp; type</summary>
               <label>
-                Payment type
-                <select
-                  value={form.kind}
+                Payment reference
+                <Input
+                  value={form.reference}
+                  readOnly={Boolean(pending)}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      kind: e.target.value as SaleWorkspacePaymentInput["kind"],
-                    })
+                    setForm({ ...form, reference: e.target.value })
                   }
-                >
-                  <option value="deposit">Deposit</option>
-                  <option value="part-payment">Part payment</option>
-                  <option value="final-payment">Final payment</option>
-                </select>
+                />
               </label>
-            )}
+              {!pending && (
+                <label>
+                  Payment type
+                  <select
+                    value={form.kind}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        kind: e.target
+                          .value as SaleWorkspacePaymentInput["kind"],
+                      })
+                    }
+                  >
+                    <option value="deposit">Deposit</option>
+                    <option value="part-payment">Part payment</option>
+                    <option value="final-payment">Final payment</option>
+                  </select>
+                </label>
+              )}
+            </details>
             <label className="sales-confirm-check">
               <input
                 type="checkbox"
@@ -229,8 +316,21 @@ export function PaymentDialog({
                 Pending payments have no receipt and do not reduce the balance.
               </p>
             )}
-            {pence(form.amount) > balance && (
-              <p role="alert">The payment exceeds the outstanding balance.</p>
+            {valid && confirmed && (
+              <div className="sales-payment-outcome" role="status">
+                <span>Balance after this payment</span>
+                <strong>{saleMoney(balance - paymentAmount)}</strong>
+                <p>
+                  {form.kind === "deposit"
+                    ? "A receipt will be issued and the car reserved for this customer."
+                    : "A receipt will be issued. Complete the sale separately to mark the car sold."}
+                </p>
+              </div>
+            )}
+            {localProblem && (
+              <p role="alert" className="sales-action-error">
+                {localProblem}
+              </p>
             )}
             {problem && (
               <p role="alert" className="sales-action-error">
@@ -243,7 +343,7 @@ export function PaymentDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={!valid}
+                disabled={busy || !valid}
                 className="sales-primary-action"
               >
                 {busy
@@ -286,6 +386,13 @@ export function ReversePaymentDialog({
   const [amount, setAmount] = useState((availablePence / 100).toFixed(2));
   const [kind, setKind] = useState<"refund" | "reversal">("refund");
   const pending = payment.status === "pending";
+  const correctionPence = pence(amount);
+  const valid =
+    Boolean(reason.trim()) &&
+    (pending ||
+      (Number.isSafeInteger(correctionPence) &&
+        correctionPence > 0 &&
+        correctionPence <= availablePence));
   return (
     <Dialog
       open
@@ -315,7 +422,8 @@ export function ReversePaymentDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onSave({ reason, date: todayLondon(), amount, kind });
+            if (valid && !busy)
+              onSave({ reason, date: todayLondon(), amount, kind });
           }}
         >
           <fieldset disabled={busy} className="sales-dialog-fields">
@@ -341,6 +449,7 @@ export function ReversePaymentDialog({
                   Refund / correction amount (£)
                   <Input
                     inputMode="decimal"
+                    maxLength={16}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
@@ -369,11 +478,7 @@ export function ReversePaymentDialog({
               <Button
                 type="submit"
                 className="sales-primary-action"
-                disabled={
-                  !reason.trim() ||
-                  (!pending &&
-                    !(pence(amount) > 0 && pence(amount) <= availablePence))
-                }
+                disabled={busy || !valid}
               >
                 {busy
                   ? "Saving…"
@@ -469,6 +574,7 @@ export function PaymentLedger({
                                 : "Part payment"}
                     </strong>
                     <span>
+                      {entry.status === "pending" ? "Expected " : ""}
                       {entry.date} · {entry.method}
                     </span>
                     {entry.reference && <small>{entry.reference}</small>}

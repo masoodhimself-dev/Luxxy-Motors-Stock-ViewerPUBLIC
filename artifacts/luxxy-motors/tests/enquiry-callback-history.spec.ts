@@ -30,7 +30,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
   test(`callbacks show correct timing and retain unassigned work at ${viewport.width}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await setup(page);
-    await page.getByRole('tab', { name: 'Callbacks (3)', exact: true }).click();
+    await openCallbacks(page);
     await expect(page.getByLabel('Search the workspace', { exact: true })).toHaveCount(0);
     await expect(page.locator('.enquiry-workspace-ribbon input')).toHaveCount(1);
     await expect(page.locator('#desk-panel-callbacks input')).toHaveCount(0);
@@ -61,6 +61,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await expect(selected).toBeVisible();
     await expect(selected.getByRole('button', { name: 'Assign to me' })).toBeVisible();
     await expect(selected.getByRole('button', { name: 'Log another conversation' })).toBeVisible();
+    await selected.getByText('More options', { exact: true }).click();
     await expect(selected.getByRole('link', { name: 'Vehicle history', exact: true })).toBeVisible();
     if (viewport.width < 900) {
       await expect(page.getByTestId('enquiry-overdue')).toBeHidden();
@@ -76,7 +77,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
   test(`history preserves actions with a compact selected record at ${viewport.width}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await setup(page);
-    await page.getByRole('tab', { name: 'Find enquiry or appointment', exact: true }).click();
+    await page.getByRole('tab', { name: 'Enquiries', exact: true }).click();
     await expect(page.getByLabel('Search the workspace', { exact: true })).toHaveCount(0);
     await expect(page.locator('.enquiry-workspace-ribbon input')).toHaveCount(1);
     await expect(page.locator('#desk-panel-history input')).toHaveCount(0);
@@ -84,6 +85,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
     await page.getByRole('button', { name: 'Open enquiry for Website Caller, CALL-OVERDUE' }).click();
     const selected = page.getByRole('region', { name: 'Selected enquiry: Website Caller' });
     await expect(selected.getByRole('button', { name: 'Manage follow-up' })).toBeVisible();
+    await selected.getByText('More options', { exact: true }).click();
     await expect(selected.getByRole('button', { name: 'Update enquiry' })).toBeVisible();
     await expect(selected.getByRole('button', { name: 'Book test drive', exact: true })).toBeVisible();
     await expect(selected.getByRole('link', { name: 'Start sale' })).toHaveAttribute('href', '/portal?section=sales&enquiryId=overdue');
@@ -92,12 +94,12 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768
       const bounds = await page.locator('.enquiry-record-browser').evaluate(element => {
         const list = element.querySelector('.enquiry-record-list-pane') as HTMLElement;
         const detail = element.querySelector('.enquiry-record-detail-pane') as HTMLElement;
-        return { listOverflow: getComputedStyle(list).overflowY, detailOverflow: getComputedStyle(detail).overflowY, listScrolls: list.scrollHeight > list.clientHeight, bottom: element.getBoundingClientRect().bottom };
+        return { listOverflow: getComputedStyle(list).overflowY, listScrolls: list.scrollHeight > list.clientHeight, listRight: list.getBoundingClientRect().right, detailLeft: detail.getBoundingClientRect().left, detailScrollWidth: detail.scrollWidth, detailClientWidth: detail.clientWidth };
       });
       expect(bounds.listOverflow).toBe('auto');
-      expect(bounds.detailOverflow).toBe('auto');
       expect(bounds.listScrolls).toBe(true);
-      expect(bounds.bottom).toBeLessThanOrEqual(viewport.height);
+      expect(bounds.listRight).toBeLessThan(bounds.detailLeft);
+      expect(bounds.detailScrollWidth).toBeLessThanOrEqual(bounds.detailClientWidth);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
     if (viewport.width < 900) {
@@ -118,7 +120,7 @@ test('a dated conversation appends its author, outcome and next follow-up while 
     records.entries = records.entries.map(entry => entry.id === 'overdue' ? { ...entry, callOutcome: body.callOutcome, followUpAt: body.followUpAt, followUpNote: body.followUpNote, workspaceRevision: 8, followUpRevision: 3, events: [...entry.events, { ...entry.events[0], id: 'new-call', note: body.note, summary: 'Conversation logged', staffId: 'staff-me', staffName: 'Sam Dealer', callOutcome: body.callOutcome, followUpAt: body.followUpAt, occurredAt: now }] } : entry);
     return route.fulfill({ json: records.entries.find(entry => entry.id === 'overdue') });
   });
-  await page.getByRole('tab', { name: 'Callbacks (3)', exact: true }).click();
+  await openCallbacks(page);
   await page.getByRole('button', { name: 'Open enquiry for Website Caller, CALL-OVERDUE' }).click();
   await page.getByRole('button', { name: 'Log another conversation' }).click();
   await page.getByLabel('Conversation note').fill('Discussed the service history; call after lunch tomorrow.');
@@ -146,7 +148,7 @@ test('claim uses current staff identity and a failed conversation leaves the typ
     return route.fulfill({ json: records.entries.find(entry => entry.id === 'overdue') });
   });
   await page.route('**/api/staff/enquiries/overdue/conversations', route => route.fulfill({ status: 409, json: { error: 'This enquiry has changed. Refresh before saving.' } }));
-  await page.getByRole('tab', { name: 'Callbacks (3)', exact: true }).click();
+  await openCallbacks(page);
   await page.getByRole('button', { name: 'Open enquiry for Website Caller, CALL-OVERDUE' }).click();
   await page.getByRole('button', { name: 'Assign to me' }).click();
   await expect.poll(() => claim).toEqual({ expectedRevision: 7, assignedToId: 'staff-me' });
@@ -173,6 +175,7 @@ test('a completed call save opens its record even if workspace search changed wh
     records.entries.push(saved);
     await route.fulfill({ status: 201, json: saved });
   });
+  await page.getByRole('button', { name: 'New enquiry', exact: true }).click();
   await page.getByLabel('Vehicle source', { exact: true }).selectOption('none');
   await page.getByLabel('Customer name', { exact: true }).fill('New Caller');
   await page.getByLabel('Phone number', { exact: true }).fill('07700 900456');
@@ -186,3 +189,9 @@ test('a completed call save opens its record even if workspace search changed wh
   await expect(page.getByRole('button', { name: 'Clear workspace search' })).toHaveCount(0);
   await expect(page.getByLabel('Search the workspace', { exact: true })).toHaveCount(0);
 });
+
+async function openCallbacks(page: Page) {
+  const tools = page.locator('.enquiry-workspace-ribbon > details').filter({ hasText: 'More tools' });
+  if (await tools.getAttribute('open') === null) await tools.locator('summary').click();
+  await page.getByRole('button', { name: 'Callbacks (3)', exact: true }).click();
+}

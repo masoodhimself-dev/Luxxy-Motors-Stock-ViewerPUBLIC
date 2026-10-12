@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { requestUuid } from '@/lib/request-uuid';
 import {
   prepareServicePhoto,
   type PreparedPhoto,
@@ -24,7 +25,7 @@ export default function StaffUpload() {
   }, []);
   const [session, setSession] = useState<Session>();
   const [photos, setPhotos] = useState<PreparedPhoto[]>([]);
-  const [requestId] = useState(() => crypto.randomUUID());
+  const [requestId] = useState(requestUuid);
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [done, setDone] = useState(false);

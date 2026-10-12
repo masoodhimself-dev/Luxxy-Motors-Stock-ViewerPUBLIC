@@ -26,6 +26,7 @@ for (const width of [390, 1440]) {
     await page.goto(`/enquire?type=general&vehicleId=${encodeURIComponent(vehicle.id)}`);
     await expect(page.getByTestId('status-vehicle-unavailable')).toHaveCount(0);
     await expect(page.getByText('Questions about this car')).toHaveCount(0);
+    await page.locator('summary').filter({ hasText: 'Add a part exchange (optional)' }).click();
     await page.getByRole('radio', { name: 'Yes', exact: true }).check();
     const details = page.getByTestId('enquiry-part-exchange-details');
     await details.getByLabel('Your car’s UK registration number', { exact: true }).fill('AB12 CDE');

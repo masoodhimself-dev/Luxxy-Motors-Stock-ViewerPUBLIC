@@ -94,12 +94,13 @@ async function setup(page: Page, entries = fixtures(), section = 'enquiries'): P
     await route.fulfill({ status: path in data ? 200 : 404, json: data[path] ?? { error: `No synthetic fixture for ${path}` } });
   });
   await page.goto(`/portal?section=${section}`);
-  if (section === 'enquiries') await page.getByRole('tab', { name: 'Find enquiry or appointment', exact: true }).click();
+  if (section === 'enquiries') await page.getByRole('tab', { name: 'Enquiries', exact: true }).click();
   return audit;
 }
 
 async function openMain(page: Page) {
   await page.getByRole('button', { name: 'Open enquiry for Alex Customer, MAIN-101', exact: true }).click();
+  await page.getByRole('region', { name: 'Selected enquiry: Alex Customer', exact: true }).getByText('More options', { exact: true }).click();
   await page.getByRole('region', { name: 'Selected enquiry: Alex Customer', exact: true }).getByRole('button', { name: 'Merge records', exact: true }).click();
   return page.getByRole('dialog', { name: 'Merge enquiries & appointments', exact: true });
 }
@@ -171,12 +172,13 @@ for (const width of [390, 820, 1440]) {
     await expect(selected.getByTestId('conversation-call-main')).toContainText('Conversation retained from MAIN-101.');
     for (const [id, reference] of [['booking', 'BOOK-202'], ['drive', 'DRIVE-303'], ['chat', 'CHAT-404']]) {
       const originalRecord = originals.locator('details').filter({ has: page.locator('summary', { hasText: reference }) });
-      await originalRecord.locator('summary').click();
+      await originalRecord.locator(':scope > summary').click();
       await expect(originalRecord.getByTestId(`conversation-call-${id}`)).toContainText(`Conversation retained from ${reference}.`);
       await expect(originalRecord.getByText(`Original message from ${reference}.`, { exact: true })).toBeVisible();
+      await originalRecord.locator('.enquiry-detail-more > summary').click();
       await expect(originalRecord.getByRole('link', { name: 'Customer history', exact: true })).toHaveAttribute('href', `/portal?section=history&view=customers&record=enquiry%3A${id}`);
       await expect(originalRecord.getByRole('link', { name: 'Vehicle history', exact: true })).toHaveAttribute('href', `/portal?section=history&view=vehicles&vehicleId=${id === 'drive' ? cars[1].id : cars[0].id}`);
-      await originalRecord.locator('summary').click();
+      await originalRecord.locator(':scope > summary').click();
     }
     expect(audit.rejectedWrites).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -208,7 +210,7 @@ test('appointment cancellation needs its own acknowledgement and retained calend
   await page.getByRole('checkbox', { name: 'Show cancelled', exact: true }).check();
   await expect(agenda.locator('li')).toHaveCount(2);
   await expect(agenda.locator('li').filter({ hasText: 'DRIVE-303' })).toContainText('Cancelled');
-  await page.getByRole('tab', { name: 'Callbacks (2)', exact: true }).click();
+  await openCallbacks(page, 2);
   const callback = page.locator('#desk-panel-callbacks');
   await callback.getByRole('button', { name: 'Back to callbacks', exact: true }).click();
   await expect(callback.getByTestId('enquiry-main')).toBeVisible();
@@ -322,3 +324,9 @@ test('test-drive entry point includes an existing merged group and retains each 
   await expect(page.getByTestId('staff-test-drive-drive')).toBeVisible();
   expect(audit.rejectedWrites).toEqual([]);
 });
+
+async function openCallbacks(page: Page, count: number) {
+  const tools = page.locator('.enquiry-workspace-ribbon > details').filter({ hasText: 'More tools' });
+  if (await tools.getAttribute('open') === null) await tools.locator('summary').click();
+  await page.getByRole('button', { name: `Callbacks (${count})`, exact: true }).click();
+}

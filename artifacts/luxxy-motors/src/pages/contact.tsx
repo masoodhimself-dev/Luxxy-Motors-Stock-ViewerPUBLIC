@@ -1,4 +1,5 @@
 import { websiteText } from "@/lib/website-content";
+import './customer-workflows.css';
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
@@ -49,7 +50,7 @@ export default function Contact() {
       {isLoading ? <div role="status" aria-busy="true" className="mb-8 border-y border-border py-8 text-sm text-muted-foreground">Loading contact and visiting details…</div> : isError ? <div role="alert" className="mb-8 flex flex-wrap items-center justify-between gap-4 border-y border-border py-5"><p className="max-w-xl text-sm leading-6">We couldn’t load the latest dealership details. Please confirm the address and opening hours before travelling.</p><Button variant="outline" onClick={() => window.location.reload()}>Try again</Button></div> : null}
 
       <div className="grid items-start gap-8 border-t border-border pt-7 md:grid-cols-2 lg:gap-12 lg:pt-10">
-        <section aria-labelledby="talk-heading" className="min-w-0">
+        <section aria-labelledby="talk-heading" className="contact-talk-panel min-w-0">
           <h2 id="talk-heading" className="font-display text-2xl font-semibold tracking-tight">{websiteText(settings, "contactTalkHeading")}</h2>
           <div className="mt-5 divide-y divide-border border-y border-border">
             {phoneHref && <a href={phoneHref} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-phone"><Phone className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Call the team</span><span className="mt-1 block font-display text-xl font-semibold group-hover:text-accent">{formatPhoneDisplay(settings.contact.phone!)}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}

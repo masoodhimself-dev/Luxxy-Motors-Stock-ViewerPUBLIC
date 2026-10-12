@@ -7,6 +7,7 @@ export const defaultEmailAppearance: EmailAppearance = { logoUrl: '', brandColou
 const greeting = 'Hi {{customer_name}},\n\n';
 const signoff = '\n\nThanks,\n{{dealer_name}}\n{{dealer_phone}}';
 export const defaultEmailTemplates: readonly EmailTemplate[] = [
+  { id: 'enquiry_message', label: 'Customer message from enquiries', category: 'Enquiries', subject: '{{vehicle_title}} — {{dealer_name}}', body: greeting + '{{message}}' + signoff },
   { id: 'enquiry_acknowledgement', label: 'Enquiry acknowledgement', category: 'Enquiries', subject: 'Your {{dealer_name}} enquiry — {{reference}}', body: greeting + 'We have received your enquiry about {{vehicle_title}}. Our team will contact you soon.' + signoff },
   { id: 'dealer_notification', label: 'New enquiry for the team', category: 'Enquiries', subject: 'New enquiry — {{reference}}', body: 'A customer has contacted {{dealer_name}} about {{vehicle_title}}.\n\nCustomer: {{customer_name}}\nEmail: {{customer_email}}\nPreferred contact: {{preferred_contact}}\nMessage: {{message}}' },
   { id: 'callback', label: 'Callback request', category: 'Enquiries', subject: 'Your callback request — {{reference}}', body: greeting + 'We have received your callback request about {{vehicle_title}}. Our team will call you soon.' + signoff },

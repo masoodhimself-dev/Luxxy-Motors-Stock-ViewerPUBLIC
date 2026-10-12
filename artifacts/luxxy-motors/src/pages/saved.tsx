@@ -11,11 +11,13 @@ import { useSearch } from "wouter";
 import { parseShortlist, shortlistUrl } from "@/lib/customer-convenience";
 import { PageHeading, PageEmptyState } from "@/components/page-ui";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, Heart, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useStock, type Car } from "@/lib/stock-context";
 import { useSavedCars } from "@/lib/saved-cars-context";
 import { CarCard } from "@/components/car-card";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import './customer-workflows.css';
 
 export default function Saved() {
   const { settings } = useDealerSettings();
@@ -108,13 +110,13 @@ export default function Saved() {
                       : "Share shortlist"}
                   </Button>
                   {!sharedIds && (
-                    <Button
-                      variant="outline"
-                      onClick={() => clearSaved()}
-                      data-testid="button-clear-saved"
-                    >
-                      <Trash2 className="h-4 w-4" /> Clear all
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild><Button variant="ghost" data-testid="button-clear-saved" className="text-muted-foreground">Clear all</Button></AlertDialogTrigger>
+                      <AlertDialogContent className="max-w-[calc(100vw-32px)] rounded-xl sm:max-w-md">
+                        <AlertDialogHeader><AlertDialogTitle>Clear your saved cars?</AlertDialogTitle><AlertDialogDescription>This removes your shortlist from this device. You can save cars again whenever you like.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Keep my cars</AlertDialogCancel><AlertDialogAction onClick={() => clearSaved()}>Clear saved cars</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               )
@@ -181,7 +183,7 @@ export default function Saved() {
             </PageEmptyState>
           </div>
         ) : cars.length > 0 ? (
-          <div className="mt-6 flex flex-col gap-6">
+          <div className="saved-car-list mt-6 flex flex-col gap-6">
             {cars.map((car) => (
               <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">{!sharedIds && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">{savedPriceReduction(snapshots[car.id], car) != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(savedPriceReduction(snapshots[car.id], car)!, car.currency)} since you saved it</p>}{car.inventoryStatus === 'reserved' && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}</div>}<CarCard car={car} layout="row" /><SavedCarDetails car={car} /></div>
             ))}

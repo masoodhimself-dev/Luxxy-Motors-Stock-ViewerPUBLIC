@@ -13,9 +13,10 @@ import { formatPrice, getThumbnailUrl, vehicleDisplayTitle } from "@/lib/utils";
 export function RecentlyViewed() {
   const { stock } = useStock();
   const [ids, setIds] = useState(recentVehicles);
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set());
   const cars = ids
     .map((id) => stock?.cars.find((car) => car.id === id))
-    .filter((car) => Boolean(car))
+    .filter((car) => Boolean(car) && !['sold', 'archived', 'hidden'].includes(String(car?.inventoryStatus).toLowerCase()))
     .slice(0, 4);
   if (!cars.length) return null;
   return (
@@ -50,11 +51,11 @@ export function RecentlyViewed() {
                   href={`/vehicle/${encodeURIComponent(car.id)}`}
                   className="flex min-h-20 items-center gap-3 border-b border-border pb-3"
                 >
-                  <img
+                  {getThumbnailUrl(car) && !failedPhotos.has(getThumbnailUrl(car)) && <img
                     src={getThumbnailUrl(car)}
                     {...responsiveVehicleImage(getThumbnailUrl(car), "100px")}
                     onError={(event) => {
-                      retryOriginalImage(event.currentTarget);
+                      if (!retryOriginalImage(event.currentTarget)) setFailedPhotos(previous => new Set(previous).add(getThumbnailUrl(car)));
                     }}
                     alt=""
                     width={100}
@@ -62,7 +63,7 @@ export function RecentlyViewed() {
                     loading="lazy"
                     decoding="async"
                     className="h-[75px] w-[100px] shrink-0 bg-muted object-cover"
-                  />
+                  />}
                   <span className="min-w-0 text-sm">
                     <span className="block font-medium">
                       {vehicleDisplayTitle(car)}

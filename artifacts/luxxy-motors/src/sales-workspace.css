@@ -1886,6 +1886,68 @@
     border: 1px solid #dce3e8;
     box-shadow: 0 2px 3px #24394804;
   }
+  .sales-practical-workspace .sales-customer-panel > .sales-field-grid > label:first-child {
+    grid-column: 1 / -1;
+  }
+  .sales-practical-workspace .sales-total-breakdown {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border: 1px solid #d5e2e8;
+    border-radius: 9px;
+    background: #f2f7fa;
+    min-width: 0;
+  }
+  .sales-practical-workspace .sales-total-breakdown > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .sales-practical-workspace .sales-total-breakdown > summary span::after {
+    content: " · breakdown";
+    color: #657681;
+    font-size: 11px;
+  }
+  .sales-practical-workspace .sales-total-breakdown > summary strong {
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sales-practical-workspace .sales-total-breakdown dl {
+    display: grid;
+    gap: 10px;
+    padding-top: 16px;
+    margin-top: 14px;
+    border-top: 1px solid #d5e2e8;
+    font-size: 13px;
+  }
+  .sales-practical-workspace .sales-total-breakdown dl > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+  .sales-practical-workspace .sales-total-breakdown dt {
+    overflow-wrap: anywhere;
+  }
+  .sales-practical-workspace .sales-total-breakdown dd {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .sales-practical-workspace .sales-total-breakdown-total {
+    font-weight: 700;
+  }
+  .sales-practical-workspace .sales-total-breakdown > p {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #657681;
+  }
+  .sales-practical-workspace .sales-review-payments {
+    margin-left: 10px;
+    margin-top: 8px;
+  }
   .sales-practical-workspace .sales-optional-panel {
     border: 1px solid #dce3e8;
     border-radius: 10px;
@@ -2168,6 +2230,40 @@
   .sales-practical-workspace .sales-issued-pack li small {
     color: #586976;
     font-size: 11px;
+  }
+  .sales-payment-options {
+    border-top: 1px solid #e0e7ec;
+    padding-top: 12px;
+  }
+  .sales-payment-options > summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #3e596a;
+    min-height: 24px;
+  }
+  .sales-payment-options[open] > label {
+    margin-top: 14px;
+  }
+  .sales-payment-outcome {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 14px;
+    padding: 14px 16px;
+    background: #edf6f1;
+    border: 1px solid #d0e4d8;
+    border-radius: 8px;
+    color: #265943;
+    font-size: 13px;
+  }
+  .sales-payment-outcome strong {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sales-payment-outcome p {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    line-height: 1.6;
   }
 }
 @media screen and (min-width: 1101px) {

@@ -261,3 +261,40 @@
 .premium-portal:has(.enquiries-premium-workspace) #main-content { padding-top:0; }
 .premium-portal:has(.enquiries-premium-workspace)>a[href="#main-content"] { opacity:0; pointer-events:none; }
 .premium-portal:has(.enquiries-premium-workspace)>a[href="#main-content"]:focus { opacity:1; pointer-events:auto; }
+
+/* Calm action hierarchy: task content stays in normal flow at every width. */
+.enquiries-premium-workspace .enquiry-workspace-ribbon { flex-wrap:wrap; }
+.enquiries-premium-workspace .enquiry-workspace-ribbon>.enquiry-ribbon-search { flex:1 1 260px; }
+.enquiries-premium-workspace .enquiry-workspace-ribbon[data-record-mode]>label.enquiry-ribbon-search { flex:1 1 260px; min-width:min(260px,100%); }
+.enquiries-premium-workspace .enquiry-workspace-ribbon>.enquiry-ribbon-owner { flex:0 1 170px; }
+.enquiries-premium-workspace .enquiry-ribbon-refresh { flex:0 0 44px; width:44px; padding:0; }
+.enquiries-premium-workspace .enquiry-ribbon-overdue { white-space:normal; }
+.enquiries-premium-workspace .enquiry-workspace-heading>div { min-width:0; }
+.enquiries-premium-workspace .enquiry-workspace-heading p { max-width:52ch; line-height:1.55; }
+.enquiries-premium-workspace .enquiry-vehicle-reference { max-height:260px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; padding:2px 8px 2px 0; }
+.enquiries-premium-workspace .enquiry-today-group-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.enquiries-premium-workspace .enquiry-today-group-heading h4 { margin:0; font-size:15px; line-height:1.45; }
+.enquiries-premium-workspace .enquiry-today-total { flex-shrink:0; min-width:28px; padding:3px 8px; border-radius:7px; background:#eff4f8; color:#526a7c; font-size:12px; text-align:center; }
+.enquiries-premium-workspace .enquiry-today-group-note { margin:10px 0; color:var(--portal-muted); font-size:12px; }
+.enquiries-premium-workspace .enquiry-today-records { margin-top:16px; padding:0; }
+.enquiries-premium-workspace .enquiry-today-records>li { display:grid; gap:10px; padding:14px 0; border-top:1px solid var(--portal-border); }
+.enquiries-premium-workspace .enquiry-today-open { display:grid; width:100%; gap:5px; text-align:left; padding:2px 0; color:var(--portal-ink); border-radius:4px; }
+.enquiries-premium-workspace .enquiry-today-record-heading { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.enquiries-premium-workspace .enquiry-today-record-heading strong { font-size:14px; color:var(--portal-accent); }
+.enquiries-premium-workspace .enquiry-today-record-heading time { flex-shrink:0; font-size:13px; font-weight:600; color:var(--portal-ink); }
+.enquiries-premium-workspace :is(.enquiry-today-record-vehicle,.enquiry-today-record-meta,.enquiry-today-followup-time) { min-width:0; overflow-wrap:anywhere; }
+.enquiries-premium-workspace .enquiry-today-record-vehicle { font-size:13px; color:var(--portal-ink); }
+.enquiries-premium-workspace .enquiry-today-record-meta { font-size:11px; color:var(--portal-muted); }
+.enquiries-premium-workspace .enquiry-today-followup-time { font-size:12px; color:var(--portal-accent); }
+.enquiries-premium-workspace .enquiry-today-followup-time[data-overdue=true] { color:#925520; }
+.enquiries-premium-workspace .enquiry-today-empty { padding:24px 0 8px; font-size:13px; color:var(--portal-muted); }
+.enquiries-premium-workspace .enquiry-today-expand { width:100%; margin-top:12px; }
+@media(min-width:1100px) { .enquiries-premium-workspace .enquiry-workspace-heading>div { display:block; } .enquiries-premium-workspace .enquiry-workspace-heading p { margin-top:6px; } }
+@media(max-width:699px) {
+ .enquiries-premium-workspace .enquiry-workspace-ribbon>.enquiry-ribbon-search { flex-basis:100%; order:1; }
+ .enquiries-premium-workspace .enquiry-workspace-ribbon>.enquiry-ribbon-owner { flex:1 1 100%; order:2; }
+ .enquiries-premium-workspace .enquiry-workspace-ribbon>.enquiry-ribbon-owner select { width:100%; }
+ .enquiries-premium-workspace .enquiry-ribbon-label { display:block; }
+ .enquiries-premium-workspace .enquiry-workspace-ribbon { padding:14px 16px; gap:10px; }
+ .enquiries-premium-workspace .enquiry-today-columns { grid-template-columns:minmax(0,1fr); }
+}

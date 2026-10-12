@@ -48,7 +48,10 @@ describe('authoritative sale PDF preview', () => {
     expect(customFetch).toHaveBeenCalledWith(archiveUrl, expect.objectContaining({ responseType: 'blob', cache: 'no-store' }));
     const [blob] = vi.mocked(URL.createObjectURL).mock.calls[0];
     expect(await (blob as NodeBlob).text()).toBe('%PDF-original-archive');
-    expect(screen.getByRole('link', { name: 'Open PDF' })).toHaveAttribute('href', 'blob:archived-document');
+    // Canvas pixels are published before the React commit exposes the archive link.
+    // Wait for the staff-facing ready state, especially under a parallel full suite.
+    expect(await screen.findByRole('link', { name: 'Open PDF' })).toHaveAttribute('href', 'blob:archived-document');
+    await waitFor(() => expect(screen.getByRole('img', { name: 'Sales invoice, page 1 of 1' }).closest('[aria-busy]')).toHaveAttribute('aria-busy', 'false'));
     expect(screen.getByText('Alex Buyer')).toBeInTheDocument();
   });
 

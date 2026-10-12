@@ -1,4 +1,5 @@
 import { websiteText } from "@/lib/website-content";
+import './customer-workflows.css';
 import { questionMessage } from "@/lib/vehicle-questions";
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';

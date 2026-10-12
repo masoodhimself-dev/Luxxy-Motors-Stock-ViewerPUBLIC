@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 
 let sequence = 0;
@@ -79,6 +79,58 @@ test('integer pence, three exchanges, overpayments and false final payments are 
   assert.throws(() => changeSaleWorkspace(create(), payment('500', 'final-payment'), { expectedRevision: 1, requestId: 'request-badfinal' }, context()), /settle/);
   const d = draft(); d.exchanges = Array.from({ length: 4 }, () => ({ registration: 'AB12 CDE', description: '', value: '100' }));
   assert.throws(() => createSaleWorkspace({ draft: d, requestId: 'request-manypx' }, context(), 'SALE-1'), /exchanges/);
+});
+
+test('decimal parsing and aggregate arithmetic never accept rounded or unsafe penny amounts', () => {
+  assert.equal(saleWorkspacePence('90071992547409.91'), Number.MAX_SAFE_INTEGER);
+  assert.ok(Number.isNaN(saleWorkspacePence('90071992547409.92')));
+  assert.equal(saleWorkspacePence('8.04'), 804);
+  assert.equal(saleWorkspacePence('0.29'), 29);
+  const large = { ...draft(), price: '90071992547409', adjustments: [{ kind: 'fee' as const, description: 'Fixture fee', amount: '1' }] };
+  assert.ok(Number.isNaN(saleWorkspaceTotals(large).totalDue));
+  assert.throws(() => createSaleWorkspace({ draft: large, requestId: 'request-overflow' }, context(), 'SALE-OVERFLOW'), /valid amounts/);
+  for (const field of ['exchanges', 'adjustments']) {
+    for (const malformed of [null, 'invalid row', []]) {
+      assert.throws(() => createSaleWorkspace({ draft: { ...draft(), [field]: [malformed] }, requestId: 'request-invalid-row' }, context(), 'SALE-INVALID'), (error: unknown) => error instanceof SaleWorkspaceError && error.status === 422);
+    }
+  }
+  const largeSale = createSaleWorkspace({ draft: { ...draft(), price: '90071992547409' }, requestId: 'request-large-sale' }, context(), 'SALE-LARGE').sale;
+  const first = changeSaleWorkspace(largeSale, payment('90071992547409', 'part-payment', 'pending'), { expectedRevision: largeSale.revision, requestId: 'request-large-pending-one' }, context()).sale;
+  assert.throws(() => changeSaleWorkspace(first, payment('90071992547409', 'part-payment', 'pending'), { expectedRevision: first.revision, requestId: 'request-large-pending-two' }, context()), /supported range/);
+  assert.equal(first.payments.length, 1);
+});
+
+test('fifty mixed-method deals settle to the exact penny after fees, discounts, three exchanges and a partial refund', () => {
+  const pounds = (value: number) => `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
+  for (let index = 0; index < 50; index += 1) {
+    const agreedPrice = 1000000 + index * 137;
+    const fee = 1023 + index;
+    const discount = 2012 + index * 2;
+    const allowances = [10001 + index, 20002 + index * 2, 30003 + index * 3];
+    const due = agreedPrice + fee - discount - allowances.reduce((sum, value) => sum + value, 0);
+    const d = { ...draft(), price: pounds(agreedPrice),
+      adjustments: [{ kind: 'fee' as const, description: 'Delivery', amount: pounds(fee) }, { kind: 'discount' as const, description: 'Agreed discount', amount: pounds(discount) }],
+      exchanges: allowances.map((value, n) => ({ registration: `TEST-${index}-${n}`, description: 'Fictional part exchange', value: pounds(value) })) };
+    const c = { ...context(), paperwork: { saleTerms: 'Fictional approved test terms', reservationTerms: '' } };
+    let sale = createSaleWorkspace({ draft: d, requestId: `create-fixture-${index}` }, c, `SALE-FIXTURE-${index}`).sale;
+    assert.equal(saleWorkspaceTotals(sale.draft, sale.payments).totalDue, due);
+    const deposit = { action: 'take-deposit', payment: { amount: '100.01', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: '' } } as const;
+    sale = changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: `deposit-fixture-${index}` }, c).sale;
+    const frozen = JSON.stringify(sale.documents[0]);
+    sale = changeSaleWorkspace(sale, payment('500.02'), { expectedRevision: sale.revision, requestId: `part-fixture-${index}` }, c).sale;
+    sale = changeSaleWorkspace(sale, { action: 'reverse', paymentId: sale.payments[1].id, amount: '20.03', kind: 'refund', reason: 'Fictional agreed refund', date: '2026-10-04' }, { expectedRevision: sale.revision, requestId: `refund-fixture-${index}` }, c).sale;
+    assert.equal(saleWorkspaceTotals(sale.draft, sale.payments).confirmedPaid, 58000);
+    const balance = due - 58000;
+    assert.throws(() => changeSaleWorkspace(sale, payment(pounds(balance - 1), 'final-payment'), { expectedRevision: sale.revision, requestId: `bad-final-fixture-${index}` }, c), /settle/);
+    sale = changeSaleWorkspace(sale, payment(pounds(balance), 'final-payment'), { expectedRevision: sale.revision, requestId: `final-fixture-${index}` }, c).sale;
+    assert.equal(saleWorkspaceTotals(sale.draft, sale.payments).balance, 0);
+    const completed = changeSaleWorkspace(sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: sale.revision, requestId: `complete-fixture-${index}` }, c);
+    assert.equal(completed.sale.lifecycle?.status, 'sold');
+    assert.equal(completed.document?.snapshot.totals.balance, 0);
+    assert.equal(completed.document?.snapshot.totals.totalDue, due);
+    assert.equal(JSON.stringify(completed.sale.documents[0]), frozen);
+    assert.equal(completed.sale.documents.filter(doc => doc.type === 'receipt').length, 4);
+  }
 });
 
 test('pending expected dates are retained and confirmation uses the actual received date', () => {

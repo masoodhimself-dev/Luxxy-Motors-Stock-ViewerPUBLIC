@@ -21,6 +21,7 @@ import {
   DeliveryPanel,
   HandoverDialog,
   salePaymentState,
+  SaleFinancialSummary,
 } from "@/components/sales-demo/sales-controls";
 import {
   SalesConnections,
@@ -651,7 +652,7 @@ export function SalesWorkspace({
       (saleFilter === "all" ||
         (saleFilter === "balance" && totals(d).balance > 0) ||
         (saleFilter === "completed" &&
-          Boolean(item.completedAt || d.fulfilment?.completedAt)) ||
+          Boolean(item.completedAt || item.lifecycle?.status === "sold")) ||
         (saleFilter === "delivery" &&
           d.fulfilment?.method === "delivery" &&
           Boolean(d.fulfilment.scheduledDate) &&
@@ -659,6 +660,8 @@ export function SalesWorkspace({
         (saleFilter === "collection" &&
           d.fulfilment?.method !== "delivery" &&
           d.preparation &&
+          d.documents &&
+          totals(d).balance === 0 &&
           !d.fulfilment?.completedAt))
     );
   });
@@ -1276,6 +1279,7 @@ export function SalesWorkspace({
                       {field("registration", "Vehicle registration")}
                       {field("price", "Agreed vehicle price (£)")}
                     </div>
+                    <SaleFinancialSummary draft={draft} />
                   </div>
                 )}
                 {tab <= 2 && (
@@ -1382,6 +1386,7 @@ export function SalesWorkspace({
                       <Textarea
                         rows={3}
                         value={draft.notes}
+                        disabled={Boolean(record?.completedAt)}
                         onChange={(e) => update("notes", e.target.value)}
                         placeholder="Condition, known issues or details agreed with the customer"
                       />
@@ -1650,6 +1655,18 @@ export function SalesWorkspace({
                       >
                         Review deal details
                       </Button>
+                      {amount!.balance !== 0 && (
+                        <Button
+                          className="sales-review-payments"
+                          variant="outline"
+                          onClick={() => {
+                            changeTab(3);
+                            setEditorView("edit");
+                          }}
+                        >
+                          Review payments
+                        </Button>
+                      )}
                       {paperworkQuery.data?.saleTerms && (
                         <details className="sales-terms-review">
                           <summary>Terms included with the sale</summary>
@@ -1827,28 +1844,32 @@ export function SalesWorkspace({
                       : "Draft · not issued"}
                   </span>
                 </div>
-                <div className="sales-document-selector sales-chrome">
-                  <label>
-                    Document
-                    <select
-                      aria-label="Document"
-                      value={selectedDocumentId ?? "preview"}
-                      onChange={(e) => {
-                        setSelectedDocumentId(
-                          e.target.value === "preview" ? null : e.target.value,
-                        );
-                        setReceiptStyle("modern");
-                      }}
-                    >
-                      <option value="preview">Live draft invoice</option>
-                      {[...(record?.documents ?? [])].reverse().map((doc) => (
-                        <option key={doc.id} value={doc.id}>
-                          {doc.title} · {doc.number}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                {Boolean(record?.documents.length) && (
+                  <div className="sales-document-selector sales-chrome">
+                    <label>
+                      Document
+                      <select
+                        aria-label="Document"
+                        value={selectedDocumentId ?? "preview"}
+                        onChange={(e) => {
+                          setSelectedDocumentId(
+                            e.target.value === "preview"
+                              ? null
+                              : e.target.value,
+                          );
+                          setReceiptStyle("modern");
+                        }}
+                      >
+                        <option value="preview">Live draft invoice</option>
+                        {[...(record?.documents ?? [])].reverse().map((doc) => (
+                          <option key={doc.id} value={doc.id}>
+                            {doc.title} · {doc.number}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
                 <p className="sales-live-preview-help">
                   {selectedDocument
                     ? "This is the saved PDF. Reprinting or emailing keeps its original details."
@@ -1900,13 +1921,15 @@ export function SalesWorkspace({
                         : "Print draft"}
                   </Button>
                 </div>
-                <DocumentDelivery
-                  record={record}
-                  document={selectedDocument}
-                  busy={busy}
-                  onEmail={emailDocument}
-                  onDownload={downloadDocument}
-                />
+                {selectedDocument && (
+                  <DocumentDelivery
+                    record={record}
+                    document={selectedDocument}
+                    busy={busy}
+                    onEmail={emailDocument}
+                    onDownload={downloadDocument}
+                  />
+                )}
               </aside>
             </div>
           </main>

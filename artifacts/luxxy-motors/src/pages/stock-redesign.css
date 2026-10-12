@@ -22,7 +22,7 @@
 .stock-redesign.stock-refined .stock-option-action > svg:last-child:not(:first-child) { margin-left: auto; }
 .stock-redesign.stock-refined .stock-option-action:hover { color: var(--premium-accent, #215a7e); text-decoration: underline; text-underline-offset: 4px; }
 .stock-redesign.stock-refined .browse-stock { padding-top: 0; padding-bottom: 56px; }
-.stock-redesign.stock-refined .stock-toolbar { position: static; background: var(--premium-panel, #fff); border: 1px solid #dce2e6; border-radius: 6px; padding: 20px; box-shadow: none; }
+.stock-redesign.stock-refined .stock-toolbar { position: static; background: var(--premium-panel, #fff); border: 1px solid #dce2e6; border-radius: 12px; padding: 20px; box-shadow: none; }
 .stock-redesign.stock-refined .stock-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 220px; align-items: center; gap: 10px; }
 .stock-redesign.stock-refined .stock-toolbar input,
 .stock-redesign.stock-refined .stock-toolbar select { min-height: 48px; border-radius: 5px; background: var(--premium-panel, #fff); border-color: #cfd8de; color: var(--premium-ink, #192a36); font-size: .9375rem; }
@@ -45,7 +45,7 @@
 .stock-redesign.stock-refined .stock-results-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 18px; min-height: 30px; }
 .stock-redesign.stock-refined .stock-results-grid { align-items: stretch; gap: 24px; }
 .stock-redesign.stock-refined .stock-card-results { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.stock-redesign.stock-refined .vehicle-card-catalogue { border: 1px solid #dce2e6; border-radius: 6px; background: var(--premium-panel, #fff); box-shadow: none; transition: border-color 180ms ease; }
+.stock-redesign.stock-refined .vehicle-card-catalogue { border: 1px solid #dce2e6; border-radius: 12px; background: var(--premium-panel, #fff); box-shadow: none; transition: border-color 180ms ease; }
 .stock-redesign.stock-refined .vehicle-card-catalogue:hover { border-color: #9caebb; box-shadow: none; transform: none; }
 .stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-photo { padding: 0; border: 0; border-bottom: 1px solid #e7ebee; border-radius: 0; background: #edf0f1; }
 .stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-photo > a { overflow: hidden; border: 0; border-radius: 0; background: #edf0f1; }
@@ -60,7 +60,7 @@
 .stock-redesign.stock-refined .vehicle-card-catalogue .luxxy-price { font-size: 1.6875rem; font-weight: 600; line-height: 1.2; letter-spacing: -.03em; color: var(--premium-ink, #192a36); }
 .stock-redesign.stock-refined .vehicle-card-catalogue .stock-card-status { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; font-size: .75rem; font-weight: 500; line-height: 1.5; color: #566b79; }
 .stock-redesign.stock-refined .vehicle-card-catalogue .stock-card-status > :is(span, button) { padding: 3px 7px; border: 1px solid #dce4e9; border-radius: 4px; background: #f5f7f8; }
-.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-specs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; justify-content: initial; margin-top: 18px; margin-bottom: 14px; font-size: .8125rem; line-height: 1.5; color: #536774; }
+.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-specs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; justify-content: initial; margin-top: 18px; margin-bottom: 14px; font-size: .875rem; line-height: 1.5; color: #536774; }
 .stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-specs > span { display: flex; align-items: center; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
 .stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-specs svg,
 .stock-redesign.stock-refined .vehicle-card-catalogue .stock-catalogue-highlights svg { display: block; width: 15px; height: 15px; flex: 0 0 15px; color: #85959f; }

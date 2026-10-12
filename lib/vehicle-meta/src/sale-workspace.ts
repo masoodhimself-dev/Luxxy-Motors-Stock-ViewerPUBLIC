@@ -111,19 +111,28 @@ export function saleWorkspacePence(value: string): number {
   if (!value.trim()) return 0;
   if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return NaN;
   const [pounds, pennies = ''] = value.trim().split('.');
-  const result = Number(pounds) * 100 + Number(pennies.padEnd(2, '0'));
-  return Number.isSafeInteger(result) ? result : NaN;
+  if (pounds.replace(/^0+/, '').length > 14) return NaN;
+  // Parse digits exactly before converting to number. Floating-point multiplication
+  // can round large values into a different, apparently safe number of pennies.
+  const result = BigInt(pounds) * 100n + BigInt(pennies.padEnd(2, '0'));
+  return result <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(result) : NaN;
+}
+
+function addSalePence(left: number, right: number): number {
+  if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)) return NaN;
+  const sum = left + right;
+  return Number.isSafeInteger(sum) ? sum : NaN;
 }
 
 export function saleWorkspaceTotals(draft: SaleWorkspaceDraft, ledger = draft.payments ?? []): SaleWorkspaceTotals {
   const price = saleWorkspacePence(draft.price);
   const exchangeRows = draft.exchanges ?? (draft.partExchange ? [{ registration: draft.pxRegistration, description: draft.pxDescription, value: draft.pxValue }] : []);
-  const allowance = exchangeRows.reduce((sum, row) => sum + saleWorkspacePence(row.value), 0);
-  const adjustments = (draft.adjustments ?? []).reduce((sum, row) => sum + saleWorkspacePence(row.amount) * (row.kind === 'discount' ? -1 : 1), 0);
-  const confirmedPaid = ledger.filter(row => row.status === 'confirmed').reduce((sum, row) => sum + row.signedAmountPence, 0);
-  const pending = ledger.filter(row => row.status === 'pending').reduce((sum, row) => sum + row.amountPence, 0);
-  const totalDue = price + adjustments - allowance;
-  return { price, allowance, adjustments, totalDue, deposit: confirmedPaid, confirmedPaid, pending, balance: totalDue - confirmedPaid };
+  const allowance = exchangeRows.reduce((sum, row) => addSalePence(sum, saleWorkspacePence(row.value)), 0);
+  const adjustments = (draft.adjustments ?? []).reduce((sum, row) => addSalePence(sum, saleWorkspacePence(row.amount) * (row.kind === 'discount' ? -1 : 1)), 0);
+  const confirmedPaid = ledger.filter(row => row.status === 'confirmed').reduce((sum, row) => addSalePence(sum, row.signedAmountPence), 0);
+  const pending = ledger.filter(row => row.status === 'pending').reduce((sum, row) => addSalePence(sum, row.amountPence), 0);
+  const totalDue = addSalePence(addSalePence(price, adjustments), -allowance);
+  return { price, allowance, adjustments, totalDue, deposit: confirmedPaid, confirmedPaid, pending, balance: addSalePence(totalDue, -confirmedPaid) };
 }
 
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
@@ -174,7 +183,7 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
   draft.handover = previous?.handover ?? false;
   const array = (name: string, limit: number) => {
     const value = source[name] ?? [];
-    if (!Array.isArray(value) || value.length > limit) throw new SaleWorkspaceError(`Check ${name}.`);
+    if (!Array.isArray(value) || value.length > limit || value.some(row => !row || typeof row !== 'object' || Array.isArray(row))) throw new SaleWorkspaceError(`Check ${name}.`);
     return value as Record<string, unknown>[];
   };
   draft.exchanges = array('exchanges', 3).map(row => ({ registration: text(row.registration ?? '', 32, 'part-exchange registration').toUpperCase(), description: text(row.description ?? '', 1000, 'part-exchange description'), value: text(row.value ?? '', 16, 'part-exchange value') }));
@@ -215,6 +224,7 @@ function event(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type:
 }
 function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type: SaleWorkspaceDocument['type'], title: string, payment?: SaleWorkspacePayment): SaleWorkspaceDocument {
   const amount = saleWorkspaceTotals(record.draft, record.payments);
+  if (Object.values(amount).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('Check the sale amounts before issuing paperwork.');
   // A car can leave the current feed before the final payment. Reuse only facts already issued for that same vehicle.
   const vehicle = context.vehicle ?? [...record.documents].reverse().find(item => item.snapshot.vehicle?.id === record.draft.vehicleId)?.snapshot.vehicle;
   const document: SaleWorkspaceDocument = {
@@ -250,6 +260,7 @@ function reserveReceivedDeposit(record: SaleWorkspaceRecord, context: SaleWorksp
 }
 function confirmable(record: SaleWorkspaceRecord, payment: SaleWorkspacePayment) {
   const balance = saleWorkspaceTotals(record.draft, record.payments).balance;
+  if (!Number.isSafeInteger(balance)) throw new SaleWorkspaceError('Check the sale amounts before recording this payment.');
   if (payment.amountPence > balance) throw new SaleWorkspaceError('This payment exceeds the outstanding balance.');
   if (payment.kind === 'final-payment' && payment.amountPence !== balance) throw new SaleWorkspaceError('A final payment must settle the outstanding balance. Choose part payment for a smaller amount.');
 }
@@ -405,6 +416,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'handover-completed', `${fulfilment.method === 'delivery' ? 'Delivered' : 'Collected'} by ${recipient}${balance ? ' with an acknowledged outstanding balance' : ''}`);
     document = issueDocument(record, context, 'handover', fulfilment.method === 'delivery' ? 'Delivery confirmation' : 'Collection confirmation');
   } else throw new SaleWorkspaceError('Unknown sale action.', 400);
+  if (Object.values(saleWorkspaceTotals(record.draft, record.payments)).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('The sale amounts exceed the supported range. Check the payment entries.');
   record.revision += 1; record.updatedAt = context.now; record.draft.payments = clone(record.payments);
   (record.requests ??= {})[key] = { fingerprint, ...(document ? { documentId: document.id } : {}) };
   return { sale: record, ...(document ? { document } : {}) };

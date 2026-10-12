@@ -36,3 +36,4 @@ export * from './dealer-chat';
 export * from "./tenants";
 
 export * from "./staff-inventory";
+export * from "./enquiry-emails";

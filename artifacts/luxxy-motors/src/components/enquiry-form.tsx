@@ -1,4 +1,5 @@
 import { showroomHours } from '@/lib/showroom-hours';
+import './enquiry-form.css';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { enquiryDraftKey, readEnquiryDraft, saveEnquiryDraft, discardEnquiryDraft } from '@/lib/enquiry-draft';
 import { readVehicleExchange } from '@/lib/vehicle-exchange-draft';
@@ -9,7 +10,7 @@ import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Redirect, useLocation } from 'wouter';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CheckCircle2, CircleAlert, Mail, MessageSquare, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, Mail, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -33,10 +34,10 @@ const typeLabels: Record<EnquiryType, string> = {
 const labelClass = 'field-label flex items-center gap-2';
 type PreferredContact = 'email' | 'phone' | 'whatsapp';
 
-const contactOptions: Array<{ value: PreferredContact; label: string; hint: string }> = [
-  { value: 'email', label: 'Email', hint: 'Written confirmation' },
-  { value: 'phone', label: 'Phone call', hint: 'Talk to the team' },
-  { value: 'whatsapp', label: 'WhatsApp', hint: 'Photos and questions' },
+const contactOptions: Array<{ value: PreferredContact; label: string }> = [
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone call' },
+  { value: 'whatsapp', label: 'WhatsApp' },
 ];
 
 function normalisePhone(value: string) {
@@ -77,10 +78,11 @@ export function EnquiryForm({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
   const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
+  const [exchangeExpanded, setExchangeExpanded] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
   const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
   useEffect(() => {
     const draft = readVehicleExchange(vehicle?.id);
-    if (draft) { setExchange(draft); setHasPartExchange(true); }
+    if (draft) { setExchange(draft); setHasPartExchange(true); setExchangeExpanded(true); }
   }, [vehicle?.id]);
   const exchangeSummary = !embedded && hasPartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
@@ -94,9 +96,11 @@ export function EnquiryForm({
   const [nameError,setNameError] = useState('');
   const [emailError,setEmailError] = useState('');
   const [draftSaved,setDraftSaved] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
   const skipDraftSave = useRef(false);
   const draftKey = enquiryDraftKey(vehicle?.id, initialType);
   const [preferredContact, setPreferredContact] = useState<PreferredContact>('email');
+  const [additionalContact, setAdditionalContact] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const messageTouched = useRef(false);
   useEffect(() => {
@@ -114,8 +118,10 @@ export function EnquiryForm({
       setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
       setMessage(draft.message); messageTouched.current=Boolean(draft.message);
       setPreferredContact(embedded && draft.preferredContact === 'whatsapp' ? 'phone' : draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
+      setExchangeExpanded(draft.hasPartExchange);
       setDraftSaved(true);
-    } else setDraftSaved(false);
+      setDraftRestored(true);
+    } else { setDraftSaved(false); setDraftRestored(false); }
   }, [draftKey]);
   useEffect(() => {
     if(skipDraftSave.current) {skipDraftSave.current=false;return;}
@@ -131,9 +137,9 @@ export function EnquiryForm({
     if (mutation.isSuccess) successHeadingRef.current?.focus();
   }, [mutation.isSuccess]);
   const discardDraft = () => {
-    discardEnquiryDraft(draftKey);setDraftSaved(false);
+    discardEnquiryDraft(draftKey);setDraftSaved(false);setDraftRestored(false);
     setCustomerName('');setEmail('');setPhone('');setMessage('');messageTouched.current=true;
-    setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});
+    setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});setAdditionalContact(false);setExchangeExpanded(false);
     setPhoneError('');setNameError('');setEmailError('');
   };
   const focusPhone = () => document.querySelector<HTMLInputElement>('[data-testid="input-customer-phone"]')?.focus();
@@ -197,7 +203,7 @@ export function EnquiryForm({
       { data },
       {
         onSuccess: () => {
-          discardEnquiryDraft(draftKey);setDraftSaved(false);
+          discardEnquiryDraft(draftKey);setDraftSaved(false);setDraftRestored(false);
           trackEvent('enquiry_completed', {
             enquiry_type: type,
             vehicle_context: Boolean(data.vehicleId),
@@ -283,16 +289,15 @@ export function EnquiryForm({
   </form>;
 
   return (
-    <form onSubmit={submit} className="space-y-4 sm:space-y-6" data-testid="form-enquiry">
-      {draftSaved && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>You can restore these unfinished details in this tab for 30 minutes.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
+    <form onSubmit={submit} onInvalidCapture={event => { if ((event.target as HTMLElement).closest('.customer-enquiry-exchange')) setExchangeExpanded(true); }} className="customer-enquiry-form space-y-4 sm:space-y-6" data-testid="form-enquiry">
+      {draftSaved && draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>Your unfinished enquiry was restored.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
       <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-4 sm:pb-6">
         <div>
-          <p className="luxxy-label text-accent">Your details</p>
-          <h2 id="enquiry-form-heading" className="mt-2 font-display text-xl font-semibold leading-tight tracking-tight text-primary sm:mt-3 sm:text-2xl">
-            How can we help?
+          <h2 id="enquiry-form-heading" className="font-display text-xl font-semibold leading-tight tracking-tight text-primary sm:text-2xl">
+            Your enquiry
           </h2>
           <p className="mt-2 max-w-md text-sm leading-6 text-primary/70 sm:mt-3 sm:leading-7">
-            Tell us what you would like to know and how to contact you.
+            Choose how we should reply, then tell us what you need.
           </p>
         </div>
       </div>
@@ -326,22 +331,26 @@ export function EnquiryForm({
         </div>
       )}
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <fieldset className="customer-enquiry-contact">
+            <legend className="sr-only">Contact details</legend>
+            <label className="block customer-enquiry-reply">
+              <span className={labelClass}>How should we reply?</span>
+              <NativeSelect value={preferredContact} onChange={(event) => { setPreferredContact(event.target.value as PreferredContact); setPhoneError(''); setEmailError(''); }} className="h-11" data-testid="select-preferred-contact">
+                {contactOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </NativeSelect>
+            </label>
             <label className="block">
               <span className={labelClass}>Your name</span>
               <Input ref={nameInputRef} required minLength={2} maxLength={120} value={customerName} onChange={(event) => {setCustomerName(event.target.value);setNameError('');}} onInvalid={()=>{setNameError("Please enter your name (at least two characters).");}} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "customer-name-help" : undefined} autoComplete="name" placeholder="Your full name" className="h-11" data-testid="input-customer-name" />
               {nameError && <span id="customer-name-help" role="alert" className="mt-2 block text-sm text-destructive">{nameError}</span>}
             </label>
-            <label className="block">
-              <span className={labelClass}><Mail className="h-3.5 w-3.5 text-accent" />Email address</span>
+            {(preferredContact === 'email' || additionalContact || Boolean(email)) && <label className="block">
+              <span className={labelClass}>Email address{preferredContact !== 'email' && <span className="text-muted-foreground">(optional)</span>}</span>
               <Input required={preferredContact === 'email'} type="email" value={email} onChange={(event) => {setEmail(event.target.value);setEmailError('');}} onInvalid={()=>setEmailError("Enter an email address such as name@example.com.")} aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-help" : undefined} autoComplete="email" placeholder="you@example.com" className="h-11" data-testid="input-customer-email" />
               {emailError && <span id="customer-email-help" role="alert" className="mt-2 block text-sm text-destructive">{emailError}</span>}
-            </label>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <span className={labelClass}><Phone className="h-3.5 w-3.5 text-accent" />Phone number</span>
+            </label>}
+            {(phoneRequired || additionalContact || Boolean(phone)) && <label className="block">
+              <span className={labelClass}>{preferredContact === 'whatsapp' ? 'Mobile number' : 'Phone number'}{!phoneRequired && <span className="text-muted-foreground">(optional)</span>}</span>
               <Input
                 required={phoneRequired}
                 type="tel"
@@ -357,23 +366,23 @@ export function EnquiryForm({
                 data-testid="input-customer-phone"
               />
               {phoneError && <span id="customer-phone-help" className="mt-2 block text-[13px] leading-5 text-[#8d3e34]" role="alert">{phoneError}</span>}
-            </label>
-            <label className="block">
-              <span className={labelClass}>Preferred contact</span>
-              <NativeSelect value={preferredContact} onChange={(event) => setPreferredContact(event.target.value as PreferredContact)} className="h-11" data-testid="select-preferred-contact">
-                {contactOptions.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.hint}</option>)}
-              </NativeSelect>
-            </label>
-          </div>
+            </label>}
+            {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="customer-enquiry-add-contact text-link" onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'}</button>}
+          </fieldset>
 
-            <label className="block">
+            <details className="customer-enquiry-topic">
+              <summary>Change enquiry type</summary>
+              <label className="block">
               <span className={labelClass}>What can we help with?</span>
               <NativeSelect value={type} onChange={(event) => changeType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
                 {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </NativeSelect>
-            </label>
+              </label>
+            </details>
 
-        {selectedVehicle && <fieldset className="space-y-4 border-t border-border pt-4">
+        {selectedVehicle && <details className="customer-enquiry-exchange" open={exchangeExpanded} onToggle={event => setExchangeExpanded(event.currentTarget.open)}>
+          <summary>Add a part exchange (optional)</summary>
+          <fieldset className="space-y-4 border-t border-border pt-4">
           <legend className="text-sm font-semibold">Do you have a car to part-exchange?</legend>
           <div className="flex gap-3">
             {[false, true].map(value => <label key={String(value)} className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm border px-4 text-sm transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-accent ${hasPartExchange === value ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-secondary"}`}>
@@ -401,7 +410,7 @@ export function EnquiryForm({
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
             </label></details>
           </div>}
-        </fieldset>}
+        </fieldset></details>}
         <details open={!hasPartExchange || Boolean(message) || undefined} className="border-t border-border pt-2">
           <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{hasPartExchange ? 'Add a message (optional)' : 'Your message'}</summary>
         <label className="block">

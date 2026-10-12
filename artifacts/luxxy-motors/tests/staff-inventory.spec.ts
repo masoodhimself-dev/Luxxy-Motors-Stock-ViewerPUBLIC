@@ -103,6 +103,7 @@ test("phone QR upload compresses and reviews actual pixels, sends no EXIF or tok
   page,
 }) => {
   const token = "fictional-phone-grant";
+  await page.addInitScript(() => Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true }));
   let posts = 0;
   await page.route("**/api/service-book-upload", async (r) => {
     expect(r.request().headers()["x-service-upload-token"]).toBe(token);

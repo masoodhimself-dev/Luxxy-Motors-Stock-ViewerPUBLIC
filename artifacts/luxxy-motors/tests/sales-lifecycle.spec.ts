@@ -368,6 +368,7 @@ async function payment(
     .getByRole("combobox", { name: "Payment method", exact: true })
     .selectOption(method);
   await dialog.getByLabel("Payment date", { exact: true }).fill("2026-10-04");
+  await dialog.locator(".sales-payment-options > summary").click();
   await dialog
     .getByLabel("Payment reference", { exact: true })
     .fill(`FIXTURE-${kind}`);

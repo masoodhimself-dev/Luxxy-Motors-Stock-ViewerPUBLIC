@@ -1,4 +1,3 @@
-import { VehicleFactIcon } from './vehicle-fact-icon';
 import { HoverHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
@@ -270,10 +269,10 @@ export function CarCard({
             {!catalogue && <VehicleSellingPoints car={car} compact />}
             <div className="vehicle-specs mb-3 mt-2">
               {visibleSpecs.map((spec) => (
-                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex items-center gap-1.5" ariaLabel={`${spec.label}: ${spec.value}`}><VehicleFactIcon label={spec.label} />{spec.value}</VehicleTerm>
+                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex items-center gap-1.5" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
               ))}
             </div>
-            {catalogueHighlights.length > 0 && <ul className="stock-catalogue-highlights" aria-label="Vehicle highlights">{catalogueHighlights.map(point => <li key={point.label}><VehicleTerm label={point.label} value={point.text}><VehicleFactIcon label={point.label} />{point.text}</VehicleTerm></li>)}</ul>}
+            {catalogueHighlights.length > 0 && <ul className="stock-catalogue-highlights" aria-label="Vehicle highlights">{catalogueHighlights.map(point => <li key={point.label}><VehicleTerm label={point.label} value={point.text}>{point.text}</VehicleTerm></li>)}</ul>}
             {(!catalogue || catalogueHighlights.length === 0) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
             <div
               className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"

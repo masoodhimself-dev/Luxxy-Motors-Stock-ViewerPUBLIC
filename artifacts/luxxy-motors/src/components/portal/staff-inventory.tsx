@@ -82,8 +82,9 @@ function PrivatePhoto({
       responseType: "blob",
     })
       .then((blob) => {
+        if (cancelled) return;
         object = URL.createObjectURL(blob);
-        if (!cancelled) setUrl(object);
+        setUrl(object);
       })
       .catch(() => setError(true));
     return () => {

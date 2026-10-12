@@ -77,10 +77,38 @@ export function CustomerHistory({ contact, enquiries, reservations, onReuse, com
 }
 
 export function TodayDesk({ entries, onOpen }: { entries: Enquiry[]; onOpen: (entry: Enquiry) => void }) {
+  const [expanded, setExpanded] = useState<string[]>([]);
   const today = londonDate();
   const appointments = entries.filter(e => e.appointmentAt && !e.appointmentCancelledAt && londonDate(new Date(e.appointmentAt)) === today).sort((a,b) => a.appointmentAt!.localeCompare(b.appointmentAt!));
   const due = entries.filter(e => e.followUpAt && !e.followUpCompletedAt && londonDate(new Date(e.followUpAt)) <= today).sort((a,b) => a.followUpAt!.localeCompare(b.followUpAt!));
   const waiting = entries.filter(e => e.status === 'new' && !e.callOutcome && !e.appointmentAt && !e.followUpAt);
   const overdue = due.filter(entry => Date.parse(entry.followUpAt!) <= Date.now()).length;
-  return <section className="enquiry-today-desk space-y-5"><div><h3 className="text-xl font-semibold">Today in the showroom</h3><p className="text-sm text-muted-foreground">{new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/London', dateStyle: 'full' })} · UK time</p></div><div className="grid gap-4 xl:grid-cols-3">{[{ title: 'Appointments today', rows: appointments }, { title: 'Follow-ups today', rows: due }, { title: 'Waiting for a reply', rows: waiting }].map(group => <section key={group.title} className="enquiry-today-group min-w-0 rounded border border-slate-200 bg-white p-4"><h4 className="mb-3 font-semibold">{group.title} <span className="ml-1 rounded-full bg-slate-100 px-2 py-1 text-sm">{group.rows.length}</span></h4>{group.title === 'Follow-ups today' && <p className="mb-3 text-xs text-muted-foreground">{overdue} overdue now · {due.length - overdue} later today</p>}<ul className="space-y-4">{group.rows.map(entry => <li key={entry.id} className="border-t pt-3"><button className="text-left font-semibold text-blue-900 underline underline-offset-4" onClick={() => onOpen(entry)}>{entry.customerName} · {entry.reference}</button><p className="mt-1 text-sm">{entry.vehicleTitle || 'General enquiry'}</p>{group.title === 'Appointments today' && <><p className="my-2 text-sm">{appointmentLabel(entry.appointmentAt!)}</p><AttendanceControls entry={entry} /><AppointmentExceptionLabels booking={entry} /></>}{group.title === 'Follow-ups today' && <p className="mt-2 text-xs font-medium">{Date.parse(entry.followUpAt!) <= Date.now() ? 'Overdue now' : 'Due later today'}</p>}<p className="mt-1 text-xs text-muted-foreground">{entry.assignedToName || 'Unassigned'}</p><NextAction entry={entry} /></li>)}</ul>{!group.rows.length && <p className="py-5 text-sm text-muted-foreground">Nothing to show here.</p>}</section>)}</div></section>;
+  const groups = [
+    { id: 'appointments', title: 'Appointments today', rows: appointments, empty: 'No appointments today.' },
+    { id: 'followups', title: 'Follow-ups today', rows: due, empty: 'No follow-ups due. You’re up to date.' },
+    { id: 'waiting', title: 'Waiting for a reply', rows: waiting, empty: 'No new enquiries waiting for a reply.' },
+  ];
+  return <section className="enquiry-today-desk space-y-5">
+    <div><h3 className="text-xl font-semibold">Today in the showroom</h3><p className="text-sm text-muted-foreground">{new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/London', dateStyle: 'full' })} · UK time</p></div>
+    <div className="enquiry-today-columns grid gap-4 xl:grid-cols-3">{groups.map(group => {
+      const all = expanded.includes(group.id);
+      const visible = all ? group.rows : group.rows.slice(0, 5);
+      return <section key={group.id} className="enquiry-today-group min-w-0 rounded border border-slate-200 bg-white p-4" aria-label={group.title}>
+        <header className="enquiry-today-group-heading"><h4>{group.title}</h4><span className="enquiry-today-total">{group.rows.length}</span></header>
+        {group.id === 'followups' && <p className="enquiry-today-group-note">{overdue} overdue now · {due.length - overdue} later today</p>}
+        <ul className="enquiry-today-records">{visible.map(entry => <li key={entry.id}>
+          <button type="button" className="enquiry-today-open" onClick={() => onOpen(entry)} aria-label={`Open enquiry for ${entry.customerName}, ${entry.reference}`}>
+            <span className="enquiry-today-record-heading"><strong>{entry.customerName}</strong>{group.id === 'appointments' && <time dateTime={entry.appointmentAt!}>{new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' }).format(new Date(entry.appointmentAt!))}</time>}</span>
+            <span className="enquiry-today-record-vehicle">{entry.vehicleTitle || 'General enquiry'}</span>
+            <span className="enquiry-today-record-meta">{entry.assignedToName || 'Unassigned'} · {entry.reference}</span>
+            {group.id === 'followups' && <span className="enquiry-today-followup-time" data-overdue={Date.parse(entry.followUpAt!) <= Date.now()}>{Date.parse(entry.followUpAt!) <= Date.now() ? 'Overdue · ' : 'Due · '}{appointmentLabel(entry.followUpAt!)}</span>}
+            {group.id === 'appointments' && entry.appointmentStatus === 'pending' && <span className="enquiry-today-followup-time">Awaiting approval</span>}
+          </button>
+          {group.id === 'appointments' && <><AppointmentExceptionLabels booking={entry} /><AttendanceControls entry={entry} /></>}
+        </li>)}</ul>
+        {!group.rows.length && <p className="enquiry-today-empty">{group.empty}</p>}
+        {group.rows.length > 5 && <Button type="button" variant="outline" size="sm" className="enquiry-today-expand" aria-expanded={all} onClick={() => setExpanded(current => all ? current.filter(id => id !== group.id) : [...current, group.id])}>{all ? 'Show fewer' : `Show all ${group.rows.length}`}</Button>}
+      </section>;
+    })}</div>
+  </section>;
 }

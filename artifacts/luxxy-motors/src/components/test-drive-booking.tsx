@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import '../pages/customer-workflows.css';
 import { Link, useLocation } from "wouter";
 import {
   useCreateEnquiry,
@@ -139,6 +140,10 @@ export function TestDriveBooking({
   const [selectedDate, setSelectedDate] = useState(
     () => dates[0] ?? londonDate(),
   );
+  // Keep the immediate choices short. Every later date remains in the selector,
+  // and a selected later date replaces the last quick choice so it stays visible.
+  const quickDates = dates.slice(0, 7);
+  if (dates.includes(selectedDate) && !quickDates.includes(selectedDate)) quickDates[quickDates.length - 1] = selectedDate;
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -433,7 +438,7 @@ export function TestDriveBooking({
             {websiteText(settings, "viewingDescription")}
           </p>
         </header>
-        <div className="rounded-sm border border-border bg-card p-5 sm:p-8">
+        <div className="booking-panel rounded-sm border border-border bg-card p-5 sm:p-8">
           {isLoading || settingsLoading ? (
             <div role="status" className="space-y-4 py-8">
               <p>Loading your booking options…</p>
@@ -743,7 +748,7 @@ export function TestDriveBooking({
                     className="mt-5 flex gap-2 overflow-x-auto overscroll-x-contain pb-3"
                     data-testid="group-viewing-dates"
                   >
-                    {dates.map((date) => (
+                    {quickDates.map((date) => (
                       <button
                         key={date}
                         type="button"

@@ -7,13 +7,14 @@ import { callOutcomes, nextAction, type CallOutcome } from '@/lib/enquiry-desk-m
 import { appointmentLabel } from '@/lib/test-drive-dates';
 import { formatPrice } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
-import { HistoryLinks, customerHistoryHref } from './history-links';
+import { HistoryLinks } from './history-links';
 import { Chip } from './portal-ui';
 import { AppointmentExceptionLabels } from './enquiry-calendar';
 import { AttendanceControls, NextAction, useRefreshDesk, workspaceError } from './enquiry-workspace-tools';
 import { ConversationHistory } from './enquiry-conversation';
 import { callbackTiming } from './enquiry-callback-model';
 import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
+import { EnquiryPhotoPeek } from './enquiry-photo-peek';
 import './enquiry-record-browser.css';
 
 export type EnquiryRecordActions = {
@@ -24,6 +25,7 @@ export type EnquiryRecordActions = {
   onBook: (entry: Enquiry) => void;
   onVehicle: (car: Car) => void;
   onMerge?: (entry: Enquiry) => void;
+  onEmail?: (entry: Enquiry) => void;
 };
 
 function enquiryStatus(entry: Enquiry) {
@@ -41,29 +43,38 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
   const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
   const future = entry.appointmentAt && Date.parse(entry.appointmentAt) > Date.now() && !entry.appointmentCancelledAt;
   return <>
-    <div className="enquiry-detail-heading"><div><h3>{entry.customerName}</h3><p className="text-xs text-muted-foreground">{entry.reference} · {entry.assignedToName || 'Unassigned'}</p></div><Chip>{enquiryStatus(entry)}</Chip></div>
-    <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}</div>
-    <div className="enquiry-detail-owner"><p className="text-sm">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
+    <header className="enquiry-detail-customer">
+      <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{entry.reference}</p><h3>{entry.customerName}</h3></div><Chip>{enquiryStatus(entry)}</Chip></div>
+      <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}</div>
+      <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
+    </header>
     <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       <Button size="sm" onClick={() => actions.onConversation(entry)}>Log another conversation</Button>
       <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Request follow-up'}</Button>
-      <details className="enquiry-desk-more"><summary>More options</summary><div><Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
-      {actions.onMerge && <Button size="sm" variant="outline" onClick={() => actions.onMerge?.(entry)}>Merge records</Button>}</div></details>
+      {actions.onEmail && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Email customer</Button>}
     </div>
-    <section className="enquiry-detail-car" aria-label="Enquiry vehicle"><h4>{entry.vehicleTitle || 'General showroom enquiry'}</h4>{entry.vehicleRegistration && <p className="text-sm font-medium">{entry.vehicleRegistration}</p>}{entry.vehicleId && <p className="text-xs text-muted-foreground">{car ? car.inventoryStatus === 'available' ? 'Available' : car.inventoryStatus === 'reserved' ? 'Reserved' : 'Availability unconfirmed' : 'No longer in current stock'}</p>}{!entry.vehicleId && entry.vehicleTitle && <p className="text-xs text-muted-foreground">Ad hoc vehicle — not showroom stock{entry.vehiclePrice != null ? ` · ${formatPrice(entry.vehiclePrice)}` : ''}</p>}{entry.createdAt && <p className="text-xs text-muted-foreground">{entry.source === 'website_callback' ? 'Callback requested' : 'Received'} <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>{entry.preferredContact ? ` · Preferred contact: ${entry.preferredContact}` : ''}</p>}</section>
-    {entry.callOutcome && <p className="text-sm"><strong>Latest outcome: </strong>{callOutcomes[entry.callOutcome as CallOutcome] || entry.callOutcome}</p>}
-    <NextAction entry={entry} />
-    {entry.followUpAt && <div className="enquiry-detail-followup"><p className="font-medium text-sm">{entry.followUpCompletedAt ? 'Follow-up completed' : callbackTiming(entry) === 'overdue' ? 'Follow-up overdue' : 'Upcoming follow-up'}</p><p className="text-sm">{appointmentLabel(entry.followUpAt)}</p>{entry.followUpNote && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{entry.followUpNote}</p>}</div>}
-    {entry.appointmentAt && <section className="enquiry-detail-appointment"><p className="text-sm font-medium">Appointment · {appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} /><AttendanceControls entry={entry} /></section>}
-    <div className="enquiry-detail-actions" aria-label="Appointment, vehicle and history actions">
-      {future && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}
-      {!entry.appointmentAt && <Button variant="outline" size="sm" onClick={() => actions.onBook(entry)}>Book test drive</Button>}
+    <section className="enquiry-detail-car" aria-label="Enquiry vehicle">
+      {car && <EnquiryPhotoPeek car={car} className="enquiry-detail-car-photo" />}
+      <div className="enquiry-detail-car-copy"><h4>{entry.vehicleTitle || 'General showroom enquiry'}</h4>{entry.vehicleRegistration && <p className="text-sm font-medium">{entry.vehicleRegistration}</p>}{entry.vehicleId && <p className="enquiry-detail-availability">{car ? car.inventoryStatus === 'available' ? 'Available' : car.inventoryStatus === 'reserved' ? 'Reserved' : 'Availability unconfirmed' : 'No longer in current stock'}</p>}{car?.price != null && <p className="text-sm font-semibold">{formatPrice(car.price)}</p>}{!entry.vehicleId && entry.vehicleTitle && <p className="text-xs text-muted-foreground">Ad hoc vehicle — not showroom stock{entry.vehiclePrice != null ? ` · ${formatPrice(entry.vehiclePrice)}` : ''}</p>}</div>
       {car && <Button size="sm" variant="outline" onClick={() => actions.onVehicle(car)}>Vehicle information</Button>}
+    </section>
+    <section className="enquiry-detail-next-step" aria-label="Customer next step">
+      <NextAction entry={entry} />
+      {entry.followUpAt && <div className="enquiry-detail-followup"><p className="font-medium text-sm">{entry.followUpCompletedAt ? 'Follow-up completed' : callbackTiming(entry) === 'overdue' ? 'Follow-up overdue' : 'Upcoming follow-up'}</p>{entry.followUpCompletedAt && <p className="text-sm">{appointmentLabel(entry.followUpAt)}</p>}{entry.followUpNote && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{entry.followUpNote}</p>}</div>}
+      {entry.appointmentAt && <section className="enquiry-detail-appointment"><p className="text-sm font-medium">Appointment · {appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} /><AttendanceControls entry={entry} /></section>}
+      <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{!entry.appointmentAt && <Button variant="outline" size="sm" onClick={() => actions.onBook(entry)}>Book test drive</Button>}</div>
+    </section>
+    <details className="enquiry-desk-more enquiry-detail-more"><summary>More options</summary><div>
+      <Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
       <Button size="sm" variant="outline" asChild><Link href={`/portal?section=sales&enquiryId=${entry.id}`}>Start sale</Link></Button>
+      {actions.onMerge && <Button size="sm" variant="outline" onClick={() => actions.onMerge?.(entry)}>Merge records</Button>}
       <HistoryLinks vehicleId={entry.vehicleId} recordType="enquiry" recordId={entry.id} vehicle={Boolean(entry.vehicleId || entry.vehicleTitle)} />
+    </div></details>
+    <div className="enquiry-detail-record-meta">
+      {entry.callOutcome && <p><strong>Latest outcome: </strong>{callOutcomes[entry.callOutcome as CallOutcome] || entry.callOutcome}</p>}
+      {entry.createdAt && <p>{entry.source === 'website_callback' ? 'Callback requested' : 'Received'} <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>{entry.preferredContact ? ` · Preferred contact: ${entry.preferredContact}` : ''}</p>}
     </div>
     <ConversationHistory entry={entry} />
-    <Link className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4" href={customerHistoryHref('enquiry', entry.id)}>Open full customer history</Link>
   </>;
 }
 

@@ -304,10 +304,38 @@ for (const width of [390, 820, 1440]) {
     const api = new PracticalSalesApi(); await api.attach(context);
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.setViewportSize({ width, height: 1000 }); await startDeal(page);
+    await page.getByText("Part exchange (optional)", { exact: true }).click();
+    await page.getByRole("button", { name: "Add part-exchange car" }).click();
+    await page.getByLabel("Registration 1", { exact: true }).fill("CD16 EFG");
+    await page.getByLabel("Make and model 1", { exact: true }).fill("Fictional customer part-exchange vehicle with a longer model name");
+    await page.getByLabel("Allowance (£) 1", { exact: true }).fill("1000.10");
+    await page.getByText("Fees & discounts (optional)", { exact: true }).click();
+    await page.getByRole("button", { name: "Add fee or discount" }).click();
+    await page.getByLabel("Description adjustment 1").fill("Agreed delivery to the customer’s supplied home address");
+    await page.getByLabel("Amount (£) adjustment 1").fill("100.20");
+    await page.getByRole("button", { name: "Add fee or discount" }).click();
+    await page.locator(".sales-entry-group").filter({ has: page.getByLabel("Description adjustment 2") }).getByRole("combobox").selectOption("discount");
+    await page.getByLabel("Description adjustment 2").fill("Agreed discount");
+    await page.getByLabel("Amount (£) adjustment 2").fill("0.10");
+    await page.locator(".sales-total-breakdown > summary").click();
+    await expect(page.locator(".sales-total-breakdown")).toContainText("£11,100.00");
+    const overlapping = await page.locator(".sales-active-sheet").evaluate(sheet => {
+      const boxes = [...sheet.querySelectorAll<HTMLElement>('input:not([type="checkbox"]), textarea, select')]
+        .map(element => ({ name: element.closest("label")?.textContent?.trim(), box: element.getBoundingClientRect() }))
+        .filter(({ box }) => box.width > 0 && box.height > 0);
+      return boxes.flatMap((a, i) => boxes.slice(i + 1).filter(b =>
+        Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left) > 1 &&
+        Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top) > 1,
+      ).map(b => [a.name, b.name]));
+    });
+    expect(overlapping).toEqual([]);
+    await mkdir("output/ui-premium/practical-sales", { recursive: true });
+    if (width > 1100) await expect(page.locator('.sales-pdf-page[data-rendered="true"]').first()).toBeVisible();
+    await screenshot(page, "deal-edit-expanded", width);
     const preview = page.getByRole("button", { name: "Invoice preview", exact: true });
     if (await preview.isVisible()) await preview.click();
     await expect(page.locator(".sales-live-paper")).toContainText("Alex Practical");
-    await expect(page.locator(".sales-live-paper")).toContainText("£12,000.00");
+    await expect(page.locator(".sales-live-paper")).toContainText("£11,100.00");
     await expect(page.locator('.sales-pdf-page[data-rendered="true"]').first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await mkdir("output/ui-premium/practical-sales", { recursive: true });

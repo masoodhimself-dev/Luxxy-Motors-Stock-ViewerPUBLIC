@@ -155,6 +155,7 @@ export const enquiriesTable = pgTable(
       table.dealerId,
       table.reference,
     ),
+    uniqueIndex("enquiries_id_dealer_id_unique").on(table.id, table.dealerId),
     uniqueIndex("enquiries_manage_token_hash_uidx").on(table.manageTokenHash),
     index("enquiries_dealer_visitor_idx").on(table.dealerId, table.visitorId),
   ],

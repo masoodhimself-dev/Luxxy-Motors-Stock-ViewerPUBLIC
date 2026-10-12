@@ -236,7 +236,7 @@ function PortalDesk() {
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
               {tab === 'overview' && <DealerDashboard />}
               {tab === 'inventory' && <StaffInventory />}
-              {tab === 'enquiries' && <EnquiriesPanel />}
+              {tab === 'enquiries' && <EnquiriesPanel canEmail={canSell} />}
               {tab === 'chat' && <ChatPanel />}
               {tab === 'test-drives' && <TestDriveBookingsPanel />}
               {tab === 'reservations' && <><ReservationsPanel /><StripeReservationsPanel /></>}
