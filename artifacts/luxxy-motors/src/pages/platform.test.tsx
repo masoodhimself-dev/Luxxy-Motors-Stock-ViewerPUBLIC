@@ -35,7 +35,7 @@ it('guides draft creation using the current account and real DNS instructions', 
 });
 it('searches dealer names and never invents an import success', async () => {
   vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({ dealers:[dealer],activity:[] })));
-  render(<Platform />); await screen.findByText('Example Dealer');
+  render(<Platform />); await screen.findAllByText('Example Dealer');
   fireEvent.click(screen.getByRole('button',{name:'Dealerships'}));
   expect(screen.getByText('Last successful import: Not yet')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Search dealerships'),{target:{value:'another'}});
@@ -67,4 +67,14 @@ it('issues a dealer-specific secret once and clears it when leaving the tab', as
   expect(screen.getByRole('button',{name:'Create import credential'})).toBeDisabled();
   fireEvent.click(screen.getByRole('tab',{name:'Setup'}));
   expect(screen.queryByLabelText('Import secret')).not.toBeInTheDocument();
+});
+it('expands price reductions and missing adverts with recorded backend timing', async () => {
+ const run = {dealerId:dealer.id,runId:'sample-run',status:'completed',receivedAt:'2026-10-12T15:00:00Z',updatedAt:'2026-10-12T15:00:02Z',scrapedAt:'2026-10-12T14:59:00Z',receivedCount:8,addedCount:1,changedCount:1,missingCount:1};
+ vi.stubGlobal('fetch',vi.fn(async path => String(path).endsWith('/imports/sample-run') ? Response.json({duration_ms:2000,change_count:1,previous_run_id:'previous',changes:[{id:'car',advert_id:'advert',title:'Example hatchback',added:false,fields:['sourcePrice'],old_price:'10000',new_price:'9500'}],newly_missing:[{advert_id:'missing',title:'Previous vehicle'}]}) : Response.json({dealers:[dealer],activity:[run]})));
+ render(<Platform />); await screen.findAllByText('Example Dealer');
+ fireEvent.click(screen.getByRole('button',{name:'Import activity'}));
+ expect(screen.getByText('2.00 s')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'View vehicle changes'}));
+ expect(await screen.findByText('Price reduced: £10,000 → £9,500')).toBeInTheDocument();
+ expect(screen.getByText('Absent from source; not marked sold.')).toBeInTheDocument();
 });

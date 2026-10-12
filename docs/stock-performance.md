@@ -52,3 +52,9 @@ node --test dist-test/stock-performance-baseline.test.mjs
 The dashboard fixture has 30 sales with archived document data and 20 substantial raw snapshots. Counts and lists are compared against the original TypeScript calculation. Tests also cover duplicate replay, actual price/description/equipment/gallery changes, image reactivation, source-check metadata, dealer overrides, concurrent reservation-owner preservation, two missing confirmations, staff authorization and cross-dealer isolation.
 
 These query/write/transfer measurements are reproducible local workloads, not promises about production latency or Grok's total runtime. The 24 per-vehicle sighting updates remain; the expensive repeated gallery writes and dashboard record transfers are removed.
+
+## Platform import activity
+
+Platform administrators can expand an import to inspect compact vehicle audit changes, applied old/new source prices, and adverts newly absent compared with the previous successful snapshot for the same dealer and marketplace. Source disappearance is not a sale. Existing missing visibility and dealer override safeguards remain unchanged. Price-review fields are flagged separately from applied source prices.
+
+Summary cards include received/expected, added/changed/unchanged and cumulative missing counts, collection timestamp, errors and recorded backend processing duration (`updatedAt - receivedAt`). That duration is based on database run timestamps, excludes collection/network transfer and is not the end-to-end worker runtime. Replays have no separate import record. Vehicle details load on demand, are capped at 250 changed and 250 newly missing adverts, and never return full snapshots or image URLs. The detail endpoint uses the existing platform-host/admin guard and explicit dealer/run matching.
