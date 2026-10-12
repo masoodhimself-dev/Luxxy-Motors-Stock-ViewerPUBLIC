@@ -490,8 +490,55 @@ function NewCall({
   }
   return (
     <form onSubmit={submit} className="enquiry-new-call grid gap-6">
+      <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-caller-section min-w-0 space-y-4">
+        <legend className="mb-4 font-semibold">1. Customer</legend>
+        <label className={field}>
+          Customer name
+          <Input
+            required
+            minLength={2}
+            maxLength={120}
+            autoComplete="off"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <div className="enquiry-contact-fields grid gap-4 sm:grid-cols-2">
+          <label className={field}>
+            Phone number
+            <Input
+              required
+              type="tel"
+              autoComplete="off"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </label>
+          <label className={field}>
+            Email (optional)
+            <Input
+              type="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+        </div>
+        <label className={field}>
+          Call notes (optional)
+          <Textarea
+            rows={2}
+            maxLength={2000}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Questions, requests or anything to prepare"
+          />
+        </label>
+        <details className="enquiry-desk-more"><summary>Assignment and call outcome</summary><OwnerSelect value={assignedToId} onChange={setAssignedToId} />{!booking && <label className={field}>Call outcome<NativeSelect value={outcome} onChange={e => setOutcome(e.target.value)}>{Object.entries(callOutcomes).filter(([value]) => value !== "test_drive_booked").map(([value,label]) => <option key={value} value={value} disabled={value === "callback_requested" && !followUp}>{label}</option>)}</NativeSelect></label>}</details>
+        <CustomerHistory contact={{ customerName: name, phone, email }} enquiries={enquiries} reservations={reservations} compact onReuse={contact => { setName(contact.customerName); setPhone(contact.phone ?? ""); setEmail(contact.email ?? ""); }} />
+      </fieldset>
       <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-vehicle-section min-w-0 space-y-4">
-        <legend className="mb-4 font-semibold">1. Vehicle information</legend>
+        <legend className="mb-4 font-semibold">2. Vehicle</legend>
         <label className={field}>
           Vehicle source
           <NativeSelect
@@ -596,7 +643,7 @@ function NewCall({
                   Change selected car
                 </Button>
                 </div>
-                <VehicleDeskContext car={car} />
+                <details className="enquiry-desk-more"><summary>Vehicle history and preparation</summary><VehicleDeskContext car={car} /></details>
               </div>
             )}
             <div
@@ -633,55 +680,8 @@ function NewCall({
           </>
         )}
       </fieldset>
-      <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-caller-section min-w-0 space-y-4">
-        <legend className="mb-4 font-semibold">2. Customer and call notes</legend>
-        <label className={field}>
-          Customer name
-          <Input
-            required
-            minLength={2}
-            maxLength={120}
-            autoComplete="off"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <div className="enquiry-contact-fields grid gap-4 sm:grid-cols-2">
-          <label className={field}>
-            Phone number
-            <Input
-              required
-              type="tel"
-              autoComplete="off"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </label>
-          <label className={field}>
-            Email (optional)
-            <Input
-              type="email"
-              autoComplete="off"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-        </div>
-        <label className={field}>
-          Call notes (optional)
-          <Textarea
-            rows={2}
-            maxLength={2000}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Questions, requests or anything to prepare"
-          />
-        </label>
-        <OwnerSelect value={assignedToId} onChange={setAssignedToId} />
-        <CustomerHistory contact={{ customerName: name, phone, email }} enquiries={enquiries} reservations={reservations} compact onReuse={contact => { setName(contact.customerName); setPhone(contact.phone ?? ""); setEmail(contact.email ?? ""); }} />
-      </fieldset>
       <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-action-section min-w-0 space-y-4">
-        <legend className="mb-4 font-semibold">3. Next step</legend>
+        <legend className="mb-4 font-semibold">Next step</legend>
         <fieldset className="enquiry-next-step space-y-2 border-t border-border pt-4">
           <legend className="sr-only">Call action</legend>
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
@@ -728,7 +728,7 @@ function NewCall({
             {appointmentLabel(time)}
           </p>
         )}
-        {!booking && <label className={field}>Call outcome<NativeSelect value={outcome} onChange={e => setOutcome(e.target.value)}>{Object.entries(callOutcomes).filter(([value]) => value !== "test_drive_booked").map(([value,label]) => <option key={value} value={value} disabled={value === "callback_requested" && !followUp}>{label}</option>)}</NativeSelect></label>}
+
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
           <input
             type="checkbox"
@@ -910,7 +910,7 @@ export function EnquiriesPanel() {
   const routeSearch = useSearch();
   const requestedEnquiry = new URLSearchParams(routeSearch).get('enquiryId');
   const openedEnquiry = useRef<string | null>(null);
-  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar" | "today" | "callbacks">("new");
+  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar" | "today" | "callbacks">("today");
   const [globalSearch, setGlobalSearch] = useState("");
   const [ownerScope, setOwnerScope] = useState("all");
   const [workspaceEntry, setWorkspaceEntry] = useState<Enquiry | null>(null);
@@ -1007,24 +1007,23 @@ export function EnquiriesPanel() {
         </div>
         <span className="enquiry-stock-count text-xs">{stock?.cars.length ?? 0} {stock?.cars.length === 1 ? "car" : "cars"} in current stock</span>
       </div>
-      <Tabs value={mode} onValueChange={(value) => { setMode(value as typeof mode); setGlobalSearch(""); }}>
-        <TabsList aria-label="Enquiry workspace" className="enquiry-workspace-tabs flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-[#e8eef5] p-2">
-          <TabsTrigger value="today" id="desk-tab-today" aria-controls="desk-panel-today" className="min-h-11 rounded-sm px-5">Today</TabsTrigger>
-          <TabsTrigger value="new" id="desk-tab-new" aria-controls="desk-panel-new" className="min-h-11 rounded-sm px-5">New call</TabsTrigger>
-          <TabsTrigger value="callbacks" id="desk-tab-callbacks" aria-controls="desk-panel-callbacks" className="min-h-11 rounded-sm px-5">Callbacks ({callbackCount})</TabsTrigger>
-          <TabsTrigger value="stock" id="desk-tab-stock" aria-controls="desk-panel-stock" className="min-h-11 rounded-sm px-5">All cars</TabsTrigger>
-          <TabsTrigger value="calendar" id="desk-tab-calendar" aria-controls="desk-panel-calendar" className="min-h-11 rounded-sm px-5">Calendar</TabsTrigger>
-          <TabsTrigger value="history" id="desk-tab-history" aria-controls="desk-panel-history" className="min-h-11 rounded-sm px-5">Find enquiry or appointment</TabsTrigger>
+      <Tabs value={mode === "callbacks" ? "today" : mode === "new" || mode === "stock" ? "history" : mode} onValueChange={(value) => { setMode(value as typeof mode); setGlobalSearch(""); }}>
+        <TabsList aria-label="Enquiry workspace" className="enquiry-workspace-tabs flex h-auto w-full justify-start gap-1 rounded-none border-b bg-[#e8eef5] p-2">
+          <TabsTrigger value="today" onClick={() => { setMode("today"); setGlobalSearch(""); }} id="desk-tab-today" aria-controls="desk-panel-today" className="min-h-11 rounded-sm px-5">Today</TabsTrigger>
+          <TabsTrigger value="history" onClick={() => { setMode("history"); setGlobalSearch(""); }} id="desk-tab-history" aria-controls="desk-panel-history" className="min-h-11 rounded-sm px-5">Enquiries</TabsTrigger>
+          <TabsTrigger value="calendar" onClick={() => { setMode("calendar"); setGlobalSearch(""); }} id="desk-tab-calendar" aria-controls="desk-panel-calendar" className="min-h-11 rounded-sm px-5">Calendar</TabsTrigger>
         </TabsList>
       </Tabs>
       <div aria-label="Workspace actions" data-record-mode={mode === "history" || mode === "callbacks" ? "true" : "false"} className="enquiry-workspace-ribbon flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
+        <Button id="desk-tab-new" size="sm" onClick={() => { setMode("new"); setGlobalSearch(""); }}>New enquiry</Button>
+        <details className="enquiry-desk-more"><summary>More tools</summary><div><Button variant="ghost" size="sm" onClick={() => { setMode("callbacks"); setGlobalSearch(""); }}>Callbacks ({callbackCount})</Button><Button variant="ghost" size="sm" onClick={() => { setMode("stock"); setGlobalSearch(""); }}>Browse showroom stock</Button></div></details>
         <Button variant="outline" size="sm" aria-label="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); directory.refetch(); reservations.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
         <Button variant="outline" size="sm" onClick={() => { if (mode === "callbacks") { setCallbackFilter("overdue"); setCallbackSearch(""); } else { setMode("history"); setFilter("due"); setSearch(""); } setGlobalSearch(""); setSelectedEnquiryId(null); }}>Overdue now ({dueCount})</Button>
         {mode === "history" ? <>
           <label className="grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { setSearch(event.target.value); setSelectedEnquiryId(null); }} placeholder="Name, phone, email, reference or car" /></label>
-          <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); setSelectedEnquiryId(null); }}>
+          <details className="enquiry-desk-more"><summary>More filters{filter !== "all" ? " · active" : ""}</summary><label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); setSelectedEnquiryId(null); }}>
             <option value="all">All enquiries</option><option value="upcoming">Upcoming test drives</option><option value="today">Today’s test drives</option><option value="followups">Follow-ups</option><option value="due">Overdue follow-ups</option>
-          </NativeSelect></label>
+          </NativeSelect></label></details>
         </> : mode === "callbacks" ? <>
           <label className="grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); setSelectedEnquiryId(null); }} placeholder="Customer, contact, registration or reference" /></label>
           <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show callbacks</span><NativeSelect value={callbackFilter} onChange={event => { setCallbackFilter(event.target.value); setSelectedEnquiryId(null); }}>
@@ -1045,18 +1044,18 @@ export function EnquiriesPanel() {
         )}
         {globalSearch.trim() && <><Button size="sm" variant="outline" onClick={() => setGlobalSearch("")}>Clear workspace search</Button>{(query.isError || reservations.isError) && <p role="alert" className="text-sm">Some records could not be loaded. Refresh to retry.</p>}<DeskSearchResults search={globalSearch} entries={scoped} allEntries={allEntries} reservations={reservations.data?.reservations ?? []} cars={stock?.cars ?? []} onEntry={openEntry} onCar={setInformation} onContact={setHistoryContact} /></>}
         <div hidden={Boolean(globalSearch.trim())} className="enquiry-workspace-views space-y-5">
-        {mode === "today" && <div role="tabpanel" id="desk-panel-today" aria-labelledby="desk-tab-today">{query.isLoading ? <p role="status">Loading today’s work…</p> : query.isError ? <p role="alert">Today’s work could not be loaded. Refresh to retry.</p> : <TodayDesk entries={scoped} onOpen={openEntry} />}</div>}
+        {mode === "today" && <div role="tabpanel" id="desk-panel-today" aria-labelledby="desk-tab-today">{query.isLoading ? <p role="status">Loading today’s work…</p> : query.isError ? <p role="alert">Today’s work could not be loaded. Refresh to retry.</p> : <><TodayDesk entries={scoped} onOpen={openEntry} /><Button variant="outline" onClick={() => setMode("callbacks")}>View callbacks ({callbackCount})</Button></>}</div>}
         <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby="desk-tab-new" className="enquiry-ledger-sheet border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           {directory.isLoading ? <p role="status">Loading your workspace…</p> : <NewCall key={`${formKey}:${directory.data?.currentUserId ?? "unknown"}`} initial={initial} selection={selection} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} draftKey={draftKey} defaultOwnerId={directory.data?.currentUserId ?? ""} onDiscard={() => { setInitial(undefined); setSelection(undefined); setFormKey(key => key + 1); }} onSaved={saved} />}
           {(query.isError || reservations.isError) && <p className="mt-3 text-sm text-amber-900">Some customer history is unavailable. Use Refresh before assuming this is a new customer.</p>}
         </div>
-        <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-labelledby="desk-tab-stock">
+        <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-label="Showroom stock">
           <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { setSelection({ id: car.id, booking }); setMode("new"); }} />
         </div>
         <div hidden={mode !== "calendar"} role="tabpanel" id="desk-panel-calendar" aria-labelledby="desk-tab-calendar">
           {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <p role="alert">Appointments could not be loaded. Use Refresh to try again.</p> : <EnquiryCalendar entries={scoped} allEntries={allEntries} onOpen={openEntry} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
         </div>
-        {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-labelledby="desk-tab-callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={setSelectedEnquiryId} onBack={() => setSelectedEnquiryId(null)} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
+        {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-label="Callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={setSelectedEnquiryId} onBack={() => setSelectedEnquiryId(null)} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
         {mode === "history" && (
           <div role="tabpanel" id="desk-panel-history" aria-labelledby="desk-tab-history" className="enquiry-ledger-sheet enquiry-record-sheet enquiry-history-sheet border border-slate-200 bg-white">
 

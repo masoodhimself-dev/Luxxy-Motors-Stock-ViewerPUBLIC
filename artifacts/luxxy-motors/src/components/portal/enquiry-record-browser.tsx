@@ -47,8 +47,8 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       <Button size="sm" onClick={() => actions.onConversation(entry)}>Log another conversation</Button>
       <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Request follow-up'}</Button>
-      <Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
-      {actions.onMerge && <Button size="sm" variant="outline" onClick={() => actions.onMerge?.(entry)}>Merge records</Button>}
+      <details className="enquiry-desk-more"><summary>More options</summary><div><Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
+      {actions.onMerge && <Button size="sm" variant="outline" onClick={() => actions.onMerge?.(entry)}>Merge records</Button>}</div></details>
     </div>
     <section className="enquiry-detail-car" aria-label="Enquiry vehicle"><h4>{entry.vehicleTitle || 'General showroom enquiry'}</h4>{entry.vehicleRegistration && <p className="text-sm font-medium">{entry.vehicleRegistration}</p>}{entry.vehicleId && <p className="text-xs text-muted-foreground">{car ? car.inventoryStatus === 'available' ? 'Available' : car.inventoryStatus === 'reserved' ? 'Reserved' : 'Availability unconfirmed' : 'No longer in current stock'}</p>}{!entry.vehicleId && entry.vehicleTitle && <p className="text-xs text-muted-foreground">Ad hoc vehicle — not showroom stock{entry.vehiclePrice != null ? ` · ${formatPrice(entry.vehiclePrice)}` : ''}</p>}{entry.createdAt && <p className="text-xs text-muted-foreground">{entry.source === 'website_callback' ? 'Callback requested' : 'Received'} <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>{entry.preferredContact ? ` · Preferred contact: ${entry.preferredContact}` : ''}</p>}</section>
     {entry.callOutcome && <p className="text-sm"><strong>Latest outcome: </strong>{callOutcomes[entry.callOutcome as CallOutcome] || entry.callOutcome}</p>}
