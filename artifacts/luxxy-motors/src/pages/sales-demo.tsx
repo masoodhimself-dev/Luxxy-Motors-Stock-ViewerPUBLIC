@@ -42,6 +42,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import "@/sales-workspace.css";
+import "@/sales-focus.css";
 import {
   PdfSalesDocument,
   openSaleDocumentPdf,
@@ -206,6 +207,8 @@ export function SalesWorkspace({
     "modern" | "classic" | "blank"
   >("modern");
   const [editorView, setEditorView] = useState<"edit" | "preview">("edit");
+  const [focused, setFocused] = useState(true);
+  const [fitPreview, setFitPreview] = useState(true);
   const [message, setMessage] = useState("");
   const [problems, setProblems] = useState<string[]>([]);
   const [preparingPrint, setPreparingPrint] = useState(false);
@@ -218,6 +221,30 @@ export function SalesWorkspace({
   const consumedNewSaleRequest = useRef(0);
   const printCleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => printCleanup.current?.(), []);
+  useEffect(() => {
+    if (
+      !focused ||
+      problems.length === 0 ||
+      paymentDialog ||
+      completeDialog ||
+      handoverDialog ||
+      reversePayment
+    )
+      return;
+    // A failed action must remain visible even when the form has been scrolled
+    // down or a narrow screen is displaying the invoice instead of the fields.
+    setEditorView("edit");
+    const fields = heading.current?.closest(".sales-active-sheet");
+    if (fields) fields.scrollTop = 0;
+    heading.current?.focus({ preventScroll: true });
+  }, [
+    problems,
+    focused,
+    paymentDialog,
+    completeDialog,
+    handoverDialog,
+    reversePayment,
+  ]);
   useEffect(() => {
     const navigation = sectionNavigation.current;
     const active = navigation?.querySelector<HTMLElement>(
@@ -269,6 +296,8 @@ export function SalesWorkspace({
     setSnapshot(JSON.stringify(sale));
     setTab(0);
     setEditorView("edit");
+    setFocused(true);
+    setFitPreview(true);
     setMessage("");
     setProblems([]);
   };
@@ -621,7 +650,14 @@ export function SalesWorkspace({
       heading.current?.focus({ preventScroll: embedded });
       const content = heading.current?.closest(".sales-premium-content");
       content?.scrollTo({ top: 0, behavior: "instant" });
-      if (embedded && window.matchMedia("(max-width: 1100px)").matches)
+      heading.current
+        ?.closest(".sales-active-sheet")
+        ?.scrollTo({ top: 0, behavior: "instant" });
+      if (
+        embedded &&
+        !focused &&
+        window.matchMedia("(max-width: 1100px)").matches
+      )
         heading.current?.scrollIntoView({
           block: "start",
           behavior: "instant",
@@ -777,7 +813,8 @@ export function SalesWorkspace({
   };
   return (
     <div
-      className={`sales-workspace sales-premium-workspace sales-practical-workspace flex flex-col ${embedded ? "sales-embedded-workspace" : "fixed inset-0 z-[70]"}`}
+      className={`sales-workspace sales-premium-workspace sales-practical-workspace flex flex-col ${embedded ? "sales-embedded-workspace" : "fixed inset-0 z-[70]"} ${draft && focused ? "sales-focus-workspace" : ""}`}
+      data-receipt-style={receiptStyle}
     >
       {(!embedded || draft) && (
         <header className="sales-chrome sales-titlebar">
@@ -800,6 +837,16 @@ export function SalesWorkspace({
             </div>
           </div>
           <div className="sales-titlebar-actions">
+            {embedded && draft && (
+              <Button
+                className="sales-focus-toggle"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setFocused((value) => !value)}
+              >
+                {focused ? "Return to portal" : "Focus invoice"}
+              </Button>
+            )}
             <span className="sales-draft-state" data-dirty={dirty}>
               {dirty
                 ? "Unsaved changes"
@@ -1843,6 +1890,28 @@ export function SalesWorkspace({
                       ? selectedDocument.number
                       : "Draft · not issued"}
                   </span>
+                  {focused && receiptStyle === "modern" && (
+                    <div
+                      className="sales-preview-fit"
+                      role="group"
+                      aria-label="Document zoom"
+                    >
+                      <button
+                        type="button"
+                        aria-pressed={fitPreview}
+                        onClick={() => setFitPreview(true)}
+                      >
+                        Fit page
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={!fitPreview}
+                        onClick={() => setFitPreview(false)}
+                      >
+                        Larger view
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {Boolean(record?.documents.length) && (
                   <div className="sales-document-selector sales-chrome">
@@ -1904,6 +1973,7 @@ export function SalesWorkspace({
                       documentType={documentType}
                       issuedDocument={selectedDocument}
                       pdfUrl={documentPdfUrl}
+                      fitPage={focused && fitPreview}
                     />
                   )}
                 </div>

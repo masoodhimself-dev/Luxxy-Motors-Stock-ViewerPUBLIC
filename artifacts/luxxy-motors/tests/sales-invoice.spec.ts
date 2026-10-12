@@ -348,7 +348,13 @@ test("phone invoice remains readable and omits missing optional details", async 
   await mkdir(output, { recursive: true });
   await invoice.screenshot({ path: `${output}/invoice-phone.png` });
   const canvas = invoice.locator('canvas[data-rendered="true"]').first();
-  expect((await canvas.boundingBox())!.width).toBeGreaterThan(250);
+  // Fit page keeps the complete archive in view; staff can enlarge it without
+  // bringing back page scrolling or losing the document's original bytes.
+  await expect(canvas).toBeInViewport({ ratio: 1 });
+  await page.getByRole("button", { name: "Larger view", exact: true }).click();
+  await expect.poll(async () => (await canvas.boundingBox())?.width ?? 0).toBeGreaterThan(250);
+  expect(await previewPdf(page)).toEqual(pdf);
+  expect(await page.evaluate(() => document.scrollingElement!.scrollHeight <= innerHeight + 1)).toBe(true);
   expect(writes).toEqual([]); expect(errors).toEqual([]);
 });
 

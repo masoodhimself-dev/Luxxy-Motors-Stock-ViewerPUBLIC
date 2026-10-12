@@ -2,6 +2,14 @@
 
 The Sales section keeps one sale file for a customer and vehicle. Customer details, agreed charges, up to three part exchanges, payments, documents and handover arrangements stay together. The staff portal retains its existing access boundary.
 
+## Focused invoice workspace
+
+Opening a sale or starting **New sale** enters a full-screen editing workspace. On desktop, the fields scroll independently beside the actual PDF; the steps, save action and next action remain visible. **Fit page** scales each A4 page to the available height, while **Larger view** enlarges the document inside its own scrolling preview. Printing and downloading still use the original PDF bytes.
+
+On narrower tablet/phone screens, **Edit sale** and **Invoice preview** switch between the two panes without discarding entered values. **Return to portal** restores the surrounding navigation and retains the draft; **Focus invoice** resumes editing. **All sales** still asks before discarding unsaved changes. Validation errors return to the top of the form, while payment/completion dialogs retain their own error and focus handling.
+
+`tests/invoice-focus.spec.ts` checks short desktop, tablet and phone viewports, independent scrolling, complete A4 visibility, resizing, zoom, draft retention and error recovery using unsaved fictional data with API writes blocked.
+
 ## Staff workflow
 
 1. Start **New sale**, or reopen a sale by customer, telephone, registration or reference.

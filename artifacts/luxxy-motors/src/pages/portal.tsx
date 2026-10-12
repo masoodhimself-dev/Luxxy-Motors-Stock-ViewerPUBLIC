@@ -133,7 +133,7 @@ function PortalDesk() {
     const observer = new ResizeObserver(revealCurrent);
     observer.observe(navigation);
     return () => observer.disconnect();
-  }, [tab, sessionQuery.isLoading, sessionQuery.data?.state]);
+  }, [tab, sessionQuery.isLoading, sessionQuery.data?.state, visibleTabs.length]);
 
   if (sessionQuery.isLoading) {
     return (

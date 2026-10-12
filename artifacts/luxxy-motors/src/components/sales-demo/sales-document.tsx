@@ -84,7 +84,7 @@ export type SalesDocumentProps =
 export const salesDocumentTitle = (document: SaleWorkspaceDocument) =>
   document.title;
 
-export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot };
+export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot; fitPage?: boolean };
 type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot; preparedAt?: string };
 
 /** The draft uses the same snapshot shape and renderer as the eventual issued archive. */
@@ -155,7 +155,21 @@ export async function openSaleDocumentPdf(props: PdfSalesDocumentProps, action: 
 }
 
 /** Staff preview uses the real PDF. The text equivalent also makes every value accessible. */
-function PdfCanvasPages({ blob, title, unavailable, onRendered, onRenderFailed }: { blob: Blob | null; title: string; unavailable?: boolean; onRendered: (blob: Blob) => void; onRenderFailed: (blob: Blob) => void }) {
+function PdfCanvasPages({
+  blob,
+  title,
+  fitPage = false,
+  unavailable,
+  onRendered,
+  onRenderFailed,
+}: {
+  blob: Blob | null;
+  title: string;
+  fitPage?: boolean;
+  unavailable?: boolean;
+  onRendered: (blob: Blob) => void;
+  onRenderFailed: (blob: Blob) => void;
+}) {
   const container = useRef<HTMLDivElement>(null);
   const hasRendered = useRef(false);
   const onRenderedRef = useRef(onRendered);
@@ -163,16 +177,22 @@ function PdfCanvasPages({ blob, title, unavailable, onRendered, onRenderFailed }
   const onRenderFailedRef = useRef(onRenderFailed);
   onRenderFailedRef.current = onRenderFailed;
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   useEffect(() => {
     if (!blob) return;
-    let cancelled = false, resizeTimer: ReturnType<typeof setTimeout> | undefined;
-    let pdf: import('pdfjs-dist').PDFDocumentProxy | undefined;
-    let task: import('pdfjs-dist').PDFDocumentLoadingTask | undefined;
-    let renderTask: import('pdfjs-dist').RenderTask | undefined;
+    let cancelled = false,
+      resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    let pdf: import("pdfjs-dist").PDFDocumentProxy | undefined;
+    let task: import("pdfjs-dist").PDFDocumentLoadingTask | undefined;
+    let renderTask: import("pdfjs-dist").RenderTask | undefined;
     let observer: ResizeObserver | undefined;
-    let rendering = false, redraw = false, previousWidth = 0, renderFailed = false;
-    setLoading(true); setError('');
+    let rendering = false,
+      redraw = false,
+      previousWidth = 0,
+      previousHeight = 0,
+      renderFailed = false;
+    setLoading(true);
+    setError("");
     const showNativeFallback = () => {
       if (cancelled) return;
       renderFailed = true;
@@ -181,16 +201,32 @@ function PdfCanvasPages({ blob, title, unavailable, onRendered, onRenderFailed }
       container.current?.replaceChildren();
       hasRendered.current = false;
       setLoading(false);
-      setError('This document could not display here. Use Open PDF to view the saved copy.');
+      setError(
+        "This document could not display here. Use Open PDF to view the saved copy.",
+      );
       onRenderFailedRef.current(blob);
     };
     const render = async () => {
       const target = container.current;
       if (cancelled || !target || !pdf) return;
-      if (rendering) { redraw = true; return; }
+      if (rendering) {
+        redraw = true;
+        return;
+      }
       rendering = true;
-      const displayWidth = Math.max(200, Math.round(target.clientWidth || 680));
-      previousWidth = displayWidth;
+      const containerWidth = target.clientWidth || 680;
+      const frameHeight = target.parentElement?.clientHeight || 0;
+      const padding = getComputedStyle(target);
+      const horizontalPadding =
+        parseFloat(padding.paddingLeft || "0") +
+        parseFloat(padding.paddingRight || "0");
+      const verticalPadding =
+        parseFloat(padding.paddingTop || "0") +
+        parseFloat(padding.paddingBottom || "0");
+      const availableWidth = Math.max(1, containerWidth - horizontalPadding);
+      const availableHeight = Math.max(1, frameHeight - verticalPadding);
+      previousWidth = containerWidth;
+      previousHeight = frameHeight;
       const outputScale = Math.min(window.devicePixelRatio || 1, 2);
       const fragment = window.document.createDocumentFragment();
       try {
@@ -198,17 +234,39 @@ function PdfCanvasPages({ blob, title, unavailable, onRendered, onRenderFailed }
           if (cancelled) return;
           const page = await pdf.getPage(pageNumber);
           const base = page.getViewport({ scale: 1 });
-          const viewport = page.getViewport({ scale: displayWidth * outputScale / base.width });
-          const canvas = window.document.createElement('canvas');
-          canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
-          canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `${title}, page ${pageNumber} of ${pdf.numPages}`);
-          canvas.className = 'sales-pdf-page';
-          const context = canvas.getContext('2d');
-          if (!context) throw new Error('The PDF canvas is unavailable.');
-          renderTask = page.render({ canvas, canvasContext: context, viewport, background: '#ffffff' });
+          const displayWidth =
+            fitPage && frameHeight > verticalPadding
+              ? Math.min(
+                  availableWidth,
+                  (availableHeight * base.width) / base.height,
+                )
+              : Math.max(200, availableWidth);
+          const viewport = page.getViewport({
+            scale: (displayWidth * outputScale) / base.width,
+          });
+          const canvas = window.document.createElement("canvas");
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          canvas.setAttribute("role", "img");
+          canvas.setAttribute(
+            "aria-label",
+            `${title}, page ${pageNumber} of ${pdf.numPages}`,
+          );
+          canvas.className = "sales-pdf-page";
+          canvas.style.width = `${displayWidth}px`;
+          canvas.style.height = `${(displayWidth * base.height) / base.width}px`;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("The PDF canvas is unavailable.");
+          renderTask = page.render({
+            canvas,
+            canvasContext: context,
+            viewport,
+            background: "#ffffff",
+          });
           await renderTask.promise;
           if (cancelled) return;
-          canvas.dataset.rendered = 'true'; fragment.appendChild(canvas);
+          canvas.dataset.rendered = "true";
+          fragment.appendChild(canvas);
         }
         if (!cancelled) {
           // Every page is painted off-screen first. Typing and resizing leave the
@@ -218,36 +276,91 @@ function PdfCanvasPages({ blob, title, unavailable, onRendered, onRenderFailed }
           setLoading(false);
           onRenderedRef.current(blob);
         }
-      } catch (failure) { if (!cancelled && !(failure instanceof Error && failure.name === 'RenderingCancelledException')) showNativeFallback(); }
-      finally { rendering = false; if (redraw && !cancelled) { redraw = false; void render(); } }
+      } catch (failure) {
+        if (
+          !cancelled &&
+          !(
+            failure instanceof Error &&
+            failure.name === "RenderingCancelledException"
+          )
+        )
+          showNativeFallback();
+      } finally {
+        rendering = false;
+        if (redraw && !cancelled) {
+          redraw = false;
+          void render();
+        }
+      }
     };
     void (async () => {
       try {
         const [library, worker, data] = await Promise.all([
-          import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url'), blob.arrayBuffer(),
+          import("pdfjs-dist"),
+          import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+          blob.arrayBuffer(),
         ]);
         if (cancelled) return;
         library.GlobalWorkerOptions.workerSrc = worker.default;
-        task = library.getDocument({ data: new Uint8Array(data), useSystemFonts: true, useWorkerFetch: false });
+        task = library.getDocument({
+          data: new Uint8Array(data),
+          useSystemFonts: true,
+          useWorkerFetch: false,
+        });
         pdf = await task.promise;
         if (cancelled) return;
         await render();
-        if (!renderFailed && typeof ResizeObserver !== 'undefined' && container.current) {
+        if (
+          !renderFailed &&
+          typeof ResizeObserver !== "undefined" &&
+          container.current
+        ) {
           observer = new ResizeObserver(() => {
-            if (Math.abs((container.current?.clientWidth || 680) - previousWidth) < 3) return;
-            clearTimeout(resizeTimer); resizeTimer = setTimeout(() => void render(), 150);
+            if (
+              Math.abs(
+                (container.current?.clientWidth || 680) - previousWidth,
+              ) < 3 &&
+              (!fitPage ||
+                Math.abs(
+                  (container.current?.parentElement?.clientHeight || 0) -
+                    previousHeight,
+                ) < 3)
+            )
+              return;
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => void render(), 150);
           });
           observer.observe(container.current);
+          if (fitPage && container.current.parentElement)
+            observer.observe(container.current.parentElement);
         }
-      } catch { showNativeFallback(); }
+      } catch {
+        showNativeFallback();
+      }
     })();
-    return () => { cancelled = true; clearTimeout(resizeTimer); observer?.disconnect(); renderTask?.cancel(); void task?.destroy(); };
-  }, [blob, title]);
-  return <div className="sales-pdf-document-frame" aria-busy={loading && !error}>
-    {loading && !hasRendered.current && !error && !unavailable && <p role="status" className="sales-pdf-document-loading">Preparing pages…</p>}
-    {error && <p role="alert" className="sales-pdf-document-error">{error}</p>}
-    <div ref={container} className="sales-pdf-pages" />
-  </div>;
+    return () => {
+      cancelled = true;
+      clearTimeout(resizeTimer);
+      observer?.disconnect();
+      renderTask?.cancel();
+      void task?.destroy();
+    };
+  }, [blob, title, fitPage]);
+  return (
+    <div className="sales-pdf-document-frame" aria-busy={loading && !error}>
+      {loading && !hasRendered.current && !error && !unavailable && (
+        <p role="status" className="sales-pdf-document-loading">
+          Preparing pages…
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="sales-pdf-document-error">
+          {error}
+        </p>
+      )}
+      <div ref={container} className="sales-pdf-pages" />
+    </div>
+  );
 }
 
 export function PdfSalesDocument(props: PdfSalesDocumentProps) {
@@ -308,7 +421,7 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
       {visible && <a href={visible.url} target="_blank" rel="noopener noreferrer">Open PDF</a>}
     </div>
     {error && <p role="alert" className="sales-pdf-document-error">{error}</p>}
-    <PdfCanvasPages key={identity} blob={next?.blob ?? null} title={next?.document.title ?? document.title} unavailable={Boolean(error)} onRendered={publishCandidate} onRenderFailed={publishCandidate} />
+    <PdfCanvasPages key={identity} blob={next?.blob ?? null} title={next?.document.title ?? document.title} fitPage={props.fitPage} unavailable={Boolean(error)} onRendered={publishCandidate} onRenderFailed={publishCandidate} />
     <div className="sr-only" aria-label="Document text equivalent">
       <h2>{document.title}</h2><p>{document.snapshot.branding.identity.name}</p><p>{document.number}</p><p>{draft.customer}</p><p>{draft.address}</p><p>{draft.email}</p><p>{draft.phone}</p><p>{draft.vehicle}</p><p>{draft.registration}</p>
       {document.snapshot.vehicle && <dl>{Object.entries(document.snapshot.vehicle).filter(([key, value]) => !['id', 'title', 'description'].includes(key) && value != null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value)}</dd></div>)}</dl>}
