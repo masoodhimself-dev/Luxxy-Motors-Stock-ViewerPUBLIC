@@ -1,12 +1,13 @@
 import { Link } from 'wouter';
 import type { Car } from '@/lib/stock-context';
-import { vehicleContent } from '@/lib/vehicle-content';
+import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { getVehicleBookingHref } from '@/lib/cta-helpers';
 import { vehicleDisplayTitle, vehicleRegistrationLabel } from '@/lib/utils';
 import { vehicleHistoryFacts, vehicleListingHighlights, vehicleRunningCosts } from '@/lib/vehicle-extra-facts';
 
 export function SavedCarDetails({car}: {car: Car}) {
- const {description,features}=vehicleContent(car);
+ const content=vehicleContent(car);
+ const description=content.description, features=prioritiseVehicleFeatures(content.features);
  const facts=[['Registration',vehicleRegistrationLabel(car)],['Engine',car.engineSize],['Body',car.bodyType],['Colour',car.colour],['Doors',car.doors],['Seats',car.seats],['Emissions',car.emissionClass],['Previous owners',car.owners]].filter(([,value])=>value!==null && value!==undefined && value!=='');
  const costs=vehicleRunningCosts(car), history=vehicleHistoryFacts(car), highlights=vehicleListingHighlights(car);
  return <div className="border-t border-border px-4 py-3 sm:px-6">

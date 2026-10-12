@@ -23,6 +23,11 @@ export interface FilterState {
   catS: boolean;
   catN: boolean;
   noWriteOff: boolean;
+  /** Optional for compatibility with saved searches created before benefit filters. */
+  ulez?: boolean;
+  lowMileage?: boolean;
+  lowAnnualTax?: boolean;
+  lowInsuranceGroup?: boolean;
   sort: 'price-asc' | 'price-desc' | 'mileage-asc' | 'mileage-desc' | 'year-desc' | 'arrival-desc' | '';
 }
 
@@ -47,6 +52,10 @@ const emptyFilters: FilterState = {
   catS: false,
   catN: false,
   noWriteOff: false,
+  ulez: false,
+  lowMileage: false,
+  lowAnnualTax: false,
+  lowInsuranceGroup: false,
   sort: '',
 };
 
@@ -136,6 +145,12 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     ...(filters.fuel ? [{ key: 'fuel' as const, label: filters.fuel }] : []),
     ...(filters.transmission ? [{ key: 'transmission' as const, label: filters.transmission }] : []),
     ...(['catS', 'catN', 'noWriteOff'] as const).filter((key) => filters[key]).map((key) => ({ key, label: key === 'catS' ? 'Category S' : key === 'catN' ? 'Category N' : 'No recorded write-off' })),
+    ...([
+      ['ulez', 'ULEZ standard met'],
+      ['lowMileage', 'Up to 30,000 miles'],
+      ['lowAnnualTax', 'Advertised tax up to £35/year'],
+      ['lowInsuranceGroup', 'Insurance groups 1–15'],
+    ] as const).filter(([key]) => filters[key]).map(([key, label]) => ({ key, label })),
   ];
 
   const makes = useMemo(() => {
@@ -181,7 +196,11 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     Number(Boolean(filters.transmission)) +
     Number(filters.noWriteOff) +
     Number(filters.catS) +
-    Number(filters.catN);
+    Number(filters.catN) +
+    Number(Boolean(filters.ulez)) +
+    Number(Boolean(filters.lowMileage)) +
+    Number(Boolean(filters.lowAnnualTax)) +
+    Number(Boolean(filters.lowInsuranceGroup));
 
   const maxBudgets = Array.from(new Set([5000, 10000, 15000, 20000, 30000, 40000, 50000, 75000, 100000, ...(filters.maxPrice && Number.isFinite(Number(filters.maxPrice)) ? [Number(filters.maxPrice)] : [])])).sort((a, b) => a - b);
 

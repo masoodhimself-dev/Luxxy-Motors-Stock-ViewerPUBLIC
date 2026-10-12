@@ -1,0 +1,56 @@
+/* Useful, source-backed facts take priority without competing with photographs. */
+.vehicle-benefit-summary {
+  margin-block: 16px 8px;
+}
+.vehicle-benefit-summary-compact {
+  margin-block: 12px;
+}
+.vehicle-benefit-summary .vehicle-selling-points,
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-selling-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vehicle-benefit-summary .vehicle-selling-points li,
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-selling-points li {
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid #dce4e9;
+  border-radius: 5px;
+  background: #f5f8fa;
+  color: #294958;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.vehicle-benefit-summary .vehicle-selling-points li[data-benefit="ulez"],
+.vehicle-page.vehicle-redesigned
+  .vehicle-summary
+  .vehicle-selling-points
+  li[data-benefit="ulez"] {
+  border-color: #c6ddd3;
+  background: #eef6f1;
+  color: #285b46;
+}
+.vehicle-benefit-check {
+  margin-top: 8px;
+  color: #64747e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.vehicle-benefit-check a {
+  color: var(--dealer-link, #215a7e);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.vehicle-benefit-check a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.vehicle-card-catalogue .vehicle-benefit-summary {
+  margin-block: 12px 0;
+}

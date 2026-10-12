@@ -4,7 +4,7 @@ import { VehicleFeature, VehicleTerm } from '@/components/customer-help';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
-import { vehicleContent } from '@/lib/vehicle-content';
+import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { stockRegistrationYear } from '@/lib/stock-presentation';
 import { websiteText } from "@/lib/website-content";
@@ -193,7 +193,9 @@ export default function CarDetail() {
   })();
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
-  const { description, features } = vehicleContent(car);
+  const content = vehicleContent(car);
+  const description = content.description;
+  const features = prioritiseVehicleFeatures(content.features);
   const share = async () => {
     try {
       const url = getVehicleShareUrl(car);

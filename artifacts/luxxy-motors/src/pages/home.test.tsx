@@ -562,3 +562,114 @@ it('loads cars in batches and excludes sold stock while keeping reserved cars la
   expect(resultTitles().at(-1)).toBe('Batch car 0');
   expect(resultTitles()).not.toContain('Batch car 1');
 });
+
+describe('supplied vehicle benefit searches', () => {
+  const runningCosts = (annualTax: string, insuranceGroup: string) => ({
+    runningCosts: { items: [
+      { key: 'Tax', label: 'Tax per year', value: annualTax },
+      { key: 'Insurance', label: 'Insurance group', value: insuranceGroup },
+    ] },
+  });
+
+  it('really filters to 30,000 miles or less, rather than just sorting all cars', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], mileage: 30000 },
+      { ...originalCars[1], mileage: 30001 },
+      { ...originalCars[2], mileage: null },
+      { ...originalCars[3], mileage: 0 },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (2)');
+    fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'Audi A3']);
+    expect(window.location.search).toBe('?lowMileage=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Up to 30,000 miles filter' }));
+    expect(resultTitles()).toHaveLength(4);
+    expect(window.location.search).toBe('');
+  });
+
+  it('uses supplied fuel and emission standards independently from mileage', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], fuel: 'Petrol', emissionClass: 'Euro 4', mileage: 30001 },
+      { ...originalCars[1], fuel: 'Diesel', emissionClass: 'Euro 6', mileage: 80000 },
+      { ...originalCars[2], fuel: 'Diesel', emissionClass: 'Euro 5', mileage: 10000 },
+      { ...originalCars[3], fuel: null, emissionClass: 'Euro 6', mileage: 10000 },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    const choice = screen.getByTestId('button-quick-ulez');
+    expect(choice).toHaveTextContent('ULEZ standard met (2)');
+    expect(choice).toHaveAttribute('title', expect.stringContaining('Check the registration with TfL'));
+    fireEvent.click(choice);
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(window.location.search).toBe('?ulez=true');
+  });
+
+  it('combines explicit advertised annual tax and insurance ranges without guessing missing values', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], sourceExtras: runningCosts('£35', '15E') },
+      { ...originalCars[1], sourceExtras: runningCosts('£0', '1A') },
+      { ...originalCars[2], sourceExtras: runningCosts('£36', '8E') },
+      { ...originalCars[3], sourceExtras: runningCosts('£20', '16E') },
+      { ...originalCars[4], sourceExtras: null },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-lowAnnualTax')).toHaveTextContent('Advertised tax up to £35/year (3)');
+    fireEvent.click(screen.getByTestId('button-quick-lowAnnualTax'));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Audi A3']);
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-lowInsuranceGroup')).toHaveTextContent('Insurance groups 1–15 (3)');
+    fireEvent.click(screen.getByTestId('button-quick-lowInsuranceGroup'));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(window.location.search).toBe('?lowAnnualTax=true&lowInsuranceGroup=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
+    expect(resultTitles()).toHaveLength(5);
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps existing make and budget selections when a benefit is added', () => {
+    renderHome();
+    fireEvent.change(screen.getByLabelText('Quick filter by make'), { target: { value: 'BMW' } });
+    fireEvent.change(screen.getByLabelText('Quick filter by maximum price'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    expect(window.location.search).toBe('?make=BMW&maxPrice=5000&lowMileage=true');
+    expect(screen.getByRole('button', { name: 'Advanced search' })).toHaveTextContent('(3)');
+  });
+
+  it('omits unavailable benefit choices and excludes sold vehicles from their counts', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], mileage: 90000 },
+      { ...originalCars[1], mileage: 12000, fuel: 'Diesel', emissionClass: 'Euro 6', sourceExtras: runningCosts('£20', '8E'), inventoryStatus: 'sold' },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    for (const testId of ['button-quick-low-mileage', 'button-quick-ulez', 'button-quick-lowAnnualTax', 'button-quick-lowInsuranceGroup']) {
+      expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+    }
+  });
+
+  it('restores shared benefit searches, supports empty results, and removes only the selected condition', () => {
+    window.history.replaceState({}, '', '/stock?make=Ford&lowMileage=true&ulez=true');
+    renderHome();
+    expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove ULEZ standard met filter' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove ULEZ standard met filter' }));
+    expect(window.location.search).toBe('?make=Ford&lowMileage=true');
+    fireEvent.click(screen.getByTestId('button-clear-filters'));
+    expect(resultTitles()).toHaveLength(5);
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps older saved filter sessions usable when they have no benefit fields', () => {
+    window.sessionStorage.setItem('luxxy.browse.v1', JSON.stringify({ filters: {
+      make: 'BMW', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', search: '', catS: false, catN: false, noWriteOff: false, sort: '',
+    } }));
+    renderHome();
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(window.location.search).toBe('?make=BMW');
+  });
+});

@@ -25,6 +25,7 @@ import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { hasExplicitClearHistory, recordedWriteOffCategory } from '@/lib/vehicle-history';
+import { vehicleBenefits } from '@/lib/vehicle-benefits';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import {
   focusHomeTarget,
@@ -50,8 +51,18 @@ const defaultFilters: FilterState = {
   catS: false,
   catN: false,
   noWriteOff: false,
+  ulez: false,
+  lowMileage: false,
+  lowAnnualTax: false,
+  lowInsuranceGroup: false,
   sort: '',
 };
+const benefitChoices = [
+  { key: 'ulez', label: 'ULEZ standard met', note: 'Based on the supplied fuel and Euro emissions standard. Check the registration with TfL before travelling.' },
+  { key: 'lowMileage', label: 'Up to 30,000 miles', note: 'Includes cars with a recorded mileage of 30,000 miles or less.' },
+  { key: 'lowAnnualTax', label: 'Advertised tax up to £35/year', note: 'Based on the annual tax figure supplied with the advert. Confirm the current rate before buying.' },
+  { key: 'lowInsuranceGroup', label: 'Insurance groups 1–15', note: 'Lower numbered insurance groups. Your personal insurance quote can still vary.' },
+] as const;
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
@@ -104,12 +115,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     return saved &&
       Object.keys(defaultFilters).every(
         (key) =>
-          typeof saved[key as keyof FilterState] ===
-          typeof defaultFilters[key as keyof FilterState],
+          (saved[key as keyof FilterState] === undefined && benefitChoices.some(choice => choice.key === key)) ||
+          typeof saved[key as keyof FilterState] === typeof defaultFilters[key as keyof FilterState],
       )
-      ? saved
+      ? { ...defaultFilters, ...saved }
       : defaultFilters;
   });
+
+  const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
+  const benefitCounts = useMemo(() => Object.fromEntries(benefitChoices.map(({ key }) => [key, publicCars.filter(car => Boolean(benefitsByCar.get(car.id)?.[key])).length])) as Record<typeof benefitChoices[number]['key'], number>, [publicCars, benefitsByCar]);
 
   useEffect(() => {
     if (!browseStock) return;
@@ -157,6 +171,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     if (filters.fuel) result = result.filter((c) => c.fuel === filters.fuel);
     if (filters.transmission)
       result = result.filter((c) => c.transmission === filters.transmission);
+
+    for (const { key } of benefitChoices) {
+      if (filters[key]) result = result.filter(car => Boolean(benefitsByCar.get(car.id)?.[key]));
+    }
 
     if (filters.minPrice) {
       const min = parseFloat(filters.minPrice);
@@ -206,7 +224,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     }
 
     return result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
-  }, [publicCars, filters]);
+  }, [publicCars, filters, benefitsByCar]);
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);
@@ -261,13 +279,20 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       ? 'automatic'
       : nextFilters.maxPrice
         ? 'under_5000'
-        : 'low_mileage';
+        : benefitChoices.find(({ key }) => nextFilters[key])?.key || 'low_mileage';
     trackEvent('showroom_filter_applied', {
       source: 'quick_filter',
       preset,
       filter_count: 1,
     });
     setFilters({ ...defaultFilters, ...nextFilters });
+    revealResults('quick_filter');
+  };
+
+  const toggleBenefitFilter = (key: typeof benefitChoices[number]['key']) => {
+    setFilters(current => ({ ...current, [key]: !current[key] }));
+    setVisibleCount(12);
+    trackEvent('showroom_filter_applied', { source: 'quick_filter', preset: key, filter_count: 1 });
     revealResults('quick_filter');
   };
 
@@ -420,16 +445,18 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               >
                 Under £5k
               </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-low-mileage"
-              >
-                Low miles
-              </button>
               {publicCars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
+              {benefitChoices.filter(({ key }) => benefitCounts[key] > 0 || filters[key]).map(({ key, label, note }) => <button
+                key={key}
+                type="button"
+                onClick={() => toggleBenefitFilter(key)}
+                aria-pressed={Boolean(filters[key])}
+                title={note}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                data-testid={key === 'lowMileage' ? 'button-quick-low-mileage' : `button-quick-${key}`}
+              >{label} <span className="tabular-nums">({benefitCounts[key]})</span></button>)}
             </div>
+            {benefitCounts.ulez > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">ULEZ matches use listed fuel and emissions. <a href="https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Check the registration with TfL</a>.</p>}
  </>}
             cars={publicCars}
             filters={filters}
@@ -449,6 +476,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   filters.noWriteOff,
                   filters.catS,
                   filters.catN,
+                  filters.ulez,
+                  filters.lowMileage,
+                  filters.lowAnnualTax,
+                  filters.lowInsuranceGroup,
                 ].filter(Boolean).length,
                 search_used: Boolean(filters.search),
                 budget_used: Boolean(filters.minPrice || filters.maxPrice),

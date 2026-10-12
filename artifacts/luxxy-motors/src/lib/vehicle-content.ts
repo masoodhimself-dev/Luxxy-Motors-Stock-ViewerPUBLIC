@@ -1,6 +1,32 @@
 import type { Car } from './stock-context';
 const headings = new Set(['please note', 'audio and communications', 'drivers assistance', 'driver assistance', 'exterior', 'illumination', 'interior', 'performance', 'safety and security', 'valuable features', 'rare features', 'added extras']);
 const clean = (value: string) => value.replace(/\u0092/g, '’').trim();
+
+const usefulEquipment = [
+  /\b(?:apple\s*carplay|carplay|android\s*auto)\b/i,
+  /\b(?:parking\s+(?:sensors?|camera)|revers(?:e|ing)\s+camera|rear[ -]?(?:view[ -]?)?camera|(?:360(?:[ -]*degrees?|°)?|surround)[ -]+(?:view[ -]+)?camera)\b/i,
+  /\b(?:adaptive\s+)?cruise\s+control\b/i,
+  /\b(?:climate\s+control|air\s+conditioning|heated\s+(?:(?:front|rear)\s+)?seats?)\b/i,
+  /\b(?:navigation|sat(?:ellite)?[ -]?nav|bluetooth)\b/i,
+  /\bisofix\b/i,
+];
+
+/** Reorder only supplied equipment; preserve every entry and its exact wording. */
+export function prioritiseVehicleFeatures(features: string[]): string[] {
+  const rank = (feature: string) => {
+    // A missing or removed feature must never become a prominent selling point.
+    if (/\b(?:no|not|without|unavailable|absent|removed|deleted|missing|excluded|disabled|inoperative|faulty|broken)\b|\b(?:isn['’]?t|doesn['’]?t|non[ -]?(?:functional|functioning|working))\b/i.test(feature)) {
+      return usefulEquipment.length;
+    }
+    const match = usefulEquipment.findIndex(pattern => pattern.test(feature));
+    return match < 0 ? usefulEquipment.length : match;
+  };
+  return features
+    .map((feature, index) => ({ feature, index, rank: rank(feature) }))
+    .sort((first, second) => first.rank - second.rank || first.index - second.index)
+    .map(({ feature }) => feature);
+}
+
 export function vehicleContent(car: Car) {
   const description = [car.description, car.specifications?.description, car.sourceExtras?.description, car.sourceExtras?.advertDescription]
     .find((value): value is string => typeof value === 'string' && !!value.trim());

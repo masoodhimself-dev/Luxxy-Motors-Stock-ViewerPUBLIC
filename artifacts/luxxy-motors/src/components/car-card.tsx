@@ -118,7 +118,7 @@ export function CarCard({
   ].filter(Boolean) as { label: string; value: string }[];
 
   const visibleSpecs = specs.slice(0, 4);
-  const catalogueHighlights = catalogue ? vehicleSellingPoints(car).slice(0, 2).map(point => ({ ...point, text: point.label === 'Mileage' ? 'Below average mileage' : point.text })) : [];
+  const hasSellingPoints = vehicleSellingPoints(car).length > 0;
   const category = catalogue ? recordedWriteOffCategory(car.writeOffCategory) : null;
   return (
     <article
@@ -266,14 +266,13 @@ export function CarCard({
               {car.inventoryStatus === 'reserved' && <span>Reserved</span>}
               {category && <VehicleTerm label="Insurance history" value={`Category ${category} recorded`}>Category {category} recorded</VehicleTerm>}
             </div>}
-            {!catalogue && <VehicleSellingPoints car={car} compact />}
+            <VehicleSellingPoints car={car} compact />
             <div className="vehicle-specs mb-3 mt-2">
               {visibleSpecs.map((spec) => (
                 <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex items-center gap-1.5" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
               ))}
             </div>
-            {catalogueHighlights.length > 0 && <ul className="stock-catalogue-highlights" aria-label="Vehicle highlights">{catalogueHighlights.map(point => <li key={point.label}><VehicleTerm label={point.label} value={point.text}>{point.text}</VehicleTerm></li>)}</ul>}
-            {(!catalogue || catalogueHighlights.length === 0) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
+            {(!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
             <div
               className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
               data-testid={isCompact ? `compact-actions-${car.id}` : undefined}

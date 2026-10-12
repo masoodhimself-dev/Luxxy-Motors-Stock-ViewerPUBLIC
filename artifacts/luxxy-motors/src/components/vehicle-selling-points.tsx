@@ -1,9 +1,57 @@
-import type { Car } from '@/lib/stock-context';
-import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
-import { VehicleFactIcon } from './vehicle-fact-icon';
-import { VehicleTerm } from './customer-help';
-export function VehicleSellingPoints({ car, compact = false }: { car: Car; compact?: boolean }) {
- const points = vehicleSellingPoints(car);
- if (!points.length) return null;
- return <div><ul aria-label="Vehicle highlights" className={`vehicle-selling-points flex flex-wrap gap-2 ${compact ? 'mb-3 mt-2' : 'mt-4 mb-2'}`}>{points.map(point => <li key={point.label} className={`inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-secondary/60 px-3 py-2 ${compact ? 'text-xs' : 'text-sm'} font-medium leading-5`}><VehicleTerm label={point.label} value={point.text}><VehicleFactIcon label={point.label} className="h-4 w-4 shrink-0 text-accent" /><span>{point.text}</span></VehicleTerm></li>)}</ul>{!compact && points.some(point => point.note) && <p className="text-xs leading-5 text-muted-foreground">Highlights use supplied listing figures. Please confirm annual tax with the team.</p>}</div>;
+import type { Car } from "@/lib/stock-context";
+import {
+  vehicleSellingPoints,
+  type SellingPoint,
+} from "@/lib/vehicle-selling-points";
+import { TermHelp, VehicleTerm } from "./customer-help";
+import "./vehicle-benefits.css";
+
+/** The exact source-backed explanation is available on hover, focus and tap. */
+export function VehicleSellingPoint({ point }: { point: SellingPoint }) {
+  return point.note ? (
+    <TermHelp text={point.note} ariaLabel={point.text}>
+      {point.text}
+    </TermHelp>
+  ) : (
+    <VehicleTerm label={point.label} value={point.text}>
+      {point.text}
+    </VehicleTerm>
+  );
+}
+
+export function VehicleSellingPoints({
+  car,
+  compact = false,
+}: {
+  car: Car;
+  compact?: boolean;
+}) {
+  const allPoints = vehicleSellingPoints(car);
+  const points = compact ? allPoints.slice(0, 4) : allPoints;
+  if (!points.length) return null;
+  const ulez = points.find((point) => point.id === "ulez");
+  return (
+    <div
+      className={`vehicle-benefit-summary ${compact ? "vehicle-benefit-summary-compact" : ""}`}
+    >
+      <ul aria-label="Vehicle highlights" className="vehicle-selling-points">
+        {points.map((point) => (
+          <li
+            key={point.id ?? point.label}
+            data-benefit={point.id ?? "history"}
+          >
+            <VehicleSellingPoint point={point} />
+          </li>
+        ))}
+      </ul>
+      {!compact && ulez?.href && (
+        <p className="vehicle-benefit-check">
+          Based on listed emissions.{" "}
+          <a href={ulez.href} target="_blank" rel="noopener noreferrer">
+            Check this car with TfL
+          </a>
+        </p>
+      )}
+    </div>
+  );
 }
