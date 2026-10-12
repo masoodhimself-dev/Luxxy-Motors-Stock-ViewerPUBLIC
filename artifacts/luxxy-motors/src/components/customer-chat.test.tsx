@@ -126,7 +126,7 @@ describe('quiet customer chat', () => {
     act(() => window.dispatchEvent(new Event('dealer-chat-settings-saved')));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Ask us' })).not.toBeInTheDocument());
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(document.body.style.overflow).toBe('');
+    await waitFor(() => expect(document.body.style.overflow).toBe(''));
   });
 
   it('closes on Escape and restores keyboard focus to the launcher', async () => {
