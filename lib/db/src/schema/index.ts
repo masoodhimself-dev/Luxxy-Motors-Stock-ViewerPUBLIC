@@ -34,3 +34,5 @@ export * from "./sale-workspace";
 export * from './dealer-chat';
 
 export * from "./tenants";
+
+export * from "./staff-inventory";

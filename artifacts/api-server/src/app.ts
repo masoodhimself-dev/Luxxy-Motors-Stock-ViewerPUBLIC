@@ -38,6 +38,7 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
   if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
 } }));
@@ -48,7 +49,7 @@ app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 app.use("/api/platform", platformDealersRouter);
 app.use(resolveTenant);
 app.use("/api", router);
-app.use(['/my-purchase', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
+app.use(['/staff-upload', '/my-purchase', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api
 // because the URL is handed to buyers.
 app.use("/share", shareRouter);
@@ -56,7 +57,8 @@ app.use(["/api", "/share"], (_req, res) => { res.status(404).json({ error: "Not 
 if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_DIR);
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  req.log.error({ err: error }, "Unhandled API error");
+  if(req.path === '/api/service-book-upload' || req.path.startsWith('/api/staff/inventory')) req.log.warn('Private inventory request failed');
+  else req.log.error({ err: error }, "Unhandled API error");
   if (res.headersSent) return;
 
   const identity = /^\/api\/stock\/imports(?:\/|$)/.test(req.path) ? {
@@ -64,6 +66,7 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
     retailerId: typeof req.body?.retailerId === "string" ? req.body.retailerId : null,
   } : {};
   if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
+    if(req.path === '/api/service-book-upload'){res.status(413).json({error:'Compressed upload exceeds the 2.2 MB request limit.'});return;}
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });
     return;
   }

@@ -29,10 +29,13 @@ import { ChatUnreadBadge } from '@/components/portal/chat-notifications';
 import { SalesWorkspace } from '@/pages/sales-demo';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 
-type TabKey = 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
+import { StaffInventory } from '@/components/portal/staff-inventory';
+
+type TabKey = 'inventory' | 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'inventory', label: 'Cars', icon: LayoutDashboard },
   { key: 'enquiries', label: 'Enquiries', icon: CalendarClock },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
   { key: 'sales', label: 'Sales', icon: FileText },
@@ -232,6 +235,7 @@ function PortalDesk() {
             <div className="portal-section-content min-h-[50vh]">
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
               {tab === 'overview' && <DealerDashboard />}
+              {tab === 'inventory' && <StaffInventory />}
               {tab === 'enquiries' && <EnquiriesPanel />}
               {tab === 'chat' && <ChatPanel />}
               {tab === 'test-drives' && <TestDriveBookingsPanel />}

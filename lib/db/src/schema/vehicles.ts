@@ -123,6 +123,7 @@ export const vehiclesTable = pgTable(
       table.dealerId,
       table.sourceStatus,
     ),
+    uniqueIndex("vehicles_id_dealer_id_unique").on(table.id, table.dealerId),
     index("vehicles_vrm_idx").on(table.vrm),
     index("vehicles_price_review_required_idx").on(table.priceReviewRequired),
     check(
