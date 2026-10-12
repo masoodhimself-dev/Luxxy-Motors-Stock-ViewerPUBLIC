@@ -417,7 +417,7 @@ test('workspace draft survives refresh and universal search opens the existing e
 });
 
 for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
-  test(`desktop call desk keeps the save action in view with long details at ${width}`, async ({ page }) => {
+  test(`redesigned call desk keeps expanded cards separate with long details at ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await setup(page);
     await page.route('**/api/stock', route => route.fulfill({ json: {
@@ -440,8 +440,8 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
     await page.getByLabel('Follow-up note (optional)').fill('Discuss delivery after the test drive.');
     const save = page.getByRole('button', { name: 'Save test-drive booking', exact: true });
     await expect(save).toBeEnabled();
-    // Inputs can scroll within their columns; a booking never pushes Save down the document.
-    await page.evaluate(() => window.scrollTo(0, 0));
+    // Normal-flow cards expand without overlapping; Save remains reachable.
+    await save.scrollIntoViewIfNeeded();
     const geometry = await page.evaluate(() => {
       const sections = [...document.querySelectorAll('.enquiry-new-call > fieldset')].map(element => {
         const box = element.getBoundingClientRect();
@@ -452,15 +452,21 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
       return { sections, saveBottom: box.bottom, saveTop: box.top, workspaceWidth: workspace.width, scrollX: window.scrollX, overflow: document.documentElement.scrollWidth > window.innerWidth };
     });
     expect(geometry.sections).toHaveLength(3);
-    expect(geometry.sections[0].x).toBeLessThan(geometry.sections[1].x);
+    if (width >= 1100) expect(geometry.sections[0].x).toBeLessThan(geometry.sections[1].x);
+    else expect(geometry.sections[0].x).toBe(geometry.sections[1].x);
     expect(geometry.sections[2].x).toBe(geometry.sections[0].x);
     expect(geometry.sections[2].y).toBeGreaterThan(geometry.sections[0].y);
-    // Customer and next step share the left column.
+    for (let i = 0; i < geometry.sections.length; i++) for (let j = i + 1; j < geometry.sections.length; j++) {
+      const a = geometry.sections[i], b = geometry.sections[j];
+      const intersectionWidth = Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x);
+      const intersectionHeight = Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y);
+      expect(intersectionWidth <= 0 || intersectionHeight <= 0).toBe(true);
+    }
     expect(geometry.saveBottom).toBeLessThanOrEqual(height);
     expect(geometry.saveTop).toBeGreaterThan(0);
     expect(geometry.workspaceWidth).toBeGreaterThanOrEqual(width - 50);
     expect(geometry.overflow).toBe(false);
-    await page.screenshot({ path: `/tmp/luxxy-enquiry-desktop-fit-${width}.png` });
+    await page.screenshot({ path: `/tmp/luxxy-enquiry-desktop-fit-${width}.png`, fullPage:true });
     await openStock(page);
     await page.getByRole('button', { name: 'New enquiry', exact: true }).click();
     await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Desktop Caller');
@@ -469,7 +475,7 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
     await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
     await expect(page.locator('.enquiry-calendar-day')).toHaveCount(42);
     const lastDay = page.locator('.enquiry-calendar-day').last();
-    if (height < 900) await lastDay.scrollIntoViewIfNeeded();
+    await lastDay.scrollIntoViewIfNeeded();
     const diary = await page.evaluate(() => {
       const month = document.querySelector('.enquiry-calendar-month')!.getBoundingClientRect();
       const agenda = document.querySelector('.enquiry-calendar-agenda')!.getBoundingClientRect();
