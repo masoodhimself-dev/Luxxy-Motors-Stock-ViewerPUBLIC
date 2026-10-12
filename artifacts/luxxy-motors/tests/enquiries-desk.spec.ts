@@ -484,7 +484,8 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
     });
     expect(diary.monthRight).toBeLessThan(diary.agendaLeft);
     expect(diary.lastBottom).toBeLessThanOrEqual(diary.monthBottom);
-    expect(diary.lastBottom).toBeLessThanOrEqual(height);
+    // Browser scroll offsets can leave a fractional pixel at the viewport edge.
+    expect(diary.lastBottom).toBeLessThanOrEqual(height + 1);
     await page.screenshot({ path: `/tmp/luxxy-enquiry-calendar-fit-${width}.png` });
   });
 }
