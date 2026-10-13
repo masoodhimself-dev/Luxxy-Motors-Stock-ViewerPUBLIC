@@ -1,13 +1,16 @@
 # Guided dealership invoices
 
-The dealer sales workspace asks four questions: invoice type, customer and vehicle, payments received, and review. It does not render a live PDF, offer delivery/handover steps, or generate a separate document pack. Saved historic documents remain available.
+The dealer sales workspace asks five questions: vehicle, customer, sale/payment details, invoice type, and review. It does not render a live PDF, offer delivery/handover steps, or generate a separate document pack. Saved historic documents remain available.
 
 ## Staff journey
 
-1. Choose **Deposit invoice** or **Full invoice**.
-2. Import a recent enquiry/reservation or enter the buyer. Select a stock car and check its registration and agreed price. Fees, discounts and up to three part exchanges are optional.
-3. Record actual payments one at a time, with amount, date, method and optional reference. A confirmed deposit reserves the car. Corrections/refunds retain the original entries and update the net balance; they do not move funds.
-4. Check the summary and create the invoice. Open/print, download or email its saved PDF. After a full invoice, choose whether to mark the car sold and remove it from public stock. Selling requires a full invoice matching the latest details/payments. If money remains due, staff must explicitly acknowledge it; the outstanding balance and that acknowledgement remain in the record. Choosing no leaves availability unchanged.
+1. Select the car first. Check its number plate and agreed price.
+2. Enter the customer, or select a recent enquiry/reservation for that same car. Importing a customer cannot silently replace the selected car.
+3. Add any agreed fees, discounts or up to three part exchanges, then record actual payments one at a time with amount, date, method and optional reference. A confirmed deposit reserves the car. Corrections/refunds retain the original entries and update the net balance; they do not move funds.
+4. Choose **Deposit invoice** or **Full invoice**. A deposit invoice requires a genuinely received deposit; staff can go back to record one. An unpaid full invoice remains supported.
+5. Check the summary and create the invoice. Open/print, download or email its saved PDF. After a full invoice, choose whether to mark the car sold and remove it from public stock. Selling requires a full invoice matching the latest details/payments. If money remains due, staff must explicitly acknowledge it; the balance and acknowledgement remain in the record. Choosing no leaves availability unchanged.
+
+The 13 October regression run passed 116 sales-related tests across UI, calculation rules, invoice settings, PDF output, stock lifecycle, connected store logic and isolated local HTTP workflows. No real customer sale or payment was created by these tests.
 
 ## Backend
 
