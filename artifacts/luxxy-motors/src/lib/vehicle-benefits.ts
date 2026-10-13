@@ -1,5 +1,5 @@
 import type { Car } from "./stock-context";
-import { formatMileage } from "./utils";
+import { formatCompactMileage } from "./utils";
 
 export const ULEZ_CHECK_URL =
   "https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker";
@@ -148,7 +148,7 @@ export function vehicleBenefits(car: Car): VehicleBenefits {
         ? {
             id: "low-mileage",
             label: "Mileage",
-            text: `${formatMileage(mileage)} · low mileage`,
+            text: `${formatCompactMileage(mileage)} · low mileage`,
             note: "This car has covered 30,000 miles or less.",
           }
         : null,
@@ -166,7 +166,7 @@ export function vehicleBenefits(car: Car): VehicleBenefits {
         ? {
             id: "low-insurance",
             label: "Insurance group",
-            text: `Insurance group ${insurance.display}`,
+            text: `Lower insurance group · ${insurance.display}`,
             note: "Groups 1–15 are at the lower end of the 1–50 insurance scale. Your premium depends on your circumstances and insurer; get a quote for this car.",
           }
         : null,

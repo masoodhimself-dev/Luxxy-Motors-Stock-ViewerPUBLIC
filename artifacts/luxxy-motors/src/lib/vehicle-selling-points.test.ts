@@ -37,7 +37,7 @@ it("prioritises requested supplied benefits and retains low keeper count and ful
 it("keeps <=30,000-mile highlights separate from supplied below-average comparisons", () => {
   expect(
     vehicleSellingPoints(car({ mileage: 1000 })).map((point) => point.text),
-  ).toEqual(["1,000 miles · low mileage"]);
+  ).toEqual(["1k miles · low mileage"]);
   expect(
     vehicleSellingPoints(
       car({
@@ -57,7 +57,7 @@ it("keeps <=30,000-mile highlights separate from supplied below-average comparis
         },
       }),
     )[0].text,
-  ).toBe("40,000 miles · below average");
+  ).toBe("40k miles · below average");
   expect(vehicleSellingPoints(car({ mileage: 40_000 }))).toEqual([]);
 });
 

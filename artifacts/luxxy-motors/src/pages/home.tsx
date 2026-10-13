@@ -1,3 +1,4 @@
+import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { CompareSelectionLink } from '@/components/saved-car-controls';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import './stock-redesign.css';
@@ -454,7 +455,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 title={note}
                 className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
                 data-testid={key === 'lowMileage' ? 'button-quick-low-mileage' : `button-quick-${key}`}
-              >{label} <span className="tabular-nums">({benefitCounts[key]})</span></button>)}
+              ><VehicleFactIcon label={label} className="mr-1.5 inline-block h-4 w-4 align-middle" />{label} <span className="tabular-nums">({benefitCounts[key]})</span></button>)}
             </div>
             {benefitCounts.ulez > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">Check your car’s registration with TfL before driving in the zone. <a href="https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Check ULEZ by registration</a>.</p>}
  </>}

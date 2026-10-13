@@ -78,3 +78,8 @@ export function getThumbnailUrl(car: any): string {
   const first = images[0];
   return typeof first === 'string' ? first : first.url;
 }
+
+/** Compact highlights retain mileage precision; full specifications use formatMileage. */
+export function formatCompactMileage(mileage: number) {
+  return mileage >= 1000 ? `${Number((mileage / 1000).toFixed(3))}k miles` : formatMileage(mileage);
+}

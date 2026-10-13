@@ -27,21 +27,21 @@ it("shows all supplied benefits with a visible emissions qualifier and genuine c
   const list = screen.getByRole("list", { name: "Vehicle highlights" });
   expect(within(list).getAllByRole("listitem")).toHaveLength(6);
   expect(list).toHaveTextContent("ULEZ compliant");
-  expect(list).toHaveTextContent("24,000 miles · low mileage");
+  expect(list).toHaveTextContent("24k miles · low mileage");
   expect(list).toHaveTextContent("£20 road tax per year");
-  expect(list).toHaveTextContent("Insurance group 11E");
+  expect(list).toHaveTextContent("Lower insurance group · 11E");
   expect(screen.getByText("Check this car’s registration before driving in the zone.")).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: "Check with TfL" }),
   ).toHaveAttribute("href", ULEZ_CHECK_URL);
-  expect(list.querySelector("svg")).toBeNull();
+  expect(list.querySelectorAll("svg")).toHaveLength(6);
 });
 
 it("keeps all four requested benefits on compact cards before optional ownership history", () => {
   render(<VehicleSellingPoints car={car()} compact />);
   const list = screen.getByRole("list", { name: "Vehicle highlights" });
   expect(within(list).getAllByRole("listitem")).toHaveLength(4);
-  expect(list).toHaveTextContent("Insurance group 11E");
+  expect(list).toHaveTextContent("Lower insurance group · 11E");
   expect(list).not.toHaveTextContent("previous keepers");
   expect(list).not.toHaveTextContent("below average");
 });

@@ -54,3 +54,6 @@
 .vehicle-card-catalogue .vehicle-benefit-summary {
   margin-block: 12px 0;
 }
+
+.vehicle-selling-points .customer-term-help { display: inline-flex; align-items: center; gap: 7px; text-align: left; }
+.vehicle-selling-points .vehicle-highlight-icon { width: 17px; height: 17px; flex-shrink: 0; color: currentColor; }

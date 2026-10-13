@@ -1,3 +1,4 @@
+import { VehicleFactIcon } from "./vehicle-fact-icon";
 import type { Car } from "@/lib/stock-context";
 import {
   vehicleSellingPoints,
@@ -8,13 +9,14 @@ import "./vehicle-benefits.css";
 
 /** The exact source-backed explanation is available on hover, focus and tap. */
 export function VehicleSellingPoint({ point }: { point: SellingPoint }) {
+  const content = <><VehicleFactIcon label={point.id === "ulez" ? "Emissions" : point.label} className="vehicle-highlight-icon" /><span>{point.text}</span></>;
   return point.note ? (
     <TermHelp text={point.note} ariaLabel={point.text}>
-      {point.text}
+      {content}
     </TermHelp>
   ) : (
     <VehicleTerm label={point.label} value={point.text}>
-      {point.text}
+      {content}
     </VehicleTerm>
   );
 }

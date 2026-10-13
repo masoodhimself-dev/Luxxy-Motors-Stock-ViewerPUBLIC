@@ -1,7 +1,7 @@
 import type { Car } from "./stock-context";
 import { vehicleHistoryFacts } from "./vehicle-extra-facts";
 import { vehicleBenefits } from "./vehicle-benefits";
-import { formatMileage } from "./utils";
+import { formatCompactMileage } from "./utils";
 export type SellingPoint = {
   id?: string;
   label: string;
@@ -42,7 +42,7 @@ export function vehicleSellingPoints(car: Car): SellingPoint[] {
   )
     points.push({
       label: "Mileage",
-      text: `${formatMileage(car.mileage)} · below average`,
+      text: `${formatCompactMileage(car.mileage)} · below average`,
       note: "This car has covered fewer miles than comparable vehicles.",
     });
   const service = facts.find((fact) => fact.label === "Service history")?.value;
