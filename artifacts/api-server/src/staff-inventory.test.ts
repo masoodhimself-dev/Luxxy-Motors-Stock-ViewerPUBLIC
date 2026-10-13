@@ -436,6 +436,35 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
       ).rows[0].state.lifecycle.status,
       "released",
     );
+    const reservationLead = randomUUID();
+    await engine.exec(
+      `UPDATE vehicles SET inventory_status='reserved' WHERE id='${carA}'; INSERT INTO leads(id,dealer_id,vehicle_id,stage,source,customer_name) VALUES('${reservationLead}','a','${carA}','reserved','website_form','Fictional customer')`,
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/unreserve`, {
+          method: "POST",
+          body: { confirm: true },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await engine.query<any>(
+          `SELECT stage FROM leads WHERE id='${reservationLead}'`,
+        )
+      ).rows[0].stage,
+      "qualifying",
+    );
+    assert.equal(
+      (
+        await engine.query<any>(
+          `SELECT payload FROM lead_events WHERE lead_id='${reservationLead}'`,
+        )
+      ).rows[0].payload.kind,
+      "online_reservation_cancelled",
+    );
     const clean = serviceBookJpeg(jpeg);
     assert.ok(!clean.bytes.includes(Buffer.from("EXIF")));
     assert.equal(clean.width, 2);
