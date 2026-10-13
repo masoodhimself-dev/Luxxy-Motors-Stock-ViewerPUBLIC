@@ -319,7 +319,8 @@ describe('showroom search filters', () => {
     const introduction = screen.getByRole('region', { name: 'Plan your visit' });
     expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
-    expect(within(introduction).getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why choose us?' })).toBeInTheDocument();
     expect(within(introduction).getByRole('link', { name: dealerConfigFixture.bookViewing.ctaLabel })).toHaveAttribute('href', '/enquire?type=viewing');
   });
 
@@ -383,8 +384,9 @@ describe('showroom search filters', () => {
     expect(screen.getByRole('heading', { name: 'Featured cars' })).toBeInTheDocument();
     expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse Stock' })).toHaveAttribute('href', '/stock');
-    fireEvent.click(screen.getByRole('button', { name: 'Pause cars' }));
-    expect(screen.getByRole('button', { name: 'Resume cars' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Auto-scroll cars' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Auto-scroll cars' }));
+    expect(screen.getByRole('button', { name: 'Pause cars' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('switches between full cards and the compact stock list', () => {

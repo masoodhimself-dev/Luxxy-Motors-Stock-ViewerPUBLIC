@@ -894,3 +894,13 @@ body:has(.customer-site) [role='alert'][class*='bg-destructive/'] { background: 
 .customer-help-content { z-index: 80; width: max-content; max-width: min(300px, calc(100vw - 32px)); border: 1px solid #3a4551; border-radius: 8px; background: #1f2933; color: #fff; padding: 12px 14px; font-size: 13px; line-height: 1.65; font-weight: 400; text-align: left; box-shadow: 0 6px 20px #15202b20; overflow-wrap: anywhere; }
 @media (pointer: coarse) { .customer-term-help { min-height: 32px; } }
 @media print { .customer-help-content { display: none !important; } }
+
+/* Keep navigation legible on the dark homepage masthead. */
+header.stock-home-header nav > button:not(.bg-primary), header.stock-home-header nav > a:not(.bg-primary) { color: #fff; }
+header.stock-home-header nav > button:not(.bg-primary):hover, header.stock-home-header nav > a:not(.bg-primary):hover { color: #fff; text-decoration: underline; text-underline-offset: 5px; }
+.home-shopping-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-block: 22px; }
+.home-shopping-shortcuts > span { font-size: 13px; font-weight: 600; margin-right: 6px; }
+.home-shopping-shortcuts a { border: 1px solid hsl(var(--border)); border-radius: 999px; padding: 10px 16px; font-size: 13px; background: hsl(var(--background)); }
+.home-shopping-shortcuts a:hover { background: hsl(var(--secondary)); }
+.featured-car-facts { flex-basis: 100%; font-size: 12px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+@media(max-width: 639px) { .home-shopping-shortcuts { flex-wrap: nowrap; overflow-x: auto; } .home-shopping-shortcuts > * { flex-shrink: 0; } .home-shopping-shortcuts > span { display: none; } }

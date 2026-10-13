@@ -11,7 +11,7 @@ const DRAG_DISTANCE = 10;
 
 export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unavailable?: boolean }) {
   const { settings } = useDealerSettings();
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const viewport = useRef<HTMLDivElement>(null);
   const pointerGesture = useRef<BrowseGesture | null>(null);
@@ -106,6 +106,13 @@ export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unava
     return () => window.clearInterval(timer);
   }, [paused, reducedMotion, cars.length]);
   return <section className="rolling-stock homepage-stock" aria-labelledby="rolling-stock-heading">
+    <div className="rolling-stock-footer container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <h2 id="rolling-stock-heading" className="section-heading">{websiteText(settings, "featuredHeading")}</h2>
+      <div className="flex items-center gap-4">
+        {cars.length > 1 && <button className="rolling-stock-toggle text-link min-h-11 text-sm" type="button" onClick={() => setPaused(value => !value)} aria-pressed={!paused}>{paused ? 'Auto-scroll cars' : 'Pause cars'}</button>}
+        <Link href="/stock" className="text-link min-h-11 text-sm">Browse Stock</Link>
+      </div>
+    </div>
     {cars.length ? <div
       ref={viewport}
       className="rolling-stock-window"
@@ -143,18 +150,12 @@ export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unava
     >
       <div className="rolling-stock-track">
         <div className="rolling-stock-group">{cars.map(car => <CarCard key={car.id} car={car} photoControls={false} summaryOnly stretchedLink />)}</div>
-        {cars.length > 1 && <div className="rolling-stock-group rolling-stock-copy" aria-hidden="true" ref={node => { node?.querySelectorAll<HTMLElement>('a, button, [tabindex]').forEach(element => { element.tabIndex = -1; }); }}>{cars.map(car => <CarCard key={car.id} car={car} photoControls={false} summaryOnly stretchedLink />)}</div>}
+        {!paused && cars.length > 1 && <div className="rolling-stock-group rolling-stock-copy" aria-hidden="true" ref={node => { node?.querySelectorAll<HTMLElement>('a, button, [tabindex]').forEach(element => { element.tabIndex = -1; }); }}>{cars.map(car => <CarCard key={car.id} car={car} photoControls={false} summaryOnly stretchedLink />)}</div>}
       </div>
     </div> : <div className="rolling-stock-empty container mx-auto px-4 sm:px-6 lg:px-8">
       <p className="text-muted-foreground" role={unavailable ? 'status' : undefined}>{unavailable ? 'We can’t show our stock right now. Please contact us for current availability.' : 'We have no cars online at the moment. Ask us about our stock.'}</p>
       <Link href="/contact" className="text-link">Contact us</Link>
     </div>}
-    <div className="rolling-stock-footer container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-      <h2 id="rolling-stock-heading" className="section-heading">{websiteText(settings, "featuredHeading")}</h2>
-      <div className="flex items-center gap-4">
-        {cars.length > 1 && <button className="rolling-stock-toggle text-link min-h-11 text-sm" type="button" onClick={() => setPaused(value => !value)} aria-pressed={paused}>{paused ? 'Resume cars' : 'Pause cars'}</button>}
-        <Link href="/stock" className="text-link min-h-11 text-sm">Browse Stock</Link>
-      </div>
-    </div>
+
   </section>;
 }

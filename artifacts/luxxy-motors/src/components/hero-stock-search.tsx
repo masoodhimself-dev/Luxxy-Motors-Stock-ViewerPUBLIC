@@ -49,7 +49,7 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, 
       {select('make', 'Make')}{mobile ? budget('maxPrice') : select('model', 'Model')}
       {!mobile && <fieldset className="hero-search-budget"><legend className="sr-only">Vehicle price</legend><div className="hero-search-field-grid">{budget('minPrice')}{budget('maxPrice')}</div></fieldset>}
     </div>
-    <button type="submit" className="hero-search-submit"><Search aria-hidden="true" className="h-4 w-4" />{buttonLabel ? `${buttonLabel} (${count})` : `Search ${count} used ${count === 1 ? 'car' : 'cars'}`}</button>
+    <button type="submit" className="hero-search-submit"><Search aria-hidden="true" className="h-4 w-4" />{buttonLabel && !/^(see|view|browse|search)\s+(all\s+)?(used\s+)?cars?$/i.test(buttonLabel.trim()) ? `${buttonLabel} (${count})` : `Search ${count} ${count === 1 ? 'car' : 'cars'}`}</button>
     <div className="hero-search-secondary">
       <button type="button" aria-expanded={advancedOpen} aria-controls={advancedId} onClick={() => setAdvancedOpen(open => !open)}>More filters<ChevronDown aria-hidden="true" size={15} className={advancedOpen ? 'rotate-180' : ''} /></button>
       {hasFilters && <button type="button" onClick={onReset}><RotateCcw aria-hidden="true" size={15} />Reset</button>}

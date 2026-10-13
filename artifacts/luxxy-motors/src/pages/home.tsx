@@ -401,7 +401,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </div>
       </section>}
 
-      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={publicCars} unavailable={Boolean(error)} />}
+      {!browseStock && !error && publicCars.length > 0 && <nav className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Shop by preference">
+        <span>Find your kind of car</span>
+        {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <Link href="/stock?transmission=Automatic">Automatic</Link>}
+        {publicCars.some(car => car.price != null && car.price <= 10000) && <Link href="/stock?maxPrice=10000">Under £10k</Link>}
+        {benefitCounts.ulez > 0 && <Link href="/stock?ulez=true">ULEZ compliant</Link>}
+        {benefitCounts.lowMileage > 0 && <Link href="/stock?lowMileage=true">Up to 30k miles</Link>}
+      </nav>}
+
+      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))} unavailable={Boolean(error)} />}
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -604,9 +612,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       )}
 
       <CustomerReviews />
-      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit>{dealershipPoints}</DealershipVisit>}
+      {dealershipPoints && <section className="home-reassurance section-space container mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="home-reassurance-heading"><h2 id="home-reassurance-heading" className="section-heading mb-6">Why choose us?</h2>{dealershipPoints}</section>}
+      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit />}
 
-      {dealerConfig.presentation?.servicesEnabled !== false && <section className="home-services section-space border-t border-border bg-secondary/40">
+      {dealerConfig.presentation?.servicesEnabled !== false && [dealerConfig.warranty, dealerConfig.partExchange, dealerConfig.delivery].some(service => service?.enabled) && <section className="home-services section-space border-t border-border bg-secondary/40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <p className="luxxy-kicker mb-3">{websiteText(dealerConfig, "servicesEyebrow")}</p>
           <h2 className="section-heading">{websiteText(dealerConfig, "servicesHeading")}</h2>

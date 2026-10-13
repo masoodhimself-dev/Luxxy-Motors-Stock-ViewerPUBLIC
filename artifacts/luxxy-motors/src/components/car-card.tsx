@@ -256,6 +256,7 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
+          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? `${Number((car.mileage / 1000).toFixed(1))}k miles` : car.mileageText, car.transmission].filter(Boolean).join(' · ')}</p>}
           {!summaryOnly && <PriceReduction car={car} />}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
