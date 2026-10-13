@@ -85,7 +85,7 @@ export type SaleWorkspaceCommand =
   | { action: 'take-deposit'; payment: SaleWorkspacePaymentInput }
   | { action: 'invoice-payment'; payment: SaleWorkspacePaymentInput }
   | { action: 'issue-invoice'; kind: 'deposit' | 'full'; acknowledge: boolean }
-  | { action: 'finish-invoice-sale'; acknowledge: boolean }
+  | { action: 'finish-invoice-sale'; acknowledge: boolean; acknowledgeOutstanding?: boolean }
   | { action: 'complete-sale'; acknowledge: boolean }
   | { action: 'confirm'; paymentId: string; date?: string; reserveVehicle?: boolean }
   | { action: 'reverse'; paymentId: string; amount?: string; kind?: 'refund' | 'reversal'; reason: string; date: string; invoiceOnly?: boolean }
@@ -229,7 +229,9 @@ function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContex
   const amount = saleWorkspaceTotals(record.draft, record.payments);
   if (Object.values(amount).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('Check the sale amounts before issuing paperwork.');
   // A car can leave the current feed before the final payment. Reuse only facts already issued for that same vehicle.
-  const vehicle = context.vehicle ?? [...record.documents].reverse().find(item => item.snapshot.vehicle?.id === record.draft.vehicleId)?.snapshot.vehicle;
+  const previousVehicle = [...record.documents].reverse().find(item => item.snapshot.vehicle?.id === record.draft.vehicleId)?.snapshot.vehicle;
+  const suppliedVehicle = context.vehicle ?? previousVehicle;
+  const vehicle = suppliedVehicle && { ...suppliedVehicle, ...(!suppliedVehicle.photoDataUrl && suppliedVehicle.id === record.draft.vehicleId && previousVehicle?.photoDataUrl ? { photoDataUrl: previousVehicle.photoDataUrl } : {}) };
   const document: SaleWorkspaceDocument = {
     id: context.nextId(), number: context.nextNumber(type), type, title, issuedAt: context.now, issuedBy: context.actor,
     version: record.documents.filter(item => item.type === type).length + 1,
@@ -322,7 +324,8 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     event(record, context, 'document-email-' + command.delivery.status, 'Document email ' + command.delivery.status);
   } else if (command.action === 'payment' || command.action === 'take-deposit' || command.action === 'invoice-payment') {
     ready(record);
-    if (command.action === 'invoice-payment' && (record.completedAt || record.lifecycle?.status === 'sold' || command.payment?.status !== 'confirmed')) throw new SaleWorkspaceError('Record received funds on an open sale.');
+    if (command.action === 'invoice-payment' && command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Record received funds on this sale.');
+    if (command.action === 'invoice-payment' && command.payment.kind === 'deposit' && (record.completedAt || record.lifecycle?.status === 'sold')) throw new SaleWorkspaceError('This car is already sold. Record an interim or final payment instead of another reservation deposit.');
     if (command.action === 'take-deposit') {
       if (record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('This sale is already completed.', 409);
       if (command.payment?.kind !== 'deposit' || command.payment?.status !== 'confirmed') throw new SaleWorkspaceError('Confirm a received deposit to reserve this car.');
@@ -406,11 +409,13 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.acknowledge !== true) throw new SaleWorkspaceError('Confirm that this car should be marked sold.');
     const fullInvoice = [...record.documents].reverse().find(d => d.invoiceKind === 'full');
     if (!fullInvoice) throw new SaleWorkspaceError('Create the full invoice before marking the car sold.');
-    if (saleWorkspaceTotals(record.draft, record.payments).balance !== 0) throw new SaleWorkspaceError('Settle the balance before marking the car sold.');
+    const outstanding = saleWorkspaceTotals(record.draft, record.payments).balance;
+    if (outstanding < 0) throw new SaleWorkspaceError('Resolve the customer credit before marking this car sold.');
+    if (outstanding > 0 && command.acknowledgeOutstanding !== true) throw new SaleWorkspaceError('Settle the balance or explicitly acknowledge the outstanding amount before marking the car sold.');
     if (JSON.stringify(fullInvoice.snapshot.payments) !== JSON.stringify(record.payments) || ['customer','address','email','phone','vehicleId','vehicle','registration','price','exchanges','adjustments'].some(key => JSON.stringify(fullInvoice.snapshot.draft[key as keyof SaleWorkspaceDraft]) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft]))) throw new SaleWorkspaceError('Create an updated full invoice with the latest details and payments before marking this car sold.');
     record.completedAt = context.now;
     record.lifecycle = { status: 'sold', vehicleId: record.draft.vehicleId, changedAt: context.now };
-    event(record, context, 'sale-completed', 'Car marked sold after issuing the full invoice; removed from public stock');
+    event(record, context, 'sale-completed', 'Car marked sold after issuing the full invoice; removed from public stock' + (outstanding > 0 ? `; £${(outstanding / 100).toFixed(2)} remains outstanding (staff acknowledged)` : ''));
   } else if (command.action === 'complete-sale') {
     ready(record);
     if (record.completedAt) throw new SaleWorkspaceError('This sale is already completed. Reopen its saved documents.', 409);

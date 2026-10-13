@@ -213,7 +213,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       if (section === 'documents') command = { action: 'document', type: input.type };
       if (section === 'invoice-payments') command = { action: 'invoice-payment', payment: input.payment };
       if (section === 'issue-invoice') command = { action: 'issue-invoice', kind: input.kind, acknowledge: input.acknowledge };
-      if (section === 'finish-invoice-sale') command = { action: 'finish-invoice-sale', acknowledge: input.acknowledge };
+      if (section === 'finish-invoice-sale') command = { action: 'finish-invoice-sale', acknowledge: input.acknowledge, acknowledgeOutstanding: input.acknowledgeOutstanding === true };
       if (section === 'take-deposit') command = { action: 'take-deposit', payment: input.payment };
       if (section === 'complete-sale') command = { action: 'complete-sale', acknowledge: input.acknowledge };
       if (section === 'handover') command = { action: 'handover', recipient: input.recipient, completedAt: input.completedAt, acknowledgeOutstanding: input.acknowledgeOutstanding };

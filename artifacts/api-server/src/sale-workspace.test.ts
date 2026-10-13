@@ -335,3 +335,12 @@ test('guided corrections preserve history without generating unwanted receipts',
   const corrected=changeSaleWorkspace(deposited,{action:'reverse',paymentId:deposited.payments[0].id,amount:'100',kind:'refund',reason:'Customer refund',date:'2026-10-04',invoiceOnly:true},{expectedRevision:deposited.revision,requestId:'guided-correction'},context()).sale;
   assert.equal(corrected.documents.length,0);assert.equal(corrected.payments.length,2);assert.equal(saleWorkspaceTotals(corrected.draft,corrected.payments).confirmedPaid,40000);
 });
+
+test('staff may explicitly sell with an outstanding balance, then record later funds without losing the debt or invoice', () => {
+  const sale=create();const issued=changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},{expectedRevision:sale.revision,requestId:'guided-credit-invoice'},context()).sale;
+  const sold=changeSaleWorkspace(issued,{action:'finish-invoice-sale',acknowledge:true,acknowledgeOutstanding:true},{expectedRevision:issued.revision,requestId:'guided-credit-sold'},context()).sale;
+  assert.equal(sold.lifecycle?.status,'sold');assert.equal(saleWorkspaceTotals(sold.draft,sold.payments).balance,1200000);assert.match(sold.events.at(-1)!.description,/staff acknowledged/);
+  const paid=changeSaleWorkspace(sold,{action:'invoice-payment',payment:{amount:'12000',method:'Bank transfer',date:'2026-10-04',reference:'LATE-BANK',kind:'final-payment',status:'confirmed'}},{expectedRevision:sold.revision,requestId:'guided-credit-final'},context()).sale;
+  assert.equal(saleWorkspaceTotals(paid.draft,paid.payments).balance,0);assert.equal(paid.lifecycle?.status,'sold');assert.equal(paid.documents.length,1);
+  assert.throws(() => changeSaleWorkspace(sold,{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},{expectedRevision:sold.revision,requestId:'guided-sold-reserve'},context()),/already sold/);
+});
