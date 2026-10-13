@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   History,
   MessageSquare,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerDashboard, DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
@@ -29,14 +30,16 @@ import { ChatUnreadBadge } from '@/components/portal/chat-notifications';
 import { SalesWorkspace } from '@/pages/sales-demo';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 
+import { EmailWorkspace } from '@/components/portal/email-workspace';
 import { StaffInventory } from '@/components/portal/staff-inventory';
 
-type TabKey = 'inventory' | 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
+type TabKey = 'email' | 'inventory' | 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'inventory', label: 'Cars', icon: LayoutDashboard },
   { key: 'enquiries', label: 'Enquiries', icon: CalendarClock },
+  { key: 'email', label: 'Email', icon: Mail },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
   { key: 'sales', label: 'Sales', icon: FileText },
   { key: 'test-drives', label: 'Test drives', icon: CalendarClock },
@@ -116,6 +119,7 @@ function PortalDesk() {
   useEffect(() => { const section = new URLSearchParams(search).get('section'); if (tabs.some(item => item.key === section)) { setTab(section as TabKey); if (section === 'sales') setSalesOpened(true); } }, [search]);
   const canSell = access.data?.permissions.includes('sales.manage') ?? false;
   const visibleTabs = tabs.filter(item => (item.key !== 'chat' || customerFeaturePolicy.websiteChat)
+    && (item.key !== 'email' || access.data?.permissions.includes('sales.manage'))
     && (item.key !== 'settings' || access.data?.permissions.includes('settings.publish')));
 
   useEffect(() => {
@@ -236,6 +240,7 @@ function PortalDesk() {
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
               {tab === 'overview' && <DealerDashboard />}
               {tab === 'inventory' && <StaffInventory />}
+              {tab === 'email' && <EmailWorkspace />}
               {tab === 'enquiries' && <EnquiriesPanel canEmail={canSell} />}
               {tab === 'chat' && <ChatPanel />}
               {tab === 'test-drives' && <TestDriveBookingsPanel />}

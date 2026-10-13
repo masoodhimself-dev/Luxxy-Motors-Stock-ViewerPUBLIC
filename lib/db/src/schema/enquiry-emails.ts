@@ -27,7 +27,13 @@ export const enquiryEmailsTable = pgTable(
     recipient: text("recipient").notNull(),
     subject: text("subject").notNull(),
     message: text("message").notNull(),
+    renderedText: text("rendered_text"),
+    attachmentManifest: jsonb("attachment_manifest")
+      .$type<Array<{ id: string; filename: string; byteSize: number }>>()
+      .notNull()
+      .default([]),
     photoIds: jsonb("photo_ids").$type<string[]>().notNull().default([]),
+    documentIds: jsonb("document_ids").$type<string[]>().notNull().default([]),
     providerId: text("provider_id"),
     error: text("error"),
     createdBy: text("created_by").notNull(),

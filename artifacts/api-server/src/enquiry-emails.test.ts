@@ -17,6 +17,7 @@ import {
   enquiryEventsTable,
 } from "./test/tenant-test-db";
 import { resolveTenant } from "./middlewares/tenant";
+import { createStaffEmailRouter } from "./routes/staff-email";
 import { createEnquiryEmailRouter } from "./routes/enquiry-emails";
 import { defaultEmailAppearance } from "@workspace/vehicle-meta";
 import type { PrivateDealerSettings } from "./lib/dealer-integrations-store";
@@ -81,14 +82,12 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
   await db
     .insert(portalUsersTable)
     .values({ dealerId: "a", authUserId: "accounts", role: "accounts" });
-  await db
-    .insert(dealerDomainsTable)
-    .values({
-      hostname: "www.a.example.test",
-      dealerId: "a",
-      verified: true,
-      verificationToken: "fictional",
-    });
+  await db.insert(dealerDomainsTable).values({
+    hostname: "www.a.example.test",
+    dealerId: "a",
+    verified: true,
+    verificationToken: "fictional",
+  });
   const config: PrivateDealerSettings = {
     version: 1,
     revision: 0,
@@ -110,6 +109,10 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     appearance: { ...defaultEmailAppearance },
   };
   const sends: any[] = [];
+  const providerId = randomUUID();
+  let providerEvent = "opened",
+    providerHTTP = 200;
+  const checks: any[] = [];
   let failure: string | null = null;
   const app = express();
   app.use(express.json());
@@ -122,9 +125,29 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
         sends.push(body);
         await new Promise((r) => setTimeout(r, 20));
         if (failure) throw new Error(failure);
-        return "fictional-provider-id";
+        return providerId;
       },
     }),
+  );
+  app.use(
+    "/api",
+    createStaffEmailRouter(
+      async (url, options) => {
+        checks.push({ url, options });
+        return new Response(
+          JSON.stringify({
+            id: providerId,
+            to: ["a@example.test"],
+            last_event: providerEvent,
+          }),
+          {
+            status: providerHTTP,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      },
+      async () => config.resend,
+    ),
   );
   const server = createServer(app);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -216,12 +239,22 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       ).status,
       200,
     );
-    await engine.exec(`UPDATE vehicle_service_photos SET category='pre_accident' WHERE id='${photos[0]}'`);
+    await engine.exec(
+      `UPDATE vehicle_service_photos SET category='pre_accident' WHERE id='${photos[0]}'`,
+    );
     const context = await call(base + "/email-context");
     assert.equal(context.status, 200);
     assert.equal(context.data.photos.length, 1);
-    assert.equal(context.data.photos[0].category,"pre_accident");
+    assert.equal(context.data.photos[0].category, "pre_accident");
     assert.equal(context.data.ready, true);
+    assert.ok(
+      context.data.templates.some((t: any) => t.id === "service_history"),
+    );
+    assert.ok(
+      context.data.templates.every(
+        (t: any) => !t.message.includes("{{customer_name}}"),
+      ),
+    );
     assert.ok(!JSON.stringify(context.data).includes("re_fictional"));
     assert.equal(
       (await call(base + "/email-preview", { ...draft, photoIds: [photos[1]] }))
@@ -264,6 +297,53 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     ]);
     assert.deepEqual(pair.map((r) => r.status).sort(), [200, 201]);
     assert.equal(sends.length, 1);
+    const emails = await call("/api/staff/email");
+    assert.equal(emails.status, 200);
+    assert.equal(emails.data.messages.length, 1);
+    const messageKey = emails.data.messages[0].key;
+    assert.equal(
+      (
+        await call(
+          "/api/staff/email/message/" + encodeURIComponent(messageKey),
+          undefined,
+          "user_b",
+          "b",
+        )
+      ).status,
+      404,
+    );
+    const saved = await call(
+      "/api/staff/email/message/" + encodeURIComponent(messageKey),
+    );
+    assert.match(saved.data.message.message, /£9,000/);
+    const checked = await call(
+      "/api/staff/email/message/" + encodeURIComponent(messageKey) + "/status",
+      {},
+    );
+    assert.equal(checked.status, 200);
+    assert.equal(checked.data.event, "opened");
+    assert.equal(checks.length, 1);
+    assert.equal(
+      (
+        await call(
+          "/api/staff/email/message/" +
+            encodeURIComponent(messageKey) +
+            "/status",
+          {},
+        )
+      ).data.cached,
+      true,
+    );
+    assert.equal(checks.length, 1);
+    assert.equal(
+      (await call("/api/staff/email")).data.messages[0].last_event,
+      "opened",
+    );
+    assert.equal(
+      (await call("/api/staff/email", undefined, "user_b", "b")).data.messages
+        .length,
+      0,
+    );
     assert.equal(sends[0].attachments.length, 1);
     assert.ok(sends[0].attachments[0].filename.includes("pre-accident"));
     assert.equal(
@@ -344,6 +424,181 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       "saved retry works after configuration is disabled",
     );
     config.resend.enabled = true;
+    const saleId = randomUUID(),
+      invoiceId = randomUUID(),
+      wrongInvoiceId = randomUUID();
+    const invoice = {
+      id: invoiceId,
+      type: "invoice",
+      title: "Full invoice",
+      number: "TEST-INV-001",
+      issuedAt: new Date().toISOString(),
+      snapshot: {
+        draft: {
+          customer: "Customer a",
+          email: "a@example.test",
+          vehicleId: cars[0],
+        },
+      },
+    };
+    const saleState = {
+      draft: {
+        customer: "Customer a",
+        email: "a@example.test",
+        vehicleId: cars[0],
+        sourceEnquiryId: enquiries[0],
+      },
+      documents: [
+        invoice,
+        {
+          ...invoice,
+          id: wrongInvoiceId,
+          snapshot: {
+            draft: { customer: "Other buyer", email: "other@example.test" },
+          },
+        },
+      ],
+      documentArchives: {
+        [invoiceId]: {
+          content: Buffer.from("EXACT-ORIGINAL-PDF").toString("base64"),
+          sha256: "fixture",
+        },
+      },
+      emailDeliveries: [
+        {
+          id: "invoice-mail-001",
+          documentId: invoiceId,
+          to: "a@example.test",
+          providerId,
+          status: "sent",
+          attemptedAt: new Date().toISOString(),
+        },
+      ],
+    };
+    await engine.query(
+      "INSERT INTO sale_workspace(id,dealer_id,reference,revision,state) VALUES($1,$2,$3,1,$4::jsonb)",
+      [saleId, "a", "SALE-001", JSON.stringify(saleState)],
+    );
+    const withInvoice = await call(base + "/email-context");
+    assert.equal(withInvoice.data.invoices.length, 1);
+    assert.equal(withInvoice.data.invoices[0].id, `${saleId}:${invoiceId}`);
+    const invoicePreview = await call(base + "/email-preview", {
+      ...noPhotos,
+      documentIds: [`${saleId}:${invoiceId}`],
+    });
+    assert.equal(invoicePreview.status, 200);
+    assert.equal(
+      invoicePreview.data.attachments[0].filename,
+      "TEST-INV-001.pdf",
+    );
+    failure = null;
+    const invoiceEmail = await call(base + "/email", {
+      ...noPhotos,
+      documentIds: [`${saleId}:${invoiceId}`],
+      requestId: randomUUID(),
+      previewHash: invoicePreview.data.previewHash,
+    });
+    assert.equal(invoiceEmail.status, 201);
+    assert.equal(
+      Buffer.from(sends.at(-1).attachments[0].content, "base64").toString(),
+      "EXACT-ORIGINAL-PDF",
+    );
+    assert.equal(
+      (
+        await call(base + "/email-preview", {
+          ...noPhotos,
+          documentIds: [`${saleId}:${wrongInvoiceId}`],
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (await call("/api/staff/email")).data.messages.filter(
+        (m: any) => m.kind === "sale",
+      ).length,
+      1,
+    );
+    await db
+      .update(enquiriesTable)
+      .set({
+        customerNotificationStatus: "sent",
+        customerNotificationProviderId: providerId,
+        customerNotificationAttemptedAt: new Date(),
+      })
+      .where(eq(enquiriesTable.id, enquiries[0]));
+    assert.equal(
+      (await call("/api/staff/email")).data.messages.filter(
+        (m: any) => m.kind === "notification",
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await call(
+          "/api/staff/email/message/" +
+            encodeURIComponent("notification:" + enquiries[0]),
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await call(
+          "/api/staff/email/message/" +
+            encodeURIComponent(`sale:${saleId}:invoice-mail-001`),
+          undefined,
+          "user_b",
+          "b",
+        )
+      ).status,
+      404,
+    );
+    await engine.exec(
+      "UPDATE email_delivery_checks SET checked_at='2020-01-01'",
+    );
+    providerEvent = "unexpected";
+    assert.equal(
+      (
+        await call(
+          "/api/staff/email/message/" +
+            encodeURIComponent(messageKey) +
+            "/status",
+          {},
+        )
+      ).status,
+      503,
+    );
+    assert.equal(
+      (await call("/api/staff/email")).data.messages.find(
+        (m: any) => m.key === messageKey,
+      ).last_event,
+      "opened",
+    );
+    providerHTTP = 403;
+    assert.match(
+      (
+        await call(
+          "/api/staff/email/message/" +
+            encodeURIComponent(messageKey) +
+            "/status",
+          {},
+        )
+      ).data.error,
+      /permission/,
+    );
+    providerHTTP = 200;
+    providerEvent = "delivered";
+    assert.equal(
+      (
+        await call(
+          "/api/staff/email/message/" +
+            encodeURIComponent(messageKey) +
+            "/status",
+          {},
+        )
+      ).data.event,
+      "delivered",
+    );
     await db
       .update(enquiriesTable)
       .set({ workspaceRevision: 1 })

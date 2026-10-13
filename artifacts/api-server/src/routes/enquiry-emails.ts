@@ -1,3 +1,4 @@
+import { archiveSaleDocument } from "../lib/sale-document-pdf";
 import { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -14,6 +15,7 @@ import {
   renderEmailTemplate,
   vehicleRegistrationLabel,
   type EmailFacts,
+  type SaleWorkspaceDocument,
 } from "@workspace/vehicle-meta";
 import {
   requireStaff,
@@ -52,6 +54,11 @@ const draftSchema = z
       .array(z.string().uuid())
       .max(6)
       .refine((v) => new Set(v).size === v.length),
+    documentIds: z
+      .array(z.string().regex(/^[a-f0-9-]{36}:[a-f0-9-]{36}$/i))
+      .max(3)
+      .refine((v) => new Set(v).size === v.length)
+      .default([]),
     expectedRevision: z.number().int().nonnegative(),
   })
   .strict();
@@ -80,6 +87,7 @@ const describe = (row: typeof enquiryEmailsTable.$inferSelect) => ({
   subject: row.subject,
   status: row.status,
   photoCount: row.photoIds.length,
+  documentCount: row.documentIds.length,
   createdAt: row.createdAt,
   finishedAt: row.finishedAt,
   error: row.error,
@@ -152,6 +160,47 @@ export function createEnquiryEmailRouter(
       );
     if (!row) throw new EmailError("Enquiry not found.", 404);
     return row;
+  }
+  async function invoiceAttachments(
+    enquiry: typeof enquiriesTable.$inferSelect,
+    executor: typeof db = db,
+    content = false,
+  ) {
+    if (!enquiry.vehicleId) return [];
+    const rows = (
+      await executor.execute(
+        sql`SELECT id,state->'documents' AS documents,CASE WHEN ${content} THEN state->'documentArchives' ELSE NULL END AS archives FROM sale_workspace WHERE dealer_id=${enquiry.dealerId} AND state#>>'{draft,vehicleId}'=${enquiry.vehicleId} AND (state#>>'{draft,sourceEnquiryId}'=${enquiry.id} OR (${enquiry.email ?? ""}<>'' AND lower(state#>>'{draft,email}')=lower(${enquiry.email ?? ""}))) ORDER BY updated_at DESC LIMIT 20`,
+      )
+    ).rows;
+    return rows
+      .flatMap((row) =>
+        ((row.documents ?? []) as SaleWorkspaceDocument[])
+          .filter(
+            (doc) =>
+              doc.type === "invoice" &&
+              doc.snapshot.draft.customer.trim().toLowerCase() ===
+                enquiry.customerName.trim().toLowerCase() &&
+              (!enquiry.email ||
+                doc.snapshot.draft.email.trim().toLowerCase() ===
+                  enquiry.email.trim().toLowerCase()),
+          )
+          .map((doc) => ({
+            id: `${row.id}:${doc.id}`,
+            title: doc.title,
+            number: doc.number,
+            saleId: String(row.id),
+            issuedAt: doc.issuedAt,
+            document: doc,
+            archive: (
+              row.archives as Record<
+                string,
+                { content: string; sha256: string }
+              > | null
+            )?.[doc.id],
+          })),
+      )
+      .sort((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt))
+      .slice(0, 30);
   }
   async function preview(
     id: string,
@@ -280,9 +329,7 @@ export function createEnquiryEmailRouter(
     }> = [];
     if (input.photoIds.length) {
       if (!car)
-        throw new EmailError(
-          "Vehicle photos need a linked stock vehicle.",
-        );
+        throw new EmailError("Vehicle photos need a linked stock vehicle.");
       const rows = (
         await executor.execute(
           sql`SELECT id, category, encode(jpeg,'hex') AS bytes FROM vehicle_service_photos WHERE dealer_id=${enquiry.dealerId} AND vehicle_id=${car.id}::uuid AND id IN (${sql.join(
@@ -305,6 +352,32 @@ export function createEnquiryEmailRouter(
         });
       }
     }
+    if (input.documentIds.length) {
+      const allowed = await invoiceAttachments(enquiry, executor, true);
+      for (const id of input.documentIds) {
+        const item = allowed.find((d) => d.id === id);
+        if (!item)
+          throw new EmailError(
+            "An invoice is not available for this customer and car. Review its sale record.",
+            409,
+          );
+        const archive = item.archive ?? archiveSaleDocument(item.document);
+        attachments.push({
+          id,
+          filename: `${item.number.replace(/[^A-Za-z0-9_-]/g, "_")}.pdf`,
+          content: archive.content,
+        });
+      }
+    }
+    if (
+      attachments.reduce(
+        (bytes, a) => bytes + Buffer.byteLength(a.content, "base64"),
+        0,
+      ) > 15_000_000
+    )
+      throw new EmailError(
+        "The selected attachments are too large. Send fewer documents.",
+      );
     facts.push({ label: "Enquiry reference", value: enquiry.reference });
     // Submitted copy is literal text; braces/HTML entered by staff never become templates or markup.
     const rendered = renderEmailTemplate(
@@ -400,7 +473,55 @@ export function createEnquiryEmailRouter(
         ready =
           resend.enabled &&
           integrationReadiness({ ...config, resend }).resend.ready;
+      const variables = {
+        customer_name: enquiry.customerName,
+        customer_email: enquiry.email,
+        vehicle_title: enquiry.vehicleTitle || "Your enquiry",
+        vehicle_registration: enquiry.vehicleRegistration || "",
+        dealer_name: profile.identity.name,
+        dealer_phone: profile.contact.phone,
+        dealer_email: profile.contact.email,
+        reference: enquiry.reference,
+        message:
+          "Here are the details we discussed. Please let us know if you have any questions.",
+      };
+      const templates = defaultEmailTemplates
+        .filter((t) =>
+          [
+            "enquiry_message",
+            "invoice_copy",
+            "vehicle_details",
+            "service_history",
+            "pre_accident_photos",
+            "appointment_details",
+          ].includes(t.id),
+        )
+        .map((t) => {
+          const rendered = renderEmailTemplate(
+            { ...t, ...config.templates[t.id] },
+            variables,
+            [],
+            { ...config.appearance, heading: "", footer: "" },
+          );
+          return {
+            id: t.id,
+            label: t.label,
+            subject: rendered.subject,
+            message: rendered.text,
+          };
+        });
+      const invoices = (await invoiceAttachments(enquiry)).map(
+        ({ id, title, number, saleId, issuedAt }) => ({
+          id,
+          title,
+          number,
+          saleId,
+          issuedAt,
+        }),
+      );
       res.json({
+        templates,
+        invoices,
         email: enquiry.email || "",
         customerName: enquiry.customerName,
         vehicleId: enquiry.vehicleId,
@@ -460,7 +581,14 @@ export function createEnquiryEmailRouter(
       const input = parsed.data,
         dealer = currentDealerId(),
         id = String(req.params.id),
-        requestHash = hash(JSON.stringify(input));
+        requestHash = hash(
+          JSON.stringify({
+            ...input,
+            documentIds: input.documentIds.length
+              ? input.documentIds
+              : undefined,
+          }),
+        );
       if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
       const config = await deps.settings(),
         resend = effectiveResendSettings(config),
@@ -536,7 +664,14 @@ export function createEnquiryEmailRouter(
             recipient: input.to,
             subject: input.subject,
             message: input.message,
+            renderedText: result.rendered.text,
+            attachmentManifest: result.attachments.map((a) => ({
+              id: a.id,
+              filename: a.filename,
+              byteSize: Buffer.byteLength(a.content, "base64"),
+            })),
             photoIds: input.photoIds,
+            documentIds: input.documentIds,
             createdBy: req.staff!.authUserId,
           })
           .returning();
@@ -596,7 +731,7 @@ export function createEnquiryEmailRouter(
             channel: "email",
             staffId: req.staff!.authUserId,
             staffName: staffLabel(req),
-            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} vehicle photo${input.photoIds.length === 1 ? "" : "s"} attached.${error ? "\n" + error : ""}`,
+            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} vehicle photo${input.photoIds.length === 1 ? "" : "s"} and ${input.documentIds.length} invoice(s) attached.${error ? "\n" + error : ""}`,
           },
         });
         return row!;

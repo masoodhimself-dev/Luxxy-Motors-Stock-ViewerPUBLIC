@@ -22,6 +22,7 @@ type Delivery = {
   subject: string;
   status: "sending" | "sent" | "failed" | "unknown";
   photoCount: number;
+  documentCount?: number;
   createdAt: string;
   error: string | null;
 };
@@ -36,6 +37,14 @@ type EmailContext = {
   appointmentAvailable: boolean;
   defaults: { subject: string; message: string };
   ready: boolean;
+  templates?: { id: string; label: string; subject: string; message: string }[];
+  invoices?: {
+    id: string;
+    title: string;
+    number: string;
+    saleId: string;
+    issuedAt: string;
+  }[];
   photos: { id: string; byte_size: number; category?: string }[];
   deliveries: Delivery[];
 };
@@ -46,6 +55,7 @@ type EmailDraft = {
   includeVehicle: boolean;
   includeAppointment: boolean;
   photoIds: string[];
+  documentIds: string[];
   expectedRevision: number;
 };
 type EmailPreview = {
@@ -111,7 +121,10 @@ function Photo({
       rel="noreferrer"
       aria-label={`Inspect ${category === "pre_accident" ? "pre-accident" : "service-book"} photo ${index + 1}`}
     >
-      <img src={url} alt={`${category === "pre_accident" ? "Pre-accident" : "Service-book"} photo ${index + 1}`} />
+      <img
+        src={url}
+        alt={`${category === "pre_accident" ? "Pre-accident" : "Service-book"} photo ${index + 1}`}
+      />
     </a>
   ) : (
     <span className="enquiry-email-photo-empty">Preview unavailable</span>
@@ -148,6 +161,7 @@ export function EnquiryEmailComposer({
     includeVehicle: false,
     includeAppointment: false,
     photoIds: [],
+    documentIds: [],
     expectedRevision: 0,
   });
   const [preview, setPreview] = useState<EmailPreview | null>(null),
@@ -165,6 +179,7 @@ export function EnquiryEmailComposer({
       includeVehicle: data.vehicleAvailable,
       includeAppointment: data.appointmentAvailable,
       photoIds: [],
+      documentIds: [],
       expectedRevision: data.revision,
     });
   }, [context.data]);
@@ -276,7 +291,8 @@ export function EnquiryEmailComposer({
             </p>
             <p>
               {delivery.photoCount} vehicle photo
-              {delivery.photoCount === 1 ? "" : "s"} · recorded in enquiry
+              {delivery.photoCount === 1 ? "" : "s"} ·{" "}
+              {delivery.documentCount ?? 0} invoice(s) · recorded in enquiry
               history
             </p>
             <Button onClick={onClose}>Done</Button>
@@ -314,7 +330,7 @@ export function EnquiryEmailComposer({
                   </div>
                   {preview.attachments.length > 0 && (
                     <div className="enquiry-email-attachment-list">
-                      <strong>Attached vehicle photos</strong>
+                      <strong>Attachments</strong>
                       {preview.attachments.map((a) => (
                         <p key={a.id}>
                           {a.filename} · {Math.ceil(a.byteSize / 1024)} KB
@@ -371,6 +387,76 @@ export function EnquiryEmailComposer({
                         onChange={(event) => change({ to: event.target.value })}
                       />
                     </label>
+                    {data.templates?.length && (
+                      <label>
+                        Use a template
+                        <select
+                          aria-label="Email template"
+                          defaultValue=""
+                          onChange={(event) => {
+                            const selected = data.templates?.find(
+                              (t) => t.id === event.target.value,
+                            );
+                            if (selected) {
+                              const category =
+                                selected.id === "service_history"
+                                  ? "service_book"
+                                  : selected.id === "pre_accident_photos"
+                                    ? "pre_accident"
+                                    : null;
+                              change({
+                                subject: selected.subject,
+                                message: selected.message,
+                                includeAppointment:
+                                  selected.id === "appointment_details" &&
+                                  data.appointmentAvailable,
+                                documentIds:
+                                  selected.id === "invoice_copy"
+                                    ? data.invoices?.[0]
+                                      ? [data.invoices[0].id]
+                                      : []
+                                    : draft.documentIds,
+                                photoIds: category
+                                  ? data.photos
+                                      .filter(
+                                        (p) =>
+                                          (p.category ?? "service_book") ===
+                                          category,
+                                      )
+                                      .map((p) => p.id)
+                                  : draft.photoIds,
+                              });
+                            }
+                          }}
+                        >
+                          <option value="">Choose a template</option>
+                          {data.templates.map((t) => (
+                            <option
+                              key={t.id}
+                              value={t.id}
+                              disabled={
+                                (t.id === "invoice_copy" &&
+                                  !data.invoices?.length) ||
+                                (t.id === "appointment_details" &&
+                                  !data.appointmentAvailable) ||
+                                (t.id === "service_history" &&
+                                  !data.photos.some(
+                                    (p) =>
+                                      (p.category ?? "service_book") ===
+                                      "service_book",
+                                  )) ||
+                                (t.id === "pre_accident_photos" &&
+                                  !data.photos.some(
+                                    (p) => p.category === "pre_accident",
+                                  ))
+                              }
+                            >
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <label>
                       Subject
                       <Input
@@ -394,6 +480,33 @@ export function EnquiryEmailComposer({
                         }
                       />
                     </label>
+                    {Boolean(data.invoices?.length) && (
+                      <fieldset className="enquiry-email-service-book">
+                        <legend>Saved invoices · optional</legend>
+                        {data.invoices!.map((invoice) => (
+                          <label key={invoice.id}>
+                            <input
+                              type="checkbox"
+                              checked={draft.documentIds.includes(invoice.id)}
+                              disabled={
+                                !draft.documentIds.includes(invoice.id) &&
+                                draft.documentIds.length >= 3
+                              }
+                              onChange={(event) =>
+                                change({
+                                  documentIds: event.target.checked
+                                    ? [...draft.documentIds, invoice.id]
+                                    : draft.documentIds.filter(
+                                        (id) => id !== invoice.id,
+                                      ),
+                                })
+                              }
+                            />
+                            {invoice.title} · {invoice.number}
+                          </label>
+                        ))}
+                      </fieldset>
+                    )}
                     {(data.vehicleAvailable || data.appointmentAvailable) && (
                       <div
                         className="enquiry-email-inclusions"
@@ -466,7 +579,10 @@ export function EnquiryEmailComposer({
                                         })
                                       }
                                     />
-                                    {photo.category === "pre_accident" ? "Pre-accident" : "Service book"} · Photo {index + 1} ·{" "}
+                                    {photo.category === "pre_accident"
+                                      ? "Pre-accident"
+                                      : "Service book"}{" "}
+                                    · Photo {index + 1} ·{" "}
                                     {Math.ceil(photo.byte_size / 1024)} KB
                                   </label>
                                 </div>

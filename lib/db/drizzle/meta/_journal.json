@@ -183,6 +183,13 @@
       "when": 1791899166429,
       "tag": "0025_data_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791909683525,
+      "tag": "0026_email_workspace",
+      "breakpoints": true
     }
   ]
 }
