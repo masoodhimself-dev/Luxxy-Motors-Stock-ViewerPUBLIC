@@ -1,7 +1,17 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-13T07:00:00Z') });
   await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.fulfill({ status: 403, json: { error: 'Test blocked this write.' } }));
+  // Match the requested date: layout checks must not depend on today's real
+  // remaining slots or appointments created by a previous preview session.
+  await page.route('**/api/enquiries/availability?*', route => {
+    const date = new URL(route.request().url()).searchParams.get('date');
+    return route.fulfill({ json: { date, timezone: 'Europe/London', slots: [
+      { label: '10:00 am', startAt: `${date}T09:00:00.000Z`, available: true },
+      { label: '2:00 pm', startAt: `${date}T13:00:00.000Z`, available: true },
+    ] } });
+  });
 });
 
 for (const width of [375, 820]) {

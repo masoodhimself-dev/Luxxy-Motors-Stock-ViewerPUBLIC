@@ -25,6 +25,8 @@
 .booking-page [data-testid="group-viewing-dates"] button { border-radius: 8px; scroll-snap-align: start; }
 .booking-page [data-testid="group-viewing-slots"] button { border-radius: 8px; }
 @media (min-width: 640px) {
+  .friendly-saved .saved-car-list .vehicle-card-photo { display: flex; align-items: center; }
+  .friendly-saved .saved-car-list .vehicle-card-photo > [data-stock-link] { width: 100%; }
   .booking-page [data-testid="group-viewing-dates"] { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: visible; }
   .booking-page [data-testid="group-viewing-dates"] button { min-width: 0; padding-inline: 10px; }
 }

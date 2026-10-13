@@ -36,6 +36,23 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   const stroke = (value = rule) => pdf.setDrawColor(value[0], value[1], value[2]);
   const font = (size = 10, bold = false, value = ink) => { pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(size); colour(value); };
   const split = (text: unknown, maxWidth = width, size = 10, bold = false) => { font(size, bold); return pdf.splitTextToSize(clean(text), maxWidth) as string[]; };
+  const splitReference = (text: string, maxWidth: number, size: number, bold: boolean) => {
+    font(size, bold);
+    const rows: string[] = [];
+    let row = '';
+    // A supplied reference is one identifier. Prefer its existing separators
+    // over breaking labels such as INVOICE in the middle of a word.
+    for (const part of clean(text).match(/[^-]+-?|-/g) ?? []) {
+      if (row && pdf.getTextWidth(row + part) > maxWidth) { rows.push(row); row = ''; }
+      const fragments = pdf.splitTextToSize(part, maxWidth) as string[];
+      for (const [index, fragment] of fragments.entries()) {
+        if (index) { rows.push(row); row = ''; }
+        row += fragment;
+      }
+    }
+    if (row) rows.push(row);
+    return rows;
+  };
   const fittedAmount = (amount: number, x: number, at: number, maxWidth: number, size = 13, align: 'left' | 'right' = 'left', value = ink) => {
     const text = money(amount); font(size, true, value);
     const measured = pdf.getTextWidth(text);
@@ -58,7 +75,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     if (continued) {
       stroke(accent); pdf.setLineWidth(plain ? 0.35 : 0.7); pdf.line(left, 14, right, 14);
       const nameRows = split(dealerName, 92, 10, true);
-      const referenceRows = split(`${document.number}  |  ${document.title}`, 80, 8);
+      const referenceRows = splitReference(`${document.number}  |  ${document.title}`, 80, 8, false);
       font(10, true); pdf.text(nameRows, left, 24);
       font(8, false, muted); pdf.text(referenceRows, right, 24, { align: 'right' });
       y = 24 + Math.max(nameRows.length * 4.2, referenceRows.length * 3.4) + 8;
@@ -106,7 +123,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     let referenceY = headerTop + 16 + (titleRows.length - 1) * titleSize * 0.42 + 8;
     font(7.3, true, muted); pdf.text('DOCUMENT NO.', right, referenceY, { align: 'right' });
     referenceY += 5;
-    const referenceRows = split(document.number, 67, 10, true);
+    const referenceRows = splitReference(document.number, 67, 10, true);
     font(10, true, accent); pdf.text(referenceRows, right, referenceY, { align: 'right' });
     referenceY += referenceRows.length * 4.2 + 3;
     font(8.3, false, muted); pdf.text(`${options.draft ? 'PREVIEW DATE' : 'ISSUED ON'}  ${date(document.issuedAt)}`, right, referenceY, { align: 'right' });

@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import type { StockData } from '../src/lib/stock-context';
 
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Read-only customer preview checks.');
@@ -26,6 +26,19 @@ async function fixture(page: Page, request: APIRequestContext, options: { empty?
 
 async function fits(page: Page) {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+}
+
+async function readableAction(action: Locator) {
+  const ratio = await action.evaluate(element => {
+    const style = getComputedStyle(element);
+    const luminance = (colour: string) => colour.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
+      const unit = value / 255;
+      return unit <= .04045 ? unit / 12.92 : ((unit + .055) / 1.055) ** 2.4;
+    }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+    const foreground = luminance(style.color), background = luminance(style.backgroundColor);
+    return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
+  });
+  expect(ratio, 'Dealer colours must keep action labels readable').toBeGreaterThanOrEqual(4.5);
 }
 
 for (const width of [390, 820, 1024, 1440]) {
@@ -58,14 +71,15 @@ for (const width of [390, 820, 1024, 1440]) {
   });
 }
 
-test('premium route styling stops when moving to other customer pages', async ({ page, request }) => {
+test('customer typography stays consistent while showroom geometry remains route-specific', async ({ page, request }) => {
   const { cars } = await fixture(page, request);
   for (const path of ['/saved', '/compare', '/contact', '/enquire?type=viewing&vehicleId=' + cars[0].id]) {
     await page.goto(path);
     await expect(page.locator('#main-content h1').first()).toBeVisible();
     await expect(page.locator('.premium-showroom')).toHaveCount(0);
     const font = await page.locator('.luxxy-shell').first().evaluate(element => getComputedStyle(element).fontFamily);
-    expect(font).not.toContain('Inter');
+    expect(font).toContain('Inter');
+    await expect(page.locator('.customer-site')).toHaveCount(1);
   }
 });
 
@@ -134,16 +148,16 @@ test('all three pages retain bespoke dealer surfaces and readable action colours
   });
   await page.goto('/');
   await expect(page.locator('.hero-search-field select').first()).toHaveCSS('background-color', 'rgb(255, 246, 232)');
-  await expect(page.locator('.hero-search-submit')).toHaveCSS('color', 'rgb(20, 20, 20)');
+  await readableAction(page.locator('.hero-search-submit'));
   await page.goto('/stock');
   await expect(page.locator('.stock-toolbar')).toHaveCSS('background-color', 'rgb(255, 246, 232)');
   await expect(page.locator('.vehicle-card-details').first()).toHaveCSS('background-color', 'rgb(255, 246, 232)');
   await page.getByRole('button', { name: 'Advanced search', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCSS('background-color', 'rgb(255, 246, 232)');
-  await expect(page.getByRole('dialog').locator('.stock-search-submit')).toHaveCSS('color', 'rgb(20, 20, 20)');
+  await readableAction(page.getByRole('dialog').locator('.stock-search-submit'));
   await page.keyboard.press('Escape');
   await page.goto(`/vehicle/${cars[0].id}`);
   await expect(page.locator('.vehicle-summary')).toHaveCSS('background-color', 'rgb(255, 246, 232)');
   await expect(page.locator('.vehicle-summary h1')).toHaveCSS('color', 'rgb(91, 38, 53)');
-  await expect(page.locator('.vehicle-booking-action')).toHaveCSS('color', 'rgb(20, 20, 20)');
+  await readableAction(page.locator('.vehicle-booking-action'));
 });

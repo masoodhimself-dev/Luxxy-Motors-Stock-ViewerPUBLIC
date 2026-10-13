@@ -15,7 +15,7 @@ import { formatPhoneDisplay } from '@/lib/utils';
 import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 import './premium-showroom.css';
 import './portal/portal-workspace.css';
-import { readableForegroundForHsl } from '@/lib/brand-colour';
+import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -23,7 +23,7 @@ const navLinkClass =
 const mobileNavRowClass =
   'flex min-h-12 items-center justify-between border-b border-primary/10 py-2 text-left font-display text-base font-semibold text-primary transition-colors hover:text-accent';
 const footerLinkClass =
-  'min-h-11 text-left text-[14px] font-medium text-primary-foreground/80 transition-colors hover:text-accent';
+  'min-h-11 text-left text-[14px] font-medium text-primary-foreground/80 transition-colors hover:text-primary-foreground hover:underline underline-offset-4';
 const footerHeadingClass = 'font-display text-lg font-semibold text-primary-foreground mb-5';
 const socialLinkClass =
   'grid h-11 w-11 place-items-center rounded-lg bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground';
@@ -47,9 +47,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Adopt the current palette for the original template defaults; preserve bespoke colours.
   const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl === '161.538 16.883% 15.098%' ? '195 22% 13%' : dealerConfig.identity.brandColors?.primaryHsl;
   const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
+  const customerAccent = readableAccentForHsl(brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? brandAccent : '203.226 58.491% 31.176%');
+  const accent = isStaff ? brandAccent : customerAccent;
   const brandStyle = {
-    '--premium-accent': brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? `hsl(${brandAccent})` : '#215a7e',
-    '--premium-accent-foreground': brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? `hsl(${readableForegroundForHsl(brandAccent)})` : '#ffffff',
+    '--premium-accent': `hsl(${customerAccent})`,
+    '--premium-accent-foreground': `hsl(${readableForegroundForHsl(customerAccent)})`,
     ...Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })),
     ...(brandPrimary
       ? {
@@ -59,12 +61,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           '--primary-foreground': readableForegroundForHsl(brandPrimary),
         }
       : {}),
-    ...(brandAccent
+    ...(accent
       ? {
-          '--dealer-accent': brandAccent,
-          '--dealer-accent-foreground': readableForegroundForHsl(brandAccent),
-          '--accent': brandAccent,
-          '--accent-foreground': readableForegroundForHsl(brandAccent),
+          '--dealer-accent': accent,
+          '--dealer-accent-foreground': readableForegroundForHsl(accent),
+          '--accent': accent,
+          '--accent-foreground': readableForegroundForHsl(accent),
         }
       : {}),
   } as CSSProperties;
@@ -160,7 +162,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ''}`}>
+    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       <header
         ref={headerRef}
@@ -382,13 +384,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/contact" className={`mb-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Contact & directions <ArrowRight className="h-4 w-4 shrink-0" /></Link>
               <div className="space-y-5 text-sm text-primary-foreground/80 font-medium">
                 {dealerConfig.contact.phone && (
-                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-accent">
+                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-primary-foreground">
                     <Phone className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-accent">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
+                    <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-primary-foreground">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
                   </a>
                 )}
                 {dealerConfig.contact.email && (
-                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-accent">
+                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-primary-foreground">
                     <MessageCircle className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
                     <span className="min-w-0 break-words [overflow-wrap:anywhere]">{dealerConfig.contact.email}</span>
                   </a>

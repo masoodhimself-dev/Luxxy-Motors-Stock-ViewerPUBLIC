@@ -63,7 +63,7 @@
   padding: 12px 34px 12px 13px;
   background: var(--premium-panel, #fff);
   color: var(--dealer-heading, #20303c);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
 }
 .homepage-art-directed.homepage-premium .hero-search-field select:disabled {

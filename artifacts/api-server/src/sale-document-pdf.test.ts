@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { jsPDF } from 'jspdf';
 import { saleDocumentPdfBytes } from '@workspace/vehicle-meta/sale-document-pdf';
-import { createSaleWorkspace, changeSaleWorkspace, defaultInvoiceSettings, invoiceBranding, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceDocument, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, changeSaleWorkspace, defaultInvoiceSettings, invoiceBranding, invoicePalette, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceDocument, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
 import { saleDocumentPdf } from './lib/sale-document-pdf';
 const draft: SaleWorkspaceDraft = { id: 'draft-test', customer: 'Jamie Taylor', email: '', phone: '', address: '12 Station Road, London', vehicleId: 'test-car', vehicle: '2018 Touring Estate', registration: 'AB18 XYZ', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false, adjustments: [{ description: 'Agreed delivery', amount: '100', kind: 'fee' }], exchanges: [] };
 let id = 0;
@@ -13,7 +13,7 @@ const context: SaleWorkspaceContext = { now: '2026-10-10T10:00:00.000Z', actor: 
 const pageCount = (text: string) => (text.match(/\/Type \/Page\b/g) ?? []).length;
 const pdfStreams = (text: string) => [...text.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].map(match => match[1]);
 const literalText = (text: string) => text.replace(/\\([()\\])/g, '$1');
-type TextRow = { text: string; x: number; y: number; width: number; size: number; page: number };
+type TextRow = { text: string; x: number; y: number; width: number; size: number; page: number; family: string };
 // Read the actual uncompressed PDF text positions, rather than pinning a layout to
 // exact panel counts or coordinates. Font metrics then catch clipped long values.
 function textRows(text: string): TextRow[] {
@@ -37,7 +37,7 @@ function textRows(text: string): TextRow[] {
       else if (operation[3] !== undefined) leading = Number(operation[3]);
       else if (operation[4] !== undefined) {
         const row = literalText(operation[4]);
-        rows.push({ text: row, x, y, size, width: metrics.getTextWidth(row), page });
+        rows.push({ text: row, x, y, size, width: metrics.getTextWidth(row), page, family: font.family });
       } else if (operation[5]) y -= leading;
     }
   }
@@ -273,4 +273,76 @@ test('saved dealer colours vary the design without changing document text or fin
   assert.notDeepEqual(variants[0].bytes, variants[2].bytes, 'A pale dealer accent gets its own printable design');
   assert.deepEqual(variants[0].text, variants[1].text);
   assert.deepEqual(variants[0].text, variants[2].text);
+});
+
+const relativeLuminance = (hex: string) => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255)
+  .map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4)
+  .reduce((sum, channel, index) => sum + channel * [.2126, .7152, .0722][index], 0);
+const colourContrast = (a: string, b: string) => (Math.max(relativeLuminance(a), relativeLuminance(b)) + .05) / (Math.min(relativeLuminance(a), relativeLuminance(b)) + .05);
+
+test('small document labels remain readable on white and dealer-tinted panels', () => {
+  for (const accent of ['#ffffff', '#000000', '#fff5a1', '#ff2dff', '#ffeb00', '#00ffff', '#00ff00', '#215a7e', '#8f306d']) {
+    const palette = invoicePalette(accent);
+    assert.equal(palette.accent, accent, 'The saved brand colour is preserved');
+    for (const surface of ['#ffffff', palette.tint, palette.soft]) {
+      for (const tone of [palette.strong, palette.ink, palette.muted]) {
+        assert.ok(colourContrast(tone, surface) >= 4.5, `${tone} on ${surface} needs 4.5:1 for small invoice text (${accent})`);
+      }
+    }
+  }
+});
+
+test('all supported invoice print styles keep readable Helvetica text, exact totals and A4 margins', () => {
+  const original = invoiceDocument();
+  const variants = [
+    { name: 'modern-blue', style: 'modern' as const, inkSaving: false, accent: '#215a7e' },
+    { name: 'premium-magenta', style: 'premium' as const, inkSaving: false, accent: '#ff2dff' },
+    { name: 'classic-blue', style: 'classic' as const, inkSaving: false, accent: '#215a7e' },
+    { name: 'ink-saving-magenta', style: 'premium' as const, inkSaving: true, accent: '#ff2dff' },
+  ];
+  for (const variant of variants) {
+    const document = { ...original, snapshot: { ...original.snapshot, branding: invoiceBranding(original.snapshot.branding, { ...defaultInvoiceSettings, ...variant, useWebsiteColour: false }) } };
+    const bytes = saleDocumentPdf(document), text = bytes.toString('latin1');
+    assert.equal(pageCount(text), 1, variant.name);
+    assertTextOnA4(text); assertRowsDoNotCollide(text);
+    for (const row of textRows(text)) {
+      assert.equal(row.family, 'helvetica', `Print uses a built-in readable font: ${row.text}`);
+      assert.ok(row.size >= 7.3, `Small print is legible: ${row.text}`);
+      assert.ok(row.x >= 17 * 72 / 25.4 - .1 && row.x + row.width <= 193 * 72 / 25.4 + .1, `Text retains the stationery margins: ${row.text}`);
+    }
+    for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(text.includes(value), `Style retains ${value}`);
+    if (variant.style === 'classic' || variant.inkSaving) assert.equal(filledRectangles(text).length, 0, 'Plain printing removes filled panels');
+    if (process.env.LUXXY_PDF_AUDIT_DIR) writeFileSync(`${process.env.LUXXY_PDF_AUDIT_DIR}/${variant.name}.pdf`, bytes);
+  }
+});
+
+test('receipt colours, long references and multi-page terms keep their complete supplied details', () => {
+  const original = invoiceDocument();
+  const longReference = 'NORTHFIELD-WESTBOROUGH-INVOICE-2026-999999999';
+  const longDocument = invoiceDocument({ ...draft, customer: 'Alexandra Catherine Pennington-Worthington', vehicle: '2018 Mercedes-Benz E-Class E 350 d AMG Line Premium Plus Estate', price: '9999999999999.99', adjustments: [], address: 'Apartment 14, The Old Coach House\n187 Westborough Avenue\nLittle Northfield\nGreater London\nNW12 8XY' });
+  longDocument.number = longReference;
+  longDocument.snapshot.branding.identity.name = 'Northfield and Westborough Specialist Motor Company Limited - Independent Prestige and Family Vehicle Sales Centre';
+  const longBytes = saleDocumentPdf(longDocument), longText = longBytes.toString('latin1');
+  assertTextOnA4(longText); assertRowsDoNotCollide(longText);
+  assert.match(longText, /£9,999,999,999,999\.99/);
+  assert.ok(textRows(longText).map(row => row.text).join('').replace(/\s+/g, '').includes(longReference), 'The wrapped invoice reference stays complete');
+  const referenceRows = textRows(longText).filter(row => row.size === 10 && row.x > 100 * 72 / 25.4);
+  assert.ok(referenceRows.some(row => row.text.includes('INVOICE-')), 'Reference labels wrap at separators instead of splitting INVOICE');
+  if (process.env.LUXXY_PDF_AUDIT_DIR) writeFileSync(`${process.env.LUXXY_PDF_AUDIT_DIR}/long-reference-large-money.pdf`, longBytes);
+
+  const payment: SaleWorkspacePayment = { id: 'audit-receipt-payment', amount: '1500.00', amountPence: 150000, signedAmountPence: 150000, method: 'Bank transfer', date: '2026-10-10', reference: 'BANK-PAYMENT-REFERENCE-FOR-NORTHFIELD-2026-999999999', kind: 'part-payment', status: 'confirmed', recordedBy: '', recordedAt: context.now };
+  const totals = saleWorkspaceTotals(original.snapshot.draft, [payment]);
+  for (const [name, accent] of [['receipt-pale-yellow', '#fff5a1'], ['receipt-dark', '#000000']]) {
+    const document: SaleWorkspaceDocument = { ...original, type: 'receipt', title: 'Payment receipt', number: longReference, paymentId: payment.id, paymentAmountPence: payment.amountPence, balanceAtIssue: totals.balance, snapshot: { ...original.snapshot, payments: [payment], totals, branding: invoiceBranding(original.snapshot.branding, { ...defaultInvoiceSettings, useWebsiteColour: false, accent }) } };
+    const bytes = saleDocumentPdf(document), text = bytes.toString('latin1');
+    assert.equal(pageCount(text), 1); assertTextOnA4(text); assertRowsDoNotCollide(text);
+    const allText = textRows(text).map(row => row.text).join(' ').replace(/\s+/g, ' ');
+    assert.ok(allText.includes(payment.reference), 'Receipt keeps the wrapped payment reference');
+    assert.match(text, /£1,500\.00/); assert.match(text, /£10,600\.00/);
+    if (process.env.LUXXY_PDF_AUDIT_DIR) writeFileSync(`${process.env.LUXXY_PDF_AUDIT_DIR}/${name}.pdf`, bytes);
+  }
+  const terms: SaleWorkspaceDocument = { ...longDocument, type: 'terms', title: 'Terms and conditions of this vehicle purchase, payment and delivery agreement', content: Array.from({ length: 75 }, (_, index) => `Clause ${index + 1}: Fictional supplied terms describe the agreed arrangements without changing the recorded financial figures.`).join('\n') };
+  const termsBytes = saleDocumentPdf(terms), termsText = termsBytes.toString('latin1');
+  assert.ok(pageCount(termsText) > 1); assertTextOnA4(termsText); assertRowsDoNotCollide(termsText); assert.match(termsText, /Clause 75/);
+  if (process.env.LUXXY_PDF_AUDIT_DIR) writeFileSync(`${process.env.LUXXY_PDF_AUDIT_DIR}/long-terms.pdf`, termsBytes);
 });

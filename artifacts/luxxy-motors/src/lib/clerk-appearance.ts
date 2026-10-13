@@ -12,7 +12,7 @@ export const clerkAppearance = {
     colorPrimary: 'hsl(170 15% 14%)', colorForeground: 'hsl(170 15% 14%)',
     colorMutedForeground: 'hsl(165 5% 39%)', colorDanger: 'hsl(0 60% 38%)',
     colorBackground: '#ffffff', colorInput: '#ffffff', colorInputForeground: 'hsl(170 15% 14%)',
-    colorNeutral: 'hsl(40 10% 83%)', fontFamily: "'DM Sans', Arial, sans-serif", borderRadius: '4px',
+    colorNeutral: 'hsl(40 10% 83%)', fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif", borderRadius: '4px',
   },
   elements: {
     rootBox: 'w-full flex justify-center',

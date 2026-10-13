@@ -27,3 +27,20 @@ export function readableForegroundForHsl(hsl: string) {
   return contrastWithDark >= contrastWithLight ? dark : light;
 }
 
+// A button can use dark text on a bright brand colour, but the same colour
+// cannot serve as readable small text on the showroom's light surfaces.
+// Retain the dealer hue and saturation, lowering lightness only when needed.
+export function readableAccentForHsl(hsl: string) {
+  const values = hsl.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
+  if (!values || values.length < 3) return '203.226 58.491% 31.176%';
+  const [hue, saturation, lightness] = values;
+  for (let candidate = Math.min(100, Math.max(0, lightness)); candidate >= 0; candidate = Math.max(0, candidate - 0.5)) {
+    const colour = `${hue} ${Math.min(100, Math.max(0, saturation))}% ${candidate}%`;
+    const luminance = hslToRelativeLuminance(colour) ?? 0;
+    // Slight headroom over 4.5 keeps labels legible on the off-white canvas.
+    if (1.05 / (luminance + 0.05) >= 5) return candidate === lightness ? hsl : colour;
+    if (candidate === 0) break;
+  }
+  return '203.226 58.491% 31.176%';
+}
+

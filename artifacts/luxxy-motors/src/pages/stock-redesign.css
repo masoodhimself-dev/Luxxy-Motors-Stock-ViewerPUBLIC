@@ -6,7 +6,7 @@
 }
 .stock-redesign.stock-refined .container { max-width: 1460px; }
 .stock-redesign.stock-refined .stock-page-intro { padding-block: 20px 20px; background: transparent; border: 0; }
-.stock-redesign.stock-refined .stock-breadcrumb { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: #68747e; font-size: .8125rem; }
+.stock-redesign.stock-refined .stock-breadcrumb { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: #5c6974; font-size: .8125rem; }
 .stock-redesign.stock-refined .stock-breadcrumb a { text-decoration: none; }
 .stock-redesign.stock-refined .stock-breadcrumb a:hover { color: var(--premium-accent, #215a7e); text-decoration: underline; text-underline-offset: 4px; }
 .stock-redesign.stock-refined .stock-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -25,7 +25,7 @@
 .stock-redesign.stock-refined .stock-toolbar { position: static; background: var(--premium-panel, #fff); border: 1px solid #dce2e6; border-radius: 12px; padding: 20px; box-shadow: none; }
 .stock-redesign.stock-refined .stock-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 220px; align-items: center; gap: 10px; }
 .stock-redesign.stock-refined .stock-toolbar input,
-.stock-redesign.stock-refined .stock-toolbar select { min-height: 48px; border-radius: 5px; background: var(--premium-panel, #fff); border-color: #cfd8de; color: var(--premium-ink, #192a36); font-size: .9375rem; }
+.stock-redesign.stock-refined .stock-toolbar select { min-height: 48px; border-radius: 5px; background: var(--premium-panel, #fff); border-color: #cfd8de; color: var(--premium-ink, #192a36); font-size: 16px; }
 .stock-redesign.stock-refined .stock-toolbar input { padding-right: 44px; }
 .stock-redesign.stock-refined .stock-toolbar input:focus-visible,
 .stock-redesign.stock-refined .stock-toolbar select:focus-visible { outline: 2px solid var(--premium-accent, #215a7e); outline-offset: 2px; box-shadow: none; }
@@ -144,7 +144,7 @@
   .stock-redesign.stock-refined .stock-search-input:has(button) input { padding-right: 44px; }
   .stock-redesign.stock-refined .stock-search-submit { padding-inline: 16px; }
   .stock-redesign.stock-refined .stock-filter-trigger { min-width: 104px; padding-inline: 12px; }
-  .stock-redesign.stock-refined .stock-sort { min-width: 0; width: 100%; font-size: .8125rem; }
+  .stock-redesign.stock-refined .stock-sort { min-width: 0; width: 100%; font-size: 16px; }
   .stock-redesign.stock-refined #vehicle-results { margin-top: 20px; }
   .stock-redesign.stock-refined .stock-results-bar { margin-bottom: 14px; }
   .stock-redesign.stock-refined .stock-result-count { font-size: .8125rem; }
