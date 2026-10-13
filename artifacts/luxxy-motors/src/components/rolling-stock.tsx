@@ -146,8 +146,8 @@ export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unava
         {cars.length > 1 && <div className="rolling-stock-group rolling-stock-copy" aria-hidden="true" ref={node => { node?.querySelectorAll<HTMLElement>('a, button, [tabindex]').forEach(element => { element.tabIndex = -1; }); }}>{cars.map(car => <CarCard key={car.id} car={car} photoControls={false} summaryOnly stretchedLink />)}</div>}
       </div>
     </div> : <div className="rolling-stock-empty container mx-auto px-4 sm:px-6 lg:px-8">
-      <p className="text-muted-foreground" role={unavailable ? 'status' : undefined}>{unavailable ? 'Stock is temporarily unavailable. Please contact the team for current availability.' : 'No vehicles currently listed. Contact the team about upcoming stock.'}</p>
-      <Link href="/contact" className="text-link">Contact the team</Link>
+      <p className="text-muted-foreground" role={unavailable ? 'status' : undefined}>{unavailable ? 'We can’t show our stock right now. Please contact us for current availability.' : 'We have no cars online at the moment. Ask us about our stock.'}</p>
+      <Link href="/contact" className="text-link">Contact us</Link>
     </div>}
     <div className="rolling-stock-footer container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
       <h2 id="rolling-stock-heading" className="section-heading">{websiteText(settings, "featuredHeading")}</h2>

@@ -267,7 +267,7 @@ test('submission cannot be repeated while the confirmation is pending', async ({
 test('disabled online booking offers a direct request for help', async ({ page }) => {
   await mockSettings(page, { enabled: false });
   await page.goto('/enquire?type=viewing&vehicleId=preview-2');
-  await expect(page.getByRole('heading', { name: 'Arrange a test drive with the team' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Arrange a test drive with us' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Ask about a test drive' })).toHaveAttribute('href', /type=general.*vehicleId=preview-2/);
   await expect(page.getByTestId('button-submit-enquiry')).toHaveCount(0);
   await expect(page.getByTestId('group-viewing-slots')).toHaveCount(0);

@@ -599,7 +599,7 @@ describe('supplied vehicle benefit searches', () => {
     renderHome();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     const choice = screen.getByTestId('button-quick-ulez');
-    expect(choice).toHaveTextContent('ULEZ standard met (2)');
+    expect(choice).toHaveTextContent('ULEZ compliant (2)');
     expect(choice).toHaveAttribute('title', expect.stringContaining('Check the registration with TfL'));
     fireEvent.click(choice);
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
@@ -616,7 +616,7 @@ describe('supplied vehicle benefit searches', () => {
     ];
     renderHome();
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    expect(screen.getByTestId('button-quick-lowAnnualTax')).toHaveTextContent('Advertised tax up to £35/year (3)');
+    expect(screen.getByTestId('button-quick-lowAnnualTax')).toHaveTextContent('Road tax up to £35/year (3)');
     fireEvent.click(screen.getByTestId('button-quick-lowAnnualTax'));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Audi A3']);
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
@@ -656,8 +656,8 @@ describe('supplied vehicle benefit searches', () => {
     window.history.replaceState({}, '', '/stock?make=Ford&lowMileage=true&ulez=true');
     renderHome();
     expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Remove ULEZ standard met filter' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove ULEZ standard met filter' }));
+    expect(screen.getByRole('button', { name: 'Remove ULEZ compliant filter' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove ULEZ compliant filter' }));
     expect(window.location.search).toBe('?make=Ford&lowMileage=true');
     fireEvent.click(screen.getByTestId('button-clear-filters'));
     expect(resultTitles()).toHaveLength(5);

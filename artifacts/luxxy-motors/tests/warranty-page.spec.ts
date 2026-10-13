@@ -106,7 +106,7 @@ test('disabled warranty keeps an existing-customer contact route without adverti
   await page.route('**/api/dealer-settings', route => route.fulfill({ json: settings }));
   await page.goto('/warranty');
   await expect(page.getByRole('heading', { name: 'Warranty information' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Contact the showroom' })).toHaveAttribute('href', '/contact');
+  await expect(page.locator('#main-content').getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact');
   await expect(page.getByTestId('warranty-enquiry-link')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Warranty', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'The details worth checking.' })).toHaveCount(0);

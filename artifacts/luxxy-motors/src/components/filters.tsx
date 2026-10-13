@@ -146,9 +146,9 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     ...(filters.transmission ? [{ key: 'transmission' as const, label: filters.transmission }] : []),
     ...(['catS', 'catN', 'noWriteOff'] as const).filter((key) => filters[key]).map((key) => ({ key, label: key === 'catS' ? 'Category S' : key === 'catN' ? 'Category N' : 'No recorded write-off' })),
     ...([
-      ['ulez', 'ULEZ standard met'],
+      ['ulez', 'ULEZ compliant'],
       ['lowMileage', 'Up to 30,000 miles'],
-      ['lowAnnualTax', 'Advertised tax up to £35/year'],
+      ['lowAnnualTax', 'Road tax up to £35/year'],
       ['lowInsuranceGroup', 'Insurance groups 1–15'],
     ] as const).filter(([key]) => filters[key]).map(([key, label]) => ({ key, label })),
   ];

@@ -116,7 +116,7 @@ export function VehicleCall({
         data-vehicle-contact="call"
       >
         <Phone className="h-4 w-4" aria-hidden="true" />
-        {!compact && (buttonLabel || 'Call showroom')}
+        {!compact && (buttonLabel || 'Call us')}
       </a>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
@@ -132,34 +132,34 @@ export function VehicleCall({
           }}
         >
           <div className="vehicle-action-heading">
-            <p className="vehicle-action-eyebrow"><Phone size={15} aria-hidden="true" />Speak to the showroom</p>
+            <p className="vehicle-action-eyebrow"><Phone size={15} aria-hidden="true" />Speak to us</p>
             <DialogTitle ref={dialogTitle} tabIndex={-1}>
-              {hours.state === 'closed' ? 'The showroom is currently closed' : showCallback ? 'Request a callback' : mobile ? 'Did you get through?' : 'Call the showroom'}
+              {hours.state === 'closed' ? 'We’re currently closed' : showCallback ? 'Request a callback' : mobile ? 'Did you get through?' : 'Call us'}
             </DialogTitle>
             <DialogDescription>
               {hours.state === 'closed'
                 ? 'Leave your details for a callback when we reopen.'
                 : showCallback
-                  ? 'Leave your name and number and the team will get back to you.'
+                  ? 'Leave your name and number so we can call you back.'
                 : mobile
                   ? 'If you couldn’t reach us, you can continue online.'
-                  : 'Speak to the team about this vehicle.'}
+                  : 'Call us with your questions about this car.'}
             </DialogDescription>
           </div>
 
           {hours.state === 'closed' && <div className="vehicle-call-availability vehicle-call-next-opening" data-status="closed">
             <Clock3 size={16} aria-hidden="true" />
-            <p>{hours.next ? `We next open ${hours.next}.` : 'The team will arrange your callback during opening hours.'}</p>
+            <p>{hours.next ? `We next open ${hours.next}.` : 'We’ll arrange your callback during opening hours.'}</p>
           </div>}
 
           <VehicleDialogVehicle car={car} />
 
           {!showCallback && <div className="vehicle-phone-panel vehicle-call-telephone">
-            <p className="vehicle-action-label">Showroom telephone</p>
+            <p className="vehicle-action-label">Our phone number</p>
             <a href={href} className="vehicle-phone-number"><span className="vehicle-call-phone-icon"><Phone size={20} aria-hidden="true" /></span><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
             <div className="vehicle-call-availability" data-status={hours.state}>
               <span className="vehicle-call-availability-dot" aria-hidden="true" />
-              <p>{hours.state === 'open' ? hours.closingTime ? `Open until ${hours.closingTime} (UK time)` : 'The showroom is open' : 'Please call to confirm availability.'}</p>
+              <p>{hours.state === 'open' ? hours.closingTime ? `Open until ${hours.closingTime} (UK time)` : 'We’re open' : 'Please call to confirm availability.'}</p>
             </div>
             {!mobile && <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>}
             <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>
@@ -169,7 +169,7 @@ export function VehicleCall({
             <div className="vehicle-call-result">
             <div role="status" className="vehicle-action-feedback vehicle-action-feedback-success">
               <CheckCircle2 size={21} aria-hidden="true" />
-              <div><p className="vehicle-action-feedback-title">Callback request received</p><p>{receivedCallbackTime && hours.state === 'closed' ? `The team will aim to call you ${receivedCallbackTime}.` : 'The team will aim to call you during opening hours.'}</p>{callback.data?.reference && <p className="vehicle-call-reference">Your reference: {callback.data.reference}</p>}</div>
+              <div><p className="vehicle-action-feedback-title">We’ve received your callback request</p><p>{receivedCallbackTime && hours.state === 'closed' ? `We’ll aim to call you ${receivedCallbackTime}.` : 'We’ll aim to call you during opening hours.'}</p>{callback.data?.reference && <p className="vehicle-call-reference">Your reference: {callback.data.reference}</p>}</div>
             </div>
             <Button type="button" className="vehicle-action-primary" onClick={() => setOpen(false)}>Done</Button>
             </div>
@@ -178,7 +178,7 @@ export function VehicleCall({
               event.preventDefault();
               const normalizedPhone = customer.phone.trim().replace(/[\s().\-/]/g, '');
               if (!/^\+?\d{7,15}$/.test(normalizedPhone)) {
-                setPhoneError('Enter a valid phone number so the team can call you.');
+                setPhoneError('Enter a valid phone number so we can call you.');
                 return;
               }
               setPhoneError('');
@@ -200,14 +200,14 @@ export function VehicleCall({
               </div>
               <details className="vehicle-call-optional-email"><summary>Add an email for confirmation (optional)</summary><label className="vehicle-action-field">Email<Input type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label></details>
               {phoneError && <p id="callback-phone-error" role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
-              {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>Your request could not be sent. Please try again.</span></p>}
+              {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>We couldn’t send your request. Please try again.</span></p>}
               <p className="vehicle-action-privacy">We’ll use these details to respond to your request.{privacyUrl && <> <a className="underline underline-offset-4" href={privacyUrl}>Privacy policy</a></>}</p>
               <Button type="submit" className="vehicle-action-primary" disabled={callback.isPending}>{callback.isPending ? 'Sending…' : 'Request a callback'}</Button>
             </form>
           ))}
 
           {showCallback && <div className="vehicle-phone-panel vehicle-phone-panel-secondary vehicle-call-telephone-footer">
-            <p className="vehicle-action-label">Showroom telephone</p>
+            <p className="vehicle-action-label">Our phone number</p>
             <a href={href} className="vehicle-phone-number"><Phone size={18} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
           </div>}
           {showCallback && hours.state !== 'closed' && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(false)}>Back to the phone number</button>}

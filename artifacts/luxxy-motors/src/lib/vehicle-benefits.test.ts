@@ -20,9 +20,9 @@ describe("supplied ULEZ emissions standards", () => {
     "compares %s / %s with the relevant fuel threshold and provides a vehicle-check qualifier",
     (fuel, emissionClass) => {
       const result = vehicleBenefits(car({ fuel, emissionClass })).ulez;
-      expect(result?.text).toBe("ULEZ emissions standard met");
-      expect(result?.note).toContain("supplied");
-      expect(result?.note).toContain("Confirm this vehicle with TfL");
+      expect(result?.text).toBe("ULEZ compliant");
+      expect(result?.note).toContain(emissionClass);
+      expect(result?.note).toContain("Check its registration with TfL");
       expect(result?.href).toBe(ULEZ_CHECK_URL);
     },
   );
@@ -84,7 +84,7 @@ describe("explicit annual tax", () => {
       const point = vehicleBenefits(
         costs([{ key: "Tax", label: "Tax per year", value }]),
       ).lowAnnualTax;
-      expect(point?.text).toContain("advertised");
+      expect(point?.text).toContain("road tax per year");
       expect(point?.note).toContain("confirm the current amount");
     },
   );

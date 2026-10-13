@@ -23,3 +23,15 @@ it('preserves long reviews with expansion and no fabricated aggregate or link', 
   expect(screen.getByText('Invited')).toBeInTheDocument();
   expect(screen.getByText(review.trim())).toBeInTheDocument();
 });
+it('uses our voice for review help without rewriting the customer quotation', async () => {
+  const review = 'The dealership team answered every question and helped me choose my car.';
+  state.presentation = { reviewsEnabled: true, reviews: [{ rating: 5, review, name: 'Customer', date: 'October 2026', source: 'Google', verified: true, invited: true }] };
+  render(<CustomerReviews />);
+  expect(screen.getByText(review)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Verified review' }));
+  expect(await screen.findByRole('tooltip')).toHaveTextContent('We’ve confirmed this review.');
+  fireEvent.click(screen.getByRole('button', { name: 'Verified review' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Invited' }));
+  expect(await screen.findByRole('tooltip')).toHaveTextContent('We invited this customer to leave a review.');
+  expect(screen.getByText(review)).toBeInTheDocument();
+});

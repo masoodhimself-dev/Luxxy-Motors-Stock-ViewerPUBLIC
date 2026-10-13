@@ -28,14 +28,14 @@ for (const width of [390, 820, 1440]) test(`public vehicle benefits, explanation
   const card = page.getByTestId(`card-vehicle-${car.id}`);
   const highlights = card.getByRole('list', { name: 'Vehicle highlights' });
   await expect(highlights.getByRole('listitem')).toHaveCount(4);
-  await expect(highlights).toContainText('ULEZ emissions standard met');
+  await expect(highlights).toContainText('ULEZ compliant');
   await expect(highlights).toContainText('24,000 miles · low mileage');
-  await expect(highlights).toContainText('£20 annual tax · advertised');
+  await expect(highlights).toContainText('£20 road tax per year');
   await expect(highlights).toContainText('Insurance group 11E');
   await expect(highlights.locator('svg')).toHaveCount(0);
   await expect(page.getByTestId(`card-vehicle-${unknown.id}`).getByRole('list', { name: 'Vehicle highlights' })).toHaveCount(0);
   await highlights.getByRole('button', { name: 'Insurance group 11E', exact: true }).click();
-  await expect(page.getByRole('tooltip')).toContainText('your premium depends on your circumstances');
+  await expect(page.getByRole('tooltip')).toContainText(/your premium depends on your circumstances/i);
   await page.keyboard.press('Escape');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await card.screenshot({ path: `/tmp/public-benefit-card-${width}.png` });
@@ -43,8 +43,8 @@ for (const width of [390, 820, 1440]) test(`public vehicle benefits, explanation
   await page.goto(`/vehicle/${car.id}`);
   const summary = page.locator('.vehicle-summary');
   await expect(summary.getByRole('list', { name: 'Vehicle highlights' }).getByRole('listitem')).toHaveCount(6);
-  await expect(summary.getByRole('link', { name: 'Check this car with TfL' })).toHaveAttribute('href', 'https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker');
-  await expect(summary).toContainText('Based on listed emissions.');
+  await expect(summary.getByRole('link', { name: 'Check with TfL' })).toHaveAttribute('href', 'https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker');
+  await expect(summary).toContainText('Check this car’s registration before driving in the zone.');
   await expect(summary).not.toContainText('below average');
   const equipment = page.locator('.vehicle-features-section');
   const shown = equipment.locator('> .vehicle-equipment-list');

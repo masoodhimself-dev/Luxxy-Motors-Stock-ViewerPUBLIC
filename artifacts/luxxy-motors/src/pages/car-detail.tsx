@@ -94,7 +94,7 @@ export default function CarDetail() {
 
   usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
     title: `${error ? 'Vehicle details unavailable' : 'Vehicle not in stock'} | ${dealerConfig.identity.name}`,
-    description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or contact the showroom about this vehicle.',
+    description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or ask us about this car.',
   });
 
   if (isLoading) {
@@ -123,13 +123,13 @@ export default function CarDetail() {
 
   if (error) {
     return <div className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] px-5 py-16"><div className="mx-auto max-w-xl" role="alert">
-      <PageHeading eyebrow="Vehicle details" title="Vehicle details could not be loaded" description="We could not check this vehicle’s current details. Please try again, or browse the showroom." />
+      <PageHeading eyebrow="Vehicle details" title="Vehicle details could not be loaded" description="We couldn’t load this car’s details. Please try again, or browse our current cars." />
       <div className="flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button></div>
     </div></div>;
   }
 
   if (!stock || !stock.cars) return <NotFound />;
-  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title="This car isn’t in our current stock" description="This vehicle is no longer listed here. Browse the latest cars, or ask the team about this vehicle." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title="This car isn’t in our current stock" description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
@@ -304,7 +304,7 @@ export default function CarDetail() {
             <div className="vehicle-primary-actions">
               {bookingAction}{enquiryAction}
             </div>
-            <div className="vehicle-direct-contact" aria-label="Contact the showroom about this vehicle">
+            <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
               <VehicleCall car={car} />
               <VehicleWhatsApp car={car} />
             </div>
@@ -312,7 +312,7 @@ export default function CarDetail() {
               <div className="vehicle-contact-options">
               <div className="vehicle-secondary-grid"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
               {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
-              {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
+              {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. We’ll follow up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               </div>
             {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <CompareCarButton car={car} variant="compact" className="min-h-11" /><CompareSelectionLink />
@@ -402,7 +402,7 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleInformationHeading")}
               </h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Available history and handover information. Ask us about anything else you need to know.
+                Here’s what we can tell you about this car’s history and handover. Ask us if you need anything else.
               </p>
               <dl className="mt-4 divide-y divide-border">
                 {handoverFacts.map((item) => (
@@ -432,7 +432,7 @@ export default function CarDetail() {
                 href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}
                 className="text-link mt-3"
               >
-                Ask about these details <ArrowRight className="h-4 w-4" />
+                Ask us about these details <ArrowRight className="h-4 w-4" />
               </Link>
             {damageDisclosure && (
               <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
@@ -451,7 +451,7 @@ export default function CarDetail() {
         <div className="vehicle-enquiry-visit-row">
           <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
-            <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
+            <p className="mb-6 text-sm text-muted-foreground">Ask us about this car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
           </section>
           <VehicleVisit car={car} />

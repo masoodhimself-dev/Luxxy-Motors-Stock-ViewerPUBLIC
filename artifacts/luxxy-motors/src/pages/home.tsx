@@ -2,7 +2,7 @@ import { CompareSelectionLink } from '@/components/saved-car-controls';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import './stock-redesign.css';
 import './home-redesign.css';
-import { websiteText } from "@/lib/website-content";
+import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -58,9 +58,9 @@ const defaultFilters: FilterState = {
   sort: '',
 };
 const benefitChoices = [
-  { key: 'ulez', label: 'ULEZ standard met', note: 'Based on the supplied fuel and Euro emissions standard. Check the registration with TfL before travelling.' },
+  { key: 'ulez', label: 'ULEZ compliant', note: 'Cars that meet the ULEZ emissions requirements. Check the registration with TfL before driving in the zone.' },
   { key: 'lowMileage', label: 'Up to 30,000 miles', note: 'Includes cars with a recorded mileage of 30,000 miles or less.' },
-  { key: 'lowAnnualTax', label: 'Advertised tax up to £35/year', note: 'Based on the annual tax figure supplied with the advert. Confirm the current rate before buying.' },
+  { key: 'lowAnnualTax', label: 'Road tax up to £35/year', note: 'Cars with annual road tax of £35 or less. Tax rates can change; ask us to confirm the current rate before buying.' },
   { key: 'lowInsuranceGroup', label: 'Insurance groups 1–15', note: 'Lower numbered insurance groups. Your personal insurance quote can still vary.' },
 ] as const;
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
@@ -396,7 +396,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
             <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
-          {!error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
+          {!error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask us <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
@@ -456,7 +456,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 data-testid={key === 'lowMileage' ? 'button-quick-low-mileage' : `button-quick-${key}`}
               >{label} <span className="tabular-nums">({benefitCounts[key]})</span></button>)}
             </div>
-            {benefitCounts.ulez > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">ULEZ matches use listed fuel and emissions. <a href="https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Check the registration with TfL</a>.</p>}
+            {benefitCounts.ulez > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">Check your car’s registration with TfL before driving in the zone. <a href="https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Check ULEZ by registration</a>.</p>}
  </>}
             cars={publicCars}
             filters={filters}
@@ -504,9 +504,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <div className="stock-error surface p-8" role="alert">
                 <h3 className="section-heading">Stock is temporarily unavailable</h3>
                 <p className="mt-3 text-muted-foreground">
-                  Please try again or contact the showroom for current availability.
+                  Please try again or ask us about current availability.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>
+                <div className="mt-5 flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>
               </div>
             ) : filteredCars.length ? (
               <>
@@ -531,8 +531,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               </>
             ) : !publicCars.length ? (
               <div className="stock-empty surface px-6 py-8 text-left" data-testid="empty-stock">
-                <h3 className="section-heading">No vehicles currently listed</h3>
-                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Contact the team about upcoming stock or tell us what you’re looking for.</p>
+                <h3 className="section-heading">No cars to show right now</h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Tell us what you’re looking for, or ask us about our stock.</p>
                 <Button asChild className="mt-6"><Link href="/enquire?type=general">Ask about upcoming stock <ArrowRight className="h-4 w-4" /></Link></Button>
               </div>
             ) : (
@@ -638,7 +638,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       {id === 'part-exchange' ? 'Part exchange' : id === 'delivery' ? 'Delivery' : 'Warranty'}
                     </h3>
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
-                      {service.description}
+                      {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask us about delivery options for your next car.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask us about warranty options for your chosen car.', ['Warranty options are available on eligible vehicles.']) : service.description}
                     </p>
                     <a
                       className="text-link mt-4"

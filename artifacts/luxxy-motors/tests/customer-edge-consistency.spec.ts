@@ -34,7 +34,7 @@ for (const width of [390, 1440]) {
     for (const path of ['/sign/unavailable-fixture', '/customer-details/unavailable-fixture']) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'This link is no longer available' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Contact the dealership', exact: true })).toHaveAttribute('href', '/contact');
+      await expect(page.locator('#main-content').getByRole('link', { name: 'Contact us', exact: true })).toHaveAttribute('href', '/contact');
       await expect(page).toHaveTitle(/Purchase link unavailable/);
       await fits(page);
     }
@@ -44,7 +44,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole('heading', { name: 'This customer link is unavailable' })).toBeVisible();
     await expect(page.getByRole('alert')).toContainText('expired or been replaced');
     await expect(page.getByText('internal-validation-code should not appear')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Contact the showroom', exact: true })).toHaveAttribute('href', '/contact');
+    await expect(page.locator('#main-content').getByRole('link', { name: 'Contact us', exact: true })).toHaveAttribute('href', '/contact');
     await fits(page);
     await screenshot(page, `expired-purchase-${width}`);
     await page.route('**/api/viewings/unavailable-fixture', route => route.fulfill({ status: 410, json: { error: 'Internal expired token debug' } }));

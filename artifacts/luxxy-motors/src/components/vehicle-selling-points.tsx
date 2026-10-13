@@ -46,9 +46,9 @@ export function VehicleSellingPoints({
       </ul>
       {!compact && ulez?.href && (
         <p className="vehicle-benefit-check">
-          Based on listed emissions.{" "}
+          Check this car’s registration before driving in the zone.{" "}
           <a href={ulez.href} target="_blank" rel="noopener noreferrer">
-            Check this car with TfL
+            Check with TfL
           </a>
         </p>
       )}

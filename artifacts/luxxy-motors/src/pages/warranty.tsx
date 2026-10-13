@@ -25,11 +25,11 @@ const policyQuestions = [
 ] as const;
 
 const commonQuestions = [
-  ['Is a warranty included with every car?', 'Please ask about the car you are considering. The team can confirm whether a warranty is included, offered at an additional cost or unavailable for that vehicle.'],
+  ['Is a warranty included with every car?', 'Please ask about the car you are considering. We can confirm whether a warranty is included, offered at an additional cost or unavailable for that vehicle.'],
   ['What does the warranty cover?', 'Ask for the policy wording for the warranty offered on your chosen car. Check the covered components, exclusions, claim limits and any contribution you would need to make. This page is a guide to the questions to ask, rather than a list of covered parts.'],
   ['How long does cover last?', 'The duration, start date and any mileage limit need to be confirmed for the specific warranty offered. Ask for these details in writing before you decide.'],
-  ['Can I choose a longer warranty?', 'Tell the team what you have in mind. They can confirm whether another term is available for your car and explain any additional cost.'],
-  ['What if I need help after buying?', 'Have your registration and warranty documents to hand. Use the contact details and claims process in your policy, or contact the showroom if you need help finding the right information.'],
+  ['Can I choose a longer warranty?', 'Tell us what you have in mind. We can confirm whether another term is available for your car and explain any additional cost.'],
+  ['What if I need help after buying?', 'Have your registration and warranty documents to hand. Use the contact details and claims process in your policy, or contact us if you need help finding the right information.'],
 ] as const;
 
 export default function Warranty() {
@@ -72,11 +72,11 @@ export default function Warranty() {
           <section className="max-w-2xl py-10 sm:py-16">
             <PageHeading title="Warranty information" />
             <p className="mt-4 text-base leading-7 text-muted-foreground" role={settingsError ? 'alert' : undefined}>
-              {settingsError ? 'We couldn’t load the latest warranty information. Please try again or contact the showroom.' : 'Please contact the showroom for information about your vehicle and any existing warranty.'}
+              {settingsError ? 'We couldn’t load the latest warranty information. Please try again or contact us.' : 'Please contact us for information about your vehicle and any existing warranty.'}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {settingsError && <Button variant="outline" onClick={() => window.location.reload()}>Try again</Button>}
-              <Button asChild><Link href="/contact">Contact the showroom<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+              <Button asChild><Link href="/contact">Contact us<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
             </div>
           </section>
         ) : <>
@@ -84,7 +84,7 @@ export default function Warranty() {
             <div className="min-w-0">
               <p className="luxxy-kicker">{websiteText(settings, "warrantyEyebrow")}</p>
               <h1 className="mt-3 max-w-lg font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem]">{title}</h1>
-              <p className="mt-5 max-w-lg whitespace-pre-line text-base leading-7 text-muted-foreground">{settings.warranty.description || 'Speak to the team about warranty options for the car you are considering.'}</p>
+              <p className="mt-5 max-w-lg whitespace-pre-line text-base leading-7 text-muted-foreground">{settings.warranty.description || 'Ask us about warranty options for the car you’re considering.'}</p>
               <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">{websiteText(settings, "warrantySupportingCopy")}</p>
               <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
                 <Button asChild><a href="#warranty-enquiry" onClick={goToEnquiry}>Ask about warranty<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button>
@@ -123,7 +123,7 @@ export default function Warranty() {
                 {(stock?.cars || []).map(car => <option key={car.id} value={car.id}>{[customerRegistrationDetails(car), vehicleDisplayTitle(car), car.price != null ? formatPrice(car.price, car.currency) : null].filter(Boolean).join(' · ')}</option>)}
               </NativeSelect>
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
-                {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That vehicle is no longer in the current list. Choose another car or send a general enquiry and tell us which vehicle you mean.' : !stock?.cars.length ? 'There are no cars listed at the moment. You can still ask about warranty.' : 'Selecting a car helps the team answer your question; it does not confirm warranty eligibility.'}
+                {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That vehicle is no longer in the current list. Choose another car or send a general enquiry and tell us which vehicle you mean.' : !stock?.cars.length ? 'There are no cars listed at the moment. You can still ask about warranty.' : 'Choosing a car helps us answer your question; it does not confirm warranty eligibility.'}
               </p>
               <Button asChild className="mt-5 w-full"><Link href={getEnquiryHref('warranty', vehicle)} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire about this car' : 'Send a warranty enquiry'}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
               {whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" data-testid="warranty-whatsapp" className="text-link mt-3 inline-flex min-h-11 items-center gap-2"><MessageCircle className="h-4 w-4" aria-hidden="true" />Ask on WhatsApp</a>}
@@ -138,8 +138,8 @@ export default function Warranty() {
           </section>
 
           <section className="flex flex-col gap-5 border-t border-border pt-7 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="warranty-aftercare-heading">
-            <div><h2 id="warranty-aftercare-heading" className="font-display text-xl font-semibold">Already bought a car?</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Keep your registration and warranty documents handy when contacting the team.</p></div>
-            <Button asChild variant="outline" className="shrink-0"><Link href="/contact">Speak to the showroom<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+            <div><h2 id="warranty-aftercare-heading" className="font-display text-xl font-semibold">Already bought a car?</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Keep your registration and warranty documents handy when you contact us.</p></div>
+            <Button asChild variant="outline" className="shrink-0"><Link href="/contact">Speak to us<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
           </section>
         </>}
       </div>

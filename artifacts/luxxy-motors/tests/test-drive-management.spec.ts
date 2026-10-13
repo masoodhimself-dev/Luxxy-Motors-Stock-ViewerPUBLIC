@@ -36,7 +36,7 @@ for (const width of [390, 820, 1440]) {
     const state = await fixtures(page);
     await page.goto('/viewing/management-test');
     await expect(page.getByRole('heading', { name: 'Your test-drive request' })).toBeVisible();
-    await expect(page.getByTestId('status-viewing-pending')).toContainText('Awaiting showroom confirmation');
+    await expect(page.getByTestId('status-viewing-pending')).toContainText('We’ve received your request');
     await expect(page.getByTestId('link-viewing-calendar')).toHaveCount(0);
     await page.getByTestId('button-viewing-reschedule').click();
     await expect(page.getByTestId('group-viewing-dates').getByRole('button')).toHaveCount(1);
@@ -48,7 +48,7 @@ for (const width of [390, 820, 1440]) {
     await mkdir('/tmp/luxxy-test-drive-management', { recursive: true });
     await page.screenshot({ path: `/tmp/luxxy-test-drive-management/reschedule-${width}.png`, fullPage: true });
     await page.getByTestId('button-confirm-reschedule').click();
-    await expect(page.getByTestId('status-reschedule-success')).toContainText('Please wait for the showroom to confirm');
+    await expect(page.getByTestId('status-reschedule-success')).toContainText('Please wait for us to confirm');
     await expect(page.getByTestId('status-reschedule-success')).toBeFocused();
     await expect(page.getByTestId('link-viewing-calendar')).toHaveCount(0);
     expect(state.mutations).toHaveLength(1);

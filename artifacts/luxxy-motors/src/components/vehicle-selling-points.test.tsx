@@ -26,13 +26,13 @@ it("shows all supplied benefits with a visible emissions qualifier and genuine c
   render(<VehicleSellingPoints car={car()} />);
   const list = screen.getByRole("list", { name: "Vehicle highlights" });
   expect(within(list).getAllByRole("listitem")).toHaveLength(6);
-  expect(list).toHaveTextContent("ULEZ emissions standard met");
+  expect(list).toHaveTextContent("ULEZ compliant");
   expect(list).toHaveTextContent("24,000 miles · low mileage");
-  expect(list).toHaveTextContent("£20 annual tax · advertised");
+  expect(list).toHaveTextContent("£20 road tax per year");
   expect(list).toHaveTextContent("Insurance group 11E");
-  expect(screen.getByText("Based on listed emissions.")).toBeInTheDocument();
+  expect(screen.getByText("Check this car’s registration before driving in the zone.")).toBeInTheDocument();
   expect(
-    screen.getByRole("link", { name: "Check this car with TfL" }),
+    screen.getByRole("link", { name: "Check with TfL" }),
   ).toHaveAttribute("href", ULEZ_CHECK_URL);
   expect(list.querySelector("svg")).toBeNull();
 });
@@ -49,7 +49,7 @@ it("keeps all four requested benefits on compact cards before optional ownership
 it("shows the actual annual-tax explanation when a customer taps the fact", async () => {
   render(<VehicleSellingPoints car={car()} />);
   fireEvent.click(
-    screen.getByRole("button", { name: "£20 annual tax · advertised" }),
+    screen.getByRole("button", { name: "£20 road tax per year" }),
   );
   expect(await screen.findByRole("tooltip")).toHaveTextContent(
     "confirm the current amount before buying",

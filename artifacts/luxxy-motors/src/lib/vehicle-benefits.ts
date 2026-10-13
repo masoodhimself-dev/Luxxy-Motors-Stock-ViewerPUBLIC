@@ -127,8 +127,8 @@ function ulezBenefit(car: Car): VehicleBenefit | null {
   return {
     id: "ulez",
     label: "ULEZ",
-    text: "ULEZ emissions standard met",
-    note: `Meets the stated ULEZ emissions standard based on the supplied ${stated} facts. Confirm this vehicle with TfL before driving in the zone.`,
+    text: "ULEZ compliant",
+    note: `This car’s ${stated} specification meets ULEZ emissions standards. Check its registration with TfL before driving in the zone.`,
     href: ULEZ_CHECK_URL,
   };
 }
@@ -149,7 +149,7 @@ export function vehicleBenefits(car: Car): VehicleBenefits {
             id: "low-mileage",
             label: "Mileage",
             text: `${formatMileage(mileage)} · low mileage`,
-            note: "Supplied odometer reading of 30,000 miles or less; this is separate from ULEZ eligibility.",
+            note: "This car has covered 30,000 miles or less.",
           }
         : null,
     lowAnnualTax:
@@ -157,8 +157,8 @@ export function vehicleBenefits(car: Car): VehicleBenefits {
         ? {
             id: "low-tax",
             label: "Annual tax",
-            text: `£${tax} annual tax · advertised`,
-            note: "Annual tax figure supplied in the listing. Vehicle tax rules and rates can change; confirm the current amount before buying.",
+            text: `£${tax} road tax per year`,
+            note: "Road tax rates can change. Please confirm the current amount before buying.",
           }
         : null,
     lowInsuranceGroup:
@@ -167,7 +167,7 @@ export function vehicleBenefits(car: Car): VehicleBenefits {
             id: "low-insurance",
             label: "Insurance group",
             text: `Insurance group ${insurance.display}`,
-            note: "Supplied group in the 1–15 range of the 1–50 scale. Lower groups may cost less to insure, but your premium depends on your circumstances and insurer; obtain a quote.",
+            note: "Groups 1–15 are at the lower end of the 1–50 insurance scale. Your premium depends on your circumstances and insurer; get a quote for this car.",
           }
         : null,
   };

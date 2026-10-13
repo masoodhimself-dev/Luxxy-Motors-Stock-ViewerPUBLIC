@@ -24,7 +24,7 @@ export function VehicleHighlights({ car, features }: { car: Car; features: strin
   return <section aria-labelledby="vehicle-highlights-heading" className="border-t border-border py-7">
     <h2 id="vehicle-highlights-heading" className="section-heading">A closer look at this car</h2>
     <dl className="mt-4 divide-y divide-border">{highlights.map(item => <div key={item.title} className="py-4"><dt className="text-xs font-semibold text-accent">{item.title}</dt><dd className="mt-2 text-sm leading-6">{item.value}</dd></div>)}</dl>
-    <p className="text-xs text-muted-foreground">From the supplied vehicle details. Confirm the equipment and records when you visit.</p>
+    <p className="text-xs text-muted-foreground">We can walk you through the equipment and service records when you visit.</p>
   </section>;
 }
 
@@ -60,15 +60,15 @@ export function VehicleVisit({ car }: { car: Car }) {
   const available = !car.inventoryStatus || car.inventoryStatus === 'available';
   return <section aria-labelledby="vehicle-visit-heading" className="mt-8 border-t border-border pt-7">
     <h2 id="vehicle-visit-heading" className="section-heading">See it for yourself.</h2>
-    <p className="mt-3 text-sm leading-6 text-muted-foreground">Take a closer look, sit behind the wheel and ask the team your questions.</p>
+    <p className="mt-3 text-sm leading-6 text-muted-foreground">Take a closer look, sit behind the wheel and ask us your questions.</p>
     {!isLoading && !isError && <>
       {photo && <DealershipPhotograph photo={photo} className="mt-5" />}
       <p className="mt-5 font-semibold">{settings.identity.name}</p>
-      {location.isSample ? <p className="mt-2 text-sm text-muted-foreground">Sample showroom details. Confirm the location with the team before travelling.</p> : <address className="mt-2 not-italic text-sm leading-6">{location.lines.join(', ') || 'Contact the team for the showroom address.'}</address>}
+      {location.isSample ? <p className="mt-2 text-sm text-muted-foreground">Please confirm our showroom address with us before travelling.</p> : <address className="mt-2 not-italic text-sm leading-6">{location.lines.join(', ') || 'Contact us for our showroom address.'}</address>}
       {settings.presentation?.visitInstructions && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{settings.presentation.visitInstructions}</p>}
       {settings.presentation?.parkingInstructions && <p className="mt-2 text-sm leading-6 text-muted-foreground">{settings.presentation.parkingInstructions}</p>}
     </>}
-    <p className="mt-3 text-xs leading-5 text-muted-foreground">{available ? 'Please confirm your test drive before travelling.' : 'Contact the team to check this vehicle’s availability before travelling.'}</p>
+    <p className="mt-3 text-xs leading-5 text-muted-foreground">{available ? 'Please confirm your test drive before travelling.' : 'Contact us to check this car’s availability before travelling.'}</p>
     <div className="mt-4 flex flex-wrap gap-3">{available && <Button asChild><a href={getVehicleBookingHref(car)} onClick={()=>recordBookingIntent({source:'vehicle_visit',vehicleContext:true})}><Calendar className="h-4 w-4" />Choose a test-drive time</a></Button>}<Button asChild variant="outline"><Link href="/contact">Directions & opening hours<ArrowRight className="h-4 w-4" /></Link></Button></div>
   </section>;
 }

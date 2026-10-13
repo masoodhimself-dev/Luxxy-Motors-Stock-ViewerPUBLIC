@@ -388,13 +388,13 @@ export function TestDriveBooking({
       </p>
       {location.isSample ? (
         <p className="text-muted-foreground">
-          Sample showroom address. Confirm the location with the team before
+          Sample showroom address. Confirm our location with us before
           travelling.
         </p>
       ) : (
         <p>
           {location.lines.join(", ") ||
-            "Contact the team to confirm the showroom address."}
+            "Contact us to confirm our showroom address."}
         </p>
       )}
       {settings.presentation?.visitInstructions && (
@@ -459,7 +459,7 @@ export function TestDriveBooking({
           ) : !config.enabled ? (
             <div>
               <h2 className="text-xl font-semibold">
-                Arrange a test drive with the team
+                Arrange a test drive with us
               </h2>
               <p className="mt-3 text-muted-foreground">
                 Online appointment booking is currently unavailable. Contact us
@@ -484,12 +484,12 @@ export function TestDriveBooking({
                 className="booking-step-heading text-2xl font-semibold outline-none sm:text-3xl"
               >
                 {mutation.data.appointmentStatus !== "confirmed"
-                  ? "Your test-drive request is received"
+                  ? "We’ve received your test-drive request"
                   : "Your test drive is booked"}
               </h2>
               <p className="mt-3 text-muted-foreground">
                 {mutation.data.appointmentStatus !== "confirmed"
-                  ? "The team will check your requested time and contact you to confirm. Please wait for confirmation before travelling."
+                  ? "We’ll check your requested time and contact you to confirm. Please wait for confirmation before travelling."
                   : "We look forward to meeting you. Your appointment details are below."}
               </p>
               <div className="mt-6">{selectedCarCard}</div>
@@ -519,7 +519,7 @@ export function TestDriveBooking({
                 <p className="mt-1 text-muted-foreground">
                   {mutation.data.customerNotificationStatus === "sent"
                     ? `We sent the details to ${details.email.trim()}.`
-                    : "The email hasn’t been sent. Keep your reference and the booking link below, or contact the showroom for help."}
+                    : "We haven’t sent your email yet. Keep your reference and the booking link below, or contact us for help."}
                 </p>
               </div>
               <div className="my-5 flex flex-wrap gap-3">
@@ -635,7 +635,7 @@ export function TestDriveBooking({
                 )}
               {!cars.length && (
                 <p className="my-6 text-muted-foreground">
-                  No cars are currently available. Contact the team about
+                  We don’t have any cars available right now. Ask us about
                   upcoming stock.
                 </p>
               )}
@@ -740,7 +740,7 @@ export function TestDriveBooking({
                 >
                   <p className="text-sm leading-6 text-muted-foreground">
                     {config.durationMinutes}-minute appointments · London time
-                    {approval ? " · Confirmed by the team" : ""}
+                    {approval ? " · We’ll confirm your request" : ""}
                   </p>
                   <div
                     role="group"
@@ -849,7 +849,7 @@ export function TestDriveBooking({
                       className="rounded-sm bg-secondary p-4 text-sm leading-6"
                     >
                       No appointments are available on this date. Choose another
-                      day, or ask the team to help.
+                      day, or ask us to help.
                     </p>
                   )}
                   <Link
@@ -872,7 +872,7 @@ export function TestDriveBooking({
                   </Button>
                   <p className="mt-3 text-xs leading-5 text-muted-foreground">
                     {approval
-                      ? "We’ll confirm your requested time after checking it with the team."
+                      ? "We’ll check your requested time and contact you to confirm."
                       : "Your time is confirmed only after you complete the booking."}
                   </p>
                 </section>
@@ -1107,7 +1107,7 @@ export function TestDriveBooking({
                   {visitDetails}
                   {approval && (
                     <p className="rounded-sm bg-secondary p-4 text-sm leading-6">
-                      This is a request for your preferred time. The team will
+                      This is a request for your preferred time. We’ll
                       contact you to confirm before your visit.
                     </p>
                   )}

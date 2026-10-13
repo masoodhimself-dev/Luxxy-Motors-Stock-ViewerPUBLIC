@@ -72,7 +72,7 @@ test('budget ranges stay valid and applied filters can be removed when collapsed
 test('empty stock has an actionable inventory message instead of filter advice', async ({ page }) => {
   await page.route('**/api/stock', (route) => route.fulfill({ json: { schemaVersion: 1, count: 0, cars: [], scrapedAt: null, dealerName: 'Luxxy Motors', dealerLocation: 'Harrow' } }));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'No vehicles currently listed' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No cars to show right now' })).toBeVisible();
   await expect(page.getByTestId('button-clear-filters')).toHaveCount(0);
   await page.getByRole('link', { name: 'Ask about upcoming stock' }).click();
   await expect(page.getByTestId('input-customer-name')).toBeVisible();

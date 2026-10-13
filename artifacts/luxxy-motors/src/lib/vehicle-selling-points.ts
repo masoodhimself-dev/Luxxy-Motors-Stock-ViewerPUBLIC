@@ -43,7 +43,7 @@ export function vehicleSellingPoints(car: Car): SellingPoint[] {
     points.push({
       label: "Mileage",
       text: `${formatMileage(car.mileage)} · below average`,
-      note: "Lower than comparable vehicles according to the supplied listing.",
+      note: "This car has covered fewer miles than comparable vehicles.",
     });
   const service = facts.find((fact) => fact.label === "Service history")?.value;
   if (

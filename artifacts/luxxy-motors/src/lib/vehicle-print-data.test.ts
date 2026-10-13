@@ -26,7 +26,7 @@ it('retains all customer specification groups and running costs, deduplicating m
   const data = vehiclePrintData(car({ seats: 5, owners: 2, sourceExtras: { runningCosts: { items: [{ label: 'Tax per year', value: '£0' }, { label: 'Average', value: '61.4mpg' }, { label: 'Insurance group', value: '11E' }] }, insuranceGroup: '11E', specCategories: [{ category: 'Performance', items: [{ name: 'Miles per gallon', value: '61.4mpg' }, { name: 'Engine power', value: '99BHP' }] }, { category: 'Size and dimensions', items: [{ name: 'Seats', value: '5' }, { name: 'Boot space (seats up)', value: '316L' }] }, { category: 'Finance', items: [{ name: 'Monthly payment', value: '£100' }] }], historyExtras: { ownersData: { value: '2' }, serviceHistory: { historyType: 'NO_HISTORY', description: 'No service history', additionalItems: [{ label: 'Last service', value: 'September 2026' }] }, historyItems: [{ key: 'OWNERS', label: 'Owners', value: '2' }, { key: 'SERVICE_HISTORY', label: 'Service history', value: 'None' }] } } }));
   expect(data.runningCosts).toEqual([{ label: 'Tax per year', value: '£0' }, { label: 'Average', value: '61.4mpg' }, { label: 'Insurance group', value: '11E' }]);
   expect(data.specificationGroups).toEqual([{ title: 'Performance', facts: [{ label: 'Engine power', value: '99BHP' }] }, { title: 'Size and dimensions', facts: [{ label: 'Boot space (seats up)', value: '316L' }] }]);
-  expect(data.history).toEqual([{ label: 'Owners (listing)', value: '2' }, { label: 'Service history', value: 'No service history' }, { label: 'Last service', value: 'September 2026' }]);
+  expect(data.history).toEqual([{ label: 'Owners', value: '2' }, { label: 'Service history', value: 'No service history' }, { label: 'Last service', value: 'September 2026' }]);
   expect(data.sourceNotes).toEqual([]);
 });
 
@@ -34,9 +34,9 @@ it('preserves supplied description and flags contradictory ownership and service
   const description = '6 Owners. Please be aware this vehicle does not come with any service history except the service we have done on the car.';
   const data = vehiclePrintData(car({ owners: 7, sourceExtras: { advertDescription: description, historyExtras: { ownersData: { value: '7' }, serviceHistory: { historyType: 'SOME', description: 'Partial service history' } } } }));
   expect(data.description).toBe(description);
-  expect(data.history).toContainEqual({ label: 'Owners (listing)', value: '7' });
+  expect(data.history).toContainEqual({ label: 'Owners', value: '7' });
   expect(data.sourceNotes).toHaveLength(2);
-  expect(data.sourceNotes).toEqual(['Confirm owners: listing reports 7; description states “6 Owners”.', 'Confirm service history: listing reports “Partial service history”; description says no history apart from the dealer’s service.']);
+  expect(data.sourceNotes).toEqual(['Please ask us to confirm the number of owners: our records show 7, while the description says “6 Owners”.', 'Please ask us to confirm the service history: our records show “Partial service history”, while the description says no history apart from our service.']);
 });
 
 it('prints supplied cash price with pence and VAT qualifier, and an actual valid UK plate only', () => {
@@ -64,9 +64,9 @@ it('includes unique flat specification facts without dumping arbitrary source me
 });
 
 it('prioritises missing source listings without implying sold or assuming availability', () => {
-  expect(vehiclePrintData(car({ inventoryStatus: 'available', sourceExtras: { websiteSourceStatus: 'missing' } })).history).toEqual([{ label: 'Listing status', value: 'No longer advertised at source — confirm availability' }]);
-  expect(vehiclePrintData(car({ inventoryStatus: 'reserved' })).history).toEqual([{ label: 'Listing status', value: 'Reserved' }]);
-  expect(vehiclePrintData(car({ inventoryStatus: 'sold' })).history).toEqual([{ label: 'Listing status', value: 'Sold' }]);
+  expect(vehiclePrintData(car({ inventoryStatus: 'available', sourceExtras: { websiteSourceStatus: 'missing' } })).history).toEqual([{ label: 'Availability', value: 'Please contact us to confirm availability' }]);
+  expect(vehiclePrintData(car({ inventoryStatus: 'reserved' })).history).toEqual([{ label: 'Availability', value: 'Reserved' }]);
+  expect(vehiclePrintData(car({ inventoryStatus: 'sold' })).history).toEqual([{ label: 'Availability', value: 'Sold' }]);
   expect(vehiclePrintData(car({})).history).toEqual([]);
 });
 

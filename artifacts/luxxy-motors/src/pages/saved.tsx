@@ -206,9 +206,9 @@ export default function Saved() {
             }
           >
             {sharedIds
-              ? "This link has no vehicles in our current stock. Browse the showroom for available cars."
+              ? "These cars are no longer in our current stock. Browse our available cars to start a new shortlist."
               : unavailableIds.length
-                ? "Your saved vehicles have left our current stock. Browse the showroom to start a new shortlist."
+                ? "Your saved cars are no longer in our current stock. Browse our available cars to start a new shortlist."
                 : "Tap the heart on any car to save it here."}
           </PageEmptyState>
         )}

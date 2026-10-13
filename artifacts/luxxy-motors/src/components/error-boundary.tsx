@@ -39,13 +39,13 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <h1 className="heading-2 text-primary">This page couldn’t load</h1>
             <p className="mt-3 text-base leading-7 text-muted-foreground">
-              Please try again. If the problem continues, contact the team and tell them which page you were opening.
+              Please try again. If the problem continues, contact us and tell us which page you were opening.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><Button
               onClick={() => this.setState({ hasError: false, error: null })}
             >
               Try again
-            </Button>{this.props.showCustomerHelp !== false && <Button asChild variant="outline"><a href="/contact">Contact the showroom</a></Button>}</div>
+            </Button>{this.props.showCustomerHelp !== false && <Button asChild variant="outline"><a href="/contact">Contact us</a></Button>}</div>
           </section>
         </div>
       );

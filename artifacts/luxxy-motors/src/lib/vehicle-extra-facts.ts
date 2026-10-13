@@ -25,7 +25,7 @@ export function vehicleHistoryFacts(car: Car): Fact[] {
   const serviceValue = text(service?.description) ?? text(byKey("SERVICE_HISTORY")?.value) ?? text(car.sourceExtras?.serviceHistory);
   const keysRaw = text(byKey("KEYS")?.value);
   const keys = keysRaw && /^(contact seller|unknown|not supplied)$/i.test(keysRaw) ? null : keysRaw;
-  return [ownerValue ? { label: "Previous keepers", value: ownerValue } : null, serviceValue ? { label: "Service history", value: serviceValue } : null, keys ? { label: "Keys supplied", value: keys } : null].filter((x): x is Fact => Boolean(x));
+  return [ownerValue ? { label: "Previous keepers", value: ownerValue } : null, serviceValue ? { label: "Service history", value: serviceValue } : null, keys ? { label: "Keys included", value: keys } : null].filter((x): x is Fact => Boolean(x));
 }
 
 export function vehicleListingHighlights(car: Car): Fact[] {
@@ -47,7 +47,7 @@ export function vehicleEconomySummary(car: Car): string[] {
   const costs = vehicleRunningCosts(car);
   const average = costs.find(x => x.label.toLowerCase() === "average");
   const tax = costs.find(x => /tax per year/i.test(x.label));
-  return [average ? `${average.value} average` : null, tax ? `${tax.value} annual road tax` : null].filter((x): x is string => Boolean(x));
+  return [average ? `${average.value} average` : null, tax ? `${tax.value} road tax per year` : null].filter((x): x is string => Boolean(x));
 }
 
 /** Read named specification rows, never dump arbitrary import metadata into the page. */

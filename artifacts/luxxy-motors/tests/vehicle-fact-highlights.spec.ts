@@ -8,7 +8,7 @@ for (const width of [390, 820, 1440]) test(`clean supplied text highlights at ${
  await page.goto('/stock');
  const card = page.locator('.vehicle-card').first();
  await expect(card.getByText('2 previous keepers')).toBeVisible();
- await expect(card.getByRole('button', { name: '£20 annual tax · advertised', exact: true })).toBeVisible();
+ await expect(card.getByRole('button', { name: '£20 road tax per year', exact: true })).toBeVisible();
  await expect(card.locator('.vehicle-specs svg')).toHaveCount(0);
  await expect(card.getByRole('list', { name: 'Vehicle highlights' }).locator('svg')).toHaveCount(0);
  await card.screenshot({ path: `/tmp/fact-card-${width}.png`, animations: 'disabled' });

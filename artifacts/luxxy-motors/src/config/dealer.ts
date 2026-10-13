@@ -113,13 +113,13 @@ export const dealerConfig: DealerConfig = {
   warranty: {
     enabled: true,
     title: "Warranty",
-    description: "Warranty options are available on eligible vehicles.",
+    description: "Ask us about warranty options for your chosen car.",
     ctaLabel: "Learn About Warranty",
   },
   delivery: {
     enabled: true,
     title: "Nationwide Delivery",
-    description: "Customers may be able to have their vehicle delivered.",
+    description: "Ask us about delivery options for your next car.",
     ctaLabel: "Ask About Delivery",
   },
   partExchange: {

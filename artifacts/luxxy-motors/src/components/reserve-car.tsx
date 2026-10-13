@@ -86,13 +86,13 @@ export function ReserveCar({ car, className, customer, partExchange }: {
     };
     const data = JSON.stringify(body);
     if (attempt.current?.data !== data) attempt.current = { data, key: reservationRequestKey() };
-    if (readiness.isError || !readiness.data) { setFormError('Payment availability could not be checked. Please try again or contact the showroom.'); return; }
+    if (readiness.isError || !readiness.data) { setFormError('Payment availability could not be checked. Please try again or contact us.'); return; }
     if (paymentEnabled) {
       setCheckoutPending(true); setFormError('');
       try {
         const result = await customFetch<{ checkoutUrl: string }>('/api/reservations/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, idempotencyKey: attempt.current.key }) });
         const destination = new URL(result.checkoutUrl);
-        if (destination.protocol !== 'https:' || destination.hostname !== 'checkout.stripe.com') throw new Error('The secure payment link is unavailable. Please contact the showroom.');
+        if (destination.protocol !== 'https:' || destination.hostname !== 'checkout.stripe.com') throw new Error('The secure payment link is unavailable. Please contact us.');
         window.location.assign(destination.href);
       } catch (error) { setFormError(error instanceof Error ? error.message : 'Secure payment could not be opened.'); setCheckoutPending(false); }
       return;
@@ -132,7 +132,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
             {result ? (result.status === 'cancelled' ? 'Reservation cancelled' : 'Your car is reserved') : step === 'details' ? 'Reserve this car' : 'Review your reservation'}
           </DialogTitle>
           <DialogDescription>
-            {result ? (result.status === 'cancelled' ? 'This reservation has been cancelled. No money was received and this reservation no longer holds the car.' : 'Keep your reference below. The team will follow up with you about the car.') : step === 'details' ? 'Leave your contact details, then review the deposit and reservation terms.' : 'Check your details and the terms before confirming.'}
+            {result ? (result.status === 'cancelled' ? 'This reservation has been cancelled. No money was received and this reservation no longer holds the car.' : 'Keep your reference below. We’ll follow up with you about the car.') : step === 'details' ? 'Leave your contact details, then review the deposit and reservation terms.' : 'Check your details and the terms before confirming.'}
           </DialogDescription>
         </div>
         {!result && <ol className="vehicle-dialog-steps" aria-label="Reservation progress">
@@ -153,7 +153,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
             <div><dt>Payment status</dt><dd>Simulated</dd></div>
           </dl>
           <p className="vehicle-dialog-notice">Your full vehicle balance is still outstanding. This is a reservation record, not a payment receipt.</p>
-          <p className="vehicle-dialog-muted">{result.status === 'cancelled' ? 'Contact the dealership or refresh the vehicle page to check its current availability.' : 'Contact the dealership with this reference if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
+          <p className="vehicle-dialog-muted">{result.status === 'cancelled' ? 'Contact us or refresh the car’s page to check its current availability.' : 'Contact us with this reference if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
           <div className="vehicle-dialog-actions"><DialogClose asChild><Button type="button" className="vehicle-dialog-primary">Done</Button></DialogClose></div>
         </div> : <>
           <div className="vehicle-dialog-deposit">
@@ -165,7 +165,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
           <label className="block"><span className="field-label">Email address</span><Input required type="email" maxLength={254} autoComplete="email" value={contact.email} onChange={e => setContact({ ...contact, email: e.target.value })} /></label>
           <label className="block"><span className="field-label">Phone number</span><Input required type="tel" maxLength={30} autoComplete="tel" value={contact.phone} onChange={e => setContact({ ...contact, phone: e.target.value })} /></label>
           {formError && <p role="alert" className="vehicle-dialog-error">{formError}</p>}
-          <p className="vehicle-dialog-muted">The team will use these details to follow up on this reservation.</p>
+          <p className="vehicle-dialog-muted">We’ll use these details to follow up on your reservation.</p>
           <div className="vehicle-dialog-actions"><Button type="submit" className="vehicle-dialog-primary">Continue · {pounds(depositPence)} deposit</Button></div>
         </form> : <div className="vehicle-dialog-review" aria-busy={pending}>
           <section className="vehicle-dialog-contact-summary" aria-label="Your reservation contact details">

@@ -223,17 +223,17 @@ export function EnquiryForm({
         <span className="mx-auto grid h-14 w-14 place-items-center border border-border bg-secondary/50 text-accent">
           <CheckCircle2 className="h-6 w-6" />
         </span>
-        <p className="luxxy-label mt-7 text-accent">Message received</p>
+        <p className="luxxy-label mt-7 text-accent">We’ve received your enquiry</p>
         <h2 ref={successHeadingRef} tabIndex={-1} className="mt-4 font-display text-[2.1rem] font-semibold leading-[1.04] tracking-[-.035em] text-primary outline-none sm:text-[2.5rem]">
-          We will be in touch.
+          We’ll be in touch.
         </h2>
         <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-primary/70">
-          {`Thank you, ${customerName.trim()}. The ${dealerConfig.identity.name} team has your request and will be in touch.`}
+          {`Thank you, ${customerName.trim()}. We’ve received your enquiry and will be in touch.`}
         </p>
         <div className="mx-auto mt-6 max-w-sm border border-primary/20 bg-primary/5 px-5 py-4 text-left">
           <p className="luxxy-label text-accent">Your reference</p>
           <p className="mt-2 font-mono text-xl font-bold tracking-normal text-primary" data-testid="text-enquiry-reference">{mutation.data.reference}</p>
-          <p className="mt-2 text-xs leading-5 text-primary/70">Keep this reference handy if you call the showroom.</p>
+          <p className="mt-2 text-xs leading-5 text-primary/70">Keep this reference handy if you call us.</p>
         </div>
         {selectedVehicle && (
           <p className="mx-auto mt-5 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
@@ -245,7 +245,7 @@ export function EnquiryForm({
             <Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
               <p className="luxxy-label text-primary/70">
-                {(!email.trim() || embedded && preferredContact !== 'email') ? 'We’ll reply by phone' : mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Your enquiry is saved'}
+                {(!email.trim() || embedded && preferredContact !== 'email') ? (preferredContact === 'whatsapp' ? 'We’ll reply on WhatsApp' : 'We’ll reply by phone') : mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Your enquiry is saved'}
               </p>
               <p className="mt-1 text-xs leading-5 text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent'
@@ -285,7 +285,7 @@ export function EnquiryForm({
     {preferredContact === 'email' ? <label className="block"><span className={labelClass}>Email address</span><Input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} data-testid="input-customer-email" /></label> : <label className="block"><span className={labelClass}>Phone number</span><Input required type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => { setPhone(event.target.value); setPhoneError(''); }} aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'inline-phone-error' : undefined} data-testid="input-customer-phone" />{phoneError && <span id="inline-phone-error" role="alert" className="text-sm text-destructive">{phoneError}</span>}</label>}
     {mutation.isError && <p role="alert" className="text-sm text-destructive">{apiErrorMessage(mutation.error)}</p>}
     <Button type="submit" disabled={mutation.isPending} className="min-h-12 w-full" data-testid="button-submit-enquiry">{mutation.isPending ? 'Sending…' : 'Send enquiry'}<ArrowRight className="h-4 w-4" /></Button>
-    <p className="text-sm leading-6 text-muted-foreground">Your question is attached to {vehicleLabel}. {showroomHours(dealerConfig.hours ?? []).state === 'closed' ? 'The showroom is closed. The team will aim to reply after reopening.' : 'The team will reply during opening hours.'}</p>
+    <p className="text-sm leading-6 text-muted-foreground">We’ll include {vehicleLabel} with your question. {showroomHours(dealerConfig.hours ?? []).state === 'closed' ? 'We’re currently closed. We’ll aim to reply after we reopen.' : 'We’ll reply during opening hours.'}</p>
   </form>;
 
   return (
@@ -422,7 +422,7 @@ export function EnquiryForm({
             rows={4}
             value={message}
             onChange={(event) => { messageTouched.current = true; setMessage(event.target.value); }}
-            placeholder={`How can the ${dealerConfig.identity.name} team help?`}
+            placeholder={`How can we help?`}
             data-testid="textarea-enquiry-message"
           />
         </label>
@@ -443,7 +443,7 @@ export function EnquiryForm({
         <div className="flex items-start gap-3 border-t border-border px-0 py-3 font-medium text-[13px] tracking-normal leading-relaxed text-primary/70">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
            <span>
-             {`Your details are sent securely to the ${dealerConfig.identity.name} enquiry inbox. We will confirm delivery on the next screen.`}
+             {`We’ll use your details to answer your enquiry. You’ll see your reference once we’ve received it.`}
            </span>
         </div>
       </div>

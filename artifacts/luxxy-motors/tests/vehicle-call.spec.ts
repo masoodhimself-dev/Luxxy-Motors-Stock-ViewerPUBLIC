@@ -6,7 +6,7 @@ test("desktop call opens vehicle and phone panel without navigating", async ({
   await page.locator('[data-vehicle-contact="call"]').first().click();
   const panel = page.getByRole("dialog");
   await expect(
-    panel.getByRole("heading", { name: "Call the showroom" }),
+    panel.getByRole("heading", { name: "Call us" }),
   ).toBeVisible();
   await expect(panel.locator('a[href^="tel:"]')).toBeVisible();
   await expect(panel).toContainText("MG HS");
@@ -81,6 +81,6 @@ test('closed showroom saves a callback enquiry with car and next-opening details
  await panel.getByLabel('Telephone').fill('07700900123');
  await panel.getByLabel('Email',{exact:true}).fill('sample@example.test');
  await panel.getByRole('button',{name:'Request a callback'}).click();
- await expect(panel.getByRole('status')).toContainText('Callback request received');
+ await expect(panel.getByRole('status')).toContainText('We’ve received your callback request');
  expect(submitted.vehicleId).toBe('preview-2');expect(submitted.preferredContact).toBe('phone');expect(submitted.message).toContain('next opening');
 });

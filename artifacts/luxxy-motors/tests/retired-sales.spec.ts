@@ -14,7 +14,7 @@ for (const width of [390, 1440]) {
     for (const path of ['/sign/sample', '/customer-details/sample']) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'This link is no longer available' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Contact the dealership' })).toHaveAttribute('href', '/contact');
+      await expect(page.locator('#main-content').getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
     for (const path of ['/api/sales', '/api/sales/sample/complete', '/api/signing/sample/complete', '/api/customer-intake-sessions']) {

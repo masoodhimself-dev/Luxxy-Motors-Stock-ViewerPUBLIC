@@ -91,7 +91,7 @@ test('empty stock and zero-match searches give usable next steps', async ({ page
   await expect(page.locator('.browse-stock .vehicle-card')).toHaveCount(3);
   await fixture(page, request, { empty: true });
   await page.reload();
-  await expect(page.getByTestId('empty-stock')).toContainText('No vehicles currently listed');
+  await expect(page.getByTestId('empty-stock')).toContainText('No cars to show right now');
   await expect(page.getByRole('link', { name: 'Ask about upcoming stock' })).toHaveAttribute('href', '/enquire?type=general');
 });
 
@@ -110,7 +110,7 @@ test('stock loading and network failure retain a clear, accessible page shell', 
   release();
   await expect(page.getByRole('alert')).toContainText('Stock is temporarily unavailable', { timeout: 20000 });
   await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Contact the showroom', exact: true })).toHaveAttribute('href', '/contact');
+  await expect(page.locator('#main-content').getByRole('link', { name: 'Contact us', exact: true })).toHaveAttribute('href', '/contact');
 });
 
 test('mobile keyboard navigation never leaves focus under the open menu', async ({ page, request }) => {

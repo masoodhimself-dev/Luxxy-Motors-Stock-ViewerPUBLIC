@@ -17,7 +17,7 @@ export function VehicleReviews() {
   <div className="mt-5" aria-live="polite" aria-atomic="true">
    <div className="flex gap-1 text-primary" role="img" aria-label={`${review.rating} out of 5 stars`}>{Array.from({length:5},(_,i)=><Star key={i} size={15} aria-hidden="true" fill={i<review.rating?'currentColor':'none'}/>)}</div>
    <blockquote className="mt-3 text-base leading-7 text-foreground">“{review.review}”</blockquote>
-   <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2"><p className="text-sm font-semibold">{review.name}</p>{review.verified&&<TermHelp className="review-verification" text="Verification of this review has been confirmed by the dealership."><BadgeCheck size={14} aria-hidden="true"/>Verified review</TermHelp>}{review.invited&&<TermHelp className="review-invited" text="This reviewer was asked to leave a review.">Invited</TermHelp>}</div>
+   <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2"><p className="text-sm font-semibold">{review.name}</p>{review.verified&&<TermHelp className="review-verification" text="We’ve confirmed this review."><BadgeCheck size={14} aria-hidden="true"/>Verified review</TermHelp>}{review.invited&&<TermHelp className="review-invited" text="We invited this customer to leave a review.">Invited</TermHelp>}</div>
    <p className="mt-1 text-xs text-muted-foreground">{review.date}{review.source?` · ${review.source}`:''}</p>
   </div>
   <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-3">

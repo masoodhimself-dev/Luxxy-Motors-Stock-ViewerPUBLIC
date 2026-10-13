@@ -29,8 +29,8 @@ for (const width of [320, 820, 1440]) {
     const dialog = page.getByRole('dialog', { name: 'Filter used cars' });
     await expect(dialog).toBeVisible();
     await expect(page.getByTestId('button-quick-low-mileage')).toHaveText('Up to 30,000 miles (2)');
-    await expect(page.getByTestId('button-quick-ulez')).toHaveText('ULEZ standard met (2)');
-    await expect(page.getByTestId('button-quick-lowAnnualTax')).toHaveText('Advertised tax up to £35/year (2)');
+    await expect(page.getByTestId('button-quick-ulez')).toHaveText('ULEZ compliant (2)');
+    await expect(page.getByTestId('button-quick-lowAnnualTax')).toHaveText('Road tax up to £35/year (2)');
     await expect(page.getByTestId('button-quick-lowInsuranceGroup')).toHaveText('Insurance groups 1–15 (2)');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
     const overflow = await dialog.locator('.stock-quick-choices button').evaluateAll(buttons => buttons.flatMap(button => {
@@ -50,7 +50,7 @@ for (const width of [320, 820, 1440]) {
     await expect(page.getByTestId('card-vehicle-fictional-benefits-1')).toHaveCount(0);
     await page.reload();
     await expect(page.getByTestId('text-filtered-stock-count')).toHaveText('1 car matches your search');
-    await page.getByRole('button', { name: 'Remove ULEZ standard met filter' }).click();
+    await page.getByRole('button', { name: 'Remove ULEZ compliant filter' }).click();
     await expect(page.getByTestId('text-filtered-stock-count')).toHaveText('2 cars match your search');
     await page.getByRole('button', { name: 'Reset all', exact: true }).click();
     await expect(page).toHaveURL(/\/stock$/);

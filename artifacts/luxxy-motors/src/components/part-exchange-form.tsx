@@ -86,7 +86,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       setOpened(true);
       setLaunchError('');
     } catch {
-      setLaunchError('WhatsApp could not open. Please try again or call the showroom.');
+      setLaunchError('WhatsApp couldn’t open. Please try again or call us.');
     }
   };
 
@@ -95,11 +95,11 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     return <div className="space-y-5" data-testid="status-part-exchange-success">
       <p className="luxxy-kicker">Details received</p>
       <h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">Now add your car photos.</h2>
-      <p className="text-sm leading-6 text-muted-foreground">Your part-exchange details have been saved for the team. Keep this reference so we can match your photos to the enquiry.</p>
+      <p className="text-sm leading-6 text-muted-foreground">We’ve received your part-exchange details. Keep this reference so we can match your photos to your enquiry.</p>
       <p className="border-y border-border py-4 font-mono text-xl font-semibold" data-testid="part-exchange-reference">{mutation.data.reference}</p>
-      {photoHref ? <Button asChild><a href={photoHref} target="_blank" rel="noopener noreferrer" data-testid="link-part-exchange-photos">Send photos through WhatsApp<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button> : <p>WhatsApp is unavailable. Please call the showroom to arrange how to share your photos.</p>}
+      {photoHref ? <Button asChild><a href={photoHref} target="_blank" rel="noopener noreferrer" data-testid="link-part-exchange-photos">Send photos through WhatsApp<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button> : <p>WhatsApp is unavailable. Please call us to arrange how to share your photos.</p>}
       <p className="text-sm leading-6 text-muted-foreground">Send the prefilled reference message, then use WhatsApp’s attachment button to add the front, rear, both sides, interior, mileage and any damage. Photos are not attached automatically.</p>
-      {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call the showroom</a>}
+      {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call us</a>}
     </div>;
   }
 
@@ -118,7 +118,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       </h2>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">{[
         'Start with the registration and mileage. No registration lookup is performed.',
-        'An honest description helps the team discuss a realistic valuation.',
+        'An honest description helps us give you a realistic valuation.',
         'Select a vehicle from our current stock so we can discuss the part-exchange difference.',
         'Choose how to send your details. In either case, you’ll attach your photos in WhatsApp.',
       ][step]}</p>
@@ -158,13 +158,13 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       {selectedVehicle ? <div className="overflow-hidden border border-border" data-testid="card-part-exchange-target-vehicle">
         {getThumbnailUrl(selectedVehicle) && <img src={getThumbnailUrl(selectedVehicle)} alt={selectedVehicle.title || 'Selected stock vehicle'} referrerPolicy="no-referrer" className="aspect-[16/10] w-full object-cover" />}
         <div className="p-4"><p className="text-xs text-accent">Your next car</p><h3 className="mt-1 font-display text-xl font-semibold">{vehicleDisplayTitle(selectedVehicle)}</h3><p className="mt-2 text-lg font-semibold">{selectedVehicle.price != null ? formatPrice(selectedVehicle.price, selectedVehicle.currency) : 'Price on request'}</p><p className="mt-2 text-sm text-muted-foreground">{[customerRegistrationDetails(selectedVehicle), selectedVehicle.mileage != null ? `${selectedVehicle.mileage.toLocaleString('en-GB')} miles` : null, selectedVehicle.fuel, selectedVehicle.transmission].filter(Boolean).join(' · ')}</p></div>
-      </div> : <p className="border-l-2 border-accent pl-4 text-sm leading-6 text-muted-foreground">{stockCars.length ? 'Choose a car to see its photograph and details here.' : 'No stock is available to select at the moment. Please contact the showroom before continuing.'}</p>}
+      </div> : <p className="border-l-2 border-accent pl-4 text-sm leading-6 text-muted-foreground">{stockCars.length ? 'Choose a car to see its photograph and details here.' : 'There are no cars to choose from right now. Please contact us before continuing.'}</p>}
     </fieldset>}
 
     {step === 3 && <div className="space-y-5">
       <fieldset className="space-y-3"><legend className="mb-3 font-semibold">How would you like to send your details?</legend>
         {([
-          ['website', 'Send details here, photos on WhatsApp', 'Save your enquiry with the dealership first. Then send photos on WhatsApp with your enquiry reference.'],
+          ['website', 'Send details here, photos on WhatsApp', 'Send us your details here first. Then send your photos on WhatsApp with your enquiry reference.'],
           ['whatsapp', 'Send everything on WhatsApp', 'Open a prefilled message, send it in the chat, then attach your photos. No enquiry is saved on this website.'],
         ] as const).map(([value, title, description]) => <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-sm border p-4 ${delivery === value ? 'border-accent bg-accent/5' : 'border-border'}`}>
           <input type="radio" name="partExchangeDelivery" value={value} checked={delivery === value} onChange={() => { setDelivery(value); setReviewed(false); setOpened(false); setLaunchError(''); mutation.reset(); }} className="mt-1 h-5 w-5 shrink-0 accent-primary" />
@@ -179,13 +179,13 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       </fieldset>
       <div className="border-y border-border py-5"><h3 className="font-semibold">{delivery === 'website' ? 'Your enquiry details' : 'Your WhatsApp message'}</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">This includes your contact details. Use the steps above to change any car details.</p><pre className="mt-4 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-primary" data-testid="part-exchange-message-preview">{message}</pre></div>
       <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-6"><input type="checkbox" required checked={reviewed} onChange={event => setReviewed(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-primary" />I’ve checked these details and want to share them with {settings.identity.name} {delivery === 'whatsapp' ? 'through WhatsApp' : 'through this enquiry form'}.</label>
-      <p className="text-xs leading-5 text-muted-foreground">Attach your car photos in the chat after sending. Any valuation is subject to inspection and confirmation by the dealership.</p>
+      <p className="text-xs leading-5 text-muted-foreground">Attach your car photos in the chat after sending. We’ll confirm your valuation after inspecting your car.</p>
       {opened && <p role="status" className="border-l-2 border-accent pl-4 text-sm leading-6">WhatsApp was requested. Your enquiry is not submitted on this website. If the chat opened, tap send there, then attach your photos. If it didn’t open, allow pop-ups and try again.</p>}
       {mutation.isError && <p role="alert" className="text-sm leading-6 text-destructive">We couldn’t confirm your enquiry was saved. Your details are still here. Please try again, or choose “Send everything on WhatsApp”.</p>}
       {launchError && <p role="alert" className="text-sm text-destructive">{launchError}</p>}
     </div>}
 
-    {!whatsAppHref && <p role="status" className="text-sm leading-6 text-muted-foreground">WhatsApp is not available for this dealership. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call the showroom to discuss your part exchange.</a> : 'Please contact the dealership directly.'}</p>}
+    {!whatsAppHref && <p role="status" className="text-sm leading-6 text-muted-foreground">You can’t reach us on WhatsApp right now. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to discuss your part exchange.</a> : 'Please contact us directly.'}</p>}
     <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
       {step > 0 ? <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button> : <span className="text-xs text-muted-foreground">Contact details at the end</span>}
       <Button type="submit" disabled={mutation.isPending || (step === 2 ? !selectedVehicle : step === 3 ? !ready || (delivery === 'whatsapp' && !whatsAppHref) : false)} data-testid="button-part-exchange-continue">{step === 3 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : delivery === 'website' ? 'Send my details' : 'Open WhatsApp'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button>
