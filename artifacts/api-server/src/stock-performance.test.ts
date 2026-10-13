@@ -724,11 +724,13 @@ test("24-car, 1204-image imports avoid unchanged gallery writes while preserving
     queries = [];
     assert.equal((await post(quietBody)).status, "replayed");
     const correctedCar=(await db.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId,dealer),eq(vehiclesTable.advertId,checked[0].advertId))))[0];
-    await db.update(vehiclesTable).set({plate:"AB12CDE",vrm:"AB12CDE",auditMetadata:{...(correctedCar.auditMetadata as any),plateCorrection:{plate:"AB12CDE",by:"Fixture staff"}}}).where(eq(vehiclesTable.id,correctedCar.id));
+    await db.update(vehiclesTable).set({archivedAt:new Date("2026-09-01T12:00:00Z"),retirementStartedAt:new Date("2026-08-24T12:00:00Z"),plate:"AB12CDE",vrm:"AB12CDE",auditMetadata:{...(correctedCar.auditMetadata as any),plateCorrection:{plate:"AB12CDE",by:"Fixture staff"}}}).where(eq(vehiclesTable.id,correctedCar.id));
     await post(snapshot(checked));
     const correctedAgain=(await db.select().from(vehiclesTable).where(eq(vehiclesTable.id,correctedCar.id)))[0];
     assert.equal(correctedAgain.plate,"AB12CDE");
     assert.equal(correctedAgain.vrm,"AB12CDE");
+    assert.equal(correctedAgain.archivedAt,null);
+    assert.equal(correctedAgain.retirementStartedAt,null);
     assert.equal(
       (await db.select().from(vehicleChangesTable)).length,
       changesBeforeReplay,

@@ -1,6 +1,7 @@
 import { forEachActiveDealer } from './lib/tenant-jobs';
 import { siteOrigin } from "./lib/enquiry-links";
 import app from "./app";
+import { startRetentionWorker } from "./lib/data-retention";
 import { logger } from "./lib/logger";
 import { startReminderWorker } from "./lib/enquiry-notifications";
 import { startStripeReservationWorker } from './lib/stripe-reservation-worker';
@@ -30,6 +31,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startRetentionWorker(logger);
   startReminderWorker(logger);
   startStripeReservationWorker(logger);
   // Enquiries taken before leads existed are carried across on boot. This is

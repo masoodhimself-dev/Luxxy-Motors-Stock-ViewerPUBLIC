@@ -99,6 +99,10 @@ export const vehiclesTable = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    retirementStartedAt: timestamp("retirement_started_at", {
+      withTimezone: true,
+    }),
     missingCount: integer("missing_count").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

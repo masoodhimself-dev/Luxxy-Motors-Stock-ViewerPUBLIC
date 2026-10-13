@@ -309,7 +309,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
             // overwrite a sale reservation created while this import was running.
             auditMetadata: sql`coalesce(${vehiclesTable.auditMetadata}, '{}'::jsonb) || ${JSON.stringify({ sourceCheckMetadata })}::jsonb`,
             importRunId: run.id, lastSeenAt: now,
-            ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0 }),
+            ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0, archivedAt: null, retirementStartedAt: null }),
           }).where(tenantAnd(eq(vehiclesTable.id, existing.id), tenantEq(vehiclesTable.dealerId, currentDealerId())));
           const changes = Object.entries(auditChanges).map(([fieldName, change]) => ({
             vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue,
@@ -372,7 +372,7 @@ async function projectVehicles(vehicles: Vehicle[]) {
   });
 }
 function visible(vehicle: Vehicle, settings: Awaited<ReturnType<typeof config>>) {
-  return ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
+  return !vehicle.archivedAt && ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
 }
 router.get("/stock", async (req, res): Promise<void> => {
   const settings = await config();

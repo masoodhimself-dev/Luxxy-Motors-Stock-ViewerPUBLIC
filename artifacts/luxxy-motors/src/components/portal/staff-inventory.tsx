@@ -25,6 +25,7 @@ type Car = {
   inventory_status: string;
   source_status: string;
   missing_count: number;
+  archived_at?: string | null;
   photo?: string | null;
   service_photo_count: number;
   tasks: Tasks | null;
@@ -207,7 +208,11 @@ export function StaffInventory() {
   }
   const cars = (list.data?.cars ?? []).filter(
     (c) =>
-      (filter === "all" || c.inventory_status === filter) &&
+      (filter === "archived"
+        ? Boolean(c.archived_at) || c.inventory_status === "archived"
+        : !c.archived_at &&
+          c.inventory_status !== "archived" &&
+          (filter === "all" || c.inventory_status === filter)) &&
       (c.title + " " + (c.plate ?? c.vrm ?? c.registration ?? ""))
         .toLowerCase()
         .includes(term.toLowerCase()),
@@ -256,7 +261,11 @@ export function StaffInventory() {
                     "Registration not supplied"}{" "}
                   · {price(car.price)}
                 </p>
-                <span className="inventory-status">{car.inventory_status}</span>
+                <span className="inventory-status">
+                  {car.archived_at
+                    ? `Archived · ${car.inventory_status}`
+                    : car.inventory_status}
+                </span>
                 {car.photo && (
                   <div className="inventory-photo-inspect">
                     <img
@@ -638,8 +647,8 @@ export function StaffInventory() {
       ) : (
         <>
           <p className="inventory-muted">
-            Includes retained sold and no longer advertised cars; the overview
-            counts current showroom stock.
+            Sold and confirmed-missing cars move to Archived after seven days.
+            Select Archived to find their retained records.
           </p>
           <div className="inventory-filters">
             <label>
@@ -717,7 +726,11 @@ export function StaffInventory() {
                     <p className="inventory-muted">Absent from stock source</p>
                   )}
                 </div>
-                <span className="inventory-status">{c.inventory_status}</span>
+                <span className="inventory-status">
+                  {c.archived_at
+                    ? `Archived · ${c.inventory_status}`
+                    : c.inventory_status}
+                </span>
               </button>
             ))}
           </div>
