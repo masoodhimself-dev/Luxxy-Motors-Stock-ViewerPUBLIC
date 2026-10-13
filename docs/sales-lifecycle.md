@@ -10,6 +10,14 @@ On narrower tablet/phone screens, **Edit sale** and **Invoice preview** switch b
 
 `tests/invoice-focus.spec.ts` checks short desktop, tablet and phone viewports, independent scrolling, complete A4 visibility, resizing, zoom, draft retention and error recovery using unsaved fictional data with API writes blocked.
 
+## Invoice and receipt presentation
+
+The standard PDF uses a white masthead, the saved dealer accent colour, clear customer/vehicle blocks and a quiet itemised table. Invoices emphasise the remaining balance; payment receipts emphasise the individual payment received and show the cumulative paid total separately. Fees, discounts and up to three part exchanges remain itemised. Typography and spacing adapt to long dealer names, references and large amounts. Ordinary invoices fit one A4 page; longer statements and supplied terms continue onto numbered pages.
+
+The focused preview uses the same PDF renderer as issuing, downloading and emailing documents. Dealer presentation settings still control branding, premium/classic styles and ink-saving output. Existing PDF archives retain their original bytes; the new presentation applies to previews and newly generated documents. It does not alter payment calculations, document references or saved financial values. Drafts remain clearly marked, without an extra issued-document badge.
+
+`artifacts/api-server/src/sale-document-pdf.test.ts` checks page bounds, continuation-header collisions, three-car part exchanges, dense payment statements, exact monetary text, dealer colours, ink-saving output and deterministic archives.
+
 ## Staff workflow
 
 1. Start **New sale**, or reopen a sale by customer, telephone, registration or reference.

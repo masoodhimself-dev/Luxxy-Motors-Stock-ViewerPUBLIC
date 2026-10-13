@@ -958,6 +958,27 @@
 .sales-pdf-document-error,.sales-pdf-document-loading { padding:28px 20px; color:#536673; font-size:14px; }
 @media (max-width:600px) { .sales-pdf-document-meta {padding:10px 12px;} .sales-pdf-pages {padding:10px; gap:10px;} }
 .sales-pdf-document .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+@media screen {
+  .sales-pdf-document-meta a {
+    color: #2d4a5e;
+    font-weight: 600;
+    text-decoration-color: #a8b8c3;
+    text-decoration-thickness: 1px;
+  }
+  .sales-pdf-document-meta a:hover {
+    color: #172d3c;
+    text-decoration-color: currentColor;
+  }
+  .sales-pdf-document-meta a:focus-visible {
+    outline: 2px solid #315e79;
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  .sales-pdf-document-loading,
+  .sales-pdf-document-error {
+    line-height: 1.6;
+  }
+}
 .invoice-sheet[data-design="classic"] .invoice-header {background:white;border-top:2px solid var(--invoice-strong);}
 .invoice-sheet[data-design="classic"] .invoice-heading h2 {font-family:Georgia,serif;}
 .invoice-sheet[data-design="premium"] .invoice-header {border-top:7px solid var(--invoice-strong);}

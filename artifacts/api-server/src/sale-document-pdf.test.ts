@@ -2,12 +2,78 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { jsPDF } from 'jspdf';
 import { saleDocumentPdfBytes } from '@workspace/vehicle-meta/sale-document-pdf';
-import { createSaleWorkspace, changeSaleWorkspace, defaultInvoiceSettings, invoiceBranding, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, changeSaleWorkspace, defaultInvoiceSettings, invoiceBranding, saleWorkspaceTotals, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceDocument, type SaleWorkspacePayment } from '@workspace/vehicle-meta';
 import { saleDocumentPdf } from './lib/sale-document-pdf';
 const draft: SaleWorkspaceDraft = { id: 'draft-test', customer: 'Jamie Taylor', email: '', phone: '', address: '12 Station Road, London', vehicleId: 'test-car', vehicle: '2018 Touring Estate', registration: 'AB18 XYZ', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false, adjustments: [{ description: 'Agreed delivery', amount: '100', kind: 'fee' }], exchanges: [] };
 let id = 0;
 const context: SaleWorkspaceContext = { now: '2026-10-10T10:00:00.000Z', actor: 'Test staff', nextId: () => `id-${++id}`, nextNumber: type => `${type}-${++id}`, branding: { identity: { name: 'Northfield Motors', logoText: 'NORTHFIELD', logoAsset: '' }, contact: { phone: '', email: '' }, address: { street: '24 Station Road', city: 'London', region: '', postcode: '' }, legal: { companyName: '', companyNumber: '', vatNumber: '' }, presentation: { linkColour: '#215a7e' } }, vehicle: { year: 2018, fuel: 'Petrol', transmission: 'Automatic', mileage: 42000 } };
+
+const pageCount = (text: string) => (text.match(/\/Type \/Page\b/g) ?? []).length;
+const pdfStreams = (text: string) => [...text.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].map(match => match[1]);
+const literalText = (text: string) => text.replace(/\\([()\\])/g, '$1');
+type TextRow = { text: string; x: number; y: number; width: number; size: number; page: number };
+// Read the actual uncompressed PDF text positions, rather than pinning a layout to
+// exact panel counts or coordinates. Font metrics then catch clipped long values.
+function textRows(text: string): TextRow[] {
+  const metrics = new jsPDF({ unit: 'pt', format: 'a4' });
+  const fonts = metrics.getFontList();
+  const families = ['helvetica', 'courier', 'times'];
+  const fontById = new Map<string, { family: string; style: string }>();
+  let fontIndex = 1;
+  for (const family of families) for (const style of fonts[family]) fontById.set(`F${fontIndex++}`, { family, style });
+  const rows: TextRow[] = [];
+  for (const [page, stream] of pdfStreams(text).entries()) for (const block of stream.matchAll(/BT\n([\s\S]*?)\nET/g)) {
+    const source = block[1], foundFont = source.match(/\/(F\d+) ([\d.]+) Tf/);
+    assert.ok(foundFont, 'Every text block declares its font and size');
+    const font = fontById.get(foundFont[1]);
+    assert.ok(font, `Font ${foundFont[1]} is supported by the PDF bounds reader`);
+    const size = Number(foundFont[2]);
+    metrics.setFont(font.family, font.style); metrics.setFontSize(size);
+    let x = 0, y = 0, leading = size * 1.15;
+    for (const operation of source.matchAll(/(-?[\d.]+) (-?[\d.]+) Td|([\d.]+) TL|\(((?:\\.|[^\\)])*)\) Tj|(T\*)/g)) {
+      if (operation[1] !== undefined) { x += Number(operation[1]); y += Number(operation[2]); }
+      else if (operation[3] !== undefined) leading = Number(operation[3]);
+      else if (operation[4] !== undefined) {
+        const row = literalText(operation[4]);
+        rows.push({ text: row, x, y, size, width: metrics.getTextWidth(row), page });
+      } else if (operation[5]) y -= leading;
+    }
+  }
+  assert.ok(rows.length > 0, 'The PDF includes measurable text rows');
+  return rows;
+}
+function assertTextOnA4(text: string) {
+  for (const row of textRows(text)) {
+    assert.ok(row.x >= -0.1, `Text crosses the left page edge: ${row.text}`);
+    assert.ok(row.x + row.width <= 595.28 + 0.1, `Text crosses the right page edge: ${row.text}`);
+    assert.ok(row.y >= -0.1 && row.y + row.size <= 841.89 + 0.1, `Text crosses a vertical page edge: ${row.text}`);
+  }
+}
+function assertRowsDoNotCollide(text: string) {
+  const rows = textRows(text).filter(row => row.text.trim());
+  rows.forEach((row, index) => {
+    for (const other of rows.slice(index + 1)) {
+      if (row.page !== other.page || Math.abs(row.y - other.y) > 0.1) continue;
+      assert.ok(row.x + row.width <= other.x + 0.1 || other.x + other.width <= row.x + 0.1, `Text rows overlap: "${row.text}" and "${other.text}"`);
+    }
+  });
+}
+function filledRectangles(text: string) {
+  const mmPerPoint = 25.4 / 72;
+  return pdfStreams(text).flatMap(stream => [...stream.matchAll(/(-?[\d.]+) (-?[\d.]+) (-?[\d.]+) (-?[\d.]+) re\n(?:f|f\*|B|B\*)\b/g)].map(match => {
+    const width = Math.abs(Number(match[3])) * mmPerPoint, height = Math.abs(Number(match[4])) * mmPerPoint;
+    return { width, height, area: width * height };
+  }));
+}
+function invoiceDocument(inputDraft = draft, inputContext = context): SaleWorkspaceDocument {
+  const number = ++id;
+  const sale = createSaleWorkspace({ draft: inputDraft, requestId: `design-create-${number}` }, inputContext, `SALE-DESIGN-${number}`).sale;
+  const result = changeSaleWorkspace(sale, { action: 'document', type: 'invoice' }, { expectedRevision: sale.revision, requestId: `design-invoice-${number}` }, inputContext);
+  assert.ok(result.document);
+  return result.document;
+}
 test('branded PDF is deterministic, A4 and contains issued totals and page references', () => {
   const sale = createSaleWorkspace({ draft, requestId: 'test-create' }, context, 'SALE-TEST-001').sale;
   const result = changeSaleWorkspace(sale, { action: 'document', type: 'invoice' }, { expectedRevision: sale.revision, requestId: 'test-invoice' }, context);
@@ -42,8 +108,10 @@ test('receipt leads with its own payment and does not repeat other payment refer
   assert.ok(later.document);
   const text = saleDocumentPdf(later.document).toString('latin1');
   assert.match(text, /PAYMENT RECEIVED/); assert.match(text, /£1,500.00/); assert.match(text, /SECOND-PAYMENT-REF/); assert.match(text, /£10,100.00/);
+  for (const value of ['10 Oct 2026', 'Cash', 'part payment', '£2,000.00', 'AB18 XYZ']) assert.ok(text.includes(value), `Receipt retains its payment and vehicle context: ${value}`);
   assert.doesNotMatch(text, /DEPOSIT-ONLY-REF|Vehicle price|AGREED SALE|PAYMENT HISTORY/);
   assert.ok(text.indexOf('PAYMENT RECEIVED') < text.indexOf('BALANCE REMAINING'));
+  assert.equal(pageCount(text), 1); assertTextOnA4(text);
   if (process.env.LUXXY_PDF_QA_DIR) writeFileSync(`${process.env.LUXXY_PDF_QA_DIR}/receipt.pdf`, saleDocumentPdf(later.document));
 });
 
@@ -100,9 +168,13 @@ test('drafts are identified without claiming an empty draft is paid, and ink sav
   assert.doesNotMatch(draftPdf, /Paid in full|ISSUED ON/);
   const { defaultInvoiceSettings, invoiceBranding } = await import('@workspace/vehicle-meta');
   const light = { ...result.document, snapshot: { ...result.document.snapshot, branding: invoiceBranding(result.document.snapshot.branding, { ...defaultInvoiceSettings, inkSaving: true }) } };
-  const filledPanels = (text: string) => (text.match(/re\nf\b/g) ?? []).length;
-  assert.ok(filledPanels(saleDocumentPdf(result.document).toString('latin1')) >= 5);
-  assert.equal(filledPanels(saleDocumentPdf(light).toString('latin1')), 1);
+  const premiumFills = filledRectangles(saleDocumentPdf(result.document).toString('latin1'));
+  const lightFills = filledRectangles(saleDocumentPdf(light).toString('latin1'));
+  const area = (rectangles: ReturnType<typeof filledRectangles>) => rectangles.reduce((sum, rectangle) => sum + rectangle.area, 0);
+  assert.ok(area(premiumFills) > 100, 'The ordinary design includes visible dealer colour');
+  assert.ok(area(lightFills) <= area(premiumFills) * 0.05, 'Ink saving removes at least 95% of filled rectangular coverage');
+  assert.equal(lightFills.filter(rectangle => Math.min(rectangle.width, rectangle.height) > 2).length, 0, 'Ink saving has no filled panels; thin rules are allowed');
+  for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(saleDocumentPdf(light).toString('latin1').includes(value), `Ink saving preserves ${value}`);
 });
 
 test('ordinary invoice with three PX cars, three adjustments, contact details and collection stays on one A4 page', () => {
@@ -117,5 +189,88 @@ test('ordinary invoice with three PX cars, three adjustments, contact details an
   const text = saleDocumentPdf(result.document).toString('latin1');
   assert.equal((text.match(/\/Type \/Page\b/g) ?? []).length, 1);
   for (const value of ['PX11 AAA', 'PX12 BBB', 'PX13 CCC', 'Administration agreed with buyer', 'Agreed discount', 'Example Motors Limited', 'TEST012345', '20 Oct 2026', '£10,200.00']) assert.ok(text.includes(value), value);
+  for (const value of ['£15,000.00', '£150.00', '£50.00', '-£250.00', '-£3,000.00', '-£1,250.00', '-£500.00']) assert.ok(text.includes(value), `The full agreed price breakdown retains ${value}`);
+  assertTextOnA4(text);
   if (process.env.LUXXY_PDF_QA_DIR) writeFileSync(`${process.env.LUXXY_PDF_QA_DIR}/three-px-invoice.pdf`, saleDocumentPdf(result.document));
+});
+
+test('long dealer and customer details remain complete and inside A4 boundaries', () => {
+  const dealer = 'Northfield and Westborough Specialist Motor Company Limited - Independent Prestige and Family Vehicle Sales Centre';
+  const customer = 'Alexandra Catherine Pennington-Worthington';
+  const longDraft = { ...draft, customer, vehicle: '2018 Mercedes-Benz E-Class E 350 d AMG Line Premium Plus Estate',
+    email: 'alexandra.pennington@example.test', phone: '07700 900123',
+    address: 'Apartment 14, The Old Coach House\n187 Westborough Avenue\nLittle Northfield\nGreater London\nNW12 8XY', notes: 'NEVER PRINT PRIVATE WORKSPACE NOTES',
+  };
+  const branded = { ...context, branding: { ...context.branding, identity: { ...context.branding.identity, name: dealer },
+    contact: { phone: '020 7946 0123', email: 'sales@northfield-westborough.example.test' },
+    address: { street: 'Unit 18, Westborough Specialist Motor Centre', city: 'Little Northfield', region: 'Greater London', postcode: 'NW12 8AB' },
+    legal: { companyName: dealer, companyNumber: 'TEST012345', vatNumber: 'TEST987654321' },
+  } };
+  const document = invoiceDocument(longDraft, branded);
+  const before = JSON.stringify(document), text = saleDocumentPdf(document).toString('latin1');
+  const allText = textRows(text).map(row => row.text).join(' ').replace(/\s+/g, ' ');
+  for (const supplied of [dealer, customer, longDraft.vehicle, 'The Old Coach House', '187 Westborough Avenue', 'NW12 8XY', 'sales@northfield-westborough.example.test']) assert.ok(allText.includes(supplied), `No clipping or omitted supplied detail: ${supplied}`);
+  assert.doesNotMatch(text, /NEVER PRINT PRIVATE WORKSPACE NOTES/);
+  assertTextOnA4(text);
+  assertRowsDoNotCollide(text);
+  assert.equal(JSON.stringify(document), before, 'Rendering cannot mutate the archived snapshot');
+  assert.deepEqual(saleDocumentPdf(document), saleDocumentPdf(document));
+});
+
+test('long supplied terms title and continuation header stay on the page', () => {
+  const original = invoiceDocument();
+  const document: SaleWorkspaceDocument = { ...original, type: 'terms', title: 'Terms and conditions of this vehicle purchase, payment and delivery agreement',
+    snapshot: { ...original.snapshot, branding: { ...original.snapshot.branding, identity: { ...original.snapshot.branding.identity, name: 'Northfield and Westborough Specialist Motor Company Limited' } } },
+    content: Array.from({ length: 75 }, (_, index) => `Clause ${index + 1}: Fictional supplied terms describe the agreed arrangements without changing the recorded financial figures.`).join('\n'),
+  };
+  const text = saleDocumentPdf(document).toString('latin1');
+  const allText = textRows(text).map(row => row.text).join(' ');
+  assert.ok(pageCount(text) > 1);
+  assert.ok(allText.includes(document.title), 'The complete title is retained when it wraps');
+  assert.match(text, /Clause 75/);
+  assertTextOnA4(text);
+  assertRowsDoNotCollide(text);
+});
+
+test('large supported monetary amount remains exact and fits every summary column', () => {
+  const document = invoiceDocument({ ...draft, price: '9999999999999.99', adjustments: [] });
+  const text = saleDocumentPdf(document).toString('latin1');
+  assert.match(text, /£9,999,999,999,999\.99/);
+  assert.doesNotMatch(text, /Check amount|NaN|Infinity/);
+  assert.equal(pageCount(text), 1);
+  assertTextOnA4(text);
+});
+
+test('dense statement retains all payment references and flows to additional A4 pages', () => {
+  const original = invoiceDocument({ ...draft, price: '20000', adjustments: [] });
+  const payments: SaleWorkspacePayment[] = Array.from({ length: 36 }, (_, index) => ({
+    id: `statement-payment-${index}`, amount: '100.00', amountPence: 10000, signedAmountPence: 10000,
+    method: index % 2 ? 'Cash' : 'Bank transfer', date: '2026-10-10', reference: `LEDGER-ROW-${String(index + 1).padStart(2, '0')}`,
+    kind: 'part-payment', status: 'confirmed', recordedBy: 'STAFF-IDENTITY-PRIVATE', recordedAt: context.now,
+  }));
+  const totals = saleWorkspaceTotals(original.snapshot.draft, payments);
+  const document: SaleWorkspaceDocument = { ...original, type: 'statement', title: 'Statement', balanceAtIssue: totals.balance,
+    snapshot: { ...original.snapshot, payments, totals },
+  };
+  const text = saleDocumentPdf(document).toString('latin1');
+  assert.ok(pageCount(text) > 1);
+  for (const payment of payments) assert.ok(text.includes(payment.reference), `Statement retains ${payment.reference}`);
+  assert.match(text, /£3,600\.00/); assert.match(text, /£16,400\.00/);
+  assert.doesNotMatch(text, /STAFF-IDENTITY-PRIVATE/);
+  assertTextOnA4(text);
+});
+
+test('saved dealer colours vary the design without changing document text or financial amounts', () => {
+  const original = invoiceDocument();
+  const variants = ['#215a7e', '#8f306d', '#fff5a1'].map(accent => {
+    const document = { ...original, snapshot: { ...original.snapshot, branding: invoiceBranding(original.snapshot.branding, { ...defaultInvoiceSettings, useWebsiteColour: false, accent }) } };
+    const bytes = saleDocumentPdf(document), text = bytes.toString('latin1');
+    assertTextOnA4(text);
+    for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(text.includes(value), `Palette changes preserve ${value}`);
+    return { bytes, text: textRows(text).map(row => row.text) };
+  });
+  assert.notDeepEqual(variants[0].bytes, variants[1].bytes, 'A dealer accent changes the actual PDF design');
+  assert.notDeepEqual(variants[0].bytes, variants[2].bytes, 'A pale dealer accent gets its own printable design');
+  assert.deepEqual(variants[0].text, variants[1].text);
+  assert.deepEqual(variants[0].text, variants[2].text);
 });

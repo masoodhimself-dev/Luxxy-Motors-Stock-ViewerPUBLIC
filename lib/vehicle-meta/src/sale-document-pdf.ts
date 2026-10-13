@@ -15,7 +15,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   const left = 17, right = 193, width = right - left, bottom = 265;
   const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
   const accent = rgb(palette.strong), ink = rgb(palette.ink), tint = rgb(palette.tint), soft = rgb(palette.soft);
-  const muted = [91, 105, 115], rule = [216, 225, 231], white = [255, 255, 255];
+  const muted = rgb(palette.muted), rule = rgb(palette.rule), white = [255, 255, 255];
   const plain = design?.inkSaving || design?.style === 'classic';
   // Preserve the supported three-car PX and ordinary fees on one A4 invoice.
   // Dense statements and genuinely long supplied content still flow to more pages.
@@ -56,13 +56,16 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
 
   function heading(continued = false) {
     if (continued) {
-      fill(accent); pdf.rect(left, 13, width, plain ? 0.6 : 1.4, 'F');
-      font(10, true); pdf.text(dealerName, left, 23);
-      font(8, false, muted); pdf.text(`${document.number}  |  ${document.title}`, right, 23, { align: 'right' });
-      y = 35; return;
+      stroke(accent); pdf.setLineWidth(plain ? 0.35 : 0.7); pdf.line(left, 14, right, 14);
+      const nameRows = split(dealerName, 92, 10, true);
+      const referenceRows = split(`${document.number}  |  ${document.title}`, 80, 8);
+      font(10, true); pdf.text(nameRows, left, 24);
+      font(8, false, muted); pdf.text(referenceRows, right, 24, { align: 'right' });
+      y = 24 + Math.max(nameRows.length * 4.2, referenceRows.length * 3.4) + 8;
+      return;
     }
     const headerTop = 14;
-    let dealerY = headerTop + 12;
+    let dealerY = headerTop + 16;
     const dealerText: Array<{ text: string; size: number; bold?: boolean }> = [];
     dealerText.push({ text: dealerName, size: 18, bold: true });
     const dealerAddress = [branding.address.street, branding.address.city, branding.address.region, branding.address.postcode].map(supplied).filter(Boolean).join(', ');
@@ -83,34 +86,33 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
       } catch { /* Invalid embedded logo falls back to the saved dealer name. */ }
     }
     const documentLabel = document.type === 'invoice' ? 'Invoice' : document.type === 'receipt' ? 'Payment receipt' : document.type === 'statement' ? 'Statement' : document.title;
-    const titleSize = ['invoice', 'receipt', 'statement'].includes(document.type) ? 24 : 18;
+    const titleSize = ['invoice', 'receipt', 'statement'].includes(document.type) ? (design?.style === 'premium' ? 28 : 26) : 18;
     const titleRows = split(documentLabel, 67, titleSize, true);
-    const textHeight = dealerText.reduce((sum, row) => sum + split(row.text, 87, row.size, row.bold).length * (row.bold ? 6.8 : 4) + (row.bold ? 2 : 0), 0);
-    const titleHeight = 15 + (titleRows.length - 1) * titleSize * 0.4 + (options.draft ? 15 : 6);
-    const headerHeight = Math.max(34, dealerY - headerTop + textHeight + 5, titleHeight);
-    if (!plain) { fill(accent); pdf.rect(left, headerTop, width, headerHeight, 'F'); }
-    else { fill(accent); pdf.rect(left, headerTop, width, 0.8, 'F'); }
-    const inset = plain ? 0 : 7;
+    // White stationery gives the dealer identity, reference and date room to
+    // breathe. Brand colour is concentrated in a rule and the money summary.
+    if (!plain) { fill(accent); pdf.rect(left, headerTop, width, design?.style === 'premium' ? 2.6 : 1.4, 'F'); }
+    else { stroke(accent); pdf.setLineWidth(0.35); pdf.line(left, headerTop, right, headerTop); }
     if (embeddedLogo) {
-      const logoTop = headerTop + 7;
-      if (!plain) { fill(white); pdf.rect(left + inset - 1.5, logoTop - 1.5, embeddedLogo.width + 3, embeddedLogo.height + 3, 'F'); }
-      pdf.addImage(embeddedLogo.asset, embeddedLogo.fileType, left + inset, logoTop, embeddedLogo.width, embeddedLogo.height);
+      const logoTop = headerTop + 8;
+      pdf.addImage(embeddedLogo.asset, embeddedLogo.fileType, left, logoTop, embeddedLogo.width, embeddedLogo.height);
     }
     for (const row of dealerText) {
       const rows = split(row.text, 87, row.size, row.bold);
-      font(row.size, row.bold, plain ? (row.bold ? ink : muted) : white);
-      pdf.text(rows, left + inset, dealerY);
-      dealerY += rows.length * (row.bold ? 6.8 : 4) + (row.bold ? 2 : 0);
+      font(row.size, row.bold, row.bold ? ink : muted);
+      pdf.text(rows, left, dealerY);
+      dealerY += rows.length * row.size * 0.42 + (row.bold ? 3 : 1.2);
     }
-    font(titleSize, true, plain ? accent : white);
-    pdf.text(titleRows, right - inset, headerTop + 15, { align: 'right' });
-    if (options.draft) { font(8, true, plain ? muted : white); pdf.text('DRAFT', right - inset, headerTop + headerHeight - 8, { align: 'right' }); }
-    y = headerTop + headerHeight + 10;
-    font(7.7, true, muted); pdf.text('DOCUMENT NO.', left, y); pdf.text(options.draft ? 'PREVIEW DATE' : 'ISSUED ON', 114, y);
-    font(10, true); pdf.text(document.number, left, y + 5.5);
-    font(10); pdf.text(date(document.issuedAt), 114, y + 5.5);
-    y += 13;
-    stroke(); pdf.line(left, y, right, y); y += 9;
+    font(titleSize, true); pdf.text(titleRows, right, headerTop + 16, { align: 'right' });
+    let referenceY = headerTop + 16 + (titleRows.length - 1) * titleSize * 0.42 + 8;
+    font(7.3, true, muted); pdf.text('DOCUMENT NO.', right, referenceY, { align: 'right' });
+    referenceY += 5;
+    const referenceRows = split(document.number, 67, 10, true);
+    font(10, true, accent); pdf.text(referenceRows, right, referenceY, { align: 'right' });
+    referenceY += referenceRows.length * 4.2 + 3;
+    font(8.3, false, muted); pdf.text(`${options.draft ? 'PREVIEW DATE' : 'ISSUED ON'}  ${date(document.issuedAt)}`, right, referenceY, { align: 'right' });
+    if (options.draft) { referenceY += 6; font(7.5, true, accent); pdf.text('DRAFT', right, referenceY, { align: 'right' }); }
+    y = Math.max(dealerY, referenceY + 4) + 6;
+    stroke(); pdf.setLineWidth(0.2); pdf.line(left, y, right, y); y += 8;
   }
   const ensure = (height = 6) => { if (y + height > bottom) { pdf.addPage(); heading(true); } };
   const line = (text: unknown, size = 10, bold = false, value = ink) => {
@@ -129,54 +131,59 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   };
   const pair = (label: string, value: string, column = left, columnWidth = width) => {
     const rows = split(value, columnWidth - 31, 9);
+    const height = Math.max(5.5, rows.length * 4.2);
+    ensure(height + 2);
     font(8.5, false, muted); pdf.text(label, column, y);
-    font(9); pdf.text(rows, column + 31, y); y += Math.max(5.5, rows.length * 4.2);
+    font(9); pdf.text(rows, column + 31, y); y += height;
   };
   const parties = () => {
     const customerRows = [supplied(draft.customer), supplied(draft.address), ...[draft.email, draft.phone].map(supplied).filter(Boolean)].filter(Boolean);
     const vehicleRows = [supplied(draft.vehicle), draft.registration ? `Registration  ${draft.registration}` : '', [vehicle?.year, supplied(vehicle?.colour), supplied(vehicle?.fuel), supplied(vehicle?.transmission)].filter(Boolean).join('  |  '), typeof vehicle?.mileage === 'number' && Number.isFinite(vehicle.mileage) ? `${vehicle.mileage.toLocaleString('en-GB')} miles` : ''].filter(Boolean);
-    const block = (label: string, rows: string[], x: number) => {
+    const rowsHaveRegistration = Boolean(draft.registration);
+    const rowStyle = (index: number, vehicleBlock: boolean) => ({ size: index === 0 ? (vehicleBlock ? 12 : 11) : vehicleBlock && index === 1 && rowsHaveRegistration ? 10 : 9, bold: index === 0 || vehicleBlock && index === 1 && rowsHaveRegistration });
+    const block = (label: string, rows: string[], x: number, vehicleBlock = false) => {
       let blockY = y + 6;
       font(7.7, true, accent); pdf.text(label, x + 5, blockY); blockY += 6;
-      rows.forEach((row, index) => { const textRows = split(row, 75, index === 0 ? 11 : 9, index === 0); font(index === 0 ? 11 : 9, index === 0, index === 0 ? ink : muted); pdf.text(textRows, x + 5, blockY); blockY += textRows.length * (index === 0 ? 5 : 4.4) + 1; });
+      rows.forEach((row, index) => { const style = rowStyle(index, vehicleBlock); const textRows = split(row, 75, style.size, style.bold); font(style.size, style.bold, style.bold ? ink : muted); pdf.text(textRows, x + 5, blockY); blockY += textRows.length * style.size * 0.42 + 1.5; });
       return blockY;
     };
     // Very long addresses use flowing rows rather than a fixed-height two-column panel.
-    const heightOf = (rows: string[]) => rows.reduce((sum, row, index) => sum + split(row, 75, index === 0 ? 11 : 9, index === 0).length * (index === 0 ? 5 : 4.4) + 1, 15);
-    if (Math.max(heightOf(customerRows), heightOf(vehicleRows)) > 65) {
+    const heightOf = (rows: string[], vehicleBlock = false) => rows.reduce((sum, row, index) => { const style = rowStyle(index, vehicleBlock); return sum + split(row, 75, style.size, style.bold).length * style.size * 0.42 + 1.5; }, 15);
+    if (Math.max(heightOf(customerRows), heightOf(vehicleRows, true)) > 65) {
       section('Customer'); customerRows.forEach((row, i) => line(row, i === 0 ? 11 : 9, i === 0));
       section('Vehicle'); vehicleRows.forEach((row, i) => line(row, i === 0 ? 11 : 9, i === 0)); y += 4;
     } else {
-      const panelHeight = Math.max(heightOf(customerRows), heightOf(vehicleRows));
+      const panelHeight = Math.max(heightOf(customerRows), heightOf(vehicleRows, true));
       ensure(panelHeight + 8);
-      if (!plain) { fill(soft); pdf.rect(left, y, 85, panelHeight, 'F'); fill(tint); pdf.rect(108, y, 85, panelHeight, 'F'); }
+      if (!plain) { fill(tint); pdf.rect(108, y, 85, panelHeight, 'F'); fill(accent); pdf.rect(108, y, 1, panelHeight, 'F'); }
       else { stroke(); pdf.rect(left, y, 85, panelHeight); pdf.rect(108, y, 85, panelHeight); }
-      const end = Math.max(block('SOLD TO', customerRows, left), block('VEHICLE', vehicleRows, 108)); y = Math.max(y + panelHeight, end) + 8;
+      const end = Math.max(block('CUSTOMER', customerRows, left), block('VEHICLE', vehicleRows, 108, true)); y = Math.max(y + panelHeight, end) + 8;
     }
   };
-  let amountRowIndex = 0;
   const amountRow = (label: string, amount: number, bold = false) => {
     const rows = split(label, 126, 9.5, bold), height = Math.max(compactInvoice ? 8.5 : 10, rows.length * 4.4 + (compactInvoice ? 4 : 5));
     ensure(height + 1);
-    if (!plain && amountRowIndex++ % 2 === 0) { fill(soft); pdf.rect(left, y - 5, width, height, 'F'); }
     font(9.5, bold); pdf.text(rows, left + 4, y);
-    fittedAmount(amount, right - 4, y, 36, 10, 'right');
+    fittedAmount(amount, right - 4, y, 36, 10, 'right', amount < 0 ? accent : ink);
     y += height; stroke(); pdf.line(left, y - 5, right, y - 5);
   };
   const balance = () => {
-    const height = compactInvoice ? 27 : 30, after = compactInvoice ? 33 : 38;
+    const height = compactInvoice ? 29 : 32, after = compactInvoice ? 35 : 39;
     ensure(after); y += 2;
     const summaryWidth = 104, balanceX = left + summaryWidth + 4, balanceWidth = width - summaryWidth - 4;
-    if (!plain) { fill(tint); pdf.rect(left, y, summaryWidth, height, 'F'); fill(accent); pdf.rect(balanceX, y, balanceWidth, height, 'F'); }
+    // One strong amount anchors an invoice. Receipts keep the spotlight on
+    // their individual payment rather than competing with a second dark block.
+    const strongBalance = !plain && document.type !== 'receipt';
+    if (!plain) { fill(strongBalance ? accent : tint); pdf.rect(balanceX, y, balanceWidth, height, 'F'); if (!strongBalance) { fill(accent); pdf.rect(balanceX, y, 1.2, height, 'F'); } }
     else { stroke(); pdf.rect(left, y, summaryWidth, height); pdf.rect(balanceX, y, balanceWidth, height); }
     font(8.3, false, muted); pdf.text('Sale total', left + 5, y + 9);
     fittedAmount(totals.totalDue, left + summaryWidth - 5, y + 9, 48, 12, 'right');
     font(8.3, false, muted); pdf.text('Payments received', left + 5, y + (compactInvoice ? 20 : 22));
     fittedAmount(totals.confirmedPaid, left + summaryWidth - 5, y + (compactInvoice ? 20 : 22), 48, 12, 'right');
-    stroke(plain ? rule : white); pdf.setLineWidth(0.15); pdf.line(left + 5, y + (compactInvoice ? 13.5 : 15), left + summaryWidth - 5, y + (compactInvoice ? 13.5 : 15));
-    font(7.5, true, plain ? muted : white); pdf.text(document.balanceAtIssue < 0 ? 'CUSTOMER CREDIT' : 'BALANCE REMAINING', balanceX + 5, y + 7);
-    fittedAmount(Math.abs(document.balanceAtIssue), balanceX + 5, y + 19, balanceWidth - 10, 22, 'left', plain ? ink : white);
-    if (document.balanceAtIssue === 0 && totals.totalDue > 0 && totals.confirmedPaid >= totals.totalDue) { font(7.5, false, plain ? muted : white); pdf.text('Paid in full', balanceX + 5, y + (compactInvoice ? 24 : 26)); }
+    stroke(); pdf.setLineWidth(0.15); pdf.line(left + 5, y + (compactInvoice ? 13.5 : 15), left + summaryWidth - 5, y + (compactInvoice ? 13.5 : 15));
+    font(7.5, true, strongBalance ? white : accent); pdf.text(document.balanceAtIssue < 0 ? 'CUSTOMER CREDIT' : 'BALANCE REMAINING', balanceX + 5, y + 7);
+    fittedAmount(Math.abs(document.balanceAtIssue), balanceX + 5, y + 20, balanceWidth - 10, 24, 'left', strongBalance ? white : ink);
+    if (document.balanceAtIssue === 0 && totals.totalDue > 0 && totals.confirmedPaid >= totals.totalDue) { font(7.5, true, strongBalance ? white : accent); pdf.text('Paid in full', balanceX + 5, y + (compactInvoice ? 25 : 28)); }
     y += after;
   };
   const arrangements = () => {
@@ -217,9 +224,9 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     y += 4; balance();
   } else if (document.type === 'invoice' || document.type === 'statement') {
     ensure(22); y += 3;
-    if (!plain) { fill(accent); pdf.rect(left, y - 5, width, 10, 'F'); }
-    font(8, true, plain ? muted : white); pdf.text('DESCRIPTION', left + 4, y + 1); pdf.text('AMOUNT', right - 4, y + 1, { align: 'right' }); y += 12;
-    amountRow('Vehicle price', totals.price);
+    if (!plain) { fill(soft); pdf.rect(left, y - 5, width, 9, 'F'); }
+    font(8, true, muted); pdf.text('DESCRIPTION', left + 4, y + 1); pdf.text('AMOUNT', right - 4, y + 1, { align: 'right' }); y += 12;
+    amountRow('Vehicle price', totals.price, true);
     for (const adjustment of draft.adjustments ?? []) amountRow(adjustment.description, saleWorkspacePence(adjustment.amount) * (adjustment.kind === 'discount' ? -1 : 1));
     for (const exchange of exchangeRows) amountRow(`Part-exchange allowance - ${exchange.registration}${exchange.description ? ` - ${exchange.description}` : ''}`, -saleWorkspacePence(exchange.value));
     y += compactInvoice ? 3 : 5; balance();
@@ -260,9 +267,10 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   const pageCount = pdf.getNumberOfPages();
   for (let page = 1; page <= pageCount; page++) {
     pdf.setPage(page); pdf.setDrawColor(rule[0], rule[1], rule[2]); pdf.line(left, 276, right, 276);
-    font(8, false, muted); pdf.text(`${dealerName}  |  ${document.number}`, left, 282);
-    pdf.text(`${page} / ${pageCount}`, right, 282, { align: 'right' });
-    if (options.draft) { font(7.5, false, muted); pdf.text('DRAFT - not issued', left, 287); }
+    const footerRows = split(`${dealerName}  |  ${document.number}`, 146, 7.5).slice(0, 2);
+    font(7.5, false, muted); pdf.text(footerRows, left, 281.5);
+    pdf.text(`${page} / ${pageCount}`, right, 281.5, { align: 'right' });
+    if (options.draft) { font(7.5, false, muted); pdf.text('DRAFT - not issued', left, 290); }
   }
   return new Uint8Array(pdf.output('arraybuffer'));
 }
