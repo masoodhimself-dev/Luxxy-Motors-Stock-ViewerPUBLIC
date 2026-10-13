@@ -118,7 +118,7 @@ export function TestDriveBooking({
   useEffect(() => { const timer = window.setInterval(() => setBookingNow(new Date()), 60000); return () => window.clearInterval(timer); }, []);
   const bookingHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', hourCycle: 'h23' }).format(bookingNow));
   const nightTime = bookingHour >= 20 || bookingHour < 7;
-  const showroomClosed = showroomHours(settings.hours ?? [], bookingNow).state === 'closed';
+  const showroomState = showroomHours(settings.hours ?? [], bookingNow).state;
   const config = settings.testDriveBooking ?? defaultBookingSettings;
   const [, setLocation] = useLocation();
   const cars = stockCars.filter(
@@ -448,7 +448,6 @@ export function TestDriveBooking({
             {websiteText(settings, "viewingDescription")}
           </p>
         </header>
-        {nightTime && config.enabled && !settingsLoading && !settingsError && <aside className="booking-night-note" aria-label="Booking at night"><Clock3 size={20} aria-hidden="true" /><div><strong>{showroomClosed ? 'We’ve gone home — we’re human too!' : 'Even car people need sleep — we’re human too!'}</strong><p>{showroomClosed ? 'You can still book online. We’ll pick up any questions when we’re back.' : 'You can choose a test-drive time online whenever it suits you.'}</p></div></aside>}
         <div className="booking-panel rounded-sm border border-border bg-card p-5 sm:p-8">
           {isLoading || settingsLoading ? (
             <div role="status" className="space-y-4 py-8">
@@ -855,7 +854,13 @@ export function TestDriveBooking({
                       ))}
                     </div>
                   ) : (
-                    <p
+                    nightTime && selectedDate === londonDate(bookingNow) && showroomState !== 'open' ? (
+                      <aside className="booking-night-note" aria-label="Booking at night" data-testid="status-availability-empty">
+                        <Clock3 size={20} aria-hidden="true" />
+                        <div><strong>Even car people need sleep — we’re human too!</strong>
+                        <p>No test drives left for today. Pick another date and we’ll look forward to meeting you.</p></div>
+                      </aside>
+                    ) : <p
                       data-testid="status-availability-empty"
                       className="rounded-sm bg-secondary p-4 text-sm leading-6"
                     >
