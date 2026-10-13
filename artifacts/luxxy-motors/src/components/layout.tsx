@@ -2,7 +2,7 @@ import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
-import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
+import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { CompareTray } from '@/components/compare-tray';
 import { CustomerChat } from '@/components/customer-chat';
 import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
-import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
+import { CustomerFooter } from '@/components/customer-footer';
 import './premium-showroom.css';
 import './portal/portal-workspace.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
@@ -23,11 +23,6 @@ const navLinkClass =
   'inline-flex min-h-11 items-center whitespace-nowrap font-display text-[14px] font-semibold tracking-normal text-primary/75 transition-colors hover:text-accent';
 const mobileNavRowClass =
   'flex min-h-12 items-center justify-between border-b border-primary/10 py-2 text-left font-display text-base font-semibold text-primary transition-colors hover:text-accent';
-const footerLinkClass =
-  'min-h-11 text-left text-[14px] font-medium text-primary-foreground/80 transition-colors hover:text-primary-foreground hover:underline underline-offset-4';
-const footerHeadingClass = 'font-display text-lg font-semibold text-primary-foreground mb-5';
-const socialLinkClass =
-  'grid h-11 w-11 place-items-center rounded-lg bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -96,8 +91,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => icon.remove();
   }, [dealerConfig.presentation?.faviconUrl]);
 
-  const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(' · ');
-  const upcomingVisitDates = getUpcomingVisitDates(dealerConfig.hours ?? []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -353,118 +346,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
-      <footer hidden={isStaff || isCustomerTask} id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-12 pb-8 text-primary-foreground">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 xl:grid-cols-[1.25fr_.8fr_1fr_1.25fr] xl:gap-8">
-            <div className="col-span-2 min-w-0 md:col-span-3 xl:col-span-1">
-               <DealerWordmark {...dealerConfig.identity} logoAsset={dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset} className="mb-4 text-primary-foreground" />
-              {locationLabel && (
-                 <p className="mb-6 font-display text-xs font-medium tracking-normal text-primary-foreground/75">{locationLabel}</p>
-              )}
-              <p className="mb-4 max-w-sm text-sm leading-relaxed text-primary-foreground/80 font-medium">
-                {dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
-                  ? 'Clear details, fair prices and time to look properly before you decide.'
-                  : dealerConfig.hero.subcopy}
-              </p>
-            <div className="flex items-center gap-3">
-                {dealerConfig.social.instagram && (
-                  <a href={dealerConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className={socialLinkClass}>
-                    <Instagram className="w-5 h-5" />
-                  </a>
-                )}
-                {dealerConfig.social.facebook && (
-                  <a href={dealerConfig.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={socialLinkClass}>
-                    <Facebook className="w-5 h-5" />
-                  </a>
-                )}
-                {dealerConfig.social.twitter && (
-                  <a href={dealerConfig.social.twitter} target="_blank" rel="noopener noreferrer" aria-label="Twitter" className={socialLinkClass}>
-                    <Twitter className="w-5 h-5" />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            <div className="min-w-0">
-              <h3 className={footerHeadingClass}>Vehicles</h3>
-              <nav className="flex flex-col items-start gap-0">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
-                <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
-                <button onClick={() => setLocation(testDriveHref)} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
-                {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex items-center ${footerLinkClass}`}>Warranty</Link>}
-              </nav>
-            </div>
-
-            <div className="min-w-0">
-              <h3 className={footerHeadingClass}>Visit</h3>
-              <Link href="/contact" className={`mb-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Contact & directions <ArrowRight className="h-4 w-4 shrink-0" /></Link>
-              <div className="space-y-5 text-sm text-primary-foreground/80 font-medium">
-                {dealerConfig.contact.phone && (
-                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-primary-foreground">
-                    <Phone className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-primary-foreground">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
-                  </a>
-                )}
-                {dealerConfig.contact.email && (
-                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-primary-foreground">
-                    <MessageCircle className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="min-w-0 break-words [overflow-wrap:anywhere]">{dealerConfig.contact.email}</span>
-                  </a>
-                )}
-                {dealerConfig.address && (
-                  <div className="flex items-start gap-3 mt-4">
-                    <MapPin className="w-4 h-4 text-accent shrink-0 mt-1" />
-                    <address className="not-italic space-y-1 leading-relaxed">
-                      {dealerConfig.address.street && <p>{dealerConfig.address.street}</p>}
-                      {dealerConfig.address.city && <p>{dealerConfig.address.city}</p>}
-                      {dealerConfig.address.postcode && <p className="text-primary-foreground font-bold">{dealerConfig.address.postcode}</p>}
-                      {dealerConfig.address.mapsUrl && (
-                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 font-display text-[11px] font-bold tracking-normal text-accent hover:text-primary-foreground transition-colors group">
-                          Directions <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                        </a>
-                      )}
-                    </address>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {upcomingVisitDates.length > 0 && (
-              <div className="col-span-2 min-w-0 md:col-span-1">
-                <h3 className={footerHeadingClass}>Opening hours</h3>
-                <p className="mb-5 max-w-[22rem] text-[13px] leading-6 text-primary-foreground/65">
-                  Contact us before travelling to book a test drive.
-                </p>
-                <ul className="space-y-3">
-                  {(location === '/' ? upcomingVisitDates.slice(0, 1) : upcomingVisitDates).map((visit) => (
-                    <li key={visit.date} className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-3 border-b border-primary-foreground/10 pb-3 text-[14px]">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <CalendarDays className="h-4 w-4 shrink-0 text-accent" />
-                        <span className="min-w-0">
-                          <span className="block font-bold text-primary-foreground">{visit.relativeLabel}</span>
-                          <span className="block text-[12px] text-primary-foreground/60">{visit.relativeLabel === 'Today' || visit.relativeLabel === 'Tomorrow' ? visit.dateLabel : visit.dateLabel.replace(/^\S+\s/, '')}</span>
-                        </span>
-                      </span>
-                      <span className="min-w-0 text-right font-display text-[12px] font-bold leading-5 tracking-normal text-primary-foreground">{visit.times}</span>
-                    </li>
-                  ))}
-                </ul>
-                {location === '/' && <Link href="/contact" className={`mt-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Full opening hours <ArrowRight className="h-4 w-4" /></Link>}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col items-center justify-between gap-6 border-t border-primary-foreground/10 pt-8 mt-12 text-[12px] font-bold text-primary-foreground/70 md:flex-row">
-            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. All rights reserved.</p>
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
-              {dealerConfig.legal.companyNumber && <span>CO {dealerConfig.legal.companyNumber}</span>}
-              {dealerConfig.legal.vatNumber && <span>VAT {dealerConfig.legal.vatNumber}</span>}
-              {dealerConfig.legal.termsUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.termsUrl}>TERMS</a>}
-              {dealerConfig.legal.privacyUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.privacyUrl}>PRIVACY</a>}
-            </div>
-          </div>
-        </div>
-      </footer>
+      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
       {!isCustomerTask && <CompareTray />}

@@ -61,7 +61,7 @@ for (const palette of [
       await readable(page.locator('#main-content h1').first());
       await readable(page.locator('[data-site-header] nav[aria-label="Primary navigation"]:visible a[href="/contact"]'));
       await expect(page.locator('[data-site-header] nav[aria-label="Primary navigation"]:visible a[href="/contact"]')).toHaveCSS('font-weight', '500');
-      await expect(page.locator('#contact h3').first()).toHaveCSS('font-size', '16px');
+      await expect(page.locator('#contact h3').first()).toHaveCSS('font-size', '14px');
       const headerBooking = page.locator('[data-site-header] nav[aria-label="Primary navigation"]:visible button[class*="bg-primary"]');
       await readable(headerBooking);
       await headerBooking.hover();

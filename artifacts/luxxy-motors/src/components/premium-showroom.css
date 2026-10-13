@@ -95,3 +95,75 @@ body:has(.customer-site) [role='alertdialog'] { color: hsl(var(--foreground)); }
 @media (max-width: 767px) {
   .customer-site #contact { padding-block: 36px 20px; }
 }
+
+/* A shared, dealer-branded closing section on every public page. */
+.customer-site #contact.dealership-footer {
+  --footer-divider: color-mix(in srgb, var(--customer-footer-foreground) 19%, transparent);
+  padding: 0;
+  border-top: 0;
+}
+.dealership-footer .footer-invitation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 48px 0 36px;
+  border-bottom: 1px solid var(--footer-divider);
+}
+.customer-site #contact .footer-eyebrow { margin: 0 0 12px; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.dealership-footer .footer-invitation h2 { margin: 0; max-width: 24ch; font-size: clamp(26px, 3vw, 38px); font-weight: 500; line-height: 1.2; letter-spacing: -.035em; }
+.dealership-footer .footer-invitation > div > p:last-child { margin: 14px 0 0; max-width: 55ch; font-size: 14px; }
+.customer-site #contact .footer-contact-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 28px; min-height: 50px; padding: 12px 22px; border-radius: 5px; background: var(--customer-footer-foreground); color: var(--customer-footer-background); font-size: 14px; font-weight: 600; text-decoration: none; }
+.customer-site #contact .footer-contact-button:hover { text-decoration: underline; text-underline-offset: 4px; }
+.dealership-footer .footer-directory { display: grid; grid-template-columns: 1.3fr .9fr 1.15fr 1fr; gap: clamp(24px, 3.5vw, 56px); padding: 40px 0; }
+.dealership-footer .footer-directory > * { min-width: 0; }
+.dealership-footer .footer-wordmark { display: inline-flex; max-width: 100%; min-height: 48px; align-items: center; color: inherit; }
+.dealership-footer .footer-wordmark > * { max-width: 100%; overflow-wrap: anywhere; }
+.dealership-footer .footer-wordmark-on-panel { padding: 12px 16px; border-radius: 5px; background: var(--dealer-panel); }
+.dealership-footer a:focus-visible { outline: 2px solid var(--customer-footer-foreground); outline-offset: 4px; border-radius: 3px; }
+.customer-site #contact .footer-location { margin-top: 12px; font-size: 12px; }
+.customer-site #contact .footer-introduction { margin: 18px 0 0; max-width: 32ch; font-size: 13px; line-height: 1.8; }
+.dealership-footer .footer-social { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.dealership-footer .footer-social a { display: grid; place-items: center; width: 40px; height: 44px; border: 1px solid var(--footer-divider); border-radius: 5px; }
+.customer-site #contact .footer-column h3 { margin: 0 0 18px; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.dealership-footer .footer-column > a { display: flex; align-items: center; gap: 12px; min-height: 40px; width: fit-content; max-width: 100%; font-size: 13px; line-height: 1.6; text-decoration: none; }
+.dealership-footer .footer-column a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.dealership-footer .footer-contact > a > span { min-width: 0; overflow-wrap: anywhere; }
+.dealership-footer .footer-contact svg { flex-shrink: 0; }
+.customer-site #contact .footer-placeholder { display: flex; align-items: center; gap: 12px; margin: 0; min-height: 40px; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.dealership-footer .footer-address { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; font-size: 13px; line-height: 1.75; }
+.dealership-footer .footer-address > svg { margin-top: 3px; }
+.dealership-footer .footer-address > div { min-width: 0; }
+.customer-site #contact .footer-address address { font-size: 13px; font-style: normal; overflow-wrap: anywhere; }
+.dealership-footer .footer-address address > span { display: block; }
+.dealership-footer .footer-placeholder-note { margin-top: 8px; font-size: 11px; }
+.dealership-footer .footer-address a { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; font-size: 12px; }
+.dealership-footer .footer-text-link { margin-top: 14px; font-weight: 500; }
+.dealership-footer .footer-hours dl { margin: 0; }
+.dealership-footer .footer-hours dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--footer-divider); font-size: 12px; }
+.dealership-footer .footer-hours dl > div:first-child { padding-top: 0; }
+.dealership-footer .footer-hours dt > span { display: block; }
+.dealership-footer .footer-hours dt > span:last-child { margin-top: 3px; color: var(--customer-footer-muted); font-size: 11px; }
+.dealership-footer .footer-hours dd { margin: 0; text-align: right; overflow-wrap: anywhere; line-height: 1.6; }
+.dealership-footer .footer-hours-placeholder { padding: 12px 14px; border: 1px dashed var(--footer-divider); border-radius: 4px; }
+.dealership-footer .footer-hours-placeholder > p:last-child { margin: 8px 0 0; font-size: 12px; line-height: 1.7; }
+.customer-site #contact .footer-visit-note { margin: 16px 0 0; font-size: 11px; line-height: 1.7; }
+.dealership-footer .footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0; border-top: 1px solid var(--footer-divider); }
+.dealership-footer .footer-bottom p { margin: 0; font-size: 11px; line-height: 1.8; }
+.dealership-footer .footer-company-details { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 5px !important; }
+.dealership-footer .footer-bottom nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.dealership-footer .footer-bottom nav a { display: inline-flex; align-items: center; min-height: 40px; font-size: 11px; }
+@media (max-width: 1099px) {
+  .dealership-footer .footer-directory { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+  .dealership-footer .footer-brand { grid-column: 1 / -1; }
+  .customer-site #contact .footer-introduction { max-width: 55ch; }
+}
+@media (max-width: 639px) {
+  .dealership-footer .footer-invitation { align-items: flex-start; flex-direction: column; gap: 22px; padding: 32px 0; }
+  .dealership-footer .footer-contact-button { width: 100%; }
+  .dealership-footer .footer-directory { grid-template-columns: 1fr 1fr; gap: 28px 20px; padding: 30px 0; }
+  .dealership-footer .footer-hours { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid var(--footer-divider); }
+  .dealership-footer .footer-column > a, .dealership-footer .footer-address a, .dealership-footer .footer-bottom nav a { min-height: 44px; }
+  .dealership-footer .footer-bottom { align-items: flex-start; flex-direction: column; gap: 12px; padding: 22px 0; }
+  .dealership-footer .footer-bottom nav { gap: 8px 18px; }
+}
