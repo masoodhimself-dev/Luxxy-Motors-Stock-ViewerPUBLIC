@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import type { Car } from './stock-context';
 import { runningCostScale } from './running-cost-scale';
-const car = (label: string, value: string) => ({ sourceExtras: { runningCosts: { items: [{ label, value }] } } }) as Car;
+const car = (label: string, value: string) => ({ sourceExtras: { runningCosts: { items: [{ label, value }] } } }) as unknown as Car;
 it('places lower tax and emissions at the green end of the supplied stock range', () => {
   expect(runningCostScale('Tax per year', '£20', [car('Tax per year', '£20'), car('Tax per year', '£200')])?.position).toBe(0);
   expect(runningCostScale('CO₂ emissions', '200g/km', [car('CO₂ emissions', '100g/km'), car('CO₂ emissions', '200g/km')])?.position).toBe(100);
