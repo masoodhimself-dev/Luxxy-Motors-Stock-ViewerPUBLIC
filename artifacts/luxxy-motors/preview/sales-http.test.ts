@@ -126,3 +126,28 @@ test('HTTP deposit and pending-confirm routes record received money with no rese
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('guided invoice HTTP routes reserve on deposit, issue only two invoice kinds and remove stock only on explicit sold confirmation', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'guided-invoice-http-'));
+  const car = { ...previewStock.cars[0], id: `guided-http-${randomUUID()}`, sourceStatus: 'live' as const };
+  previewStock.cars.push(car);
+  const store = new PreviewSaleWorkspaceStore(path.join(directory, 'sales.json'), async () => ({branding,vehicle:{id:car.id,title:'Test car',year:2020,mileage:22000}}));
+  const server=createServer((req,res) => {void salesPreview(req,res,new URL(req.url ?? '/',`http://${req.headers.host}`),store);});
+  server.listen(0,'127.0.0.1');await new Promise<void>((resolve,reject) => {server.once('listening',resolve);server.once('error',reject);});
+  const origin=`http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const post=async (url:string,body:unknown) => {const response=await fetch(origin+url,{method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:JSON.stringify(body)});return {status:response.status,data:await response.json() as SaleWorkspaceMutation};};
+  try {
+    let sale=(await post('/api/sale-workspace',{requestId:randomUUID(),draft:{...draft,vehicleId:car.id}})).data.sale;
+    const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const payment={amount:'500',method:'Cash',date,reference:'DEP-HTTP',kind:'deposit',status:'confirmed'};
+    const input={expectedRevision:sale.revision,requestId:randomUUID(),payment};
+    const received=await post(`/api/sale-workspace/${sale.id}/invoice-payments`,input);assert.equal(received.status,200);sale=received.data.sale;assert.equal(sale.documents.length,0);assert.equal((await store.inventory())[car.id],'reserved');
+    const repeated=await post(`/api/sale-workspace/${sale.id}/invoice-payments`,input);assert.equal(repeated.data.replayed,true);assert.equal(repeated.data.sale.payments.length,1);
+    const deposit=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'deposit',acknowledge:true});assert.equal(deposit.status,200);sale=deposit.data.sale;assert.equal(deposit.data.document?.invoiceKind,'deposit');
+    const paid=await post(`/api/sale-workspace/${sale.id}/invoice-payments`,{expectedRevision:sale.revision,requestId:randomUUID(),payment:{...payment,amount:'11500',kind:'final-payment',method:'Bank transfer'}});assert.equal(paid.status,200);sale=paid.data.sale;
+    const full=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'full',acknowledge:true});assert.equal(full.status,200);sale=full.data.sale;assert.equal(sale.documents.length,2);assert.equal(sale.lifecycle?.status,'reserved');
+    const pdf=await fetch(`${origin}/api/sale-workspace/${sale.id}/documents/${full.data.document!.id}/pdf`);assert.equal(pdf.status,200);assert.match(pdf.headers.get('content-type') ?? '',/application\/pdf/);assert.ok((await pdf.arrayBuffer()).byteLength>1000);
+    const denied=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:false});assert.equal(denied.status,422);assert.equal((await store.inventory())[car.id],'reserved');
+    const sold=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:true});assert.equal(sold.status,200);assert.equal((await store.inventory())[car.id],'sold');assert.equal(sold.data.sale.documents.length,2);
+  } finally {server.closeAllConnections();await new Promise<void>(resolve => server.close(() => resolve()));previewStock.cars.splice(previewStock.cars.indexOf(car),1);await rm(directory,{recursive:true,force:true});}
+});

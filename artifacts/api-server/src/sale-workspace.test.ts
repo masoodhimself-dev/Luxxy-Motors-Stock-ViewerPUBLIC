@@ -299,3 +299,39 @@ test('confirming a pending deposit without reservation terms records money once 
     assert.equal(pending.payments[0].status, 'pending');
   }
 });
+
+test('guided invoices record deposits without extra paperwork and retain all dated payments', () => {
+  const apply = (sale: ReturnType<typeof create>, command: SaleWorkspaceCommand, requestId: string) => changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId }, context());
+  const received: SaleWorkspaceCommand = { action:'invoice-payment', payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'DEP-1',kind:'deposit',status:'confirmed'} };
+  const deposited = apply(create(), received, 'guided-deposit');
+  assert.equal(deposited.sale.lifecycle?.status, 'reserved');assert.equal(deposited.sale.documents.length, 0);
+  const deposit = apply(deposited.sale, { action:'issue-invoice',kind:'deposit',acknowledge:true }, 'guided-deposit-invoice');
+  assert.equal(deposit.document?.title, 'Deposit invoice');assert.equal(deposit.document?.invoiceKind,'deposit');assert.equal(deposit.sale.documents.length,1);
+  const frozen=JSON.stringify(deposit.document);
+  const interim=apply(deposit.sale,{action:'invoice-payment',payment:{amount:'500',method:'Bank transfer',date:'2026-10-04',reference:'BANK-2',kind:'part-payment',status:'confirmed'}},'guided-interim');
+  const final=apply(interim.sale,{action:'invoice-payment',payment:{amount:'11000',method:'Debit card',date:'2026-10-04',reference:'CARD-3',kind:'final-payment',status:'confirmed'}},'guided-final');
+  const invoice=apply(final.sale,{action:'issue-invoice',kind:'full',acknowledge:true},'guided-full-invoice');
+  assert.equal(invoice.sale.documents.length,2);assert.equal(invoice.document?.snapshot.payments.length,3);assert.equal(invoice.document?.balanceAtIssue,0);
+  assert.equal(JSON.stringify(invoice.sale.documents[0]),frozen);assert.equal(invoice.sale.lifecycle?.status,'reserved');assert.equal(invoice.sale.completedAt,undefined);
+  const complete=apply(invoice.sale,{action:'finish-invoice-sale',acknowledge:true},'guided-sold');
+  assert.equal(complete.sale.lifecycle?.status,'sold');assert.ok(complete.sale.completedAt);assert.equal(complete.sale.documents.length,2);
+  const replay=changeSaleWorkspace(complete.sale,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:invoice.sale.revision,requestId:'guided-sold'},context());assert.equal(replay.replayed,true);
+});
+
+test('guided invoices reject unreceived or excessive payments and require a current settled full invoice for sold status', () => {
+  const sale=create();const input={expectedRevision:sale.revision,requestId:'guided-invalid'};
+  assert.throws(() => changeSaleWorkspace(sale,{action:'issue-invoice',kind:'deposit',acknowledge:true},input,context()),/received deposit/);
+  assert.throws(() => changeSaleWorkspace(sale,{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'pending'}},input,context()),/received funds/);
+  assert.throws(() => changeSaleWorkspace(sale,{action:'invoice-payment',payment:{amount:'12001',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},input,context()),/exceeds/);
+  const invoice=changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},input,context()).sale;
+  assert.equal(invoice.lifecycle,undefined);
+  assert.throws(() => changeSaleWorkspace(invoice,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:invoice.revision,requestId:'guided-unpaid-sold'},context()),/Settle/);
+  const paid=changeSaleWorkspace(invoice,{action:'invoice-payment',payment:{amount:'12000',method:'Cash',date:'2026-10-04',reference:'',kind:'final-payment',status:'confirmed'}},{expectedRevision:invoice.revision,requestId:'guided-paid'},context()).sale;
+  assert.throws(() => changeSaleWorkspace(paid,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:paid.revision,requestId:'guided-old-invoice'},context()),/updated full invoice/);
+});
+
+test('guided corrections preserve history without generating unwanted receipts', () => {
+  const deposited=changeSaleWorkspace(create(),{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},{expectedRevision:1,requestId:'guided-correction-deposit'},context()).sale;
+  const corrected=changeSaleWorkspace(deposited,{action:'reverse',paymentId:deposited.payments[0].id,amount:'100',kind:'refund',reason:'Customer refund',date:'2026-10-04',invoiceOnly:true},{expectedRevision:deposited.revision,requestId:'guided-correction'},context()).sale;
+  assert.equal(corrected.documents.length,0);assert.equal(corrected.payments.length,2);assert.equal(saleWorkspaceTotals(corrected.draft,corrected.payments).confirmedPaid,40000);
+});

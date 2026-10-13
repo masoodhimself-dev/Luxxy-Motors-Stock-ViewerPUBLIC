@@ -102,7 +102,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
         dealerY += imageHeight + 5;
       } catch { /* Invalid embedded logo falls back to the saved dealer name. */ }
     }
-    const documentLabel = document.type === 'invoice' ? 'Invoice' : document.type === 'receipt' ? 'Payment receipt' : document.type === 'statement' ? 'Statement' : document.title;
+    const documentLabel = document.invoiceKind === 'deposit' ? 'Deposit invoice' : document.invoiceKind === 'full' ? 'Sales invoice' : document.type === 'invoice' ? 'Invoice' : document.type === 'receipt' ? 'Payment receipt' : document.type === 'statement' ? 'Statement' : document.title;
     const titleSize = ['invoice', 'receipt', 'statement'].includes(document.type) ? (design?.style === 'premium' ? 28 : 26) : 18;
     const titleRows = split(documentLabel, 67, titleSize, true);
     // White stationery gives the dealer identity, reference and date room to
@@ -128,7 +128,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     referenceY += referenceRows.length * 4.2 + 3;
     font(8.3, false, muted); pdf.text(`${options.draft ? 'PREVIEW DATE' : 'ISSUED ON'}  ${date(document.issuedAt)}`, right, referenceY, { align: 'right' });
     if (options.draft) { referenceY += 6; font(7.5, true, accent); pdf.text('DRAFT', right, referenceY, { align: 'right' }); }
-    y = Math.max(dealerY, referenceY + 4) + 6;
+    y = Math.max(dealerY, referenceY + 4) + (document.invoiceKind ? 0 : 6);
     stroke(); pdf.setLineWidth(0.2); pdf.line(left, y, right, y); y += 8;
   }
   const ensure = (height = 6) => { if (y + height > bottom) { pdf.addPage(); heading(true); } };
@@ -177,6 +177,50 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
       const end = Math.max(block('CUSTOMER', customerRows, left), block('VEHICLE', vehicleRows, 108, true)); y = Math.max(y + panelHeight, end) + 8;
     }
   };
+  const invoiceParties = () => {
+    font(7.5, true, accent); pdf.text('BILLED TO', left, y); y += 6;
+    line(draft.customer, 11, true);
+    if (draft.address) paragraph(draft.address, 9);
+    const contact = [supplied(draft.email), supplied(draft.phone)].filter(Boolean).join('  |  ');
+    if (contact) line(contact, 9, false, muted);
+    y += 1;
+    const suppliedFacts: Array<[string, unknown]> = [
+      ['Year', vehicle?.year], ['Mileage', typeof vehicle?.mileage === 'number' ? `${vehicle.mileage.toLocaleString('en-GB')} miles` : ''],
+      ['Fuel', vehicle?.fuel], ['Transmission', vehicle?.transmission], ['Engine', vehicle?.engineSize], ['Colour', vehicle?.colour],
+      ['Body type', vehicle?.bodyType], ['Previous keepers', vehicle?.owners], ['Emissions standard', vehicle?.emissionClass],
+      ['Service history', vehicle?.serviceHistory], ['Doors / seats', [vehicle?.doors ? `${vehicle.doors} doors` : '', vehicle?.seats ? `${vehicle.seats} seats` : ''].filter(Boolean).join(' / ')],
+      ['Write-off category', vehicle?.writeOffCategory],
+    ];
+    const facts = suppliedFacts.filter(row => Boolean(supplied(row[1])));
+    const titleRows = split(draft.vehicle || vehicle?.title || '', 112, 15, true);
+    const headerHeight = Math.max(30, 12 + titleRows.length * 6.5 + (draft.registration ? 9 : 0));
+    const rowHeights = Array.from({length: Math.ceil(facts.length / 3)}, (_, row) => Math.max(10.3, ...facts.slice(row * 3, row * 3 + 3).map(([, value]) => 6 + split(value, 49, 9, true).length * 4.3)));
+    const panelHeight = headerHeight + rowHeights.reduce((sum, h) => sum + h, 0) + 2;
+    ensure(panelHeight + 8);
+    if (!plain) { fill(tint); pdf.rect(left, y, width, panelHeight, 'F'); fill(accent); pdf.rect(left, y, 1.2, panelHeight, 'F'); }
+    else { stroke(); pdf.rect(left, y, width, panelHeight); }
+    const top = y;
+    font(7.5, true, accent); pdf.text('YOUR VEHICLE', left + 6, top + 8);
+    font(15, true); pdf.text(titleRows, left + 6, top + 17);
+    if (draft.registration) { font(10.5, true, muted); pdf.text(`Registration  ${clean(draft.registration)}`, left + 6, top + 18 + titleRows.length * 6.5); }
+    const photo = vehicle?.photoDataUrl;
+    if (photo && /^data:image\/(?:png|jpe?g);base64,[A-Za-z0-9+/=]+$/.test(photo) && photo.length < 2_800_000) {
+      try {
+        const properties = pdf.getImageProperties(photo);
+        const photoWidth = Math.min(43, 22 * properties.width / properties.height);
+        const photoHeight = Math.min(22, 43 * properties.height / properties.width);
+        pdf.addImage(photo, properties.fileType, right - 49 + (43 - photoWidth) / 2, top + 7 + (22 - photoHeight) / 2, photoWidth, photoHeight);
+      } catch { /* A missing/invalid photograph never creates a fabricated placeholder. */ }
+    }
+    y = top + headerHeight;
+    facts.forEach(([label, value], index) => {
+      const x = left + 6 + (index % 3) * 56;
+      font(7.2, false, muted); pdf.text(label.toUpperCase(), x, y);
+      const textRows = split(value, 49, 9, true); font(9, true); pdf.text(textRows, x, y + 5);
+      if (index % 3 === 2 || index === facts.length - 1) y += rowHeights[Math.floor(index / 3)];
+    });
+    y = top + panelHeight + 5;
+  };
   const amountRow = (label: string, amount: number, bold = false) => {
     const rows = split(label, 126, 9.5, bold), height = Math.max(compactInvoice ? 8.5 : 10, rows.length * 4.4 + (compactInvoice ? 4 : 5));
     ensure(height + 1);
@@ -185,7 +229,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     y += height; stroke(); pdf.line(left, y - 5, right, y - 5);
   };
   const balance = () => {
-    const height = compactInvoice ? 29 : 32, after = compactInvoice ? 35 : 39;
+    const height = compactInvoice || document.invoiceKind ? 29 : 32, after = document.invoiceKind ? 31 : compactInvoice ? 35 : 39;
     ensure(after); y += 2;
     const summaryWidth = 104, balanceX = left + summaryWidth + 4, balanceWidth = width - summaryWidth - 4;
     // One strong amount anchors an invoice. Receipts keep the spotlight on
@@ -195,11 +239,11 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     else { stroke(); pdf.rect(left, y, summaryWidth, height); pdf.rect(balanceX, y, balanceWidth, height); }
     font(8.3, false, muted); pdf.text('Sale total', left + 5, y + 9);
     fittedAmount(totals.totalDue, left + summaryWidth - 5, y + 9, 48, 12, 'right');
-    font(8.3, false, muted); pdf.text('Payments received', left + 5, y + (compactInvoice ? 20 : 22));
-    fittedAmount(totals.confirmedPaid, left + summaryWidth - 5, y + (compactInvoice ? 20 : 22), 48, 12, 'right');
+    font(8.3, false, muted); pdf.text(document.invoiceKind === 'deposit' ? 'Balance remaining' : 'Payments received', left + 5, y + (compactInvoice ? 20 : 22));
+    fittedAmount(document.invoiceKind === 'deposit' ? document.balanceAtIssue : totals.confirmedPaid, left + summaryWidth - 5, y + (compactInvoice ? 20 : 22), 48, 12, 'right');
     stroke(); pdf.setLineWidth(0.15); pdf.line(left + 5, y + (compactInvoice ? 13.5 : 15), left + summaryWidth - 5, y + (compactInvoice ? 13.5 : 15));
-    font(7.5, true, strongBalance ? white : accent); pdf.text(document.balanceAtIssue < 0 ? 'CUSTOMER CREDIT' : 'BALANCE REMAINING', balanceX + 5, y + 7);
-    fittedAmount(Math.abs(document.balanceAtIssue), balanceX + 5, y + 20, balanceWidth - 10, 24, 'left', strongBalance ? white : ink);
+    font(7.5, true, strongBalance ? white : accent); pdf.text(document.invoiceKind === 'deposit' ? 'PAYMENTS RECEIVED' : document.balanceAtIssue < 0 ? 'CUSTOMER CREDIT' : 'BALANCE REMAINING', balanceX + 5, y + 7);
+    fittedAmount(document.invoiceKind === 'deposit' ? totals.confirmedPaid : Math.abs(document.balanceAtIssue), balanceX + 5, y + 20, balanceWidth - 10, 24, 'left', strongBalance ? white : ink);
     if (document.balanceAtIssue === 0 && totals.totalDue > 0 && totals.confirmedPaid >= totals.totalDue) { font(7.5, true, strongBalance ? white : accent); pdf.text('Paid in full', balanceX + 5, y + (compactInvoice ? 25 : 28)); }
     y += after;
   };
@@ -221,7 +265,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     if (fulfilment.recipient) line(`Recipient: ${fulfilment.recipient}`, 9);
     if (fulfilment.completedAt) line(`Completed ${date(fulfilment.completedAt)}${fulfilment.completedRecipient ? ` - ${fulfilment.completedRecipient}` : ''}`, 9);
   };
-  heading(); parties();
+  heading(); if (document.invoiceKind) invoiceParties(); else parties();
 
   if (document.type === 'receipt') {
     const payment = document.snapshot.payments.find(item => item.id === document.paymentId);
@@ -242,11 +286,23 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   } else if (document.type === 'invoice' || document.type === 'statement') {
     ensure(22); y += 3;
     if (!plain) { fill(soft); pdf.rect(left, y - 5, width, 9, 'F'); }
-    font(8, true, muted); pdf.text('DESCRIPTION', left + 4, y + 1); pdf.text('AMOUNT', right - 4, y + 1, { align: 'right' }); y += 12;
+    font(8, true, muted); pdf.text('DESCRIPTION', left + 4, y + 1); pdf.text('AMOUNT', right - 4, y + 1, { align: 'right' }); y += document.invoiceKind ? 9 : 12;
     amountRow('Vehicle price', totals.price, true);
     for (const adjustment of draft.adjustments ?? []) amountRow(adjustment.description, saleWorkspacePence(adjustment.amount) * (adjustment.kind === 'discount' ? -1 : 1));
     for (const exchange of exchangeRows) amountRow(`Part-exchange allowance - ${exchange.registration}${exchange.description ? ` - ${exchange.description}` : ''}`, -saleWorkspacePence(exchange.value));
-    y += compactInvoice ? 3 : 5; balance();
+    if (document.invoiceKind) {
+      section('Payments received');
+      const payments = document.snapshot.payments.filter(payment => payment.status === 'confirmed');
+      if (!payments.length) line('No payments received at the invoice date.', 9, false, muted);
+      for (const payment of payments) {
+        const detail = `${date(payment.date)}  |  ${payment.method}  |  ${payment.kind.replaceAll('-', ' ')}${payment.reference ? `  |  ${payment.reference}` : ''}`;
+        const rows = split(detail, 126, 8.5); const height = Math.max(8, rows.length * 4.2 + 3);
+        ensure(height + 2); font(8.5, false, muted); pdf.text(rows, left + 4, y);
+        fittedAmount(payment.signedAmountPence, right - 4, y, 36, 9.5, 'right', payment.signedAmountPence < 0 ? accent : ink);
+        y += height; stroke(); pdf.line(left, y - 3, right, y - 3);
+      }
+    }
+    y += compactInvoice || document.invoiceKind ? 3 : 5; balance();
     if (totals.pending > 0) line(`Awaiting confirmation: ${money(totals.pending)}. These have not reduced the balance.`, 9, false, muted);
     if (document.type === 'statement') {
       section('Payment history');
@@ -257,7 +313,8 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
         amountRow(description, amount);
       }
     }
-    arrangements();
+    if (!document.invoiceKind) arrangements();
+    if (document.invoiceKind && document.content) { section(document.invoiceKind === "deposit" ? "Deposit terms" : "Terms of sale"); paragraph(document.content, 8.5); }
   } else {
     if (document.type === 'vehicle-details') {
       section('Supplied vehicle details');

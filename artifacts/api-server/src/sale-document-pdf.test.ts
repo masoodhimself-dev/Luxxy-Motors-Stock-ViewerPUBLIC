@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { jsPDF } from 'jspdf';
 import { saleDocumentPdfBytes } from '@workspace/vehicle-meta/sale-document-pdf';
@@ -345,4 +345,23 @@ test('receipt colours, long references and multi-page terms keep their complete 
   const termsBytes = saleDocumentPdf(terms), termsText = termsBytes.toString('latin1');
   assert.ok(pageCount(termsText) > 1); assertTextOnA4(termsText); assertRowsDoNotCollide(termsText); assert.match(termsText, /Clause 75/);
   if (process.env.LUXXY_PDF_AUDIT_DIR) writeFileSync(`${process.env.LUXXY_PDF_AUDIT_DIR}/long-terms.pdf`, termsBytes);
+});
+
+
+test('guided full invoice includes richer car details, a photo and every dated payment with no handover block', () => {
+  const photo = 'data:image/jpeg;base64,' + readFileSync(new URL('../../luxxy-motors/src/assets/luxxy-hero.jpg', import.meta.url)).toString('base64');
+  const ctx: SaleWorkspaceContext = { ...context, vehicle: { id:'test-car', title:'Mercedes-Benz E Class', year:2020, fuel:'Diesel', transmission:'Automatic', mileage:22000, colour:'Obsidian Black', engineSize:'2.0L', bodyType:'Saloon', doors:4, seats:5, owners:1, emissionClass:'Euro 6', serviceHistory:'Full service history', photoDataUrl:photo } };
+  const input={...draft, vehicle:'Mercedes-Benz E Class E220d AMG Line',registration:'AB20 XYZ',adjustments:[],exchanges:[],price:'24950', address:'12 Station Road, London'};
+  let sale=createSaleWorkspace({draft:input,requestId:'guided-pdf-create'},ctx,'SALE-GUIDED').sale;
+  const apply = (command: Parameters<typeof changeSaleWorkspace>[1], requestId:string) => { const result=changeSaleWorkspace(sale,command,{expectedRevision:sale.revision,requestId},ctx);sale=result.sale;return result; };
+  apply({action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-08',reference:'DEPOSIT-001',kind:'deposit',status:'confirmed'}},'guided-pdf-deposit');
+  const deposit=apply({action:'issue-invoice',kind:'deposit',acknowledge:true},'guided-pdf-deposit-invoice').document!;
+  apply({action:'invoice-payment',payment:{amount:'10000',method:'Bank transfer',date:'2026-10-09',reference:'TRANSFER-002',kind:'part-payment',status:'confirmed'}},'guided-pdf-interim');
+  apply({action:'invoice-payment',payment:{amount:'14450',method:'Debit card',date:'2026-10-10',reference:'CARD-003',kind:'final-payment',status:'confirmed'}},'guided-pdf-final');
+  const full=apply({action:'issue-invoice',kind:'full',acknowledge:true},'guided-pdf-full').document!;
+  const bytes=saleDocumentPdf(full); const text=bytes.toString('latin1');
+  assert.match(text,/YOUR VEHICLE/);assert.match(text,/Obsidian Black/);assert.match(text,/22,000 miles/);assert.match(text,/Euro 6/);assert.match(text,/DEPOSIT-001/);assert.match(text,/TRANSFER-002/);assert.match(text,/CARD-003/);assert.match(text,/8 Oct 2026/);assert.match(text,/9 Oct 2026/);assert.match(text,/10 Oct 2026/);assert.match(text,/\/Subtype \/Image/);assert.doesNotMatch(text,/Collection arrangements|Delivery arrangements|Issued document/);
+  assert.equal(full.snapshot.totals.balance,0);assert.equal(deposit.snapshot.totals.balance,2445000);assert.deepEqual(bytes,saleDocumentPdf(full));
+  for (const row of textRows(text)) assert.ok(row.x >= 40 && row.x+row.width < 558, `Text fits A4: ${row.text}`);
+  if(process.env.GUIDED_INVOICE_SAMPLE_DIR) {mkdirSync(process.env.GUIDED_INVOICE_SAMPLE_DIR,{recursive:true});for(const [name,document] of [['deposit',deposit],['full',full]] as const) {document.snapshot.branding.invoiceSettings={...defaultInvoiceSettings,footer:'Design sample only — fictional customer, vehicle details and payments.'};writeFileSync(`${process.env.GUIDED_INVOICE_SAMPLE_DIR}/${name}-invoice-sample.pdf`,saleDocumentPdf(document));}}
 });

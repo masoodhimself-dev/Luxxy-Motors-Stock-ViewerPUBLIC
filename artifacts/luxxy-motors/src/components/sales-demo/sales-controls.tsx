@@ -364,6 +364,7 @@ export function PaymentDialog({
 
 export function ReversePaymentDialog({
   payment,
+  invoiceOnly = false,
   availablePence,
   busy,
   problem,
@@ -371,6 +372,7 @@ export function ReversePaymentDialog({
   onSave,
 }: {
   payment: SaleWorkspacePayment;
+  invoiceOnly?: boolean;
   availablePence: number;
   busy: boolean;
   problem: string;
@@ -416,7 +418,7 @@ export function ReversePaymentDialog({
           <DialogDescription>
             {pending
               ? "The pending entry stays in the history, marked cancelled."
-              : "Keep the original receipt and add a separate adjustment to the payment history. This records a refund or correction; it does not send money."}
+              : invoiceOnly ? "Keep your existing invoices and record a separate adjustment to the payment history. This does not send money; create an updated invoice afterwards." : "Keep the original receipt and add a separate adjustment to the payment history. This records a refund or correction; it does not send money."}
           </DialogDescription>
         </DialogHeader>
         <form

@@ -1,3 +1,4 @@
+import { loadBrochurePhotos } from '../../api-server/src/lib/vehicle-brochure-images';
 // Local network sandbox only. The production entry never imports this file.
 import { previewIntegrationsStore } from './dealer-integrations';
 import { createHash, randomUUID } from 'node:crypto';
@@ -19,7 +20,7 @@ export class PreviewSaleWorkspaceStore {
     const settings = await readPreviewSettings();
     const vehicle = previewStock.cars.find(car => car.id === draft?.vehicleId);
     const paperwork = await previewIntegrationsStore.readSalesPaperwork();
-    return { paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
+    return { paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engineSize, bodyType: vehicle.bodyType, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emissionClass, imageUrl: vehicle.heroImage, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
   }) {}
   private serial<T>(work: () => Promise<T>): Promise<T> {
     const next = this.queue.then(work, work); this.queue = next.catch(() => {}); return next;
@@ -90,14 +91,18 @@ export class PreviewSaleWorkspaceStore {
       const now = new Date().toISOString();
       const draft = input.command?.action === 'update' ? input.command.draft : current?.draft ?? input.draft as SaleWorkspaceDraft;
       const assets = await this.assets(draft);
+      if (input.command?.action === 'issue-invoice' && assets.vehicle?.imageUrl) {
+        const photo = (await loadBrochurePhotos([{ url: assets.vehicle.imageUrl.replace(/w\d+-h\d+/, 'w480-h360'), caption: '' }], '', 4000))[0];
+        if (photo?.bytes && photo.format) assets.vehicle.photoDataUrl = `data:image/${photo.format === 'JPEG' ? 'jpeg' : 'png'};base64,${Buffer.from(photo.bytes).toString('base64')}`;
+      }
       const context: SaleWorkspaceContext = { now, actor: input.actor ?? 'Showroom staff', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(state.numbers, type, now, assets.branding.invoiceSettings), ...assets };
       const mutation = current
         ? changeSaleWorkspace(current, input.command!, { expectedRevision: input.expectedRevision!, requestId: input.requestId }, context)
         : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(state.numbers, 'sale', now, assets.branding.invoiceSettings));
       if (!mutation.replayed) {
         if (input.command?.action === 'customer-link' && state.sales.some(s => s.id !== mutation.sale.id && s.customerAccess?.tokenHash === (input.command as { tokenHash: string }).tokenHash)) throw new SaleWorkspaceError('Create a new unique customer link.', 409);
-        if (input.command?.action === 'lifecycle' || input.command?.action === 'handover' || input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) {
-          const status = input.command.action === 'take-deposit' || input.command.action === 'confirm' ? 'reserved' : input.command.action === 'handover' || input.command.action === 'complete-sale' ? 'sold' : input.command.status;
+        if (input.command?.action === 'invoice-payment' && input.command.payment.kind === 'deposit' || input.command?.action === 'finish-invoice-sale' || input.command?.action === 'lifecycle' || input.command?.action === 'handover' || input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) {
+          const status = input.command.action === 'invoice-payment' || input.command.action === 'take-deposit' || input.command.action === 'confirm' ? 'reserved' : input.command.action === 'finish-invoice-sale' || input.command.action === 'handover' || input.command.action === 'complete-sale' ? 'sold' : input.command.status;
           const car = previewStock.cars.find(c => c.id === mutation.sale.draft.vehicleId);
           if (!car) throw new SaleWorkspaceError('Choose a current stock vehicle before changing availability.');
           const competing = state.sales.some(s => s.id !== mutation.sale.id && s.draft.vehicleId === car.id && ['reserved','sold'].includes(s.lifecycle?.status ?? ''));
@@ -193,7 +198,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       send(res, 200, { ...mutation, ...(token ? { customerUrl: `/my-purchase/${token}`, expiresAt: mutation.sale.customerAccess?.expiresAt } : {}) }); return true;
     }
     if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings }); return true; }
-    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
+    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
     if (!route) throw new SaleWorkspaceError('Sale action not found.', 404);
     const [, id, section, paymentId, action] = route;
     if (req.method === 'GET' && !section) { send(res, 200, id ? { sale: await store.get(id), preview: true } : { sales: await store.list(), preview: true }); return true; }
@@ -204,8 +209,11 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
     if (req.method === 'POST' && id) {
       if (section === 'payments' && !paymentId) command = { action: 'payment', payment: input.payment };
       if (section === 'payments' && paymentId && action === 'confirm') command = { action: 'confirm', paymentId, date: input.date, reserveVehicle: input.reserveVehicle === true };
-      if (section === 'payments' && paymentId && action === 'reverse') command = { action: 'reverse', paymentId, amount: input.amount, kind: input.kind, reason: input.reason, date: input.date };
+      if (section === 'payments' && paymentId && action === 'reverse') command = { action: 'reverse', paymentId, amount: input.amount, kind: input.kind, reason: input.reason, date: input.date, invoiceOnly: input.invoiceOnly === true };
       if (section === 'documents') command = { action: 'document', type: input.type };
+      if (section === 'invoice-payments') command = { action: 'invoice-payment', payment: input.payment };
+      if (section === 'issue-invoice') command = { action: 'issue-invoice', kind: input.kind, acknowledge: input.acknowledge };
+      if (section === 'finish-invoice-sale') command = { action: 'finish-invoice-sale', acknowledge: input.acknowledge };
       if (section === 'take-deposit') command = { action: 'take-deposit', payment: input.payment };
       if (section === 'complete-sale') command = { action: 'complete-sale', acknowledge: input.acknowledge };
       if (section === 'handover') command = { action: 'handover', recipient: input.recipient, completedAt: input.completedAt, acknowledgeOutstanding: input.acknowledgeOutstanding };

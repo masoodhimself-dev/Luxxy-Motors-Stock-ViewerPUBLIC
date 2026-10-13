@@ -86,9 +86,9 @@ async function downloadImage(url: URL, signal: AbortSignal): Promise<Buffer> {
   });
 }
 
-export async function loadBrochurePhotos(photos: BrochurePhoto[], extraHosts = ''): Promise<LoadedPhoto[]> {
+export async function loadBrochurePhotos(photos: BrochurePhoto[], extraHosts = '', timeoutMs = 18_000): Promise<LoadedPhoto[]> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 18_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const result: LoadedPhoto[] = photos.map((photo) => ({ ...photo }));
   let next = 0;
   let totalBytes = 0;
