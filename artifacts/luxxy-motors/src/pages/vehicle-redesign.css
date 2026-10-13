@@ -194,3 +194,33 @@
   .customer-vehicle-lightbox .vehicle-lightbox-navigation > button { display: none; }
   .customer-vehicle-lightbox .vehicle-lightbox-navigation { justify-content: center; }
 }
+
+/* Match the homepage's rounded surfaces and quiet, readable information hierarchy. */
+.vehicle-redesigned .vehicle-summary,
+.vehicle-redesigned .vehicle-gallery-frame,
+.vehicle-redesigned .vehicle-enquiry-visit-row .vehicle-inline-enquiry,
+.vehicle-redesigned .vehicle-review-strip .vehicle-review-card { border-radius: 12px; }
+.vehicle-redesigned .vehicle-summary .vehicle-price-block { margin-top: 18px; padding-bottom: 16px; }
+.vehicle-redesigned .vehicle-summary > aside { padding-top: 16px; }
+.vehicle-redesigned .vehicle-primary-actions { margin-top: 16px; padding-top: 16px; gap: 12px; }
+.vehicle-redesigned .vehicle-key-facts { padding-bottom: 4px; }
+.vehicle-redesigned .vehicle-key-facts dd { font-size: 16px; line-height: 1.5; }
+.vehicle-redesigned .vehicle-section-nav { gap: 8px; padding: 12px 0; border-bottom: 0; }
+.vehicle-redesigned .vehicle-section-nav a { min-height: 44px; padding: 8px 16px; border: 1px solid hsl(var(--border)); border-radius: 999px; background: var(--vehicle-panel); font-size: 13px; }
+.vehicle-redesigned .vehicle-editorial-overview p { font-size: 16px; line-height: 1.8; }
+.vehicle-redesigned .vehicle-equipment-list li { padding-block: 8px; border-bottom: 1px solid hsl(var(--border)); }
+.vehicle-redesigned .vehicle-utility-actions { border-top: 1px solid hsl(var(--border)); padding-top: 12px; }
+@media(min-width: 1100px) {
+  .vehicle-redesigned .vehicle-editorial-overview > section { display: block; }
+  .vehicle-redesigned .vehicle-editorial-overview > section > :not(h2) { margin-top: 20px; }
+  .vehicle-redesigned .vehicle-equipment-list { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 28px; }
+  .vehicle-redesigned .vehicle-description-section > p { max-width: 85ch; }
+}
+@media(max-width: 639px) {
+  .vehicle-redesigned .vehicle-section-nav { gap: 8px; padding-bottom: 8px; }
+  .vehicle-redesigned .vehicle-summary { padding: 20px 18px; }
+  .vehicle-redesigned .vehicle-key-facts dd { font-size: 15px; }
+}
+
+.vehicle-redesigned .vehicle-summary-main-actions { border-top: 0; padding-top: 0; margin-block: 18px; }
+@media(min-width: 640px) { .vehicle-redesigned .vehicle-summary-main-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -252,7 +252,7 @@ export default function CarDetail() {
         <div className="vehicle-detail-grid min-w-0">
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView />
-            <div className="vehicle-gallery-help"><span>Explore the photographs</span><VehicleWhatsApp car={car} walkaround /></div>
+            <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
@@ -285,6 +285,7 @@ export default function CarDetail() {
 
             </div>
           </header>
+          <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
           <VehicleSellingPoints car={car} />
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
@@ -301,9 +302,7 @@ export default function CarDetail() {
             </dl>
               {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
             <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
-            <div className="vehicle-primary-actions">
-              {bookingAction}{enquiryAction}
-            </div>
+
             <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
               <VehicleCall car={car} />
               <VehicleWhatsApp car={car} />
@@ -332,7 +331,7 @@ export default function CarDetail() {
             {description && <a href="#vehicle-description-heading">Description</a>}
             {hasSpecifications && <a href="#vehicle-overview-heading">Specifications</a>}
             {vehicleRunningCostFacts.length > 0 && <a href="#vehicle-running-costs-heading">Running costs</a>}
-            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & handover</a>}
+            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & information</a>}
           </nav>
           {(description || features.length > 0) && <div className="vehicle-information-row vehicle-editorial-overview">
             {features.length > 0 && (

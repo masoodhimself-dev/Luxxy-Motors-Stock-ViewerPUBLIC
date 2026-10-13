@@ -193,3 +193,24 @@
   .stock-redesign.stock-refined .vehicle-card-catalogue,
   .stock-redesign.stock-refined .stock-skeleton { transition: none; animation: none; }
 }
+
+/* Shared showroom rhythm: restrained surfaces, generous photography, clear controls. */
+.stock-redesign.stock-refined .stock-page-intro { padding-top: 28px; padding-bottom: 24px; }
+.stock-redesign.stock-refined .stock-toolbar { padding: 18px; border-color: hsl(var(--border)); border-radius: 12px; }
+.stock-redesign.stock-refined .stock-shopping-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.stock-shopping-shortcuts button { min-height: 44px; padding: 8px 16px; border: 1px solid hsl(var(--border)); border-radius: 999px; background: var(--premium-panel, #fff); font-size: 13px; color: var(--premium-ink); }
+.stock-shopping-shortcuts button[aria-pressed="true"] { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
+.stock-shopping-shortcuts button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-heading { min-height: 0; }
+.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-details { padding: 20px; }
+.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-price { margin-block: 12px; }
+.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-specs { line-height: 1.7; row-gap: 6px; }
+.stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-actions { margin-top: auto; padding-top: 12px; }
+.stock-redesign.stock-refined .stock-results-grid { gap: 24px; }
+@media(max-width: 639px) {
+  .stock-redesign.stock-refined .stock-page-intro { padding-block: 18px; }
+  .stock-redesign.stock-refined .stock-toolbar { padding: 14px; }
+  .stock-redesign.stock-refined .stock-shopping-shortcuts { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .stock-shopping-shortcuts button { flex-shrink: 0; }
+  .stock-redesign.stock-refined .vehicle-card-catalogue .vehicle-card-details { padding: 18px; }
+}

@@ -419,7 +419,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
             </div>
             <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
-              <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />Display & sharing<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
+              <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
               <CollapsibleContent className="stock-options-panel">
                 <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
                 <Link className="stock-option-action" href="/saved"><Heart size={17} aria-hidden="true" />Saved cars ({savedCount})<ArrowRight size={16} aria-hidden="true" /></Link>
@@ -500,11 +500,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
           />
 
+          {!error && publicCars.length > 0 && <nav className="stock-shopping-shortcuts" aria-label="Shop by preference">
+            {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <button type="button" aria-label="Show automatic cars" aria-pressed={filters.transmission === 'Automatic'} onClick={() => applyQuickFilter({ transmission: filters.transmission === 'Automatic' ? '' : 'Automatic' })}>Automatic</button>}
+            {publicCars.some(car => car.price != null && car.price <= 10000) && <button type="button" aria-label="Show cars under £10k" aria-pressed={filters.maxPrice === '10000'} onClick={() => applyQuickFilter({ maxPrice: filters.maxPrice === '10000' ? '' : '10000' })}>Under £10k</button>}
+            {benefitChoices.filter(({ key }) => benefitCounts[key] > 0).slice(0, 2).map(({ key, label, note }) => <button key={key} type="button" title={note} aria-pressed={Boolean(filters[key])} onClick={() => toggleBenefitFilter(key)}>{label}</button>)}
+          </nav>}
+
           <div id="vehicle-results" data-home-section className="mt-2 md:mt-4">
             {!error && <div className="stock-results-bar">
               {stock && <p className="stock-result-count" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
                 {!hasFilters
-                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available`
+                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'} in stock`
                   : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
               </p>}
               <CompareSelectionLink />
