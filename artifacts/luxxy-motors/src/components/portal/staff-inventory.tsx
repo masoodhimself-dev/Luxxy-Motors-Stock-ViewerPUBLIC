@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useStaffAccess } from "./dealer-administration";
 import "./staff-inventory.css";
+import { EnquiryEmailComposer } from "./enquiry-email-composer";
+import { workspaceError } from "./enquiry-workspace-tools";
 type Tasks = Record<
   "cleaning" | "inspection" | "mot" | "servicing",
   "pending" | "done" | "not_required"
@@ -37,9 +39,20 @@ type Prep = {
 type Details = {
   car: Car;
   preparation: Prep;
-  photos: { id: string; byte_size: number; created_at: string }[];
+  photos: {
+    id: string;
+    category?: string;
+    byte_size: number;
+    created_at: string;
+  }[];
 };
-type Grant = { id: string; url: string; expiresAt: string };
+type Customer = {
+  id: string;
+  customerName: string;
+  reference: string;
+  email: string | null;
+};
+type Grant = { id: string; url: string; expiresAt: string; category?: string };
 const taskLabels = {
   cleaning: "Cleaning & presentation",
   inspection: "Vehicle inspection",
@@ -68,10 +81,12 @@ function PrivatePhoto({
   carId,
   id,
   index,
+  category,
 }: {
   carId: string;
   id: string;
   index: number;
+  category?: string;
 }) {
   const [url, setUrl] = useState(""),
     [error, setError] = useState(false);
@@ -96,7 +111,10 @@ function PrivatePhoto({
     <p>Photo unavailable. Refresh to retry.</p>
   ) : url ? (
     <a href={url} target="_blank" rel="noreferrer">
-      <img src={url} alt={`Private service-book page ${index + 1}`} />
+      <img
+        src={url}
+        alt={`${category === "pre_accident" ? "Private pre-accident photo" : "Private service-book page"} ${index + 1}`}
+      />
     </a>
   ) : (
     <p>Loading photo…</p>
@@ -113,6 +131,17 @@ export function StaffInventory() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
+  const [plateDraft, setPlateDraft] = useState<string | null>(null),
+    [photoCategory, setPhotoCategory] = useState("service_book"),
+    [emailCustomer, setEmailCustomer] = useState<Customer | null>(null);
+  const customers = useQuery({
+    queryKey: ["inventory-customers", selected],
+    enabled: !!selected,
+    queryFn: () =>
+      send<{ customers: Customer[] }>(
+        `/api/staff/inventory/${selected}/customers`,
+      ),
+  });
   const access = useStaffAccess(),
     directory = useGetStaffDirectory();
   const writable = access.data?.permissions.includes("sales.manage");
@@ -128,6 +157,9 @@ export function StaffInventory() {
       grant && Date.parse(grant.expiresAt) > Date.now() ? 5000 : false,
   });
   useEffect(() => {
+    setPlateDraft(null);
+    setEmailCustomer(null);
+    setPhotoCategory("service_book");
     setDraft(undefined);
     setGrant(undefined);
     setError("");
@@ -144,7 +176,7 @@ export function StaffInventory() {
       setNotice(message);
       await Promise.all([list.refetch(), details.refetch()]);
     } catch (e) {
-      setError((e as Error).message);
+      setError(workspaceError(e));
     } finally {
       setBusy(false);
     }
@@ -181,6 +213,9 @@ export function StaffInventory() {
         .includes(term.toLowerCase()),
   );
   const car = details.data?.car;
+  const selectedPhotos = (details.data?.photos ?? []).filter(
+    (p) => (p.category ?? "service_book") === photoCategory,
+  );
   return (
     <section className="staff-inventory">
       <header className="inventory-heading">
@@ -222,6 +257,77 @@ export function StaffInventory() {
                   · {price(car.price)}
                 </p>
                 <span className="inventory-status">{car.inventory_status}</span>
+                {car.photo && (
+                  <div className="inventory-photo-inspect">
+                    <img
+                      src={car.photo}
+                      alt={`Inspect the number plate on ${car.title}`}
+                    />
+                    <a href={car.photo} target="_blank" rel="noreferrer">
+                      Open full-size photo
+                    </a>
+                  </div>
+                )}
+                {writable && (
+                  <div className="inventory-vehicle-controls">
+                    <label>
+                      Number plate
+                      <Input
+                        aria-label="Number plate"
+                        value={plateDraft ?? car.plate ?? car.vrm ?? ""}
+                        maxLength={12}
+                        onChange={(e) =>
+                          setPlateDraft(e.target.value.toUpperCase())
+                        }
+                        placeholder="Enter plate from photo"
+                      />
+                    </label>
+                    <Button
+                      disabled={
+                        busy || plateDraft === null || !plateDraft.trim()
+                      }
+                      onClick={() =>
+                        void act(async () => {
+                          await send(
+                            `/api/staff/inventory/${car.id}/plate`,
+                            "PUT",
+                            {
+                              plate: plateDraft,
+                              expectedPlate: car.plate ?? car.vrm ?? null,
+                            },
+                          );
+                          setPlateDraft(null);
+                        }, "Number plate corrected. Future stock imports will keep this correction.")
+                      }
+                    >
+                      Save number plate
+                    </Button>
+                    {car.inventory_status === "reserved" && (
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Release this reservation and return the car to available? Appointments remain booked. Outstanding payments must be resolved first.",
+                            )
+                          )
+                            void act(
+                              () =>
+                                send(
+                                  `/api/staff/inventory/${car.id}/unreserve`,
+                                  "POST",
+                                  { confirm: true },
+                                ),
+                              "Reservation released. Car is available again.",
+                            );
+                        }}
+                      >
+                        Unreserve car
+                      </Button>
+                    )}
+                  </div>
+                )}
                 {car.source_status === "missing" && (
                   <p className="inventory-muted">
                     No longer advertised by the source. This does not mean sold.
@@ -230,15 +336,42 @@ export function StaffInventory() {
               </div>
               <div className="inventory-workspace-grid">
                 <section className="inventory-card">
-                  <h3>Service-book photos</h3>
+                  <h3>Private vehicle photos</h3>
+                  <div
+                    className="inventory-photo-tabs"
+                    role="group"
+                    aria-label="Photo category"
+                  >
+                    <Button
+                      variant={
+                        photoCategory === "service_book" ? "default" : "outline"
+                      }
+                      onClick={() => setPhotoCategory("service_book")}
+                    >
+                      Service book
+                    </Button>
+                    <Button
+                      variant={
+                        photoCategory === "pre_accident" ? "default" : "outline"
+                      }
+                      onClick={() => setPhotoCategory("pre_accident")}
+                    >
+                      Pre-accident photos
+                    </Button>
+                  </div>
                   <p>
-                    Up to three private photos. Imported stock updates do not
-                    replace these.
+                    Up to three private photos per category. Imported stock
+                    updates do not replace these.
                   </p>
                   <div className="inventory-photo-grid">
-                    {details.data!.photos.map((p, i) => (
+                    {selectedPhotos.map((p, i) => (
                       <figure key={p.id}>
-                        <PrivatePhoto carId={car.id} id={p.id} index={i} />
+                        <PrivatePhoto
+                          carId={car.id}
+                          id={p.id}
+                          index={i}
+                          category={p.category}
+                        />
                         <figcaption>
                           {Math.ceil(p.byte_size / 1024)} KB
                           {writable && (
@@ -247,7 +380,7 @@ export function StaffInventory() {
                               onClick={() => {
                                 if (
                                   window.confirm(
-                                    "Remove this service-book photo?",
+                                    "Remove this private vehicle photo?",
                                   )
                                 )
                                   void act(
@@ -267,12 +400,12 @@ export function StaffInventory() {
                       </figure>
                     ))}
                   </div>
-                  {!details.data!.photos.length && (
+                  {!selectedPhotos.length && (
                     <p className="inventory-muted">
-                      No service-book photos yet.
+                      No photos in this category yet.
                     </p>
                   )}
-                  {writable && details.data!.photos.length < 3 && (
+                  {writable && selectedPhotos.length < 3 && (
                     <Button
                       disabled={busy}
                       onClick={() =>
@@ -281,6 +414,7 @@ export function StaffInventory() {
                             await send<Grant>(
                               `/api/staff/inventory/${car.id}/upload-session`,
                               "POST",
+                              { category: photoCategory },
                             ),
                           );
                         }, "Scan the QR code using your phone camera.")
@@ -295,10 +429,13 @@ export function StaffInventory() {
                         value={grant.url}
                         size={190}
                         marginSize={2}
-                        title="Service-book upload QR code"
+                        title="Private vehicle-photo upload QR code"
                       />
                       <p>
-                        For this car only · Expires{" "}
+                        {grant.category === "pre_accident"
+                          ? "Pre-accident photos"
+                          : "Service-book photos"}{" "}
+                        · For this car only · Expires{" "}
                         {new Date(grant.expiresAt).toLocaleTimeString("en-GB", {
                           timeZone: "Europe/London",
                           hour: "2-digit",
@@ -325,6 +462,50 @@ export function StaffInventory() {
                         Cancel upload link
                       </Button>
                     </div>
+                  )}
+                </section>
+                <section className="inventory-card">
+                  <h3>Email photos to a customer</h3>
+                  <p>
+                    Choose a linked enquiry, then select photos and review the
+                    email before sending. The recipient can be changed in the
+                    email window.
+                  </p>
+                  <NativeSelect
+                    aria-label="Choose customer to email"
+                    value=""
+                    disabled={busy}
+                    onChange={(e) =>
+                      setEmailCustomer(
+                        customers.data?.customers.find(
+                          (c) => c.id === e.target.value,
+                        ) ?? null,
+                      )
+                    }
+                  >
+                    <option value="">Choose customer / enquiry</option>
+                    {(customers.data?.customers ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.customerName} · {c.reference}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  {!customers.isLoading &&
+                    !customers.data?.customers.length && (
+                      <p className="inventory-muted">
+                        Log a customer enquiry for this car first.{" "}
+                        <Link
+                          href={`/portal?section=enquiries&vehicleId=${car.id}`}
+                        >
+                          Open enquiries
+                        </Link>
+                      </p>
+                    )}
+                  {emailCustomer && (
+                    <EnquiryEmailComposer
+                      entry={emailCustomer}
+                      onClose={() => setEmailCustomer(null)}
+                    />
                   )}
                 </section>
                 <section className="inventory-card">
@@ -504,7 +685,16 @@ export function StaffInventory() {
                 onClick={() => open(c.id)}
               >
                 {c.photo ? (
-                  <img src={c.photo} alt={c.title} />
+                  <span className="inventory-hover-photo">
+                    <img src={c.photo} alt={c.title} />
+                    <span className="inventory-photo-enlarged">
+                      <img
+                        src={c.photo}
+                        alt={`Enlarged photo of ${c.title} — inspect its number plate`}
+                      />
+                      <span>Open car to correct its number plate</span>
+                    </span>
+                  </span>
                 ) : (
                   <div className="inventory-no-photo">No stock photo</div>
                 )}

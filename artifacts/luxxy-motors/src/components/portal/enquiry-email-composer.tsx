@@ -36,7 +36,7 @@ type EmailContext = {
   appointmentAvailable: boolean;
   defaults: { subject: string; message: string };
   ready: boolean;
-  photos: { id: string; byte_size: number }[];
+  photos: { id: string; byte_size: number; category?: string }[];
   deliveries: Delivery[];
 };
 type EmailDraft = {
@@ -121,7 +121,7 @@ export function EnquiryEmailComposer({
   entry,
   onClose,
 }: {
-  entry: Enquiry;
+  entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: () => void;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
@@ -312,7 +312,7 @@ export function EnquiryEmailComposer({
                   </div>
                   {preview.attachments.length > 0 && (
                     <div className="enquiry-email-attachment-list">
-                      <strong>Attached service-book photos</strong>
+                      <strong>Attached vehicle photos</strong>
                       {preview.attachments.map((a) => (
                         <p key={a.id}>
                           {a.filename} · {Math.ceil(a.byteSize / 1024)} KB
@@ -431,7 +431,7 @@ export function EnquiryEmailComposer({
                         aria-label="Service-book attachments"
                       >
                         <h3>
-                          Service-book photos <span>Optional</span>
+                          Vehicle photos <span>Optional</span>
                         </h3>
                         {data.photos.length ? (
                           <>
@@ -463,7 +463,7 @@ export function EnquiryEmailComposer({
                                         })
                                       }
                                     />
-                                    Photo {index + 1} ·{" "}
+                                    {photo.category === "pre_accident" ? "Pre-accident" : "Service book"} · Photo {index + 1} ·{" "}
                                     {Math.ceil(photo.byte_size / 1024)} KB
                                   </label>
                                 </div>
@@ -472,7 +472,7 @@ export function EnquiryEmailComposer({
                           </>
                         ) : (
                           <p>
-                            No service-book photos uploaded yet.{" "}
+                            No private vehicle photos uploaded yet.{" "}
                             <a
                               href={`/portal?section=inventory&vehicleId=${data.vehicleId}`}
                             >

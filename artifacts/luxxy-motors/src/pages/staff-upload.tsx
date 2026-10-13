@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { requestUuid } from '@/lib/request-uuid';
+import { requestUuid } from "@/lib/request-uuid";
 import {
   prepareServicePhoto,
   type PreparedPhoto,
 } from "@/lib/service-book-photo";
 import "@/components/portal/staff-inventory.css";
 type Session = {
+  category?: string;
   title: string;
   registration: string | null;
   remaining: number;
@@ -96,7 +97,11 @@ export default function StaffUpload() {
     <main className="service-upload-page">
       <section className="service-upload-card">
         <p className="inventory-kicker">Private staff upload</p>
-        <h1>Service-book photos</h1>
+        <h1>
+          {session?.category === "pre_accident"
+            ? "Pre-accident photos"
+            : "Service-book photos"}
+        </h1>
         {session && (
           <>
             <h2>{session.title}</h2>
@@ -113,8 +118,10 @@ export default function StaffUpload() {
         ) : (
           <>
             <p>
-              Photograph each page clearly. Check that dates, mileage and stamps
-              are readable. Up to three photos per car.
+              {session?.category === "pre_accident"
+                ? "Upload the original photos supplied for this car. The label describes their purpose; it does not verify when they were taken."
+                : "Photograph each page clearly. Check that dates, mileage and stamps are readable."}{" "}
+              Up to three photos per category.
             </p>
             {session && (
               <p className="inventory-muted">

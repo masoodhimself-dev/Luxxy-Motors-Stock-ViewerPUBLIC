@@ -30,44 +30,36 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
     carB = randomUUID(),
     memberB = randomUUID();
   for (const d of ["a", "b"]) {
-    await db
-      .insert(dealershipsTable)
-      .values({
-        id: d,
-        name: d,
-        status: "active",
-        canonicalOrigin: `https://${d}.example.test`,
-        stockPlatform: "autotrader",
-        retailerId: d,
-        sourceUrl: "https://www.autotrader.co.uk/example",
-      });
-    await db
-      .insert(dealerDomainsTable)
-      .values({
-        hostname: `${d}.example.test`,
-        dealerId: d,
-        verified: true,
-        verificationToken: "fictional",
-      });
-    await db
-      .insert(portalUsersTable)
-      .values({
-        ...(d === "b" ? { id: memberB } : {}),
-        dealerId: d,
-        authUserId: `user_${d}`,
-        role: "owner",
-        email: `${d}@example.test`,
-      });
-    await db
-      .insert(vehiclesTable)
-      .values({
-        id: d === "a" ? carA : carB,
-        dealerId: d,
-        source: "autotrader",
-        advertId: d,
-        title: `Car ${d}`,
-        sourcePrice: 9000,
-      });
+    await db.insert(dealershipsTable).values({
+      id: d,
+      name: d,
+      status: "active",
+      canonicalOrigin: `https://${d}.example.test`,
+      stockPlatform: "autotrader",
+      retailerId: d,
+      sourceUrl: "https://www.autotrader.co.uk/example",
+    });
+    await db.insert(dealerDomainsTable).values({
+      hostname: `${d}.example.test`,
+      dealerId: d,
+      verified: true,
+      verificationToken: "fictional",
+    });
+    await db.insert(portalUsersTable).values({
+      ...(d === "b" ? { id: memberB } : {}),
+      dealerId: d,
+      authUserId: `user_${d}`,
+      role: "owner",
+      email: `${d}@example.test`,
+    });
+    await db.insert(vehiclesTable).values({
+      id: d === "a" ? carA : carB,
+      dealerId: d,
+      source: "autotrader",
+      advertId: d,
+      title: `Car ${d}`,
+      sourcePrice: 9000,
+    });
   }
   await db
     .insert(portalUsersTable)
@@ -304,6 +296,146 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
     assert.equal(detail.photos.length, 2);
     assert.equal(detail.preparation.notes, "Private preparation");
     assert.equal(detail.car.price, 9500);
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/plate`, {
+          method: "PUT",
+          body: { plate: "ab12 cde", expectedPlate: null },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await call(`/api/staff/inventory/${carA}`)).data.car.plate,
+      "AB12CDE",
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/plate`, {
+          method: "PUT",
+          body: { plate: "ZZ99ZZZ", expectedPlate: null },
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/plate`, {
+          host: "b",
+          user: "user_b",
+          method: "PUT",
+          body: { plate: "ZZ99ZZZ", expectedPlate: null },
+        })
+      ).status,
+      404,
+    );
+    const ag = await call(`/api/staff/inventory/${carA}/upload-session`, {
+      method: "POST",
+      body: { category: "pre_accident" },
+    });
+    assert.equal(ag.status, 201);
+    const at = ag.data.url.split("#")[1];
+    assert.equal(
+      (await call("/api/service-book-upload", { token: at, user: "" })).data
+        .category,
+      "pre_accident",
+    );
+    assert.equal(
+      (
+        await call("/api/service-book-upload", {
+          method: "POST",
+          token: at,
+          user: "",
+          body: { requestId: randomUUID(), photos: [jpeg, jpeg, jpeg] },
+        })
+      ).status,
+      201,
+    );
+    const photos2 = (await call(`/api/staff/inventory/${carA}`)).data.photos;
+    assert.equal(
+      photos2.filter((p: any) => p.category === "pre_accident").length,
+      3,
+    );
+    assert.equal(
+      photos2.filter((p: any) => p.category === "service_book").length,
+      2,
+    );
+    await engine.exec(
+      `UPDATE vehicles SET inventory_status='reserved' WHERE id='${carA}'`,
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/unreserve`, {
+          host: "b",
+          user: "user_b",
+          method: "POST",
+          body: { confirm: true },
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/unreserve`, {
+          method: "POST",
+          body: { confirm: true },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await call(`/api/staff/inventory/${carA}`)).data.car.inventory_status,
+      "available",
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/unreserve`, {
+          method: "POST",
+          body: { confirm: true },
+        })
+      ).status,
+      409,
+    );
+    await engine.exec(
+      `UPDATE vehicles SET inventory_status='reserved' WHERE id='${carA}'`,
+    );
+    const saleId = randomUUID();
+    await engine.exec(
+      `INSERT INTO sale_workspace(id,dealer_id,reference,revision,state) VALUES('${saleId}','a','SALE-TEST',1,'${JSON.stringify({ id: saleId, revision: 1, draft: { vehicleId: carA }, lifecycle: { status: "reserved" }, payments: [{ status: "confirmed", signedAmountPence: 20000 }], events: [] })}'::jsonb)`,
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/unreserve`, {
+          method: "POST",
+          body: { confirm: true },
+        })
+      ).status,
+      409,
+    );
+    assert.equal(
+      (await call(`/api/staff/inventory/${carA}`)).data.car.inventory_status,
+      "reserved",
+    );
+    await engine.exec(
+      `UPDATE sale_workspace SET state=jsonb_set(state,'{payments}','[]'::jsonb) WHERE id='${saleId}'`,
+    );
+    assert.equal(
+      (
+        await call(`/api/staff/inventory/${carA}/unreserve`, {
+          method: "POST",
+          body: { confirm: true },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await engine.query<any>(
+          `SELECT state FROM sale_workspace WHERE id='${saleId}'`,
+        )
+      ).rows[0].state.lifecycle.status,
+      "released",
+    );
     const clean = serviceBookJpeg(jpeg);
     assert.ok(!clean.bytes.includes(Buffer.from("EXIF")));
     assert.equal(clean.width, 2);

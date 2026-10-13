@@ -216,9 +216,11 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       ).status,
       200,
     );
+    await engine.exec(`UPDATE vehicle_service_photos SET category='pre_accident' WHERE id='${photos[0]}'`);
     const context = await call(base + "/email-context");
     assert.equal(context.status, 200);
     assert.equal(context.data.photos.length, 1);
+    assert.equal(context.data.photos[0].category,"pre_accident");
     assert.equal(context.data.ready, true);
     assert.ok(!JSON.stringify(context.data).includes("re_fictional"));
     assert.equal(
@@ -263,6 +265,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     assert.deepEqual(pair.map((r) => r.status).sort(), [200, 201]);
     assert.equal(sends.length, 1);
     assert.equal(sends[0].attachments.length, 1);
+    assert.ok(sends[0].attachments[0].filename.includes("pre-accident"));
     assert.equal(
       Buffer.from(sends[0].attachments[0].content, "base64").toString("hex"),
       "ffd8ffd9",

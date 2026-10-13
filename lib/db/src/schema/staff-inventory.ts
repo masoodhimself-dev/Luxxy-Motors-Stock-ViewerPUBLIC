@@ -52,6 +52,7 @@ export const vehicleServiceUploadSessionsTable = pgTable(
     vehicleId: uuid("vehicle_id").notNull(),
     dealerId: text("dealer_id").notNull(),
     tokenHash: text("token_hash").notNull(),
+    category: text("category").notNull().default("service_book"),
     createdBy: text("created_by").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
@@ -62,6 +63,7 @@ export const vehicleServiceUploadSessionsTable = pgTable(
   },
   (t) => [
     uniqueIndex("service_upload_sessions_token_hash_unique").on(t.tokenHash),
+    check("vehicle_service_upload_sessions_category_check",sql`${t.category} IN ('service_book','pre_accident')`),
     index("service_upload_sessions_vehicle_idx").on(t.dealerId, t.vehicleId),
     foreignKey({
       columns: [t.vehicleId, t.dealerId],
@@ -76,6 +78,7 @@ export const vehicleServicePhotosTable = pgTable(
     vehicleId: uuid("vehicle_id").notNull(),
     dealerId: text("dealer_id").notNull(),
     jpeg: jpeg("jpeg").notNull(),
+    category: text("category").notNull().default("service_book"),
     byteSize: integer("byte_size").notNull(),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
@@ -86,6 +89,7 @@ export const vehicleServicePhotosTable = pgTable(
   },
   (t) => [
     index("service_photos_vehicle_idx").on(t.dealerId, t.vehicleId),
+    check("vehicle_service_photos_category_check",sql`${t.category} IN ('service_book','pre_accident')`),
     check(
       "service_photos_size_check",
       sql`${t.byteSize}>0 AND ${t.byteSize}<=512000`,

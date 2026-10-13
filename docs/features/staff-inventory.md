@@ -13,3 +13,15 @@ The phone keeps one UUID request ID and the prepared immutable image strings dur
 Checks: `node test-inventory-build.mjs` then `node --test dist-test/staff-inventory.test.mjs` from artifacts/api-server runs all SQL migrations and a fictional two-dealer HTTP integration. `tests/staff-inventory.spec.ts` covers the local mocked phone/tablet/desktop UI and real canvas JPEG resizing. Neither test writes to live records. Live phone/Safari camera testing still needs a human device.
 
 Photos are bounded but accumulate with retained vehicles. PostgreSQL is suitable for this initial small-image feature; consider private object storage and explicit retention policies as the fleet grows. No additional Render service or provider credential is introduced here. Preview UI routes are wired, but functional inventory persistence requires the real authenticated API/database; the local preview's mocked fixture server does not implement these private endpoints.
+
+## Plate corrections, pre-accident photos and reservation release
+
+Migration `0024_inventory_photo_categories` separates service-book and pre-accident photos. Existing photos and upload sessions remain service-book records. Each category holds up to three compressed private JPEGs; the existing size, metadata stripping, tenant checks, 15-minute QR expiry and exact-upload replay rules apply. Neither category is exposed in the public vehicle gallery.
+
+Hover or keyboard-focus a stock row to inspect its enlarged photograph. Open the car for a full-size photo and the Number plate field. Staff with sales permission can save a corrected plate; it is normalised and stored as a staff correction (not DVLA verification). The import lock prevents a concurrent feed from overwriting the correction, and subsequent imports retain it. Issued invoice snapshots remain unchanged.
+
+Choose an existing customer enquiry from the car workspace to open the email composer. It can attach both categories (up to six photos total), with appropriate file names, authenticated previews and the existing review-before-send/idempotent delivery history. Staff can change the destination address in the composer. A new customer should be logged as an enquiry first so the correspondence has a customer record. Resend must already be configured; no email is sent automatically when photos are uploaded.
+
+Unreserve requires sales permission and explicit confirmation. It atomically releases linked unpaid sale workspaces and reserved leads, records the release and returns the car to available. Appointments are retained. It refuses sold cars, active legacy sales, unresolved provider reservations, confirmed money still held and pending payments. Those must be handled through the existing sales/reservation workflow first. Source-missing cars remain subject to the existing public availability rules.
+
+Verification covers plate validation/optimistic conflicts and cross-dealer permission checks, correction persistence after a real importer update, independent category limits and QR uploads, private email attachment categories, confirmation and read-only UI, and unpaid release versus outstanding-deposit rejection.

@@ -50,7 +50,7 @@ const draftSchema = z
     includeAppointment: z.boolean(),
     photoIds: z
       .array(z.string().uuid())
-      .max(3)
+      .max(6)
       .refine((v) => new Set(v).size === v.length),
     expectedRevision: z.number().int().nonnegative(),
   })
@@ -281,11 +281,11 @@ export function createEnquiryEmailRouter(
     if (input.photoIds.length) {
       if (!car)
         throw new EmailError(
-          "Service-book photos need a linked stock vehicle.",
+          "Vehicle photos need a linked stock vehicle.",
         );
       const rows = (
         await executor.execute(
-          sql`SELECT id, encode(jpeg,'hex') AS bytes FROM vehicle_service_photos WHERE dealer_id=${enquiry.dealerId} AND vehicle_id=${car.id}::uuid AND id IN (${sql.join(
+          sql`SELECT id, category, encode(jpeg,'hex') AS bytes FROM vehicle_service_photos WHERE dealer_id=${enquiry.dealerId} AND vehicle_id=${car.id}::uuid AND id IN (${sql.join(
             input.photoIds.map((id) => sql`${id}::uuid`),
             sql`,`,
           )})`,
@@ -293,14 +293,14 @@ export function createEnquiryEmailRouter(
       ).rows;
       if (rows.length !== input.photoIds.length)
         throw new EmailError(
-          "A selected service-book photo was removed or belongs to another car. Review the attachments.",
+          "A selected vehicle photo was removed or belongs to another car. Review the attachments.",
           409,
         );
       for (const [index, id] of input.photoIds.entries()) {
         const row = rows.find((r) => r.id === id)!;
         attachments.push({
           id,
-          filename: `${enquiry.reference.replace(/[^A-Za-z0-9_-]/g, "") || "enquiry"}-service-book-${index + 1}.jpg`,
+          filename: `${enquiry.reference.replace(/[^A-Za-z0-9_-]/g, "") || "enquiry"}-${row.category === "pre_accident" ? "pre-accident" : "service-book"}-${index + 1}.jpg`,
           content: Buffer.from(String(row.bytes), "hex").toString("base64"),
         });
       }
@@ -381,7 +381,7 @@ export function createEnquiryEmailRouter(
       const photos = enquiry.vehicleId
         ? (
             await db.execute(
-              sql`SELECT id, byte_size, created_at FROM vehicle_service_photos WHERE dealer_id=${enquiry.dealerId} AND vehicle_id=${enquiry.vehicleId}::uuid ORDER BY created_at,id LIMIT 3`,
+              sql`SELECT id, category, byte_size, created_at FROM vehicle_service_photos WHERE dealer_id=${enquiry.dealerId} AND vehicle_id=${enquiry.vehicleId}::uuid ORDER BY category,created_at,id LIMIT 6`,
             )
           ).rows
         : [];
@@ -596,7 +596,7 @@ export function createEnquiryEmailRouter(
             channel: "email",
             staffId: req.staff!.authUserId,
             staffName: staffLabel(req),
-            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} service-book photo${input.photoIds.length === 1 ? "" : "s"} attached.${error ? "\n" + error : ""}`,
+            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} vehicle photo${input.photoIds.length === 1 ? "" : "s"} attached.${error ? "\n" + error : ""}`,
           },
         });
         return row!;

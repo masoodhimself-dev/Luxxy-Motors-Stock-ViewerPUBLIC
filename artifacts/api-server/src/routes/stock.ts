@@ -290,6 +290,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         } else {
           const databaseChanges: Record<string, unknown> = {};
           for (const [key, value] of Object.entries({ ...values, ...priceValues })) {
+            if ((existing.auditMetadata as any)?.plateCorrection && ["plate", "vrm", "vrmVerified"].includes(key)) continue;
             const previous = key === 'rawSourceData' ? stockSourceData(existing.rawSourceData).facts : (existing as any)[key];
             if (canonicalJson(previous) !== canonicalJson(value)) databaseChanges[key] = value;
           }

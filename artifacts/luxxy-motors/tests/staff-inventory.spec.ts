@@ -76,7 +76,7 @@ for (const width of [390, 820, 1440])
     await page.goto("/portal?section=inventory");
     await page.getByRole("button", { name: /2019 Ford Focus/ }).click();
     await expect(
-      page.getByRole("heading", { name: "Service-book photos" }),
+      page.getByRole("heading", { name: "Private vehicle photos" }),
     ).toBeVisible();
     await page.getByLabel("Cleaning & presentation").selectOption("done");
     await page.getByRole("button", { name: "Save preparation" }).click();

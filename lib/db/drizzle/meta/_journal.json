@@ -169,6 +169,13 @@
       "when": 1791839715533,
       "tag": "0023_enquiry_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791894600000,
+      "tag": "0024_inventory_photo_categories",
+      "breakpoints": true
     }
   ]
 }
