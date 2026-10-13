@@ -37,3 +37,11 @@
   .friendly-saved .friendly-shortlist-intro .page-heading { gap: 20px; }
   .friendly-saved .saved-car-list details dl > div { min-width: 0; }
 }
+
+/* A small welcome from the actual selected car, with no animation or extra action. */
+.booking-page .booking-car { grid-template-columns: auto minmax(0, 1fr); }
+.booking-car-speech { position: relative; grid-column: 1 / -1; margin-top: 4px; padding: 15px 18px; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--secondary)); }
+.booking-car-speech::before { content: ""; position: absolute; top: -7px; left: 38px; width: 12px; height: 12px; background: hsl(var(--secondary)); border-top: 1px solid hsl(var(--border)); border-left: 1px solid hsl(var(--border)); transform: rotate(45deg); }
+.booking-car-speech-speaker { display: block; font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground)); margin-bottom: 5px; }
+.booking-car-speech p { font-size: 14px; line-height: 1.65; font-weight: 500; color: hsl(var(--foreground)); }
+@media(max-width: 639px) { .booking-car-speech { padding: 14px 16px; } }
