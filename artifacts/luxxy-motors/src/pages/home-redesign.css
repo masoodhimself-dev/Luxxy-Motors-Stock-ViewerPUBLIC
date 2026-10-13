@@ -263,3 +263,10 @@
   .homepage-art-directed.homepage-premium .hero-search-secondary { gap: 4px 10px; }
   .homepage-art-directed.homepage-premium .hero-search-secondary :is(button, a) { font-size: 12px; }
 }
+
+/* Leave the phone carousel header focused on browsing; swipe remains available. */
+@media (max-width: 639px) {
+  .homepage-art-directed.homepage-premium .rolling-stock-footer .rolling-stock-toggle { display: none; }
+  .homepage-art-directed.homepage-premium .rolling-stock-footer { flex-wrap: nowrap; gap: 12px; }
+  .homepage-art-directed.homepage-premium .rolling-stock-footer .section-heading { font-size: 20px; }
+}
