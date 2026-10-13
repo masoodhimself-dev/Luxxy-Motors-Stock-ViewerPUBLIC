@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { Settings2, Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { Link, useLocation, useSearch } from 'wouter';
@@ -66,6 +67,7 @@ function PublicationHistory() {
   return <section className="dealer-admin"><header className="admin-heading"><div><p className="admin-kicker">Website publishing</p><h2>Publication history</h2><p>Review who published each version and restore an earlier website configuration.</p></div><Button variant="outline" disabled={busy || query.isFetching} onClick={() => void query.refetch()}>Refresh history</Button></header><Feedback error={query.error} />{error && <p role="alert" className="admin-error">{error}</p>}{notice && <p role="status">{notice}</p>}<div className="admin-team-list">{query.data?.versions.map(version => <article className="admin-card admin-version" key={version.revision}><div><h3>Version {version.revision} {version.revision === query.data?.revision && <span className="admin-current">Current</span>}</h3><p>{date(version.publishedAt)} · {version.publishedBy}</p><p className="admin-muted">{version.action === 'restore' ? `Restored from version ${version.restoredFrom}` : version.action === 'initial' ? 'Initial configuration' : 'Website settings published'}</p></div>{version.revision !== query.data?.revision && <Button variant="outline" disabled={busy} onClick={() => void restore(version)}>Restore this version</Button>}</article>)}</div></section>;
 }
 export function DealerSettingsHub() {
+  const editorRoot = useRef<HTMLDivElement>(null);
   const access = useStaffAccess(); const search = useSearch(); const [,navigate] = useLocation(); const [section, setSection] = useState(() => new URLSearchParams(search).get('settingsTab') ?? 'website');
   useEffect(() => { const id = new URLSearchParams(search).get('settingsTab') ?? 'website'; setSection(['website','emails','integrations','paperwork','chat','team','history'].includes(id) ? id : 'website'); }, [search]);
   if (access.isLoading) return <p role="status">Loading settings access…</p>;
@@ -81,5 +83,14 @@ export function DealerSettingsHub() {
     ['history','Publish history','Review and restore website publications. Private connections, email templates and sales terms are saved separately.'],
   ].filter(([id]) => id !== 'chat' || customerFeaturePolicy.websiteChat);
   const selectedSection = sections.some(([id]) => id === section) ? section : 'website';
-  return <div className="dealer-settings-hub"><nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => <button type="button" key={id} aria-current={selectedSection === id ? 'page' : undefined} onClick={() => { setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); }}>{label}</button>)}</nav><p className="settings-category-description" role="status">{sections.find(([id]) => id === selectedSection)?.[2]}</p><div key={selectedSection}>{selectedSection === 'website' && <DealerSettingsPanel />}{selectedSection === 'emails' && <EmailTemplatesSettings />}{selectedSection === 'integrations' && <DealerIntegrationsSettings />}{selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{selectedSection === 'chat' && <CustomerChatSettings />}{selectedSection === 'team' && <TeamSettings />}{selectedSection === 'history' && <PublicationHistory />}</div></div>;
+  const categoryIcons: Record<string, typeof Globe2> = { website: Globe2, emails: Mail, integrations: PlugZap, paperwork: FileText, chat: MessageCircle, team: Users, history: History };
+  const chooseSection = (id: string) => { if (id === selectedSection) return; if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') && !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return; setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); };
+  return <div className="dealer-settings-hub settings-hub-redesign">
+    <header className="settings-hub-heading"><div className="settings-hub-mark"><Settings2 size={24} aria-hidden="true" /></div><div><p>Dealership workspace</p><h2>Dealership settings</h2><span>Your website, customer messages and business tools, in one place.</span></div></header>
+    <label className="settings-mobile-category"><span>Settings category</span><NativeSelect value={selectedSection} onChange={event => chooseSection(event.target.value)}>{sections.map(([id,label]) => <option key={id} value={id}>{label}</option>)}</NativeSelect></label>
+    <div className="settings-hub-layout">
+      <nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => { const Icon = categoryIcons[id]; return <button type="button" key={id} aria-current={selectedSection === id ? 'page' : undefined} onClick={() => chooseSection(id)}><Icon size={19} aria-hidden="true"/><span>{label}</span></button>; })}<p className="settings-nav-help">Each area has its own save controls. Website changes are reviewed before publishing.</p></nav>
+      <div ref={editorRoot} className="settings-hub-content"><p className="settings-category-description" role="status">{sections.find(([id]) => id === selectedSection)?.[2]}</p><div key={selectedSection}>{selectedSection === 'website' && <DealerSettingsPanel />}{selectedSection === 'emails' && <EmailTemplatesSettings />}{selectedSection === 'integrations' && <DealerIntegrationsSettings />}{selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{selectedSection === 'chat' && <CustomerChatSettings />}{selectedSection === 'team' && <TeamSettings />}{selectedSection === 'history' && <PublicationHistory />}</div></div>
+    </div>
+  </div>;
 }

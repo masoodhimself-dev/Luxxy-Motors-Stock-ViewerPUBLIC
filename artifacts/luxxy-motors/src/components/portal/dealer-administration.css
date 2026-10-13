@@ -53,3 +53,50 @@
  .dealer-settings-hub .integration-actions { gap:10px; }
  .dealer-settings-hub .integration-actions>* { min-height:44px; }
 }
+
+/* A single settings workspace, independent of a dealership's marketing colours. */
+.settings-hub-redesign { --settings-ink: #203142; --settings-muted: #5d6b79; --settings-line: #dce4eb; --settings-accent: #215a7e; color: var(--settings-ink); font-family: var(--app-font-sans); }
+.settings-hub-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 28px; }
+.settings-hub-mark { display: grid; place-items: center; width: 56px; height: 56px; flex-shrink: 0; border-radius: 16px; background: #e7f0f6; color: var(--settings-accent); }
+.settings-hub-heading p { font-size: 13px; font-weight: 600; color: var(--settings-accent); margin-bottom: 4px; }
+.settings-hub-heading h2 { font-size: clamp(28px, 3vw, 36px); font-weight: 600; line-height: 1.2; letter-spacing: -.035em; }
+.settings-hub-heading span { display: block; margin-top: 8px; font-size: 15px; line-height: 1.6; color: var(--settings-muted); }
+.settings-hub-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr); align-items: start; gap: 28px; }
+.settings-hub-redesign .admin-settings-tabs { position: sticky; top: calc(var(--site-header-height, 80px) + 16px); display: flex; flex-direction: column; gap: 6px; overflow: visible; padding: 10px; margin: 0; border-radius: 16px; background: white; border-color: var(--settings-line); }
+.settings-hub-redesign .admin-settings-tabs button { display: flex; align-items: center; gap: 12px; text-align: left; min-height: 48px; padding: 12px; font-size: 14px; font-weight: 500; color: var(--settings-muted); border: 1px solid transparent; border-radius: 10px; }
+.settings-hub-redesign .admin-settings-tabs button svg { flex-shrink: 0; }
+.settings-hub-redesign .admin-settings-tabs button[aria-current] { color: #194e70; background: #eaf2f8; border-color: #caddeb; box-shadow: none; font-weight: 600; }
+.settings-hub-redesign .admin-settings-tabs button:hover { background: #f3f6f9; }
+.settings-nav-help { border-top: 1px solid var(--settings-line); margin: 10px 2px 0; padding: 14px 4px 4px; font-size: 12px; line-height: 1.65; color: var(--settings-muted); }
+.settings-hub-content { min-width: 0; }
+.settings-hub-redesign .settings-category-description { margin-bottom: 22px; padding: 14px 18px; border-left: 3px solid #a9c6db; border-radius: 0 10px 10px 0; background: #eef3f7; font-size: 14px; line-height: 1.65; color: #445a6b; }
+.settings-mobile-category { display: none; }
+.settings-hub-redesign .integration-settings { padding: 0; margin: 0; max-width: none; color: var(--settings-ink); gap: 24px; }
+.settings-hub-redesign .integration-heading h2, .settings-hub-redesign .admin-heading h2 { font-size: 27px; font-weight: 600; line-height: 1.3; }
+.settings-hub-redesign .integration-eyebrow { color: var(--settings-muted); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.settings-hub-redesign .integration-heading > svg, .settings-hub-redesign .integration-card-heading > svg { color: var(--settings-accent); }
+.settings-hub-redesign .integration-card, .settings-hub-redesign .admin-card { background: white; border: 1px solid var(--settings-line); border-radius: 14px; padding: 24px; box-shadow: 0 2px 6px #20314204; }
+.settings-hub-redesign .integration-field > label { font-size: 14px; font-weight: 600; }
+.settings-hub-redesign :is(.integration-field small,.integration-footnote,.integration-readiness) { font-size: 13px; line-height: 1.65; color: var(--settings-muted); }
+.settings-hub-redesign :is(input:not([type=checkbox]):not([type=color]):not([type=radio]),select,textarea) { font-family: var(--app-font-sans); font-size: 15px; min-height: 46px; border-radius: 8px; border-color: #b9c8d3; }
+.settings-hub-redesign .integration-field code { background: #f1f5f8; font-size: 13px; border: 1px solid var(--settings-line); }
+.settings-hub-redesign .integration-check { font-size: 14px; gap: 10px; }
+.settings-hub-redesign .integration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-hub-redesign .integration-secret-status { display: block; margin: 4px 0 0; font-size: 12px; }
+.settings-hub-redesign .email-template-grid { grid-template-columns: minmax(0, 1fr); }
+.settings-hub-redesign .invoice-settings-layout { grid-template-columns: minmax(0, 1fr); }
+@media(max-width: 1100px) { .settings-hub-layout { grid-template-columns: 176px minmax(0,1fr); gap: 20px; } .settings-hub-redesign .integration-grid { grid-template-columns: minmax(0,1fr); } }
+@media(max-width: 767px) {
+  .settings-hub-heading { gap: 12px; margin-bottom: 20px; }
+  .settings-hub-heading span { font-size: 14px; }
+  .settings-hub-mark { width: 44px; height: 44px; border-radius: 12px; }
+  .settings-hub-layout { grid-template-columns: minmax(0,1fr); }
+  .settings-hub-redesign .admin-settings-tabs { display: none; }
+  .settings-mobile-category { display: grid; gap: 8px; margin-bottom: 18px; font-size: 14px; font-weight: 600; }
+  .settings-hub-redesign :is(input:not([type=checkbox]):not([type=color]):not([type=radio]),select,textarea) { font-size: 16px; }
+  .settings-hub-redesign .integration-card { padding: 20px 16px; }
+  .settings-hub-redesign .settings-category-description { padding: 12px 14px; margin-bottom: 18px; }
+}
+
+.settings-hub-redesign .admin-settings-tabs button { white-space: normal; }
+.settings-hub-redesign .admin-settings-tabs button span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }

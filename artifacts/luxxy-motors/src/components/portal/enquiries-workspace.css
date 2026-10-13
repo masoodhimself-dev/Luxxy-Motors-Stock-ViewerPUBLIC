@@ -5,7 +5,7 @@
   border-radius: 6px;
   background: var(--portal-panel, #fff);
   color: var(--portal-ink, #192a36);
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--app-font-sans);
   font-size: 14px;
   line-height: 1.6;
   box-shadow: none;

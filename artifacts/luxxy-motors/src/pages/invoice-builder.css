@@ -1,4 +1,4 @@
-.invoice-builder { color:#203142; background:#f5f7f9; border:1px solid #dce3e9; border-radius:12px; font-family:Inter,system-ui,sans-serif; }
+.invoice-builder { color:#203142; background:#f5f7f9; border:1px solid #dce3e9; border-radius:12px; font-family: var(--app-font-sans); }
 .invoice-builder.is-editing { position:fixed; inset:0; z-index:70; display:flex; flex-direction:column; border:0; border-radius:0; height:100dvh; }
 body:has(.invoice-builder.is-editing) { overflow:hidden; }
 .invoice-builder-header { display:flex; justify-content:space-between; align-items:center; padding:14px 24px; background:#fff; border-bottom:1px solid #dce3e9; gap:16px; }

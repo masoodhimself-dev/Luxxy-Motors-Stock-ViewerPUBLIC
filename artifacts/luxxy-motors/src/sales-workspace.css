@@ -3,7 +3,7 @@
   .sales-premium-workspace {
     color: var(--portal-ink, #192a36);
     background: var(--portal-canvas, #f5f7f9);
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--app-font-sans);
     font-size: 14px;
     min-width: 0;
     --sales-border: var(--portal-border, #dce3e8);

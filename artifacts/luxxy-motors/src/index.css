@@ -913,3 +913,13 @@ header.stock-home-header nav > button:not(.bg-primary):hover, header.stock-home-
 .booking-night-note p { margin-top: 5px; color: hsl(var(--muted-foreground)); line-height: 1.6; }
 .vehicle-redesigned .vehicle-utility-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .vehicle-redesigned .vehicle-summary > .vehicle-direct-contact { padding-block: 4px 12px; }
+
+/* One UI font and consistent readable controls across customer and staff surfaces. */
+body { font-family: var(--app-font-sans); font-synthesis: none; }
+button, input, select, textarea { font-family: inherit; }
+:is(.customer-site,.premium-portal,.platform-shell) { font-family: var(--app-font-sans); }
+:is(.premium-portal,.platform-shell) :is(h1,h2,h3,h4) { font-weight: 600; line-height: 1.3; }
+:is(.customer-site,.premium-portal,.platform-shell) :is(input,select,textarea) { line-height: 1.5; }
+@media(max-width: 767px) {
+  :is(.customer-site,.premium-portal,.platform-shell) :is(input:not([type=checkbox]):not([type=radio]):not([type=color]),select,textarea) { font-size: 16px; }
+}

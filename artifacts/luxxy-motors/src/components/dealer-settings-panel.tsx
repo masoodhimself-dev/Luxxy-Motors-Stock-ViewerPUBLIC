@@ -639,8 +639,8 @@ export function DealerSettingsPanel() {
     <section className="settings-studio portal-settings-premium mb-12" aria-labelledby="settings-heading">
       <div className="settings-studio-heading mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="settings-studio-eyebrow luxxy-kicker text-primary">Website configuration</p>
-          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Showroom settings</h2>
+          <p className="settings-studio-eyebrow luxxy-kicker text-primary">Website editor</p>
+          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Your website</h2>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70">
             Edit your dealership details, content and services. Review your
             draft, then publish when it is ready for customers.

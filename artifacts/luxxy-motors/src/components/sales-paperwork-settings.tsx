@@ -70,7 +70,7 @@ export function SalesPaperworkSettings() {
   const previewDealer = invoiceBranding(saleWorkspaceBranding(dealer), options) as DealerConfig;
   const sample = { ...emptyDraft(), id: 'DESIGN-SAMPLE', customer: 'Example customer', vehicle: 'Example vehicle', price: '12995', registration: '', notes: '' };
   return (
-    <section className="integration-card" aria-label="Sales paperwork settings">
+    <section className="integration-card" aria-label="Sales paperwork settings" data-settings-dirty={changed}>
       <h3>Sales paperwork</h3>
       <p>
         Add your approved dealership wording. Terms of sale are required to
