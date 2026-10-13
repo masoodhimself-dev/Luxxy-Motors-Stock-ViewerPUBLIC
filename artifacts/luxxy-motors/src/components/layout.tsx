@@ -156,6 +156,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
+    if (target === 'part-exchange' || target === 'delivery') { setLocation(`/enquire?type=${target === 'part-exchange' ? 'part_exchange' : 'delivery'}`); return; }
     navigateToHomeTarget(target, location, setLocation);
   };
 
@@ -192,6 +193,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
+            {dealerConfig.contact.phone && <a className={navLinkClass} href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone className="mr-2 h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
             <button
@@ -274,6 +276,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           </>}
         </div>
+
+        {!isStaff && dealerConfig.contact.phone && <div className="header-phone-row lg:hidden"><a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a></div>}
 
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (

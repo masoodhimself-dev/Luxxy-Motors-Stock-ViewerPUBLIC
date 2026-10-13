@@ -224,7 +224,7 @@ export default function CarDetail() {
     </Button>
   ) : null;
   const enquiryAction = (
-    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}>
+    <a key="enquiry" className="vehicle-enquiry-action" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
       Enquire about this car <ArrowRight className="h-4 w-4" />
     </a>
   );
@@ -286,6 +286,10 @@ export default function CarDetail() {
             </div>
           </header>
           <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
+            <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
+              <VehicleCall car={car} />
+              <VehicleWhatsApp car={car} />
+            </div>
           <VehicleSellingPoints car={car} />
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
@@ -303,10 +307,7 @@ export default function CarDetail() {
               {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
             <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
 
-            <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
-              <VehicleCall car={car} />
-              <VehicleWhatsApp car={car} />
-            </div>
+
             <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
               <div className="vehicle-contact-options">
               <div className="vehicle-secondary-grid"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
@@ -318,8 +319,9 @@ export default function CarDetail() {
 
             </div>}
 
-              <div className="vehicle-utility-actions"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
+
             </MobileActionDisclosure>
+              <div className="vehicle-utility-actions"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
             </div>
           </aside>
           </div>

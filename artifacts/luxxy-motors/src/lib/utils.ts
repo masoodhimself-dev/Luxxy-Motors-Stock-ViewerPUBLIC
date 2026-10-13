@@ -21,7 +21,7 @@ export function formatPhoneDisplay(phone: string) {
   const compact = phone.replace(/\s/g, '');
   return /^020\d{8}$/.test(compact)
     ? `${compact.slice(0, 3)} ${compact.slice(3, 7)} ${compact.slice(7)}`
-    : phone;
+    : /^07\d{9}$/.test(compact) ? `${compact.slice(0, 5)} ${compact.slice(5)}` : phone;
 }
 
 export function formatMileage(mileage: number) {

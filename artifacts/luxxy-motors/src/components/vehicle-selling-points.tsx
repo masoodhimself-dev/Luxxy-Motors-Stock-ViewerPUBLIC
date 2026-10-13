@@ -31,7 +31,6 @@ export function VehicleSellingPoints({
   const allPoints = vehicleSellingPoints(car);
   const points = compact ? allPoints.slice(0, 4) : allPoints;
   if (!points.length) return null;
-  const ulez = points.find((point) => point.id === "ulez");
   return (
     <div
       className={`vehicle-benefit-summary ${compact ? "vehicle-benefit-summary-compact" : ""}`}
@@ -46,14 +45,7 @@ export function VehicleSellingPoints({
           </li>
         ))}
       </ul>
-      {!compact && ulez?.href && (
-        <p className="vehicle-benefit-check">
-          Check this car’s registration before driving in the zone.{" "}
-          <a href={ulez.href} target="_blank" rel="noopener noreferrer">
-            Check with TfL
-          </a>
-        </p>
-      )}
+
     </div>
   );
 }

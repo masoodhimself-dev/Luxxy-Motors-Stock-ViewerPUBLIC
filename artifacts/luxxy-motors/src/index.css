@@ -904,3 +904,12 @@ header.stock-home-header nav > button:not(.bg-primary):hover, header.stock-home-
 .home-shopping-shortcuts a:hover { background: hsl(var(--secondary)); }
 .featured-car-facts { flex-basis: 100%; font-size: 12px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
 @media(max-width: 639px) { .home-shopping-shortcuts { flex-wrap: nowrap; overflow-x: auto; } .home-shopping-shortcuts > * { flex-shrink: 0; } .home-shopping-shortcuts > span { display: none; } }
+
+.header-phone-row { padding: 0 16px 10px; text-align: center; }
+.header-phone-row a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; font-size: 14px; font-weight: 600; color: inherit; }
+.stock-home-header .header-phone-row a { color: white; }
+.booking-night-note { display: flex; align-items: flex-start; gap: 12px; padding: 18px; margin-bottom: 20px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--secondary)); font-size: 14px; }
+.booking-night-note svg { flex-shrink: 0; margin-top: 2px; }
+.booking-night-note p { margin-top: 5px; color: hsl(var(--muted-foreground)); line-height: 1.6; }
+.vehicle-redesigned .vehicle-utility-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vehicle-redesigned .vehicle-summary > .vehicle-direct-contact { padding-block: 4px 12px; }
