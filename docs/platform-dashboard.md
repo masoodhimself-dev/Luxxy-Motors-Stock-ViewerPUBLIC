@@ -35,3 +35,9 @@ All routes retain approved-host, Clerk administrator allowlist and same-origin w
 `pnpm --filter @workspace/api-server run test:platform` uses an isolated PGlite database and synthetic Clerk identities to exercise access checks, reserved-host rejection, owner selection, atomic duplicates, domain activation protection and metadata redaction. This is not a live Clerk invitation test.
 
 Frontend unit tests cover denied access, guided creation, search and platform sign-in return. Playwright checks at 390, 820 and 1440 pixels use fictional API data and block real writes, including DNS review and onboarding. Existing two-dealer HTTP isolation tests remain applicable.
+
+## Saved dealer onboarding checklist
+
+Each dealership's Setup tab contains 26 grouped operator checks for business/access, website/domain, stock, email/payments, staff workflows and launch approval. Statuses are Pending, Complete and Not applicable; the latter requires a reason. Notes (up to 1,000 characters), last editor's Clerk ID and saved time persist in the dealership's private `onboarding_checklist` JSONB column. An item-level PATCH merges atomically, preserving other items during concurrent edits. Only authorised platform administrators on the approved administration host can change progress.
+
+Progress appears on dealership cards and the Setup tab. System-derived domain/credential/import checks remain separate from manual confirmations. Checklist completion does not activate a dealer, start a bot, enable payments or prove a manually recorded test. Existing dealers start with pending manual checks, rather than fabricated completion history. Migration `0027_dealer_onboarding` adds the column without changing stock or dealer status.

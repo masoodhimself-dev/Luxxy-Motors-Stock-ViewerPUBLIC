@@ -1,3 +1,5 @@
+import { sql } from 'drizzle-orm';
+import { onboardingItems } from '@workspace/vehicle-meta';
 import { Router } from 'express';
 import { getAuth, clerkClient } from '@clerk/express';
 import { randomBytes } from 'node:crypto';
@@ -15,6 +17,16 @@ router.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
   if (!multiTenantEnabled() || normaliseTenantHost(req.get('host') ?? '') !== normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '') || !isPlatformAdmin(getAuth(req).userId ?? undefined)) { res.status(403).json({ error: 'Platform administrator access required.' }); return; }
   if (req.get('origin') && req.get('origin') !== `https://${process.env.PLATFORM_ADMIN_HOST}`) { res.status(403).json({ error: 'Open platform administration on its approved domain.' }); return; } next();
+});
+router.patch('/dealers/:id/checklist', async (req, res) => {
+  const input = z.object({ itemId: z.string().refine(id => onboardingItems.some(item => item.id === id)), status: z.enum(['pending', 'done', 'skipped']), note: z.string().trim().max(1000) }).strict().safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: 'Choose a checklist item and valid status; notes must be at most 1,000 characters.' }); return; }
+  const { itemId, status, note } = input.data;
+  if (status === 'skipped' && !note) { res.status(400).json({ error: 'Explain why this item is not applicable.' }); return; }
+  const entry = { status, note, updatedAt: new Date().toISOString(), updatedBy: getAuth(req).userId! };
+  const [dealer] = await db.update(dealershipsTable).set({ onboardingChecklist: sql`${dealershipsTable.onboardingChecklist} || ${JSON.stringify({ [itemId]: entry })}::jsonb` }).where(eq(dealershipsTable.id, req.params.id)).returning({ onboardingChecklist: dealershipsTable.onboardingChecklist });
+  if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
+  res.json(dealer);
 });
 router.get('/dealers', async (_req, res) => { const dealers = await db.select().from(dealershipsTable); res.json({ dealers }); });
 router.get('/dealers/:id/imports/:runId', async (req, res) => {

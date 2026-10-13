@@ -221,3 +221,5 @@ export * from './enquiry-merge.ts';
 
 export * from "./stock-feed.ts";
 export { invoicePalette } from './invoice-palette.ts';
+
+export * from './dealer-onboarding';

@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, boolean, jsonb, uuid, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 export const dealershipsTable = pgTable('dealerships', {
+  onboardingChecklist: jsonb('onboarding_checklist').$type<Record<string, { status: 'pending' | 'done' | 'skipped'; note: string; updatedAt: string; updatedBy: string }>>().notNull().default({}),
   id: text('id').primaryKey(), name: text('name').notNull(), status: text('status').$type<'draft' | 'active' | 'suspended'>().notNull().default('draft'), canonicalOrigin: text('canonical_origin').notNull(), stockPlatform: text('stock_platform').$type<'autotrader' | 'cazoo'>().notNull(), retailerId: text('retailer_id').notNull(), sourceUrl: text('source_url').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const dealerDomainsTable = pgTable('dealer_domains', {

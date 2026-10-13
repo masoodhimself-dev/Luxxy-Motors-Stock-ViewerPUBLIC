@@ -78,3 +78,30 @@ it('expands price reductions and missing adverts with recorded backend timing', 
  expect(await screen.findByText('Price reduced: £10,000 → £9,500')).toBeInTheDocument();
  expect(screen.getByText('Absent from source; not marked sold.')).toBeInTheDocument();
 });
+
+it('saves per-dealer onboarding evidence and requires a reason for skipped checks', async () => {
+  let entries = {};
+  const fetch = vi.fn(async (path, init) => {
+    if (init?.method === 'PATCH') {
+      expect(String(path)).toBe('/api/platform/dealers/example-dealer/checklist');
+      const body = JSON.parse(init.body);
+      expect(body).toEqual({itemId:'https',status:'skipped',note:'Test domain only'});
+      entries = {https:{...body,updatedAt:'2026-10-13T10:00:00Z',updatedBy:'user_admin'}};
+      return Response.json({onboardingChecklist:entries});
+    }
+    if (String(path).endsWith('/workspace')) return Response.json({...workspace,dealer:{...dealer,onboardingChecklist:entries}});
+    return Response.json({dealers:[{...dealer,onboardingChecklist:entries}],activity:[]});
+  });
+  vi.stubGlobal('fetch',fetch); render(<Platform />);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  const status = await screen.findByLabelText('Status: Render domain connected and HTTPS tested');
+  fireEvent.change(status,{target:{value:'skipped'}});
+  const note = screen.getByLabelText('Notes: Render domain connected and HTTPS tested');
+  const row = note.closest('.platform-launch-item')!;
+  const button = row.querySelector('button')!;
+  expect(button).toBeDisabled();
+  fireEvent.change(note,{target:{value:'Test domain only'}});
+  expect(button).toBeEnabled(); fireEvent.click(button);
+  await screen.findByText('Changes saved.');
+  expect(screen.getByText(/0 complete · 25 pending · 1 not applicable/)).toBeInTheDocument();
+});

@@ -33,5 +33,20 @@ test('platform onboarding and operational views preserve access checks and omit 
   const overview=await request('/api/platform/overview');assert.equal(overview.status,200);const text=await overview.text();assert.ok(!text.includes('never-return'));const data=JSON.parse(text);const dealer=data.dealers.find((d:{id:string})=>d.id==='test-dealer');assert.equal(dealer.latestImport.runId,'run-held');assert.equal(dealer.lastSuccessfulImport.runId,'run-good');assert.equal(dealer.activeKeyCount,1);
   const workspace=await request('/api/platform/dealers/test-dealer/workspace');assert.equal(workspace.status,200);const details=await workspace.text();assert.ok(!details.includes('never-return'));assert.equal(JSON.parse(details).imports.length,2);
   assert.equal((await request('/api/platform/dealers/unknown/workspace')).status,404);
+  const checklistPath = '/api/platform/dealers/test-dealer/checklist';
+  const item = { itemId: 'https', status: 'done', note: 'Certificate checked' };
+  assert.equal((await request(checklistPath, 'PATCH', item, 'user_other')).status,403);
+  assert.equal((await request(checklistPath, 'PATCH', { ...item, itemId: 'invented' })).status,400);
+  assert.equal((await request(checklistPath, 'PATCH', { ...item, status: 'skipped', note: '' })).status,400);
+  assert.equal((await request('/api/platform/dealers/unknown/checklist', 'PATCH', item)).status,404);
+  assert.equal((await request(checklistPath, 'PATCH', item)).status,200);
+  assert.equal((await request(checklistPath, 'PATCH', { itemId: 'billing', status: 'pending', note: 'Awaiting approval' })).status,200);
+  const saved = await (await request('/api/platform/dealers/test-dealer/workspace')).json() as { dealer: { onboardingChecklist: Record<string, { status: string; updatedBy: string; note: string }> } };
+  assert.equal(saved.dealer.onboardingChecklist.https.status,'done');
+  assert.equal(saved.dealer.onboardingChecklist.https.updatedBy,'user_admin');
+  assert.equal(saved.dealer.onboardingChecklist.billing.note,'Awaiting approval');
+  const separate = await (await request('/api/platform/dealers/email-dealer/workspace')).json() as { dealer: { onboardingChecklist: Record<string, unknown> } };
+  assert.deepEqual(separate.dealer.onboardingChecklist,{});
+
  }finally{await new Promise<void>((r,j)=>server.close(e=>e?j(e):r()));await engine.close();}
 });
