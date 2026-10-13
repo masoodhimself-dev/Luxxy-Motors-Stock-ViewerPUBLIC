@@ -18,7 +18,7 @@
 .customer-purchase-card h2 { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 18px; font-weight: 600; line-height: 1.45; }
 .customer-purchase-card :is(h2, h3) > svg, .customer-purchase-vehicle > svg { flex-shrink: 0; color: var(--premium-accent, hsl(var(--primary))); }
 .customer-purchase-card p { color: var(--premium-muted, hsl(var(--muted-foreground))); font-size: 14px; line-height: 1.65; }
-.customer-purchase-vehicle { display: flex; gap: 16px; align-items: center; background: var(--premium-soft, hsl(var(--secondary) / .35)); }
+.customer-purchase-vehicle { display: flex; gap: 16px; align-items: center; background: var(--dealer-panel, hsl(var(--card))); }
 .customer-purchase-vehicle > div { min-width: 0; }
 .customer-purchase-vehicle h2 { margin-bottom: 8px; }
 .customer-purchase-card .customer-purchase-registration { color: var(--premium-ink, hsl(var(--foreground))); font-weight: 600; letter-spacing: .055em; }

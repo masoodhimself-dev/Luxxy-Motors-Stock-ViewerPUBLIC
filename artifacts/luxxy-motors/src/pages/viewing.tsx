@@ -15,6 +15,8 @@ import {
 } from '@workspace/api-client-react';
 import { ArrowLeft, CalendarDays, CalendarPlus, Check, CircleAlert, Clock3, LoaderCircle, MapPin, Phone, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/page-ui';
+import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { appointmentLabel, availableBookingDates, bookingDateLabel, bookingTimezone, defaultBookingSettings, londonDate, nextDate } from '@/lib/test-drive-dates';
@@ -40,6 +42,7 @@ export default function Viewing() {
   const queryClient = useQueryClient();
   const { token = '' } = useParams<{ token: string }>();
   const { settings: dealerConfig, isLoading: settingsLoading } = useDealerSettings();
+  usePageMeta({ title: `Your test drive | ${dealerConfig.identity.name}`, description: 'Check your test drive, request another time or contact the showroom for help.' });
   const bookingSettings = useMemo(() => dealerConfig.testDriveBooking ?? defaultBookingSettings, [dealerConfig.testDriveBooking]);
   const dates = useMemo(() => bookingSettings.enabled ? availableBookingDates(bookingSettings) : [], [bookingSettings]);
   const [selectedDate, setSelectedDate] = useState('');
@@ -79,25 +82,25 @@ export default function Viewing() {
   const shell = (children: ReactNode) => (
     <div className="luxxy-shell min-h-[60vh] bg-background">
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
-        <Link href="/" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary" data-testid="link-back-to-showroom"><ArrowLeft className="h-4 w-4" /> Back to showroom</Link>
-        <div className="overflow-hidden rounded-xl border border-border bg-card">{children}</div>
+        <Link href="/" className="text-link mb-6 inline-flex min-h-11 items-center gap-2" data-testid="link-back-to-showroom"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to showroom</Link>
+        <div className="overflow-hidden rounded-sm border border-border bg-card">{children}</div>
       </div>
     </div>
   );
 
   if (query.isLoading) return shell(
-    <div className="flex h-64 flex-col items-center justify-center gap-4 p-8" data-testid="loading-viewing-session"><LoaderCircle className="h-7 w-7 animate-spin text-accent" /><span className="text-sm">Finding your booking…</span></div>,
+    <div className="flex min-h-64 flex-col items-center justify-center gap-4 p-6 text-center sm:p-10" role="status" aria-busy="true" data-testid="loading-viewing-session"><LoaderCircle className="h-7 w-7 text-primary motion-safe:animate-spin" aria-hidden="true" /><h1 className="heading-2 text-primary">Finding your booking…</h1><p className="text-sm leading-6 text-muted-foreground">Checking your test-drive details.</p></div>,
   );
   if (query.isError || !booking) {
     const unavailable = ![404, 410].includes(query.error?.status ?? 0);
     return shell(
       <div className="p-6 sm:p-10">
-        <CircleAlert className="mb-5 h-8 w-8 text-accent" />
-        <h1 className="font-display text-2xl font-semibold text-primary">{unavailable ? 'Booking temporarily unavailable' : 'Cannot find booking'}</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground" data-testid="status-viewing-error">{apiMessage(query.error, unavailable ? 'Your booking could not be loaded just now. Please try again.' : 'We could not find your booking. The link may have expired.')}</p>
-        <div className="mt-6 flex flex-wrap gap-3">
+        <CircleAlert className="mb-5 h-6 w-6 text-primary" aria-hidden="true" />
+        <PageHeading eyebrow="Your test drive" title={unavailable ? 'Booking temporarily unavailable' : 'Cannot find booking'} />
+        <p className="text-base leading-7 text-muted-foreground" role="alert" data-testid="status-viewing-error">{unavailable ? 'Your booking could not be loaded just now. Please try again or contact the showroom.' : 'We could not find your booking. The link may have expired or been replaced. Contact the showroom for help.'}</p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {unavailable && <Button onClick={() => void query.refetch()} disabled={query.isFetching} className="min-h-12">Try again</Button>}
-          <Button asChild variant="outline" className="min-h-12"><Link href="/">Back to showroom</Link></Button>
+          <Button asChild variant={unavailable ? 'outline' : 'default'} className="min-h-12"><Link href="/contact">Contact the showroom</Link></Button>
           {phoneHref && <Button asChild variant="outline" className="min-h-12"><a href={phoneHref}><Phone className="mr-2 h-4 w-4" /> Call us</a></Button>}
         </div>
       </div>,
@@ -113,7 +116,7 @@ export default function Viewing() {
 
   return shell(<>
     <div className="p-6 sm:p-10">
-      <p className="mb-3 text-xs font-medium tracking-wide text-muted-foreground">Reference {booking.reference}</p>
+      <p className="mb-3 break-all text-xs font-medium tracking-wide text-muted-foreground">Reference {booking.reference}</p>
       <h1 className="font-display text-2xl font-semibold tracking-tight text-primary sm:text-3xl">{isCancelled ? 'Test drive cancelled' : isPending ? 'Your test-drive request' : 'Your test drive'}</h1>
       <p className="mt-3 text-sm text-muted-foreground" data-testid="text-viewing-customer">Hello, {booking.customerName}.</p>
       {isPending && !isCancelled && <p className="mt-4 rounded-lg bg-secondary p-4 text-sm leading-6 text-primary" data-testid="status-viewing-pending">Awaiting showroom confirmation. We will email you when your requested time is confirmed.</p>}

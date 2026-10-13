@@ -1,6 +1,6 @@
 import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
@@ -16,6 +16,7 @@ import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
 import './premium-showroom.css';
 import './portal/portal-workspace.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
+import { customerThemeVariables } from '@/lib/customer-theme';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
@@ -49,10 +50,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
   const customerAccent = readableAccentForHsl(brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? brandAccent : '203.226 58.491% 31.176%');
   const accent = isStaff ? brandAccent : customerAccent;
-  const brandStyle = {
+  const brandStyle = useMemo(() => ({
     '--premium-accent': `hsl(${customerAccent})`,
     '--premium-accent-foreground': `hsl(${readableForegroundForHsl(customerAccent)})`,
-    ...Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })),
+    ...(isStaff ? Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })) : {}),
     ...(brandPrimary
       ? {
           '--dealer-primary': brandPrimary,
@@ -69,7 +70,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
           '--accent-foreground': readableForegroundForHsl(accent),
         }
       : {}),
-  } as CSSProperties;
+    ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff]);
+
+  useEffect(() => {
+    if (isStaff) return;
+    // Radix menus and dialogs live beneath body rather than the showroom shell.
+    // Carry the same dealer palette there, then restore it on staff routes.
+    const entries = Object.entries(brandStyle) as [string, string][];
+    const previous = entries.map(([key]) => [key, document.body.style.getPropertyValue(key)] as const);
+    for (const [key, value] of entries) document.body.style.setProperty(key, value);
+    return () => {
+      for (const [key, value] of previous) {
+        if (value) document.body.style.setProperty(key, value);
+        else document.body.style.removeProperty(key);
+      }
+    };
+  }, [brandStyle, isStaff]);
 
   useEffect(() => {
     const url = dealerConfig.presentation?.faviconUrl;
@@ -268,7 +285,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
           <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" onBlur={(event) => {
-            if (!isPremiumShowroom) return;
             const nextFocus = event.relatedTarget;
             if (!nextFocus || (!event.currentTarget.contains(nextFocus) && nextFocus !== menuButtonRef.current)) setMobileMenuOpen(false);
           }} className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">

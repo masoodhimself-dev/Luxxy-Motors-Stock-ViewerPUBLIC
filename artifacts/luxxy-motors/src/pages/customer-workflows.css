@@ -13,7 +13,7 @@
 .friendly-saved .saved-car-list > div { border-radius: 12px; }
 .friendly-saved .saved-car-list .vehicle-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .friendly-saved .saved-car-list .vehicle-card:hover { transform: none; box-shadow: none; }
-.friendly-saved .saved-car-list > div > .border-t { background: hsl(var(--secondary) / .2); }
+.friendly-saved .saved-car-list > div > .border-t { background: var(--dealer-panel-subtle, hsl(var(--secondary) / .2)); }
 .friendly-saved .saved-car-list summary { color: hsl(var(--foreground)); font-size: 14px; }
 .friendly-saved .saved-car-list summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; border-radius: 4px; }
 .friendly-saved .saved-car-list details :is(dl, ul, p) { min-width: 0; }

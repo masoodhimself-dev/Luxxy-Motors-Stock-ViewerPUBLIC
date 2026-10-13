@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearch } from 'wouter';
 import { ArrowLeft, ArrowRight, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/page-ui';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { DealershipPhotograph } from '@/components/dealership-photograph';
@@ -69,7 +70,7 @@ export default function Warranty() {
           <div role="status" aria-busy="true" className="py-14 text-sm text-muted-foreground">Loading warranty information…</div>
         ) : settingsError || !settings.warranty?.enabled ? (
           <section className="max-w-2xl py-10 sm:py-16">
-            <h1 className="font-display text-3xl font-semibold tracking-tight">Warranty information</h1>
+            <PageHeading title="Warranty information" />
             <p className="mt-4 text-base leading-7 text-muted-foreground" role={settingsError ? 'alert' : undefined}>
               {settingsError ? 'We couldn’t load the latest warranty information. Please try again or contact the showroom.' : 'Please contact the showroom for information about your vehicle and any existing warranty.'}
             </p>

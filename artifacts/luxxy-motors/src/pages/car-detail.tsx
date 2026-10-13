@@ -41,6 +41,7 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/page-ui';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
@@ -102,16 +103,18 @@ export default function CarDetail() {
         className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] bg-background"
         aria-label="Loading vehicle"
         aria-busy="true"
+        role="status"
       >
+        <span className="sr-only">Loading vehicle details…</span>
         <div className="container mx-auto grid gap-12 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_460px] lg:items-start lg:gap-14 lg:px-8">
           <div className="space-y-4 lg:col-start-1 lg:row-start-1">
-            <div className="aspect-video w-full animate-pulse bg-primary/10 border border-primary" />
-            <div className="h-[4.5rem] w-full animate-pulse bg-primary/10 border border-primary" />
+            <div className="aspect-video w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
+            <div className="h-[4.5rem] w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
           </div>
           <div className="space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 border border-primary bg-background p-8 shadow-none">
-            <div className="h-10 w-3/4 animate-pulse bg-primary/10" />
-            <div className="h-16 w-1/2 animate-pulse bg-primary/10" />
-            <div className="h-40 w-full animate-pulse bg-primary/10" />
+            <div className="h-10 w-3/4 motion-safe:animate-pulse bg-muted" aria-hidden="true" />
+            <div className="h-16 w-1/2 motion-safe:animate-pulse bg-muted" aria-hidden="true" />
+            <div className="h-40 w-full motion-safe:animate-pulse bg-muted" aria-hidden="true" />
           </div>
         </div>
       </div>
@@ -120,15 +123,13 @@ export default function CarDetail() {
 
   if (error) {
     return <div className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] px-5 py-16"><div className="mx-auto max-w-xl" role="alert">
-      <p className="luxxy-kicker">Vehicle details</p>
-      <h1 className="mt-4 font-display text-3xl font-semibold">Vehicle details could not be loaded</h1>
-      <p className="mt-4 text-muted-foreground">We could not check this vehicle’s current details. Please try again.</p>
-      <Button className="mt-6" onClick={() => window.location.reload()}>Try again</Button>
+      <PageHeading eyebrow="Vehicle details" title="Vehicle details could not be loaded" description="We could not check this vehicle’s current details. Please try again, or browse the showroom." />
+      <div className="flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button></div>
     </div></div>;
   }
 
   if (!stock || !stock.cars) return <NotFound />;
-  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title="This car isn’t in our current stock" description="This vehicle is no longer listed here. Browse the latest cars, or ask the team about this vehicle." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);

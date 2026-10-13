@@ -233,7 +233,7 @@ export function CarCard({
               !isRow && !isCompact && "vehicle-card-heading",
             )}
           >
-            <h3 className="font-display text-lg font-semibold leading-snug tracking-tight text-primary">
+            <h3 className="[overflow-wrap:anywhere] font-display text-lg font-semibold leading-snug tracking-tight text-primary">
               <Link
                 href={detailHref}
                 onClick={recordVehicleOpen}
@@ -269,7 +269,7 @@ export function CarCard({
             <VehicleSellingPoints car={car} compact />
             <div className="vehicle-specs mb-3 mt-2">
               {visibleSpecs.map((spec) => (
-                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex items-center gap-1.5" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
+                <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
               ))}
             </div>
             {(!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}

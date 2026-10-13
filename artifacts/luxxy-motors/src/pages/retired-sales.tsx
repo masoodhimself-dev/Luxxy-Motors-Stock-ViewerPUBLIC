@@ -1,4 +1,20 @@
 import { Link } from 'wouter';
+import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/page-ui';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { usePageMeta } from '@/hooks/use-page-meta';
+
 export default function RetiredSalesPage() {
-  return <main className="container mx-auto max-w-xl px-4 py-16"><h1 className="heading-2">This link is no longer available</h1><p className="mt-4 text-muted-foreground">This customer paperwork service has been withdrawn. Please contact the dealership for help with your purchase.</p><Link href="/contact" className="text-link mt-6 min-h-11">Contact the dealership</Link></main>;
+  const { settings } = useDealerSettings();
+  usePageMeta({ title: `Purchase link unavailable | ${settings.identity.name}`, description: 'Contact the dealership for help with your purchase or paperwork.' });
+
+  return <div className="luxxy-shell flex min-h-[60vh] items-center px-4 py-12 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-xl rounded-sm border border-border bg-card p-6 sm:p-10">
+      <PageHeading eyebrow="Your purchase" title="This link is no longer available" description="Please contact the dealership for help with your purchase or paperwork. If you have a sales reference, keep it handy so the team can find your records." />
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <Button asChild><Link href="/contact">Contact the dealership</Link></Button>
+        <Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button>
+      </div>
+    </section>
+  </div>;
 }

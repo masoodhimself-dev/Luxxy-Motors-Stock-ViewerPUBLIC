@@ -1,7 +1,52 @@
 /* Home presentation only. Dealer content and stock browsing stay independent. */
 .homepage-art-directed.homepage-premium {
+  --primary: var(--dealer-panel-primary-hsl, 209 37% 16%);
+  --primary-foreground: var(--dealer-panel-primary-foreground-hsl, 0 0% 100%);
+  --accent: var(--dealer-panel-accent-hsl, 204 59% 31%);
+  --accent-foreground: var(--dealer-panel-accent-foreground-hsl, 0 0% 100%);
+  --secondary: var(--dealer-panel-subtle-hsl, 210 13% 94%);
+  --muted: var(--dealer-panel-subtle-hsl, 210 13% 94%);
+  --foreground: var(--dealer-panel-ink-hsl, 209 37% 16%);
+  --muted-foreground: var(--dealer-panel-muted-hsl, 204 14% 38%);
+  --premium-accent: var(--dealer-panel-accent, #215a7e);
+  --premium-accent-foreground: hsl(var(--dealer-panel-accent-foreground-hsl, 0 0% 100%));
+  --home-surface-muted: var(--dealer-panel-muted, #596c7b);
+  --dealer-heading: var(--dealer-panel-ink, #20303c);
+  --dealer-link: var(--dealer-panel-link, #215a7e);
   --home-section-space: clamp(40px, 4.5vw, 64px);
   background: var(--premium-panel, #fff);
+}
+/* Page-coloured bands and card-coloured panels each use their own readable text. */
+.homepage-art-directed.homepage-premium :is(.customer-reviews, .home-services) {
+  --primary: var(--dealer-page-primary-hsl, 209 37% 16%);
+  --primary-foreground: var(--dealer-page-primary-foreground-hsl, 0 0% 100%);
+  --accent: var(--dealer-page-accent-hsl, 204 59% 31%);
+  --accent-foreground: var(--dealer-page-accent-foreground-hsl, 0 0% 100%);
+  --secondary: var(--dealer-page-subtle-hsl, 210 13% 94%);
+  --muted: var(--dealer-page-subtle-hsl, 210 13% 94%);
+  --foreground: var(--dealer-page-ink-hsl, 209 37% 16%);
+  --muted-foreground: var(--dealer-page-muted-hsl, 204 14% 38%);
+  --premium-accent: var(--dealer-page-accent, #215a7e);
+  --premium-accent-foreground: hsl(var(--dealer-page-accent-foreground-hsl, 0 0% 100%));
+  --home-surface-muted: var(--dealer-page-muted, #596c7b);
+  --dealer-heading: var(--dealer-page-ink, #20303c);
+  --dealer-link: var(--dealer-page-link, #215a7e);
+}
+.homepage-art-directed.homepage-premium :is(.rolling-stock, .review-panel, #visit) {
+  --primary: var(--dealer-panel-primary-hsl, 209 37% 16%);
+  --primary-foreground: var(--dealer-panel-primary-foreground-hsl, 0 0% 100%);
+  --accent: var(--dealer-panel-accent-hsl, 204 59% 31%);
+  --accent-foreground: var(--dealer-panel-accent-foreground-hsl, 0 0% 100%);
+  --secondary: var(--dealer-panel-subtle-hsl, 210 13% 94%);
+  --muted: var(--dealer-panel-subtle-hsl, 210 13% 94%);
+  --foreground: var(--dealer-panel-ink-hsl, 209 37% 16%);
+  --muted-foreground: var(--dealer-panel-muted-hsl, 204 14% 38%);
+
+  --premium-accent: var(--dealer-panel-accent, #215a7e);
+  --premium-accent-foreground: hsl(var(--dealer-panel-accent-foreground-hsl, 0 0% 100%));
+  --home-surface-muted: var(--dealer-panel-muted, #596c7b);
+  --dealer-heading: var(--dealer-panel-ink, #20303c);
+  --dealer-link: var(--dealer-panel-link, #215a7e);
 }
 .homepage-art-directed.homepage-premium .text-link { color: var(--dealer-link, var(--premium-ink, #20303c)); }
 
@@ -12,7 +57,9 @@
 }
 
 .homepage-art-directed.homepage-premium .stock-search-shade {
-  background: linear-gradient(90deg, rgba(13, 25, 33, .88), rgba(13, 25, 33, .63) 32%, rgba(13, 25, 33, .12) 68%);
+  /* Protect small form labels even over a bright dealer photograph; retain the
+     light shade on the photograph beyond the form's side of the page. */
+  background: linear-gradient(90deg, rgba(13, 25, 33, .88), rgba(13, 25, 33, .72) 50%, rgba(13, 25, 33, .12) 68%);
 }
 
 .homepage-art-directed.homepage-premium .stock-search-panel { max-width: 440px; }
@@ -62,23 +109,23 @@
   border-radius: 6px;
   padding: 12px 34px 12px 13px;
   background: var(--premium-panel, #fff);
-  color: var(--dealer-heading, #20303c);
+  color: var(--dealer-panel-ink, #20303c);
   font-size: 16px;
   line-height: 1.5;
 }
 .homepage-art-directed.homepage-premium .hero-search-field select:disabled {
-  background: var(--dealer-page, #edf1f4);
-  color: #667580;
+  background: hsl(var(--secondary));
+  color: var(--dealer-panel-muted, #667580);
   opacity: 1;
 }
-.homepage-art-directed.homepage-premium .hero-search-field select option { background: var(--premium-panel, #fff); color: var(--dealer-heading, #20303c); }
+.homepage-art-directed.homepage-premium .hero-search-field select option { background: var(--premium-panel, #fff); color: var(--dealer-panel-ink, #20303c); }
 .homepage-art-directed.homepage-premium .hero-search-field svg {
   top: auto;
   bottom: 16px;
   right: 12px;
   width: 16px;
   height: 16px;
-  color: #4f6575;
+  color: var(--dealer-panel-muted, #4f6575);
 }
 .homepage-art-directed.homepage-premium .hero-search-submit {
   min-height: 50px;
@@ -89,7 +136,7 @@
   font-weight: 600;
   padding: 13px 16px;
 }
-.homepage-art-directed.homepage-premium .hero-search-submit:hover { background: color-mix(in srgb, var(--premium-accent, #215a7e), #192a36 16%); }
+.homepage-art-directed.homepage-premium .hero-search-submit:hover { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .homepage-art-directed.homepage-premium .hero-stock-search :is(select, button):focus-visible {
   outline: 3px solid #c6e6fa;
   outline-offset: 3px;
@@ -146,6 +193,7 @@
   font-weight: 600;
   letter-spacing: -.018em;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .homepage-art-directed.homepage-premium .rolling-stock .vehicle-card-price { justify-content: flex-start; margin-top: 7px; }
 .homepage-art-directed.homepage-premium .rolling-stock .luxxy-price {
@@ -164,19 +212,19 @@
   letter-spacing: -.025em;
 }
 .homepage-art-directed.homepage-premium .rolling-stock-footer .text-link { font-size: 13px; }
-.homepage-art-directed.homepage-premium .rolling-stock-footer .rolling-stock-toggle { color: #5b6b77; font-weight: 400; }
+.homepage-art-directed.homepage-premium .rolling-stock-footer .rolling-stock-toggle { color: var(--home-surface-muted, #5b6b77); font-weight: 400; }
 
 .homepage-art-directed.homepage-premium :is(.customer-reviews, #visit, .home-services) { padding-block: var(--home-section-space); }
 .homepage-art-directed.homepage-premium .section-heading { color: var(--dealer-heading, #20303c); letter-spacing: -.025em; }
-.homepage-art-directed.homepage-premium .luxxy-kicker { color: #596c7b; font-size: 12px; font-weight: 500; line-height: 1.5; }
+.homepage-art-directed.homepage-premium .luxxy-kicker { color: var(--home-surface-muted, #596c7b); font-size: 12px; font-weight: 500; line-height: 1.5; }
 .homepage-art-directed.homepage-premium .customer-reviews { background: var(--dealer-page, #f5f7f9); border-color: #e0e6eb; }
 .homepage-art-directed.homepage-premium .review-panel { padding: 24px; background: var(--premium-panel, #fff); border: 1px solid #dde4ea; border-radius: 6px; }
 .homepage-art-directed.homepage-premium .review-panel > [role="img"] { color: var(--premium-accent, #215a7e); }
-.homepage-art-directed.homepage-premium .review-panel blockquote { font-size: 15px; line-height: 1.8; color: #354653; }
+.homepage-art-directed.homepage-premium .review-panel blockquote { font-size: 15px; line-height: 1.8; color: var(--home-surface-muted, #354653); }
 .homepage-art-directed.homepage-premium .review-verification { color: var(--premium-accent, #215a7e); }
 .homepage-art-directed.homepage-premium #visit { background: var(--premium-panel, #fff); }
 .homepage-art-directed.homepage-premium #visit .visit-story { gap: 24px; }
-.homepage-art-directed.homepage-premium #visit :is(address, p, dl) { color: #566774; font-size: 15px; line-height: 1.65; }
+.homepage-art-directed.homepage-premium #visit :is(address, p, dl) { color: var(--home-surface-muted, #566774); font-size: 15px; line-height: 1.65; }
 .homepage-art-directed.homepage-premium #visit h3 { color: var(--dealer-heading, #20303c); }
 .homepage-art-directed.homepage-premium #visit .visit-story > ul { border-color: #dce3e9; }
 .homepage-art-directed.homepage-premium #visit .visit-story > ul > li { padding-block: 17px; }
@@ -184,10 +232,13 @@
 .homepage-art-directed.homepage-premium .home-service-grid { gap: 32px; margin-top: 28px; }
 .homepage-art-directed.homepage-premium .home-service-grid article { border-color: #d2dde5; padding-top: 22px; }
 .homepage-art-directed.homepage-premium .home-service-grid article h3 { color: var(--dealer-heading, #20303c); font-size: 20px; line-height: 1.4; letter-spacing: -.02em; }
-.homepage-art-directed.homepage-premium .home-service-grid article p { color: #566774; font-size: 15px; line-height: 1.75; }
+.homepage-art-directed.homepage-premium .home-service-grid article p { color: var(--home-surface-muted, #566774); font-size: 15px; line-height: 1.75; }
 
+@media (min-width: 768px) and (max-width: 1023px) {
+  .homepage-art-directed.homepage-premium .stock-search-shade { background: linear-gradient(90deg, rgba(13, 25, 33, .88), rgba(13, 25, 33, .72) 65%, rgba(13, 25, 33, .12) 90%); }
+}
 @media (max-width: 767px) {
-  .homepage-art-directed.homepage-premium .stock-search-shade { background: linear-gradient(90deg, rgba(13, 25, 33, .83), rgba(13, 25, 33, .44)); }
+  .homepage-art-directed.homepage-premium .stock-search-shade { background: linear-gradient(90deg, rgba(13, 25, 33, .83), rgba(13, 25, 33, .72)); }
 }
 @media (max-width: 639px) {
   .homepage-art-directed.homepage-premium .stock-search-hero { min-height: 0; padding: calc(var(--site-header-height) + 28px) 0 24px; }

@@ -2,11 +2,11 @@
 .customer-site {
   --app-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: var(--app-font-sans);
-  --premium-ink: var(--dealer-heading, #192a36);
-  --premium-muted: #586976;
+  --premium-ink: var(--dealer-page-ink, var(--dealer-heading, #192a36));
+  --premium-muted: var(--dealer-page-muted, #586976);
   --premium-canvas: var(--dealer-page, #f5f6f7);
   --premium-panel: var(--dealer-panel, #fff);
-  --premium-border: #dce2e6;
+  --premium-border: var(--dealer-page-border, #dce2e6);
   font-family: var(--app-font-sans);
   font-weight: 400;
   line-height: 1.6;
@@ -24,23 +24,74 @@
   outline-color: var(--premium-accent);
   outline-offset: 3px;
 }
-.premium-showroom :is([data-site-header] > .container, #contact > .container) {
+.customer-site :is([data-site-header] > .container, #contact > .container) {
   max-width: 1460px;
 }
-.premium-showroom [data-site-header] { box-shadow: none; }
-.premium-showroom [data-site-header] :is(nav button, nav a) { font-weight: 500; }
-.premium-showroom [data-site-header] #mobile-navigation { background: #fff; }
-.premium-showroom [data-site-header] #mobile-navigation :is(a, button) { color: var(--premium-ink); }
-.premium-showroom #contact { padding-block: 48px 24px; }
-.premium-showroom #contact h3 { font-size: 1rem; font-weight: 600; }
-.customer-site #contact .text-accent { color: hsl(var(--primary-foreground)); opacity: .75; }
-.premium-showroom #contact :is(p, address) { font-weight: 400; line-height: 1.7; }
+.customer-site [data-site-header] { box-shadow: none; }
+.customer-site [data-site-header] :is(nav button, nav a) { font-weight: 500; }
+.customer-site [data-site-header] {
+  --primary: var(--dealer-panel-primary-hsl);
+  --primary-foreground: var(--dealer-panel-primary-foreground-hsl);
+  --accent: var(--dealer-panel-accent-hsl);
+  --accent-foreground: var(--dealer-panel-accent-foreground-hsl);
+  --secondary: var(--dealer-panel-subtle-hsl);
+  --secondary-foreground: var(--dealer-panel-ink-hsl);
+  --border: var(--dealer-panel-border-hsl);
+  --ring: var(--dealer-panel-accent-hsl);
+  --destructive: var(--dealer-panel-destructive-hsl);
+  --destructive-foreground: var(--dealer-panel-destructive-foreground-hsl);
+  --customer-error-surface: var(--dealer-panel-error-surface);
+  background: var(--dealer-panel);
+}
+.customer-site [data-site-header] #mobile-navigation { background: var(--dealer-panel); color: var(--dealer-panel-ink); }
+.customer-site [data-site-header] #mobile-navigation :is(a, button) { color: var(--dealer-panel-ink); }
+.customer-site [data-site-header] :is(nav button, nav a) { color: var(--dealer-panel-ink); }
+.customer-site [data-site-header] :is(nav button, nav a):hover { color: var(--dealer-panel-link); }
+.customer-site [data-site-header] nav button[class*='bg-primary'] { color: hsl(var(--primary-foreground)); }
+.customer-site [data-site-header] nav button[class*='bg-primary']:hover { color: hsl(var(--accent-foreground)); }
+.customer-site #contact {
+  --primary-foreground: var(--dealer-primary-foreground);
+  background: var(--customer-footer-background);
+  color: var(--customer-footer-foreground);
+  --ring: var(--customer-footer-foreground-hsl);
+}
+.customer-site #contact :is(.text-primary-foreground, [class*='text-primary-foreground/']) { color: var(--customer-footer-foreground); }
+.customer-site #contact :is(p, address, [class*='text-primary-foreground/']) { color: var(--customer-footer-muted); }
+.customer-site #contact :is(a, button) { color: var(--customer-footer-foreground); }
+.customer-site #contact { padding-block: 48px 24px; }
+.customer-site #contact h3 { font-size: 1rem; font-weight: 600; }
+.customer-site #contact .text-accent { color: var(--customer-footer-muted); }
+.customer-site #contact :is(p, address) { font-weight: 400; line-height: 1.7; }
 /* Portals inherit document styles, so opt the typography in by route only. */
-body:has(.customer-site) :is([role='dialog'], [role='tooltip'], [data-radix-popper-content-wrapper]) {
+body:has(.customer-site) :is([role='dialog'], [role='alertdialog'], [role='tooltip'], [data-radix-popper-content-wrapper]) {
   --app-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: var(--app-font-sans);
   font-family: var(--app-font-sans);
+  --premium-ink: var(--dealer-panel-ink);
+  --premium-muted: var(--dealer-panel-muted);
+  --dealer-heading: var(--dealer-panel-ink);
+  --dealer-link: var(--dealer-panel-link);
+  --premium-accent: var(--dealer-panel-accent);
+  --premium-accent-foreground: hsl(var(--dealer-panel-accent-foreground-hsl));
+  --foreground: var(--dealer-panel-ink-hsl);
+  --background: var(--card);
+  --muted-foreground: var(--dealer-panel-muted-hsl);
+  --primary: var(--dealer-panel-primary-hsl);
+  --primary-foreground: var(--dealer-panel-primary-foreground-hsl);
+  --accent: var(--dealer-panel-accent-hsl);
+  --accent-foreground: var(--dealer-panel-accent-foreground-hsl);
+  --secondary: var(--dealer-panel-subtle-hsl);
+  --secondary-foreground: var(--dealer-panel-ink-hsl);
+  --muted: var(--dealer-panel-subtle-hsl);
+  --border: var(--dealer-panel-border-hsl);
+  --ring: var(--dealer-panel-accent-hsl);
+  --destructive: var(--dealer-panel-destructive-hsl);
+  --destructive-foreground: var(--dealer-panel-destructive-foreground-hsl);
+  --customer-error-surface: var(--dealer-panel-error-surface);
 }
+/* Generic confirmation content inherits body ink unless it is set explicitly.
+   Its palette variables alone cannot change an already-computed parent colour. */
+body:has(.customer-site) [role='alertdialog'] { color: hsl(var(--foreground)); }
 @media (max-width: 767px) {
-  .premium-showroom #contact { padding-block: 36px 20px; }
+  .customer-site #contact { padding-block: 36px 20px; }
 }

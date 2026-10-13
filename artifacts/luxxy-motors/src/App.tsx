@@ -104,7 +104,7 @@ function Router() {
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={location} showCustomerHelp={location !== '/platform' && location !== '/staff-upload'}>{children}</ErrorBoundary>;
 }
 
 /** Clears cached portal data when the signed-in staff member changes. */
