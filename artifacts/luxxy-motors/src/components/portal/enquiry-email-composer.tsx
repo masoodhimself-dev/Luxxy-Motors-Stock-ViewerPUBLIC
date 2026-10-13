@@ -79,10 +79,12 @@ function Photo({
   carId,
   id,
   index,
+  category,
 }: {
   carId: string;
   id: string;
   index: number;
+  category?: string;
 }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
@@ -107,9 +109,9 @@ function Photo({
       href={url}
       target="_blank"
       rel="noreferrer"
-      aria-label={`Inspect service-book photo ${index + 1}`}
+      aria-label={`Inspect ${category === "pre_accident" ? "pre-accident" : "service-book"} photo ${index + 1}`}
     >
-      <img src={url} alt={`Service-book photo ${index + 1}`} />
+      <img src={url} alt={`${category === "pre_accident" ? "Pre-accident" : "Service-book"} photo ${index + 1}`} />
     </a>
   ) : (
     <span className="enquiry-email-photo-empty">Preview unavailable</span>
@@ -273,7 +275,7 @@ export function EnquiryEmailComposer({
                   "This request is still recorded as sending. Check the email history and Resend before sending another copy."}
             </p>
             <p>
-              {delivery.photoCount} service-book photo
+              {delivery.photoCount} vehicle photo
               {delivery.photoCount === 1 ? "" : "s"} · recorded in enquiry
               history
             </p>
@@ -428,7 +430,7 @@ export function EnquiryEmailComposer({
                     {data.vehicleId && (
                       <section
                         className="enquiry-email-service-book"
-                        aria-label="Service-book attachments"
+                        aria-label="Private vehicle-photo attachments"
                       >
                         <h3>
                           Vehicle photos <span>Optional</span>
@@ -446,6 +448,7 @@ export function EnquiryEmailComposer({
                                     carId={data.vehicleId!}
                                     id={photo.id}
                                     index={index}
+                                    category={photo.category}
                                   />
                                   <label>
                                     <input

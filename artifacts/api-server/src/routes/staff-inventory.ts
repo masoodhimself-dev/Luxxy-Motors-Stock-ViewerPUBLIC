@@ -501,7 +501,7 @@ router.post("/staff/inventory/:id/unreserve", async (req, res) => {
       };
     for (const row of sales) {
       const state = row.state as any;
-      if (!["reserved", "sold"].includes(state.lifecycle?.status)) continue;
+      if (state.lifecycle?.status === "released") continue;
       const paid = (state.payments ?? [])
         .filter((p: any) => p.status === "confirmed")
         .reduce((n: number, p: any) => n + Number(p.signedAmountPence), 0);
