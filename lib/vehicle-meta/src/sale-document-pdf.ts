@@ -191,9 +191,12 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
       ['Service history', vehicle?.serviceHistory], ['Doors / seats', [vehicle?.doors ? `${vehicle.doors} doors` : '', vehicle?.seats ? `${vehicle.seats} seats` : ''].filter(Boolean).join(' / ')],
       ['Write-off category', vehicle?.writeOffCategory],
     ];
-    const facts = suppliedFacts.filter(row => Boolean(supplied(row[1])));
+    const presentFacts = suppliedFacts.filter(row => Boolean(supplied(row[1])));
+    const facts = presentFacts.filter(([, value]) => split(value, 49, 9, true).length <= 3);
+    const extendedFacts = presentFacts.filter(([, value]) => split(value, 49, 9, true).length > 3);
     const titleRows = split(draft.vehicle || vehicle?.title || '', 112, 15, true);
-    const headerHeight = Math.max(30, 12 + titleRows.length * 6.5 + (draft.registration ? 9 : 0));
+    const registrationRows = draft.registration ? split(`Registration  ${draft.registration}`, 112, 10.5, true) : [];
+    const headerHeight = Math.max(30, 18 + (titleRows.length - 1) * 6.5 + registrationRows.length * 5 + 6);
     const rowHeights = Array.from({length: Math.ceil(facts.length / 3)}, (_, row) => Math.max(10.3, ...facts.slice(row * 3, row * 3 + 3).map(([, value]) => 6 + split(value, 49, 9, true).length * 4.3)));
     const panelHeight = headerHeight + rowHeights.reduce((sum, h) => sum + h, 0) + 2;
     ensure(panelHeight + 8);
@@ -202,7 +205,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     const top = y;
     font(7.5, true, accent); pdf.text('YOUR VEHICLE', left + 6, top + 8);
     font(15, true); pdf.text(titleRows, left + 6, top + 17);
-    if (draft.registration) { font(10.5, true, muted); pdf.text(`Registration  ${clean(draft.registration)}`, left + 6, top + 18 + titleRows.length * 6.5); }
+    if (draft.registration) { font(10.5, true, muted); pdf.text(registrationRows, left + 6, top + 18 + titleRows.length * 6.5); }
     const photo = vehicle?.photoDataUrl;
     if (photo && /^data:image\/(?:png|jpe?g);base64,[A-Za-z0-9+/=]+$/.test(photo) && photo.length < 2_800_000) {
       try {
@@ -220,6 +223,7 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
       if (index % 3 === 2 || index === facts.length - 1) y += rowHeights[Math.floor(index / 3)];
     });
     y = top + panelHeight + 5;
+    if (extendedFacts.length) { section('Additional vehicle details'); for (const [label,value] of extendedFacts) line(`${label}: ${value}`, 9); }
   };
   const amountRow = (label: string, amount: number, bold = false) => {
     const rows = split(label, 126, 9.5, bold), height = Math.max(compactInvoice ? 8.5 : 10, rows.length * 4.4 + (compactInvoice ? 4 : 5));
