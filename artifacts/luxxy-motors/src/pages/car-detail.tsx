@@ -388,7 +388,7 @@ export default function CarDetail() {
               <VehicleSpecificationDetails car={car} />
             </section>}
             {(vehicleRunningCostFacts.length > 0 || listingHighlights.length > 0) && <div className="vehicle-costs-panel">
-              <VehicleRunningCosts car={car} />
+              <VehicleRunningCosts car={car} comparisonCars={stock?.cars ?? []} />
               {listingHighlights.length > 0 && <details className="vehicle-source-comparisons"><summary>How this car compares</summary><VehicleListingHighlights car={car} /></details>}
             </div>}
             </div>}
