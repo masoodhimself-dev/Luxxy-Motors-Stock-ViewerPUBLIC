@@ -1,9 +1,10 @@
-import { Settings2, Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle } from 'lucide-react';
+import { Settings2, Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
@@ -68,8 +69,11 @@ function PublicationHistory() {
 }
 export function DealerSettingsHub() {
   const editorRoot = useRef<HTMLDivElement>(null);
+  const mobile = useIsMobile();
+  const mobileHeading = useRef<HTMLHeadingElement>(null);
   const access = useStaffAccess(); const search = useSearch(); const [,navigate] = useLocation(); const [section, setSection] = useState(() => new URLSearchParams(search).get('settingsTab') ?? 'website');
   useEffect(() => { const id = new URLSearchParams(search).get('settingsTab') ?? 'website'; setSection(['website','emails','integrations','paperwork','chat','team','history'].includes(id) ? id : 'website'); }, [search]);
+  useEffect(() => { if (mobile && !new URLSearchParams(search).has('websiteSection')) requestAnimationFrame(() => { mobileHeading.current?.scrollIntoView({ block: 'start' }); mobileHeading.current?.focus({ preventScroll: true }); }); }, [search, mobile]);
   if (access.isLoading) return <p role="status">Loading settings access…</p>;
   if (access.isError) return <Feedback error={access.error} />;
   if (!access.data?.permissions.includes('settings.publish')) return <div className="admin-card"><h2>Owner settings</h2><p>Your role does not have permission to publish dealership settings.</p></div>;
@@ -84,13 +88,20 @@ export function DealerSettingsHub() {
   ].filter(([id]) => id !== 'chat' || customerFeaturePolicy.websiteChat);
   const selectedSection = sections.some(([id]) => id === section) ? section : 'website';
   const categoryIcons: Record<string, typeof Globe2> = { website: Globe2, emails: Mail, integrations: PlugZap, paperwork: FileText, chat: MessageCircle, team: Users, history: History };
-  const chooseSection = (id: string) => { if (id === selectedSection) return; if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') && !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return; setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); };
-  return <div className="dealer-settings-hub settings-hub-redesign">
-    <header className="settings-hub-heading"><div className="settings-hub-mark"><Settings2 size={24} aria-hidden="true" /></div><div><p>Dealership workspace</p><h2>Dealership settings</h2><span>Your website, customer messages and business tools, in one place.</span></div></header>
-    <label className="settings-mobile-category"><span>Settings category</span><NativeSelect value={selectedSection} onChange={event => chooseSection(event.target.value)}>{sections.map(([id,label]) => <option key={id} value={id}>{label}</option>)}</NativeSelect></label>
+  const chooseSection = (id: string) => { if (id === selectedSection && (!mobile || new URLSearchParams(search).has('settingsTab'))) return; if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') && !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return; setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); };
+  const mobileHome = mobile && !new URLSearchParams(search).has('settingsTab');
+  const backToSettings = () => {
+    if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') && !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return;
+    navigate('/portal?section=settings');
+  };
+  const shortDescriptions: Record<string,string> = { website:'Showroom, hours, bookings and your website', emails:'Customer messages and email branding', paperwork:'Invoices, receipts and sale terms', chat:'Customer chat and welcome messages', integrations:'Email API and stock feed connections', team:'Staff accounts and permissions', history:'Previous website publications' };
+  const mobileRows = (ids: string[]) => <div className="settings-app-list">{sections.filter(([id]) => ids.includes(id)).map(([id,label]) => { const Icon = categoryIcons[id]; return <button type="button" key={id} className="settings-app-row" aria-label={label} onClick={() => chooseSection(id)}><span className="settings-app-icon"><Icon size={21} aria-hidden="true" /></span><span><strong>{label}</strong><small>{shortDescriptions[id]}</small></span><ChevronRight size={18} aria-hidden="true" /></button>; })}</div>;
+  return <div className={`dealer-settings-hub settings-hub-redesign${mobile ? ' settings-app' : ''}`}>
+    {mobile ? <header className="settings-app-header">{!mobileHome && <button type="button" className="settings-app-back" onClick={backToSettings}><ChevronLeft size={20} aria-hidden="true" />Settings</button>}<h2 ref={mobileHeading} tabIndex={-1}>{mobileHome ? 'Settings' : sections.find(([id]) => id === selectedSection)?.[1]}</h2>{mobileHome && <p>Make a quick change, then get back to your day.</p>}</header> : <header className="settings-hub-heading"><div className="settings-hub-mark"><Settings2 size={24} aria-hidden="true" /></div><div><p>Dealership workspace</p><h2>Dealership settings</h2><span>Your website, customer messages and business tools, in one place.</span></div></header>}
+    {mobileHome ? <div className="settings-app-home"><h3>Everyday settings</h3>{mobileRows(['website','emails','paperwork','chat'])}<details className="settings-app-advanced"><summary><span><strong>Advanced settings</strong><small>Connections, staff access and publish history</small></span><ChevronRight size={18} aria-hidden="true" /></summary>{mobileRows(['integrations','team','history'])}</details><p className="settings-app-help">Website changes stay in a draft until you review and publish. Other areas have their own save button.</p></div> : <>
     <div className="settings-hub-layout">
       <nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => { const Icon = categoryIcons[id]; return <button type="button" key={id} aria-current={selectedSection === id ? 'page' : undefined} onClick={() => chooseSection(id)}><Icon size={19} aria-hidden="true"/><span>{label}</span></button>; })}<p className="settings-nav-help">Each area has its own save controls. Website changes are reviewed before publishing.</p></nav>
       <div ref={editorRoot} className="settings-hub-content"><p className="settings-category-description" role="status">{sections.find(([id]) => id === selectedSection)?.[2]}</p><div key={selectedSection}>{selectedSection === 'website' && <DealerSettingsPanel />}{selectedSection === 'emails' && <EmailTemplatesSettings />}{selectedSection === 'integrations' && <DealerIntegrationsSettings />}{selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{selectedSection === 'chat' && <CustomerChatSettings />}{selectedSection === 'team' && <TeamSettings />}{selectedSection === 'history' && <PublicationHistory />}</div></div>
-    </div>
+    </div></>}
   </div>;
 }

@@ -2,9 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DealerSettingsPanel } from './dealer-settings-panel';
+import { clearSettingsDraft } from '@/lib/settings-draft';
 import { previewSettings } from '../../preview/settings';
+const device = vi.hoisted(() => ({ mobile: false }));
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => device.mobile }));
 vi.mock('@/lib/stock-context', () => ({ useStock: () => ({stock:{cars:[]}}) }));
-afterEach(() => { vi.unstubAllGlobals(); sessionStorage.clear(); });
+afterEach(() => { device.mobile=false; clearSettingsDraft(); vi.unstubAllGlobals(); sessionStorage.clear(); window.history.replaceState({},'','/'); });
 it('retains changes across sections, reviews before publishing and sends one settings update', async () => {
   sessionStorage.clear();
   HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -40,4 +43,31 @@ it('prevents publishing an empty dealership name', async () => {
   fireEvent.click(screen.getByRole('button',{name:'Review changes'}));
   await waitFor(()=>expect(screen.getByTestId('settings-error-summary')).toHaveTextContent('Add the dealership name.'));
   expect(writes).toHaveLength(0);client.clear();
+});
+
+it('keeps phone website edits while moving back to quick settings and publishing the draft',async()=>{
+ sessionStorage.clear();
+ device.mobile=true;
+ window.history.replaceState({},'','/portal?section=settings&settingsTab=website');
+ HTMLElement.prototype.scrollIntoView=vi.fn();
+ let settings=structuredClone(previewSettings);settings.identity.name='Fictional Test Motors';const writes:unknown[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(_url,init)=>{if(init?.method==='PATCH'){settings=JSON.parse(init.body);writes.push(settings);}return Response.json(settings,{headers:{'x-settings-revision':writes.length?'5':'4'}});}));
+ const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
+ render(<QueryClientProvider client={client}><DealerSettingsPanel /></QueryClientProvider>);
+ await screen.findByRole('heading',{name:'Quick changes'});
+ expect(screen.getByText('Website customisation').closest('details')).not.toHaveAttribute('open');
+ fireEvent.click(screen.getByRole('button',{name:'Your showroom'}));
+ expect(window.location.search).toContain('websiteSection=contact');
+ const phone=screen.getByTestId('input-contact-phone');
+ fireEvent.change(phone,{target:{value:'07388831790'}});
+ fireEvent.click(screen.getByRole('button',{name:'Your website'}));
+ expect(screen.getByRole('heading',{name:'Quick changes'})).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Your showroom'}));
+ expect(screen.getByTestId('input-contact-phone')).toHaveValue('07388831790');
+ fireEvent.click(screen.getByRole('button',{name:'Review changes'}));
+ expect(screen.queryByTestId('settings-error-summary')?.textContent ?? '').toBe('');
+ await waitFor(()=>expect(window.location.search).toContain('websiteSection=review'));expect(writes).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button',{name:'Publish showroom'}));
+ await screen.findByText('Published to the showroom. Your changes are live.');
+ expect(writes).toHaveLength(1);expect(settings.contact.phone).toBe('07388831790');client.clear();
 });

@@ -100,3 +100,56 @@
 
 .settings-hub-redesign .admin-settings-tabs button { white-space: normal; }
 .settings-hub-redesign .admin-settings-tabs button span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* Phone Settings follows a grouped-list → focused-editor pattern. */
+@media(max-width:767px) {
+ .settings-app { padding-bottom:env(safe-area-inset-bottom,0px); }
+ .settings-app [hidden] { display:none!important; }
+ .settings-app-header { margin:0 0 20px; }
+ .settings-app-header h2 { font-size:30px; font-weight:650; line-height:1.25; letter-spacing:-.035em; scroll-margin-top:100px; outline:none; }
+ .settings-app-header>p { margin-top:8px; font-size:14px; color:var(--settings-muted); line-height:1.6; }
+ .settings-app-back { display:inline-flex; align-items:center; gap:4px; min-height:48px; padding:8px 6px 8px 0; margin-bottom:6px; color:var(--settings-accent); font-size:16px; font-weight:600; touch-action:manipulation; }
+ .settings-app-home { display:grid; gap:14px; }
+ .settings-app-home>h3 { margin:6px 4px -5px; font-size:13px; font-weight:600; color:var(--settings-muted); }
+ .settings-app-list { overflow:hidden; background:white; border:1px solid var(--settings-line); border-radius:16px; }
+ .settings-app-row { display:flex; width:100%; min-height:76px; align-items:center; gap:12px; padding:15px 14px; text-align:left; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+ .settings-app-row+.settings-app-row { border-top:1px solid #e8edf2; }
+ .settings-app-row>span:nth-child(2) { flex:1; min-width:0; }
+ .settings-app-row strong,.settings-app-advanced summary strong { display:block; font-size:16px; font-weight:600; line-height:1.35; color:var(--settings-ink); }
+ .settings-app-row small,.settings-app-advanced summary small { display:block; margin-top:5px; font-size:13px; line-height:1.45; color:var(--settings-muted); }
+ .settings-app-icon { display:grid; place-items:center; flex:0 0 38px; width:38px; height:38px; border-radius:11px; color:#215a7e; background:#edf4f9; }
+ .settings-app-row>svg { color:#8595a3; flex-shrink:0; }
+ .settings-app-row:active,.settings-app-advanced>summary:active { background:#eaf2f8; }
+ .settings-app-row:focus-visible,.settings-app-back:focus-visible,.settings-app-advanced>summary:focus-visible { outline:2px solid var(--settings-accent); outline-offset:-3px; }
+ .settings-app-advanced { margin-top:8px; border:1px solid var(--settings-line); border-radius:16px; background:#f7f9fb; }
+ .settings-app-advanced>summary { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:17px 16px; min-height:76px; list-style:none; cursor:pointer; touch-action:manipulation; }
+ .settings-app-advanced>summary::-webkit-details-marker { display:none; }
+ .settings-app-advanced>summary>svg { color:#8595a3; flex-shrink:0; }
+ .settings-app-advanced[open]>summary>svg { transform:rotate(90deg); }
+ .settings-app-advanced>.settings-app-list { border-width:1px 0 0; border-radius:0 0 16px 16px; }
+ .settings-app-help { font-size:13px; line-height:1.6; color:var(--settings-muted); padding:2px 5px; }
+ .settings-app .settings-category-description { display:none; }
+ .settings-app-subheader { margin-bottom:18px; }
+ .settings-app-subheader>p { font-size:14px; color:var(--settings-muted); margin-left:4px; }
+ .settings-app .settings-workspace { gap:14px; }
+ .settings-app .settings-section { padding:20px 16px; }
+ .settings-app .settings-section-heading { margin-bottom:18px; padding-bottom:16px; }
+ .settings-app .settings-section-eyebrow { display:none; }
+ .settings-app :is(button:not(.settings-app-row):not(.settings-app-back),a,input:not([type=checkbox]):not([type=radio]):not([type=color]),select) { min-height:48px; }
+ .settings-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size:16px; }
+ .settings-app .settings-studio .settings-save-bar { position:static; }
+ .settings-app .settings-save-actions { grid-template-columns:minmax(0,1fr); }
+ .settings-app .settings-save-actions>button { grid-row:1; font-size:16px; }
+ .settings-app .settings-save-actions>a { font-size:14px; border:0; background:transparent; }
+ .settings-app .integration-actions { display:flex; flex-wrap:wrap; }
+ .settings-app .integration-actions>button { flex:1 1 160px; }
+ .settings-app .integration-check { padding:10px 0; min-height:48px; }
+}
+@media(max-width:767px) {
+ .settings-app:has(.settings-app-subheader)>.settings-app-header { display:none; }
+ .settings-app-subheader { scroll-margin-top:100px; outline:none!important; }
+ .settings-app .settings-app-header h2:focus { outline:none!important; box-shadow:none; }
+}
+@media(max-width:767px) {
+ .settings-app .integration-heading :is(h2,.integration-eyebrow) { display:none; }
+}

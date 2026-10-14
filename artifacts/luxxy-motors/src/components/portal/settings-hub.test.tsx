@@ -2,13 +2,15 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DealerSettingsHub } from './dealer-administration';
+const device = vi.hoisted(() => ({ mobile: false }));
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => device.mobile }));
 vi.mock('@/components/dealer-settings-panel',()=>({DealerSettingsPanel:()=> <p>Website editor fixture</p>}));
 vi.mock('@/components/dealer-integrations-settings',()=>({DealerIntegrationsSettings:()=> <p>Integration editor fixture</p>}));
 vi.mock('@/components/email-templates-settings',()=>({EmailTemplatesSettings:()=> <p>Email editor fixture</p>}));
 vi.mock('@/components/sales-paperwork-settings',()=>({SalesPaperworkSettings:()=> <p>Invoice editor fixture</p>}));
 vi.mock('@/components/customer-chat-settings',()=>({CustomerChatSettings:()=> <p>Chat editor fixture</p>}));
-afterEach(()=>{vi.unstubAllGlobals();window.history.replaceState({},'','/');});
-it('supports desktop category buttons and the phone category chooser with bookmarkable URLs',async()=>{
+afterEach(()=>{device.mobile=false;vi.unstubAllGlobals();window.history.replaceState({},'','/');});
+it('supports desktop category buttons with bookmarkable URLs',async()=>{
  window.history.replaceState({},'','/portal?section=settings');
  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({role:'owner',permissions:['settings.publish'],user:{}})));
  const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
@@ -17,7 +19,7 @@ it('supports desktop category buttons and the phone category chooser with bookma
  fireEvent.click(screen.getByRole('button',{name:'Email templates'}));
  expect(await screen.findByText('Email editor fixture')).toBeInTheDocument();
  expect(window.location.search).toContain('settingsTab=emails');
- fireEvent.change(screen.getByRole('combobox',{name:'Settings category'}),{target:{value:'paperwork'}});
+ fireEvent.click(screen.getByRole('button',{name:'Sales documents'}));
  expect(await screen.findByText('Invoice editor fixture')).toBeInTheDocument();
  expect(window.location.search).toContain('settingsTab=paperwork');client.clear();
 });
@@ -40,4 +42,38 @@ it('keeps the selected category when staff decline to discard unsaved changes',a
  expect(window.confirm).toHaveBeenCalled();
  expect(screen.getByText('Website editor fixture')).toBeInTheDocument();
  expect(screen.queryByText('Email editor fixture')).not.toBeInTheDocument();client.clear();
+});
+
+it('opens a phone menu with advanced controls collapsed and supports back navigation',async()=>{
+ device.mobile=true;
+ HTMLElement.prototype.scrollIntoView=vi.fn();
+ window.history.replaceState({},'','/portal?section=settings');
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({role:'owner',permissions:['settings.publish'],user:{}})));
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ render(<QueryClientProvider client={client}><DealerSettingsHub /></QueryClientProvider>);
+ await screen.findByRole('heading',{name:'Everyday settings'});
+ expect(screen.queryByText('Website editor fixture')).not.toBeInTheDocument();
+ const advanced=screen.getByText('Advanced settings').closest('details');
+ expect(advanced).not.toHaveAttribute('open');
+ fireEvent.click(screen.getByRole('button',{name:'Website'}));
+ expect(await screen.findByText('Website editor fixture')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+ expect(await screen.findByRole('heading',{name:'Everyday settings'})).toBeInTheDocument();
+ expect(window.location.search).not.toContain('settingsTab=');
+ fireEvent.click(screen.getByText('Advanced settings'));
+ expect(screen.getByText('Advanced settings').closest('details')).toHaveAttribute('open');
+ fireEvent.click(screen.getByRole('button',{name:'Email & stock'}));
+ expect(await screen.findByText('Integration editor fixture')).toBeInTheDocument();client.clear();
+});
+it('protects unsaved edits when returning to the phone menu',async()=>{
+ device.mobile=true;
+ window.history.replaceState({},'','/portal?section=settings&settingsTab=emails');
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({role:'owner',permissions:['settings.publish'],user:{}})));
+ vi.stubGlobal('confirm',vi.fn().mockReturnValue(false));
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ render(<QueryClientProvider client={client}><DealerSettingsHub /></QueryClientProvider>);
+ (await screen.findByText('Email editor fixture')).setAttribute('data-settings-dirty','true');
+ fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+ expect(window.confirm).toHaveBeenCalled();expect(window.location.search).toContain('settingsTab=emails');
+ expect(screen.queryByRole('heading',{name:'Everyday settings'})).not.toBeInTheDocument();client.clear();
 });

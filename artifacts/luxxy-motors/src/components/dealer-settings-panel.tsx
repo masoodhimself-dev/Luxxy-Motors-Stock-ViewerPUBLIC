@@ -20,6 +20,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useStock } from '@/lib/stock-context';
 import { formatPrice, getThumbnailUrl, vehicleDisplayTitle, vehicleRegistrationLabel } from '@/lib/utils';
 import {
+  ChevronLeft,
+  ChevronRight,
   ArrowDown,
   ArrowUp,
   Check,
@@ -37,7 +39,8 @@ import {
   Trash2,
   Truck,
 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -397,6 +400,12 @@ function TestDriveSettings({ value, onChange, errors }: {
 }
 
 export function DealerSettingsPanel() {
+  const mobile = useIsMobile();
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const requestedSection = new URLSearchParams(search).get('websiteSection');
+  const mobileEditor = setupSteps.some(([id]) => id === requestedSection);
+  const mobileEditorHeading = useRef<HTMLDivElement>(null);
   const { stock } = useStock();
   const stockWithThumbnails = useMemo(() => {
     return (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
@@ -409,6 +418,8 @@ export function DealerSettingsPanel() {
   const [form, setForm] = useState<DealerSettings>(fallbackSettings);
   const [initialized, setInitialized] = useState(false);
   const [activeSection, setActiveSection] = useState<FormSection>('identity');
+  useEffect(() => { if (mobile && mobileEditor && initialized) requestAnimationFrame(() => { mobileEditorHeading.current?.scrollIntoView({ block: 'start' }); mobileEditorHeading.current?.focus({ preventScroll: true }); }); }, [mobile, requestedSection, mobileEditor, initialized]);
+  useEffect(() => { if (mobile && setupSteps.some(([id]) => id === requestedSection)) setActiveSection(requestedSection as FormSection); }, [mobile, requestedSection]);
   const sectionNavigation = useRef<HTMLElement>(null);
   useEffect(() => {
     const navigation = sectionNavigation.current;
@@ -539,16 +550,16 @@ export function DealerSettingsPanel() {
     setValidationErrors(errors);
     if (Object.keys(errors).length > 0) {
       const first = Object.keys(errors)[0];
-      if (first.startsWith("brochure")) setActiveSection("brochure");
-      else if (/^presentation\.(footerLogoUrl|faviconUrl|.*Colour)$/.test(first)) setActiveSection("identity");
-      else if (first.startsWith("testDriveBooking")) setActiveSection("presentation");
-      else if (first.startsWith("presentation")) setActiveSection("presentation");
-      else if (first.startsWith('identity')) setActiveSection('identity');
-      else if (first.startsWith('hero') || first.startsWith('bookViewing')) setActiveSection('homepage');
-      else if (first === 'hours' || first.startsWith('contact') || first.startsWith('address')) setActiveSection('contact');
-      else if (first.startsWith('legal') || first.startsWith('social')) setActiveSection('legal');
-      else if (first.startsWith('onlineReservation')) setActiveSection('services');
-      else setActiveSection('proof');
+      if (first.startsWith("brochure")) scrollToSection("brochure");
+      else if (/^presentation\.(footerLogoUrl|faviconUrl|.*Colour)$/.test(first)) scrollToSection("identity");
+      else if (first.startsWith("testDriveBooking")) scrollToSection("presentation");
+      else if (first.startsWith("presentation")) scrollToSection("presentation");
+      else if (first.startsWith('identity')) scrollToSection('identity');
+      else if (first.startsWith('hero') || first.startsWith('bookViewing')) scrollToSection('homepage');
+      else if (first === 'hours' || first.startsWith('contact') || first.startsWith('address')) scrollToSection('contact');
+      else if (first.startsWith('legal') || first.startsWith('social')) scrollToSection('legal');
+      else if (first.startsWith('onlineReservation')) scrollToSection('services');
+      else scrollToSection('proof');
       return false;
     }
     return true;
@@ -560,7 +571,7 @@ export function DealerSettingsPanel() {
     setSaveMessage('');
     if (savedRevision === null) { setValidationErrors({ revision: 'Your draft has no publication version. Discard the draft to reload published settings before saving.' }); return; }
     if (!validate()) return;
-    if (guided && activeSection !== 'review') { scrollToSection('review'); return; }
+    if ((mobile || guided) && activeSection !== 'review') { scrollToSection('review'); return; }
     updateSettings.mutate(
       { data: copySettings(form) },
       {
@@ -579,6 +590,7 @@ export function DealerSettingsPanel() {
 
   const scrollToSection = (section: FormSection) => {
     setActiveSection(section);
+    if (mobile) { navigate(`/portal?section=settings&settingsTab=website&websiteSection=${section}`); return; }
     requestAnimationFrame(() => { const panel = document.getElementById(`settings-${section}`); panel?.scrollIntoView({ block: 'start' }); panel?.focus({ preventScroll: true }); });
   };
 
@@ -635,9 +647,11 @@ export function DealerSettingsPanel() {
     );
   }
 
+  const mobileSectionIcons: Record<FormSection, typeof Store> = { identity: Palette, contact: MapPin, presentation: Clock3, homepage: Image, pages: FileText, services: Store, proof: Check, brochure: FileText, legal: Store, review: Check };
+  const mobileSections = (ids: FormSection[]) => <div className="settings-app-list">{setupSteps.filter(([id]) => ids.includes(id)).map(([id,label,hint]) => { const Icon = mobileSectionIcons[id]; return <button type="button" className="settings-app-row" aria-label={label} key={id} data-testid={`button-settings-nav-${id}`} onClick={() => scrollToSection(id)}><span className="settings-app-icon"><Icon size={21} aria-hidden="true" /></span><span><strong>{label}</strong><small>{hint}</small></span><ChevronRight size={18} aria-hidden="true" /></button>; })}</div>;
   return (
     <section className="settings-studio portal-settings-premium mb-12" aria-labelledby="settings-heading">
-      <div className="settings-studio-heading mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+      <div hidden={mobile} className="settings-studio-heading mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="settings-studio-eyebrow luxxy-kicker text-primary">Website editor</p>
           <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Your website</h2>
@@ -656,7 +670,7 @@ export function DealerSettingsPanel() {
         </div>
       </div>
 
-      <div className="settings-setup-bar">
+      <div hidden={mobile} className="settings-setup-bar">
         <div><p className="text-sm font-semibold">{guided ? `Step ${stepIndex + 1} of ${setupSteps.length} · ${setupSteps[stepIndex][1]}` : 'All website settings'}</p><p className="mt-1 text-xs text-muted-foreground">Your draft is private until you publish. You can move between sections at any time.</p></div>
         <Button type="button" variant="outline" onClick={() => setGuided(!guided)}>{guided ? 'Show all sections' : 'Use step-by-step setup'}</Button>
       </div>
@@ -674,12 +688,13 @@ export function DealerSettingsPanel() {
         </div>
       )}
 
+      {mobile && (mobileEditor ? <div ref={mobileEditorHeading} tabIndex={-1} className="settings-app-subheader"><button type="button" className="settings-app-back" onClick={() => navigate('/portal?section=settings&settingsTab=website')}><ChevronLeft size={20} aria-hidden="true" />Your website</button></div> : <div className="settings-app-home"><h3>Quick changes</h3>{mobileSections(['contact','presentation','homepage'])}<h3>Publish your changes</h3>{mobileSections(['review'])}<details className="settings-app-advanced"><summary><span><strong>Website customisation</strong><small>Brand, page content, services and business details</small></span><ChevronRight size={18} aria-hidden="true" /></summary>{mobileSections(['identity','pages','services','proof','brochure','legal'])}</details><p className="settings-app-help">Your draft is saved as you edit. Use Review & publish when you are ready to put your changes on the website.</p></div>)}
       <div className="settings-workspace">
-      <nav ref={sectionNavigation} className="settings-step-nav" aria-label="Settings sections">
+      {!mobile && <nav ref={sectionNavigation} className="settings-step-nav" aria-label="Settings sections">
         {setupSteps.map(([section, label, hint], index) => <button key={section} type="button" aria-current={activeSection === section ? 'step' : undefined} onClick={() => scrollToSection(section)} data-testid={`button-settings-nav-${section}`}>
           <span className="settings-step-number">{String(index + 1).padStart(2, '0')}</span><span><span className="block font-semibold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{hint}</span></span>
         </button>)}
-      </nav>
+      </nav>}
 
       {dirty && (
         <div className="settings-draft-notice mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
@@ -704,8 +719,8 @@ export function DealerSettingsPanel() {
         <p className="font-semibold">Check these settings before publishing</p>
         <ul className="mt-2 list-disc space-y-2 pl-5 text-sm">{Object.entries(validationErrors).map(([key, message]) => <li key={key}>{message}</li>)}</ul>
       </div>}
-      <ActiveSettingsSection.Provider value={guided ? activeSection : null}>
-      <form onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
+      <ActiveSettingsSection.Provider value={mobile || guided ? activeSection : null}>
+      <form hidden={mobile && !mobileEditor} onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
         const control = event.target;
         if (!(control instanceof HTMLElement) || !control.matches('input, select, textarea')) return;
         const editor = event.currentTarget;
@@ -1230,7 +1245,7 @@ export function DealerSettingsPanel() {
           </div>
           <p className="text-sm leading-6 text-muted-foreground">Stock credentials, email keys, payment connections and your domain are private deployment settings. They are never stored in the public website settings. Stock photographs and prices come from your dealership’s stock feed.</p>
         </SectionCard>
-        {guided && <div className="settings-step-actions flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={stepIndex === 0} onClick={() => scrollToSection(setupSteps[stepIndex - 1][0])}>Previous</Button>{stepIndex < setupSteps.length - 1 && <Button type="button" onClick={() => scrollToSection(setupSteps[stepIndex + 1][0])}>Continue to {setupSteps[stepIndex + 1][1]}</Button>}</div>}
+        {!mobile && guided && <div className="settings-step-actions flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={stepIndex === 0} onClick={() => scrollToSection(setupSteps[stepIndex - 1][0])}>Previous</Button>{stepIndex < setupSteps.length - 1 && <Button type="button" onClick={() => scrollToSection(setupSteps[stepIndex + 1][0])}>Continue to {setupSteps[stepIndex + 1][1]}</Button>}</div>}
 
         <div className="settings-save-bar sticky bottom-0 z-20 flex flex-col gap-2 border border-border bg-card p-3 sm:p-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
           <div className="settings-save-status text-[13px]" aria-live="polite">
@@ -1259,7 +1274,7 @@ export function DealerSettingsPanel() {
               <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
             <Button type="submit" disabled={updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
               <Save className="mr-2 h-4 w-4" />
-              {updateSettings.isPending ? 'Publishing…' : guided && activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
+              {updateSettings.isPending ? 'Publishing…' : (mobile || guided) && activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
             </Button>
           </div>
         </div>
