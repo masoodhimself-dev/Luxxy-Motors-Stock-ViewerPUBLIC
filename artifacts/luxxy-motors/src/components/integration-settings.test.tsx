@@ -25,15 +25,18 @@ it('exposes every message template and previews unsaved wording and branding wit
   const response = { revision: 0, templates: defaultEmailTemplates, appearance: defaultEmailAppearance, variables: ['customer_name', 'dealer_name', 'portal_url'] };
   request.mockImplementation(async (path, init) => {
     if (path === '/api/email-templates') return Response.json(response);
-    if (String(path).endsWith('/preview')) { const body = JSON.parse(String(init.body)); expect(body.subject).toBe('A personal receipt'); expect(body.appearance.footer).toBe('Call {{dealer_name}} for help.'); return Response.json({ subject: 'A personal receipt', html: '<p>Example customer</p><p>Amount received: £100.00</p>', text: 'Example customer', sent: false }); }
+    if (String(path).endsWith('/preview')) { const body = JSON.parse(String(init.body)); if (body.subject === 'A personal receipt') expect(body.appearance.footer).toBe('Call {{dealer_name}} for help.'); return Response.json({ subject: 'A personal receipt', html: '<p>Example customer</p><p>Amount received: £100.00</p>', text: 'Example customer', sent: false }); }
     throw new Error('Unexpected request');
   });
-  render(<EmailTemplatesSettings />); const select = await screen.findByLabelText('Email to customise');
+  render(<EmailTemplatesSettings />); const select = await screen.findByLabelText('Choose a message');
   for (const template of defaultEmailTemplates) expect(screen.getByRole('option', { name: template.label })).toBeInTheDocument();
-  fireEvent.change(select, { target: { value: 'payment_receipt' } }); fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'A personal receipt' } }); fireEvent.change(screen.getByLabelText('Email footer'), { target: { value: 'Call {{dealer_name}} for help.' } }); fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+  await screen.findByText('Preview is current');
+  fireEvent.change(select, { target: { value: 'payment_receipt' } }); await screen.findByText('Preview is current'); fireEvent.click(screen.getByText('Branding for all emails')); fireEvent.change(screen.getByLabelText('Subject line'), { target: { value: 'A personal receipt' } }); fireEvent.change(screen.getByLabelText('Footer wording'), { target: { value: 'Call {{dealer_name}} for help.' } }); fireEvent.click(screen.getByRole('button', { name: 'Update preview' }));
+  await screen.findByText('Preview is current');
   await waitFor(() => expect(screen.getByTitle('Email preview using sample customer information')).toHaveAttribute('sandbox', ''));
   expect(screen.getByTitle('Email preview using sample customer information')).toHaveAttribute('srcdoc', expect.stringContaining('£100.00'));
-  expect(request.mock.calls.filter(([path]) => String(path).endsWith('/preview'))).toHaveLength(1);
+  expect(request.mock.calls.filter(([path]) => String(path).endsWith('/preview'))).toHaveLength(3);
+  expect(JSON.parse(String(request.mock.calls.filter(([path]) => String(path).endsWith('/preview')).at(-1)?.[1].body)).subject).toBe('A personal receipt');
   expect(request.mock.calls.filter(([path]) => String(path).includes('/email') && !String(path).includes('email-templates'))).toHaveLength(0);
 });
 it('protects unsaved email wording on template changes and retains branding when saving wording', async () => {
@@ -46,14 +49,16 @@ it('protects unsaved email wording on template changes and retains branding when
     return Response.json(initial);
   });
   render(<EmailTemplatesSettings />);
-  const selector = await screen.findByLabelText('Email to customise');
-  fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Unsaved wording' } });
+  const selector = await screen.findByLabelText('Choose a message');
+  await screen.findByText('Preview is current');
+  fireEvent.click(screen.getByText('Branding for all emails'));
+  fireEvent.change(screen.getByLabelText('Subject line'), { target: { value: 'Unsaved wording' } });
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   fireEvent.change(selector, { target: { value: 'payment_receipt' } });
   expect(confirm).toHaveBeenCalled();
-  expect(screen.getByLabelText('Subject')).toHaveValue('Unsaved wording');
-  fireEvent.change(screen.getByLabelText('Email footer'), { target: { value: 'Unsaved brand footer' } });
+  expect(screen.getByLabelText('Subject line')).toHaveValue('Unsaved wording');
+  fireEvent.change(screen.getByLabelText('Footer wording'), { target: { value: 'Unsaved brand footer' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
   await screen.findByText('Email template saved. Future emails will use this wording.');
-  expect(screen.getByLabelText('Email footer')).toHaveValue('Unsaved brand footer');
+  expect(screen.getByLabelText('Footer wording')).toHaveValue('Unsaved brand footer');
 });

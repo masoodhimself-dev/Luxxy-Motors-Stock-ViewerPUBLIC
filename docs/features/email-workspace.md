@@ -21,3 +21,7 @@ Endpoints: `GET /api/staff/email`, `GET /api/staff/email/message/:key`, and `POS
 ## Verification
 
 Fictional-database HTTP checks cover independent dealer histories, message/record links, templates, original invoice attachment bytes, wrong-customer rejection, exact/concurrent send retries, retained historical text, status caching, provider permissions and unknown-event rejection. UI checks cover history navigation, opened wording, editable templates, selecting invoice attachments and reviewing without sending. Retention/inventory/sales regression checks and production builds also run. Tests use an injected mock Resend transport and send no real customer emails.
+
+## Customer email design
+
+Customer emails share the responsive branded renderer described in [the email design audit](../audits/email-design-2026-10-14.md). Settings → Email templates controls shared branding and individual subject/message/title overrides, with server previews and a plain-text view. Recorded facts and attachments are added by the sending workflow; missing facts are hidden, and document balances use their issue-time snapshot. Existing stored emails and original PDFs stay unchanged.

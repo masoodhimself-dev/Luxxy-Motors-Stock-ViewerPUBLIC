@@ -24,11 +24,11 @@ async function resendSettings(): Promise<ResendSettings> {
   // Environment provisioning is explicit too, and applies only before the owner saves settings.
   return effectiveResendSettings(saved);
 }
-export async function renderDealerEmail(input: { templateId: string; variables: Record<string, string | number | null | undefined>; facts: EmailFacts }) {
+export async function renderDealerEmail(input: { templateId: string; variables: Record<string, string | number | null | undefined>; facts: EmailFacts; attachments?: Array<{ filename: string; content: string }> }) {
   const { templates, appearance } = await dealerIntegrationsStore.listTemplates();
   const template = templates.find(item => item.id === input.templateId);
   if (!template || !defaultEmailTemplates.some(item => item.id === input.templateId)) throw new Error('This email template is unavailable.');
-  return renderEmailTemplate(template, input.variables, input.facts, appearance);
+  return renderEmailTemplate(template, input.variables, input.facts, appearance, { templateId: input.templateId, attachments: input.attachments?.map(item => item.filename) });
 }
 export async function sendTemplatedEmail(input: { templateId: string; to: string; variables: Record<string, string | number | null | undefined>; facts: EmailFacts; idempotencyKey: string; attachments?: Array<{ filename: string; content: string }> }): Promise<string> {
   const rendered = await renderDealerEmail(input);
@@ -42,6 +42,7 @@ export async function sendEmail(
   idempotencyKey: string,
   _dealerName: string,
   attachments?: Array<{ filename: string; content: string }>,
+  text?: string,
 ) {
-  return sendEmailWithSettings(await resendSettings(), { to, subject, html, idempotencyKey, attachments });
+  return sendEmailWithSettings(await resendSettings(), { to, subject, html, text, idempotencyKey, attachments });
 }

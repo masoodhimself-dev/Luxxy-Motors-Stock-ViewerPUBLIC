@@ -400,6 +400,7 @@ export function createEnquiryEmailRouter(
       },
       facts,
       config.appearance,
+      { templateId: 'enquiry_message', attachments: attachments.map(item => item.filename) },
     );
     const previewHash = hash(
       JSON.stringify({

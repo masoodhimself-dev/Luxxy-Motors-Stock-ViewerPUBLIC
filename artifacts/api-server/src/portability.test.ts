@@ -29,11 +29,11 @@ test('direct email preserves sender, attachments and idempotency without any pla
     assert.equal(url, 'https://api.resend.com/emails');
     assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer re_syntheticIntegrationTestOnly');
     assert.equal(new Headers(init?.headers).get('Idempotency-Key'), 'enquiry-test');
-    assert.deepEqual(JSON.parse(String(init?.body)), { from: process.env.RESEND_FROM_EMAIL, to: ['buyer@example.test'], subject: 'Viewing', html: '<p>Booked</p>', attachments: [{filename:'viewing.ics',content:'YQ=='}] });
+    assert.deepEqual(JSON.parse(String(init?.body)), { from: process.env.RESEND_FROM_EMAIL, to: ['buyer@example.test'], subject: 'Viewing', html: '<p>Booked</p>', text: 'Booked in plain text', attachments: [{filename:'viewing.ics',content:'YQ=='}] });
     assert.ok(init?.signal);
     return new Response(JSON.stringify({id:'email-test'}), {status:200});
   };
-  assert.equal(await sendEmail('buyer@example.test','Viewing','<p>Booked</p>','enquiry-test','Dealer',[{filename:'viewing.ics',content:'YQ=='}]), 'email-test');
+  assert.equal(await sendEmail('buyer@example.test','Viewing','<p>Booked</p>','enquiry-test','Dealer',[{filename:'viewing.ics',content:'YQ=='}], 'Booked in plain text'), 'email-test');
   assert.ok(called);
 });
 

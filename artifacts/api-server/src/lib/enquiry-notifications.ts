@@ -124,6 +124,7 @@ async function attemptEmail({
   to,
   subject,
   html,
+  text,
   idempotencyKey,
   missingRecipientMessage,
   log,
@@ -135,6 +136,7 @@ async function attemptEmail({
   to: string | null;
   subject: string;
   html: string;
+  text?: string;
   idempotencyKey: string;
   missingRecipientMessage: string;
   log: Logger;
@@ -160,6 +162,7 @@ async function attemptEmail({
       idempotencyKey,
       dealerName,
       attachments,
+      text,
     );
     return { status: "sent", error: null, sentAt: new Date(), providerId };
   } catch (error) {
