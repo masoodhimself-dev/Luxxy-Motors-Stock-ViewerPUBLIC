@@ -12,7 +12,7 @@ Sales-document emails now include supplied registration, issue time, receipt amo
 
 Settings → Email templates now has a dedicated editor and server-rendered preview, desktop/phone display options, plain-text view, colour presets and an explicit stale-preview notice. Typing does not repeatedly request or flash a preview. Dealers can customise a template's optional `headline` (the title inside the email), subject and message, plus shared logo/accent/brand heading/footer. Blank headline uses the message-family default. Variables retain their existing whitelist and escaping. Branding/template saves remain separate and revision-protected, and unsaved wording is protected when switching templates.
 
-`headline` is optional in the existing private template JSON and PUT/preview contract; old saved records require no migration. Reset removes the override and restores the current default. No API credentials, Resend enablement, tracking settings, incoming mail or database schema changed.
+`headline` is optional in the existing private template JSON and PUT/preview contract; old saved records require no migration. Reset removes the override and restores the current default. Staff enquiry drafts optionally carry their selected template ID so its title and message-family design match the settings preview; older drafts without the ID remain valid, and identical-send request hashes retain their existing replay checks. No API credentials, Resend enablement, tracking settings, incoming mail or database schema changed.
 
 A missing TypeScript suffix on the shared dealer-onboarding export was corrected because it prevented a fresh localhost preview server from loading. The preview remains bound to localhost.
 

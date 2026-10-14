@@ -49,6 +49,7 @@ type EmailContext = {
   deliveries: Delivery[];
 };
 type EmailDraft = {
+  templateId?: string;
   to: string;
   subject: string;
   message: string;
@@ -405,6 +406,7 @@ export function EnquiryEmailComposer({
                                     ? "pre_accident"
                                     : null;
                               change({
+                                templateId: selected.id,
                                 subject: selected.subject,
                                 message: selected.message,
                                 includeAppointment:

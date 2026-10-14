@@ -105,7 +105,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       secretKey: "",
       webhookSecret: "",
     },
-    templates: {},
+    templates: { service_history: { subject: 'Service photos', body: 'Your photos are attached.', headline: 'Your service photos, {{customer_name}}' } },
     appearance: { ...defaultEmailAppearance },
   };
   const sends: any[] = [];
@@ -189,6 +189,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
   }
   const base = `/api/staff/enquiries/${enquiries[0]}`;
   const draft = {
+    templateId: 'service_history',
     to: "a@example.test",
     subject: "Your car",
     message:
@@ -281,6 +282,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     );
     let preview = await call(base + "/email-preview", draft);
     assert.equal(preview.status, 200);
+    assert.match(preview.data.text, /Your service photos, Customer a/);
     assert.equal(sends.length, 0);
     assert.match(preview.data.text, /Awaiting showroom approval/);
     assert.match(preview.data.text, /£9,000/);
@@ -297,6 +299,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     ]);
     assert.deepEqual(pair.map((r) => r.status).sort(), [200, 201]);
     assert.equal(sends.length, 1);
+    assert.match(sends[0].html, /Your service photos, Customer a/);
     const emails = await call("/api/staff/email");
     assert.equal(emails.status, 200);
     assert.equal(emails.data.messages.length, 1);

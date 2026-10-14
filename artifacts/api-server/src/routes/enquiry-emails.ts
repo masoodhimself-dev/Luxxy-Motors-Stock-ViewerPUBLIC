@@ -48,6 +48,7 @@ const draftSchema = z
       .min(1)
       .max(12000)
       .refine((v) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v)),
+    templateId: z.enum(['enquiry_message','invoice_copy','vehicle_details','service_history','pre_accident_photos','appointment_details']).optional(),
     includeVehicle: z.boolean(),
     includeAppointment: z.boolean(),
     photoIds: z
@@ -381,7 +382,7 @@ export function createEnquiryEmailRouter(
     facts.push({ label: "Enquiry reference", value: enquiry.reference });
     // Submitted copy is literal text; braces/HTML entered by staff never become templates or markup.
     const rendered = renderEmailTemplate(
-      { subject: "{{document_type}}", body: "{{message}}" },
+      { subject: "{{document_type}}", body: "{{message}}", headline: config.templates[input.templateId ?? 'enquiry_message']?.headline },
       {
         document_type: input.subject,
         message: input.message,
@@ -400,7 +401,7 @@ export function createEnquiryEmailRouter(
       },
       facts,
       config.appearance,
-      { templateId: 'enquiry_message', attachments: attachments.map(item => item.filename) },
+      { templateId: input.templateId ?? 'enquiry_message', attachments: attachments.map(item => item.filename) },
     );
     const previewHash = hash(
       JSON.stringify({

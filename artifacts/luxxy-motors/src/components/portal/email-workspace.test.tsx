@@ -156,6 +156,7 @@ it("applies a template and attaches the saved invoice only after staff review", 
   const preview = state.fetch.mock.calls.find((c) =>
     c[0].endsWith("/email-preview"),
   );
+  expect(JSON.parse(preview![1].body).templateId).toBe("vehicle_details");
   expect(JSON.parse(preview![1].body).documentIds).toEqual([
     "sale-1:invoice-1",
   ]);
