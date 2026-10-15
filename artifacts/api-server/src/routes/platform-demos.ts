@@ -1,44 +1,24 @@
 import { Router } from 'express';
 import { getAuth } from '@clerk/express';
 import { z } from 'zod/v4';
-import { randomBytes } from 'node:crypto';
 import { db, pool, dealerDemosTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { demoProvisioning } from '../lib/demo-policy';
 import { clearDemoActivity, seedDemo } from '../lib/demo-workspace';
-import { newDealerSettings } from './dealer-settings';
+import { validatedDemoInput,insertDemo,DemoSetupError } from '../lib/demo-creation';
 const router=Router();
 // Mounted ONLY behind platform-dealers' host, administrator and origin checks.
 router.get('/demo-config', (_req,res) => {
   const p=demoProvisioning();res.json({...p,emailReady:p.emailReady && Boolean(p.emailDomain), configured:Boolean(p.domain && p.domainsReady), note:'Wildcard DNS/TLS and Clerk domain support must be configured once. Creating a demo does not start Grok or verify Resend.'});
 });
-const input=z.object({slug:z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/), name:z.string().trim().min(1).max(100),platform:z.enum(['autotrader','cazoo']),retailerId:z.string().trim().min(1).max(128),sourceUrl:z.string().url(),recipient:z.string().email(),days:z.number().int().min(1).max(90).default(14),logoData:z.string().max(400000).optional()}).strict();
 router.post('/demos',async(req,res)=>{
-  const parsed=input.safeParse(req.body),p=demoProvisioning();
-  if(!parsed.success){res.status(400).json({error:'Enter a dealer name, unique demo name, authorised source and approved test email.'});return;}
-  const d=parsed.data, id=`demo-${d.slug}`,host=`${d.slug}.${p.domain}`, source=new URL(d.sourceUrl);
-  if(!p.domain || !p.domainsReady){res.status(409).json({error:'Configure DEMO_BASE_DOMAIN and confirm wildcard DNS/TLS and Clerk support with DEMO_DOMAINS_READY before creating demos.'});return;}
-  if(!p.recipients.includes(d.recipient.toLowerCase())){res.status(400).json({error:'Choose an operator-approved demo email recipient.'});return;}
-  const allowed=d.platform==='cazoo'?['cazoo.co.uk','www.cazoo.co.uk']:['autotrader.co.uk','www.autotrader.co.uk'];
-  if(source.protocol!=='https:' || source.username || source.password || source.port || !allowed.includes(source.hostname)){res.status(400).json({error:'Stock source must be an authorised HTTPS URL from the selected marketplace.'});return;}
-  let logo:string|null=null;
-  if(d.logoData){
-    const match=/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(d.logoData);
-    const data=match?Buffer.from(match[2],'base64'):Buffer.alloc(0);
-    if(!match || data.length>250000 || !(match[1]==='png'?data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):data[0]===255&&data[1]===216&&data[2]===255)){res.status(400).json({error:'Upload a PNG or JPEG logo smaller than 250 KB.'});return;}logo=d.logoData;
-  }
+  let prepared:ReturnType<typeof validatedDemoInput>;
+  try{prepared=validatedDemoInput(req.body);}catch(error){if(error instanceof DemoSetupError){res.status(error.status).json({error:error.message});return;}throw error;}
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
-    const config=newDealerSettings(d.name);config.identity.logoAsset=logo?'/api/demo-logo':'';config.hero.announcement='Demonstration website — sample activity, no real payments.';
-    config.contact.email=p.emailDomain?`${id}@${p.emailDomain}`:'';
-    await client.query("INSERT INTO dealerships (id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES ($1,$2,'active',$3,$4,$5,$6)",[id,d.name,`https://${host}`,d.platform,d.retailerId,d.sourceUrl]);
-    await client.query('INSERT INTO dealer_domains (hostname,dealer_id,verified,verification_token) VALUES ($1,$2,true,$3)',[host,id,`platform-owned-demo=${randomBytes(24).toString('hex')}`]);
-    await client.query("INSERT INTO portal_users (dealer_id,auth_user_id,role) VALUES ($1,$2,'owner')",[id,getAuth(req).userId]);
-    await client.query('INSERT INTO dealer_settings (dealer_id,config) VALUES ($1,$2::jsonb)',[id,JSON.stringify(config)]);
-    await client.query('INSERT INTO dealer_demos (dealer_id,recipient,expires_at,updated_by,logo_data) VALUES ($1,$2,$3,$4,$5)',[id,d.recipient.toLowerCase(),new Date(Date.now()+d.days*86400000),getAuth(req).userId,logo]);
-    await seedDemo(client,id,config);
-    await client.query('COMMIT');res.status(201).json({dealerId:id,origin:`https://${host}`,next:'Create a dedicated import credential in Stock connection. After importing authorised stock, save the starting point in Demo controls. No worker has been started.'});
+    const result=await insertDemo(client,prepared,getAuth(req).userId!);
+    await client.query('COMMIT');res.status(201).json({...result,next:'Create a dedicated import credential in Stock connection. After importing authorised stock, save the starting point in Demo controls. No worker has been started.'});
   }catch(error){await client.query('ROLLBACK');if((error as {code?:string}).code==='23505'){res.status(409).json({error:'That demo name is already in use. Nothing was created.'});return;}throw error;}finally{client.release();}
 });
 router.get('/dealers/:id/demo',async(req,res)=>{

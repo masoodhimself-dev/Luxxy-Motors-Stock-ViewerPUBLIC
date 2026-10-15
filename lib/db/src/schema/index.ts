@@ -40,3 +40,4 @@ export * from "./enquiry-emails";
 
 export * from './email-delivery-checks';
 export * from './dealer-demos';
+export * from './demo-onboarding';

@@ -9,9 +9,10 @@ process.env.MULTI_TENANT_ENABLED='true';process.env.PLATFORM_ADMIN_HOST='admin.e
 test('platform onboarding and operational views preserve access checks and omit secrets',async()=>{
  for(const file of (await readdir('../../lib/db/drizzle')).filter(n=>/^\d+.*\.sql$/.test(n)).sort()) await engine.exec(await readFile(join('../../lib/db/drizzle',file),'utf8'));
  const {default:router}=await import('./routes/platform-dealers'); const {resolveTenant}=await import('./middlewares/tenant');
- const app=express();app.use(express.json());app.use('/api/platform',router);app.use(resolveTenant);app.get('/',(_req,res)=>res.send('dealer'));
+ const {default:onboardingRouter}=await import('./routes/demo-onboarding');
+ const app=express();app.use(express.json());app.use('/api/demo-onboarding',onboardingRouter);app.use('/api/platform',router);app.use(resolveTenant);app.get('/',(_req,res)=>res.send('dealer'));
  const server=createServer(app);await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const address=server.address();if(!address||typeof address==='string')throw Error('No server');
- const request=(path:string,method='GET',body?:unknown,user='user_admin',host='admin.example.test',origin?:string):Promise<Response>=>new Promise((resolve,reject)=>{const req=httpRequest(`http://127.0.0.1:${address.port}${path}`,{method,headers:{host,'content-type':'application/json','x-test-user':user,...(origin?{origin}:{})}},r=>{let s='';r.on('data',c=>s+=c);r.on('end',()=>resolve(new Response(s||null,{status:r.statusCode,headers:{'Content-Type':r.headers['content-type']??'application/json',...(r.headers.location?{location:r.headers.location}:{})}})));});req.on('error',reject);if(body)req.write(JSON.stringify(body));req.end();});
+ const request=(path:string,method='GET',body?:unknown,user='user_admin',host='admin.example.test',origin?:string,extraHeaders:Record<string,string>={}):Promise<Response>=>new Promise((resolve,reject)=>{const req=httpRequest(`http://127.0.0.1:${address.port}${path}`,{method,headers:{host,'content-type':'application/json','x-test-user':user,...(origin?{origin}:{}),...extraHeaders}},r=>{let s='';r.on('data',c=>s+=c);r.on('end',()=>resolve(new Response(s||null,{status:r.statusCode,headers:{'Content-Type':r.headers['content-type']??'application/json',...(r.headers.location?{location:r.headers.location}:{})}})));});req.on('error',reject);if(body)req.write(JSON.stringify(body));req.end();});
  const input={id:'test-dealer',name:'Test Dealer',canonicalOrigin:'https://dealer.example.test',platform:'autotrader',retailerId:'fictional',sourceUrl:'https://www.autotrader.co.uk/fictional',useMyAccount:true};
  try{
   assert.equal((await request('/api/platform/overview','GET',undefined,'user_other')).status,403);
@@ -87,6 +88,48 @@ test('platform onboarding and operational views preserve access checks and omit 
   const demoPage=await request('/','GET',undefined,'user_admin','fictional-motors.demo.example.test');assert.equal(demoPage.status,200);
   await engine.exec("UPDATE dealer_demos SET expires_at=now()-interval '1 day' WHERE dealer_id='demo-fictional-motors'");
   assert.equal((await request('/','GET',undefined,'user_admin','fictional-motors.demo.example.test')).status,410);
+
+  // The machine credential is separate from both Clerk administration and stock delivery.
+  process.env.STOCK_IMPORT_API_HOST='imports.example.test';process.env.INTEGRATIONS_ENCRYPTION_KEY='33'.repeat(32);
+  const issued=await request('/api/platform/onboarding-keys','POST',{label:'Fictional Master Bot',days:30,maxDemos:2,maxPerDay:1});
+  assert.equal(issued.status,201);const onboarding=await issued.json() as {id:string;secret:string};
+  const machine=(path:string,method='GET',body?:unknown,token=onboarding.secret,host='imports.example.test',origin?:string)=>request('/api/demo-onboarding'+path,method,body,'',host,origin,{'x-demo-onboarding-secret':token});
+  assert.equal((await machine('/capabilities','GET',undefined,'wrong')).status,401);
+  assert.equal((await machine('/capabilities','GET',undefined,onboarding.secret,'wrong.example.test')).status,421);
+  assert.equal((await machine('/capabilities','GET',undefined,onboarding.secret,'imports.example.test','https://evil.example.test')).status,403);
+  assert.equal((await machine('/capabilities')).status,200);
+  assert.equal((await machine('/demos','POST',{requestId:'33333333-3333-4333-8333-333333333333'})).status,400);
+  const job={requestId:'33333333-3333-4333-8333-333333333333',demo:{slug:'bot-example',name:'Bot Example',platform:'autotrader',retailerId:'fictional-ref',sourceUrl:'https://www.autotrader.co.uk/fictional'}};
+  const sent=await machine('/demos','POST',job);assert.equal(sent.status,201,await sent.clone().text());
+  const receipt=await sent.json() as {dealerId:string;stockImport:{secret:string;keyId:string};origin:string};assert.equal(receipt.dealerId,'demo-bot-example');assert.match(receipt.stockImport.secret,/^[A-Za-z0-9_-]{43}$/);
+  const repeated=await machine('/demos','POST',job);assert.equal(repeated.status,200);const replay=await repeated.json() as any;assert.equal(replay.status,'replayed');assert.equal(replay.stockImport.secret,receipt.stockImport.secret);
+  const persisted=(await engine.query<{sealed_response:unknown}>("SELECT sealed_response FROM demo_onboarding_requests WHERE dealer_id='demo-bot-example'")).rows[0];assert.ok(!JSON.stringify(persisted).includes(receipt.stockImport.secret));
+  assert.equal((await machine('/demos','POST',{...job,demo:{...job.demo,name:'Changed'}})).status,409);
+  assert.equal((await machine('/demos/demo-bot-example')).status,200);
+  assert.equal((await machine('/demos/test-dealer')).status,404);
+  assert.equal((await machine('/demos/demo-fictional-motors')).status,404);
+  assert.equal((await machine('/demos/demo-bot-example','DELETE')).status,404);
+  assert.equal((await machine('/demos/demo-bot-example/reset','POST',{})).status,404);
+  assert.equal((await machine('/capabilities','GET',undefined,receipt.stockImport.secret)).status,401);
+  assert.equal((await request('/api/platform/overview','GET',undefined,'','admin.example.test',undefined,{'x-demo-onboarding-secret':onboarding.secret})).status,403);
+  assert.equal((await machine('/demos','POST',{...job,requestId:'44444444-4444-4444-8444-444444444444',demo:{...job.demo,slug:'another-demo'}})).status,429);
+  const keyList=await request('/api/platform/onboarding-keys');assert.ok(!(await keyList.text()).includes(onboarding.secret));
+
+  const {sealDemoReceipt,openDemoReceipt}=await import('./lib/demo-onboarding-secrets');
+  const encrypted=sealDemoReceipt({secret:'fictional'},'request-a');assert.throws(()=>openDemoReceipt(encrypted,'request-b'));
+  const secondIssued=await request('/api/platform/onboarding-keys','POST',{label:'Rollback test',maxDemos:2,maxPerDay:2});const second=await secondIssued.json() as {secret:string};
+  const rollbackJob={...job,requestId:'55555555-5555-4555-8555-555555555555',demo:{...job.demo,slug:'rollback-demo'}};
+  delete process.env.INTEGRATIONS_ENCRYPTION_KEY;
+  assert.equal((await machine('/demos','POST',rollbackJob,second.secret)).status,503);
+  assert.equal((await engine.query("SELECT id FROM dealerships WHERE id='demo-rollback-demo'")).rows.length,0);
+  process.env.INTEGRATIONS_ENCRYPTION_KEY='33'.repeat(32);
+  assert.equal((await machine('/demos','POST',rollbackJob,second.secret)).status,201);
+  assert.equal((await machine('/demos/demo-bot-example','GET',undefined,second.secret)).status,404);
+  const originalKeys=(await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='test-dealer'")).rows.length;
+  assert.equal((await request('/api/platform/onboarding-keys/'+onboarding.id,'DELETE')).status,200);
+  assert.equal((await machine('/capabilities')).status,401);
+  assert.equal((await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='test-dealer'")).rows.length,originalKeys);
+  assert.equal((await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='demo-bot-example' AND disabled_at IS NULL")).rows.length,1);
 
  }finally{await new Promise<void>((r,j)=>server.close(e=>e?j(e):r()));await engine.close();}
 });

@@ -45,3 +45,5 @@ Progress appears on dealership cards and the Setup tab. System-derived domain/cr
 ## Demonstration dealerships
 
 The Demo dealerships section creates isolated, expiring branded demos with fictional activity and restricted test email. Each dealer workspace has Demo controls for capturing a baseline, resetting activity, restoring original stock/branding and extending expiry. Requires migration 0029 and one-time wildcard domain / Clerk / verified Resend provisioning. See [demo-dealerships.md](features/demo-dealerships.md). No bot, schedule, paid resource or email is created by opening the dashboard.
+
+Master Bot access is managed separately in Demo dealerships. Operators can issue a credential with bounded lifetime/creation quotas, copy it once into secure bot storage, and revoke it. Credential lists never return secret hashes or values. Machine tokens cannot access platform administration or stock-import routes. Demos created by a token belong to its issuing operator. Provider DNS/TLS/auth/email setup remains independently verified.

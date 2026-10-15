@@ -44,3 +44,7 @@ Conversion to a paying dealer and permanent deletion remain deliberate operator 
 - Frontend unit checks: disabled infrastructure, creation values, typed confirmation/revision and no reset controls on live dealers.
 - Intercepted Playwright checks at 390/820/1440 px: creation form/reset layouts, no horizontal overflow and no real writes.
 - Real wildcard TLS/Clerk sign-in, real Resend delivery/webhook status and an actual Grok demo import still need operator configuration and controlled end-to-end testing.
+
+## Restricted Master Bot onboarding
+
+`/api/demo-onboarding` now accepts a dedicated expiring machine credential issued under **Demo dealerships → Master Bot access**. It creates new demos atomically with stock credentials and encrypted idempotent receipts; it reads only demos created by the same credential. It cannot reset, delete, extend, manage staff/settings, send mail, schedule bots or access live dealers. See [the standalone Master Bot contract](../integrations/MASTER_BOT_DEMO_ONBOARDING.md). Automated creation additionally requires verified demo email readiness. Operator-driven creation retains its existing behaviour.

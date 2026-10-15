@@ -1,3 +1,4 @@
+import platformOnboardingKeysRouter from './platform-onboarding-keys';
 import platformDemosRouter from './platform-demos';
 import { sql } from 'drizzle-orm';
 import { onboardingItems } from '@workspace/vehicle-meta';
@@ -19,6 +20,7 @@ router.use((req, res, next) => {
   if (!multiTenantEnabled() || normaliseTenantHost(req.get('host') ?? '') !== normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '') || !isPlatformAdmin(getAuth(req).userId ?? undefined)) { res.status(403).json({ error: 'Platform administrator access required.' }); return; }
   if (req.get('origin') && req.get('origin') !== `https://${process.env.PLATFORM_ADMIN_HOST}`) { res.status(403).json({ error: 'Open platform administration on its approved domain.' }); return; } next();
 });
+router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
 router.patch('/dealers/:id/checklist', async (req, res) => {
   const input = z.object({ itemId: z.string().refine(id => onboardingItems.some(item => item.id === id)), status: z.enum(['pending', 'done', 'skipped']), note: z.string().trim().max(1000) }).strict().safeParse(req.body);
