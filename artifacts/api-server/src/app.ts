@@ -23,7 +23,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0]?.replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/, '$1[private]'),
+          url: req.url?.split("?")[0]?.replace(/\/(?:api\/invoice-verification|verify-invoice)\/[^?]*/, '/invoice-verification/[private]')?.replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/, '$1[private]'),
         };
       },
       res(res) {
@@ -49,7 +49,7 @@ app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 app.use("/api/platform", platformDealersRouter);
 app.use(resolveTenant);
 app.use("/api", router);
-app.use(['/staff-upload', '/my-purchase', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
+app.use(['/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api
 // because the URL is handed to buyers.
 app.use("/share", shareRouter);

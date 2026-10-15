@@ -11,7 +11,8 @@ export function serveFrontend(app: Express, directory: string) {
   app.get('/{*path}', (req, res, next) => {
     // Missing assets must be 404s, not HTML masquerading as JavaScript/images.
     if (path.extname(req.path) || !req.accepts('html')) return next();
-    res.setHeader('Cache-Control', 'no-cache');
-    res.sendFile(index);
+    // Capability pages set no-store before reaching the SPA fallback.
+    if (!res.hasHeader('Cache-Control')) res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(index, { cacheControl: false });
   });
 }

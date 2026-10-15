@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, invoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceVehicleSnapshot, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { archiveSaleDocument } from '../../api-server/src/lib/sale-document-pdf';
+import { attachInvoiceVerification, invoiceVerificationView } from '../../api-server/src/lib/invoice-verification';
 import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
 import { readPreviewSettings, readPreviewBookingState } from './reservations';
 import { previewStock } from './stock';
@@ -41,6 +42,9 @@ export class PreviewSaleWorkspaceStore {
   async list() { return this.serial(async () => (await this.load()).sales.map(publicSaleWorkspace).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))); }
   async get(id: string) {
     return this.serial(async () => { const sale = (await this.load()).sales.find(item => item.id === id); if (!sale) throw new SaleWorkspaceError('Sale not found.', 404); return publicSaleWorkspace(sale); });
+  }
+  async verifyInvoice(saleId: string, documentId: string, token: string) {
+    return this.serial(async () => invoiceVerificationView((await this.load()).sales.find(s=>s.id===saleId),documentId,token));
   }
   async releaseReservation(reservationId: string) {
     return this.serial(async () => {
@@ -121,7 +125,10 @@ export class PreviewSaleWorkspaceStore {
           if (mutation.sale.draft.sourceEnquiryId && state.sales.some(s => s.id !== mutation.sale.id && s.draft.sourceEnquiryId === mutation.sale.draft.sourceEnquiryId)) throw new SaleWorkspaceError('A sale already exists for this enquiry.', 409);
           if (mutation.sale.draft.sourceReservationId && state.sales.some(s => s.id !== mutation.sale.id && s.draft.sourceReservationId === mutation.sale.draft.sourceReservationId)) throw new SaleWorkspaceError('A sale already exists for this reservation.', 409);
         }
-        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
+        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
+          if(document.type==='invoice') attachInvoiceVerification(document,mutation.sale.id,'http://127.0.0.1:4175');
+          (mutation.sale.documentArchives ??= {})[document.id]=archiveSaleDocument(document);
+        }
         if (current) state.sales[state.sales.findIndex(sale => sale.id === current.id)] = mutation.sale; else state.sales.push(mutation.sale);
         await this.save(state);
       }
@@ -149,9 +156,14 @@ function local(req: IncomingMessage) {
   return (loopback || lan) && (!req.headers.origin || req.headers.origin === `http://${req.headers.host}`);
 }
 export async function salesPreview(req: IncomingMessage, res: ServerResponse, url: URL, store: PreviewSaleWorkspaceStore = previewStore): Promise<boolean> {
-  if (!/^\/api\/(?:sale-workspace|customer-sale)(?:\/|$)/.test(url.pathname)) return false;
+  if (!/^\/api\/(?:sale-workspace|customer-sale|invoice-verification)(?:\/|$)/.test(url.pathname)) return false;
   if (!local(req)) { send(res, 403, { error: 'The sales service is available only on the authorised network.' }); return true; }
   try {
+    const proofRoute=/^\/api\/invoice-verification\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+    if(proofRoute&&req.method==='GET') {
+      res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Robots-Tag','noindex, nofollow');
+      send(res,200,await store.verifyInvoice(proofRoute[1],proofRoute[2],proofRoute[3]));return true;
+    }
     const customerRoute = /^\/api\/customer-sale\/([^/]+)(?:\/documents\/([^/]+)(?:\/(pdf))?)?$/.exec(url.pathname);
     if (customerRoute && req.method === 'GET') {
       res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow');

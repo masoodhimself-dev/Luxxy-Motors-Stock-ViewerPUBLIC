@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod/v4';
-import { type InvoiceSettings, defaultInvoiceSettings, type StockConnection, defaultEmailAppearance, defaultEmailTemplates, EmailTemplateError, validateEmailAppearance, validateEmailTemplate, type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
+import { type InvoiceSettings, defaultInvoiceSettings, currentInvoiceSettings, invoiceTextLimits, compactInvoiceStyle, type StockConnection, defaultEmailAppearance, defaultEmailTemplates, EmailTemplateError, validateEmailAppearance, validateEmailTemplate, type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
 
 export class IntegrationSettingsError extends Error { constructor(message: string, readonly status = 400) { super(message); this.name = 'IntegrationSettingsError'; } }
 export type ResendSettings = { enabled: boolean; apiKey: string; from: string; replyTo: string };
@@ -134,16 +134,29 @@ export class DealerIntegrationsStore {
     if (url.protocol !== 'https:' || !hosts.includes(url.hostname) || url.username || url.password || (url.port && url.port !== '443')) throw new IntegrationSettingsError('Use an HTTPS dealership URL on the selected marketplace.');
     return this.serial(async () => { const state = await this.load(transaction); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.stockConnection = parsed.data.connection; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state, transaction); return { revision: state.revision, connection: state.stockConnection }; });
   }
-  async readSalesPaperwork() { const state = await this.readPrivate(); return { revision: state.revision, saleTerms: state.salesPaperwork?.saleTerms ?? '', reservationTerms: state.salesPaperwork?.reservationTerms ?? '', invoiceSettings: { ...defaultInvoiceSettings, ...state.salesPaperwork?.invoiceSettings } }; }
+  async readSalesPaperwork() { const state = await this.readPrivate(); return { revision: state.revision, saleTerms: state.salesPaperwork?.saleTerms ?? '', reservationTerms: state.salesPaperwork?.reservationTerms ?? '', invoiceSettings: currentInvoiceSettings(state.salesPaperwork?.invoiceSettings) }; }
   async updateSalesPaperwork(raw: unknown) {
     const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), saleTerms: z.string().trim().max(20000), reservationTerms: z.string().trim().max(20000), invoiceSettings: z.object({
-      style: z.enum(['classic', 'modern', 'premium']), useWebsiteColour: z.boolean(), accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      style: z.enum(['classic', 'modern', 'premium', 'understated', 'branded']), useWebsiteColour: z.boolean(), accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
       showLogo: z.boolean(), logoSize: z.enum(['small', 'medium', 'large']), inkSaving: z.boolean(),
       footer: z.string().trim().max(600), paymentInstructions: z.string().trim().max(1200),
       referencePrefix: z.string().regex(/^[A-Z0-9]{0,12}$/), startingSequence: z.number().int().min(1).max(999999999),
     }).strict().optional() }).strict().safeParse(raw);
     if (!parsed.success) throw new IntegrationSettingsError('Check the document settings, prefix, sequence and wording lengths.');
-    return this.serial(async () => { const state = await this.load(); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.salesPaperwork = { saleTerms: parsed.data.saleTerms, reservationTerms: parsed.data.reservationTerms, invoiceSettings: parsed.data.invoiceSettings ?? state.salesPaperwork?.invoiceSettings ?? { ...defaultInvoiceSettings } }; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, ...state.salesPaperwork }; });
+    return this.serial(async () => {
+      const state = await this.load();
+      if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409);
+      const options = currentInvoiceSettings(parsed.data.invoiceSettings ?? state.salesPaperwork?.invoiceSettings);
+      if (compactInvoiceStyle(options.style)) {
+        const wording = { saleTerms: parsed.data.saleTerms, reservationTerms: parsed.data.reservationTerms, footer: options.footer, paymentInstructions: options.paymentInstructions };
+        for (const key of Object.keys(invoiceTextLimits) as Array<keyof typeof invoiceTextLimits>) {
+          if (wording[key].length > invoiceTextLimits[key]) throw new IntegrationSettingsError(`Shorten ${key.replace(/([A-Z])/g, ' $1').toLowerCase()} to ${invoiceTextLimits[key]} characters for the A4 invoice.`);
+        }
+      }
+      state.salesPaperwork = { saleTerms: parsed.data.saleTerms, reservationTerms: parsed.data.reservationTerms, invoiceSettings: options };
+      state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state);
+      return { revision: state.revision, ...state.salesPaperwork };
+    });
   }
   async readPrivate(transaction?: unknown) { return this.serial(() => this.load(transaction)); }
   async readMasked() { return maskedIntegrationSettings(await this.readPrivate()); }

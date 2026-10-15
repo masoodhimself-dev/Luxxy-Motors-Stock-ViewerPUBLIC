@@ -348,6 +348,45 @@ test('receipt colours, long references and multi-page terms keep their complete 
 });
 
 
+test('compact A4 layouts retain fourteen payments, QR links and exact totals without text collisions',()=>{
+  for(const style of ['understated','branded'] as const) {
+    const document=invoiceDocument({...draft,adjustments:[]});
+    document.invoiceKind='full';
+    document.snapshot.branding=invoiceBranding(document.snapshot.branding,{...defaultInvoiceSettings,style,footer:'Fictional design sample. All customer and transaction details are illustrative.',paymentInstructions:'Please quote your invoice number when contacting the showroom.'});
+    document.snapshot.vehicle={id:draft.vehicleId,year:2020,fuel:'Diesel',transmission:'Automatic',mileage:22000,colour:'Obsidian Black',engineSize:'2.0L',owners:1,serviceHistory:'Full'};
+    document.snapshot.payments=Array.from({length:14},(_,i)=>({id:'payment-'+i,amount:'100',amountPence:10000,signedAmountPence:10000,method:'Bank transfer',date:'2026-10-10',reference:`PAY-${String(i+1).padStart(2,'0')}`,kind:i===0?'deposit':'part-payment',status:'confirmed',recordedBy:'',recordedAt:context.now}) as SaleWorkspacePayment);
+    document.snapshot.totals=saleWorkspaceTotals(document.snapshot.draft,document.snapshot.payments);
+    document.balanceAtIssue=document.snapshot.totals.balance;
+    document.verification={url:'https://northfield.example/verify-invoice/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222/'+'a'.repeat(64),tokenHash:'private-hash'};
+    const bytes=saleDocumentPdf(document),text=bytes.toString('latin1');
+    assert.equal(pageCount(text),1);assertTextOnA4(text);assertRowsDoNotCollide(text);
+    assert.equal(filledRectangles(text).filter(r=>r.width>35||r.height>35).length,0,'Official stationery has no large shaded backgrounds');
+    for(const row of textRows(text).filter(r=>r.text.includes('£'))) assert.ok(row.size<=10.5,'Money stays compact rather than becoming a display panel');
+    for(let i=1;i<=14;i++) assert.ok(text.includes('PAY-'+String(i).padStart(2,'0')));
+    assert.match(text,/Verify invoice/);assert.match(text,/\/Subtype \/Link/);assert.ok(text.includes(document.verification.url));
+    assert.doesNotMatch(text,/private-hash/);assert.match(text,/£1,400.00/);assert.match(text,/£10,600.00/);
+    assert.deepEqual(bytes,saleDocumentPdf(document));
+    if(process.env.COMPACT_INVOICE_SAMPLE_DIR) {
+      mkdirSync(process.env.COMPACT_INVOICE_SAMPLE_DIR,{recursive:true});
+      const sample=structuredClone(document);
+      sample.number='NF-INV-2026-00107';
+      sample.snapshot.draft.vehicle='Mercedes-Benz E-Class E220d AMG Line';
+      sample.snapshot.draft.registration='AB20 XYZ';
+      sample.snapshot.draft.price='24950';
+      sample.snapshot.draft.adjustments=[{description:'Agreed discount',amount:'450',kind:'discount'}];
+      sample.snapshot.payments=[500,2000,1500,2500,3000,1000].map((amount,i)=>({...document.snapshot.payments[i],amount:String(amount),amountPence:amount*100,signedAmountPence:amount*100,date:`2026-10-${String(8+i).padStart(2,'0')}`,method:i===2?'Debit card':i===3?'Cash':'Bank transfer',reference:i===0?'NF107-DEPOSIT':`NF107-PAY-${i}`}));
+      sample.snapshot.totals=saleWorkspaceTotals(sample.snapshot.draft,sample.snapshot.payments);
+      sample.balanceAtIssue=sample.snapshot.totals.balance;
+      sample.snapshot.vehicle!.photoDataUrl='data:image/jpeg;base64,'+readFileSync(new URL('../../luxxy-motors/src/assets/luxxy-hero.jpg',import.meta.url)).toString('base64');
+      writeFileSync(`${process.env.COMPACT_INVOICE_SAMPLE_DIR}/${style}-multiple-payments.pdf`,saleDocumentPdf(sample));
+    }
+    document.snapshot.payments=Array.from({length:90},()=>document.snapshot.payments[0]);
+    assert.throws(()=>saleDocumentPdf(document),/exceeds one A4 page/);
+    document.snapshot.payments=[];document.snapshot.branding.invoiceSettings!.footer='x'.repeat(121);
+    assert.throws(()=>saleDocumentPdf(document),/120 characters/);
+  }
+});
+
 test('guided full invoice includes richer car details, a photo and every dated payment with no handover block', () => {
   const photo = 'data:image/jpeg;base64,' + readFileSync(new URL('../../luxxy-motors/src/assets/luxxy-hero.jpg', import.meta.url)).toString('base64');
   const ctx: SaleWorkspaceContext = { ...context, vehicle: { id:'test-car', title:'Mercedes-Benz E Class', year:2020, fuel:'Diesel', transmission:'Automatic', mileage:22000, colour:'Obsidian Black', engineSize:'2.0L', bodyType:'Saloon', doors:4, seats:5, owners:1, emissionClass:'Euro 6', serviceHistory:'Full service history', photoDataUrl:photo } };

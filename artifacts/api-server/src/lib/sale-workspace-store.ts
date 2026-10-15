@@ -2,6 +2,8 @@ import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
 import { loadBrochurePhotos } from './vehicle-brochure-images';
 import { archiveSaleDocument } from './sale-document-pdf';
+import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
+import { siteOrigin } from './enquiry-links';
 import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
 import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, invoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
 
@@ -31,6 +33,10 @@ export class PostgresSaleWorkspaceStore {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
     if (!result.rows[0]) throw new SaleWorkspaceError('Sale not found.', 404);
     return publicSaleWorkspace(result.rows[0].state);
+  }
+  async verifyInvoice(saleId: string, documentId: string, token: string) {
+    const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, saleId]);
+    return invoiceVerificationView(result.rows[0]?.state, documentId, token);
   }
   /** Provider acceptance is merged under a row lock; concurrent payments cannot strand it as sending. */
   async finishEmail(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' | 'link-email-status' }>, actor: string) {
@@ -169,7 +175,10 @@ export class PostgresSaleWorkspaceStore {
           await this.stock(mutation.sale, 'sold', client, input.actor);
           mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
         }
-        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
+        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
+          if (document.type === 'invoice') attachInvoiceVerification(document, mutation.sale.id, siteOrigin());
+          (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
+        }
         await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, this.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
         await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [this.dealerId, JSON.stringify(numbers)]);
       }

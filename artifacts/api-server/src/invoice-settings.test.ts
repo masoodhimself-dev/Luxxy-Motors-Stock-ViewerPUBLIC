@@ -3,8 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { defaultInvoiceSettings, invoiceBranding, saleWorkspaceBranding, saleWorkspaceNumber } from '@workspace/vehicle-meta';
+import { defaultInvoiceSettings, currentInvoiceSettings, invoiceTextLimits, invoiceBranding, saleWorkspaceBranding, saleWorkspaceNumber } from '@workspace/vehicle-meta';
 import { DealerIntegrationsStore } from './lib/dealer-integrations-store';
+test('approved branded stationery is the default without overwriting an explicit dealer choice',()=>{
+ assert.equal(defaultInvoiceSettings.style,'branded');
+ assert.equal(currentInvoiceSettings().style,'branded');
+ assert.equal(currentInvoiceSettings({style:'understated'}).style,'understated');
+ assert.equal(currentInvoiceSettings({style:'modern'}).style,'understated');
+});
 test('references cannot reset or collide across types, prefixes, years or dealers', () => {
  const a: Record<string, number> = {}, b: Record<string, number> = {}, now = '2026-10-10T10:00:00Z';
  const options = { ...defaultInvoiceSettings, referencePrefix: 'ABC', startingSequence: 100 };
@@ -17,6 +23,22 @@ test('references cannot reset or collide across types, prefixes, years or dealer
  assert.equal(saleWorkspaceNumber(a,'invoice','2027-01-01',options),'ABC-INV-2027-00100');
  assert.throws(()=>saleWorkspaceNumber(a,'invoice',now,{...options,startingSequence:0}));
  assert.throws(()=>saleWorkspaceNumber(a,'invoice',now,{...options,referencePrefix:'bad prefix'}));
+});
+test('A4 settings reject oversized wording on the server and preserve the original settings',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'a4-invoice-settings-'));
+ try {
+  const store=new DealerIntegrationsStore({filename:join(dir,'a.json'),dealerId:'a4',production:false,databaseBacked:false});
+  const initial=await store.readSalesPaperwork();
+  for(const key of Object.keys(invoiceTextLimits) as Array<keyof typeof invoiceTextLimits>) {
+   const input={expectedRevision:initial.revision,saleTerms:'Approved',reservationTerms:'',invoiceSettings:{...defaultInvoiceSettings}};
+   if(key==='saleTerms'||key==='reservationTerms') input[key]='x'.repeat(invoiceTextLimits[key]+1);
+   else input.invoiceSettings[key]='x'.repeat(invoiceTextLimits[key]+1);
+   await assert.rejects(store.updateSalesPaperwork(input),/Shorten/);
+   assert.deepEqual(await store.readSalesPaperwork(),initial);
+  }
+  const saved=await store.updateSalesPaperwork({expectedRevision:initial.revision,saleTerms:'x'.repeat(invoiceTextLimits.saleTerms),reservationTerms:'',invoiceSettings:{...defaultInvoiceSettings,style:'branded'}});
+  assert.equal(saved.invoiceSettings?.style,'branded');
+ } finally {await rm(dir,{recursive:true,force:true});}
 });
 test('settings are isolated, revision protected, validated and backward compatible', async () => {
  const dir = await mkdtemp(join(tmpdir(),'invoice-settings-'));

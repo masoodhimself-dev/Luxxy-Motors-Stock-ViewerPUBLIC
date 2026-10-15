@@ -41,7 +41,7 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
-            if ((url.pathname.startsWith('/my-purchase/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
+            if ((url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');

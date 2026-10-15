@@ -53,6 +53,16 @@ test('HTTP preview adapter shares a sale across requests, preserves receipt snap
     assert.equal(reopened.data.sale.payments.length, 2); assert.equal(JSON.stringify(reopened.data.sale.documents[0]), originalReceipt);
     const listed = await request<{ sales: SaleWorkspaceRecord[] }>('/api/sale-workspace');
     assert.equal(listed.data.sales.length, 1); assert.equal(listed.data.sales[0].id, id);
+    const invoice=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{expectedRevision:reopened.data.sale.revision,requestId:'verify-http-invoice',kind:'full',acknowledge:true},origin);
+    assert.equal(invoice.status,200);
+    const invoiceRetry=await request<SaleWorkspaceMutation>(`/api/sale-workspace/${id}/issue-invoice`,'POST',{expectedRevision:reopened.data.sale.revision,requestId:'verify-http-invoice',kind:'full',acknowledge:true},origin);
+    assert.equal(invoiceRetry.data.replayed,true);assert.equal(invoiceRetry.data.document!.verification!.url,invoice.data.document!.verification!.url);
+    const verifyPath=new URL(invoice.data.document!.verification!.url).pathname.replace('/verify-invoice/','/api/invoice-verification/');
+    const proofResponse=await fetch(origin+verifyPath);
+    assert.equal(proofResponse.status,200);assert.equal(proofResponse.headers.get('referrer-policy'),'no-referrer');assert.equal(proofResponse.headers.get('x-robots-tag'),'noindex, nofollow');assert.equal(proofResponse.headers.get('cache-control'),'no-store');
+    const proof=await proofResponse.json();assert.equal(proof.verified,true);assert.equal(proof.balanceAtIssuePence,0);assert.equal(proof.paymentCount,2);assert.equal(proof.customer,undefined);assert.equal(proof.payments,undefined);
+    const bad=await fetch(origin+verifyPath.slice(0,-1)+(verifyPath.endsWith('a')?'b':'a'));
+    assert.equal(bad.status,404);
     const offOrigin = await request<{ error: string }>('/api/sale-workspace', 'POST', { requestId: 'http-cross-origin', draft }, 'https://unrelated.example');
     assert.equal(offOrigin.status, 403); assert.match(offOrigin.data.error, /authorised network/);
     assert.equal((await store.list()).length, 1);

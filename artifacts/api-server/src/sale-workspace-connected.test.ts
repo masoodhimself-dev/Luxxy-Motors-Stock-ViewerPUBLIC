@@ -114,6 +114,16 @@ test('a failed refund restores real funds even after later payments and keeps an
   } finally { client.release(); }
 });
 
+test('A4 rejection rolls back invoice numbering and issuance without changing a received deposit',async()=>{
+  const f=fixture('x'.repeat(601));
+  let sale=(await f.store.mutate({draft:draft(),requestId:randomUUID(),actor:'Staff'})).sale;
+  sale=(await f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:new Date().toISOString().slice(0,10),reference:'A4-RECEIVED',kind:'deposit',status:'confirmed'}}})).sale;
+  const before=JSON.stringify(await f.store.get(sale.id));
+  await assert.rejects(f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'issue-invoice',kind:'deposit',acknowledge:true}}),/600 characters/);
+  assert.equal(JSON.stringify(await f.store.get(sale.id)),before);
+  assert.equal(f.vehicle().inventory_status,'reserved');
+});
+
 test('email acceptance merges into the current revision without overwriting a concurrent payment', async () => {
   const f = fixture();
   let a = (await f.store.mutate({ draft: draft(), requestId: randomUUID(), actor: 'Staff' })).sale;

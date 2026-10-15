@@ -136,6 +136,13 @@ router.post('/sale-workspace/:id/documents/:documentId/email', requirePermission
   } catch (error) { failure(req, res, error); }
 });
 // These token-gated routes deliberately sit outside the staff middleware.
+router.get('/invoice-verification/:saleId/:documentId/:token', async (req, res) => {
+  res.set({ 'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow' });
+  try {
+    if (!uuid(req.params.saleId) || !uuid(req.params.documentId) || !/^[a-f0-9]{64}$/.test(req.params.token)) throw new SaleWorkspaceError('This invoice could not be verified.', 404);
+    res.json(await store().verifyInvoice(req.params.saleId, req.params.documentId, req.params.token));
+  } catch (error) { failure(req, res, error); }
+});
 router.use('/customer-sale', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store, private'); res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
 router.get('/customer-sale/:token', async (req, res) => { try { const { view } = await store().customer(req.params.token); res.json({ sale: view }); } catch (error) { failure(req, res, error); } });
 router.get('/customer-sale/:token/documents/:documentId', async (req, res) => { try { res.json({ document: await store().customerDocument(req.params.token, req.params.documentId) }); } catch (error) { failure(req, res, error); } });

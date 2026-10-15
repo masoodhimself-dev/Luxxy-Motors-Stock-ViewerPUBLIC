@@ -22,6 +22,18 @@ Invoices carry `invoiceKind: deposit | full` while retaining the existing `invoi
 
 The vehicle section has a prominent specification grid and a small photograph when available. Source images use the existing HTTPS host allowlist, validated/pinned public DNS, redirect refusal, size/dimension limits and a four-second deadline. The image bytes are embedded in the saved snapshot/PDF so reprints and emails remain unchanged. Missing photos are omitted. Additional approved CDN hosts use the existing `VEHICLE_PDF_IMAGE_HOSTS` configuration.
 
-Existing document archives are never rewritten. Ordinary invoices fit one A4 page; long terms, many payments or unusually long supplied text continue to additional A4 pages rather than losing information. Fictional design samples are in `output/pdf/guided-invoices/`.
+Existing document archives are never rewritten. New compact invoices have two settings styles: **Design A - clean stationery** and **Design B - accent stationery**, with white backgrounds, smaller typography, fine rules, a column-based payment history and a narrow statement-style balance summary. B uses the dealership accent for headings and rules rather than background panels. Old Classic/Modern settings map to A for future invoices and Premium maps to B; historic snapshots and saved PDFs keep their original style.
+
+The compact layouts issue exactly one A4 sheet. They measure actual text, long descriptions, payment rows and legal details before archiving. An oversized invoice is rejected with an actionable 422 error, without dropping payments, clipping wording, issuing a document or consuming a reference. Existing long-form historic documents and statements retain their original pagination. Fictional compact design proofs with fourteen payments are in `output/pdf/compact-invoices/`.
+
+## Settings and verification
+
+Settings → Sales documents provides character counters and server-enforced maximums: footer 120, payment instructions 240, sale terms 600, and deposit terms 600. Existing oversized wording is shown intact and must be edited explicitly; nothing is shortened automatically. Character limits are not a guarantee that every combination of content fits, so actual issuance also checks the measured layout. The settings PDF preview updates only after **Check A4 preview** / **Update A4 preview**.
+
+New invoices receive an opaque 256-bit verification capability, generated inside the transaction before their original PDF is archived. The PDF contains a locally generated vector QR code and clickable link on the dealership's canonical origin: `/verify-invoice/:saleId/:documentId/:token`. No external QR service, new provider secret or database migration is required.
+
+`GET /api/invoice-verification/:saleId/:documentId/:token` reads only that tenant's saved sale row and compares the capability hash in constant time. It returns the original invoice reference, dealer, vehicle/registration, issue date, frozen totals and confirmed-payment count. It never returns the customer name, address, phone, email, payment references, full record or PDF. A newer same-kind invoice is identified without changing the original proof. Verification confirms those saved details; it is not a digital signature proving every byte of a presented PDF is unchanged.
+
+The verification page has no showroom navigation or analytics-bearing layout. Page/API responses use no-store, no-referrer and noindex headers; API request logs redact the capability path. The development fixture implements the same proof contract with fictional/test records. Original invoices issued before this change are not retrofitted with QR codes.
 
 Resend still needs the dealer's configured email integration to send documents. The workspace reports prepared/failed/sent outcomes explicitly.

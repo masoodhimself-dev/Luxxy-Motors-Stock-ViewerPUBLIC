@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals } from "@workspace/vehicle-meta";
+import { invoicePalette, customerSaleDocument, saleWorkspaceBranding, saleWorkspaceTotals, compactInvoiceStyle } from "@workspace/vehicle-meta";
 import { customFetch } from "@workspace/api-client-react";
 import type {
   SaleWorkspaceDocument,
@@ -84,11 +84,11 @@ export type SalesDocumentProps =
 export const salesDocumentTitle = (document: SaleWorkspaceDocument) =>
   document.title;
 
-export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot; fitPage?: boolean };
-type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot; preparedAt?: string };
+export type PdfSalesDocumentProps = SalesDocumentProps & { pdfUrl?: string; savedVehicle?: SaleWorkspaceVehicleSnapshot; fitPage?: boolean; invoiceTerms?: string };
+type DraftDocumentProps = Extract<SalesDocumentProps, { issuedDocument?: undefined }> & { savedVehicle?: SaleWorkspaceVehicleSnapshot; preparedAt?: string; invoiceTerms?: string };
 
 /** The draft uses the same snapshot shape and renderer as the eventual issued archive. */
-export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, savedVehicle, preparedAt }: DraftDocumentProps): SaleWorkspaceDocument {
+export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, savedVehicle, preparedAt, invoiceTerms }: DraftDocumentProps): SaleWorkspaceDocument {
   const ledger = payments(draft).map((payment, index) => ({
     id: payment.id ?? `draft-payment-${index}`,
     amount: payment.amount,
@@ -110,6 +110,7 @@ export function buildDraftSaleDocument({ draft, dealer, vehicle, documentType, s
     id: `draft-${draft.id}`, number: 'DRAFT', type: documentType === 'Deposit receipt' ? 'receipt' : 'invoice',
     title: documentType, issuedAt: preparedAt ?? new Date().toISOString(), issuedBy: '', version: 1,
     balanceAtIssue: amount.balance,
+    ...(documentType==='Sales invoice' && compactInvoiceStyle(saleWorkspaceBranding(dealer).invoiceSettings?.style) ? { invoiceKind:'full' as const, ...(invoiceTerms ? {content:invoiceTerms} : {}) } : {}),
     ...(documentType === 'Deposit receipt' && receiptPayment ? { paymentId: receiptPayment.id, paymentAmountPence: receiptPayment.signedAmountPence } : {}),
     snapshot: {
       draft: snapshotDraft, payments: ledger, totals: amount, branding: saleWorkspaceBranding(dealer),
@@ -380,7 +381,7 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
   const currentIdentity = useRef(identity);
   currentIdentity.current = identity;
   // Polling and busy-state renders may create equivalent objects. Only content changes rebuild a draft.
-  const renderKey = JSON.stringify(props.issuedDocument ? { document: props.issuedDocument, pdfUrl: props.pdfUrl } : { draft: props.draft, dealer: props.dealer, vehicle: props.vehicle, savedVehicle: props.savedVehicle, documentType: props.documentType });
+  const renderKey = JSON.stringify(props.issuedDocument ? { document: props.issuedDocument, pdfUrl: props.pdfUrl } : { draft: props.draft, dealer: props.dealer, vehicle: props.vehicle, savedVehicle: props.savedVehicle, documentType: props.documentType, invoiceTerms:props.invoiceTerms });
   useEffect(() => {
     let cancelled = false;
     const timeout = setTimeout(() => {
@@ -389,7 +390,7 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
         if (cancelled) return;
         setFailure(null);
         setCandidate({ identity, blob, document });
-      }).catch(() => { if (!cancelled) setFailure({ identity, message: 'The PDF could not open. Please try again or download the saved document.' }); });
+      }).catch((error: unknown) => { if (!cancelled) setFailure({ identity, message: !props.issuedDocument && error instanceof Error ? error.message : 'The PDF could not open. Please try again or download the saved document.' }); });
     }, props.issuedDocument ? 0 : 500);
     return () => { cancelled = true; clearTimeout(timeout); };
   }, [renderKey]);
@@ -415,7 +416,7 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
     displayedRef.current = replacement;
     setDisplayed(replacement);
   };
-  return <article className="sales-pdf-document sales-document" aria-label={`${document.title} PDF`}>
+  return <article className="sales-pdf-document sales-document" {...documentAttributes(document.snapshot.branding)} aria-label={`${document.title} PDF`}>
     <div className="sales-pdf-document-meta">
       <span>{props.issuedDocument ? document.number : 'Invoice preview'}</span>
       {visible && <a href={visible.url} target="_blank" rel="noopener noreferrer">Open PDF</a>}
@@ -424,12 +425,13 @@ export function PdfSalesDocument(props: PdfSalesDocumentProps) {
     <PdfCanvasPages key={identity} blob={next?.blob ?? null} title={next?.document.title ?? document.title} fitPage={props.fitPage} unavailable={Boolean(error)} onRendered={publishCandidate} onRenderFailed={publishCandidate} />
     <div className="sr-only" aria-label="Document text equivalent">
       <h2>{document.title}</h2><p>{document.snapshot.branding.identity.name}</p><p>{document.number}</p><p>{draft.customer}</p><p>{draft.address}</p><p>{draft.email}</p><p>{draft.phone}</p><p>{draft.vehicle}</p><p>{draft.registration}</p>
-      {document.snapshot.vehicle && <dl>{Object.entries(document.snapshot.vehicle).filter(([key, value]) => !['id', 'title', 'description'].includes(key) && value != null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value)}</dd></div>)}</dl>}
+      {document.snapshot.vehicle && <dl>{Object.entries(document.snapshot.vehicle).filter(([key, value]) => !['id', 'title', 'description', 'photoDataUrl'].includes(key) && value != null && value !== '').map(([key, value]) => <div key={key}><dt>{key.replace(/([A-Z])/g, ' $1')}</dt><dd>{String(value)}</dd></div>)}</dl>}
       {['invoice', 'statement'].includes(document.type) && <section aria-label="Agreed sale"><p>Vehicle price {money(amount.price)}</p>{draft.adjustments?.map((row, index) => <p key={index}>{row.description} {money(pence(row.amount) * (row.kind === 'discount' ? -1 : 1))}</p>)}{draft.exchanges?.map((row, index) => <p key={index}>Part exchange {row.registration} {row.description} {money(-pence(row.value))}</p>)}</section>}
       {document.type === 'receipt' && payment && <section aria-label="Receipt payment"><h3>Payment received</h3><p>{money(document.paymentAmountPence ?? payment.signedAmountPence)}</p><p>{payment.date}</p><p>{payment.method}</p><p>{payment.reference}</p></section>}
       <dl><dt>Total due</dt><dd>{money(amount.totalDue)}</dd><dt>Payments received</dt><dd>{money(amount.confirmedPaid)}</dd><dt>{document.balanceAtIssue < 0 ? 'Customer credit' : 'Balance remaining'}</dt><dd>{money(Math.abs(document.balanceAtIssue))}</dd></dl>
       {document.content && <p>{document.content}</p>}
-      {document.type === 'statement' && <section aria-label="Payment history">{document.snapshot.payments.map(row => <p key={row.id}>{row.date} {row.kind} {row.method} {row.status} {row.reference} {money(row.signedAmountPence)}</p>)}</section>}
+      {(document.type === 'statement'||document.type==='invoice') && <section aria-label="Payment history">{document.snapshot.payments.filter(row=>document.type==='statement'||row.status==='confirmed').map(row => <p key={row.id}>{row.date} {row.kind} {row.method} {row.status} {row.reference} {money(row.signedAmountPence)}</p>)}</section>}
+      <DocumentExtras branding={document.snapshot.branding}/>
       {document.type === 'vehicle-details' && document.snapshot.vehicle?.description && <p>{document.snapshot.vehicle.description}</p>}
     </div>
   </article>;

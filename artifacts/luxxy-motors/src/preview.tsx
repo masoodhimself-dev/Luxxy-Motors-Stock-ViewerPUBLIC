@@ -25,6 +25,7 @@ const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
 const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
 const CustomerSale = lazy(() => import("@/pages/customer-sale"));
+const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 import './index.css';
 
@@ -33,7 +34,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/platform' || location === '/staff-upload' ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -62,6 +63,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/warranty" component={Warranty} />
                   <Route path="/reserve/payment-return" component={ReservationPaymentReturn} />
                   <Route path="/my-purchase/:token" component={CustomerSale} />
+                  <Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/>
                   <Route path="/viewing/:token" component={Viewing} />
                   <Route path="/sign/:token" component={RetiredSalesPage} />
                   <Route path="/customer-details/:token" component={RetiredSalesPage} />

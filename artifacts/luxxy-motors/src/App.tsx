@@ -31,6 +31,7 @@ const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
 const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
 const CustomerSale = lazy(() => import("@/pages/customer-sale"));
+const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
@@ -66,6 +67,7 @@ if (!clerkPubKey) {
 
 function Router() {
   const [location] = useLocation();
+  if (location.startsWith('/verify-invoice/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/></Suspense></RoutedErrorBoundary>;
   // Platform administration has its own identity and no dealership navigation or chat.
   if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
   if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
@@ -132,7 +134,7 @@ function ClerkQueryClientCacheInvalidator() {
 
 function DealerProviders({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return location === '/platform' || location === '/staff-upload' ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
+  return location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
 }
 
 function ClerkProviderWithRoutes() {

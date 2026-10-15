@@ -31,13 +31,20 @@ export type SaleWorkspaceTotals = {
   deposit: number; confirmedPaid: number; pending: number; balance: number;
 };
 export type InvoiceSettings = {
-  style: 'classic' | 'modern' | 'premium'; useWebsiteColour: boolean; accent: string;
+  style: 'classic' | 'modern' | 'premium' | 'understated' | 'branded'; useWebsiteColour: boolean; accent: string;
   showLogo: boolean; logoSize: 'small' | 'medium' | 'large'; inkSaving: boolean;
   footer: string; paymentInstructions: string;
   referencePrefix: string; startingSequence: number;
 };
+/** Compact A4 settings limits; historic issued snapshots are never shortened. */
+export const invoiceTextLimits = { footer: 120, paymentInstructions: 240, saleTerms: 600, reservationTerms: 600 } as const;
+export const compactInvoiceStyle = (style?: string) => style === 'understated' || style === 'branded';
+/** Migrate future settings, never the branding frozen in an already-issued document. */
+export function currentInvoiceSettings(settings?: Partial<InvoiceSettings>): InvoiceSettings {
+  return { ...defaultInvoiceSettings, ...settings, style: !settings?.style ? defaultInvoiceSettings.style : settings.style==='premium'||settings.style==='branded'?'branded':'understated' };
+}
 export const defaultInvoiceSettings: InvoiceSettings = {
-  style: 'modern', useWebsiteColour: true, accent: '#215a7e', showLogo: true,
+  style: 'branded', useWebsiteColour: true, accent: '#215a7e', showLogo: true,
   logoSize: 'medium', inkSaving: false, footer: '', paymentInstructions: '',
   referencePrefix: '', startingSequence: 1,
 };
@@ -60,6 +67,8 @@ export type SaleWorkspaceDocument = {
   title: string; issuedAt: string; issuedBy: string; version: number; invoiceKind?: 'deposit' | 'full';
   paymentId?: string; paymentAmountPence?: number; balanceAtIssue: number;
   content?: string;
+  /** The URL grants access only to a minimal invoice proof, never the customer record. */
+  verification?: { url: string; tokenHash?: string };
   snapshot: { draft: SaleWorkspaceDraft; payments: SaleWorkspacePayment[]; totals: SaleWorkspaceTotals; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot };
 };
 export type SaleWorkspaceEvent = { id: string; type: string; description: string; occurredAt: string; actor: string };
@@ -472,7 +481,7 @@ export function saleWorkspaceBranding(config: unknown): SaleWorkspaceBranding {
     legal: { companyName: clean(source.legal?.companyName), companyNumber: clean(source.legal?.companyNumber), vatNumber: clean(source.legal?.vatNumber), termsUrl: clean(source.legal?.termsUrl), privacyUrl: clean(source.legal?.privacyUrl), cookieUrl: clean(source.legal?.cookieUrl) },
     presentation: { linkColour: clean(source.presentation?.linkColour) },
     ...(source.invoiceSettings ? { invoiceSettings: {
-      style: ['classic', 'modern', 'premium'].includes(source.invoiceSettings.style) ? source.invoiceSettings.style : 'modern',
+      style: ['classic', 'modern', 'premium', 'understated', 'branded'].includes(source.invoiceSettings.style) ? source.invoiceSettings.style : defaultInvoiceSettings.style,
       useWebsiteColour: source.invoiceSettings.useWebsiteColour !== false,
       accent: /^#[0-9a-fA-F]{6}$/.test(source.invoiceSettings.accent) ? source.invoiceSettings.accent : '#215a7e',
       showLogo: source.invoiceSettings.showLogo !== false,

@@ -8,6 +8,7 @@
     "./sale-document-pdf": "./src/sale-document-pdf.ts"
   },
   "dependencies": {
-    "jspdf": "4.2.1"
+    "jspdf": "4.2.1",
+    "qrcode-generator": "2.0.4"
   }
 }
