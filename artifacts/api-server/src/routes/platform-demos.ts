@@ -1,3 +1,4 @@
+import { saveDemoBaseline } from '../lib/demo-baseline';
 import { Router } from 'express';
 import { getAuth } from '@clerk/express';
 import { z } from 'zod/v4';
@@ -44,11 +45,7 @@ router.post('/dealers/:id/demo',async(req,res)=>{
       if(!recipient || !demoProvisioning().recipients.includes(recipient)){await client.query('ROLLBACK');res.status(400).json({error:'Choose a platform-approved demo email recipient.'});return;}
       await client.query('UPDATE dealer_demos SET recipient=$2 WHERE dealer_id=$1',[id,recipient]);
     }else if(parsed.data.action==='baseline'){
-      const vehicles=(await client.query('SELECT * FROM vehicles WHERE dealer_id=$1',[id])).rows;
-      if(!vehicles.length){await client.query('ROLLBACK');res.status(409).json({error:'Import stock before saving the starting point.'});return;}
-      const images=(await client.query('SELECT i.* FROM vehicle_images i JOIN vehicles v ON v.id=i.vehicle_id WHERE v.dealer_id=$1',[id])).rows;
-      await clearDemoActivity(client,id);await seedDemo(client,id,config);
-      await client.query('UPDATE dealer_demos SET baseline=$2::jsonb WHERE dealer_id=$1',[id,JSON.stringify({version:1,config,logoData:demo.logo_data,vehicles:vehicles.map(v=>({...v,inventory_status:'available'})),images,savedAt:new Date().toISOString()})]);
+      if(!await saveDemoBaseline(client,id,config,demo.logo_data)){await client.query('ROLLBACK');res.status(409).json({error:'Import stock before saving the starting point.'});return;}
     }else if(parsed.data.action==='extend'){
       await client.query("UPDATE dealer_demos SET expires_at=$2 WHERE dealer_id=$1",[id,new Date(Date.now()+(parsed.data.days??14)*86400000)]);
     }else{

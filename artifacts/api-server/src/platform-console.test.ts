@@ -107,11 +107,13 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await machine('/capabilities','GET',undefined,onboarding.secret,'imports.example.test','https://evil.example.test')).status,403);
   assert.equal((await machine('/capabilities')).status,200);
   assert.equal((await machine('/demos','POST',{requestId:'33333333-3333-4333-8333-333333333333'})).status,400);
-  const job={requestId:'33333333-3333-4333-8333-333333333333',demo:{slug:'bot-example',name:'Bot Example',platform:'autotrader',retailerId:'fictional-ref',sourceUrl:'https://www.autotrader.co.uk/fictional'}};
+  const job={requestId:'33333333-3333-4333-8333-333333333333',demo:{slug:'bot-example',name:'Bot Example',platform:'autotrader',retailerId:'fictional-ref',sourceUrl:'https://www.autotrader.co.uk/fictional',logoData:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aOioAAAAASUVORK5CYII='}};
+  assert.equal((await machine('/demos','POST',{...job,demo:{...job.demo,logoData:'data:image/svg+xml;base64,PHN2Zz4='}})).status,400);
   const sent=await machine('/demos','POST',job);assert.equal(sent.status,201,await sent.clone().text());
   const receipt=await sent.json() as {dealerId:string;origin:string;status:string};
   assert.deepEqual(receipt,{dealerId:'demo-bot-example',origin:'https://bot-example.demo.example.test',status:'created'});
   assert.equal((await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='demo-bot-example'")).rows.length,0);
+  assert.equal((await engine.query<Record<string,any>>("SELECT logo_data FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].logo_data,job.demo.logoData);
   // A historical receipt containing a credential must never be exposed on replay.
   await engine.query("UPDATE demo_onboarding_requests SET sealed_response=$1::jsonb WHERE dealer_id='demo-bot-example'",[JSON.stringify({stockImport:{secret:'historical-secret'}})]);
   const repeated=await machine('/demos','POST',job);assert.equal(repeated.status,200);
@@ -124,6 +126,43 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await machine('/demos/demo-bot-example/reset','POST',{})).status,404);
   assert.equal((await request('/api/platform/overview','GET',undefined,'','admin.example.test',undefined,{'x-demo-onboarding-secret':onboarding.secret})).status,403);
   assert.equal((await machine('/demos','POST',{...job,requestId:'44444444-4444-4444-8444-444444444444',demo:{...job.demo,slug:'another-demo'}})).status,429);
+  // Completion cannot send arbitrary mail, affect another key's demo, or replace a baseline.
+  const emailPath='/demos/demo-bot-example/test-email',baselinePath='/demos/demo-bot-example/baseline';
+  const completeRun='66666666-6666-4666-8666-666666666666';
+  const completionBody={runId:completeRun,confirm:'demo-bot-example'};
+  assert.equal((await machine(emailPath,'POST',{subject:'arbitrary'})).status,400);
+  assert.equal((await machine('/demos/test-dealer/test-email','POST',{})).status,404);
+  assert.equal((await machine(emailPath,'POST',{})).status,409); // no stock yet
+  await engine.exec("INSERT INTO vehicles (dealer_id,source,advert_id,title,source_price) VALUES ('demo-bot-example','grok','fictional-one','Fictional car',10000)");
+  await db.insert(stockImportRunsTable).values({runId:completeRun,status:'completed',receivedAt:new Date(),scrapedAt:new Date(),dealerId:'demo-bot-example',source:'grok',retailerId:'fictional-ref',schemaVersion:'1',expectedCount:1,receivedCount:1,rawSnapshot:{}});
+  assert.equal((await machine(baselinePath,'POST',completionBody)).status,409); // delivery not confirmed
+  const originalFetch=globalThis.fetch;let emailSends=0,statusReads=0,providerEvent='sent',providerDenied=false,providerUnavailable=false;
+  globalThis.fetch=async(url,init)=>{
+   assert.equal(init?.redirect,'error');
+   if(init?.method==='POST'){emailSends++;const payload=JSON.parse(String(init.body));assert.deepEqual(payload.to,['operator@example.test']);assert.match(payload.subject,/^\[DEMO\]/);assert.equal(init.headers && (init.headers as Record<string,string>)['Idempotency-Key'],'demo-onboarding-test/demo-bot-example');if(providerUnavailable)throw Error('Timed out after provider accept');return Response.json({id:'fixed-provider-id'});}
+   statusReads++;assert.equal(String(url),'https://api.resend.com/emails/fixed-provider-id');if(providerDenied)return Response.json({error:'denied'},{status:403});return Response.json({id:'fixed-provider-id',to:['operator@example.test'],last_event:providerEvent});
+  };
+  try{
+   providerUnavailable=true;assert.equal((await machine(emailPath,'POST',{})).status,503);providerUnavailable=false;
+   assert.equal((await machine(emailPath,'POST',{})).status,200); // same idempotency key after ambiguous timeout
+   assert.equal((await machine(emailPath,'POST',{})).status,200);assert.equal(emailSends,2);
+   providerDenied=true;assert.equal((await machine(emailPath)).status,503);providerDenied=false;
+   assert.equal(((await (await machine(emailPath)).json()) as any).status,'pending');
+   assert.equal((await machine(baselinePath,'POST',completionBody)).status,409);
+   providerEvent='bounced';await engine.exec("UPDATE demo_onboarding_completion SET checked_at=now()-interval '2 minutes' WHERE dealer_id='demo-bot-example'");
+   assert.equal(((await (await machine(emailPath)).json()) as any).status,'failed');
+   assert.equal((await machine(baselinePath,'POST',completionBody)).status,409);
+   providerEvent='delivered';await engine.exec("UPDATE demo_onboarding_completion SET checked_at=now()-interval '2 minutes' WHERE dealer_id='demo-bot-example'");
+   assert.equal(((await (await machine(emailPath)).json()) as any).status,'delivered');
+   assert.equal((await machine(baselinePath,'POST',{...completionBody,runId:'77777777-7777-4777-8777-777777777777'})).status,409);
+   assert.equal((await machine(baselinePath,'POST',completionBody)).status,200);
+   const baselineState=(await engine.query<Record<string,any>>("SELECT baseline FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].baseline;
+   await engine.exec("UPDATE enquiries SET message='Practice edit must survive retry' WHERE dealer_id='demo-bot-example'");
+   assert.equal(((await (await machine(baselinePath,'POST',completionBody)).json()) as any).status,'replayed');
+   assert.equal((await engine.query("SELECT * FROM enquiries WHERE dealer_id='demo-bot-example' AND message='Practice edit must survive retry'")).rows.length,3);
+   assert.deepEqual((await engine.query<Record<string,any>>("SELECT baseline FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].baseline,baselineState);
+   assert.equal(emailSends,2);assert.equal(statusReads,4);
+  }finally{globalThis.fetch=originalFetch;}
   const keyList=await request('/api/platform/onboarding-keys');assert.ok(!(await keyList.text()).includes(onboarding.secret));
 
   const secondIssued=await request('/api/platform/onboarding-keys','POST',{label:'Rollback test',maxDemos:2,maxPerDay:2});const second=await secondIssued.json() as {secret:string};
@@ -133,6 +172,8 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await machine('/demos','POST',rollbackJob,second.secret)).status,201);
   assert.equal((await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='demo-rollback-demo'")).rows.length,0);
   assert.equal((await machine('/demos/demo-bot-example','GET',undefined,second.secret)).status,404);
+  assert.equal((await machine(emailPath,'POST',{},second.secret)).status,404);
+  assert.equal((await machine(baselinePath,'POST',completionBody,second.secret)).status,404);
   const originalKeys=(await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='test-dealer'")).rows.length;
   assert.equal((await request('/api/platform/onboarding-keys/'+onboarding.id,'DELETE')).status,200);
   assert.equal((await machine('/capabilities')).status,401);

@@ -218,6 +218,13 @@
       "when": 1792080000000,
       "tag": "0030_demo_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792092329346,
+      "tag": "0031_demo_onboarding_completion",
+      "breakpoints": true
     }
   ]
 }

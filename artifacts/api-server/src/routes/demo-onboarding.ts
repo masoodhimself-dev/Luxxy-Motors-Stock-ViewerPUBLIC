@@ -1,3 +1,4 @@
+import { demoCompletionRouter } from './demo-onboarding-completion';
 import { isPlatformAdmin } from '../lib/platform-admin';
 import { Router } from 'express';
 import { createHash } from 'node:crypto';
@@ -24,7 +25,7 @@ router.use(async(req,res,next)=>{
  if(!key || !isPlatformAdmin(key.ownerAuthUserId) || key.revokedAt || key.expiresAt.getTime()<=Date.now() || !matchesImportSecret(secret,key.secretHash)){res.status(401).json({error:'Invalid demo onboarding credential.'});return;}
  res.locals.onboardingKey=key;next();
 });
-router.get('/capabilities',(_req,res)=>{const p=demoProvisioning(),key=res.locals.onboardingKey;res.json({scope:'demo:create-and-read-own',domain:p.domain||null,domainsReady:Boolean(p.domain&&p.domainsReady),emailReady:Boolean(p.emailDomain&&p.emailReady),expiresAt:key.expiresAt,maxDemos:key.maxDemos,maxPerDay:key.maxPerDay,operations:['POST /api/demo-onboarding/demos','GET /api/demo-onboarding/demos/:dealerId'],notSupported:['live-dealers','reset','delete','staff','settings','payments','email-send','schedules']});});
+router.get('/capabilities',(_req,res)=>{const p=demoProvisioning(),key=res.locals.onboardingKey;res.json({scope:'demo:create-and-complete-own',domain:p.domain||null,domainsReady:Boolean(p.domain&&p.domainsReady),emailReady:Boolean(p.emailDomain&&p.emailReady),emailVerificationKeyConfigured:Boolean(process.env.DEMO_RESEND_STATUS_API_KEY),expiresAt:key.expiresAt,maxDemos:key.maxDemos,maxPerDay:key.maxPerDay,operations:['POST /api/demo-onboarding/demos','GET /api/demo-onboarding/demos/:dealerId','POST /api/demo-onboarding/demos/:dealerId/test-email','GET /api/demo-onboarding/demos/:dealerId/test-email','POST /api/demo-onboarding/demos/:dealerId/baseline'],notSupported:['live-dealers','reset','delete','staff','settings','payments','arbitrary-email','replace-baseline','schedules']});});
 const createInput=z.object({requestId:z.uuid(),demo:z.record(z.string(),z.unknown())}).strict();
 router.post('/demos',async(req,res)=>{
  const parsed=createInput.safeParse(req.body);if(!parsed.success){res.status(400).json({error:'Supply a UUID requestId and demo object.'});return;}
@@ -65,5 +66,6 @@ router.get('/demos/:dealerId',async(req,res)=>{
  const [last]=await db.select({runId:stockImportRunsTable.runId,status:stockImportRunsTable.status,receivedCount:stockImportRunsTable.receivedCount,receivedAt:stockImportRunsTable.receivedAt}).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId,row.dealer.id)).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
  res.json({dealerId:row.dealer.id,origin:row.dealer.canonicalOrigin,portalUrl:`${row.dealer.canonicalOrigin}/portal`,status:row.dealer.status,expired:row.demo.expiresAt.getTime()<=Date.now(),expiresAt:row.demo.expiresAt,baselineSaved:Boolean(row.demo.baseline),lastImport:last??null});
 });
+router.use(demoCompletionRouter());
 router.use((_req,res)=>{res.status(404).json({error:'Onboarding operation unavailable.'});});
 export default router;
