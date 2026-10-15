@@ -17,7 +17,7 @@ export function DealerWordmark({
       <img
         src={logoAsset}
         alt={name}
-        className={cn("h-10 max-w-[min(48vw,15rem)] object-contain", className)}
+        className={cn("h-10 max-w-[min(48vw,15rem)] object-contain", /[?&]theme=light(?:&|$)/.test(logoAsset) && "h-12 rounded-md bg-[#1b2526] px-2 py-1", className)}
       />
     );
   const label = logoText || name;
