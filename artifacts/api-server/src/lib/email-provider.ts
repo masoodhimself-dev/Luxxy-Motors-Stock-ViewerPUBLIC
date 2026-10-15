@@ -1,8 +1,10 @@
+import { demoEmailEnvelope } from './demo-policy';
 import { defaultEmailTemplates, renderEmailTemplate, type EmailFacts } from '@workspace/vehicle-meta';
 import { dealerIntegrationsStore, effectiveResendSettings, integrationReadiness, type ResendSettings } from './dealer-integrations-store';
 
 /** Transport is injectable so readiness and tests never send an email. */
 export async function sendEmailWithSettings(config: ResendSettings, request: { to: string; subject: string; html: string; text?: string; idempotencyKey: string; attachments?: Array<{ filename: string; content: string }> }, transport: typeof fetch = fetch): Promise<string> {
+  const envelope = await demoEmailEnvelope(request, config); config = envelope.config; request = { ...request, ...envelope.request };
   if (!config.enabled) throw new Error('Email delivery is disabled. Configure and enable Resend in integration settings.');
   if (!integrationReadiness({ resend: config, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' } }).resend.ready) throw new Error('Configure RESEND_API_KEY and RESEND_FROM_EMAIL or complete the private Resend settings before sending email.');
   if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(request.to) || !request.subject.trim() || request.subject.length > 200 || /[\r\n\u0000-\u001f]/.test(request.subject)) throw new Error('The email recipient or subject is invalid.');

@@ -1,3 +1,4 @@
+import { DemoNotice } from '@/components/demo-notice';
 import RetiredSalesPage from '@/pages/retired-sales';
 import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
@@ -72,7 +73,7 @@ function Router() {
   if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
   if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
-    <Layout>
+    <><DemoNotice/><Layout>
       <RoutedErrorBoundary>
         <Suspense fallback={<RouteLoading />}>
           <Switch>
@@ -100,7 +101,7 @@ function Router() {
         </Switch>
         </Suspense>
       </RoutedErrorBoundary>
-    </Layout>
+    </Layout></>
   );
 }
 

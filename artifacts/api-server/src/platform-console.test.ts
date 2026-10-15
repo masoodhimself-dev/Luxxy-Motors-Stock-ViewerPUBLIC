@@ -48,5 +48,45 @@ test('platform onboarding and operational views preserve access checks and omit 
   const separate = await (await request('/api/platform/dealers/email-dealer/workspace')).json() as { dealer: { onboardingChecklist: Record<string, unknown> } };
   assert.deepEqual(separate.dealer.onboardingChecklist,{});
 
+  // Demo setup is a separate, operator-only workflow. Missing infrastructure fails closed.
+  const demoInput={slug:'fictional-motors',name:'Fictional Motors',platform:'autotrader',retailerId:'demo-retailer',sourceUrl:'https://www.autotrader.co.uk/fictional',recipient:'operator@example.test',days:14};
+  assert.equal((await request('/api/platform/demos','POST',demoInput)).status,409);
+  process.env.DEMO_BASE_DOMAIN='demo.example.test';process.env.DEMO_DOMAINS_READY='true';process.env.DEMO_EMAIL_RECIPIENTS='operator@example.test';
+  assert.equal((await request('/api/platform/demos','POST',{...demoInput,recipient:'customer@example.test'})).status,400);
+  assert.equal((await request('/api/platform/demos','POST',demoInput,'user_other')).status,403);
+  const created=await request('/api/platform/demos','POST',demoInput);assert.equal(created.status,201,await created.clone().text());
+  assert.equal(((await created.json()) as {dealerId:string}).dealerId,'demo-fictional-motors');
+  assert.equal((await request('/api/platform/demos','POST',demoInput)).status,409);
+  assert.equal((await engine.query("SELECT * FROM sale_workspace WHERE dealer_id='demo-fictional-motors'")).rows.length,2);
+  const demoPath='/api/platform/dealers/demo-fictional-motors/demo';
+  const action={action:'baseline',expectedRevision:0,confirm:'demo-fictional-motors'};
+  assert.equal((await request('/api/platform/dealers/test-dealer/demo','POST',{...action,confirm:'test-dealer'})).status,409);
+  assert.equal((await request(demoPath,'POST',action)).status,409); // no stock baseline
+  await engine.exec("INSERT INTO vehicles (dealer_id,source,advert_id,title,source_price) VALUES ('demo-fictional-motors','grok','demo-advert','Example vehicle',12995)");
+  const saveBaseline=await request(demoPath,'POST',action);assert.equal(saveBaseline.status,200,await saveBaseline.clone().text());
+  await engine.exec("UPDATE vehicles SET source_price=9999,inventory_status='sold' WHERE dealer_id='demo-fictional-motors'");
+  assert.equal((await request(demoPath,'POST',{...action,action:'activity',expectedRevision:0})).status,409);
+  const reset=await request(demoPath,'POST',{...action,action:'activity',expectedRevision:1});assert.equal(reset.status,200,await reset.clone().text());
+  let car=(await engine.query<Record<string,any>>("SELECT * FROM vehicles WHERE dealer_id='demo-fictional-motors'")).rows[0];assert.equal(car.source_price,9999);assert.equal(car.inventory_status,'reserved');
+  const original=await request(demoPath,'POST',{...action,action:'original',expectedRevision:2});assert.equal(original.status,200,await original.clone().text());
+  car=(await engine.query<Record<string,any>>("SELECT * FROM vehicles WHERE dealer_id='demo-fictional-motors'")).rows[0];assert.equal(car.source_price,12995);
+  assert.equal((await engine.query("SELECT * FROM enquiries WHERE dealer_id='demo-fictional-motors'")).rows.length,3);
+  assert.equal((await engine.query("SELECT * FROM dealerships WHERE id='test-dealer'")).rows.length,1);
+  const {runWithTenant}=await import('./lib/tenant-context');
+  const {sendEmailWithSettings}=await import('./lib/email-provider');
+  const tenant={dealerId:'demo-fictional-motors',canonicalOrigin:'https://fictional-motors.demo.example.test',platform:'autotrader' as const,retailerId:'demo-retailer',sourceUrl:demoInput.sourceUrl,demo:true};
+  let sends=0;const transport:typeof fetch=async(_url,init)=>{sends++;const body=JSON.parse(String(init?.body));assert.deepEqual(body.to,['operator@example.test']);assert.match(body.subject,/^\[DEMO\]/);assert.match(body.html,/DEMONSTRATION/);assert.match(body.from,/demo-fictional-motors@emails.example.test/);return Response.json({id:'fictional-email'});};
+  const message={to:'real-customer@example.test',subject:'Your sample',html:'<p>Sample</p>',idempotencyKey:'fictional-test'};
+  const config={enabled:false,apiKey:'',from:'',replyTo:''};
+  await assert.rejects(runWithTenant(tenant,()=>sendEmailWithSettings(config,message,transport)),/Demo email is disabled/);assert.equal(sends,0);
+  process.env.DEMO_EMAIL_DOMAIN='emails.example.test';process.env.DEMO_RESEND_VERIFIED='true';process.env.DEMO_RESEND_API_KEY='re_fictional_test_only';
+  assert.equal(await runWithTenant(tenant,()=>sendEmailWithSettings(config,message,transport)),'fictional-email');assert.equal(sends,1);
+  const {assertStripeReady}=await import('./lib/stripe-payments');
+  assert.throws(()=>runWithTenant(tenant,()=>assertStripeReady({enabled:true,mode:'live',secretKey:'sk_live_fake',publishableKey:'pk_live_fake',webhookSecret:'whsec_fake'})),/disabled in demonstrations/);
+  assert.equal((await request('/api/reservations/checkout','POST',{},'user_admin','fictional-motors.demo.example.test')).status,403);
+  const demoPage=await request('/','GET',undefined,'user_admin','fictional-motors.demo.example.test');assert.equal(demoPage.status,200);
+  await engine.exec("UPDATE dealer_demos SET expires_at=now()-interval '1 day' WHERE dealer_id='demo-fictional-motors'");
+  assert.equal((await request('/','GET',undefined,'user_admin','fictional-motors.demo.example.test')).status,410);
+
  }finally{await new Promise<void>((r,j)=>server.close(e=>e?j(e):r()));await engine.close();}
 });

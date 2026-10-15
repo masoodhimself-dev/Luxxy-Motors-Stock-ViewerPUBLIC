@@ -1,3 +1,4 @@
+import { currentTenant } from './tenant-context';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { integrationReadiness, type StripeSettings } from './dealer-integrations-store';
 import { ReservationError } from './online-reservations';
@@ -5,6 +6,7 @@ export type StripeCheckoutSnapshot = { id: string; dealerId: string; vehicleId: 
 export type StripeEvent = { id: string; type: string; livemode: boolean; created: number; data: { object: Record<string, any> } };
 export class StripeCheckoutPreparationError extends ReservationError { constructor(message: string, readonly definitiveFailure: boolean, readonly recoveredSessionId?: string, readonly failureParam?: string) { super(message, 503); } }
 export function assertStripeReady(settings: StripeSettings) {
+  if (currentTenant()?.demo) throw new ReservationError('Real payments are disabled in demonstrations.', 403);
   if (!settings.enabled || !integrationReadiness({ stripe: settings, resend: { enabled: false, apiKey: '', from: '', replyTo: '' } }).stripe.ready) throw new ReservationError('Online payment setup is being completed. Please contact the dealership.', 503);
 }
 export async function createStripeCheckoutSession(settings: StripeSettings, snapshot: StripeCheckoutSnapshot, urls: { success: string; cancel: string }, transport: typeof fetch = fetch): Promise<{ id: string; url: string }> {

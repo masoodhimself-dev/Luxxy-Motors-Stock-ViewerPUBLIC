@@ -1,4 +1,4 @@
-import { db, dealershipsTable } from '@workspace/db';
+import { db, dealershipsTable, dealerDemosTable } from '@workspace/db';
 import { eq } from 'drizzle-orm';
 import { multiTenantEnabled, runWithTenant } from './tenant-context';
 
@@ -6,8 +6,11 @@ import { multiTenantEnabled, runWithTenant } from './tenant-context';
 export async function forEachActiveDealer(job: () => Promise<unknown>): Promise<void> {
   if (!multiTenantEnabled()) { await job(); return; }
   const dealers = await db.select().from(dealershipsTable).where(eq(dealershipsTable.status, 'active'));
+  // Demonstrations use deliberate staff test sends only, never automated reminders.
+  const demos = new Set((await db.select({id:dealerDemosTable.dealerId}).from(dealerDemosTable)).map(d=>d.id));
   const failures: Error[] = [];
   for (const dealer of dealers) {
+    if(demos.has(dealer.id)) continue;
     try {
       await runWithTenant({ dealerId: dealer.id, canonicalOrigin: dealer.canonicalOrigin, platform: dealer.stockPlatform, retailerId: dealer.retailerId, sourceUrl: dealer.sourceUrl }, job);
     } catch (cause) {
