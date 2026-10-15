@@ -1,6 +1,6 @@
 import { isPlatformAdmin } from '../lib/platform-admin';
 import { Router } from 'express';
-import { randomBytes,createHash } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { db,pool,demoOnboardingKeysTable,demoOnboardingRequestsTable,dealershipsTable,dealerDemosTable,stockImportRunsTable } from '@workspace/db';
 import { and,eq,desc } from 'drizzle-orm';
 import { z } from 'zod/v4';
@@ -8,7 +8,6 @@ import { importSecretDigest,matchesImportSecret } from '../middlewares/tenant';
 import { normaliseTenantHost,multiTenantEnabled } from '../lib/tenant-context';
 import { demoProvisioning } from '../lib/demo-policy';
 import { validatedDemoInput,insertDemo,DemoSetupError,demoCreationInput } from '../lib/demo-creation';
-import { sealDemoReceipt,openDemoReceipt } from '../lib/demo-onboarding-secrets';
 const router=Router();
 const requests=new Map<string,{start:number;count:number}>();
 function limited(identity:string){const now=Date.now(),old=requests.get(identity);if(!old||now-old.start>=60000){if(requests.size>=10000){for(const [k,v] of requests)if(now-v.start>=60000)requests.delete(k);if(requests.size>=10000)return true;}requests.set(identity,{start:now,count:1});return false;}return ++old.count>60;}
@@ -38,12 +37,12 @@ router.post('/demos',async(req,res)=>{
   const locked=(await client.query('SELECT * FROM demo_onboarding_keys WHERE id=$1 FOR UPDATE',[key.id])).rows[0];
   if(!locked || locked.revoked_at || new Date(locked.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(401).json({error:'Invalid demo onboarding credential.'});return;}
   const prior=(await client.query('SELECT * FROM demo_onboarding_requests WHERE key_id=$1 AND request_id=$2',[key.id,parsed.data.requestId])).rows[0];
-  const aad=`${key.id}:${parsed.data.requestId}`;
   if(prior){
    if(prior.payload_hash!==payloadHash){await client.query('ROLLBACK');res.status(409).json({error:'requestId already used with different demo data.'});return;}
-   const state=(await client.query('SELECT expires_at FROM dealer_demos WHERE dealer_id=$1',[prior.dealer_id])).rows[0];
+   const state=(await client.query('SELECT d.expires_at,t.canonical_origin FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[prior.dealer_id])).rows[0];
    if(!state||new Date(state.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(410).json({error:'The demonstration has expired. Contact the operator.'});return;}
-   const receipt=openDemoReceipt(prior.sealed_response,aad);await client.query('COMMIT');res.json({...receipt,status:'replayed'});return;
+   // Never deserialize historical receipts: older versions contained stock secrets.
+   await client.query('COMMIT');res.json({dealerId:prior.dealer_id,origin:state.canonical_origin,status:'replayed'});return;
   }
   const p=demoProvisioning();
   const raw=parsed.data.demo && typeof parsed.data.demo==='object'&&!Array.isArray(parsed.data.demo)?{...parsed.data.demo as Record<string,unknown>}:parsed.data.demo;
@@ -53,12 +52,9 @@ router.post('/demos',async(req,res)=>{
   const counts=(await client.query("SELECT count(*)::int AS total,count(*) FILTER (WHERE created_at >= date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::int AS today FROM demo_onboarding_requests WHERE key_id=$1",[key.id])).rows[0];
   if(counts.total>=locked.max_demos || counts.today>=locked.max_per_day){await client.query('ROLLBACK');res.set('Retry-After','3600').status(429).json({error:'Demo creation quota reached. Contact the operator.'});return;}
   const result=await insertDemo(client,prepared,locked.owner_auth_user_id);
-  const secret=randomBytes(32).toString('base64url');
-  const importKey=(await client.query('INSERT INTO dealer_import_keys (dealer_id,secret_hash) VALUES ($1,$2) RETURNING id',[result.dealerId,importSecretDigest(secret)])).rows[0];
-  const demo=(await client.query('SELECT expires_at FROM dealer_demos WHERE dealer_id=$1',[result.dealerId])).rows[0];
-  const receipt={status:'created',requestId:parsed.data.requestId,...result,portalUrl:`${result.origin}/portal`,expiresAt:demo.expires_at,stockImport:{endpoint:`https://${process.env.STOCK_IMPORT_API_HOST}/api/stock/imports/${result.dealerId}/grok`,header:'x-stock-import-secret',keyId:importKey.id,secret},email:{sender:`${result.dealerId}@${p.emailDomain}`,recipient:prepared.d.recipient,restricted:true},baselineSaved:false,notice:'Store the stock credential securely before continuing. No stock was collected, email sent or schedule created. Ask the operator to save the baseline after the first stock import.'};
-  const sealed=sealDemoReceipt(receipt,aad);
-  await client.query('INSERT INTO demo_onboarding_requests (key_id,request_id,dealer_id,payload_hash,sealed_response) VALUES ($1,$2,$3,$4,$5::jsonb)',[key.id,parsed.data.requestId,result.dealerId,payloadHash,JSON.stringify(sealed)]);
+  const receipt={dealerId:result.dealerId,origin:result.origin,status:'created'};
+  // Retain the existing column for compatibility; store only public receipt fields.
+  await client.query('INSERT INTO demo_onboarding_requests (key_id,request_id,dealer_id,payload_hash,sealed_response) VALUES ($1,$2,$3,$4,$5::jsonb)',[key.id,parsed.data.requestId,result.dealerId,payloadHash,JSON.stringify(receipt)]);
   await client.query('COMMIT');res.status(201).json(receipt);
  }catch(error){await client.query('ROLLBACK');if(error instanceof DemoSetupError){res.status(error.status).json({error:error.message});return;}if((error as any).code==='23505'){res.status(409).json({error:'Demo name already exists. No new demo created.'});return;}res.status(503).json({error:'Demo onboarding could not finish. Retry the identical requestId and payload; do not create another request.'});}finally{client.release();}
 });
