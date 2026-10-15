@@ -73,6 +73,14 @@ test('platform onboarding and operational views preserve access checks and omit 
   car=(await engine.query<Record<string,any>>("SELECT * FROM vehicles WHERE dealer_id='demo-fictional-motors'")).rows[0];assert.equal(car.source_price,12995);
   assert.equal((await engine.query("SELECT * FROM enquiries WHERE dealer_id='demo-fictional-motors'")).rows.length,3);
   assert.equal((await engine.query("SELECT * FROM dealerships WHERE id='test-dealer'")).rows.length,1);
+  const recipientAction={action:'recipient',expectedRevision:3,confirm:'demo-fictional-motors',recipient:'unapproved@example.test'};
+  assert.equal((await request(demoPath,'POST',recipientAction)).status,400);
+  assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'operator@example.test',expectedRevision:0})).status,409);
+  assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'operator@example.test'},'user_other')).status,403);
+  const baselineBefore=(await engine.query<Record<string,any>>("SELECT baseline FROM dealer_demos WHERE dealer_id='demo-fictional-motors'")).rows[0];
+  assert.equal((await request(demoPath,'POST',{...recipientAction,recipient:'OPERATOR@example.test'})).status,200);
+  const recipientAfter=(await engine.query<Record<string,any>>("SELECT recipient,revision,baseline FROM dealer_demos WHERE dealer_id='demo-fictional-motors'")).rows[0];
+  assert.equal(recipientAfter.recipient,'operator@example.test');assert.equal(recipientAfter.revision,4);assert.deepEqual(recipientAfter.baseline,baselineBefore.baseline);
   const {runWithTenant}=await import('./lib/tenant-context');
   const {sendEmailWithSettings}=await import('./lib/email-provider');
   const tenant={dealerId:'demo-fictional-motors',canonicalOrigin:'https://fictional-motors.demo.example.test',platform:'autotrader' as const,retailerId:'demo-retailer',sourceUrl:demoInput.sourceUrl,demo:true};

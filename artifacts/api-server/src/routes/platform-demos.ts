@@ -26,7 +26,7 @@ router.get('/dealers/:id/demo',async(req,res)=>{
   if(!demo){res.json({demo:false});return;}
   const p=demoProvisioning();res.json({demo:true,recipient:demo.recipient,expiresAt:demo.expiresAt,revision:demo.revision,baselineSaved:Boolean(demo.baseline),lastResetAt:demo.lastResetAt,sender:p.emailDomain?`${demo.dealerId}@${p.emailDomain}`:null,emailReady:p.emailReady && p.recipients.includes(demo.recipient),paymentsDisabled:true});
 });
-const action=z.object({action:z.enum(['baseline','activity','original','extend']),expectedRevision:z.number().int().nonnegative(),confirm:z.string(),days:z.number().int().min(1).max(90).optional()}).strict();
+const action=z.object({action:z.enum(['baseline','activity','original','extend','recipient']),expectedRevision:z.number().int().nonnegative(),confirm:z.string(),days:z.number().int().min(1).max(90).optional(),recipient:z.email().transform(v=>v.toLowerCase()).optional()}).strict();
 router.post('/dealers/:id/demo',async(req,res)=>{
   const parsed=action.safeParse(req.body);if(!parsed.success||parsed.data.confirm!==req.params.id){res.status(400).json({error:'Confirm the exact demo dealer ID and current revision.'});return;}
   const client=await pool.connect();
@@ -39,7 +39,11 @@ router.post('/dealers/:id/demo',async(req,res)=>{
     // Coordinate with the existing dealer-specific stock and sales locks.
     for(const key of [`stock-import:${id}`,`sale-workspace:${id}`,`dealer-settings:${id}`]) await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[key]);
     let config=(await client.query('SELECT config FROM dealer_settings WHERE dealer_id=$1 FOR UPDATE',[id])).rows[0].config;
-    if(parsed.data.action==='baseline'){
+    if(parsed.data.action==='recipient'){
+      const recipient=parsed.data.recipient;
+      if(!recipient || !demoProvisioning().recipients.includes(recipient)){await client.query('ROLLBACK');res.status(400).json({error:'Choose a platform-approved demo email recipient.'});return;}
+      await client.query('UPDATE dealer_demos SET recipient=$2 WHERE dealer_id=$1',[id,recipient]);
+    }else if(parsed.data.action==='baseline'){
       const vehicles=(await client.query('SELECT * FROM vehicles WHERE dealer_id=$1',[id])).rows;
       if(!vehicles.length){await client.query('ROLLBACK');res.status(409).json({error:'Import stock before saving the starting point.'});return;}
       const images=(await client.query('SELECT i.* FROM vehicle_images i JOIN vehicles v ON v.id=i.vehicle_id WHERE v.dealer_id=$1',[id])).rows;
