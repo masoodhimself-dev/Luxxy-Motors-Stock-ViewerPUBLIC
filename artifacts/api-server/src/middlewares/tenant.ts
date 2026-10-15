@@ -50,7 +50,8 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
       if (req.path === '/api/reservations/checkout' || req.path.startsWith('/api/reservations/stripe') || req.path.startsWith('/api/staff/stripe-reservations')) { res.status(403).json({ error: 'Real payments are disabled in demonstrations.' }); return; }
       if (req.path === '/robots.txt') { res.type('text/plain').send('User-agent: *\nDisallow: /\n'); return; }
     }
-    if (req.path === '/api/demo-logo' && demo?.logoData) { const [meta, data] = demo.logoData.split(','); res.type(meta.includes('png')?'image/png':'image/jpeg').send(Buffer.from(data,'base64')); return; }
+    const demoLogo=req.query.variant==='footer'?(demo?.footerLogoData||demo?.logoData):demo?.logoData;
+    if (req.path === '/api/demo-logo' && demoLogo) { const [meta, data] = demoLogo.split(','); res.type(meta.includes('png')?'image/png':'image/jpeg').send(Buffer.from(data,'base64')); return; }
     if (req.path === '/api/demo-status') { res.json({ demo: Boolean(demo), ...(demo ? { emailRestricted: true, paymentsDisabled: true } : {}) }); return; }
     runWithTenant(tenant, next);
   })().catch(next);

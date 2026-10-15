@@ -109,11 +109,15 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await machine('/demos','POST',{requestId:'33333333-3333-4333-8333-333333333333'})).status,400);
   const job={requestId:'33333333-3333-4333-8333-333333333333',demo:{slug:'bot-example',name:'Bot Example',platform:'autotrader',retailerId:'fictional-ref',sourceUrl:'https://www.autotrader.co.uk/fictional',logoData:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aOioAAAAASUVORK5CYII='}};
   assert.equal((await machine('/demos','POST',{...job,demo:{...job.demo,logoData:'data:image/svg+xml;base64,PHN2Zz4='}})).status,400);
+  Object.assign(job.demo,{footerLogoData:job.demo.logoData});
   const sent=await machine('/demos','POST',job);assert.equal(sent.status,201,await sent.clone().text());
   const receipt=await sent.json() as {dealerId:string;origin:string;status:string};
   assert.deepEqual(receipt,{dealerId:'demo-bot-example',origin:'https://bot-example.demo.example.test',status:'created'});
   assert.equal((await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='demo-bot-example'")).rows.length,0);
   assert.equal((await engine.query<Record<string,any>>("SELECT logo_data FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].logo_data,job.demo.logoData);
+  assert.equal((await engine.query<Record<string,any>>("SELECT footer_logo_data FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].footer_logo_data,job.demo.logoData);
+  assert.equal((await request('/api/demo-logo?variant=footer','GET',undefined,'','bot-example.demo.example.test')).status,200);
+  assert.equal((await request('/api/demo-logo?variant=footer','GET',undefined,'','dealer.example.test')).status,421);
   // A historical receipt containing a credential must never be exposed on replay.
   await engine.query("UPDATE demo_onboarding_requests SET sealed_response=$1::jsonb WHERE dealer_id='demo-bot-example'",[JSON.stringify({stockImport:{secret:'historical-secret'}})]);
   const repeated=await machine('/demos','POST',job);assert.equal(repeated.status,200);

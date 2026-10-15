@@ -152,6 +152,9 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
   };
 });
 
+let demoSiteMode = false;
+vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
+
 let overrideSettings: typeof dealerConfigFixture & {
   presentation?: { heroImageUrl?: string; heroImageAlt?: string; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
@@ -206,6 +209,7 @@ const originalCars = stockFixture.cars.map((car) => ({ ...car }));
 afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
+  demoSiteMode=false;
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
   window.history.replaceState({}, '', '/');
   window.sessionStorage.clear();
@@ -675,3 +679,5 @@ describe('supplied vehicle benefit searches', () => {
     expect(window.location.search).toBe('?make=BMW');
   });
 });
+
+it("uses an illustrative car hero for demos and avoids a repeated demo announcement",()=>{demoSiteMode=true;overrideSettings={...dealerConfigFixture,hero:{...dealerConfigFixture.hero,announcement:"Demonstration website — sample activity, no real payments."}};renderHome(false);expect(screen.getByAltText("Illustrative stock photograph of a white BMW coupe")).toBeInTheDocument();expect(screen.queryByText("Demonstration website — sample activity, no real payments.")).not.toBeInTheDocument();});

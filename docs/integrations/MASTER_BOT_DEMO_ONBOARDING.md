@@ -65,6 +65,7 @@ Contract:
 - `sourceUrl`: HTTPS, no URL credentials or custom port, authorised source on the chosen marketplace's www/non-www hostname.
 - `days`: integer 1–90, default 14.
 - `recipient`: optional; if omitted, the server chooses the first explicitly allowlisted operator test recipient. If provided, it must already be on that allowlist. The bot cannot add recipients.
+- `footerLogoData`: optional separate footer PNG/JPEG data URL, with the same validation as logoData. Both encoded logos together must be under 400,000 characters, and each decoded image under 250 KB.
 - `logoData`: optional PNG/JPEG base64 data URL, max 400,000 characters and decoded max 250,000 bytes. Do not send SVG or an arbitrary remote URL. The backend does not fetch remote logo URLs. Resize/compress authorised logos locally.
 - Extra fields, including owner, status, origin, domain and live mode, are rejected.
 
@@ -128,7 +129,15 @@ The same onboarding header authenticates these routes. This is **not** the stock
 
 ### Logo upload
 
-Include `demo.logoData` in the original create request. Download only the supplied/authorised dealer logo, resize/compress in code, and encode a PNG/JPEG data URL under 250 KB decoded (400,000 characters encoded). Keep identical logo bytes in creation retries. Do not send SVG or ask the backend to fetch a URL. If no logo was supplied, use text branding and report that; never invent a dealer logo. An existing demo logo cannot be changed by this restricted API.
+For new demos, create two matching **demo concept** logos from the confirmed dealer name; do not reuse marketplace banners. Keep clean typography, no small taglines, no mockups or heavy backgrounds. Check readability at the real display size. Do not claim that a concept is the dealer's existing official logo.
+
+Include `demo.logoData` for the compact header logo and `demo.footerLogoData` for the matching footer variant in the original creation request. Suggested working canvases: header 600×160, footer 600×200, preserving proportions and leaving padding. Use a transparent PNG where appropriate; JPEG is also supported. Each decoded image must be under 250 KB and their combined encoded data URLs under 400,000 characters (the request limit remains 450 KB). The footer is served at the tenant-scoped `/api/demo-logo?variant=footer`. Keep identical bytes on retries. SVG and remote logo URLs are not accepted. This API still cannot replace an existing demo's logo; ask the operator for existing demos.
+
+### Demo collection defaults
+
+Disable number-plate OCR for demo workers (`ocrEnabled: false`, using the worker's actual supported configuration). Continue importing plates explicitly supplied by the source. Leave unavailable plates null; do not guess. Do not alter live-dealer OCR preferences, safeguards, schedules or cache provenance. Confirm the change from the worker configuration/logs; changing backend documentation alone does not configure Grok's worker.
+
+Demo homepages use an illustrative stock car photo when no custom hero is configured, with one quiet preview notice. Do not add repeated demo labels in the dealer name or hero text. Fictional documents and test emails retain their sample labels and delivery/payment protections.
 
 ### Fixed test email
 

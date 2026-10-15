@@ -45,7 +45,7 @@ router.post('/dealers/:id/demo',async(req,res)=>{
       if(!recipient || !demoProvisioning().recipients.includes(recipient)){await client.query('ROLLBACK');res.status(400).json({error:'Choose a platform-approved demo email recipient.'});return;}
       await client.query('UPDATE dealer_demos SET recipient=$2 WHERE dealer_id=$1',[id,recipient]);
     }else if(parsed.data.action==='baseline'){
-      if(!await saveDemoBaseline(client,id,config,demo.logo_data)){await client.query('ROLLBACK');res.status(409).json({error:'Import stock before saving the starting point.'});return;}
+      if(!await saveDemoBaseline(client,id,config,demo.logo_data,demo.footer_logo_data)){await client.query('ROLLBACK');res.status(409).json({error:'Import stock before saving the starting point.'});return;}
     }else if(parsed.data.action==='extend'){
       await client.query("UPDATE dealer_demos SET expires_at=$2 WHERE dealer_id=$1",[id,new Date(Date.now()+(parsed.data.days??14)*86400000)]);
     }else{
@@ -61,7 +61,7 @@ router.post('/dealers/:id/demo',async(req,res)=>{
         config=baseline.config;
         const row=(await client.query('UPDATE dealer_settings SET config=$2::jsonb,revision=revision+1,updated_at=now() WHERE dealer_id=$1 RETURNING revision',[id,JSON.stringify(config)])).rows[0];
         await client.query("INSERT INTO dealer_settings_versions(dealer_id,revision,config,published_at,published_by,action) VALUES ($1,$2,$3::jsonb,now(),$4,'publish')",[id,row.revision,JSON.stringify(config),getAuth(req).userId]);
-        await client.query('UPDATE dealer_demos SET logo_data=$2 WHERE dealer_id=$1',[id,baseline.logoData]);
+        await client.query('UPDATE dealer_demos SET logo_data=$2,footer_logo_data=$3 WHERE dealer_id=$1',[id,baseline.logoData,baseline.footerLogoData??demo.footer_logo_data]);
       }
       await seedDemo(client,id,config);
       await client.query('UPDATE dealer_demos SET last_reset_at=now() WHERE dealer_id=$1',[id]);

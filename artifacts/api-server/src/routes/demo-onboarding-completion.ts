@@ -71,7 +71,7 @@ export function demoCompletionRouter(transport:typeof fetch=(...args)=>fetch(...
    const latest=(await client.query('SELECT run_id,status,received_count,expected_count FROM stock_import_runs WHERE dealer_id=$1 ORDER BY received_at DESC LIMIT 1',[id])).rows[0];
    if(latest?.run_id!==input.runId||latest.status!=='completed'||latest.received_count<1||latest.received_count!==latest.expected_count){await client.query('ROLLBACK');res.status(409).json({error:'Use the latest successful complete, non-empty stock import runId.'});return;}
    const config=(await client.query('SELECT config FROM dealer_settings WHERE dealer_id=$1 FOR UPDATE',[id])).rows[0]?.config;
-   if(!config||!await saveDemoBaseline(client,id,config,demo.logo_data)){await client.query('ROLLBACK');res.status(409).json({error:'Demo stock and branding are not ready.'});return;}
+   if(!config||!await saveDemoBaseline(client,id,config,demo.logo_data,demo.footer_logo_data)){await client.query('ROLLBACK');res.status(409).json({error:'Demo stock and branding are not ready.'});return;}
    await client.query('UPDATE dealer_demos SET revision=revision+1,updated_by=$2 WHERE dealer_id=$1',[id,key.ownerAuthUserId]);
    await client.query('UPDATE demo_onboarding_completion SET baseline_run_id=$2,completed_at=now() WHERE dealer_id=$1',[id,input.runId]);
    await client.query('COMMIT');res.json({dealerId:id,status:'saved',baselineSaved:true});

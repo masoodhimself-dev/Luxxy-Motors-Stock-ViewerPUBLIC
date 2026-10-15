@@ -12,6 +12,8 @@ import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
+import demoCarHero from "@/assets/demo-car-hero.jpg";
+import { useDemoStatus } from "@/lib/demo-status";
 import luxxyHeroImage from "@/assets/luxxy-hero.jpg";
 import {
   readBrowseSession,
@@ -67,6 +69,7 @@ const benefitChoices = [
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
+  const demoSite = useDemoStatus();
   const [, setLocation] = useLocation();
   useEffect(() => {
     const redirectStock = () => {
@@ -305,10 +308,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const usesLuxxyBrandImage =
     !configuredHeroImage &&
     /^luxxy\s+motors$/i.test(dealerConfig.identity.name.trim());
-  const heroImage = configuredHeroImage || (usesLuxxyBrandImage ? luxxyHeroImage : undefined);
+  const heroImage = configuredHeroImage || (demoSite ? demoCarHero : usesLuxxyBrandImage ? luxxyHeroImage : undefined);
   const heroAlt = configuredHeroImage
     ? dealerConfig.presentation?.heroImageAlt || `${dealerConfig.identity.name} showroom`
-    : usesLuxxyBrandImage
+    : demoSite
+      ? "Illustrative stock photograph of a white BMW coupe"
+      : usesLuxxyBrandImage
       ? "Illustrative Luxxy brand image: a dark blue Mercedes-Benz overlooking a lake"
       : vehicleDisplayTitle(heroFallbackCar);
 
@@ -388,11 +393,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   return (
     <div className={browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
-        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
+        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={demoSite && !configuredHeroImage ? 'bottom' : dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="stock-search-panel">
-            <p className="home-hero-eyebrow">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
+            <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
             <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
             {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
             <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />

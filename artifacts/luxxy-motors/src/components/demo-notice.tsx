@@ -1,3 +1,3 @@
-import { useEffect, useState } from 'react';
-/** No customer or operator details are exposed by this public status endpoint. */
-export function DemoNotice(){const [demo,setDemo]=useState(false);useEffect(()=>{const controller=new AbortController();void fetch('/api/demo-status',{signal:controller.signal,cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>setDemo(data?.demo===true)).catch(()=>{});return()=>controller.abort();},[]);return demo?<div role="note" style={{padding:'10px 18px',background:'#fff4d7',color:'#493b1c',textAlign:'center',fontSize:14,lineHeight:1.5,borderBottom:'1px solid #e5d5a8'}}>Demonstration website · Fictional activity and sample documents · No real payments · Email restricted to the operator</div>:null;}
+import { useDemoStatus } from '@/lib/demo-status';
+/** One quiet indicator; payment, email and sample-document safeguards remain enforced. */
+export function DemoNotice(){const demo=useDemoStatus();return demo?<div role="note" style={{padding:'5px 18px',background:'#f4f5f6',color:'#626b70',textAlign:'center',fontSize:12,lineHeight:1.5,borderBottom:'1px solid #e5e7e9'}}>Preview website</div>:null;}
