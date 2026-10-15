@@ -26,7 +26,7 @@ export function CustomerFooter({ settings, testDriveHref }: { settings: DealerCo
 
       <div className="footer-directory">
         <div className="footer-brand">
-          <Link href="/" className={`footer-wordmark${!settings.presentation?.footerLogoUrl && settings.identity.logoAsset ? ' footer-wordmark-on-panel' : ''}`} aria-label={`${settings.identity.name} home`}><DealerWordmark {...settings.identity} logoAsset={settings.presentation?.footerLogoUrl || settings.identity.logoAsset} /></Link>
+          <Link href="/" className={`footer-wordmark${!settings.presentation?.footerLogoUrl && settings.identity.logoAsset ? ' footer-wordmark-on-panel' : ''}`} aria-label={`${settings.identity.name} home`}><DealerWordmark {...settings.identity} logoAsset={settings.presentation?.footerLogoUrl || settings.identity.logoAsset} className={settings.presentation?.footerLogoUrl ? "h-auto w-[220px] max-w-full" : undefined} /></Link>
           {location && <p className="footer-location">{location}</p>}
           <p className="footer-introduction">{!introduction || introduction.toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.' ? 'Browse our cars, get to know the details and take your time choosing.' : introduction}</p>
           {socialLinks.length > 0 && <nav className="footer-social" aria-label="Follow us">{socialLinks.map(({ label, href, Icon }) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label}><Icon size={18} aria-hidden="true" /></a>)}</nav>}
