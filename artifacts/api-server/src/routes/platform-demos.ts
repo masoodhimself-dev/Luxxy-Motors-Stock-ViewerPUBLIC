@@ -61,7 +61,7 @@ router.post('/dealers/:id/demo',async(req,res)=>{
         config=baseline.config;
         const row=(await client.query('UPDATE dealer_settings SET config=$2::jsonb,revision=revision+1,updated_at=now() WHERE dealer_id=$1 RETURNING revision',[id,JSON.stringify(config)])).rows[0];
         await client.query("INSERT INTO dealer_settings_versions(dealer_id,revision,config,published_at,published_by,action) VALUES ($1,$2,$3::jsonb,now(),$4,'publish')",[id,row.revision,JSON.stringify(config),getAuth(req).userId]);
-        await client.query('UPDATE dealer_demos SET logo_data=$2,footer_logo_data=$3 WHERE dealer_id=$1',[id,baseline.logoData,baseline.footerLogoData??demo.footer_logo_data]);
+        await client.query('UPDATE dealer_demos SET logo_data=$2,footer_logo_data=$3 WHERE dealer_id=$1',[id,baseline.logoData,Object.prototype.hasOwnProperty.call(baseline,'footerLogoData')?baseline.footerLogoData:demo.footer_logo_data]);
       }
       await seedDemo(client,id,config);
       await client.query('UPDATE dealer_demos SET last_reset_at=now() WHERE dealer_id=$1',[id]);
