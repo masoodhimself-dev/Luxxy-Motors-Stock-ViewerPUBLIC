@@ -42,7 +42,10 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
       tenant = { dealerId: row.dealer.id, canonicalOrigin: row.dealer.canonicalOrigin, platform: row.dealer.stockPlatform, retailerId: row.dealer.retailerId, sourceUrl: row.dealer.sourceUrl, kind: 'website' };
     }
     const [demo] = await db.select().from(dealerDemosTable).where(eq(dealerDemosTable.dealerId, tenant.dealerId));
-    if (demo) {
+    // Conversion retains the row and its uploaded logo assets for continuity.
+    // Only an unconverted row carries demo restrictions or an expiry date.
+    const demonstration = Boolean(demo && !demo.convertedAt);
+    if (demo && demonstration) {
       if (demo.expiresAt.getTime() <= Date.now()) { res.status(410).json({ error: 'This demonstration has expired. Contact the platform administrator.' }); return; }
       tenant.demo = true;
       res.set({ 'X-Robots-Tag': 'noindex, nofollow, noarchive', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
@@ -52,7 +55,7 @@ export const resolveTenant: RequestHandler = (req, res, next) => {
     }
     const demoLogo=req.query.variant==='footer'?(demo?.footerLogoData||demo?.logoData):demo?.logoData;
     if (req.path === '/api/demo-logo' && demoLogo) { const [meta, data] = demoLogo.split(','); res.type(meta.includes('png')?'image/png':'image/jpeg').send(Buffer.from(data,'base64')); return; }
-    if (req.path === '/api/demo-status') { res.json({ demo: Boolean(demo), ...(demo ? { emailRestricted: true, paymentsDisabled: true } : {}) }); return; }
+    if (req.path === '/api/demo-status') { res.json({ demo: demonstration, ...(demonstration ? { emailRestricted: true, paymentsDisabled: true } : {}) }); return; }
     runWithTenant(tenant, next);
   })().catch(next);
 };

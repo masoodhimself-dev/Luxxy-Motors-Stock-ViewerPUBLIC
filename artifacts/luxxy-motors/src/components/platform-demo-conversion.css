@@ -1,0 +1,31 @@
+.platform-conversion{margin:28px 0;border:1px solid #cbd8df;border-radius:14px;background:#fff;overflow:hidden}
+.platform-conversion-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:24px;background:#f5f8f9}
+.platform-conversion-heading>div{max-width:600px}
+.platform-conversion-heading h3{margin:6px 0 10px;font-size:21px;line-height:1.3;color:#233953}
+.platform-conversion-heading p{margin:0;font-size:14px}
+.platform-conversion-heading>button{flex-shrink:0;white-space:nowrap}
+.platform-conversion-review{padding:24px}
+.platform-conversion-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px;color:#233953}
+.platform-conversion-domain{display:flex;gap:8px;flex-wrap:wrap;font-size:13px;overflow-wrap:anywhere}
+.platform-conversion-domain strong{color:#233953}
+.platform-conversion-origin{max-width:600px}
+.platform-conversion-checks{list-style:none;display:grid;gap:0;margin:18px 0;padding:0}
+.platform-conversion-checks li{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid #e6ecef}
+.platform-conversion-checks li>svg{flex-shrink:0;margin-top:2px}
+.platform-conversion-checks .is-ready>svg{color:#28704a}
+.platform-conversion-checks .needs-attention>svg{color:#99721f}
+.platform-conversion-checks strong{font-size:14px;color:#233953;font-weight:600}
+.platform-conversion-checks p{margin:4px 0 0;font-size:13px;overflow-wrap:anywhere}
+.platform-conversion-blocked{background:#fff8e9;border:1px solid #ead9af;border-radius:10px;padding:18px;margin:22px 0;font-size:13px;color:#74571e}
+.platform-conversion-blocked ul{list-style:disc;margin:10px 0;padding-left:20px}
+.platform-conversion-blocked li+li{margin-top:6px}
+.platform-conversion-blocked p{margin:10px 0 0;color:#74571e}
+.platform-conversion-confirm{border-top:1px solid #e0e7ed;margin-top:24px;padding-top:22px}
+.platform-conversion-confirm h4{font-size:15px;margin:0 0 10px;font-weight:650;color:#233953}
+.platform-conversion-confirm>p{font-size:13px;margin:10px 0}
+.platform-conversion-ack{display:flex;align-items:flex-start;gap:12px;margin:22px 0;font-size:13px;line-height:1.6;color:#233953;cursor:pointer}
+.platform-conversion-ack input{flex-shrink:0;width:20px;height:20px;margin-top:2px;accent-color:#244e87}
+.platform-conversion-ack:has(input:disabled){color:#71808e;cursor:default}
+.platform-conversion-confirm .platform-field{max-width:480px}
+.platform-conversion-confirm button{min-height:44px}
+@media(max-width:700px){.platform-conversion-heading{align-items:stretch;flex-direction:column;gap:18px;padding:20px 16px}.platform-conversion-heading>button{width:100%;justify-content:center;white-space:normal}.platform-conversion-review{padding:18px 16px}.platform-conversion-toolbar{gap:8px}.platform-conversion-confirm>button{width:100%}}

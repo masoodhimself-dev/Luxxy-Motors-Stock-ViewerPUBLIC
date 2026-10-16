@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { createServer, request as httpRequest } from 'node:http';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
-import { engine, db, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, vehiclesTable, dealerPrivateSettingsTable, portalUsersTable, dealerSettingsTable, enquiriesTable, leadsTable } from './test/tenant-test-db';
+import { engine, db, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, dealerDemosTable, vehiclesTable, dealerPrivateSettingsTable, portalUsersTable, dealerSettingsTable, enquiriesTable, leadsTable } from './test/tenant-test-db';
 import { randomUUID } from "node:crypto";
 import type { SaleWorkspaceDraft } from "@workspace/vehicle-meta";
 import fixture from './test/fixtures/cazoo-stock.json';
@@ -51,7 +51,11 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
   const url = `http://127.0.0.1:${address.port}`;
   const request = (path: string, host: string, method = 'GET', body?: unknown, key?: string): Promise<Response> => new Promise((resolve, reject) => {
     const call = httpRequest(url + path, { method, headers: { host, 'Content-Type': 'application/json', ...(key ? { 'x-stock-import-secret': key } : {}) } }, response => {
-      let data = ''; response.setEncoding('utf8'); response.on('data', chunk => { data += chunk; }); response.on('end', () => resolve(new Response(data || null, { status: response.statusCode, headers: { 'Content-Type': 'application/json' } })));
+      let data = ''; response.setEncoding('utf8'); response.on('data', chunk => { data += chunk; }); response.on('end', () => {
+        const headers = new Headers();
+        for (const [name,value] of Object.entries(response.headers)) if (value !== undefined) headers.set(name,Array.isArray(value)?value.join(', '):value);
+        resolve(new Response(data || null, { status: response.statusCode, headers }));
+      });
     }); call.on('error', reject); if (body) call.write(JSON.stringify(body)); call.end();
   });
   const snapshot = (tenant: TenantContext, id: string) => ({ ...fixture, runId: id, retailerId: tenant.retailerId, dealerName: tenant.dealerId, scrapedAt: new Date().toISOString() });
@@ -163,6 +167,58 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].inventoryStatus, 'sold');
     assert.equal((await request('/api/stock', 'dealer-a.example.test').then(r => r.json()) as { cars: unknown[] }).cars.length, 0);
     assert.equal((await request('/api/stock', 'dealer-b.example.test').then(r => r.json()) as { cars: unknown[] }).cars.length, 1);
+
+    // Promoting a demo keeps its logos and dealer identity, but removes all runtime
+    // sample restrictions even when its former demo expiry has passed.
+    const { activeDemo, demoEmailEnvelope } = await import('./lib/demo-policy');
+    const originalDemoEnv = Object.fromEntries(['DEMO_EMAIL_DOMAIN','DEMO_EMAIL_RECIPIENTS','DEMO_RESEND_VERIFIED','DEMO_RESEND_API_KEY'].map(name=>[name,process.env[name]]));
+    try {
+      process.env.DEMO_EMAIL_DOMAIN='demos.example.test';process.env.DEMO_EMAIL_RECIPIENTS='operator@example.test';
+      process.env.DEMO_RESEND_VERIFIED='true';process.env.DEMO_RESEND_API_KEY='fictional-demo-key';
+      const logo='data:image/png;base64,'+Buffer.from('fictional header image').toString('base64');
+      const footer='data:image/png;base64,'+Buffer.from('fictional footer image').toString('base64');
+      await db.insert(dealerDemosTable).values({dealerId:b.dealerId,recipient:'operator@example.test',expiresAt:new Date(Date.now()+3600000),updatedBy:'fixture',logoData:logo,footerLogoData:footer});
+      const sampleStatus=await request('/api/demo-status','dealer-b.example.test');
+      assert.deepEqual(await sampleStatus.json(),{demo:true,emailRestricted:true,paymentsDisabled:true});
+      assert.equal(sampleStatus.headers.get('x-robots-tag'),'noindex, nofollow, noarchive');
+      assert.ok(await runWithTenant(b,activeDemo));
+      const requestEmail={to:'buyer@example.test',subject:'Your invoice',html:'<p>Invoice</p>',text:'Invoice'};
+      const liveEmailConfig={enabled:true,apiKey:'fictional-dealer-key',from:'Sales <sales@dealer-b.example.test>',replyTo:'sales@dealer-b.example.test'};
+      assert.equal((await runWithTenant(b,()=>demoEmailEnvelope(requestEmail,liveEmailConfig))).request.to,'operator@example.test');
+      const sampleAssets=await runWithTenant({...b,demo:true},()=>readSaleWorkspaceAssets(draft,b.dealerId,pool));
+      assert.match(sampleAssets.branding.identity.name,/SAMPLE \/ DEMO/);
+      const beforeConversion:string[]=[];
+      await forEachActiveDealer(async()=>{beforeConversion.push(currentDealerId());});
+      assert.deepEqual(beforeConversion,['dealer-a']);
+      await db.update(dealerDemosTable).set({expiresAt:new Date(Date.now()-3600000)}).where(eq(dealerDemosTable.dealerId,b.dealerId));
+      assert.equal((await request('/api/demo-status','dealer-b.example.test')).status,410);
+      assert.equal((await request('/api/stock/imports/dealer-b/grok','imports.example.test','POST',snapshot(b,'expired-demo-import'),'fictional-key-b')).status,410);
+      await db.update(dealerDemosTable).set({convertedAt:new Date()}).where(eq(dealerDemosTable.dealerId,b.dealerId));
+      const liveStatus=await request('/api/demo-status','dealer-b.example.test');
+      assert.equal(liveStatus.status,200);
+      assert.deepEqual(await liveStatus.json(),{demo:false});
+      assert.equal(liveStatus.headers.get('x-robots-tag'),null);
+      const persistedLogo=await request('/api/demo-logo','dealer-b.example.test');
+      assert.equal(persistedLogo.status,200);assert.equal(await persistedLogo.text(),'fictional header image');
+      const persistedFooter=await request('/api/demo-logo?variant=footer','dealer-b.example.test');
+      assert.equal(persistedFooter.status,200);assert.equal(await persistedFooter.text(),'fictional footer image');
+      assert.equal(await runWithTenant(b,activeDemo),undefined);
+      assert.deepEqual(await runWithTenant(b,()=>demoEmailEnvelope(requestEmail,liveEmailConfig)),{request:requestEmail,config:liveEmailConfig});
+      await assert.rejects(runWithTenant({...b,demo:true},()=>demoEmailEnvelope(requestEmail,{...liveEmailConfig,apiKey:'fictional-demo-key',from:'Demo <demo@demos.example.test>'})),/changed while the email/);
+      const liveAssets=await runWithTenant(b,()=>readSaleWorkspaceAssets(draft,b.dealerId,pool));
+      assert.equal(liveAssets.branding.identity.name,b.dealerId);
+      await assert.rejects(runWithTenant({...b,demo:true},()=>readSaleWorkspaceAssets(draft,b.dealerId,pool)),error=>error instanceof Error && /changed while the sale/.test(error.message) && 'status' in error && error.status===409);
+      assert.equal((await runWithTenant(b,()=>dealerIntegrationsStore.readSalesPaperwork())).saleTerms,'');
+      const afterConversion:string[]=[];
+      await forEachActiveDealer(async()=>{afterConversion.push(currentDealerId());});
+      assert.deepEqual(afterConversion.sort(),['dealer-a','dealer-b']);
+      assert.equal((await request('/api/stock','dealer-b.example.test')).status,200);
+      assert.equal((await request('/api/stock/imports/dealer-b/grok','imports.example.test','POST',snapshot(b,'converted-live-import'),'fictional-key-b')).status,201);
+      assert.equal((await request('/api/stock/imports/dealer-b/grok','imports.example.test','POST',snapshot(b,'converted-wrong-key'),'fictional-key-a')).status,403);
+      assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId,b.dealerId))).length,1);
+    } finally {
+      for(const [name,value] of Object.entries(originalDemoEnv)) if(value===undefined) delete process.env[name]; else process.env[name]=value;
+    }
     await db.update(dealershipsTable).set({ status: 'suspended' }).where(eq(dealershipsTable.id,a.dealerId));
     assert.equal((await request('/api/stock','dealer-a.example.test')).status,421);
     assert.equal((await request('/api/stock','dealer-b.example.test')).status,200);

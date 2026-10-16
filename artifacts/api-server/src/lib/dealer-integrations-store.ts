@@ -88,6 +88,13 @@ export class DealerIntegrationsStore {
         if (!row) return empty(); source = JSON.stringify(row.encryptedPayload);
       } else source = await readFile(this.filename, 'utf8');
     } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return empty(); throw new IntegrationSettingsError('Private integration settings could not be read.', 503); }
+    return this.decodePrivateSource(source);
+  }
+  /** Decode an already locked database snapshot without acquiring another connection. Never return this from an API. */
+  readPrivateSnapshot(payload: unknown): PrivateDealerSettings {
+    return this.decodePrivateSource(JSON.stringify(payload));
+  }
+  private decodePrivateSource(source:string): PrivateDealerSettings {
     try {
       const stored = JSON.parse(source) as { encrypted?: boolean; iv: string; tag: string; data: string };
       if (stored.encrypted) {

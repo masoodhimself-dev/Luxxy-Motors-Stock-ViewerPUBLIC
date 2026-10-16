@@ -35,7 +35,7 @@ export function demoEditRouter(){
    const valid=(await client.query('SELECT id FROM demo_onboarding_keys WHERE id=$1 AND revoked_at IS NULL AND expires_at>now() FOR SHARE',[key.id])).rows[0];
    if(!valid){await client.query('ROLLBACK');res.status(401).json({error:'Invalid onboarding credential.'});return;}
    const d=(await client.query('SELECT d.*,t.name,t.status,t.stock_platform,t.retailer_id,t.source_url,t.canonical_origin FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id JOIN demo_onboarding_requests r ON r.dealer_id=d.dealer_id WHERE d.dealer_id=$1 AND r.key_id=$2 FOR UPDATE OF d',[id,key.id])).rows[0];
-   if(!d){await client.query('ROLLBACK');res.status(404).json({error:'Demo not found.'});return;}
+   if(!d||d.converted_at){await client.query('ROLLBACK');res.status(404).json({error:'Demo not found.'});return;}
    if(d.status!=='active'||new Date(d.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(410).json({error:'Demo expired or inactive.'});return;}
    if(d.baseline||(await client.query("SELECT id FROM demo_completion_jobs WHERE dealer_id=$1 AND status IN ('queued','running')",[id])).rows.length){await client.query('ROLLBACK');res.status(409).json({error:'Corrections require an unsaved baseline and no active completion job.'});return;}
    const digest=hash(input.data);

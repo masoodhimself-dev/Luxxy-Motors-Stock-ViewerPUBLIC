@@ -279,6 +279,79 @@ test('platform onboarding and operational views preserve access checks and omit 
    assert.equal(raw.status,200);const html=await raw.text();assert.ok(!html.includes('Luxxy'));assert.match(html,/Bot Example — Used cars in Corrected Town/);assert.equal(raw.headers.get('cache-control'),'no-store');
    const other=await request('/raw-tenant-test/index.html','GET',undefined,'','rollback-demo.demo.example.test');assert.equal(other.status,200);assert.ok(!(await other.text()).includes('Corrected Town'));
   }finally{await rm(temp,{recursive:true,force:true});}
+  // Promotion preserves genuine stock/credentials while ending demo-only behaviour.
+  const issuedConversion=await request('/api/platform/onboarding-keys','POST',{label:'Conversion fixture',maxDemos:3,maxPerDay:3});
+  const conversionKey=await issuedConversion.json() as any;
+  const promotion={...job,requestId:'99999999-9999-4999-8999-999999999999',demo:{...job.demo,slug:'conversion-demo',name:'Conversion Motors'}};
+  assert.equal((await enhanced('/demos','POST',promotion,conversionKey.secret)).status,201);
+  const conversionId='demo-conversion-demo',conversionPath=`/api/platform/dealers/${conversionId}/conversion`;
+  assert.equal((await request(conversionPath,'GET',undefined,'user_other')).status,403);
+  const blockedReview=await (await request(conversionPath)).json() as any;assert.equal(blockedReview.ready,false);assert.ok(blockedReview.blockedReasons.length>3);
+  const attempt={expectedRevision:0,confirm:conversionId,acknowledge:true,domainOrigin:'https://conversion.example.test'};
+  assert.equal((await request(conversionPath,'POST',attempt)).status,409);
+  assert.equal((await engine.query<any>('SELECT converted_at FROM dealer_demos WHERE dealer_id=$1',[conversionId])).rows[0].converted_at,null);
+  const ids=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333'];
+  for(let i=0;i<ids.length;i++)await engine.query("INSERT INTO vehicles(id,dealer_id,source,advert_id,title,source_price,inventory_status) VALUES ($1,$2,'autotrader',$3,$4,$5,$6)",[ids[i],conversionId,`conversion-${i}`,`Test car ${i}`,5000+i*1000,i===2?'sold':'available']);
+  const imported='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  await db.insert(stockImportRunsTable).values({runId:imported,status:'completed',receivedAt:new Date(),scrapedAt:new Date(),dealerId:conversionId,source:'grok',retailerId:'fictional-ref',schemaVersion:'1',expectedCount:3,receivedCount:3,rawSnapshot:{}});
+  assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'baseline',expectedRevision:0,confirm:conversionId})).status,200);
+  await engine.query("UPDATE vehicles SET inventory_status='sold' WHERE dealer_id=$1 AND id=$2",[conversionId,ids[2]]);
+  await engine.query("INSERT INTO dealer_domains(hostname,dealer_id,verified,verification_token) VALUES ('conversion.example.test',$1,true,'fixture-domain')",[conversionId]);
+  await engine.query("INSERT INTO portal_users(dealer_id,auth_user_id,role) VALUES ($1,'user_dealerOwner','owner')",[conversionId]);
+  await engine.query("INSERT INTO dealer_import_keys(dealer_id,secret_hash) VALUES ($1,'conversion-key-preserved')",[conversionId]);
+  const checklist=Object.fromEntries(['business','https','owner_login','branding','terms','email','email_test','approval'].map(id=>[id,{status:'done',note:'Fictional isolated test confirmation',updatedAt:new Date().toISOString(),updatedBy:'user_admin'}]));
+  await engine.query('UPDATE dealerships SET onboarding_checklist=$2::jsonb WHERE id=$1',[conversionId,JSON.stringify(checklist)]);
+  const configRow=(await engine.query<any>('SELECT config FROM dealer_settings WHERE dealer_id=$1',[conversionId])).rows[0].config;
+  configRow.contact={phone:'02000000000',whatsapp:'',email:'sales@conversion.example.test'};
+  await engine.query('UPDATE dealer_settings SET config=$2::jsonb WHERE dealer_id=$1',[conversionId,JSON.stringify(configRow)]);
+  process.env.INTEGRATIONS_ENCRYPTION_KEY='1'.repeat(64);
+  const {DealerIntegrationsStore}=await import('./lib/dealer-integrations-store');
+  const livePrivate=new DealerIntegrationsStore({dealerId:conversionId,databaseBacked:true,production:true});
+  await livePrivate.update({expectedRevision:0,resend:{enabled:true,apiKey:'re_fictional_live_sender',from:'Conversion <sales@conversion.example.test>',replyTo:'sales@conversion.example.test'}});
+  await livePrivate.updateSalesPaperwork({expectedRevision:1,saleTerms:'Approved test dealership sale terms.',reservationTerms:''});
+  const cleanReview=await (await request(conversionPath)).json() as any;assert.equal(cleanReview.ready,true,JSON.stringify(cleanReview));assert.equal(cleanReview.domainOrigin,attempt.domainOrigin);
+  assert.ok(!JSON.stringify(cleanReview).includes('re_fictional_live_sender'));assert.ok(!('config' in cleanReview));
+  const sampleSale=(await engine.query<any>('SELECT id,state FROM sale_workspace WHERE dealer_id=$1 ORDER BY reference LIMIT 1',[conversionId])).rows[0];
+  for(const change of [{providerPayments:{pi_real:{paymentId:'real-payment',eventId:'real-event'}}},{payments:[...sampleSale.state.payments,{...sampleSale.state.payments[0],id:'real-added-payment',reference:'CUSTOMER TRANSFER',recordedBy:'Real staff'}]}]){
+   await engine.query('UPDATE sale_workspace SET state=$3::jsonb WHERE dealer_id=$1 AND id=$2',[conversionId,sampleSale.id,JSON.stringify({...sampleSale.state,...change})]);
+   assert.equal(((await (await request(conversionPath)).json()) as any).ready,false);
+   assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1})).status,409);
+   assert.equal((await engine.query('SELECT id FROM sale_workspace WHERE dealer_id=$1',[conversionId])).rows.length,2);
+  }
+  await engine.query('UPDATE sale_workspace SET state=$3::jsonb WHERE dealer_id=$1 AND id=$2',[conversionId,sampleSale.id,JSON.stringify(sampleSale.state)]);
+  await engine.query("INSERT INTO customers(dealer_id,name) VALUES ($1,'Real customer must survive')",[conversionId]);
+  assert.equal(((await (await request(conversionPath)).json()) as any).ready,false);
+  assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1})).status,409);
+  assert.equal((await engine.query('SELECT id FROM customers WHERE dealer_id=$1',[conversionId])).rows.length,1);
+  // Remove only the disposable test blocker, simulating operator review before launch.
+  await engine.query('DELETE FROM customers WHERE dealer_id=$1',[conversionId]);
+  assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:0})).status,409); // stale review
+  assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1,domainOrigin:'https://unverified.example.test'})).status,409);
+  // A late settings write failure must roll back sample cleanup and domain changes together.
+  await engine.exec("ALTER TABLE dealer_settings ADD CONSTRAINT conversion_fixture_failure CHECK (dealer_id <> 'demo-conversion-demo' OR revision=0)");
+  assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1})).status,503);
+  assert.equal((await engine.query('SELECT id FROM sale_workspace WHERE dealer_id=$1',[conversionId])).rows.length,2);
+  assert.equal((await engine.query('SELECT id FROM enquiries WHERE dealer_id=$1',[conversionId])).rows.length,3);
+  assert.equal((await engine.query<any>('SELECT converted_at FROM dealer_demos WHERE dealer_id=$1',[conversionId])).rows[0].converted_at,null);
+  await engine.exec('ALTER TABLE dealer_settings DROP CONSTRAINT conversion_fixture_failure');
+  const applied=await request(conversionPath,'POST',{...attempt,expectedRevision:1});assert.equal(applied.status,200,await applied.clone().text());assert.equal(((await applied.json()) as any).status,'converted');
+  const after=(await engine.query<any>('SELECT * FROM dealer_demos WHERE dealer_id=$1',[conversionId])).rows[0];assert.ok(after.converted_at);assert.equal(after.baseline,null);assert.ok(after.logo_data);assert.ok(after.footer_logo_data);
+  assert.equal((await engine.query('SELECT id FROM enquiries WHERE dealer_id=$1',[conversionId])).rows.length,0);assert.equal((await engine.query('SELECT id FROM sale_workspace WHERE dealer_id=$1',[conversionId])).rows.length,0);assert.equal((await engine.query('SELECT id FROM leads WHERE dealer_id=$1',[conversionId])).rows.length,0);
+  const preservedCars=(await engine.query<any>('SELECT id,inventory_status,source_price FROM vehicles WHERE dealer_id=$1 ORDER BY id',[conversionId])).rows;
+  assert.equal(preservedCars.length,3);assert.equal(preservedCars[0].inventory_status,'available');assert.equal(preservedCars[2].inventory_status,'sold');assert.equal(preservedCars[2].source_price,7000);
+  assert.equal((await engine.query('SELECT id FROM dealer_import_keys WHERE dealer_id=$1 AND disabled_at IS NULL',[conversionId])).rows.length,1);
+  const afterConfig=(await engine.query<any>('SELECT config FROM dealer_settings WHERE dealer_id=$1',[conversionId])).rows[0].config;assert.match(afterConfig.presentation.footerLogoUrl,/^https:\/\/conversion.example.test/);assert.equal(afterConfig.contact.email,'sales@conversion.example.test');assert.match(afterConfig.presentation.heroImageUrl,/showroom-car.jpg$/);
+  const livePage=await request('/','GET',undefined,'','conversion.example.test');assert.equal(livePage.status,200);assert.equal(livePage.headers.get('Cache-Control'),'');
+  assert.equal((await request('/','GET',undefined,'','conversion-demo.demo.example.test')).status,421);
+  assert.equal(((await (await request(conversionPath,'POST',{...attempt,expectedRevision:1})).json()) as any).status,'replayed');
+  assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1,domainOrigin:'https://different.example.test'})).status,409);
+  assert.equal((await request(`/api/platform/dealers/${conversionId}/demo`,'POST',{action:'original',expectedRevision:2,confirm:conversionId})).status,409);
+  assert.equal((await enhanced(`/demos/${conversionId}`,'GET',undefined,conversionKey.secret)).status,404);
+  assert.equal((await enhanced('/demos','POST',promotion,conversionKey.secret)).status,404);
+  assert.equal((await enhanced(`/demos/${conversionId}`,'PATCH',{expectedRevision:2,changes:{logoData:job.demo.logoData}},conversionKey.secret)).status,404);
+  assert.equal((await enhanced(`/demos/${conversionId}/complete`,'POST',{runId:imported,confirm:conversionId,publicSiteChecked:true,importReplayChecked:true},conversionKey.secret)).status,404);
+  assert.equal((await enhanced(`/demos/${conversionId}/test-email`,'POST',{},conversionKey.secret)).status,404);
+  assert.equal((await enhanced(`/demos/${conversionId}/baseline`,'POST',{runId:imported,confirm:conversionId},conversionKey.secret)).status,404);
   const originalKeys=(await engine.query("SELECT * FROM dealer_import_keys WHERE dealer_id='test-dealer'")).rows.length;
   assert.equal((await request('/api/platform/onboarding-keys/'+onboarding.id,'DELETE')).status,200);
   assert.equal((await machine('/capabilities')).status,401);

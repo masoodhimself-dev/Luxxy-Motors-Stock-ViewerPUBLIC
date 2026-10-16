@@ -13,7 +13,7 @@ export function demoJobRouter(){
    const valid=(await client.query('SELECT id FROM demo_onboarding_keys WHERE id=$1 AND revoked_at IS NULL AND expires_at>now() FOR SHARE',[key.id])).rows[0];
    if(!valid){await client.query('ROLLBACK');res.status(401).json({error:'Invalid onboarding credential.'});return;}
    const d=(await client.query('SELECT d.*,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id JOIN demo_onboarding_requests r ON r.dealer_id=d.dealer_id WHERE d.dealer_id=$1 AND r.key_id=$2 FOR UPDATE OF d',[id,key.id])).rows[0];
-   if(!d){await client.query('ROLLBACK');res.status(404).json({error:'Demo not found.'});return;}
+   if(!d||d.converted_at){await client.query('ROLLBACK');res.status(404).json({error:'Demo not found.'});return;}
    if(d.status!=='active'||new Date(d.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(410).json({error:'Demo expired or inactive.'});return;}
    const prior=(await client.query('SELECT * FROM demo_completion_jobs WHERE dealer_id=$1',[id])).rows[0];
    if(prior){await client.query('COMMIT');res.status(prior.run_id===parsed.data.runId?200:409).json(prior.run_id===parsed.data.runId?publicCompletionJob(prior):{error:'A completion job already exists for a different import. Operator review required.'});return;}
@@ -25,7 +25,7 @@ export function demoJobRouter(){
   }catch{await client.query('ROLLBACK');res.status(503).json({error:'Unable to queue completion. Retry the same request.'});}finally{client.release();}
  });
  router.get('/demos/:dealerId/completion',async(req,res)=>{
-  const result=await pool.query('SELECT j.* FROM demo_completion_jobs j JOIN demo_onboarding_requests r ON r.dealer_id=j.dealer_id WHERE j.dealer_id=$1 AND r.key_id=$2',[req.params.dealerId,res.locals.onboardingKey.id]);
+  const result=await pool.query('SELECT j.* FROM demo_completion_jobs j JOIN dealer_demos d ON d.dealer_id=j.dealer_id AND d.converted_at IS NULL JOIN demo_onboarding_requests r ON r.dealer_id=j.dealer_id WHERE j.dealer_id=$1 AND r.key_id=$2',[req.params.dealerId,res.locals.onboardingKey.id]);
   if(!result.rows[0]){res.status(404).json({error:'Completion job not found.'});return;}
   res.json(publicCompletionJob(result.rows[0]));
  });

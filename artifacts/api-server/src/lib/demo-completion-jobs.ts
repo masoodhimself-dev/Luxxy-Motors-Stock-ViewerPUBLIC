@@ -23,9 +23,9 @@ export async function processDemoCompletionJobs(transport:typeof fetch=(...args)
    const key={id:job.key_id,ownerAuthUserId:job.owner_auth_user_id};
    await lease.query("UPDATE demo_completion_jobs SET status='running',attempts=attempts+1,updated_at=now() WHERE id=$1",[id]);
    // Validate the selected import on every attempt, not just job creation.
-   const current=(await lease.query('SELECT d.baseline,d.expires_at,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[job.dealer_id])).rows[0];
+   const current=(await lease.query('SELECT d.baseline,d.expires_at,d.converted_at,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[job.dealer_id])).rows[0];
    const latest=(await lease.query('SELECT run_id,status,received_count,expected_count FROM stock_import_runs WHERE dealer_id=$1 ORDER BY received_at DESC LIMIT 1',[job.dealer_id])).rows[0];
-   if(!current||current.status!=='active'||new Date(current.expires_at).getTime()<=Date.now()||latest?.run_id!==job.run_id||latest.status!=='completed'||latest.received_count<1||latest.received_count!==latest.expected_count){await record('blocked',job.stage,'Demo or latest complete import changed. Operator review required.');continue;}
+   if(!current||current.converted_at||current.status!=='active'||new Date(current.expires_at).getTime()<=Date.now()||latest?.run_id!==job.run_id||latest.status!=='completed'||latest.received_count<1||latest.received_count!==latest.expected_count){await record('blocked',job.stage,'Demo or latest complete import changed. Operator review required.');continue;}
    const operation=job.stage==='baseline'?'baseline':'test-email';
    if(job.stage==='import-check')await record('running','email-send');
    const stage=job.stage==='import-check'?'email-send':job.stage;

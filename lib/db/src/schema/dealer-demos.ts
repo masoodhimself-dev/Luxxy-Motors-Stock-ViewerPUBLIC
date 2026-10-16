@@ -3,6 +3,9 @@ import { dealershipsTable } from './tenants';
 /** Demo identity is server-controlled, separate from editable website settings. */
 export const dealerDemosTable = pgTable('dealer_demos', {
   dealerId: text('dealer_id').primaryKey().references(() => dealershipsTable.id),
+  convertedAt:timestamp('converted_at',{withTimezone:true}),
+  convertedBy:text('converted_by'),
+  conversionReceipt:jsonb('conversion_receipt').$type<Record<string,unknown>>(),
   logoData: text('logo_data'),
   footerLogoData: text('footer_logo_data'),
   onboardingPatchHash:text('onboarding_patch_hash'),

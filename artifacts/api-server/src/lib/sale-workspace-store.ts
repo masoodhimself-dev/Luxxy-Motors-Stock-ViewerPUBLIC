@@ -22,7 +22,11 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
     : undefined;
   const paperwork = await dealerIntegrationsStore.readSalesPaperwork();
   const branding = saleWorkspaceBranding(settings.rows[0]?.config);
-  if (currentTenant()?.demo) branding.identity.name += ' · SAMPLE / DEMO';
+  if (currentTenant()?.demo) {
+    const demo = (await client.query('SELECT converted_at FROM dealer_demos WHERE dealer_id = $1', [dealerId])).rows[0];
+    if (!demo || demo.converted_at) throw new SaleWorkspaceError('This demonstration changed while the sale was being prepared. Reload before continuing.', 409);
+    branding.identity.name += ' · SAMPLE / DEMO';
+  }
   return { paperwork, branding: invoiceBranding(branding, paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engine_size, bodyType: vehicle.body_type, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emission_class, imageUrl: vehicle.invoice_image, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.write_off_category, description: vehicle.website_description || vehicle.raw_source_data?.sourceExtras?.description || null, serviceHistory: typeof vehicle.raw_source_data?.sourceExtras?.serviceHistory === 'string' ? vehicle.raw_source_data.sourceExtras.serviceHistory : vehicle.raw_source_data?.sourceExtras?.historyExtras?.serviceHistory?.description || null } } : {}) };
 }
 

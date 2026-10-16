@@ -25,6 +25,7 @@ router.post('/demos',async(req,res)=>{
 router.get('/dealers/:id/demo',async(req,res)=>{
   const [demo]=await db.select().from(dealerDemosTable).where(eq(dealerDemosTable.dealerId,req.params.id));
   if(!demo){res.json({demo:false});return;}
+  if(demo.convertedAt){res.json({demo:false,converted:true,convertedAt:demo.convertedAt});return;}
   const p=demoProvisioning();res.json({demo:true,recipient:demo.recipient,expiresAt:demo.expiresAt,revision:demo.revision,baselineSaved:Boolean(demo.baseline),lastResetAt:demo.lastResetAt,sender:p.emailDomain?`${demo.dealerId}@${p.emailDomain}`:null,emailReady:p.emailReady && p.recipients.includes(demo.recipient),paymentsDisabled:true});
 });
 const action=z.object({action:z.enum(['baseline','activity','original','extend','recipient']),expectedRevision:z.number().int().nonnegative(),confirm:z.string(),days:z.number().int().min(1).max(90).optional(),recipient:z.email().transform(v=>v.toLowerCase()).optional()}).strict();
@@ -34,7 +35,7 @@ router.post('/dealers/:id/demo',async(req,res)=>{
   try{
     await client.query('BEGIN');
     const demo=(await client.query('SELECT * FROM dealer_demos WHERE dealer_id=$1 FOR UPDATE',[req.params.id])).rows[0];
-    if(!demo){await client.query('ROLLBACK');res.status(409).json({error:'This is not a demo. Live dealerships cannot be reset.'});return;}
+    if(!demo||demo.converted_at){await client.query('ROLLBACK');res.status(409).json({error:'This is not a demo. Live dealerships cannot be reset.'});return;}
     if(demo.revision!==parsed.data.expectedRevision){await client.query('ROLLBACK');res.status(409).json({error:'Demo changed in another session. Reload before continuing.'});return;}
     const id=req.params.id;
     // Coordinate with the existing dealer-specific stock and sales locks.

@@ -5,7 +5,7 @@ import { isPlatformAdmin } from '../lib/platform-admin';
 import { Router } from 'express';
 import { createHash } from 'node:crypto';
 import { db,pool,demoOnboardingKeysTable,demoOnboardingRequestsTable,dealershipsTable,dealerDemosTable,stockImportRunsTable } from '@workspace/db';
-import { and,eq,desc } from 'drizzle-orm';
+import { and,eq,desc,isNull } from 'drizzle-orm';
 import { z } from 'zod/v4';
 import { importSecretDigest,matchesImportSecret } from '../middlewares/tenant';
 import { normaliseTenantHost,multiTenantEnabled } from '../lib/tenant-context';
@@ -45,7 +45,8 @@ router.post('/demos',async(req,res)=>{
   const prior=(await client.query('SELECT * FROM demo_onboarding_requests WHERE key_id=$1 AND request_id=$2',[key.id,parsed.data.requestId])).rows[0];
   if(prior){
    if(prior.payload_hash!==payloadHash){await client.query('ROLLBACK');res.status(409).json({error:'requestId already used with different demo data.'});return;}
-   const state=(await client.query('SELECT d.expires_at,t.canonical_origin FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[prior.dealer_id])).rows[0];
+   const state=(await client.query('SELECT d.expires_at,d.converted_at,t.canonical_origin FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[prior.dealer_id])).rows[0];
+   if(state?.converted_at){await client.query('ROLLBACK');res.status(404).json({error:'Demo not found.'});return;}
    if(!state||new Date(state.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(410).json({error:'The demonstration has expired. Contact the operator.'});return;}
    // Never deserialize historical receipts: older versions contained stock secrets.
    await client.query('COMMIT');res.json({dealerId:prior.dealer_id,origin:state.canonical_origin,status:'replayed'});return;
@@ -66,7 +67,7 @@ router.post('/demos',async(req,res)=>{
 });
 router.get('/demos/:dealerId',async(req,res)=>{
  const key=res.locals.onboardingKey;
- const [row]=await db.select({dealer:dealershipsTable,demo:dealerDemosTable}).from(demoOnboardingRequestsTable).innerJoin(dealershipsTable,eq(dealershipsTable.id,demoOnboardingRequestsTable.dealerId)).innerJoin(dealerDemosTable,eq(dealerDemosTable.dealerId,dealershipsTable.id)).where(and(eq(demoOnboardingRequestsTable.keyId,key.id),eq(demoOnboardingRequestsTable.dealerId,req.params.dealerId)));
+ const [row]=await db.select({dealer:dealershipsTable,demo:dealerDemosTable}).from(demoOnboardingRequestsTable).innerJoin(dealershipsTable,eq(dealershipsTable.id,demoOnboardingRequestsTable.dealerId)).innerJoin(dealerDemosTable,eq(dealerDemosTable.dealerId,dealershipsTable.id)).where(and(eq(demoOnboardingRequestsTable.keyId,key.id),eq(demoOnboardingRequestsTable.dealerId,req.params.dealerId),isNull(dealerDemosTable.convertedAt)));
  if(!row){res.status(404).json({error:'Demo not found.'});return;}
  const [last]=await db.select({runId:stockImportRunsTable.runId,status:stockImportRunsTable.status,receivedCount:stockImportRunsTable.receivedCount,receivedAt:stockImportRunsTable.receivedAt}).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId,row.dealer.id)).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
  const details=await pool.query(`SELECT (SELECT count(*)::int FROM vehicles WHERE dealer_id=$1) AS inventory_count,(SELECT count(*)::int FROM vehicles WHERE dealer_id=$1 AND inventory_status IN ('available','reserved') AND source=$3 AND archived_at IS NULL AND missing_count < $2 AND NOT (price_review_required AND source_price IS NULL AND website_price_override IS NULL)) AS public_count`,[row.dealer.id,Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD))&&Number(process.env.STOCK_MISSING_HIDE_THRESHOLD)>=0?Number(process.env.STOCK_MISSING_HIDE_THRESHOLD):2,row.dealer.stockPlatform]);

@@ -15,7 +15,7 @@ export async function runDemoCompletionOperation(key:CompletionKey,id:string,ope
    const valid=(await client.query('SELECT id FROM demo_onboarding_keys WHERE id=$1 AND revoked_at IS NULL AND expires_at>now() FOR SHARE',[key.id])).rows[0];
    if(!valid||!isPlatformAdmin(key.ownerAuthUserId)){await client.query('ROLLBACK');return {httpStatus:401,body:{error:'Invalid demo onboarding credential.'}};}
    const demo=(await client.query(`SELECT d.*,t.name,t.status,t.canonical_origin,t.stock_platform,t.retailer_id,t.source_url FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id JOIN demo_onboarding_requests r ON r.dealer_id=d.dealer_id WHERE d.dealer_id=$1 AND r.key_id=$2 FOR UPDATE OF d`,[id,key.id])).rows[0];
-   if(!demo){await client.query('ROLLBACK');return {httpStatus:404,body:{error:'Demo not found.'}};}
+   if(!demo||demo.converted_at){await client.query('ROLLBACK');return {httpStatus:404,body:{error:'Demo not found.'}};}
    if(new Date(demo.expires_at).getTime()<=Date.now()||demo.status!=='active'){await client.query('ROLLBACK');return {httpStatus:410,body:{error:'This demo is expired or inactive.'}};}
    const provision=demoProvisioning();
    let state=(await client.query('SELECT * FROM demo_onboarding_completion WHERE dealer_id=$1',[id])).rows[0];
@@ -32,8 +32,8 @@ export async function runDemoCompletionOperation(key:CompletionKey,id:string,ope
       await client.query('COMMIT');await client.query('BEGIN');
       const stillValid=(await client.query('SELECT id FROM demo_onboarding_keys WHERE id=$1 AND revoked_at IS NULL AND expires_at>now() FOR SHARE',[key.id])).rows[0];
       if(!stillValid){await client.query('ROLLBACK');return {httpStatus:401,body:{error:'Invalid demo onboarding credential.'}};}
-      const current=(await client.query('SELECT d.recipient,d.expires_at,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1 FOR UPDATE OF d',[id])).rows[0];
-      if(!current||current.recipient!==demo.recipient||new Date(current.expires_at).getTime()<=Date.now()||current.status!=='active'){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Demo changed during setup. Operator review required; no email sent.'}};}
+      const current=(await client.query('SELECT d.recipient,d.expires_at,d.converted_at,t.status FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1 FOR UPDATE OF d',[id])).rows[0];
+      if(!current||current.converted_at||current.recipient!==demo.recipient||new Date(current.expires_at).getTime()<=Date.now()||current.status!=='active'){await client.query('ROLLBACK');return {httpStatus:409,body:{error:'Demo changed during setup. Operator review required; no email sent.'}};}
       state=(await client.query('SELECT * FROM demo_onboarding_completion WHERE dealer_id=$1 FOR UPDATE',[id])).rows[0];
      }
      if(!state.provider_id){

@@ -10,13 +10,18 @@ export function demoProvisioning() {
 export async function activeDemo() {
   if (!multiTenantEnabled()) return undefined;
   const id = currentDealerId(); // fail closed if a multi-tenant sender has no tenant context
-  const {db,dealerDemosTable}=await import('@workspace/db'); const {eq}=await import('drizzle-orm');
-  const [demo] = await db.select().from(dealerDemosTable).where(eq(dealerDemosTable.dealerId, id));
+  const {db,dealerDemosTable}=await import('@workspace/db'); const {and,eq,isNull}=await import('drizzle-orm');
+  const [demo] = await db.select().from(dealerDemosTable).where(and(eq(dealerDemosTable.dealerId, id),isNull(dealerDemosTable.convertedAt)));
   return demo;
 }
 export async function demoEmailEnvelope(request: {to: string; subject: string; html: string; text?: string}, config: {enabled: boolean;apiKey:string;from:string;replyTo:string}) {
   const demo = await activeDemo();
-  if (!demo) return {request, config};
+  if (!demo) {
+    // A request that began as a demo may already hold the shared demo sender.
+    // Never let promotion mid-request turn that sender into a real customer send.
+    if (currentTenant()?.demo) throw new Error('This demonstration changed while the email was being prepared. Reload before sending.');
+    return {request, config};
+  }
   const provision = demoProvisioning();
   if (demo.expiresAt.getTime() <= Date.now() || !provision.emailReady || !provision.emailDomain || !provision.recipients.includes(demo.recipient.toLowerCase())) throw new Error('Demo email is disabled until a verified sender and approved test recipient are configured.');
   const id = currentTenant()!.dealerId;

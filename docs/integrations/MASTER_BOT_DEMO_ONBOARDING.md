@@ -299,3 +299,8 @@ Job state is persisted in PostgreSQL. A small processor in the existing always-o
 Read capabilities → identify dealer and collect sourced address/hours → use supplied logos → preflight → create/replay → operator generates stock key and enters secure card → collect/import/replay → visual check and any pre-baseline corrections → POST complete → check job/summary → report completed or blocked. Keep recurring delivery off and create no schedules unless separately authorised. Existing completed demos need no repeat test.
 
 Raw website HTML now uses the current tenant's name/town for titles and basic link metadata before JavaScript runs. This is not a server-generated screenshot or proof that the visual check passed. Missing/broken logo rendering falls back to readable dealer text; blank legal company names fall back to the dealership name.
+
+
+## Operator conversion to a live dealership
+
+Only the human platform administrator can promote a demo through the platform dashboard. The onboarding credential cannot convert dealers or manage live settings. After conversion all demo-only bot reads/edits/completion/replays return unavailable (404); do not recreate or re-baseline that dealership. The internal dealer ID, stock-import endpoint and dedicated credential stay the same. The operator supplies the new public domain and separately approves the dealer bot's live configuration/import test and recurring deliveries. No schedule is changed by the backend conversion. See the operator [conversion guide](../features/demo-conversion.md).

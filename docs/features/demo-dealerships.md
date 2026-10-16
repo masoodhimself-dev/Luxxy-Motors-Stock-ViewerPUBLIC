@@ -36,7 +36,7 @@ These endpoints require approved platform host + administrator + same-origin che
 
 Pause the demo worker and finish open staff actions before resetting: stock/sales/settings locks coordinate those stores, but this is not a global freeze of all in-flight staff requests. A later stock import can overwrite original stock restored by reset. Import history/idempotency/order checks remain intact. Reset does not operate on live external systems or revoke credentials. Expired demos reject website and import traffic with 410 until extended. Expiration is not data deletion.
 
-Conversion to a paying dealer and permanent deletion remain deliberate operator workflows; this release does not silently strip demo restrictions or enable payments/email. Configure a regular dealer and clean production credentials/domain when onboarding a paying customer.
+Demo-to-live promotion is now an explicit platform administrator workflow with readiness checks and fictional-data protection. See [demo conversion](demo-conversion.md). Permanent deletion remains separate. Conversion preserves the existing tenant and stock connection; it does not automatically configure external domains, secrets, schedules or billing.
 
 ## Verification
 
