@@ -63,3 +63,12 @@ body:has(.invoice-builder.is-editing) { overflow:hidden; }
   .invoice-selected-car img { width:90px; height:68px; }.invoice-selected-car { gap:12px; padding:12px; }
   .invoice-list-heading { flex-direction:column; align-items:flex-start; }.invoice-builder-list { padding:20px; }.invoice-sale-list>button { flex-wrap:wrap; gap:12px; }
 }
+
+.invoice-car-photo { position:relative; flex-shrink:0; padding:0; border:0; border-radius:5px; overflow:hidden; cursor:zoom-in; background:#e7edf1; }
+.invoice-car-photo:focus-visible { outline:3px solid #235b7b; outline-offset:3px; }
+.invoice-car-photo span { position:absolute; left:0; right:0; bottom:0; padding:3px 5px; background:#14252bd9; color:white; font-size:10px; line-height:1.4; }
+.invoice-car-photo-preview { z-index:80; width:min(560px,calc(100vw - 32px)); padding:10px; border:1px solid #d8e1e7; border-radius:10px; background:white; color:#1a2d36; box-shadow:0 12px 40px #14252b30; }
+.invoice-car-photo-preview img { display:block; width:100%; max-height:60dvh; object-fit:contain; border-radius:5px; }
+.invoice-car-photo-preview p { margin:8px 2px 0; font-size:14px; line-height:1.5; }
+.invoice-car-photo-preview p span { display:block; color:#536774; font-size:13px; }
+@media (hover:none) { .invoice-car-photo-preview { display:none; } }

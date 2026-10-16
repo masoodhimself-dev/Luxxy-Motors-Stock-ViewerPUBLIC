@@ -1,3 +1,4 @@
+import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
@@ -20,7 +21,6 @@ import { useDealerSettings } from "@/lib/dealer-settings-context";
 import {
   vehicleDisplayTitle,
   vehicleRegistration,
-  getThumbnailUrl,
 } from "@/lib/utils";
 import {
   emptyDraft,
@@ -806,26 +806,14 @@ export function SalesWorkspace({
                             )
                             .map((car) => (
                               <option key={car.id} value={car.id}>
-                                {vehicleDisplayTitle(car)} ·{" "}
-                                {vehicleRegistration(car)}
-                                {car.inventoryStatus === "reserved"
-                                  ? " · Reserved"
-                                  : ""}
+                                {saleVehicleChoiceLabel(car)}
                               </option>
                             ))}
                         </select>
                       </label>
                       {vehicle && (
                         <div className="invoice-selected-car">
-                          {getThumbnailUrl(vehicle) && (
-                            <img
-                              src={getThumbnailUrl(vehicle)}
-                              alt={vehicleDisplayTitle(vehicle)}
-                              onError={(event) => {
-                                event.currentTarget.hidden = true;
-                              }}
-                            />
-                          )}
+                          <SaleVehiclePhoto key={vehicle.id} car={vehicle} />
                           <div>
                             <strong>{vehicleDisplayTitle(vehicle)}</strong>
                             <p>
