@@ -79,7 +79,7 @@ export function vehiclePrintData(car: Car, suppliedFeatures: string[] = [], supp
     const key = semanticKey(label);
     const existing = seenRows.get(key);
     if (existing && comparableValue(key, existing.value) === comparableValue(key, value)) return;
-    if (existing && key !== 'historynote') sourceNotes.push(`Supplied ${existing.label.toLowerCase()} values differ: “${existing.value}” and “${value}”.`);
+    if (existing && key !== 'historynote') sourceNotes.push(`Please ask us to confirm ${existing.label.toLowerCase()}: our records show “${existing.value}” and “${value}”.`);
     else seenRows.set(key, { label, value });
     rows.push({ label, value });
   };
@@ -137,7 +137,7 @@ export function vehiclePrintData(car: Car, suppliedFeatures: string[] = [], supp
   const serviceValue = serviceLabel(serviceDescription || (serviceType ? serviceTypes[serviceType] : null)
     || first(['serviceHistory', 'SERVICEHISTORY']));
   const ownerValues = [text(car.owners), text(ownersData?.value), ...historyItems.map(record).filter(row => row?.key === 'OWNERS').map(row => text(row?.value)), text(specs?.OWNERS)].filter((value): value is string => !!value);
-  [...new Set(ownerValues)].forEach(value => add(history, 'Owners (listing)', value));
+  [...new Set(ownerValues)].forEach(value => add(history, 'Owners', value));
   if (serviceValue && !/^(?:service history|unknown)$/i.test(serviceValue)) add(history, 'Service history', serviceValue);
   for (const item of historyItems) {
     const row = record(item);
@@ -162,11 +162,11 @@ export function vehiclePrintData(car: Car, suppliedFeatures: string[] = [], supp
   add(history, 'MOT expiry', first(['motExpiry', 'motExpiryDate']));
   add(history, 'Condition', first(['conditionNotes', 'condition']));
   add(history, 'Warranty', first(['warrantyDetails', 'warranty']));
-  add(history, 'Listing note', first(['attentionGrabber']));
+  add(history, 'Vehicle note', first(['attentionGrabber']));
   const inventoryStatus = text(car.inventoryStatus)?.toLowerCase();
   const statusLabels: Record<string, string> = { available: 'Available', reserved: 'Reserved', sold: 'Sold', unavailable: 'Unavailable', withdrawn: 'Withdrawn', archived: 'Archived' };
-  if (text(extras?.websiteSourceStatus)?.toLowerCase() === 'missing') add(history, 'Listing status', 'No longer advertised at source — confirm availability');
-  else if (inventoryStatus && statusLabels[inventoryStatus]) add(history, 'Listing status', statusLabels[inventoryStatus]);
+  if (text(extras?.websiteSourceStatus)?.toLowerCase() === 'missing') add(history, 'Availability', 'Please contact us to confirm availability');
+  else if (inventoryStatus && statusLabels[inventoryStatus]) add(history, 'Availability', statusLabels[inventoryStatus]);
   for (const key of ['includedItems', 'includedWithVehicle']) {
     const raw = sources.map(source => source?.[key]).find(value => value !== null && value !== undefined);
     add(history, 'Included with this car', Array.isArray(raw) ? raw.map(text).filter(Boolean).join(' · ') : raw);
@@ -175,7 +175,7 @@ export function vehiclePrintData(car: Car, suppliedFeatures: string[] = [], supp
   const check = record(extras?.writeOffCheck);
   const explicitWriteOff = text(extras?.writeOffStatusExplicit) || (check?.status === 'PASSED' ? text(check?.label) : null);
   if (writeOff) add(history, 'Insurance history', insuranceHistoryLabel(writeOff));
-  else if (explicitWriteOff && /^(?:never been written off|no (?:recorded )?write[ -]?off(?: recorded)?|clear)$/i.test(explicitWriteOff)) add(history, 'Insurance history (listing)', explicitWriteOff);
+  else if (explicitWriteOff && /^(?:never been written off|no (?:recorded )?write[ -]?off(?: recorded)?|clear)$/i.test(explicitWriteOff)) add(history, 'Insurance history', explicitWriteOff);
 
   const costs = record(extras?.runningCosts);
   if (Array.isArray(costs?.items)) costs.items.forEach(item => { const fact = rowFrom(item); if (fact) add(runningCosts, fact.label, fact.value); });
@@ -255,13 +255,13 @@ export function vehiclePrintData(car: Car, suppliedFeatures: string[] = [], supp
     const mentionedOwners = [...description.matchAll(/\b(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:previous\s+)?owners?\b/gi)];
     for (const mention of mentionedOwners) {
       const number = counts[mention[1].toLowerCase()] || mention[1];
-      if (ownerValues.length && ownerValues.every(value => value !== number)) sourceNotes.push(`Confirm owners: listing reports ${[...new Set(ownerValues)].join(' / ')}; description states “${mention[0]}”.`);
+      if (ownerValues.length && ownerValues.every(value => value !== number)) sourceNotes.push(`Please ask us to confirm the number of owners: our records show ${[...new Set(ownerValues)].join(' / ')}, while the description says “${mention[0]}”.`);
     }
     if (serviceValue && /\b(?:partial|full)\b/i.test(serviceValue)) {
       const noHistory = description.match(/[^.!?]*(?:no service history|does not come with any service history)[^.!?]*/i)?.[0]?.trim();
       if (noHistory) {
         const dealerServiceOnly = /does not come with any service history except the service we have done on the car/i.test(noHistory);
-        sourceNotes.push(`Confirm service history: listing reports “${serviceValue}”; description says no history${dealerServiceOnly ? ' apart from the dealer’s service' : ''}.`);
+        sourceNotes.push(`Please ask us to confirm the service history: our records show “${serviceValue}”, while the description says no history${dealerServiceOnly ? ' apart from our service' : ''}.`);
       }
     }
   }

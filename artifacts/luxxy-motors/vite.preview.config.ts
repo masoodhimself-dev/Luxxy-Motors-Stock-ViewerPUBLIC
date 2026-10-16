@@ -1,3 +1,5 @@
+import { platformPreview } from "./preview/platform";
+import { deferredCustomerFeatureResponse } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
 import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
 import { operationsPreview } from './preview/operations';
@@ -28,6 +30,7 @@ export default mergeConfig(
       alias: { '@clerk/react': fileURLToPath(new URL('./preview/clerk.tsx', import.meta.url)) },
     },
     server: { host: '127.0.0.1' },
+    optimizeDeps: { entries: ['src/preview.tsx'] },
     plugins: [
       {
         name: 'local-showroom-preview',
@@ -38,15 +41,18 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
-            if ((url.pathname.startsWith('/my-purchase/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
+            if ((url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            const deferred = deferredCustomerFeatureResponse(url.pathname, req.method ?? 'GET');
+            if (deferred) { res.statusCode = deferred.status; res.end(JSON.stringify(deferred.body)); return; }
             if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {
               res.statusCode = 410;
               res.end(JSON.stringify({ error: 'The previous sales process has been removed.' }));
               return;
             }
+            if (await platformPreview(req, res, url)) return;
             if (await operationsPreview(req, res, url, { readSettings: readPreviewSettings, writeSettings: writePreviewSettings, readEnquiries: readPreviewEnquiries })) return;
             if (await chatPreview(req, res, url)) return;
             if (await relationshipsPreview(req, res, url)) return;

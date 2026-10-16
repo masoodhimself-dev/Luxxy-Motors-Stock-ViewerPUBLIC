@@ -96,24 +96,10 @@
   .enquiries-premium-workspace .enquiry-stock-actions > div > a { padding-inline: 10px; }
 }
 
-/* Let the diary fill the desk's available height rather than extend the page. */
-@media (min-width: 1024px) and (min-height: 720px) {
-  .enquiries-premium-workspace #desk-panel-calendar:not([hidden]) { height: 100%; }
-  .enquiries-premium-workspace .enquiry-calendar { height: 100%; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr); gap: 8px; }
-  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-toolbar { align-items: center; padding-block: 8px; }
-  .enquiries-premium-workspace .enquiry-calendar-toolbar > label:first-child { display: flex; align-items: center; gap: 10px; }
-  .enquiries-premium-workspace .enquiry-calendar-toolbar input[type="month"] { width: 180px; }
-  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-layout { min-height: 0; align-items: stretch; }
-  .enquiries-premium-workspace .enquiry-calendar-month { display: flex; flex-direction: column; min-height: 0; }
-  .enquiries-premium-workspace .enquiry-calendar-weekdays { flex-shrink: 0; }
-  .enquiries-premium-workspace .enquiry-calendar-dates { flex: 1; min-height: 0; grid-template-rows: repeat(6, minmax(44px, 1fr)); }
-  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-day { height: auto; min-height: 0; }
-  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-agenda { height: 100%; max-height: none; }
-  .enquiries-premium-workspace .enquiry-calendar-appointments { flex: 1; }
-  .enquiries-premium-workspace .enquiry-calendar-appointments:empty { display: none; }
-}
-@media (min-width: 1024px) and (min-height: 720px) and (max-height: 849px) {
-  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-layout { min-height: 300px; }
-  .enquiries-premium-workspace .enquiry-calendar-count { display: block; position: absolute; top: 6px; right: 8px; margin: 0; }
-  .enquiries-premium-workspace .enquiry-calendar-previews { display: none; }
+/* A six-row calendar remains in normal flow. Long agendas scroll independently. */
+@media (min-width: 1024px) {
+  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-layout { align-items:start; }
+  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-day { height:76px; min-height:76px; }
+  .enquiries-premium-workspace .enquiry-calendar .enquiry-calendar-agenda { max-height:500px; border-radius:12px; }
+  .enquiries-premium-workspace .enquiry-calendar-month { border-radius:12px; }
 }

@@ -4,6 +4,40 @@ import { expect, test } from '@playwright/test';
 
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Local preview only.');
 
+// Test the published warranty branch independently of saved preview settings or
+// a dealer's changing Grok inventory. No test publishes settings or stock.
+function publishedWarrantySettings(settings: any) {
+  return {
+    ...settings,
+    identity: { ...settings.identity, name: 'Luxxy Motors' },
+    contact: { ...settings.contact, phone: '02079460123', whatsapp: '+447700900123', email: 'sales@dealer.example.test' },
+    onlineReservation: { ...settings.onlineReservation, enabled: false },
+    presentation: { ...settings.presentation, servicesEnabled: true, showroomImageUrl: '', showroomImageAlt: '', teamImageUrl: '' },
+    warranty: { ...settings.warranty, enabled: true, title: 'Warranty', description: 'Ask the showroom about warranty options for your chosen vehicle.' },
+  };
+}
+
+const warrantyCars = [
+  { id: 'preview-1', advertId: 'warranty-fixture-1', title: 'Mercedes-Benz C Class', make: 'Mercedes-Benz', model: 'C Class', year: 2018, price: 8995, mileage: 64000 },
+  { id: 'preview-2', advertId: 'warranty-fixture-2', title: 'Volkswagen Golf', make: 'Volkswagen', model: 'Golf', year: 2019, price: 10995, mileage: 38000 },
+].map(car => ({
+  variant: null, trim: null, priceType: null, currency: 'GBP', mileageText: null,
+  registration: null, registrationBand: null, plate: null, vrm: null, vrmVerified: null,
+  fuel: 'Petrol', transmission: 'Manual', bodyType: 'Hatchback', engineSize: null, engineCC: null,
+  doors: null, seats: null, colour: null, emissionClass: null, drivetrain: null, owners: null,
+  writeOffCategory: null, advertUrl: null, dealerName: 'Luxxy Motors', dealerLocation: 'Example showroom',
+  imageCount: 0, heroImage: null, images: [], specifications: null, sourceExtras: null,
+  inventoryStatus: 'available', ...car,
+}));
+
+test.beforeEach(async ({ page, request }) => {
+  const settings = publishedWarrantySettings(await (await request.get('/api/dealer-settings')).json());
+  await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue()
+    : route.fulfill({ status: 403, json: { error: 'Warranty audit blocked this write.' } }));
+  await page.route('**/api/dealer-settings', route => route.fulfill({ json: settings }));
+  await page.route('**/api/stock', route => route.fulfill({ json: { schemaVersion: 1, dealerName: 'Luxxy Motors', dealerLocation: 'Example showroom', count: warrantyCars.length, scrapedAt: '2026-10-13T08:00:00Z', cars: warrantyCars } }));
+});
+
 for (const width of [320, 390, 1440]) {
   test(`warranty page, questions and vehicle enquiry work at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -20,7 +54,7 @@ for (const width of [320, 390, 1440]) {
     await expect.poll(() => photo.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     if (width !== 320) {
-      const directory = resolve('../../docs/screenshots/warranty-page');
+      const directory = '/tmp/luxxy-warranty-page';
       await mkdir(directory, { recursive: true });
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       await page.screenshot({ path: resolve(directory, `warranty-${width}.png`), fullPage: true });
@@ -43,8 +77,10 @@ for (const width of [320, 390, 1440]) {
     await page.getByTestId('warranty-enquiry-link').click();
     await expect(page).toHaveURL(/enquire\?type=warranty&vehicleId=preview-1/);
     await page.getByTestId('input-customer-name').fill('Warranty Test');
-    await page.getByTestId('input-customer-email').fill('warranty@example.com');
-    await page.getByTestId('textarea-enquiry-message').fill('Please send the warranty terms for this car.');
+    await page.getByTestId('input-customer-email').fill('warranty@customer.example.test');
+    const message = page.getByTestId('textarea-enquiry-message');
+    if (!await message.isVisible()) await page.locator('summary').filter({ hasText: 'Your message' }).click();
+    await message.fill('Please send the warranty terms for this car.');
     await page.getByTestId('button-submit-enquiry').click();
     await expect(page.getByTestId('status-enquiry-success')).toBeVisible();
     expect(payload).toMatchObject({ type: 'warranty', vehicleId: 'preview-1', customerName: 'Warranty Test', message: 'Please send the warranty terms for this car.' });
@@ -52,7 +88,7 @@ for (const width of [320, 390, 1440]) {
 }
 
 test('custom settings control warranty copy without inventing contact channels', async ({ page, request }) => {
-  const settings = await (await request.get('/api/dealer-settings')).json();
+  const settings = publishedWarrantySettings(await (await request.get('/api/dealer-settings')).json());
   settings.warranty = { ...settings.warranty, title: 'Warranty at Example Motors', description: 'Ask us about the options for your chosen vehicle.' };
   settings.contact = { phone: '', whatsapp: '', email: '' };
   await page.route('**/api/dealer-settings', route => route.fulfill({ json: settings }));
@@ -65,12 +101,12 @@ test('custom settings control warranty copy without inventing contact channels',
 });
 
 test('disabled warranty keeps an existing-customer contact route without advertising cover', async ({ page, request }) => {
-  const settings = await (await request.get('/api/dealer-settings')).json();
+  const settings = publishedWarrantySettings(await (await request.get('/api/dealer-settings')).json());
   settings.warranty.enabled = false;
   await page.route('**/api/dealer-settings', route => route.fulfill({ json: settings }));
   await page.goto('/warranty');
   await expect(page.getByRole('heading', { name: 'Warranty information' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Contact the showroom' })).toHaveAttribute('href', '/contact');
+  await expect(page.locator('#main-content').getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact');
   await expect(page.getByTestId('warranty-enquiry-link')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Warranty', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'The details worth checking.' })).toHaveCount(0);

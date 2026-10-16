@@ -1,6 +1,11 @@
 import type {
   SaleWorkspaceFulfilment,
   SaleWorkspacePayment,
+  SaleWorkspaceDraft,
+} from "@workspace/vehicle-meta";
+import {
+  saleWorkspacePence,
+  saleWorkspaceTotals,
 } from "@workspace/vehicle-meta";
 export type Exchange = {
   registration: string;
@@ -25,7 +30,8 @@ export type SaleDraft = {
   payments?: Payment[];
   adjustments?: Adjustment[];
   customerSource?: string;
-  sourceEnquiryId?: string; sourceReservationId?: string;
+  sourceEnquiryId?: string;
+  sourceReservationId?: string;
   appointment?: { at: string; status: string };
   id: string;
   customer: string;
@@ -101,11 +107,8 @@ export function saleStaffLabel(value?: string | null): string {
     : label.replace(/ \(preview\)$/, "");
 }
 
-export function pence(value: string) {
-  if (!value.trim()) return 0;
-  if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return NaN;
-  return Math.round(Number(value) * 100);
-}
+// The editor and backend must use the same decimal parser and ledger arithmetic.
+export const pence = saleWorkspacePence;
 export const exchanges = (d: SaleDraft): Exchange[] =>
   d.exchanges ??
   (d.partExchange
@@ -123,34 +126,28 @@ export const payments = (d: SaleDraft): Payment[] =>
     ? [{ amount: d.deposit, method: d.paymentMethod, date: "", reference: "" }]
     : []);
 export function totals(draft: SaleDraft) {
-  const price = pence(draft.price);
-  const allowance = exchanges(draft).reduce(
-    (sum, row) => sum + pence(row.value),
-    0,
+  // Older device-only drafts have no status/pence fields. This display adapter
+  // retains their existing behaviour; saveInternal never imports their payments.
+  const ledger = payments(draft).map((row) => ({
+    ...row,
+    status: row.status ?? "confirmed",
+    amountPence: row.amountPence ?? pence(row.amount),
+    signedAmountPence: row.signedAmountPence ?? pence(row.amount),
+  })) as SaleWorkspacePayment[];
+  return saleWorkspaceTotals(
+    {
+      ...draft,
+      exchanges: exchanges(draft),
+      payments: [],
+    } as SaleWorkspaceDraft,
+    ledger,
   );
-  const deposit = payments(draft).reduce(
-    (sum, row) =>
-      sum +
-      (row.status && row.status !== "confirmed"
-        ? 0
-        : (row.signedAmountPence ?? pence(row.amount))),
-    0,
-  );
-  const adjustments = (draft.adjustments ?? []).reduce(
-    (sum, row) => sum + pence(row.amount) * (row.kind === "discount" ? -1 : 1),
-    0,
-  );
-  return {
-    price,
-    allowance,
-    deposit,
-    adjustments,
-    balance: price + adjustments - allowance - deposit,
-  };
 }
 export function errors(draft: SaleDraft, previous?: SaleDraft): string[] {
   const amounts = totals(draft);
-  const previousBalance = previous ? totals({ ...previous, payments: draft.payments }).balance : 0;
+  const previousBalance = previous
+    ? totals({ ...previous, payments: draft.payments }).balance
+    : 0;
   return [
     !draft.customer.trim() && "Enter the customer name.",
     !draft.vehicleId && "Select a vehicle.",
@@ -158,7 +155,8 @@ export function errors(draft: SaleDraft, previous?: SaleDraft): string[] {
       "Enter a valid vehicle price greater than zero.",
     Object.values(amounts).some((value) => !Number.isSafeInteger(value)) &&
       "Enter valid non-negative amounts, with no more than two decimal places.",
-    amounts.balance < 0 && (!previous || amounts.balance < previousBalance) &&
+    amounts.balance < 0 &&
+      (!previous || amounts.balance < previousBalance) &&
       "Part exchange, discounts and payments cannot exceed the total due.",
     exchanges(draft).length > 3 &&
       "A maximum of three part-exchange cars is allowed.",

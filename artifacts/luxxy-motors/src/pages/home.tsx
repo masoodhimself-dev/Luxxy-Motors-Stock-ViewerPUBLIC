@@ -1,8 +1,9 @@
+import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { CompareSelectionLink } from '@/components/saved-car-controls';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import './stock-redesign.css';
 import './home-redesign.css';
-import { websiteText } from "@/lib/website-content";
+import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CustomerReviews } from '@/components/customer-reviews';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -11,6 +12,8 @@ import { HeroStockSearch } from '@/components/hero-stock-search';
 import { RecentlyViewed } from '@/components/recently-viewed';
 import { DealershipVisit } from "@/components/dealership-visit";
 import { ShowroomPhoto } from "@/components/showroom-photo";
+import demoCarHero from "@/assets/demo-car-hero.jpg";
+import { useDemoStatus } from "@/lib/demo-status";
 import luxxyHeroImage from "@/assets/luxxy-hero.jpg";
 import {
   readBrowseSession,
@@ -25,6 +28,7 @@ import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
 import { hasExplicitClearHistory, recordedWriteOffCategory } from '@/lib/vehicle-history';
+import { vehicleBenefits } from '@/lib/vehicle-benefits';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import {
   focusHomeTarget,
@@ -50,11 +54,22 @@ const defaultFilters: FilterState = {
   catS: false,
   catN: false,
   noWriteOff: false,
+  ulez: false,
+  lowMileage: false,
+  lowAnnualTax: false,
+  lowInsuranceGroup: false,
   sort: '',
 };
+const benefitChoices = [
+  { key: 'ulez', label: 'ULEZ compliant', note: 'Cars that meet the ULEZ emissions requirements. Check the registration with TfL before driving in the zone.' },
+  { key: 'lowMileage', label: 'Up to 30,000 miles', note: 'Includes cars with a recorded mileage of 30,000 miles or less.' },
+  { key: 'lowAnnualTax', label: 'Road tax up to £35/year', note: 'Cars with annual road tax of £35 or less. Tax rates can change; ask us to confirm the current rate before buying.' },
+  { key: 'lowInsuranceGroup', label: 'Insurance groups 1–15', note: 'Lower numbered insurance groups. Your personal insurance quote can still vary.' },
+] as const;
 const STOCK_VIEW_KEY = 'luxxy.stock-view.v1';
 
 export default function Home({ browseStock = false }: { browseStock?: boolean }) {
+  const demoSite = useDemoStatus();
   const [, setLocation] = useLocation();
   useEffect(() => {
     const redirectStock = () => {
@@ -104,12 +119,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     return saved &&
       Object.keys(defaultFilters).every(
         (key) =>
-          typeof saved[key as keyof FilterState] ===
-          typeof defaultFilters[key as keyof FilterState],
+          (saved[key as keyof FilterState] === undefined && benefitChoices.some(choice => choice.key === key)) ||
+          typeof saved[key as keyof FilterState] === typeof defaultFilters[key as keyof FilterState],
       )
-      ? saved
+      ? { ...defaultFilters, ...saved }
       : defaultFilters;
   });
+
+  const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
+  const benefitCounts = useMemo(() => Object.fromEntries(benefitChoices.map(({ key }) => [key, publicCars.filter(car => Boolean(benefitsByCar.get(car.id)?.[key])).length])) as Record<typeof benefitChoices[number]['key'], number>, [publicCars, benefitsByCar]);
 
   useEffect(() => {
     if (!browseStock) return;
@@ -157,6 +175,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     if (filters.fuel) result = result.filter((c) => c.fuel === filters.fuel);
     if (filters.transmission)
       result = result.filter((c) => c.transmission === filters.transmission);
+
+    for (const { key } of benefitChoices) {
+      if (filters[key]) result = result.filter(car => Boolean(benefitsByCar.get(car.id)?.[key]));
+    }
 
     if (filters.minPrice) {
       const min = parseFloat(filters.minPrice);
@@ -206,7 +228,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     }
 
     return result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
-  }, [publicCars, filters]);
+  }, [publicCars, filters, benefitsByCar]);
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);
@@ -261,13 +283,20 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       ? 'automatic'
       : nextFilters.maxPrice
         ? 'under_5000'
-        : 'low_mileage';
+        : benefitChoices.find(({ key }) => nextFilters[key])?.key || 'low_mileage';
     trackEvent('showroom_filter_applied', {
       source: 'quick_filter',
       preset,
       filter_count: 1,
     });
     setFilters({ ...defaultFilters, ...nextFilters });
+    revealResults('quick_filter');
+  };
+
+  const toggleBenefitFilter = (key: typeof benefitChoices[number]['key']) => {
+    setFilters(current => ({ ...current, [key]: !current[key] }));
+    setVisibleCount(12);
+    trackEvent('showroom_filter_applied', { source: 'quick_filter', preset: key, filter_count: 1 });
     revealResults('quick_filter');
   };
 
@@ -279,10 +308,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   const usesLuxxyBrandImage =
     !configuredHeroImage &&
     /^luxxy\s+motors$/i.test(dealerConfig.identity.name.trim());
-  const heroImage = configuredHeroImage || (usesLuxxyBrandImage ? luxxyHeroImage : undefined);
+  const heroImage = configuredHeroImage || (demoSite ? demoCarHero : usesLuxxyBrandImage ? luxxyHeroImage : undefined);
   const heroAlt = configuredHeroImage
     ? dealerConfig.presentation?.heroImageAlt || `${dealerConfig.identity.name} showroom`
-    : usesLuxxyBrandImage
+    : demoSite
+      ? "Illustrative stock photograph of a white BMW coupe"
+      : usesLuxxyBrandImage
       ? "Illustrative Luxxy brand image: a dark blue Mercedes-Benz overlooking a lake"
       : vehicleDisplayTitle(heroFallbackCar);
 
@@ -362,20 +393,28 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   return (
     <div className={browseStock ? "luxxy-shell homepage-refined stock-refined stock-redesign min-h-screen" : "luxxy-shell homepage-refined homepage-art-directed homepage-premium min-h-screen"}>
       {!browseStock && <section className="stock-search-hero" aria-labelledby="home-heading">
-        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
+        {heroPhotoSource && <div className="stock-search-backdrop" data-testid="showroom-hero-photo"><ShowroomPhoto src={heroPhotoSource} position={demoSite && !configuredHeroImage ? 'bottom' : dealerConfig.presentation?.heroImagePosition} alt={heroAlt} priority fit="cover" className="h-full" /></div>}
         <div className="stock-search-shade" aria-hidden="true" />
         <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
           <div className="stock-search-panel">
-            <p className="home-hero-eyebrow">{dealerConfig.hero.announcement || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
+            <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
             <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
             {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
             <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
-          {!error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask the team <ArrowRight size={16}/></Link></p>}
+          {!error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask us <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
-      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={publicCars} unavailable={Boolean(error)} />}
+      {!browseStock && !error && publicCars.length > 0 && <nav className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Shop by preference">
+        <span>Find your kind of car</span>
+        {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <Link href="/stock?transmission=Automatic">Automatic</Link>}
+        {publicCars.some(car => car.price != null && car.price <= 10000) && <Link href="/stock?maxPrice=10000">Under £10k</Link>}
+        {benefitCounts.ulez > 0 && <Link href="/stock?ulez=true">ULEZ compliant</Link>}
+        {benefitCounts.lowMileage > 0 && <Link href="/stock?lowMileage=true">Up to 30k miles</Link>}
+      </nav>}
+
+      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))} unavailable={Boolean(error)} />}
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -385,7 +424,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
             </div>
             <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
-              <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />Display & sharing<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
+              <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
               <CollapsibleContent className="stock-options-panel">
                 <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Vehicle display</span>{stockViewControls}</div>
                 <Link className="stock-option-action" href="/saved"><Heart size={17} aria-hidden="true" />Saved cars ({savedCount})<ArrowRight size={16} aria-hidden="true" /></Link>
@@ -420,16 +459,18 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               >
                 Under £5k
               </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ sort: 'mileage-asc' })}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-low-mileage"
-              >
-                Low miles
-              </button>
               {publicCars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
+              {benefitChoices.filter(({ key }) => benefitCounts[key] > 0 || filters[key]).map(({ key, label, note }) => <button
+                key={key}
+                type="button"
+                onClick={() => toggleBenefitFilter(key)}
+                aria-pressed={Boolean(filters[key])}
+                title={note}
+                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
+                data-testid={key === 'lowMileage' ? 'button-quick-low-mileage' : `button-quick-${key}`}
+              ><VehicleFactIcon label={label} className="mr-1.5 inline-block h-4 w-4 align-middle" />{label} <span className="tabular-nums">({benefitCounts[key]})</span></button>)}
             </div>
+            {benefitCounts.ulez > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">Check your car’s registration with TfL before driving in the zone. <a href="https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Check ULEZ by registration</a>.</p>}
  </>}
             cars={publicCars}
             filters={filters}
@@ -449,6 +490,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   filters.noWriteOff,
                   filters.catS,
                   filters.catN,
+                  filters.ulez,
+                  filters.lowMileage,
+                  filters.lowAnnualTax,
+                  filters.lowInsuranceGroup,
                 ].filter(Boolean).length,
                 search_used: Boolean(filters.search),
                 budget_used: Boolean(filters.minPrice || filters.maxPrice),
@@ -460,11 +505,17 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             }}
           />
 
+          {!error && publicCars.length > 0 && <nav className="stock-shopping-shortcuts" aria-label="Shop by preference">
+            {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <button type="button" aria-label="Show automatic cars" aria-pressed={filters.transmission === 'Automatic'} onClick={() => applyQuickFilter({ transmission: filters.transmission === 'Automatic' ? '' : 'Automatic' })}>Automatic</button>}
+            {publicCars.some(car => car.price != null && car.price <= 10000) && <button type="button" aria-label="Show cars under £10k" aria-pressed={filters.maxPrice === '10000'} onClick={() => applyQuickFilter({ maxPrice: filters.maxPrice === '10000' ? '' : '10000' })}>Under £10k</button>}
+            {benefitChoices.filter(({ key }) => benefitCounts[key] > 0).slice(0, 2).map(({ key, label, note }) => <button key={key} type="button" title={note} aria-pressed={Boolean(filters[key])} onClick={() => toggleBenefitFilter(key)}>{label}</button>)}
+          </nav>}
+
           <div id="vehicle-results" data-home-section className="mt-2 md:mt-4">
             {!error && <div className="stock-results-bar">
               {stock && <p className="stock-result-count" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
                 {!hasFilters
-                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'vehicle' : 'vehicles'} available`
+                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'} in stock`
                   : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
               </p>}
               <CompareSelectionLink />
@@ -473,9 +524,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               <div className="stock-error surface p-8" role="alert">
                 <h3 className="section-heading">Stock is temporarily unavailable</h3>
                 <p className="mt-3 text-muted-foreground">
-                  Please try again or contact the showroom for current availability.
+                  Please try again or ask us about current availability.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>
+                <div className="mt-5 flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>
               </div>
             ) : filteredCars.length ? (
               <>
@@ -500,8 +551,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               </>
             ) : !publicCars.length ? (
               <div className="stock-empty surface px-6 py-8 text-left" data-testid="empty-stock">
-                <h3 className="section-heading">No vehicles currently listed</h3>
-                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Contact the team about upcoming stock or tell us what you’re looking for.</p>
+                <h3 className="section-heading">No cars to show right now</h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Tell us what you’re looking for, or ask us about our stock.</p>
                 <Button asChild className="mt-6"><Link href="/enquire?type=general">Ask about upcoming stock <ArrowRight className="h-4 w-4" /></Link></Button>
               </div>
             ) : (
@@ -572,9 +623,10 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       )}
 
       <CustomerReviews />
-      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit>{dealershipPoints}</DealershipVisit>}
+      {dealershipPoints && <section className="home-reassurance section-space container mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="home-reassurance-heading"><h2 id="home-reassurance-heading" className="section-heading mb-6">Why choose us?</h2>{dealershipPoints}</section>}
+      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit />}
 
-      {dealerConfig.presentation?.servicesEnabled !== false && <section className="home-services section-space border-t border-border bg-secondary/40">
+      {dealerConfig.presentation?.servicesEnabled !== false && [dealerConfig.warranty, dealerConfig.partExchange, dealerConfig.delivery].some(service => service?.enabled) && <section className="home-services section-space border-t border-border bg-secondary/40">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <p className="luxxy-kicker mb-3">{websiteText(dealerConfig, "servicesEyebrow")}</p>
           <h2 className="section-heading">{websiteText(dealerConfig, "servicesHeading")}</h2>
@@ -607,7 +659,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       {id === 'part-exchange' ? 'Part exchange' : id === 'delivery' ? 'Delivery' : 'Warranty'}
                     </h3>
                     <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
-                      {service.description}
+                      {id === 'delivery' ? customerDefaultCopy(service.description, 'Ask us about delivery options for your next car.', ['Customers may be able to have their vehicle delivered.']) : id === 'warranty' ? customerDefaultCopy(service.description, 'Ask us about warranty options for your chosen car.', ['Warranty options are available on eligible vehicles.']) : service.description}
                     </p>
                     <a
                       className="text-link mt-4"

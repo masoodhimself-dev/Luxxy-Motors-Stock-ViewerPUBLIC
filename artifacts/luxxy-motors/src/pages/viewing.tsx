@@ -15,6 +15,8 @@ import {
 } from '@workspace/api-client-react';
 import { ArrowLeft, CalendarDays, CalendarPlus, Check, CircleAlert, Clock3, LoaderCircle, MapPin, Phone, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/page-ui';
+import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { appointmentLabel, availableBookingDates, bookingDateLabel, bookingTimezone, defaultBookingSettings, londonDate, nextDate } from '@/lib/test-drive-dates';
@@ -40,6 +42,7 @@ export default function Viewing() {
   const queryClient = useQueryClient();
   const { token = '' } = useParams<{ token: string }>();
   const { settings: dealerConfig, isLoading: settingsLoading } = useDealerSettings();
+  usePageMeta({ title: `Your test drive | ${dealerConfig.identity.name}`, description: 'Check your test drive, request another time or contact us for help.' });
   const bookingSettings = useMemo(() => dealerConfig.testDriveBooking ?? defaultBookingSettings, [dealerConfig.testDriveBooking]);
   const dates = useMemo(() => bookingSettings.enabled ? availableBookingDates(bookingSettings) : [], [bookingSettings]);
   const [selectedDate, setSelectedDate] = useState('');
@@ -79,25 +82,25 @@ export default function Viewing() {
   const shell = (children: ReactNode) => (
     <div className="luxxy-shell min-h-[60vh] bg-background">
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
-        <Link href="/" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary" data-testid="link-back-to-showroom"><ArrowLeft className="h-4 w-4" /> Back to showroom</Link>
-        <div className="overflow-hidden rounded-xl border border-border bg-card">{children}</div>
+        <Link href="/" className="text-link mb-6 inline-flex min-h-11 items-center gap-2" data-testid="link-back-to-showroom"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to showroom</Link>
+        <div className="overflow-hidden rounded-sm border border-border bg-card">{children}</div>
       </div>
     </div>
   );
 
   if (query.isLoading) return shell(
-    <div className="flex h-64 flex-col items-center justify-center gap-4 p-8" data-testid="loading-viewing-session"><LoaderCircle className="h-7 w-7 animate-spin text-accent" /><span className="text-sm">Finding your booking…</span></div>,
+    <div className="flex min-h-64 flex-col items-center justify-center gap-4 p-6 text-center sm:p-10" role="status" aria-busy="true" data-testid="loading-viewing-session"><LoaderCircle className="h-7 w-7 text-primary motion-safe:animate-spin" aria-hidden="true" /><h1 className="heading-2 text-primary">Finding your booking…</h1><p className="text-sm leading-6 text-muted-foreground">Checking your test-drive details.</p></div>,
   );
   if (query.isError || !booking) {
     const unavailable = ![404, 410].includes(query.error?.status ?? 0);
     return shell(
       <div className="p-6 sm:p-10">
-        <CircleAlert className="mb-5 h-8 w-8 text-accent" />
-        <h1 className="font-display text-2xl font-semibold text-primary">{unavailable ? 'Booking temporarily unavailable' : 'Cannot find booking'}</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground" data-testid="status-viewing-error">{apiMessage(query.error, unavailable ? 'Your booking could not be loaded just now. Please try again.' : 'We could not find your booking. The link may have expired.')}</p>
-        <div className="mt-6 flex flex-wrap gap-3">
+        <CircleAlert className="mb-5 h-6 w-6 text-primary" aria-hidden="true" />
+        <PageHeading eyebrow="Your test drive" title={unavailable ? 'Booking temporarily unavailable' : 'Cannot find booking'} />
+        <p className="text-base leading-7 text-muted-foreground" role="alert" data-testid="status-viewing-error">{unavailable ? 'Your booking could not be loaded just now. Please try again or contact us.' : 'We could not find your booking. The link may have expired or been replaced. Contact us for help.'}</p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {unavailable && <Button onClick={() => void query.refetch()} disabled={query.isFetching} className="min-h-12">Try again</Button>}
-          <Button asChild variant="outline" className="min-h-12"><Link href="/">Back to showroom</Link></Button>
+          <Button asChild variant={unavailable ? 'outline' : 'default'} className="min-h-12"><Link href="/contact">Contact us</Link></Button>
           {phoneHref && <Button asChild variant="outline" className="min-h-12"><a href={phoneHref}><Phone className="mr-2 h-4 w-4" /> Call us</a></Button>}
         </div>
       </div>,
@@ -113,10 +116,10 @@ export default function Viewing() {
 
   return shell(<>
     <div className="p-6 sm:p-10">
-      <p className="mb-3 text-xs font-medium tracking-wide text-muted-foreground">Reference {booking.reference}</p>
+      <p className="mb-3 break-all text-xs font-medium tracking-wide text-muted-foreground">Reference {booking.reference}</p>
       <h1 className="font-display text-2xl font-semibold tracking-tight text-primary sm:text-3xl">{isCancelled ? 'Test drive cancelled' : isPending ? 'Your test-drive request' : 'Your test drive'}</h1>
       <p className="mt-3 text-sm text-muted-foreground" data-testid="text-viewing-customer">Hello, {booking.customerName}.</p>
-      {isPending && !isCancelled && <p className="mt-4 rounded-lg bg-secondary p-4 text-sm leading-6 text-primary" data-testid="status-viewing-pending">Awaiting showroom confirmation. We will email you when your requested time is confirmed.</p>}
+      {isPending && !isCancelled && <p className="mt-4 rounded-lg bg-secondary p-4 text-sm leading-6 text-primary" data-testid="status-viewing-pending">We’ve received your request. We’ll email you when your requested time is confirmed.</p>}
       <div className="mt-5 inline-flex rounded-full border border-border bg-secondary px-3 py-1.5 text-sm font-semibold" role="status">{isCancelled ? 'Cancelled' : isPending ? 'Requested · awaiting confirmation' : 'Confirmed'}</div>
       {bookedCar && getThumbnailUrl(bookedCar) && <ShowroomPhoto src={getThumbnailUrl(bookedCar)!} alt={booking.vehicleTitle || 'Your selected car'} fit="contain" className="mt-5 aspect-[16/9] max-h-64 w-full overflow-hidden rounded-lg bg-secondary" />}
       <div className="mt-6 space-y-4 text-sm text-primary">
@@ -131,8 +134,8 @@ export default function Viewing() {
           <Button variant="ghost" onClick={() => { cancel.reset(); setMode('confirm-cancel'); }} className="min-h-12 text-sm text-muted-foreground" data-testid="button-viewing-cancel">Cancel</Button>
         </>}
       </div>}
-      {!isCancelled && booking.canChange && !settingsLoading && !canReschedule && <p className="mt-4 text-sm leading-6 text-muted-foreground" data-testid="status-reschedule-unavailable">Online rescheduling is currently unavailable. Your existing {isPending ? 'request' : 'booking'} is unchanged. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to arrange another time.</a> : <Link href="/contact" className="underline underline-offset-4">Contact the showroom to arrange another time.</Link>}</p>}
-      {!isCancelled && !booking.canChange && <p className="mt-4 text-sm text-muted-foreground">This appointment has already started. Contact the showroom if you need help.</p>}
+      {!isCancelled && booking.canChange && !settingsLoading && !canReschedule && <p className="mt-4 text-sm leading-6 text-muted-foreground" data-testid="status-reschedule-unavailable">Online rescheduling is currently unavailable. Your existing {isPending ? 'request' : 'booking'} is unchanged. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to arrange another time.</a> : <Link href="/contact" className="underline underline-offset-4">Contact us to arrange another time.</Link>}</p>}
+      {!isCancelled && !booking.canChange && <p className="mt-4 text-sm text-muted-foreground">This appointment has already started. Contact us if you need help.</p>}
     </div>
 
     {isCancelled ? <div className="border-t border-border bg-secondary/40 p-6 sm:p-10">
@@ -148,7 +151,7 @@ export default function Viewing() {
       </div>
     </div> : mode === 'reschedule' ? <div className="border-t border-border p-6 sm:p-10">
       <h2 ref={changeHeadingRef} tabIndex={-1} className="text-xl font-semibold outline-none">Choose a new time</h2>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{bookingSettings.durationMinutes} minutes at the showroom. {bookingSettings.confirmationMode === 'approval' ? 'The team will confirm your new requested time.' : 'Your current time stays booked until you confirm a new one.'}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{bookingSettings.durationMinutes} minutes at our showroom. {bookingSettings.confirmationMode === 'approval' ? 'We’ll check your new requested time and contact you to confirm.' : 'Your current time stays booked until you confirm a new one.'}</p>
       {canReschedule ? <>
         <div className="-mx-1 mt-5 flex snap-x gap-2 overflow-x-auto px-1 pb-3" role="group" aria-label="Choose a new date" data-testid="group-viewing-dates">
           {dates.map(date => { const label = shortDate(date); return <button key={date} type="button" disabled={busy} onClick={() => setSelectedDate(date)} aria-pressed={selectedDate === date} aria-label={bookingDateLabel(date)} className={`flex min-h-20 min-w-24 shrink-0 snap-start flex-col items-center justify-center rounded-lg border px-3 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selectedDate === date ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-primary hover:bg-secondary'}`} data-testid={`button-viewing-date-${date}`}><span className="font-medium">{label.day}</span><span className="mt-1 text-xs opacity-80">{label.date}</span></button>; })}
@@ -158,7 +161,7 @@ export default function Viewing() {
           {availabilityQuery.isLoading || availabilityQuery.isFetching ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Loading available times" data-testid="loading-availability">{[1, 2, 3, 4].map(item => <div key={item} className="h-12 animate-pulse rounded-lg bg-secondary" />)}</div> : availabilityQuery.isError ? <div role="alert" className="rounded-lg border border-border p-4 text-sm" data-testid="status-availability-error"><p>Could not load available times. Please try again or choose another date.</p><Button variant="outline" className="mt-3 min-h-11" onClick={() => void availabilityQuery.refetch()}>Try again</Button></div> : availableSlots.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label="Choose a new time" data-testid="group-viewing-slots">{availabilityQuery.data?.slots.map(slot => <button key={slot.startAt} type="button" disabled={busy || !slot.available} onClick={() => setSelectedSlot(slot.startAt)} aria-pressed={selectedSlot === slot.startAt} className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border px-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selectedSlot === slot.startAt ? 'border-primary bg-primary text-primary-foreground' : slot.available ? 'border-border bg-card text-primary hover:bg-secondary' : 'cursor-not-allowed border-border text-muted-foreground opacity-50 line-through'}`} data-testid={`button-viewing-slot-${slot.startAt}`}>{selectedSlot === slot.startAt && <Check className="h-4 w-4" />}{slot.label}</button>)}</div> : <p className="rounded-lg bg-secondary p-4 text-sm leading-6 text-muted-foreground" data-testid="status-availability-empty">There are no remaining times on this date. Please choose another day.</p>}
         </div>
         {reschedule.isError && <p role="alert" className="mt-5 text-sm text-destructive" data-testid="status-reschedule-error">{apiMessage(reschedule.error, 'We could not move your test drive. Please try again or call us.')}</p>}
-      </> : <p className="mt-5 text-sm leading-6 text-muted-foreground">There are no dates available for online rescheduling. Contact the showroom to arrange another time.</p>}
+      </> : <p className="mt-5 text-sm leading-6 text-muted-foreground">There are no dates available for online rescheduling. Contact us to arrange another time.</p>}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         {canReschedule && <Button disabled={busy || !selectedSlot || availabilityQuery.isFetching || availabilityQuery.isError} onClick={() => {
           if (!selectedSlot) return;
@@ -169,8 +172,8 @@ export default function Viewing() {
         }} className="min-h-12 sm:flex-1" data-testid="button-confirm-reschedule">{reschedule.isPending ? 'Updating test drive…' : bookingSettings.confirmationMode === 'approval' ? 'Request new time' : 'Confirm new time'}</Button>}
         <Button variant="outline" disabled={busy} onClick={() => setMode('idle')} className="min-h-12 sm:flex-1" data-testid="button-cancel-reschedule">Keep current time</Button>
       </div>
-    </div> : reschedule.isSuccess ? <div className="border-t border-border p-6 sm:p-10"><p ref={resultRef} tabIndex={-1} role="status" className="flex items-start gap-3 text-sm leading-6 outline-none" data-testid="status-reschedule-success"><Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />{booking.status === 'pending' ? 'Your new time has been requested. Please wait for the showroom to confirm it.' : 'Your test drive has been moved and your new time is confirmed.'}</p></div> : null}
+    </div> : reschedule.isSuccess ? <div className="border-t border-border p-6 sm:p-10"><p ref={resultRef} tabIndex={-1} role="status" className="flex items-start gap-3 text-sm leading-6 outline-none" data-testid="status-reschedule-success"><Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />{booking.status === 'pending' ? 'Your new time has been requested. Please wait for us to confirm it.' : 'Your test drive has been moved and your new time is confirmed.'}</p></div> : null}
 
-    {!isCancelled && mode === 'idle' && <div className="border-t border-border p-6 sm:p-10"><h2 className="text-sm font-semibold">Before your visit</h2>{bookingSettings.instructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{bookingSettings.instructions}</p>}{dealerConfig.presentation?.parkingInstructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{dealerConfig.presentation.parkingInstructions}</p>}{location.directions && <a href={location.directions} target="_blank" rel="noopener noreferrer" className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Get directions</a>}{phoneHref && <a href={phoneHref} className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call the showroom</a>}<Link href="/contact" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Directions & opening hours</Link></div>}
+    {!isCancelled && mode === 'idle' && <div className="border-t border-border p-6 sm:p-10"><h2 className="text-sm font-semibold">Before your visit</h2>{bookingSettings.instructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{bookingSettings.instructions}</p>}{dealerConfig.presentation?.parkingInstructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{dealerConfig.presentation.parkingInstructions}</p>}{location.directions && <a href={location.directions} target="_blank" rel="noopener noreferrer" className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Get directions</a>}{phoneHref && <a href={phoneHref} className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call us</a>}<Link href="/contact" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Directions & opening hours</Link></div>}
   </>);
 }

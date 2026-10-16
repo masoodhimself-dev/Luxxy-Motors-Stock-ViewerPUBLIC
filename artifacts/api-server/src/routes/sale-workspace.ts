@@ -11,6 +11,7 @@ import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets } from '../lib/sale
 
 const router = Router();
 const dealerId = () => currentDealerId();
+const emailMoney = (pence: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(pence / 100);
 const uuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 function store() {
   const id = dealerId();
@@ -30,7 +31,7 @@ router.use('/sale-workspace', requireStaff, (req, res, next) => {
 router.get('/sale-workspace', async (req, res) => {
   try { res.json({ sales: await store().list(), preview: false }); } catch (error) { failure(req, res, error); }
 });
-router.get('/sale-workspace/paperwork', async (req, res) => { try { const p = await dealerIntegrationsStore.readSalesPaperwork(); res.json({ saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceDetails: p.invoiceDetails }); } catch (error) { failure(req, res, error); } });
+router.get('/sale-workspace/paperwork', async (req, res) => { try { const p = await dealerIntegrationsStore.readSalesPaperwork(); res.json({ saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings, invoiceDetails: p.invoiceDetails }); } catch (error) { failure(req, res, error); } });
 router.get('/sale-workspace/:id', async (req, res) => {
   try { if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404); res.json({ sale: await store().get(req.params.id), preview: false }); } catch (error) { failure(req, res, error); }
 });
@@ -51,8 +52,11 @@ async function mutate(req: Request, res: Response, command: SaleWorkspaceCommand
 router.put('/sale-workspace/:id', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'update', draft: req.body?.draft }); });
 router.post('/sale-workspace/:id/payments', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'payment', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/payments/:paymentId/confirm', requirePermission('payments.record'), (req, res, next) => req.body?.reserveVehicle === true ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'confirm', paymentId: String(req.params.paymentId), date: req.body?.date, reserveVehicle: req.body?.reserveVehicle === true }); });
-router.post('/sale-workspace/:id/payments/:paymentId/reverse', requirePermission('payments.refund'), async (req, res) => { await mutate(req, res, { action: 'reverse', paymentId: String(req.params.paymentId), amount: req.body?.amount, kind: req.body?.kind, reason: req.body?.reason, date: req.body?.date }); });
+router.post('/sale-workspace/:id/payments/:paymentId/reverse', requirePermission('payments.refund'), async (req, res) => { await mutate(req, res, { action: 'reverse', paymentId: String(req.params.paymentId), amount: req.body?.amount, kind: req.body?.kind, reason: req.body?.reason, date: req.body?.date, invoiceOnly: req.body?.invoiceOnly === true }); });
 router.post('/sale-workspace/:id/documents', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'document', type: req.body?.type }); });
+router.post('/sale-workspace/:id/invoice-payments', requirePermission('payments.record'), (req, res, next) => req.body?.payment?.kind === 'deposit' ? requirePermission('sales.manage')(req, res, next) : next(), async (req, res) => { await mutate(req, res, { action: 'invoice-payment', payment: req.body?.payment }); });
+router.post('/sale-workspace/:id/issue-invoice', requirePermission('payments.record'), async (req, res) => { await mutate(req, res, { action: 'issue-invoice', kind: req.body?.kind, acknowledge: req.body?.acknowledge }); });
+router.post('/sale-workspace/:id/finish-invoice-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'finish-invoice-sale', acknowledge: req.body?.acknowledge, acknowledgeOutstanding: req.body?.acknowledgeOutstanding === true }); });
 router.post('/sale-workspace/:id/take-deposit', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'take-deposit', payment: req.body?.payment }); });
 router.post('/sale-workspace/:id/complete-sale', requirePermission('payments.record'), requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'complete-sale', acknowledge: req.body?.acknowledge }); });
 router.post('/sale-workspace/:id/handover', requirePermission('sales.handover'), async (req, res) => { await mutate(req, res, { action: 'handover', recipient: req.body?.recipient, completedAt: req.body?.completedAt, acknowledgeOutstanding: req.body?.acknowledgeOutstanding }); });
@@ -122,8 +126,8 @@ router.post('/sale-workspace/:id/documents/:documentId/email', requirePermission
     try {
       const { archive } = await service.pdf(current.id, document.id);
       const providerId = await sendTemplatedEmail({ templateId: document.type === 'invoice' ? 'invoice' : document.type === 'statement' ? 'balance_statement' : document.type === 'receipt' ? 'payment_receipt' : 'document_email', to,
-        variables: { customer_name: document.snapshot.draft.customer, customer_email: to, dealer_name: document.snapshot.branding.identity.name, dealer_email: document.snapshot.branding.contact.email, dealer_phone: document.snapshot.branding.contact.phone, reference: current.reference, vehicle_title: document.snapshot.draft.vehicle, vehicle_registration: document.snapshot.draft.registration, document_title: document.title, document_type: document.title, document_number: document.number, issued_at: document.issuedAt, amount: `GBP ${((document.paymentAmountPence ?? document.snapshot.totals.totalDue) / 100).toFixed(2)}`, amount_received: `GBP ${(document.snapshot.totals.confirmedPaid / 100).toFixed(2)}`, balance: `GBP ${(document.balanceAtIssue / 100).toFixed(2)}` },
-        facts: [{ label: 'Document', value: `${document.title} ${document.number}` }, { label: 'Vehicle', value: document.snapshot.draft.vehicle }, { label: 'Balance at issue', value: `GBP ${(document.balanceAtIssue / 100).toFixed(2)}` }],
+        variables: { customer_name: document.snapshot.draft.customer, customer_email: to, dealer_name: document.snapshot.branding.identity.name, dealer_email: document.snapshot.branding.contact.email, dealer_phone: document.snapshot.branding.contact.phone, reference: current.reference, vehicle_title: document.snapshot.draft.vehicle, vehicle_registration: document.snapshot.draft.registration, document_title: document.title, document_type: document.title, document_number: document.number, issued_at: document.issuedAt, amount: emailMoney(document.paymentAmountPence ?? document.snapshot.totals.totalDue), amount_received: emailMoney(document.snapshot.totals.confirmedPaid), balance: emailMoney(document.balanceAtIssue) },
+        facts: [{ label: 'Document', value: `${document.title} ${document.number}` }, { label: 'Vehicle', value: document.snapshot.draft.vehicle }, ...(document.snapshot.draft.registration ? [{ label: 'Registration', value: document.snapshot.draft.registration }] : []), { label: 'Issued', value: new Date(document.issuedAt).toLocaleString('en-GB', { timeZone: 'Europe/London' }) }, ...(document.paymentAmountPence != null ? [{ label: 'Receipt amount', value: emailMoney(document.paymentAmountPence) }] : []), { label: 'Payments recorded at issue', value: emailMoney(document.snapshot.totals.confirmedPaid) }, { label: 'Balance at issue', value: emailMoney(document.balanceAtIssue) }],
         idempotencyKey: 'sale-document-' + document.id + '-' + requestId, attachments: [{ filename: document.number + '.pdf', content: archive.content }] });
       delivery = { ...delivery, status: 'sent', sentAt: new Date().toISOString(), providerId };
     } catch (error) { delivery = { ...delivery, status: error instanceof Error && /disabled|Configure RESEND|private Resend/.test(error.message) ? 'prepared' : 'failed', error: error instanceof Error ? error.message.slice(0, 300) : 'Email delivery failed.' }; }
@@ -132,6 +136,13 @@ router.post('/sale-workspace/:id/documents/:documentId/email', requirePermission
   } catch (error) { failure(req, res, error); }
 });
 // These token-gated routes deliberately sit outside the staff middleware.
+router.get('/invoice-verification/:saleId/:documentId/:token', async (req, res) => {
+  res.set({ 'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow' });
+  try {
+    if (!uuid(req.params.saleId) || !uuid(req.params.documentId) || !/^[a-f0-9]{64}$/.test(req.params.token)) throw new SaleWorkspaceError('This invoice could not be verified.', 404);
+    res.json(await store().verifyInvoice(req.params.saleId, req.params.documentId, req.params.token));
+  } catch (error) { failure(req, res, error); }
+});
 router.use('/customer-sale', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store, private'); res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
 router.get('/customer-sale/:token', async (req, res) => { try { const { view } = await store().customer(req.params.token); res.json({ sale: view }); } catch (error) { failure(req, res, error); } });
 router.get('/customer-sale/:token/documents/:documentId', async (req, res) => { try { res.json({ document: await store().customerDocument(req.params.token, req.params.documentId) }); } catch (error) { failure(req, res, error); } });

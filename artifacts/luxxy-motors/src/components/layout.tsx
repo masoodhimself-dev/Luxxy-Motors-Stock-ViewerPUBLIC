@@ -1,8 +1,8 @@
 import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
-import { Menu, X, Phone, MessageCircle, ArrowRight, Instagram, Facebook, Twitter, MapPin, Heart, CalendarDays } from 'lucide-react';
+import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from 'lucide-react';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
@@ -12,21 +12,17 @@ import { CompareTray } from '@/components/compare-tray';
 import { CustomerChat } from '@/components/customer-chat';
 import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
-import { getUpcomingVisitDates } from '@/lib/upcoming-visit-dates';
+import { CustomerFooter } from '@/components/customer-footer';
 import './premium-showroom.css';
 import './portal/portal-workspace.css';
-import { readableForegroundForHsl } from '@/lib/brand-colour';
+import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
+import { customerThemeVariables } from '@/lib/customer-theme';
 export { readableForegroundForHsl } from '@/lib/brand-colour';
 
 const navLinkClass =
   'inline-flex min-h-11 items-center whitespace-nowrap font-display text-[14px] font-semibold tracking-normal text-primary/75 transition-colors hover:text-accent';
 const mobileNavRowClass =
   'flex min-h-12 items-center justify-between border-b border-primary/10 py-2 text-left font-display text-base font-semibold text-primary transition-colors hover:text-accent';
-const footerLinkClass =
-  'min-h-11 text-left text-[14px] font-medium text-primary-foreground/80 transition-colors hover:text-accent';
-const footerHeadingClass = 'font-display text-lg font-semibold text-primary-foreground mb-5';
-const socialLinkClass =
-  'grid h-11 w-11 place-items-center rounded-lg bg-primary-foreground/10 text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -47,10 +43,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Adopt the current palette for the original template defaults; preserve bespoke colours.
   const brandPrimary = dealerConfig.identity.brandColors?.primaryHsl === '161.538 16.883% 15.098%' ? '195 22% 13%' : dealerConfig.identity.brandColors?.primaryHsl;
   const brandAccent = dealerConfig.identity.brandColors?.accentHsl === '30.000 40.659% 35.686%' ? '190 86% 44%' : dealerConfig.identity.brandColors?.accentHsl;
-  const brandStyle = {
-    '--premium-accent': brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? `hsl(${brandAccent})` : '#215a7e',
-    '--premium-accent-foreground': brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? `hsl(${readableForegroundForHsl(brandAccent)})` : '#ffffff',
-    ...Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })),
+  const customerAccent = readableAccentForHsl(brandAccent && !['190 86% 44%', '42 82% 49%'].includes(brandAccent) ? brandAccent : '203.226 58.491% 31.176%');
+  const accent = isStaff ? brandAccent : customerAccent;
+  const brandStyle = useMemo(() => ({
+    '--premium-accent': `hsl(${customerAccent})`,
+    '--premium-accent-foreground': `hsl(${readableForegroundForHsl(customerAccent)})`,
+    ...(isStaff ? Object.fromEntries(([ ["pageColour", "--dealer-page"], ["panelColour", "--dealer-panel"], ["headingColour", "--dealer-heading"], ["linkColour", "--dealer-link"] ] as const).flatMap(([key, variable]) => { const value = dealerConfig.presentation?.[key]; return value && /^#[0-9a-fA-F]{6}$/.test(value) ? [[variable, value]] : []; })) : {}),
     ...(brandPrimary
       ? {
           '--dealer-primary': brandPrimary,
@@ -59,15 +57,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
           '--primary-foreground': readableForegroundForHsl(brandPrimary),
         }
       : {}),
-    ...(brandAccent
+    ...(accent
       ? {
-          '--dealer-accent': brandAccent,
-          '--dealer-accent-foreground': readableForegroundForHsl(brandAccent),
-          '--accent': brandAccent,
-          '--accent-foreground': readableForegroundForHsl(brandAccent),
+          '--dealer-accent': accent,
+          '--dealer-accent-foreground': readableForegroundForHsl(accent),
+          '--accent': accent,
+          '--accent-foreground': readableForegroundForHsl(accent),
         }
       : {}),
-  } as CSSProperties;
+    ...(!isStaff ? customerThemeVariables({ ...dealerConfig.presentation, primaryHsl: brandPrimary, accentHsl: customerAccent }) : {}),
+  }) as CSSProperties, [brandPrimary, accent, customerAccent, dealerConfig.presentation, isStaff]);
+
+  useEffect(() => {
+    if (isStaff) return;
+    // Radix menus and dialogs live beneath body rather than the showroom shell.
+    // Carry the same dealer palette there, then restore it on staff routes.
+    const entries = Object.entries(brandStyle) as [string, string][];
+    const previous = entries.map(([key]) => [key, document.body.style.getPropertyValue(key)] as const);
+    for (const [key, value] of entries) document.body.style.setProperty(key, value);
+    return () => {
+      for (const [key, value] of previous) {
+        if (value) document.body.style.setProperty(key, value);
+        else document.body.style.removeProperty(key);
+      }
+    };
+  }, [brandStyle, isStaff]);
 
   useEffect(() => {
     const url = dealerConfig.presentation?.faviconUrl;
@@ -77,8 +91,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => icon.remove();
   }, [dealerConfig.presentation?.faviconUrl]);
 
-  const locationLabel = [dealerConfig.address?.city, dealerConfig.address?.region].filter(Boolean).join(' · ');
-  const upcomingVisitDates = getUpcomingVisitDates(dealerConfig.hours ?? []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -144,6 +156,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const handleNav = (target: string) => {
     setMobileMenuOpen(false);
+    if (target === 'part-exchange' || target === 'delivery') { setLocation(`/enquire?type=${target === 'part-exchange' ? 'part_exchange' : 'delivery'}`); return; }
     navigateToHomeTarget(target, location, setLocation);
   };
 
@@ -160,7 +173,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ''}`}>
+    <div style={brandStyle} className={`luxxy-shell min-h-[100dvh] flex flex-col bg-background font-sans text-foreground${isPremiumShowroom ? ' premium-showroom' : ''}${isStaff ? ' premium-portal' : ' customer-site'}`}>
       <a href="#main-content" className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-5 py-3 text-primary-foreground focus:translate-y-0">Skip to content</a>
       <header
         ref={headerRef}
@@ -180,6 +193,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Desktop Nav - Condensed */}
           <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
+            {dealerConfig.contact.phone && <a className={navLinkClass} href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone className="mr-2 h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
             <button
@@ -263,10 +277,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </>}
         </div>
 
+        {!isStaff && dealerConfig.contact.phone && <div className="header-phone-row lg:hidden"><a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone size={16} aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a></div>}
+
         {/* Mobile Nav Dropdown */}
         {mobileMenuOpen && (
           <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" onBlur={(event) => {
-            if (!isPremiumShowroom) return;
             const nextFocus = event.relatedTarget;
             if (!nextFocus || (!event.currentTarget.contains(nextFocus) && nextFocus !== menuButtonRef.current)) setMobileMenuOpen(false);
           }} className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
@@ -326,127 +341,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {isCustomerTask && (
         <footer className="mt-auto border-t border-border bg-card px-4 py-6 sm:px-6" data-testid="customer-task-footer">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-8 gap-y-3 text-sm">
-            <div><p className="font-semibold">{dealerConfig.identity.name}</p><p className="mt-1 text-muted-foreground">Need help with your documents or visit? Contact the team.</p></div>
+            <div><p className="font-semibold">{dealerConfig.identity.name}</p><p className="mt-1 text-muted-foreground">Need help with your documents or visit? Talk to us.</p></div>
             <div className="flex flex-wrap items-center gap-x-5">
               {dealerConfig.contact.phone && <a className="text-link min-h-11" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
-              {dealerConfig.contact.email && <a className="text-link min-h-11 break-all" href={`mailto:${dealerConfig.contact.email}`}>Email the showroom</a>}
+              {dealerConfig.contact.email && <a className="text-link min-h-11 break-all" href={`mailto:${dealerConfig.contact.email}`}>Email us</a>}
               {dealerConfig.legal.privacyUrl && <a className="text-link min-h-11" href={dealerConfig.legal.privacyUrl}>Privacy</a>}
             </div>
           </div>
         </footer>
       )}
-      <footer hidden={isStaff || isCustomerTask} id="contact" data-home-section className="mt-auto border-t border-primary/10 bg-primary pt-12 pb-8 text-primary-foreground">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 xl:grid-cols-[1.25fr_.8fr_1fr_1.25fr] xl:gap-8">
-            <div className="col-span-2 min-w-0 md:col-span-3 xl:col-span-1">
-               <DealerWordmark {...dealerConfig.identity} logoAsset={dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset} className="mb-4 text-primary-foreground" />
-              {locationLabel && (
-                 <p className="mb-6 font-display text-xs font-medium tracking-normal text-primary-foreground/75">{locationLabel}</p>
-              )}
-              <p className="mb-4 max-w-sm text-sm leading-relaxed text-primary-foreground/80 font-medium">
-                {dealerConfig.hero.subcopy.trim().toLowerCase() === 'quality used vehicles. straightforward buying. exceptional service.'
-                  ? 'Clear details, fair prices and time to look properly before you decide.'
-                  : dealerConfig.hero.subcopy}
-              </p>
-            <div className="flex items-center gap-3">
-                {dealerConfig.social.instagram && (
-                  <a href={dealerConfig.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className={socialLinkClass}>
-                    <Instagram className="w-5 h-5" />
-                  </a>
-                )}
-                {dealerConfig.social.facebook && (
-                  <a href={dealerConfig.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={socialLinkClass}>
-                    <Facebook className="w-5 h-5" />
-                  </a>
-                )}
-                {dealerConfig.social.twitter && (
-                  <a href={dealerConfig.social.twitter} target="_blank" rel="noopener noreferrer" aria-label="Twitter" className={socialLinkClass}>
-                    <Twitter className="w-5 h-5" />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            <div className="min-w-0">
-              <h3 className={footerHeadingClass}>Vehicles</h3>
-              <nav className="flex flex-col items-start gap-0">
-                <button onClick={() => handleNav('stock')} className={footerLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
-                <button onClick={() => handleNav('part-exchange')} className={footerLinkClass}>Part exchange</button>
-                <button onClick={() => setLocation(testDriveHref)} className={footerLinkClass}>{dealerConfig.bookViewing.ctaLabel}</button>
-                {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex items-center ${footerLinkClass}`}>Warranty</Link>}
-              </nav>
-            </div>
-
-            <div className="min-w-0">
-              <h3 className={footerHeadingClass}>Visit</h3>
-              <Link href="/contact" className={`mb-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Contact & directions <ArrowRight className="h-4 w-4 shrink-0" /></Link>
-              <div className="space-y-5 text-sm text-primary-foreground/80 font-medium">
-                {dealerConfig.contact.phone && (
-                  <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-accent">
-                    <Phone className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="font-display font-bold tracking-normal text-primary-foreground group-hover:text-accent">{formatPhoneDisplay(dealerConfig.contact.phone)}</span>
-                  </a>
-                )}
-                {dealerConfig.contact.email && (
-                  <a href={`mailto:${dealerConfig.contact.email}`} className="group flex min-h-11 items-center gap-2 transition-colors hover:text-accent">
-                    <MessageCircle className="w-4 h-4 shrink-0 text-accent group-hover:scale-110 transition-transform" />
-                    <span className="min-w-0 break-words [overflow-wrap:anywhere]">{dealerConfig.contact.email}</span>
-                  </a>
-                )}
-                {dealerConfig.address && (
-                  <div className="flex items-start gap-3 mt-4">
-                    <MapPin className="w-4 h-4 text-accent shrink-0 mt-1" />
-                    <address className="not-italic space-y-1 leading-relaxed">
-                      {dealerConfig.address.street && <p>{dealerConfig.address.street}</p>}
-                      {dealerConfig.address.city && <p>{dealerConfig.address.city}</p>}
-                      {dealerConfig.address.postcode && <p className="text-primary-foreground font-bold">{dealerConfig.address.postcode}</p>}
-                      {dealerConfig.address.mapsUrl && (
-                        <a href={dealerConfig.address.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 font-display text-[11px] font-bold tracking-normal text-accent hover:text-primary-foreground transition-colors group">
-                          Directions <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                        </a>
-                      )}
-                    </address>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {upcomingVisitDates.length > 0 && (
-              <div className="col-span-2 min-w-0 md:col-span-1">
-                <h3 className={footerHeadingClass}>Opening hours</h3>
-                <p className="mb-5 max-w-[22rem] text-[13px] leading-6 text-primary-foreground/65">
-                  Contact us before travelling to book a test drive.
-                </p>
-                <ul className="space-y-3">
-                  {(location === '/' ? upcomingVisitDates.slice(0, 1) : upcomingVisitDates).map((visit) => (
-                    <li key={visit.date} className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-3 border-b border-primary-foreground/10 pb-3 text-[14px]">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <CalendarDays className="h-4 w-4 shrink-0 text-accent" />
-                        <span className="min-w-0">
-                          <span className="block font-bold text-primary-foreground">{visit.relativeLabel}</span>
-                          <span className="block text-[12px] text-primary-foreground/60">{visit.relativeLabel === 'Today' || visit.relativeLabel === 'Tomorrow' ? visit.dateLabel : visit.dateLabel.replace(/^\S+\s/, '')}</span>
-                        </span>
-                      </span>
-                      <span className="min-w-0 text-right font-display text-[12px] font-bold leading-5 tracking-normal text-primary-foreground">{visit.times}</span>
-                    </li>
-                  ))}
-                </ul>
-                {location === '/' && <Link href="/contact" className={`mt-3 inline-flex items-center gap-2 ${footerLinkClass}`}>Full opening hours <ArrowRight className="h-4 w-4" /></Link>}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col items-center justify-between gap-6 border-t border-primary-foreground/10 pt-8 mt-12 text-[12px] font-bold text-primary-foreground/70 md:flex-row">
-            <p>© {new Date().getFullYear()} {dealerConfig.legal.companyName || dealerConfig.identity.name}. All rights reserved.</p>
-            <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
-              {dealerConfig.legal.companyNumber && <span>CO {dealerConfig.legal.companyNumber}</span>}
-              {dealerConfig.legal.vatNumber && <span>VAT {dealerConfig.legal.vatNumber}</span>}
-              {dealerConfig.legal.termsUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.termsUrl}>TERMS</a>}
-              {dealerConfig.legal.privacyUrl && <a className="transition-colors hover:text-primary-foreground" href={dealerConfig.legal.privacyUrl}>PRIVACY</a>}
-            </div>
-          </div>
-        </div>
-      </footer>
+      {!isStaff && !isCustomerTask && <CustomerFooter settings={dealerConfig} testDriveHref={testDriveHref} />}
       <div data-home-scroll-spacer aria-hidden="true" className="bg-primary" />
 
       {!isCustomerTask && <CompareTray />}

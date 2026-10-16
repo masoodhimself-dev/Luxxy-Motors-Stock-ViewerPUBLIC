@@ -1,0 +1,5 @@
+.running-cost-scale { margin-top: 14px; font-size: 11px; font-weight: 400; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.running-cost-scale-track { position: relative; height: 7px; margin-inline: 5px; border-radius: 999px; background: linear-gradient(to right, #239261 0%, #239261 33.33%, #d29b27 33.33%, #d29b27 66.67%, #c75850 66.67%, #c75850 100%); }
+.running-cost-scale-marker { position: absolute; top: -4px; width: 4px; height: 15px; transform: translateX(-50%); border-radius: 2px; background: hsl(var(--foreground)); outline: 2px solid hsl(var(--card)); }
+.running-cost-scale-labels { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; }
+.running-cost-scale-basis { margin-top: 5px; overflow-wrap: anywhere; }

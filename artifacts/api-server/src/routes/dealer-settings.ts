@@ -1,4 +1,5 @@
 import { currentDealerId, multiTenantEnabled } from "../lib/tenant-context";
+import { applyCustomerFeaturePolicy } from '@workspace/vehicle-meta';
 import { bookingPolicyError, defaultBookingPolicy } from "../lib/booking-slots";
 import { preserveTestDriveBooking, preserveBrochure, preserveOnlineReservation, preservePresentation, reservationSettingsError } from "../lib/settings-content";
 import { Router, type IRouter } from "express";
@@ -56,6 +57,23 @@ export const defaultSettings = {
   ],
 };
 
+/** New tenants must opt into their own hours, promises and customer services. */
+export function newDealerSettings(name: string) {
+  return {
+    ...defaultSettings,
+    identity: { ...defaultSettings.identity, name, logoText: name },
+    contact: { phone: '', whatsapp: '', email: '' },
+    address: { street: '', city: '', region: '', postcode: '', mapsUrl: '' },
+    legal: { companyName: name, companyNumber: '', vatNumber: '', termsUrl: '', privacyUrl: '', cookieUrl: '' },
+    hours: [], trustItems: [], whyBuy: [],
+    testDriveBooking: { ...defaultBookingPolicy, enabled: false, weeklyHours: defaultBookingPolicy.weeklyHours.map(day => ({ ...day, enabled: false })) },
+    onlineReservation: { enabled: false, depositPence: 10000, terms: '' },
+    warranty: { ...defaultSettings.warranty, enabled: false },
+    delivery: { ...defaultSettings.delivery, enabled: false },
+    partExchange: { ...defaultSettings.partExchange, enabled: false },
+  };
+}
+
 type Settings = typeof UpdateDealerSettingsBody._output;
 
 type FeaturedVehicle = Pick<typeof vehiclesTable.$inferSelect, 'id' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>;
@@ -101,7 +119,7 @@ async function settingsSnapshot(): Promise<{ config: Settings; revision: number 
   await db.insert(dealerSettingsTable).values({ dealerId: id, config: defaultSettings }).onConflictDoNothing();
   return settingsSnapshot();
 }
-export async function getOrCreateSettings() { return (await settingsSnapshot()).config; }
+export async function getOrCreateSettings() { return applyCustomerFeaturePolicy((await settingsSnapshot()).config); }
 
 function readText(source: unknown, key: string): string {
   if (!source || typeof source !== "object") return "";
@@ -143,18 +161,19 @@ function settingsFailure(req: import('express').Request, res: import('express').
   res.status(schemaMissing ? 503 : 500).json({ error: schemaMissing ? 'Settings history requires migration 0017 on this deployment.' : 'Settings could not be loaded or published.' });
 }
 router.get("/dealer-settings", async (req, res): Promise<void> => {
+  res.set('Cache-Control', 'no-store');
   try {
     const { config, revision } = await settingsSnapshot();
     res.setHeader('x-settings-revision', String(revision));
     res.setHeader('ETag', `"${revision}"`);
-    res.json(GetDealerSettingsResponse.parse(config));
+    res.json(GetDealerSettingsResponse.parse(applyCustomerFeaturePolicy(config)));
   } catch (error) { settingsFailure(req, res, error); }
 });
 router.patch("/dealer-settings", requireStaff, requirePermission('settings.publish'), async (req, res): Promise<void> => {
   try {
     const result = await new PostgresSettingsVersionStore(dealerId(), pool).publish({ config: req.body, expectedRevision: expectedSettingsRevision(req.headers['if-match']), actor: staffLabel(req), validate: validatePublication });
     res.setHeader('x-settings-revision', String(result.revision)); res.setHeader('ETag', `"${result.revision}"`);
-    res.json(UpdateDealerSettingsResponse.parse(result.config));
+    res.json(UpdateDealerSettingsResponse.parse(applyCustomerFeaturePolicy(result.config as Settings)));
   } catch (error) { settingsFailure(req, res, error); }
 });
 router.get('/staff/settings-history', requireStaff, requirePermission('settings.publish'), async (req, res) => {

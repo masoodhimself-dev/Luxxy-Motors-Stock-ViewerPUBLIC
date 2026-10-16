@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-export type TenantContext = { dealerId: string; canonicalOrigin: string; platform: 'autotrader' | 'cazoo'; retailerId: string; sourceUrl: string; importSecretHash?: string; kind?: 'website' | 'import' };
+export type TenantContext = { dealerId: string; canonicalOrigin: string; platform: 'autotrader' | 'cazoo'; retailerId: string; sourceUrl: string; importSecretHash?: string; demo?: boolean; kind?: 'website' | 'import' };
 const scope = new AsyncLocalStorage<TenantContext>();
 export const multiTenantEnabled = () => process.env.MULTI_TENANT_ENABLED === 'true';
 export function currentTenant(): TenantContext | undefined { return scope.getStore(); }

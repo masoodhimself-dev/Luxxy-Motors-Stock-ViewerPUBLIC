@@ -57,10 +57,10 @@ for (const width of [390, 820]) {
     test.use({ viewport: { width, height: 950 }, isMobile: true, hasTouch: true });
     test('tap explains facts without navigating, and detail explanations fit the screen', async ({ page }) => {
       await page.goto('/stock');
-      const term = page.getByRole('button', { name: '£20 annual tax', exact: true });
+      const term = page.getByRole('button', { name: '£20 road tax per year', exact: true });
       await term.tap();
       const help = page.getByRole('tooltip');
-      await expect(help).toContainText('Confirm the current amount');
+      await expect(help).toContainText(/confirm the current amount/i);
       await expect(page).toHaveURL(/\/stock$/);
       const bounds = await help.boundingBox();
       expect(bounds!.x).toBeGreaterThanOrEqual(0);

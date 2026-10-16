@@ -205,7 +205,7 @@ for (const width of [390, 820, 1440]) {
     const call = page.getByTestId('desktop-purchase-panel').locator('[data-vehicle-contact="call"]');
     await call.click();
     let dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('heading', { name: 'Call the showroom', exact: true })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Call us', exact: true })).toBeVisible();
     await expect(dialog.locator('a[href^="tel:"]')).toHaveAttribute('href', 'tel:02079460999');
     await fits(page, dialog);
     await keyboardContained(page, dialog);
@@ -224,7 +224,7 @@ for (const width of [390, 820, 1440]) {
     await fits(page, dialog);
     await capture(dialog, `call-closed-${width}`);
     await dialog.getByRole('button', { name: 'Request a callback', exact: true }).click();
-    await expect(dialog.getByRole('status')).toContainText('Callback request received');
+    await expect(dialog.getByRole('status')).toContainText('We’ve received your callback request');
     expect(audit.submissions).toHaveLength(1);
     expect(audit.submissions[0]).toMatchObject({ path: '/api/enquiries', data: { vehicleId: car.id, type: 'general', preferredContact: 'phone', customerName: 'Preview Callback', email: 'callback@example.test' } });
     expect(audit.submissions[0].data.message).toContain('Callback requested at next opening');
@@ -344,7 +344,7 @@ test('unknown opening hours do not invent availability or a reopening time', asy
   const call = purchase.locator('[data-vehicle-contact="call"]');
   await call.click();
   let dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: 'Call the showroom', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Call us', exact: true })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Request a callback', exact: true })).toBeVisible();
     await expect(dialog.getByRole('form', { name: 'Request a callback', exact: true })).toHaveCount(0);
   await expect(dialog).not.toContainText('We next open');
@@ -352,7 +352,7 @@ test('unknown opening hours do not invent availability or a reopening time', asy
   const whatsapp = purchase.getByRole('button', { name: /^WhatsApp about / });
   await whatsapp.click();
   dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('The team will reply during opening hours');
+  await expect(dialog).toContainText('We’ll reply during opening hours');
   await expect(dialog.getByLabel('Your message')).not.toHaveValue(/Please reply when you reopen/);
   await expect(dialog).not.toContainText('We next open');
   await closeAndReturn(page, dialog, whatsapp);

@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   History,
   MessageSquare,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerDashboard, DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
@@ -27,12 +28,18 @@ import { RelationshipsPanel } from '@/components/portal/relationships-panel';
 import { ChatPanel } from '@/components/portal/chat-panel';
 import { ChatUnreadBadge } from '@/components/portal/chat-notifications';
 import { SalesWorkspace } from '@/pages/sales-demo';
+import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 
-type TabKey = 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
+import { EmailWorkspace } from '@/components/portal/email-workspace';
+import { StaffInventory } from '@/components/portal/staff-inventory';
+
+type TabKey = 'email' | 'inventory' | 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'inventory', label: 'Cars', icon: LayoutDashboard },
   { key: 'enquiries', label: 'Enquiries', icon: CalendarClock },
+  { key: 'email', label: 'Email', icon: Mail },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
   { key: 'sales', label: 'Sales', icon: FileText },
   { key: 'test-drives', label: 'Test drives', icon: CalendarClock },
@@ -111,7 +118,9 @@ function PortalDesk() {
   const access = useStaffAccess(sessionQuery.data?.state === 'allowed');
   useEffect(() => { const section = new URLSearchParams(search).get('section'); if (tabs.some(item => item.key === section)) { setTab(section as TabKey); if (section === 'sales') setSalesOpened(true); } }, [search]);
   const canSell = access.data?.permissions.includes('sales.manage') ?? false;
-  const visibleTabs = tabs.filter(item => item.key !== 'settings' || access.data?.permissions.includes('settings.publish'));
+  const visibleTabs = tabs.filter(item => (item.key !== 'chat' || customerFeaturePolicy.websiteChat)
+    && (item.key !== 'email' || access.data?.permissions.includes('sales.manage'))
+    && (item.key !== 'settings' || access.data?.permissions.includes('settings.publish')));
 
   useEffect(() => {
     const navigation = sectionNav.current;
@@ -128,7 +137,7 @@ function PortalDesk() {
     const observer = new ResizeObserver(revealCurrent);
     observer.observe(navigation);
     return () => observer.disconnect();
-  }, [tab, sessionQuery.isLoading, sessionQuery.data?.state]);
+  }, [tab, sessionQuery.isLoading, sessionQuery.data?.state, visibleTabs.length]);
 
   if (sessionQuery.isLoading) {
     return (
@@ -230,7 +239,9 @@ function PortalDesk() {
             <div className="portal-section-content min-h-[50vh]">
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
               {tab === 'overview' && <DealerDashboard />}
-              {tab === 'enquiries' && <EnquiriesPanel />}
+              {tab === 'inventory' && <StaffInventory />}
+              {tab === 'email' && <EmailWorkspace />}
+              {tab === 'enquiries' && <EnquiriesPanel canEmail={canSell} />}
               {tab === 'chat' && <ChatPanel />}
               {tab === 'test-drives' && <TestDriveBookingsPanel />}
               {tab === 'reservations' && <><ReservationsPanel /><StripeReservationsPanel /></>}

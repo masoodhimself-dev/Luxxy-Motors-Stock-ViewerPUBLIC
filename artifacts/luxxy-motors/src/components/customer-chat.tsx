@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import { ArrowRight, Check, ChevronDown, MessageCircle, Send, X } from 'lucide-react';
-import { formatVehicleName, type ChatConversationView, type ChatPublicConfig, type ChatSession } from '@workspace/vehicle-meta';
+import { customerFeaturePolicy, formatVehicleName, type ChatConversationView, type ChatPublicConfig, type ChatSession } from '@workspace/vehicle-meta';
 import { useStock } from '@/lib/stock-context';
 import './customer-chat.css';
 
@@ -138,7 +138,7 @@ export function CustomerChat() {
   const [, vehicleRoute] = useRoute<{ id: string }>('/vehicle/:id');
   const { stock } = useStock();
   const currentCar = vehicleRoute?.id ? stock?.cars.find((car) => car.id === vehicleRoute.id) ?? null : null;
-  const allowedRoute = routeAllowsCustomerChat(location);
+  const allowedRoute = customerFeaturePolicy.websiteChat && routeAllowsCustomerChat(location);
   const [config, setConfig] = useState<ChatPublicConfig | null>(null);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ChatConversationView | null>(null);

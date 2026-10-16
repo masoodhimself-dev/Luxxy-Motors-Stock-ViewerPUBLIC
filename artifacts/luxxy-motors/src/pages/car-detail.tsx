@@ -4,7 +4,7 @@ import { VehicleFeature, VehicleTerm } from '@/components/customer-help';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
-import { vehicleContent } from '@/lib/vehicle-content';
+import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { stockRegistrationYear } from '@/lib/stock-presentation';
 import { websiteText } from "@/lib/website-content";
@@ -41,6 +41,7 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { PageHeading } from '@/components/page-ui';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
@@ -93,7 +94,7 @@ export default function CarDetail() {
 
   usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
     title: `${error ? 'Vehicle details unavailable' : 'Vehicle not in stock'} | ${dealerConfig.identity.name}`,
-    description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or contact the showroom about this vehicle.',
+    description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or ask us about this car.',
   });
 
   if (isLoading) {
@@ -102,16 +103,18 @@ export default function CarDetail() {
         className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] bg-background"
         aria-label="Loading vehicle"
         aria-busy="true"
+        role="status"
       >
+        <span className="sr-only">Loading vehicle details…</span>
         <div className="container mx-auto grid gap-12 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_460px] lg:items-start lg:gap-14 lg:px-8">
           <div className="space-y-4 lg:col-start-1 lg:row-start-1">
-            <div className="aspect-video w-full animate-pulse bg-primary/10 border border-primary" />
-            <div className="h-[4.5rem] w-full animate-pulse bg-primary/10 border border-primary" />
+            <div className="aspect-video w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
+            <div className="h-[4.5rem] w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
           </div>
           <div className="space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 border border-primary bg-background p-8 shadow-none">
-            <div className="h-10 w-3/4 animate-pulse bg-primary/10" />
-            <div className="h-16 w-1/2 animate-pulse bg-primary/10" />
-            <div className="h-40 w-full animate-pulse bg-primary/10" />
+            <div className="h-10 w-3/4 motion-safe:animate-pulse bg-muted" aria-hidden="true" />
+            <div className="h-16 w-1/2 motion-safe:animate-pulse bg-muted" aria-hidden="true" />
+            <div className="h-40 w-full motion-safe:animate-pulse bg-muted" aria-hidden="true" />
           </div>
         </div>
       </div>
@@ -120,15 +123,13 @@ export default function CarDetail() {
 
   if (error) {
     return <div className="vehicle-page vehicle-redesigned luxxy-shell min-h-[70vh] px-5 py-16"><div className="mx-auto max-w-xl" role="alert">
-      <p className="luxxy-kicker">Vehicle details</p>
-      <h1 className="mt-4 font-display text-3xl font-semibold">Vehicle details could not be loaded</h1>
-      <p className="mt-4 text-muted-foreground">We could not check this vehicle’s current details. Please try again.</p>
-      <Button className="mt-6" onClick={() => window.location.reload()}>Try again</Button>
+      <PageHeading eyebrow="Vehicle details" title="Vehicle details could not be loaded" description="We couldn’t load this car’s details. Please try again, or browse our current cars." />
+      <div className="flex flex-wrap gap-3"><Button onClick={() => window.location.reload()}>Try again</Button><Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button></div>
     </div></div>;
   }
 
   if (!stock || !stock.cars) return <NotFound />;
-  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10"><h1 className="section-heading">This car isn’t in our current stock</h1><p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">It may have sold or been withdrawn. Browse the latest cars, or ask the team about this vehicle.</p><div className="mt-5 flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact the showroom</Link></Button></div>{stock.cars.length>0 && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
+  if (!car || ['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus))) return <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8"><PageHeading eyebrow="Vehicle details" title="This car isn’t in our current stock" description="This car is no longer in our online stock. Browse our current cars, or ask us about this one." /><div className="flex flex-wrap gap-3"><Button asChild><Link href="/stock">Browse current stock</Link></Button><Button asChild variant="outline"><Link href="/contact">Contact us</Link></Button></div>{stock.cars.some(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')) && <section className="mt-10" aria-label="Other cars to consider"><h2 className="section-heading">Other cars to consider</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{stock.cars.filter(item => item.id !== car?.id && (!item.inventoryStatus || item.inventoryStatus === 'available')).slice(0,3).map(item=><CarCard key={item.id} car={item} />)}</div></section>}</div>;
 
   const similarCars = getSimilarCars(car, stock.cars);
   const registration = vehicleRegistration(car);
@@ -193,7 +194,9 @@ export default function CarDetail() {
   })();
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
-  const { description, features } = vehicleContent(car);
+  const content = vehicleContent(car);
+  const description = content.description;
+  const features = prioritiseVehicleFeatures(content.features);
   const share = async () => {
     try {
       const url = getVehicleShareUrl(car);
@@ -221,7 +224,7 @@ export default function CarDetail() {
     </Button>
   ) : null;
   const enquiryAction = (
-    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={() => document.getElementById('vehicle-enquiry-heading')?.focus()}>
+    <a key="enquiry" className="vehicle-enquiry-action" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
       Enquire about this car <ArrowRight className="h-4 w-4" />
     </a>
   );
@@ -249,7 +252,7 @@ export default function CarDetail() {
         <div className="vehicle-detail-grid min-w-0">
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView />
-            <div className="vehicle-gallery-help"><span>Explore the photographs</span><VehicleWhatsApp car={car} walkaround /></div>
+            <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
@@ -282,6 +285,11 @@ export default function CarDetail() {
 
             </div>
           </header>
+          <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
+            <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
+              <VehicleCall car={car} />
+              <VehicleWhatsApp car={car} />
+            </div>
           <VehicleSellingPoints car={car} />
           <aside className="min-w-0 pt-5">
             <dl className="vehicle-key-facts grid grid-cols-2 gap-x-4 gap-y-4">
@@ -298,26 +306,22 @@ export default function CarDetail() {
             </dl>
               {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
             <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
-            <div className="vehicle-primary-actions">
-              {bookingAction}{enquiryAction}
-            </div>
-            <div className="vehicle-direct-contact" aria-label="Contact the showroom about this vehicle">
-              <VehicleCall car={car} />
-              <VehicleWhatsApp car={car} />
-            </div>
+
+
             <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
               <div className="vehicle-contact-options">
               <div className="vehicle-secondary-grid"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
               {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
-              {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. The team follows up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
+              {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. We’ll follow up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               </div>
             {dealerConfig.presentation?.comparisonEnabled && <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <CompareCarButton car={car} variant="compact" className="min-h-11" /><CompareSelectionLink />
 
             </div>}
 
-              <div className="vehicle-utility-actions"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
+
             </MobileActionDisclosure>
+              <div className="vehicle-utility-actions"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
             </div>
           </aside>
           </div>
@@ -329,7 +333,7 @@ export default function CarDetail() {
             {description && <a href="#vehicle-description-heading">Description</a>}
             {hasSpecifications && <a href="#vehicle-overview-heading">Specifications</a>}
             {vehicleRunningCostFacts.length > 0 && <a href="#vehicle-running-costs-heading">Running costs</a>}
-            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & handover</a>}
+            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <a href={vehicleHistoryRecordFacts.length > 0 ? '#vehicle-records-heading' : '#buyer-information-heading'}>History & information</a>}
           </nav>
           {(description || features.length > 0) && <div className="vehicle-information-row vehicle-editorial-overview">
             {features.length > 0 && (
@@ -385,7 +389,7 @@ export default function CarDetail() {
               <VehicleSpecificationDetails car={car} />
             </section>}
             {(vehicleRunningCostFacts.length > 0 || listingHighlights.length > 0) && <div className="vehicle-costs-panel">
-              <VehicleRunningCosts car={car} />
+              <VehicleRunningCosts car={car} comparisonCars={stock?.cars ?? []} />
               {listingHighlights.length > 0 && <details className="vehicle-source-comparisons"><summary>How this car compares</summary><VehicleListingHighlights car={car} /></details>}
             </div>}
             </div>}
@@ -399,7 +403,7 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleInformationHeading")}
               </h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Available history and handover information. Ask us about anything else you need to know.
+                Here’s what we can tell you about this car’s history and handover. Ask us if you need anything else.
               </p>
               <dl className="mt-4 divide-y divide-border">
                 {handoverFacts.map((item) => (
@@ -429,7 +433,7 @@ export default function CarDetail() {
                 href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}
                 className="text-link mt-3"
               >
-                Ask about these details <ArrowRight className="h-4 w-4" />
+                Ask us about these details <ArrowRight className="h-4 w-4" />
               </Link>
             {damageDisclosure && (
               <div id="vehicle-history" className="mt-7 scroll-mt-24 border-t border-border pt-4">
@@ -448,7 +452,7 @@ export default function CarDetail() {
         <div className="vehicle-enquiry-visit-row">
           <section id="vehicle-enquiry" className="vehicle-inline-enquiry min-w-0" aria-labelledby="vehicle-enquiry-heading">
             <h2 id="vehicle-enquiry-heading" tabIndex={-1} className="section-heading mb-2">Enquire about this {vehicleLabel}</h2>
-            <p className="mb-6 text-sm text-muted-foreground">Ask about the car or tell us how we can help.</p>
+            <p className="mb-6 text-sm text-muted-foreground">Ask us about this car or tell us how we can help.</p>
             <EnquiryForm key={car.id} vehicle={car} initialType="general" embedded />
           </section>
           <VehicleVisit car={car} />

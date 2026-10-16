@@ -6,7 +6,7 @@ import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, recordStripeReserv
 const vehicleId = '00000000-0000-4000-8000-000000000001';
 const reservationId = '00000000-0000-4000-8000-000000000002';
 const draft = (): SaleWorkspaceDraft => ({ id: '', customer: 'Test buyer', email: 'buyer@test.invalid', phone: '', address: '', vehicleId, vehicle: 'A real stock car', registration: 'AB12 CDE', price: '12000', partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: '', notes: '', collection: '', preparation: false, documents: false, handover: false });
-function fixture() {
+function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
   const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
   let records = new Map<string, SaleWorkspaceRecord>(), numbers: Record<string, number> = {};
   let vehicle = { inventory_status: 'available', source_status: 'live', source_price: 12345, audit_metadata: { sourceFact: 'keep-me' } };
@@ -40,7 +40,7 @@ function fixture() {
     const before = { records: clone([...records.entries()]), numbers: clone(numbers), vehicle: clone(vehicle) };
     return { query: async (q, p) => { if (q === 'ROLLBACK') { records = new Map(before.records); numbers = before.numbers; vehicle = before.vehicle; } return query(q, p); }, release: () => {} };
   } };
-  const store = new PostgresSaleWorkspaceStore('fixture-dealer', async (d, client) => ({ ...await readSaleWorkspaceAssets(d, 'fixture-dealer', client), paperwork: { saleTerms: 'TEST APPROVED TERMS', reservationTerms: 'TEST APPROVED RESERVATION' } }), database);
+  const store = new PostgresSaleWorkspaceStore('fixture-dealer', async (d, client) => ({ ...await readSaleWorkspaceAssets(d, 'fixture-dealer', client), paperwork: { saleTerms: 'TEST APPROVED TERMS', reservationTerms } }), database);
   return { database, store, vehicle: () => clone(vehicle), statements };
 }
 
@@ -114,6 +114,16 @@ test('a failed refund restores real funds even after later payments and keeps an
   } finally { client.release(); }
 });
 
+test('A4 rejection rolls back invoice numbering and issuance without changing a received deposit',async()=>{
+  const f=fixture('x'.repeat(601));
+  let sale=(await f.store.mutate({draft:draft(),requestId:randomUUID(),actor:'Staff'})).sale;
+  sale=(await f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:new Date().toISOString().slice(0,10),reference:'A4-RECEIVED',kind:'deposit',status:'confirmed'}}})).sale;
+  const before=JSON.stringify(await f.store.get(sale.id));
+  await assert.rejects(f.store.mutate({id:sale.id,expectedRevision:sale.revision,requestId:randomUUID(),actor:'Staff',command:{action:'issue-invoice',kind:'deposit',acknowledge:true}}),/600 characters/);
+  assert.equal(JSON.stringify(await f.store.get(sale.id)),before);
+  assert.equal(f.vehicle().inventory_status,'reserved');
+});
+
 test('email acceptance merges into the current revision without overwriting a concurrent payment', async () => {
   const f = fixture();
   let a = (await f.store.mutate({ draft: draft(), requestId: randomUUID(), actor: 'Staff' })).sale;
@@ -142,4 +152,45 @@ test('deposit and completion atomically update stock and archives; stock conflic
   for (const id of finished.sale.packDocumentIds!) assert.ok((await f.store.pdf(a.id, id)).archive.content);
   const retry = await f.store.mutate({ id: a.id, requestId, expectedRevision: paid.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
   assert.equal(retry.replayed, true); assert.equal(retry.sale.documents.length, finished.sale.documents.length);
+});
+
+test('deposits without reservation terms atomically reserve stock and archive one receipt and statement', async () => {
+  for (const confirmPending of [false, true]) {
+    const f = fixture(' \n ');
+    let sale = (await f.store.mutate({ requestId: randomUUID(), draft: draft(), actor: 'Staff' })).sale;
+    const other = (await f.store.mutate({ requestId: randomUUID(), draft: { ...draft(), customer: 'Competing buyer' }, actor: 'Other staff' })).sale;
+    const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const payment = { amount: '500.05', method: 'Bank transfer', date, reference: 'Received funds', kind: 'deposit', status: 'confirmed' } as const;
+    if (confirmPending) {
+      sale = (await f.store.mutate({ id: sale.id, requestId: randomUUID(), expectedRevision: sale.revision, actor: 'Staff', command: { action: 'payment', payment: { ...payment, status: 'pending' } } })).sale;
+      assert.equal(f.vehicle().inventory_status, 'available');
+      assert.equal(sale.documents.length, 0);
+    }
+    const command = confirmPending ? { action: 'confirm', paymentId: sale.payments[0].id, reserveVehicle: true } as const : { action: 'take-deposit', payment } as const;
+    const requestId = randomUUID();
+    const input = { id: sale.id, requestId, expectedRevision: sale.revision, actor: 'Staff', command };
+    const reserved = await f.store.mutate(input);
+    assert.equal(f.vehicle().inventory_status, 'reserved');
+    assert.equal(f.vehicle().source_price, 12345);
+    assert.equal(reserved.sale.payments.length, 1);
+    assert.equal(saleWorkspaceTotals(reserved.sale.draft, reserved.sale.payments).confirmedPaid, 50005);
+    assert.deepEqual(reserved.sale.documents.map(d => d.type), ['receipt', 'statement']);
+    assert.deepEqual(reserved.sale.packDocumentIds, reserved.sale.documents.map(d => d.id));
+    const archives = new Map<string, string>();
+    for (const id of reserved.sale.packDocumentIds!) {
+      const archived = (await f.store.pdf(sale.id, id)).archive;
+      assert.ok(archived.sha256);
+      assert.ok(Buffer.from(archived.content, 'base64').subarray(0, 5).equals(Buffer.from('%PDF-')));
+      archives.set(id, archived.content);
+    }
+    const replay = await f.store.mutate(input);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.sale.payments.length, 1);
+    assert.equal(replay.sale.documents.length, 2);
+    for (const [id, content] of archives) assert.equal((await f.store.pdf(sale.id, id)).archive.content, content);
+    await assert.rejects(f.store.mutate({ id: other.id, requestId: randomUUID(), expectedRevision: other.revision, actor: 'Other staff', command: { action: 'take-deposit', payment } }), /another customer/);
+    assert.equal((await f.store.get(other.id)).payments.length, 0);
+    assert.equal((await f.store.get(other.id)).documents.length, 0);
+    assert.equal(f.vehicle().audit_metadata.sourceFact, 'keep-me');
+  }
 });

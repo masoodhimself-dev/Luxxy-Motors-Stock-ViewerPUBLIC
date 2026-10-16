@@ -1,1 +1,155 @@
 .dealer-admin{display:grid;gap:24px;min-width:0}.admin-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.admin-heading h2{font-family:var(--font-display);font-size:clamp(24px,3vw,32px);font-weight:600;letter-spacing:-.035em}.admin-heading p,.admin-card>p{font-size:14px;line-height:1.6;color:hsl(var(--muted-foreground))}.admin-kicker{font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:11px!important;color:hsl(var(--accent))!important}.admin-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.admin-metric,.admin-card{border:1px solid hsl(var(--border));background:hsl(var(--card));border-radius:12px;padding:22px;min-width:0}.admin-metric{display:flex;flex-direction:column;gap:14px;transition:background .2s}.admin-metric:hover{background:hsl(var(--secondary));}.admin-metric span{font-size:13px;color:hsl(var(--muted-foreground))}.admin-metric strong{font-size:28px;font-weight:600;letter-spacing:-.04em}.admin-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.admin-card h3{font-size:17px;font-weight:600;margin-bottom:12px}.admin-status{font-weight:600;color:hsl(var(--primary))!important}.admin-muted{font-size:12px;color:hsl(var(--muted-foreground));line-height:1.6}.admin-text-link{display:inline-block;margin-top:16px;font-size:13px;text-decoration:underline;text-underline-offset:4px}.admin-error,.admin-warning{padding:12px 14px;border-radius:6px;background:hsl(var(--destructive)/.07);color:hsl(var(--destructive));font-size:14px}.admin-warning{background:hsl(var(--accent)/.1);color:hsl(var(--foreground))}.admin-stat{display:flex;align-items:center;gap:16px;margin:18px 0}.admin-stat strong{font-size:42px;letter-spacing:-.04em}.admin-stat span{font-size:14px}.admin-records{display:grid;gap:0;margin-bottom:18px}.admin-records li{display:flex;flex-direction:column;gap:4px;font-size:13px;padding:12px 0;border-bottom:1px solid hsl(var(--border));overflow-wrap:anywhere}.admin-settings-tabs{display:flex;gap:6px;padding:5px;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--secondary)/.5);overflow-x:auto;margin-bottom:24px}.admin-settings-tabs button{padding:12px 20px;font-size:13px;font-weight:600;white-space:nowrap;border-radius:7px;min-height:44px}.admin-settings-tabs button[aria-current]{background:hsl(var(--card));box-shadow:0 1px 3px #0000000c}.admin-inline-form{display:flex;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:12px}.admin-inline-form label{display:grid;gap:8px;flex:1;min-width:160px;font-size:13px}.admin-team-list{display:grid;gap:12px}.admin-team-member,.admin-version{display:flex;align-items:center;justify-content:space-between;gap:20px}.admin-team-member label{font-size:12px;display:grid;gap:6px;min-width:150px}.admin-team-member>div{flex:1;overflow-wrap:anywhere}.admin-current{font-size:11px;padding:5px 8px;margin-left:8px;background:hsl(var(--secondary));border-radius:4px}@media(max-width:1023px){.admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:639px){.admin-heading,.admin-team-member,.admin-version{align-items:stretch;flex-direction:column}.admin-columns{grid-template-columns:1fr}.admin-card,.admin-metric{padding:17px}.admin-metric strong{font-size:24px}.admin-metrics{gap:10px}.admin-settings-tabs button{padding:10px 14px}.admin-team-member label{width:100%}}
+
+.settings-category-description{margin:0 0 24px;padding:14px 18px;border-left:3px solid hsl(var(--primary));background:hsl(var(--muted));color:hsl(var(--muted-foreground));font-size:14px;line-height:1.6}
+
+/* The overview leads with work to do; reporting stays one step away. */
+.dealer-overview { gap:22px; }
+.dealer-overview .admin-metric { gap:10px; padding:20px; border-radius:12px; }
+.dealer-overview .admin-metric:focus-visible,.dealer-overview .admin-records a:focus-visible,.dealer-overview .admin-task-totals a:focus-visible { outline:2px solid var(--portal-accent,#226184); outline-offset:3px; }
+.dealer-overview .admin-records li>a { display:grid; gap:5px; padding:3px 0; border-radius:4px; }
+.dealer-overview .admin-records li>a:hover strong { text-decoration:underline; text-underline-offset:3px; }
+.admin-attention { display:grid; gap:10px; }
+.admin-attention-link { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 18px; padding:15px 18px; border:1px solid #e4cea6; border-radius:10px; background:#fff9ef; color:#795521; font-size:14px; }
+.admin-attention-link span { font-size:13px; }
+.admin-task-totals { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0 0 20px; }
+.admin-task-totals>a { display:grid; gap:8px; min-width:0; padding:14px; border-radius:10px; background:var(--portal-canvas,#f3f6fa); }
+.admin-task-totals span { font-size:12px; color:var(--portal-muted,#607282); }
+.admin-task-totals strong { font-size:22px; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.admin-overview-details { min-width:0; border:1px solid var(--portal-border,#dce5ec); border-radius:12px; background:var(--portal-panel,#fff); }
+.admin-overview-details>summary { min-height:56px; padding:17px 20px; font-size:14px; font-weight:600; cursor:pointer; }
+.admin-overview-details>summary span { display:block; margin-top:4px; color:var(--portal-muted,#607282); font-size:12px; font-weight:400; }
+.admin-overview-details>.admin-columns { padding:0 18px 18px; }
+.admin-overview-details .admin-card { background:var(--portal-canvas,#f3f6fa); border-radius:10px; }
+@media(max-width:639px) { .admin-task-totals { gap:8px; } .admin-task-totals>a { padding:12px; } .admin-task-totals strong { font-size:20px; } }
+
+.dealer-settings-hub { min-width:0; }
+.dealer-settings-hub .settings-category-description { margin-bottom:20px; border:1px solid var(--portal-border,#dce5ec); border-radius:9px; background:var(--portal-canvas,#f3f6fa); color:var(--portal-muted,#607282); font-size:13px; }
+.dealer-settings-hub .integration-settings { min-width:0; padding:0; margin:0; max-width:none; color:var(--portal-ink,#203e51); }
+.dealer-settings-hub .integration-heading p:not(.integration-eyebrow) { color:var(--portal-muted,#607282); }
+.dealer-settings-hub .integration-heading>svg,.dealer-settings-hub .integration-card-heading>svg { color:var(--portal-accent,#226184); }
+.dealer-settings-hub .integration-eyebrow { color:var(--portal-muted,#607282); letter-spacing:.05em; }
+.dealer-settings-hub .integration-grid { min-width:0; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dealer-settings-hub .integration-grid:has(>.integration-card:only-child) { grid-template-columns:minmax(0,1fr); }
+.dealer-settings-hub .integration-card { min-width:0; border-color:var(--portal-border,#dce5ec); background:var(--portal-panel,#fff); border-radius:12px; }
+.dealer-settings-hub :is(.integration-card p,.integration-footnote,.integration-field small,.integration-readiness) { color:var(--portal-muted,#607282); }
+.dealer-settings-hub .integration-field code { color:var(--portal-ink,#203e51); background:var(--portal-canvas,#f3f6fa); }
+.dealer-settings-hub .integration-check { min-height:44px; }
+.dealer-settings-hub .integration-check input { flex-shrink:0; accent-color:var(--portal-accent,#226184); }
+.dealer-settings-hub .integration-readiness { border-color:var(--portal-border,#dce5ec); }
+.dealer-settings-hub :is(.admin-team-member,.admin-version) { align-items:start; }
+.dealer-settings-hub :is(.admin-team-member,.admin-version)>div { min-width:0; overflow-wrap:anywhere; }
+.dealer-settings-hub .invoice-settings-controls { min-width:0; }
+.dealer-settings-hub .invoice-settings-controls>p { font-size:13px; line-height:1.65; color:var(--portal-muted,#607282); }
+.dealer-settings-hub .email-branding-details>summary,.dealer-settings-hub .email-variable-help summary { min-height:44px; cursor:pointer; font-size:15px; font-weight:600; color:var(--portal-ink,#203e51); }
+.dealer-settings-hub .email-branding-details>summary span { display:inline-block; margin-left:12px; color:var(--portal-accent,#226184); font-size:12px; }
+.dealer-settings-hub .email-branding-details[open]>.integration-grid { margin:18px 0; }
+.dealer-settings-hub .email-variable-help details>div { display:grid; gap:14px; margin-top:14px; }
+.dealer-settings-hub .email-variable-list button { color:var(--portal-ink,#203e51); border-color:var(--portal-border,#dce5ec); background:var(--portal-canvas,#f3f6fa); min-height:36px; }
+@media(max-width:800px) {
+ .dealer-settings-hub .integration-grid { grid-template-columns:minmax(0,1fr); }
+ .dealer-settings-hub .email-template-grid { grid-template-columns:minmax(0,1fr); }
+ .dealer-settings-hub .email-variable-help { padding-block:12px; }
+ .dealer-settings-hub :is(input:not([type=checkbox]):not([type=color]),select,textarea) { max-width:100%; min-width:0; font-size:16px; }
+ .dealer-settings-hub .integration-actions { gap:10px; }
+ .dealer-settings-hub .integration-actions>* { min-height:44px; }
+}
+
+/* A single settings workspace, independent of a dealership's marketing colours. */
+.settings-hub-redesign { --settings-ink: #203142; --settings-muted: #5d6b79; --settings-line: #dce4eb; --settings-accent: #215a7e; color: var(--settings-ink); font-family: var(--app-font-sans); }
+.settings-hub-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 28px; }
+.settings-hub-mark { display: grid; place-items: center; width: 56px; height: 56px; flex-shrink: 0; border-radius: 16px; background: #e7f0f6; color: var(--settings-accent); }
+.settings-hub-heading p { font-size: 13px; font-weight: 600; color: var(--settings-accent); margin-bottom: 4px; }
+.settings-hub-heading h2 { font-size: clamp(28px, 3vw, 36px); font-weight: 600; line-height: 1.2; letter-spacing: -.035em; }
+.settings-hub-heading span { display: block; margin-top: 8px; font-size: 15px; line-height: 1.6; color: var(--settings-muted); }
+.settings-hub-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr); align-items: start; gap: 28px; }
+.settings-hub-redesign .admin-settings-tabs { position: sticky; top: calc(var(--site-header-height, 80px) + 16px); display: flex; flex-direction: column; gap: 6px; overflow: visible; padding: 10px; margin: 0; border-radius: 16px; background: white; border-color: var(--settings-line); }
+.settings-hub-redesign .admin-settings-tabs button { display: flex; align-items: center; gap: 12px; text-align: left; min-height: 48px; padding: 12px; font-size: 14px; font-weight: 500; color: var(--settings-muted); border: 1px solid transparent; border-radius: 10px; }
+.settings-hub-redesign .admin-settings-tabs button svg { flex-shrink: 0; }
+.settings-hub-redesign .admin-settings-tabs button[aria-current] { color: #194e70; background: #eaf2f8; border-color: #caddeb; box-shadow: none; font-weight: 600; }
+.settings-hub-redesign .admin-settings-tabs button:hover { background: #f3f6f9; }
+.settings-nav-help { border-top: 1px solid var(--settings-line); margin: 10px 2px 0; padding: 14px 4px 4px; font-size: 12px; line-height: 1.65; color: var(--settings-muted); }
+.settings-hub-content { min-width: 0; }
+.settings-hub-redesign .settings-category-description { margin-bottom: 22px; padding: 14px 18px; border-left: 3px solid #a9c6db; border-radius: 0 10px 10px 0; background: #eef3f7; font-size: 14px; line-height: 1.65; color: #445a6b; }
+.settings-mobile-category { display: none; }
+.settings-hub-redesign .integration-settings { padding: 0; margin: 0; max-width: none; color: var(--settings-ink); gap: 24px; }
+.settings-hub-redesign .integration-heading h2, .settings-hub-redesign .admin-heading h2 { font-size: 27px; font-weight: 600; line-height: 1.3; }
+.settings-hub-redesign .integration-eyebrow { color: var(--settings-muted); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.settings-hub-redesign .integration-heading > svg, .settings-hub-redesign .integration-card-heading > svg { color: var(--settings-accent); }
+.settings-hub-redesign .integration-card, .settings-hub-redesign .admin-card { background: white; border: 1px solid var(--settings-line); border-radius: 14px; padding: 24px; box-shadow: 0 2px 6px #20314204; }
+.settings-hub-redesign .integration-field > label { font-size: 14px; font-weight: 600; }
+.settings-hub-redesign :is(.integration-field small,.integration-footnote,.integration-readiness) { font-size: 13px; line-height: 1.65; color: var(--settings-muted); }
+.settings-hub-redesign :is(input:not([type=checkbox]):not([type=color]):not([type=radio]),select,textarea) { font-family: var(--app-font-sans); font-size: 15px; min-height: 46px; border-radius: 8px; border-color: #b9c8d3; }
+.settings-hub-redesign .integration-field code { background: #f1f5f8; font-size: 13px; border: 1px solid var(--settings-line); }
+.settings-hub-redesign .integration-check { font-size: 14px; gap: 10px; }
+.settings-hub-redesign .integration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-hub-redesign .integration-secret-status { display: block; margin: 4px 0 0; font-size: 12px; }
+.settings-hub-redesign .email-template-grid { grid-template-columns: minmax(0, 1fr); }
+.settings-hub-redesign .invoice-settings-layout { grid-template-columns: minmax(0, 1fr); }
+@media(max-width: 1100px) { .settings-hub-layout { grid-template-columns: 176px minmax(0,1fr); gap: 20px; } .settings-hub-redesign .integration-grid { grid-template-columns: minmax(0,1fr); } }
+@media(max-width: 767px) {
+  .settings-hub-heading { gap: 12px; margin-bottom: 20px; }
+  .settings-hub-heading span { font-size: 14px; }
+  .settings-hub-mark { width: 44px; height: 44px; border-radius: 12px; }
+  .settings-hub-layout { grid-template-columns: minmax(0,1fr); }
+  .settings-hub-redesign .admin-settings-tabs { display: none; }
+  .settings-mobile-category { display: grid; gap: 8px; margin-bottom: 18px; font-size: 14px; font-weight: 600; }
+  .settings-hub-redesign :is(input:not([type=checkbox]):not([type=color]):not([type=radio]),select,textarea) { font-size: 16px; }
+  .settings-hub-redesign .integration-card { padding: 20px 16px; }
+  .settings-hub-redesign .settings-category-description { padding: 12px 14px; margin-bottom: 18px; }
+}
+
+.settings-hub-redesign .admin-settings-tabs button { white-space: normal; }
+.settings-hub-redesign .admin-settings-tabs button span { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* Phone Settings follows a grouped-list → focused-editor pattern. */
+@media(max-width:767px) {
+ .settings-app { padding-bottom:env(safe-area-inset-bottom,0px); }
+ .settings-app [hidden] { display:none!important; }
+ .settings-app-header { margin:0 0 20px; }
+ .settings-app-header h2 { font-size:30px; font-weight:650; line-height:1.25; letter-spacing:-.035em; scroll-margin-top:100px; outline:none; }
+ .settings-app-header>p { margin-top:8px; font-size:14px; color:var(--settings-muted); line-height:1.6; }
+ .settings-app-back { display:inline-flex; align-items:center; gap:4px; min-height:48px; padding:8px 6px 8px 0; margin-bottom:6px; color:var(--settings-accent); font-size:16px; font-weight:600; touch-action:manipulation; }
+ .settings-app-home { display:grid; gap:14px; }
+ .settings-app-home>h3 { margin:6px 4px -5px; font-size:13px; font-weight:600; color:var(--settings-muted); }
+ .settings-app-list { overflow:hidden; background:white; border:1px solid var(--settings-line); border-radius:16px; }
+ .settings-app-row { display:flex; width:100%; min-height:76px; align-items:center; gap:12px; padding:15px 14px; text-align:left; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+ .settings-app-row+.settings-app-row { border-top:1px solid #e8edf2; }
+ .settings-app-row>span:nth-child(2) { flex:1; min-width:0; }
+ .settings-app-row strong,.settings-app-advanced summary strong { display:block; font-size:16px; font-weight:600; line-height:1.35; color:var(--settings-ink); }
+ .settings-app-row small,.settings-app-advanced summary small { display:block; margin-top:5px; font-size:13px; line-height:1.45; color:var(--settings-muted); }
+ .settings-app-icon { display:grid; place-items:center; flex:0 0 38px; width:38px; height:38px; border-radius:11px; color:#215a7e; background:#edf4f9; }
+ .settings-app-row>svg { color:#8595a3; flex-shrink:0; }
+ .settings-app-row:active,.settings-app-advanced>summary:active { background:#eaf2f8; }
+ .settings-app-row:focus-visible,.settings-app-back:focus-visible,.settings-app-advanced>summary:focus-visible { outline:2px solid var(--settings-accent); outline-offset:-3px; }
+ .settings-app-advanced { margin-top:8px; border:1px solid var(--settings-line); border-radius:16px; background:#f7f9fb; }
+ .settings-app-advanced>summary { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:17px 16px; min-height:76px; list-style:none; cursor:pointer; touch-action:manipulation; }
+ .settings-app-advanced>summary::-webkit-details-marker { display:none; }
+ .settings-app-advanced>summary>svg { color:#8595a3; flex-shrink:0; }
+ .settings-app-advanced[open]>summary>svg { transform:rotate(90deg); }
+ .settings-app-advanced>.settings-app-list { border-width:1px 0 0; border-radius:0 0 16px 16px; }
+ .settings-app-help { font-size:13px; line-height:1.6; color:var(--settings-muted); padding:2px 5px; }
+ .settings-app .settings-category-description { display:none; }
+ .settings-app-subheader { margin-bottom:18px; }
+ .settings-app-subheader>p { font-size:14px; color:var(--settings-muted); margin-left:4px; }
+ .settings-app .settings-workspace { gap:14px; }
+ .settings-app .settings-section { padding:20px 16px; }
+ .settings-app .settings-section-heading { margin-bottom:18px; padding-bottom:16px; }
+ .settings-app .settings-section-eyebrow { display:none; }
+ .settings-app :is(button:not(.settings-app-row):not(.settings-app-back),a,input:not([type=checkbox]):not([type=radio]):not([type=color]),select) { min-height:48px; }
+ .settings-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size:16px; }
+ .settings-app .settings-studio .settings-save-bar { position:static; }
+ .settings-app .settings-save-actions { grid-template-columns:minmax(0,1fr); }
+ .settings-app .settings-save-actions>button { grid-row:1; font-size:16px; }
+ .settings-app .settings-save-actions>a { font-size:14px; border:0; background:transparent; }
+ .settings-app .integration-actions { display:flex; flex-wrap:wrap; }
+ .settings-app .integration-actions>button { flex:1 1 160px; }
+ .settings-app .integration-check { padding:10px 0; min-height:48px; }
+}
+@media(max-width:767px) {
+ .settings-app:has(.settings-app-subheader)>.settings-app-header { display:none; }
+ .settings-app-subheader { scroll-margin-top:100px; outline:none!important; }
+ .settings-app .settings-app-header h2:focus { outline:none!important; box-shadow:none; }
+}
+@media(max-width:767px) {
+ .settings-app .integration-heading :is(h2,.integration-eyebrow) { display:none; }
+}

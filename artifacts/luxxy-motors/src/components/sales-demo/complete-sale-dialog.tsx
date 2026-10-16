@@ -65,7 +65,7 @@ export function CompleteSaleDialog({
               : "Showroom collection"}
           </dd>
         </dl>
-        {terms ? (
+        {terms.trim() ? (
           <details>
             <summary>Review terms included in the pack</summary>
             <p className="whitespace-pre-wrap max-h-48 overflow-auto text-sm">
@@ -101,7 +101,13 @@ export function CompleteSaleDialog({
             Back
           </Button>
           <Button
-            disabled={busy || !acknowledge || !terms || balance !== 0}
+            disabled={
+              busy ||
+              !acknowledge ||
+              !terms.trim() ||
+              !Number.isSafeInteger(balance) ||
+              balance !== 0
+            }
             onClick={onComplete}
           >
             {busy ? "Completing…" : "Complete sale & issue pack"}

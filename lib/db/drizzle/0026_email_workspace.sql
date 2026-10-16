@@ -1,0 +1,3 @@
+ALTER TABLE enquiry_emails ADD COLUMN document_ids jsonb NOT NULL DEFAULT '[]'::jsonb, ADD COLUMN rendered_text text, ADD COLUMN attachment_manifest jsonb NOT NULL DEFAULT '[]'::jsonb;
+--> statement-breakpoint
+CREATE TABLE email_delivery_checks (dealer_id text NOT NULL, message_key text NOT NULL, provider_id text NOT NULL, last_event text NOT NULL, checked_at timestamptz NOT NULL DEFAULT now(), CONSTRAINT email_delivery_checks_dealer_id_dealerships_id_fk FOREIGN KEY (dealer_id) REFERENCES dealerships(id) ON DELETE CASCADE, CONSTRAINT email_delivery_checks_dealer_id_message_key_pk PRIMARY KEY (dealer_id,message_key));

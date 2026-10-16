@@ -1,9 +1,11 @@
 import React, { Component, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
+import { Button } from '@/components/ui/button';
 
 interface Props {
   children?: ReactNode;
   resetKey?: any;
+  showCustomerHelp?: boolean;
 }
 
 interface State {
@@ -30,22 +32,21 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[50vh] flex items-center justify-center p-6">
-          <div className="max-w-lg w-full bg-destructive/10 border border-destructive/20 rounded-xl p-8 text-center space-y-4">
-            <div className="w-16 h-16 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-2">
-              <AlertTriangle className="w-8 h-8 text-destructive" />
+        <div className="luxxy-shell flex min-h-[60vh] items-center justify-center px-4 py-12 sm:px-6">
+          <section className="w-full max-w-xl rounded-sm border border-border bg-card p-6 sm:p-10" role="alert">
+            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-secondary">
+              <AlertTriangle className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground">Something went wrong</h2>
-            <p className="text-muted-foreground text-sm">
-              {this.state.error?.message || "An unexpected error occurred."}
+            <h1 className="heading-2 text-primary">This page couldn’t load</h1>
+            <p className="mt-3 text-base leading-7 text-muted-foreground">
+              Please try again. If the problem continues, contact us and tell us which page you were opening.
             </p>
-            <button
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><Button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="mt-6 px-6 py-2 bg-background border rounded-lg font-medium hover:bg-muted transition-colors"
             >
               Try again
-            </button>
-          </div>
+            </Button>{this.props.showCustomerHelp !== false && <Button asChild variant="outline"><a href="/contact">Contact us</a></Button>}</div>
+          </section>
         </div>
       );
     }

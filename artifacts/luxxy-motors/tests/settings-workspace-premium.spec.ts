@@ -14,12 +14,12 @@ async function mockedSettings(page: Page, request: APIRequestContext, failFirst 
     const action = route.request();
     const path = new URL(action.url()).pathname;
     if (path === '/api/dealer-settings') {
-      if (action.method() === 'GET') return route.fulfill({ json: settings });
+      if (action.method() === 'GET') return route.fulfill({ json: settings, headers: { 'x-settings-revision': '1' } });
       if (action.method() === 'PATCH') {
         submissions.push(action.postDataJSON());
         if (failFirst && submissions.length === 1) return route.fulfill({ status: 503, json: { error: 'Preview publish failed. Please try again.' } });
         settings = action.postDataJSON();
-        return route.fulfill({ json: settings });
+        return route.fulfill({ json: settings, headers: { 'x-settings-revision': '1' } });
       }
     }
     if (['GET', 'HEAD'].includes(action.method())) return route.continue();
@@ -59,7 +59,7 @@ for (const width of [390, 820, 1440]) {
   test(`settings retain drafts, validate imports and review before publishing at ${width}px`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 900 });
     const audit = await mockedSettings(page, request);
-    await page.goto('/portal');
+    await page.goto('/portal?section=settings');
     const name = page.getByTestId('input-identity-name');
     await expect(name).toBeVisible();
     await expect(page.locator('.portal-settings-premium')).toBeVisible();
@@ -111,7 +111,7 @@ for (const width of [390, 820, 1440]) {
     await page.getByText('Preview your draft appearance', { exact: true }).click();
     await expect(page.getByText(review.review, { exact: true })).toBeVisible();
     await page.getByText(/^Launch readiness ·/).click();
-    await expect(page.getByText('Payments are simulated — connect and test payments before launch', { exact: true })).toBeVisible();
+    await expect(page.getByText('Review Email & payments and test a reservation before launch; this content check does not verify the payment connection', { exact: true })).toBeVisible();
     await fits(page);
     await capture(page, `review-${width}`);
     await publish.click();
@@ -135,7 +135,7 @@ for (const width of [390, 820, 1440]) {
 test('failed publishing retains the draft and retry succeeds without losing fields', async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const audit = await mockedSettings(page, request, true);
-  await page.goto('/portal');
+  await page.goto('/portal?section=settings');
   await page.getByTestId('input-identity-name').fill('Retry Draft Showroom');
   const publish = page.getByTestId('button-save-settings');
   await publish.click();
@@ -154,7 +154,7 @@ test('failed publishing retains the draft and retry succeeds without losing fiel
 test('short landscape keeps editing controls clear of the save bar', async ({ page, request }) => {
   await page.setViewportSize({ width: 844, height: 390 });
   const audit = await mockedSettings(page, request);
-  await page.goto('/portal');
+  await page.goto('/portal?section=settings');
   await expect(page.getByTestId('input-identity-name')).toBeVisible();
   await page.getByTestId('button-settings-nav-services').click();
   await usable(page, page.getByTestId('textarea-online-reservation-terms'));
@@ -163,3 +163,27 @@ test('short landscape keeps editing controls clear of the save bar', async ({ pa
   expect(audit.submissions).toEqual([]);
   expect(audit.blocked).toEqual([]);
 });
+
+for (const width of [390, 820, 1440]) {
+  test(`all settings categories load without layout overflow at ${width}px`, async ({ page, request }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const audit = await mockedSettings(page, request);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/portal?section=settings');
+    const navigation = page.getByRole('navigation', { name: 'Dealership settings', exact: true });
+    for (const [tab, heading] of [
+      ['Email templates', 'Email templates'], ['Email & payments', 'API integrations'],
+      ['Sales documents', 'Sales paperwork'], ['Website chat', 'Website chat'],
+      ['Team', 'Your team'], ['Publish history', 'Publication history'],
+    ]) {
+      await navigation.getByRole('button', { name: tab, exact: true }).click();
+      await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      await fits(page);
+      await capture(page, `category-${tab.replaceAll(' ', '-')}-${width}`);
+    }
+    expect(errors).toEqual([]);
+    expect(audit.blocked).toEqual([]);
+    expect(audit.submissions).toEqual([]);
+  });
+}

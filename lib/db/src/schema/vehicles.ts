@@ -99,6 +99,10 @@ export const vehiclesTable = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    retirementStartedAt: timestamp("retirement_started_at", {
+      withTimezone: true,
+    }),
     missingCount: integer("missing_count").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -123,6 +127,7 @@ export const vehiclesTable = pgTable(
       table.dealerId,
       table.sourceStatus,
     ),
+    uniqueIndex("vehicles_id_dealer_id_unique").on(table.id, table.dealerId),
     index("vehicles_vrm_idx").on(table.vrm),
     index("vehicles_price_review_required_idx").on(table.priceReviewRequired),
     check(

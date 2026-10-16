@@ -41,7 +41,7 @@ export const websiteFields = [
     "key": "servicesHeading",
     "label": "Services heading",
     "group": "Homepage",
-    "defaultValue": "The details, taken care of."
+    "defaultValue": "Our services"
   },
   {
     "key": "featuredHeading",
@@ -59,7 +59,7 @@ export const websiteFields = [
     "key": "teamHeading",
     "label": "Team heading",
     "group": "Homepage",
-    "defaultValue": "Meet the team"
+    "defaultValue": "Meet our team"
   },
   {
     "key": "reviewsHeading",
@@ -77,13 +77,13 @@ export const websiteFields = [
     "key": "contactIntroduction",
     "label": "Contact introduction",
     "group": "Contact",
-    "defaultValue": "A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us."
+    "defaultValue": "Ask us about a car, a part exchange or a visit. Send a message or book a time to come in."
   },
   {
     "key": "contactTalkHeading",
     "label": "Contact talk heading",
     "group": "Contact",
-    "defaultValue": "Talk to the showroom"
+    "defaultValue": "Talk to us"
   },
   {
     "key": "contactVisitHeading",
@@ -125,7 +125,7 @@ export const websiteFields = [
     "key": "contactMessageDescription",
     "label": "Contact message description",
     "group": "Contact",
-    "defaultValue": "Tell us which car you\u2019re considering, ask about a part exchange, or leave a question for the team."
+    "defaultValue": "Tell us which car you\u2019re considering, ask about a part exchange or send us a question."
   },
   {
     "key": "warrantyEyebrow",
@@ -149,7 +149,7 @@ export const websiteFields = [
     "key": "warrantyDetailsIntroduction",
     "label": "Warranty details introduction",
     "group": "Warranty",
-    "defaultValue": "A useful warranty conversation starts with the policy wording. These are the points to confirm for the car and cover you are considering."
+    "defaultValue": "These are the details to check with us before choosing a warranty."
   },
   {
     "key": "warrantyEnquiryHeading",
@@ -197,7 +197,7 @@ export const websiteFields = [
     "key": "viewingDescription",
     "label": "Viewing description",
     "group": "Enquiry pages",
-    "defaultValue": "Choose a date and time to see the car and ask the team any questions."
+    "defaultValue": "Choose a date and time to see the car and ask us any questions."
   },
   {
     "key": "generalTitle",
@@ -209,7 +209,7 @@ export const websiteFields = [
     "key": "generalDescription",
     "label": "General description",
     "group": "Enquiry pages",
-    "defaultValue": "A direct line to the team behind the showroom. We will come back to you with a useful answer."
+    "defaultValue": "Tell us what you\u2019d like to know. We\u2019ll get back to you."
   },
   {
     "key": "deliveryTitle",
@@ -245,7 +245,7 @@ export const websiteFields = [
     "key": "part_exchangeDescription",
     "label": "Part-exchange description",
     "group": "Enquiry pages",
-    "defaultValue": "Tell us about your car. Choose your next one. Choose how to send your details."
+    "defaultValue": "Tell us about your car and which of ours you\u2019re interested in. We\u2019ll discuss the next steps with you."
   },
   {"key": "vehicleSpecificationHeading", "label": "Specification heading", "group": "Vehicle page", "defaultValue": "Vehicle specification"},
   {"key": "vehicleDescriptionHeading", "label": "Description heading", "group": "Vehicle page", "defaultValue": "About this vehicle"},
@@ -255,6 +255,27 @@ export const websiteFields = [
 ] as const;
 
 export type WebsiteTextKey = typeof websiteFields[number]["key"];
+
+// Only known, unchanged template defaults are refreshed. Dealer-written copy,
+// including copy that happens to mention a team or showroom, stays untouched.
+const previousWebsiteDefaults: Partial<Record<WebsiteTextKey, readonly string[]>> = {
+  servicesHeading: ['The details, taken care of.'],
+  teamHeading: ['Meet the team'],
+  contactIntroduction: ['A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us.'],
+  contactTalkHeading: ['Talk to the showroom'],
+  contactMessageDescription: ['Tell us which car you’re considering, ask about a part exchange, or leave a question for the team.'],
+  warrantyDetailsIntroduction: ['A useful warranty conversation starts with the policy wording. These are the points to confirm for the car and cover you are considering.'],
+  viewingDescription: ['Choose a date and time to see the car and ask the team any questions.'],
+  generalDescription: ['A direct line to the team behind the showroom. We will come back to you with a useful answer.'],
+  part_exchangeDescription: ['Tell us about your car. Choose your next one. Choose how to send your details.'],
+};
+
+/** Refresh a known template phrase without rewriting dealer-supplied content. */
+export function customerDefaultCopy(value: string | null | undefined, fallback: string, previousDefaults: readonly string[] = []): string {
+  const supplied = value?.trim();
+  return !supplied || previousDefaults.includes(supplied) ? fallback : value!;
+}
+
 export function websiteText(settings: Pick<DealerConfig, "presentation">, key: WebsiteTextKey): string {
-  return settings.presentation?.websiteCopy?.[key]?.trim() || websiteFields.find(field => field.key === key)!.defaultValue;
+  return customerDefaultCopy(settings.presentation?.websiteCopy?.[key], websiteFields.find(field => field.key === key)!.defaultValue, previousWebsiteDefaults[key]).trim();
 }

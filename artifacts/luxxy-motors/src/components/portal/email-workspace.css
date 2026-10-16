@@ -1,0 +1,215 @@
+.email-workspace {
+  color: #203747;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.email-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.email-heading h2 {
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.email-heading > div:last-child {
+  display: flex;
+  gap: 10px;
+}
+.email-heading p,
+.email-note {
+  color: #607584;
+}
+.email-search {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.email-columns {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+  gap: 20px;
+  align-items: start;
+}
+.email-message-list,
+.email-message-detail,
+.email-customer-picker {
+  border: 1px solid #dce5ec;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.email-message-list {
+  max-height: 70vh;
+  overflow: auto;
+}
+.email-message-list > button {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid #e6edf2;
+}
+.email-message-list > button:hover,
+.email-message-list > button.selected {
+  background: #edf5f9;
+}
+.email-message-list > button.selected {
+  box-shadow: inset 3px 0 #32688a;
+}
+.email-message-list > button > span:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.email-message-list b {
+  display: block;
+  margin: 7px 0;
+  font-weight: 550;
+}
+.email-message-list small,
+.email-message-list p {
+  color: #607584;
+}
+.email-row-meta {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+.email-row-meta em {
+  font-style: normal;
+  font-size: 12px;
+  background: #f1f5f8;
+  border-radius: 20px;
+  padding: 3px 9px;
+}
+.email-row-meta small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.email-message-detail {
+  padding: 24px;
+  min-height: 400px;
+  max-height: 70vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.email-message-detail h3,
+.email-customer-picker h3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 6px 0 18px;
+}
+.email-message-detail dl {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0;
+}
+.email-message-detail dl > div {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+}
+.email-message-detail dt {
+  color: #607584;
+}
+.email-record-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 20px 0;
+}
+.email-record-links a,
+.email-customer-picker a {
+  color: #28658b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.email-message-body {
+  white-space: pre-wrap;
+  padding: 20px 0;
+  margin: 16px 0;
+  border-top: 1px solid #e4ebf0;
+  border-bottom: 1px solid #e4ebf0;
+  line-height: 1.8;
+}
+.email-note {
+  font-size: 12px;
+  margin-top: 10px;
+}
+.email-pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px;
+}
+.email-empty {
+  padding: 35px 24px;
+  color: #607584;
+}
+.email-empty h3 {
+  color: #203747;
+  margin: 12px 0;
+}
+.email-customer-picker {
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.email-back {
+  display: none;
+}
+.enquiry-email-dialog select {
+  width: 100%;
+  border: 1px solid #dce5ec;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fff;
+}
+.enquiry-email-service-book > label {
+  display: flex;
+  gap: 10px;
+  margin: 9px 0;
+}
+@media (max-width: 760px) {
+  .email-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+  .email-columns {
+    grid-template-columns: 1fr;
+  }
+  .email-columns:not(.has-selection) .email-message-detail {
+    display: none;
+  }
+  .email-columns.has-selection .email-message-list {
+    display: none;
+  }
+  .email-back {
+    display: inline-flex;
+  }
+  .email-message-detail {
+    padding: 18px;
+    max-height: none;
+  }
+  .email-message-detail dl > div {
+    grid-template-columns: 95px 1fr;
+  }
+  .email-message-list {
+    max-height: none;
+  }
+  .email-heading > div:last-child {
+    width: 100%;
+  }
+  .email-heading > div:last-child > * {
+    flex: 1;
+  }
+}

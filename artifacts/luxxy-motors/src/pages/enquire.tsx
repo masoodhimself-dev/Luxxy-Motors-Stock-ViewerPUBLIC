@@ -1,4 +1,5 @@
 import { websiteText } from "@/lib/website-content";
+import './customer-workflows.css';
 import { questionMessage } from "@/lib/vehicle-questions";
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
@@ -16,16 +17,16 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
-  viewing: { eyebrow: 'Visit Luxxy Motors', title: 'Book a test drive', description: 'Choose a date and time to see the car and ask the team any questions.' },
-  general: { eyebrow: 'Talk to the team', title: 'How can we help?', description: 'A direct line to the team behind the showroom. We will come back to you with a useful answer.' },
-  delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We will confirm delivery options and costs.' },
-  warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'We will talk you through the warranty options available for the vehicle you have in mind.' },
+  viewing: { eyebrow: 'Visit us', title: 'Book a test drive', description: 'Choose a date and time to see the car and ask us any questions.' },
+  general: { eyebrow: 'Talk to us', title: 'How can we help?', description: 'Tell us what you’d like to know, and we’ll help with your next step.' },
+  delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We’ll confirm delivery options and costs.' },
+  warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'Ask us about warranty options for the car you have in mind.' },
   part_exchange: { eyebrow: 'Part exchange', title: 'Part-exchange your car', description: 'Tell us about your car. Choose your next one. Choose how to send your details.' },
 };
 
 const metaHeadings: Record<EnquiryType, string> = {
   viewing: 'Book a test drive',
-  general: 'Contact the showroom',
+  general: 'Contact us',
   delivery: 'Ask about delivery',
   warranty: 'Ask about warranty',
   part_exchange: 'Part-exchange valuation',
@@ -150,7 +151,7 @@ export default function Enquire() {
                 <div>
                   <p className="font-display text-lg font-semibold tracking-tight text-primary">No vehicle selected</p>
                   <p className="mt-2 text-[12px] font-normal leading-relaxed text-primary/70">
-                    If you have a specific car in mind, browse the showroom to select it before making an enquiry.
+                    If you have a specific car in mind, choose it from our stock and we’ll include it with your enquiry.
                   </p>
                 </div>
                 <Link
@@ -161,7 +162,7 @@ export default function Enquire() {
                   }}
                   className="font-display text-[12px] font-semibold tracking-normal text-accent transition-colors hover:text-primary mt-2 flex items-center gap-2"
                 >
-                  Browse showroom stock <ArrowRight className="h-3 w-3" />
+                  Browse our cars <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
             )}
@@ -183,16 +184,16 @@ export default function Enquire() {
                 <div className="flex items-start gap-4 border border-[hsl(var(--accent))]/50 bg-[hsl(var(--accent))]/10 p-6 text-[13px] font-normal leading-relaxed text-primary" role="alert" data-testid="status-stock-error">
                   <CircleAlert className="h-6 w-6 shrink-0 text-[hsl(var(--accent))]" />
                   <div>
-                    <p className="font-display text-[14px] font-semibold text-[hsl(var(--accent))]">We could not load the showroom details.</p>
-                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Please reload to choose a current stock vehicle, or call the showroom.' : 'You can still send an enquiry and our team will help match it to the right vehicle.'}</p>
+                    <p className="font-display text-[14px] font-semibold text-[hsl(var(--accent))]">We couldn’t load our current stock.</p>
+                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Please reload to choose a current stock vehicle, or call us.' : 'You can still send us an enquiry. Tell us which car you mean and we’ll help.'}</p>
                   </div>
                 </div>
               ) : vehicleId && !vehicle ? (
                 <div className="mb-10 flex items-start gap-4 border border-accent/50 bg-accent/10 p-6 text-[13px] font-normal leading-relaxed text-primary" role="alert" data-testid="status-vehicle-unavailable">
                   <CircleAlert className="h-6 w-6 shrink-0 text-accent" />
                   <div>
-                    <p className="font-display text-[14px] font-semibold text-accent">This vehicle has just left the showroom.</p>
-                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send a general enquiry below and we will help find a close alternative.'}</p>
+                    <p className="font-display text-[14px] font-semibold text-accent">This car is no longer in our current stock.</p>
+                    <p className="mt-2 text-primary/70">{type === 'part_exchange' ? 'Choose another available vehicle in the Your next car step.' : 'You can still send us a general enquiry below and we’ll help you look for an alternative.'}</p>
                   </div>
                 </div>
               ) : null}
@@ -201,7 +202,7 @@ export default function Enquire() {
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
-              Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call the showroom</a>.
+              Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call us</a>.
             </p>}
 
 

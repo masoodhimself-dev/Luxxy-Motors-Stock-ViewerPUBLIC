@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type ChatConversationView, type ChatPublicConfig, type ChatSession } from '@workspace/vehicle-meta';
 import { CustomerChat, customerChatStorageKey, routeAllowsCustomerChat, safeChatAction } from './customer-chat';
 
+// Retained chat-module behaviour remains testable when that module returns in a later release.
+vi.mock('@workspace/vehicle-meta', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@workspace/vehicle-meta')>();
+  return { ...actual, customerFeaturePolicy: { ...actual.customerFeaturePolicy, websiteChat: true } };
+});
+
 const browsing = vi.hoisted(() => ({ location: '/vehicle/car-a', vehicleId: 'car-a' as string | null }));
 vi.mock('wouter', () => ({
   useLocation: () => [browsing.location, vi.fn()],
@@ -120,7 +126,7 @@ describe('quiet customer chat', () => {
     act(() => window.dispatchEvent(new Event('dealer-chat-settings-saved')));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Ask us' })).not.toBeInTheDocument());
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(document.body.style.overflow).toBe('');
+    await waitFor(() => expect(document.body.style.overflow).toBe(''));
   });
 
   it('closes on Escape and restores keyboard focus to the launcher', async () => {

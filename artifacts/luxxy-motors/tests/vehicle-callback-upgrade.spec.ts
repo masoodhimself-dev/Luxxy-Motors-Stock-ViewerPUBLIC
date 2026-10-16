@@ -69,7 +69,7 @@ for (const width of [390, 820, 1440]) {
     expect(submissions).toEqual([]);
     await dialog.getByLabel('Telephone', { exact: true }).fill('07700 900123');
     await dialog.getByRole('button', { name: 'Request a callback', exact: true }).click();
-    await expect(dialog.getByRole('status')).toContainText('Callback request received');
+    await expect(dialog.getByRole('status')).toContainText('We’ve received your callback request');
     await expect(dialog).toContainText('CALL-1234');
     expect(submissions).toHaveLength(1);
     expect(submissions[0]).toMatchObject({ requestCallback: true, vehicleId: car.id, type: 'general', appointmentAt: null, preferredContact: 'phone', email: null, phone: '07700900123' });

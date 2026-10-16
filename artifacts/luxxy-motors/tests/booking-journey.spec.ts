@@ -267,7 +267,7 @@ test('submission cannot be repeated while the confirmation is pending', async ({
 test('disabled online booking offers a direct request for help', async ({ page }) => {
   await mockSettings(page, { enabled: false });
   await page.goto('/enquire?type=viewing&vehicleId=preview-2');
-  await expect(page.getByRole('heading', { name: 'Arrange a test drive with the team' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Arrange a test drive with us' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Ask about a test drive' })).toHaveAttribute('href', /type=general.*vehicleId=preview-2/);
   await expect(page.getByTestId('button-submit-enquiry')).toHaveCount(0);
   await expect(page.getByTestId('group-viewing-slots')).toHaveCount(0);
@@ -278,6 +278,7 @@ test('contact enquiry booking choice uses the new journey and Back restores the 
   await page.getByTestId('input-customer-name').fill('Contact Customer');
   await page.getByTestId('input-customer-email').fill('contact@example.test');
   await page.getByTestId('textarea-enquiry-message').fill('Please tell me about your warranty.');
+  await page.getByText('Change enquiry type', { exact: true }).click();
   await page.getByTestId('select-enquiry-type').selectOption('viewing');
   await expect(page).toHaveURL(/\/enquire\?type=viewing$/);
   await expect(page.getByTestId('viewing-vehicle-required')).toBeVisible();
@@ -285,6 +286,7 @@ test('contact enquiry booking choice uses the new journey and Back restores the 
   await expect(page).toHaveURL(/\/contact$/);
   await expect(page.getByTestId('input-customer-name')).toHaveValue('Contact Customer');
   await expect(page.getByTestId('textarea-enquiry-message')).toHaveValue('Please tell me about your warranty.');
+  await page.getByText('Change enquiry type', { exact: true }).click();
   await page.getByTestId('select-enquiry-type').selectOption('viewing');
   await page.locator('input[name="viewing-vehicle"][value="preview-2"]').check();
   await page.getByRole('link', { name: 'Choose date and time' }).click();

@@ -1,0 +1,394 @@
+/* Active invoice editing owns the viewport. The sale list and portal stay intact. */
+@media screen {
+  html:has(.portal-workspace[data-section="sales"] .sales-focus-workspace),
+  body:has(.portal-workspace[data-section="sales"] .sales-focus-workspace),
+  html:has(.sales-focus-workspace:not(.sales-embedded-workspace)),
+  body:has(.sales-focus-workspace:not(.sales-embedded-workspace)) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .premium-portal:has(
+    .portal-workspace[data-section="sales"] .sales-focus-workspace
+  ),
+  .premium-portal:has(.sales-focus-workspace:not(.sales-embedded-workspace)) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .premium-portal:has(
+      .portal-workspace[data-section="sales"] .sales-focus-workspace
+    )
+    > header,
+  .premium-portal:has(.sales-focus-workspace:not(.sales-embedded-workspace))
+    > header,
+  .premium-portal:has(
+      .portal-workspace[data-section="sales"] .sales-focus-workspace
+    )
+    > .skip-link,
+  .portal-workspace[data-section="sales"]:has(.sales-focus-workspace)
+    .portal-workspace-heading,
+  .portal-workspace[data-section="sales"]:has(.sales-focus-workspace)
+    .portal-section-nav,
+  .portal-workspace[data-section="sales"]:has(.sales-focus-workspace)
+    .portal-workspace-footer {
+    display: none;
+  }
+  .premium-portal:has(
+      .portal-workspace[data-section="sales"] .sales-focus-workspace
+    )
+    > #main-content {
+    padding: 0;
+    min-height: 0;
+  }
+  .portal-workspace[data-section="sales"]:has(.sales-focus-workspace) {
+    min-height: 0;
+    height: 100%;
+    padding: 0;
+  }
+  .sales-premium-workspace.sales-focus-workspace {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    background: #f3f4f5;
+  }
+  .sales-focus-workspace .sales-titlebar {
+    min-height: 50px;
+    padding: 6px 16px;
+    gap: 12px;
+    flex-wrap: nowrap;
+    background: #fff;
+    border-bottom-color: #e2e6e9;
+  }
+  .sales-focus-workspace .sales-titlebar-identity,
+  .sales-focus-workspace .sales-titlebar-actions {
+    gap: 12px;
+  }
+  .sales-focus-workspace .sales-titlebar button,
+  .sales-focus-workspace .sales-footer-actions button {
+    min-height: 36px !important;
+    height: 36px;
+    padding: 6px 12px;
+  }
+  .sales-focus-workspace .sales-titlebar-name p:first-child {
+    font-size: 14px;
+  }
+  .sales-focus-workspace .sales-titlebar-name p:last-child {
+    font-size: 10px;
+  }
+  .sales-focus-workspace .sales-section-ribbon {
+    position: static;
+    padding: 0 8px;
+    background: #fbfcfc;
+    border-bottom-color: #e2e6e9;
+  }
+  .sales-focus-workspace .sales-section-tab {
+    min-height: 42px;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .sales-focus-workspace .sales-section-tab small {
+    display: none;
+  }
+  .sales-focus-workspace .sales-step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+  .sales-focus-workspace .sales-section-tab strong {
+    font-size: 13px;
+  }
+  .sales-focus-workspace .sales-premium-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+  .sales-focus-workspace .sales-sheet-layout:not([data-document="true"]) {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+    align-items: stretch;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    gap: 14px;
+  }
+  .sales-focus-workspace .sales-active-sheet {
+    min-height: 0;
+    padding-right: 8px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .sales-focus-workspace .sales-section-intro {
+    margin-bottom: 12px;
+  }
+  .sales-focus-workspace .sales-section-intro .sales-eyebrow,
+  .sales-focus-workspace .sales-section-description {
+    display: none;
+  }
+  .sales-focus-workspace .sales-section-title {
+    font-size: 20px;
+    line-height: 1.3;
+  }
+  .sales-focus-workspace .sales-form-panel {
+    padding: 18px;
+    border-radius: 10px;
+    border-color: #e0e5e8;
+    box-shadow: 0 1px 2px #20344205;
+  }
+  .sales-focus-workspace .sales-deal-overview {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    padding: 8px 12px;
+    margin: 0;
+    max-width: none;
+    border: 1px solid #d8dee2;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #eaecee;
+    box-shadow: inset 0 1px 0 #ffffff80;
+  }
+  .sales-focus-workspace .sales-overview-heading {
+    gap: 6px 12px;
+    flex-shrink: 0;
+    margin: 0;
+  }
+  .sales-focus-workspace .sales-overview-heading h2 {
+    font-size: 14px;
+    font-weight: 650;
+    color: #243745;
+  }
+  .sales-focus-workspace .sales-overview-heading > span {
+    font-size: 10px;
+    color: #53636d;
+  }
+  .sales-preview-fit {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    padding: 0;
+    background: #dfe4e7;
+    border-radius: 7px;
+  }
+  .sales-focus-workspace .sales-preview-fit button {
+    min-height: 32px !important;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    color: #53636d;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 5px;
+  }
+  .sales-focus-workspace .sales-preview-fit button:not([aria-pressed="true"]):hover {
+    background: #ffffff80;
+    color: #243745;
+  }
+  .sales-preview-fit button[aria-pressed="true"] {
+    background: #fff;
+    border-color: #d0d8de;
+    color: #243745;
+    box-shadow: 0 1px 2px #20344212;
+  }
+  .sales-focus-workspace .sales-live-preview-help {
+    display: none;
+  }
+  .sales-focus-workspace .sales-document-selector {
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .sales-focus-workspace .sales-document-selector label {
+    margin: 0;
+  }
+  .sales-focus-workspace .sales-document-selector select {
+    min-height: 36px;
+  }
+  .sales-focus-workspace .sales-live-paper {
+    flex: 1;
+    min-height: 0;
+    background: #eaecee;
+    box-shadow: none;
+  }
+  .sales-focus-workspace[data-receipt-style="classic"] .sales-live-paper,
+  .sales-focus-workspace[data-receipt-style="blank"] .sales-live-paper {
+    overflow: auto;
+  }
+  .sales-focus-workspace .sales-pdf-document {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+  }
+  .sales-focus-workspace .sales-pdf-document-meta {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: #52616b;
+    background: #f7f8f9;
+    border-bottom-color: #dfe4e7;
+  }
+  .sales-focus-workspace .sales-pdf-document-frame {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: #eaecee;
+  }
+  .sales-focus-workspace .sales-pdf-pages {
+    padding: 10px;
+    gap: 10px;
+    justify-items: center;
+    align-content: start;
+  }
+  .sales-focus-workspace .sales-pdf-page {
+    box-shadow: 0 1px 2px #1d2f4012, 0 5px 16px #1d2f4012;
+    outline: 1px solid #1d2f4008;
+  }
+  .sales-focus-workspace .sales-preview-actions {
+    flex-shrink: 0;
+    margin: 0;
+  }
+  .sales-focus-workspace .sales-preview-actions button {
+    min-height: 34px !important;
+    height: 34px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .sales-focus-workspace .sales-document-delivery {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 8px 12px;
+    max-height: 145px;
+    overflow: auto;
+  }
+  .sales-focus-workspace .sales-workspace-footer {
+    display: flex;
+    flex-shrink: 0;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #fff;
+    border-top-color: #e2e6e9;
+  }
+  .sales-focus-workspace .sales-workspace-footer > p {
+    margin: 0;
+    max-width: 45%;
+    font-size: 11px;
+  }
+  @media (min-width: 1000px) {
+    .sales-focus-workspace .sales-editor-view-switch {
+      display: none !important;
+    }
+    .sales-focus-workspace .sales-active-sheet,
+    .sales-focus-workspace .sales-deal-overview {
+      display: block !important;
+    }
+    .sales-focus-workspace .sales-deal-overview {
+      display: flex !important;
+    }
+  }
+  @media (max-width: 999px) {
+    .sales-focus-workspace .sales-sheet-layout:not([data-document="true"]) {
+      display: flex;
+      flex-direction: column;
+    }
+    .sales-focus-workspace .sales-editor-view-switch {
+      display: flex;
+      margin: 0 0 10px;
+      padding: 3px;
+      flex-shrink: 0;
+    }
+    .sales-focus-workspace .sales-editor-view-switch button {
+      min-height: 36px !important;
+    }
+    .sales-focus-workspace .sales-active-sheet,
+    .sales-focus-workspace .sales-deal-overview {
+      flex: 1;
+    }
+    .sales-focus-workspace [data-editor-view="edit"] .sales-deal-overview {
+      display: none !important;
+    }
+    .sales-focus-workspace [data-editor-view="preview"] .sales-active-sheet {
+      display: none !important;
+    }
+    .sales-focus-workspace [data-editor-view="preview"] .sales-deal-overview {
+      display: flex;
+    }
+  }
+  @media (max-width: 600px) {
+    .sales-focus-workspace .sales-titlebar {
+      padding: 6px 8px;
+      gap: 6px;
+    }
+    .sales-focus-workspace .sales-titlebar-identity,
+    .sales-focus-workspace .sales-titlebar-actions {
+      gap: 4px;
+    }
+    .sales-focus-workspace .sales-titlebar-name,
+    .sales-focus-workspace .sales-draft-state {
+      display: none;
+    }
+    .sales-focus-workspace .sales-titlebar button {
+      min-height: 42px !important;
+      height: 42px;
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+    .sales-focus-workspace .sales-section-tab {
+      padding: 6px 3px;
+      gap: 5px;
+    }
+    .sales-focus-workspace .sales-section-tab strong {
+      font-size: 11px;
+    }
+    .sales-focus-workspace .sales-premium-content {
+      padding: 8px;
+    }
+    .sales-focus-workspace .sales-active-sheet {
+      padding-right: 2px;
+    }
+    .sales-focus-workspace .sales-deal-overview {
+      padding: 6px;
+    }
+    .sales-focus-workspace .sales-form-panel {
+      padding: 16px;
+    }
+    .sales-focus-workspace .sales-workspace-footer {
+      display: block;
+      padding: 8px;
+    }
+    .sales-focus-workspace .sales-workspace-footer > p {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+    .sales-focus-workspace .sales-footer-actions {
+      width: 100%;
+    }
+    .sales-focus-workspace .sales-footer-actions button {
+      min-height: 42px !important;
+      height: auto;
+      flex: 1;
+    }
+  }
+}

@@ -80,7 +80,7 @@ export function VehicleWhatsApp({
           }}
         >
           <div className="vehicle-action-heading">
-            <p className="vehicle-action-eyebrow"><SiWhatsapp aria-hidden="true" />WhatsApp the showroom</p>
+            <p className="vehicle-action-eyebrow"><SiWhatsapp aria-hidden="true" />WhatsApp us</p>
             <DialogTitle ref={dialogTitle} tabIndex={-1}>Review your WhatsApp message</DialogTitle>
             <DialogDescription>Check or edit your message. WhatsApp opens next; you choose when to send it.</DialogDescription>
           </div>
@@ -95,16 +95,16 @@ export function VehicleWhatsApp({
           <div className="vehicle-action-status" data-status={hours.state}>
             <Clock3 size={18} aria-hidden="true" />
             <div>
-              <p className="vehicle-action-status-title">{hours.state === 'closed' ? 'The showroom is closed' : hours.state === 'open' ? 'The showroom is open' : 'Reply during opening hours'}</p>
+              <p className="vehicle-action-status-title">{hours.state === 'closed' ? 'We’re currently closed' : hours.state === 'open' ? 'We’re open' : 'When we’ll reply'}</p>
               <p>{hours.state === 'closed'
-                ? `${hours.next ? 'We next open ' + hours.next + '. ' : ''}The team will aim to reply after reopening.`
-                : hours.state === 'open' ? 'The team will reply as soon as they can.' : 'You can leave a message any time. The team will reply during opening hours.'}</p>
+                ? `${hours.next ? 'We next open ' + hours.next + '. ' : ''}We’ll aim to reply after we reopen.`
+                : hours.state === 'open' ? 'We’ll reply as soon as we can.' : 'You can leave a message any time. We’ll reply during opening hours.'}</p>
             </div>
           </div>
 
           <div className="vehicle-message-field">
             <label className="vehicle-action-field">Your message<Textarea rows={5} maxLength={2000} value={message} onChange={event => setMessage(event.target.value)} /></label>
-            <div className="vehicle-message-hint"><p>Add a question or your preferred viewing time.</p><span aria-hidden="true">{message.length}/2000</span></div>
+            <div className="vehicle-message-hint"><p>Add a question or tell us when you’d like to visit.</p><span aria-hidden="true">{message.length}/2000</span></div>
           </div>
 
           <div className="vehicle-action-footer">

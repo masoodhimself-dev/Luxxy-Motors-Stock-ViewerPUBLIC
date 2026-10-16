@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import '../pages/customer-workflows.css';
 import { Link, useLocation } from "wouter";
 import {
   useCreateEnquiry,
@@ -44,6 +45,7 @@ import {
   londonDate,
   nextDate,
 } from "@/lib/test-drive-dates";
+import { showroomHours } from '@/lib/showroom-hours';
 import { websiteText } from "@/lib/website-content";
 
 function initialDetails(vehicle?: Car): EnquiryDraft {
@@ -112,6 +114,11 @@ export function TestDriveBooking({
     isLoading: settingsLoading,
     isError: settingsError,
   } = useDealerSettings();
+  const [bookingNow, setBookingNow] = useState(() => new Date());
+  useEffect(() => { const timer = window.setInterval(() => setBookingNow(new Date()), 60000); return () => window.clearInterval(timer); }, []);
+  const bookingHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', hourCycle: 'h23' }).format(bookingNow));
+  const nightTime = bookingHour >= 20 || bookingHour < 7;
+  const showroomState = showroomHours(settings.hours ?? [], bookingNow).state;
   const config = settings.testDriveBooking ?? defaultBookingSettings;
   const [, setLocation] = useLocation();
   const cars = stockCars.filter(
@@ -139,6 +146,10 @@ export function TestDriveBooking({
   const [selectedDate, setSelectedDate] = useState(
     () => dates[0] ?? londonDate(),
   );
+  // Keep the immediate choices short. Every later date remains in the selector,
+  // and a selected later date replaces the last quick choice so it stays visible.
+  const quickDates = dates.slice(0, 7);
+  if (dates.includes(selectedDate) && !quickDates.includes(selectedDate)) quickDates[quickDates.length - 1] = selectedDate;
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
@@ -338,7 +349,7 @@ export function TestDriveBooking({
 
   const selectedCarCard = currentCar && (
     <div
-      className="booking-car flex items-center gap-3 border-b border-border pb-5 sm:gap-5"
+      className="booking-car grid items-center gap-3 border-b border-border pb-5 sm:gap-5"
       data-testid="card-enquiry-vehicle"
     >
       <VehiclePhoto car={currentCar} className="w-24 sm:w-32" />
@@ -373,6 +384,10 @@ export function TestDriveBooking({
           )}
         </div>
       </div>
+      {!mutation.isSuccess && <div className="booking-car-speech" aria-label={`A little hello from your ${vehicleDisplayTitle(currentCar)}`}>
+        <span className="booking-car-speech-speaker">A little hello from your {vehicleDisplayTitle(currentCar)}</span>
+        <p>“Can’t wait to meet you. You bring the licence, I’ll bring the personality.”</p>
+      </div>}
     </div>
   );
   const visitDetails = (
@@ -383,13 +398,13 @@ export function TestDriveBooking({
       </p>
       {location.isSample ? (
         <p className="text-muted-foreground">
-          Sample showroom address. Confirm the location with the team before
+          Sample showroom address. Confirm our location with us before
           travelling.
         </p>
       ) : (
         <p>
           {location.lines.join(", ") ||
-            "Contact the team to confirm the showroom address."}
+            "Contact us to confirm our showroom address."}
         </p>
       )}
       {settings.presentation?.visitInstructions && (
@@ -433,7 +448,7 @@ export function TestDriveBooking({
             {websiteText(settings, "viewingDescription")}
           </p>
         </header>
-        <div className="rounded-sm border border-border bg-card p-5 sm:p-8">
+        <div className="booking-panel rounded-sm border border-border bg-card p-5 sm:p-8">
           {isLoading || settingsLoading ? (
             <div role="status" className="space-y-4 py-8">
               <p>Loading your booking options…</p>
@@ -454,7 +469,7 @@ export function TestDriveBooking({
           ) : !config.enabled ? (
             <div>
               <h2 className="text-xl font-semibold">
-                Arrange a test drive with the team
+                Arrange a test drive with us
               </h2>
               <p className="mt-3 text-muted-foreground">
                 Online appointment booking is currently unavailable. Contact us
@@ -479,12 +494,12 @@ export function TestDriveBooking({
                 className="booking-step-heading text-2xl font-semibold outline-none sm:text-3xl"
               >
                 {mutation.data.appointmentStatus !== "confirmed"
-                  ? "Your test-drive request is received"
+                  ? "We’ve received your test-drive request"
                   : "Your test drive is booked"}
               </h2>
               <p className="mt-3 text-muted-foreground">
                 {mutation.data.appointmentStatus !== "confirmed"
-                  ? "The team will check your requested time and contact you to confirm. Please wait for confirmation before travelling."
+                  ? "We’ll check your requested time and contact you to confirm. Please wait for confirmation before travelling."
                   : "We look forward to meeting you. Your appointment details are below."}
               </p>
               <div className="mt-6">{selectedCarCard}</div>
@@ -514,7 +529,7 @@ export function TestDriveBooking({
                 <p className="mt-1 text-muted-foreground">
                   {mutation.data.customerNotificationStatus === "sent"
                     ? `We sent the details to ${details.email.trim()}.`
-                    : "The email hasn’t been sent. Keep your reference and the booking link below, or contact the showroom for help."}
+                    : "We haven’t sent your email yet. Keep your reference and the booking link below, or contact us for help."}
                 </p>
               </div>
               <div className="my-5 flex flex-wrap gap-3">
@@ -630,7 +645,7 @@ export function TestDriveBooking({
                 )}
               {!cars.length && (
                 <p className="my-6 text-muted-foreground">
-                  No cars are currently available. Contact the team about
+                  We don’t have any cars available right now. Ask us about
                   upcoming stock.
                 </p>
               )}
@@ -735,7 +750,7 @@ export function TestDriveBooking({
                 >
                   <p className="text-sm leading-6 text-muted-foreground">
                     {config.durationMinutes}-minute appointments · London time
-                    {approval ? " · Confirmed by the team" : ""}
+                    {approval ? " · We’ll confirm your request" : ""}
                   </p>
                   <div
                     role="group"
@@ -743,7 +758,7 @@ export function TestDriveBooking({
                     className="mt-5 flex gap-2 overflow-x-auto overscroll-x-contain pb-3"
                     data-testid="group-viewing-dates"
                   >
-                    {dates.map((date) => (
+                    {quickDates.map((date) => (
                       <button
                         key={date}
                         type="button"
@@ -839,12 +854,18 @@ export function TestDriveBooking({
                       ))}
                     </div>
                   ) : (
-                    <p
+                    nightTime && selectedDate === londonDate(bookingNow) && showroomState !== 'open' ? (
+                      <aside className="booking-night-note" aria-label="Booking at night" data-testid="status-availability-empty">
+                        <Clock3 size={20} aria-hidden="true" />
+                        <div><strong>Even car people need sleep — we’re human too!</strong>
+                        <p>No test drives left for today. Pick another date and we’ll look forward to meeting you.</p></div>
+                      </aside>
+                    ) : <p
                       data-testid="status-availability-empty"
                       className="rounded-sm bg-secondary p-4 text-sm leading-6"
                     >
                       No appointments are available on this date. Choose another
-                      day, or ask the team to help.
+                      day, or ask us to help.
                     </p>
                   )}
                   <Link
@@ -867,7 +888,7 @@ export function TestDriveBooking({
                   </Button>
                   <p className="mt-3 text-xs leading-5 text-muted-foreground">
                     {approval
-                      ? "We’ll confirm your requested time after checking it with the team."
+                      ? "We’ll check your requested time and contact you to confirm."
                       : "Your time is confirmed only after you complete the booking."}
                   </p>
                 </section>
@@ -1102,7 +1123,7 @@ export function TestDriveBooking({
                   {visitDetails}
                   {approval && (
                     <p className="rounded-sm bg-secondary p-4 text-sm leading-6">
-                      This is a request for your preferred time. The team will
+                      This is a request for your preferred time. We’ll
                       contact you to confirm before your visit.
                     </p>
                   )}

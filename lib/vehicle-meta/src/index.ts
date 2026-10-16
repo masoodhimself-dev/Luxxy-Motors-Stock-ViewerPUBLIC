@@ -215,9 +215,13 @@ export * from './customer-sale.ts';
 export * from "./email-templates.ts";
 export * from './dealer-relationships.ts';
 export * from './dealer-chat.ts';
+export * from './customer-feature-policy.ts';
 export * from './showroom-hours.ts';
 export * from './enquiry-merge.ts';
 
 export * from "./stock-feed.ts";
+export { invoicePalette } from './invoice-palette.ts';
+
+export * from './dealer-onboarding.ts';
 
 export * from "./invoice-settings.ts";

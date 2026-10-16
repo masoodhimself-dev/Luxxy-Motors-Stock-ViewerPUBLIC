@@ -1,0 +1,79 @@
+import { demoEditRouter } from './demo-onboarding-edit';
+import { demoJobRouter,publicCompletionJob } from './demo-onboarding-jobs';
+import { demoCompletionRouter } from './demo-onboarding-completion';
+import { isPlatformAdmin } from '../lib/platform-admin';
+import { Router } from 'express';
+import { createHash } from 'node:crypto';
+import { db,pool,demoOnboardingKeysTable,demoOnboardingRequestsTable,dealershipsTable,dealerDemosTable,stockImportRunsTable } from '@workspace/db';
+import { and,eq,desc } from 'drizzle-orm';
+import { z } from 'zod/v4';
+import { importSecretDigest,matchesImportSecret } from '../middlewares/tenant';
+import { normaliseTenantHost,multiTenantEnabled } from '../lib/tenant-context';
+import { demoProvisioning } from '../lib/demo-policy';
+import { validatedDemoInput,insertDemo,DemoSetupError,demoCreationInput } from '../lib/demo-creation';
+const router=Router();
+const requests=new Map<string,{start:number;count:number}>();
+function limited(identity:string){const now=Date.now(),old=requests.get(identity);if(!old||now-old.start>=60000){if(requests.size>=10000){for(const [k,v] of requests)if(now-v.start>=60000)requests.delete(k);if(requests.size>=10000)return true;}requests.set(identity,{start:now,count:1});return false;}return ++old.count>60;}
+
+function fingerprint(value:unknown):string {const stable=(v:any):any=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;return createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');}
+router.use(async(req,res,next)=>{
+ res.set({'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'});
+ if(!multiTenantEnabled()||normaliseTenantHost(req.get('host')??'')!==normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST??'')){res.status(421).json({error:'Use the approved onboarding API host.'});return;}
+ if(req.get('origin')){res.status(403).json({error:'This endpoint is for the server-side onboarding worker, not browser requests.'});return;}
+ if(limited(req.ip??req.socket.remoteAddress??'unknown')){res.set('Retry-After','60').status(429).json({error:'Too many onboarding requests. Retry later.'});return;}
+ const secret=req.get('x-demo-onboarding-secret')??'';
+ if(!/^[A-Za-z0-9_-]{43}$/.test(secret)){res.status(401).json({error:'Invalid demo onboarding credential.'});return;}
+ const [key]=await db.select().from(demoOnboardingKeysTable).where(eq(demoOnboardingKeysTable.secretHash,importSecretDigest(secret)));
+ if(!key || !isPlatformAdmin(key.ownerAuthUserId) || key.revokedAt || key.expiresAt.getTime()<=Date.now() || !matchesImportSecret(secret,key.secretHash)){res.status(401).json({error:'Invalid demo onboarding credential.'});return;}
+ res.locals.onboardingKey=key;next();
+});
+router.get('/capabilities',(_req,res)=>{const p=demoProvisioning(),key=res.locals.onboardingKey;res.json({scope:'demo:create-and-complete-own',domain:p.domain||null,domainsReady:Boolean(p.domain&&p.domainsReady),emailReady:Boolean(p.emailDomain&&p.emailReady),optionalCreationFields:['logoData','footerLogoData','showroomAddress','openingHours'],emailVerificationKeyConfigured:Boolean(process.env.DEMO_RESEND_STATUS_API_KEY),expiresAt:key.expiresAt,maxDemos:key.maxDemos,maxPerDay:key.maxPerDay,operations:['POST /api/demo-onboarding/preflight','GET /api/demo-onboarding/slugs/:slug','PATCH /api/demo-onboarding/demos/:dealerId','POST /api/demo-onboarding/demos/:dealerId/complete','GET /api/demo-onboarding/demos/:dealerId/completion','POST /api/demo-onboarding/demos','GET /api/demo-onboarding/demos/:dealerId','POST /api/demo-onboarding/demos/:dealerId/test-email','GET /api/demo-onboarding/demos/:dealerId/test-email','POST /api/demo-onboarding/demos/:dealerId/baseline'],notSupported:['live-dealers','reset','delete','staff','settings','payments','arbitrary-email','replace-baseline','schedules']});});
+router.use(demoEditRouter());
+router.use(demoJobRouter());
+const createInput=z.object({requestId:z.uuid(),demo:z.record(z.string(),z.unknown())}).strict();
+router.post('/demos',async(req,res)=>{
+ if(Object.keys(req.query).length){res.status(400).json({error:'Creation does not accept query flags. Use POST /api/demo-onboarding/preflight for a non-writing check.'});return;}
+ const parsed=createInput.safeParse(req.body);if(!parsed.success){res.status(400).json({error:'Supply a UUID requestId and demo object.'});return;}
+ if(!demoCreationInput.partial({recipient:true}).safeParse(parsed.data.demo).success){res.status(400).json({error:'Invalid demo fields. Use the documented name, slug, source, marketplace, logo, business-details and expiry fields only.'});return;}
+ // Hash/parse structural validation happens before writes; do not log request bodies or credentials.
+ const payloadHash=fingerprint(parsed.data.demo),key=res.locals.onboardingKey;
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');
+  const locked=(await client.query('SELECT * FROM demo_onboarding_keys WHERE id=$1 FOR UPDATE',[key.id])).rows[0];
+  if(!locked || locked.revoked_at || new Date(locked.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(401).json({error:'Invalid demo onboarding credential.'});return;}
+  const prior=(await client.query('SELECT * FROM demo_onboarding_requests WHERE key_id=$1 AND request_id=$2',[key.id,parsed.data.requestId])).rows[0];
+  if(prior){
+   if(prior.payload_hash!==payloadHash){await client.query('ROLLBACK');res.status(409).json({error:'requestId already used with different demo data.'});return;}
+   const state=(await client.query('SELECT d.expires_at,t.canonical_origin FROM dealer_demos d JOIN dealerships t ON t.id=d.dealer_id WHERE d.dealer_id=$1',[prior.dealer_id])).rows[0];
+   if(!state||new Date(state.expires_at).getTime()<=Date.now()){await client.query('ROLLBACK');res.status(410).json({error:'The demonstration has expired. Contact the operator.'});return;}
+   // Never deserialize historical receipts: older versions contained stock secrets.
+   await client.query('COMMIT');res.json({dealerId:prior.dealer_id,origin:state.canonical_origin,status:'replayed'});return;
+  }
+  const p=demoProvisioning();
+  const raw=parsed.data.demo && typeof parsed.data.demo==='object'&&!Array.isArray(parsed.data.demo)?{...parsed.data.demo as Record<string,unknown>}:parsed.data.demo;
+  if(raw && typeof raw==='object' && !Array.isArray(raw) && !('recipient' in raw)) (raw as Record<string,unknown>).recipient=p.recipients[0]??'';
+  const prepared=validatedDemoInput(raw);
+  if(!p.emailDomain||!p.emailReady)throw new DemoSetupError('Verified demo email provisioning must be completed before automated onboarding.',409);
+  const counts=(await client.query("SELECT count(*)::int AS total,count(*) FILTER (WHERE created_at >= date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::int AS today FROM demo_onboarding_requests WHERE key_id=$1",[key.id])).rows[0];
+  if(counts.total>=locked.max_demos || counts.today>=locked.max_per_day){await client.query('ROLLBACK');res.set('Retry-After','3600').status(429).json({error:'Demo creation quota reached. Contact the operator.'});return;}
+  const result=await insertDemo(client,prepared,locked.owner_auth_user_id);
+  const receipt={dealerId:result.dealerId,origin:result.origin,status:'created'};
+  // Retain the existing column for compatibility; store only public receipt fields.
+  await client.query('INSERT INTO demo_onboarding_requests (key_id,request_id,dealer_id,payload_hash,sealed_response) VALUES ($1,$2,$3,$4,$5::jsonb)',[key.id,parsed.data.requestId,result.dealerId,payloadHash,JSON.stringify(receipt)]);
+  await client.query('COMMIT');res.status(201).json(receipt);
+ }catch(error){await client.query('ROLLBACK');if(error instanceof DemoSetupError){res.status(error.status).json({error:error.message});return;}if((error as any).code==='23505'){res.status(409).json({error:'Demo name already exists. No new demo created.'});return;}res.status(503).json({error:'Demo onboarding could not finish. Retry the identical requestId and payload; do not create another request.'});}finally{client.release();}
+});
+router.get('/demos/:dealerId',async(req,res)=>{
+ const key=res.locals.onboardingKey;
+ const [row]=await db.select({dealer:dealershipsTable,demo:dealerDemosTable}).from(demoOnboardingRequestsTable).innerJoin(dealershipsTable,eq(dealershipsTable.id,demoOnboardingRequestsTable.dealerId)).innerJoin(dealerDemosTable,eq(dealerDemosTable.dealerId,dealershipsTable.id)).where(and(eq(demoOnboardingRequestsTable.keyId,key.id),eq(demoOnboardingRequestsTable.dealerId,req.params.dealerId)));
+ if(!row){res.status(404).json({error:'Demo not found.'});return;}
+ const [last]=await db.select({runId:stockImportRunsTable.runId,status:stockImportRunsTable.status,receivedCount:stockImportRunsTable.receivedCount,receivedAt:stockImportRunsTable.receivedAt}).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId,row.dealer.id)).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
+ const details=await pool.query(`SELECT (SELECT count(*)::int FROM vehicles WHERE dealer_id=$1) AS inventory_count,(SELECT count(*)::int FROM vehicles WHERE dealer_id=$1 AND inventory_status IN ('available','reserved') AND source=$3 AND archived_at IS NULL AND missing_count < $2 AND NOT (price_review_required AND source_price IS NULL AND website_price_override IS NULL)) AS public_count`,[row.dealer.id,Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD))&&Number(process.env.STOCK_MISSING_HIDE_THRESHOLD)>=0?Number(process.env.STOCK_MISSING_HIDE_THRESHOLD):2,row.dealer.stockPlatform]);
+ const email=(await pool.query('SELECT email_status,checked_at,completed_at FROM demo_onboarding_completion WHERE dealer_id=$1',[row.dealer.id])).rows[0];
+ const job=(await pool.query('SELECT * FROM demo_completion_jobs WHERE dealer_id=$1',[row.dealer.id])).rows[0];
+ res.json({revision:row.demo.revision,vehicleCount:details.rows[0]?.inventory_count??0,publicVehicleCount:details.rows[0]?.public_count??0,logos:{header:row.demo.logoData?'uploaded':'dealer-name-fallback',footer:row.demo.footerLogoData?'uploaded':row.demo.logoData?'header-fallback':'dealer-name-fallback'},email:email??{email_status:'not-sent'},completion:job?publicCompletionJob(job):null,dealerId:row.dealer.id,origin:row.dealer.canonicalOrigin,portalUrl:`${row.dealer.canonicalOrigin}/portal`,status:row.dealer.status,expired:row.demo.expiresAt.getTime()<=Date.now(),expiresAt:row.demo.expiresAt,baselineSaved:Boolean(row.demo.baseline),businessDetails:row.demo.businessDetails??{},lastImport:last??null});
+});
+router.use(demoCompletionRouter());
+router.use((_req,res)=>{res.status(404).json({error:'Onboarding operation unavailable.'});});
+export default router;

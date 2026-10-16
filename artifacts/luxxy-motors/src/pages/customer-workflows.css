@@ -1,0 +1,47 @@
+/* Secondary public pages use the same quiet, readable cards as the showroom. */
+:is(.friendly-enquire, .friendly-contact, .friendly-saved) { color: hsl(var(--foreground)); }
+:is(.friendly-enquire, .friendly-contact, .friendly-saved) :is(h1, h2, h3) { text-wrap: balance; overflow-wrap: anywhere; }
+.friendly-enquire .enquiry-form-panel { min-width: 0; padding: clamp(20px, 3vw, 32px); border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); box-shadow: 0 4px 18px hsl(var(--primary) / .025); }
+.friendly-enquire .customer-enquiry-form,
+.friendly-contact .customer-enquiry-form { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.friendly-enquire .enquiry-introduction { min-width: 0; }
+.friendly-enquire .enquiry-introduction > [data-testid="enquiry-vehicle-summary"] { padding: 20px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); }
+.friendly-contact .contact-talk-panel > .divide-y { margin-top: 24px; border: 1px solid hsl(var(--border)); border-radius: 12px; overflow: hidden; background: hsl(var(--card)); }
+.friendly-contact .contact-talk-panel [data-testid^="contact-"] { min-height: 88px; padding: 20px; }
+.friendly-contact [data-testid="contact-location"] > .bg-primary { border-radius: 12px; }
+.friendly-contact #contact-message > div:last-child { padding: clamp(20px, 3vw, 32px); border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); }
+.friendly-saved .saved-car-list > div { border-radius: 12px; }
+.friendly-saved .saved-car-list .vehicle-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.friendly-saved .saved-car-list .vehicle-card:hover { transform: none; box-shadow: none; }
+.friendly-saved .saved-car-list > div > .border-t { background: var(--dealer-panel-subtle, hsl(var(--secondary) / .2)); }
+.friendly-saved .saved-car-list summary { color: hsl(var(--foreground)); font-size: 14px; }
+.friendly-saved .saved-car-list summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; border-radius: 4px; }
+.friendly-saved .saved-car-list details :is(dl, ul, p) { min-width: 0; }
+.friendly-saved .saved-car-list details dd { overflow-wrap: anywhere; }
+.booking-page { background: hsl(var(--secondary) / .3); }
+.booking-page .booking-panel { border-radius: 12px; box-shadow: 0 4px 18px hsl(var(--primary) / .025); }
+.booking-page :is(input, textarea, select) { border-radius: 8px; font-size: 16px; }
+.booking-page [data-testid="group-viewing-dates"] { scroll-snap-type: x proximity; scrollbar-width: thin; }
+.booking-page [data-testid="group-viewing-dates"] button { border-radius: 8px; scroll-snap-align: start; }
+.booking-page [data-testid="group-viewing-slots"] button { border-radius: 8px; }
+@media (min-width: 640px) {
+  .friendly-saved .saved-car-list .vehicle-card-photo { display: flex; align-items: center; }
+  .friendly-saved .saved-car-list .vehicle-card-photo > [data-stock-link] { width: 100%; }
+  .booking-page [data-testid="group-viewing-dates"] { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: visible; }
+  .booking-page [data-testid="group-viewing-dates"] button { min-width: 0; padding-inline: 10px; }
+}
+@media (max-width: 639px) {
+  .friendly-enquire .enquiry-form-panel,
+  .friendly-contact #contact-message > div:last-child { padding: 20px 16px; }
+  .friendly-contact .contact-talk-panel [data-testid^="contact-"] { padding: 18px 16px; }
+  .friendly-saved .friendly-shortlist-intro .page-heading { gap: 20px; }
+  .friendly-saved .saved-car-list details dl > div { min-width: 0; }
+}
+
+/* A small welcome from the actual selected car, with no animation or extra action. */
+.booking-page .booking-car { grid-template-columns: auto minmax(0, 1fr); }
+.booking-car-speech { position: relative; grid-column: 1 / -1; margin-top: 4px; padding: 15px 18px; border: 1px solid hsl(var(--border)); border-radius: 16px; background: hsl(var(--secondary)); }
+.booking-car-speech::before { content: ""; position: absolute; top: -7px; left: 38px; width: 12px; height: 12px; background: hsl(var(--secondary)); border-top: 1px solid hsl(var(--border)); border-left: 1px solid hsl(var(--border)); transform: rotate(45deg); }
+.booking-car-speech-speaker { display: block; font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground)); margin-bottom: 5px; }
+.booking-car-speech p { font-size: 14px; line-height: 1.65; font-weight: 500; color: hsl(var(--foreground)); }
+@media(max-width: 639px) { .booking-car-speech { padding: 14px 16px; } }

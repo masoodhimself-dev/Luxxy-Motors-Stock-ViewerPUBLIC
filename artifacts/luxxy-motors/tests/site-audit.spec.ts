@@ -4,7 +4,12 @@ import { expect, test, type Page } from '@playwright/test';
 test.skip(process.env.LUXXY_LOCAL_PREVIEW !== '1', 'Run against the isolated local preview.');
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-12T08:00:00Z'));
   await page.route('**/api/**', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort());
+  await page.route('**/api/enquiries/availability?*', route => {
+    const date = new URL(route.request().url()).searchParams.get('date');
+    return route.fulfill({ json: { date, timezone: 'Europe/London', slots: [{ startAt: `${date}T12:00:00Z`, label: '13:00', available: true }], disabled: false } });
+  });
 });
 
 async function checkAndCapture(page: Page, name: string) {
@@ -56,8 +61,10 @@ for (const width of [390, 820, 1440]) {
       await checkAndCapture(page, 'vehicle');
       const gallery = page.locator('.vehicle-detail-gallery');
       await expect(gallery.locator('.vehicle-gallery-frame > div')).toHaveCSS('touch-action', 'pan-y pinch-zoom');
-      await gallery.getByRole('button', { name: /Next photo/ }).first().click();
-      const expand = gallery.getByRole('button', { name: /full.?screen|Enlarge|Open.*photo/i }).first();
+      // Touch layouts intentionally hide arrows; the thumbnail is keyboard/touch accessible at every width.
+      const secondPhoto = gallery.getByRole('button', { name: /^Show photograph 2 of / });
+      if (await secondPhoto.count()) { await secondPhoto.click(); await expect(secondPhoto).toHaveAttribute('aria-current', 'true'); }
+      const expand = gallery.getByRole('button', { name: /View all .*photos|full.?screen|Enlarge|Open.*photo/i }).first();
       if (await expand.count()) {
         await expand.click();
         await expect(page.getByRole('dialog')).toBeVisible();

@@ -4,9 +4,10 @@ import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenan
 import { stockPlatformIssues } from "../lib/stock-platform";
 import { stockDescriptionExtras } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
+import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, or, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import {
   GetStockResponse,
   GetVehicleParams,
@@ -23,6 +24,7 @@ import {
   vehicleImagesTable,
   vehiclesTable,
   type Vehicle,
+  type VehicleImage,
 } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -141,25 +143,31 @@ function sourceValues(car: Import["cars"][number]) {
     doors: car.doors, seats: car.seats, colour: car.colour, emissionClass: car.emissionClass, drivetrain: car.drivetrain,
     owners: car.owners == null ? null : Math.trunc(car.owners), writeOffCategory: car.writeOffCategory,
     advertUrl: car.advertUrl, dealerName: car.dealerName, dealerLocation: car.dealerLocation, imageCount: car.imageCount,
-    sourceHeroImage: normalizedImages(car).find((image) => image.isHero)?.url ?? null, rawSourceData: car,
+    sourceHeroImage: normalizedImages(car).find((image) => image.isHero)?.url ?? null, rawSourceData: stockSourceData(car).facts,
   };
 }
 
-async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number], now: Date) {
-  const incoming = normalizedImages(car);
-  const old = await tx.select().from(vehicleImagesTable).where(and(eq(vehicleImagesTable.vehicleId, vehicleId), eq(vehicleImagesTable.origin, "source")));
+async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number], now: Date, old: VehicleImage[]) {
+  const manualUrls = new Set(old.filter(image => image.origin === 'manual').map(image => image.sourceUrl));
+  const incoming = normalizedImages(car).filter(image => !manualUrls.has(image.url));
+  const oldByUrl = new Map(old.map(image => [image.sourceUrl, image]));
   const before = old
-    .filter((image: { isActive: boolean }) => image.isActive)
+    .filter(image => image.origin === 'source' && image.isActive)
     .sort((a: { sortOrder: number }, b: { sortOrder: number }) => a.sortOrder - b.sortOrder)
     .map((image: { sourceUrl: string; caption: string | null; sortOrder: number; isHero: boolean }) => ({
       url: image.sourceUrl, caption: image.caption, sortOrder: image.sortOrder, isHero: image.isHero,
     }));
-  if (incoming.length) {
-    await tx.insert(vehicleImagesTable).values(incoming.map((image) => ({
+  const changed = incoming.filter(image => {
+    const saved = oldByUrl.get(image.url);
+    return !saved || !saved.isActive || saved.caption !== image.caption || saved.sortOrder !== image.sortOrder || saved.isHero !== image.isHero;
+  });
+  if (changed.length) {
+    await tx.insert(vehicleImagesTable).values(changed.map((image) => ({
       vehicleId, origin: "source" as const, sourceUrl: image.url, caption: image.caption,
       sortOrder: image.sortOrder, isHero: image.isHero, isActive: true, firstSeenAt: now, lastSeenAt: now,
     }))).onConflictDoUpdate({
       target: [vehicleImagesTable.vehicleId, vehicleImagesTable.sourceUrl],
+      setWhere: eq(vehicleImagesTable.origin, 'source'),
       // Do not set firstSeenAt here; an upsert must retain the original sighting.
       set: {
         caption: sql`excluded.caption`,
@@ -177,7 +185,7 @@ async function syncImages(tx: any, vehicleId: string, car: Import["cars"][number
     eq(vehicleImagesTable.isActive, true),
     ...(urls.length ? [notInArray(vehicleImagesTable.sourceUrl, urls)] : []),
   );
-  if (old.some((image: { isActive: boolean; sourceUrl: string }) => image.isActive && !urls.includes(image.sourceUrl))) {
+  if (old.some(image => image.origin === 'source' && image.isActive && !urls.includes(image.sourceUrl))) {
     await tx.update(vehicleImagesTable).set({ isActive: false, isHero: false }).where(absentImages);
   }
   const after = incoming.map((image) => ({ url: image.url, caption: image.caption, sortOrder: image.sortOrder, isHero: image.isHero }));
@@ -259,15 +267,21 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
       const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body }).returning();
       let created = 0, updated = 0, unchanged = 0, missing = 0;
       const now = new Date(), incomingIds = new Set(data.cars.map((car) => car.advertId));
+      const currentByAdvert = new Map(current.map(vehicle => [vehicle.advertId, vehicle]));
+      const present = current.filter(vehicle => incomingIds.has(vehicle.advertId));
+      const imageRows = present.length ? await tx.select().from(vehicleImagesTable).where(and(or(eq(vehicleImagesTable.isActive, true), eq(vehicleImagesTable.origin, 'manual')), inArray(vehicleImagesTable.vehicleId, present.map(vehicle => vehicle.id)))) : [];
+      const imagesByVehicle = new Map<string, VehicleImage[]>();
+      for (const image of imageRows) { const rows = imagesByVehicle.get(image.vehicleId) ?? []; rows.push(image); imagesByVehicle.set(image.vehicleId, rows); }
       for (const car of data.cars) {
-        const existing = current.find((vehicle) => vehicle.advertId === car.advertId);
+        const existing = currentByAdvert.get(car.advertId);
         const values = sourceValues(car);
+        const sourceCheckMetadata = stockSourceData(car).checks;
         const candidate = car.price == null ? null : Math.trunc(car.price);
         const suspicious = candidate != null && (candidate < settings.minPrice || (existing?.sourcePrice != null && Math.abs(candidate - existing.sourcePrice) / existing.sourcePrice * 100 > settings.maxPriceChange));
         const priceValues = suspicious ? { pendingSourcePrice: candidate, priceReviewRequired: true } : { sourcePrice: candidate, pendingSourcePrice: null, priceReviewRequired: false };
         if (!existing) {
-          const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, importRunId: run.id, dealerId: settings.dealerId, source: settings.platform, advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
-          const imageChanges = await syncImages(tx, vehicle.id, car, now); created++;
+          const [vehicle] = await tx.insert(vehiclesTable).values({ ...values, ...priceValues, auditMetadata: { sourceCheckMetadata }, importRunId: run.id, dealerId: settings.dealerId, source: settings.platform, advertId: car.advertId, sourceStatus: "live", missingCount: 0, firstSeenAt: now, lastSeenAt: now }).returning();
+          const imageChanges = await syncImages(tx, vehicle.id, car, now, []); created++;
           const changes = Object.entries({ ...values, ...priceValues })
             .filter(([, newValue]) => newValue !== null && newValue !== undefined)
             .map(([fieldName, newValue]) => ({ vehicleId: vehicle.id, importRunId: run.id, fieldName, oldValue: null as unknown, newValue }));
@@ -275,8 +289,12 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           if (changes.length) await tx.insert(vehicleChangesTable).values(changes);
         } else {
           const databaseChanges: Record<string, unknown> = {};
-          for (const [key, value] of Object.entries({ ...values, ...priceValues })) if (canonicalJson((existing as any)[key]) !== canonicalJson(value)) databaseChanges[key] = value;
-          const imageChanges = await syncImages(tx, existing.id, car, now);
+          for (const [key, value] of Object.entries({ ...values, ...priceValues })) {
+            if ((existing.auditMetadata as any)?.plateCorrection && ["plate", "vrm", "vrmVerified"].includes(key)) continue;
+            const previous = key === 'rawSourceData' ? stockSourceData(existing.rawSourceData).facts : (existing as any)[key];
+            if (canonicalJson(previous) !== canonicalJson(value)) databaseChanges[key] = value;
+          }
+          const imageChanges = await syncImages(tx, existing.id, car, now, imagesByVehicle.get(existing.id) ?? []);
           const auditChanges: Record<string, { oldValue: unknown; newValue: unknown }> = {};
           for (const [fieldName, newValue] of Object.entries(databaseChanges)) {
             auditChanges[fieldName] = { oldValue: (existing as any)[fieldName] ?? null, newValue };
@@ -286,8 +304,12 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           }
           const preserveMissingState = existing.inventoryStatus === "sold" || existing.inventoryStatus === "archived";
           await tx.update(vehiclesTable).set({
-            ...databaseChanges, importRunId: run.id, lastSeenAt: now,
-            ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0 }),
+            ...databaseChanges,
+            // Merge against the row at update time, never a stale read that could
+            // overwrite a sale reservation created while this import was running.
+            auditMetadata: sql`coalesce(${vehiclesTable.auditMetadata}, '{}'::jsonb) || ${JSON.stringify({ sourceCheckMetadata })}::jsonb`,
+            importRunId: run.id, lastSeenAt: now,
+            ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0, archivedAt: null, retirementStartedAt: null }),
           }).where(tenantAnd(eq(vehiclesTable.id, existing.id), tenantEq(vehiclesTable.dealerId, currentDealerId())));
           const changes = Object.entries(auditChanges).map(([fieldName, change]) => ({
             vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue,
@@ -296,8 +318,14 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           Object.keys(auditChanges).length ? updated++ : unchanged++;
         }
       }
-      for (const vehicle of current) if (!incomingIds.has(vehicle.advertId)) {
-        await tx.update(vehiclesTable).set({ sourceStatus: "missing", missingCount: vehicle.missingCount + 1, importRunId: run.id }).where(tenantAnd(eq(vehiclesTable.id, vehicle.id), tenantEq(vehiclesTable.dealerId, currentDealerId()))); missing++;
+      const absent = current.filter(vehicle => !incomingIds.has(vehicle.advertId));
+      if (absent.length) {
+        // Bounded batches preserve exactly the rows observed by this snapshot,
+        // without one query per historical missing advert or unbounded parameters.
+        for (let start = 0; start < absent.length; start += 500) {
+          await tx.update(vehiclesTable).set({ sourceStatus: "missing", missingCount: sql`${vehiclesTable.missingCount} + 1`, importRunId: run.id }).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform), inArray(vehiclesTable.id, absent.slice(start, start + 500).map(vehicle => vehicle.id))));
+        }
+        missing = absent.length;
       }
       await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(tenantAnd(eq(stockImportRunsTable.id, run.id), tenantEq(stockImportRunsTable.dealerId, currentDealerId())));
       return { created, updated, unchanged, missing };
@@ -336,7 +364,7 @@ async function projectVehicles(vehicles: Vehicle[]) {
   return vehicles.map((vehicle) => {
     const vehicleImages = images.filter((image) => image.vehicleId === vehicle.id).map((image) => ({ url: image.sourceUrl, caption: image.caption }));
     const hero = vehicle.websiteHeroImageOverride ?? images.find((image) => image.vehicleId === vehicle.id && image.isHero)?.sourceUrl ?? null;
-    const raw = vehicle.rawSourceData;
+    const raw = projectedStockSourceData(vehicle.rawSourceData, vehicle.auditMetadata);
     const imported = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
     const specifications = imported?.specifications;
     const sourceExtras = stockDescriptionExtras({ ...vehicle, title: vehicle.websiteTitleOverride ?? vehicle.title, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, specifications: imported?.specifications as Record<string, unknown> | null, sourceExtras: imported?.sourceExtras as Record<string, unknown> | null });
@@ -344,7 +372,7 @@ async function projectVehicles(vehicles: Vehicle[]) {
   });
 }
 function visible(vehicle: Vehicle, settings: Awaited<ReturnType<typeof config>>) {
-  return ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
+  return !vehicle.archivedAt && ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
 }
 router.get("/stock", async (req, res): Promise<void> => {
   const settings = await config();

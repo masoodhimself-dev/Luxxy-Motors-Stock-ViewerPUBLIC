@@ -1,10 +1,14 @@
+import { currentTenant } from './tenant-context';
 import { dealerIntegrationsStore } from './dealer-integrations-store';
 import { createHash, randomUUID } from 'node:crypto';
+import { loadBrochurePhotos } from './vehicle-brochure-images';
 import { archiveSaleDocument } from './sale-document-pdf';
+import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
+import { siteOrigin } from './enquiry-links';
 import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
-import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SalesPaperwork, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, invoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
 
-export type SaleWorkspaceAssets = { branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: SalesPaperwork };
+export type SaleWorkspaceAssets = { branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot; paperwork?: { saleTerms: string; reservationTerms: string } };
 export type SaleWorkspaceReadClient = { query: (text: string, parameters?: any[]) => Promise<{ rows: Record<string, any>[] }> };
 export type SaleWorkspaceTransactionClient = SaleWorkspaceReadClient & { release: () => void };
 export type SaleWorkspaceDatabase = SaleWorkspaceReadClient & { connect: () => Promise<SaleWorkspaceTransactionClient> };
@@ -14,9 +18,12 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
   const settings = await client.query('SELECT config FROM dealer_settings WHERE dealer_id = $1', [dealerId]);
   const validVehicleId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft?.vehicleId ?? '');
   const vehicle = validVehicleId
-    ? (await client.query("SELECT id, coalesce(website_title_override, title, '') AS title, year, fuel, transmission, mileage, colour, owners, write_off_category, website_description, raw_source_data FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid", [dealerId, draft.vehicleId])).rows[0]
+    ? (await client.query("SELECT id, coalesce(website_title_override, title, '') AS title, year, fuel, transmission, mileage, colour, owners, write_off_category, website_description, raw_source_data, plate, vrm, registration, engine_size, body_type, doors, seats, emission_class, coalesce(nullif(website_hero_image_override, ''), source_hero_image) AS invoice_image FROM vehicles WHERE dealer_id = $1 AND id = $2::uuid", [dealerId, draft.vehicleId])).rows[0]
     : undefined;
-  return { paperwork: await dealerIntegrationsStore.readSalesPaperwork(), branding: saleWorkspaceBranding(settings.rows[0]?.config), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.write_off_category, description: vehicle.website_description || vehicle.raw_source_data?.sourceExtras?.description || null, serviceHistory: typeof vehicle.raw_source_data?.sourceExtras?.serviceHistory === 'string' ? vehicle.raw_source_data.sourceExtras.serviceHistory : vehicle.raw_source_data?.sourceExtras?.historyExtras?.serviceHistory?.description || null } } : {}) };
+  const paperwork = await dealerIntegrationsStore.readSalesPaperwork();
+  const branding = saleWorkspaceBranding(settings.rows[0]?.config);
+  if (currentTenant()?.demo) branding.identity.name += ' · SAMPLE / DEMO';
+  return { paperwork, branding: invoiceBranding(branding, paperwork.invoiceSettings, paperwork.invoiceDetails), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title, registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engine_size, bodyType: vehicle.body_type, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emission_class, imageUrl: vehicle.invoice_image, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.write_off_category, description: vehicle.website_description || vehicle.raw_source_data?.sourceExtras?.description || null, serviceHistory: typeof vehicle.raw_source_data?.sourceExtras?.serviceHistory === 'string' ? vehicle.raw_source_data.sourceExtras.serviceHistory : vehicle.raw_source_data?.sourceExtras?.historyExtras?.serviceHistory?.description || null } } : {}) };
 }
 
 export class PostgresSaleWorkspaceStore {
@@ -29,6 +36,10 @@ export class PostgresSaleWorkspaceStore {
     const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, id]);
     if (!result.rows[0]) throw new SaleWorkspaceError('Sale not found.', 404);
     return publicSaleWorkspace(result.rows[0].state);
+  }
+  async verifyInvoice(saleId: string, documentId: string, token: string) {
+    const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, saleId]);
+    return invoiceVerificationView(result.rows[0]?.state, documentId, token);
   }
   /** Provider acceptance is merged under a row lock; concurrent payments cannot strand it as sending. */
   async finishEmail(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' | 'link-email-status' }>, actor: string) {
@@ -145,23 +156,32 @@ export class PostgresSaleWorkspaceStore {
       const now = new Date().toISOString();
       const draft = input.command?.action === 'update' ? input.command.draft : current?.draft ?? input.draft as SaleWorkspaceDraft;
       const assets = await this.assets(draft, client);
-      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now), ...assets };
+      if (input.command?.action === 'issue-invoice' && assets.vehicle?.imageUrl) {
+        const photo = (await loadBrochurePhotos([{ url: assets.vehicle.imageUrl.replace(/w\d+-h\d+/, 'w480-h360'), caption: '' }], process.env.VEHICLE_PDF_IMAGE_HOSTS ?? '', 4000))[0];
+        if (photo?.bytes && photo.format) assets.vehicle.photoDataUrl = `data:image/${photo.format === 'JPEG' ? 'jpeg' : 'png'};base64,${Buffer.from(photo.bytes).toString('base64')}`;
+      }
+      const context: SaleWorkspaceContext = { now, actor: input.actor, nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets };
       const mutation = current
         ? changeSaleWorkspace(current, input.command!, { expectedRevision: input.expectedRevision!, requestId: input.requestId }, context)
-        : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(numbers, 'sale', now));
+        : createSaleWorkspace({ draft: input.draft, requestId: input.requestId }, context, saleWorkspaceNumber(numbers, 'sale', now, assets.branding.invoiceSettings));
       if (!mutation.replayed) {
         if (!current || input.command?.action === 'update') await this.source(mutation.sale.draft, client, current?.id);
         if (input.command?.action === 'customer-link') {
           const collision = await client.query("SELECT id FROM sale_workspace WHERE dealer_id = $1 AND id <> $2::uuid AND state#>>'{customerAccess,tokenHash}' = $3", [this.dealerId, mutation.sale.id, input.command.tokenHash]);
           if (collision.rows.length) throw new SaleWorkspaceError('Create a new unique customer link.', 409);
         }
+        if (input.command?.action === 'invoice-payment' && input.command.payment.kind === 'deposit') await this.stock(mutation.sale, 'reserved', client, input.actor);
+        if (input.command?.action === 'finish-invoice-sale') await this.stock(mutation.sale, 'sold', client, input.actor);
         if (input.command?.action === 'lifecycle') await this.stock(mutation.sale, input.command.status, client, input.actor);
         if (input.command?.action === 'take-deposit' || input.command?.action === 'complete-sale' || input.command?.action === 'confirm' && input.command.reserveVehicle) await this.stock(mutation.sale, input.command.action === 'complete-sale' ? 'sold' : 'reserved', client, input.actor);
         if (input.command?.action === 'handover') {
           await this.stock(mutation.sale, 'sold', client, input.actor);
           mutation.sale.lifecycle = { status: 'sold', vehicleId: mutation.sale.draft.vehicleId, changedAt: now };
         }
-        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
+        for (const document of mutation.sale.documents.filter(d => !current?.documents.some(old => old.id === d.id))) {
+          if (document.type === 'invoice') attachInvoiceVerification(document, mutation.sale.id, siteOrigin());
+          (mutation.sale.documentArchives ??= {})[document.id] = archiveSaleDocument(document);
+        }
         await client.query('INSERT INTO sale_workspace (id, dealer_id, reference, revision, state, created_at, updated_at) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) ON CONFLICT (id) DO UPDATE SET revision = EXCLUDED.revision, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at', [mutation.sale.id, this.dealerId, mutation.sale.reference, mutation.sale.revision, JSON.stringify(mutation.sale), mutation.sale.createdAt, mutation.sale.updatedAt]);
         await client.query('UPDATE sale_workspace_counters SET numbers = $2::jsonb WHERE dealer_id = $1', [this.dealerId, JSON.stringify(numbers)]);
       }
@@ -191,8 +211,9 @@ export async function recordStripeReservationDeposit(input: StripeReservationDep
   const now = new Date().toISOString();
   const draft: SaleWorkspaceDraft = current?.draft ?? { id: '', customer: input.customerName, email: input.email, phone: input.phone, address: '', vehicleId: input.vehicleId, vehicle: input.vehicleTitle, registration: input.vehicleRegistration ?? '', price: (input.expectedPricePence / 100).toFixed(2), partExchange: false, pxRegistration: '', pxDescription: '', pxValue: '', deposit: '', paymentMethod: 'Stripe', notes: '', collection: '', preparation: false, documents: false, handover: false, sourceReservationId: input.reservationId, customerSource: 'Online reservation' };
   if (draft.vehicleId !== input.vehicleId) throw new SaleWorkspaceError('The confirmed reservation belongs to another vehicle.', 409);
-  const context: SaleWorkspaceContext = { now, actor: 'Stripe verified payment', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now), ...await readSaleWorkspaceAssets(draft, input.dealerId, client) };
-  current ??= createSaleWorkspace({ draft, requestId: 'stripe-create-' + input.paymentIntentId }, context, saleWorkspaceNumber(numbers, 'sale', now)).sale;
+  const assets = await readSaleWorkspaceAssets(draft, input.dealerId, client);
+  const context: SaleWorkspaceContext = { now, actor: 'Stripe verified payment', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets };
+  current ??= createSaleWorkspace({ draft, requestId: 'stripe-create-' + input.paymentIntentId }, context, saleWorkspaceNumber(numbers, 'sale', now, assets.branding.invoiceSettings)).sale;
   const mutation = changeSaleWorkspace(current, { action: 'payment', payment: { amount: (input.amountPence / 100).toFixed(2), method: 'Stripe', date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now)), reference: input.paymentIntentId, kind: 'deposit', status: 'confirmed' } }, { requestId: 'stripe-payment-' + input.paymentIntentId, expectedRevision: current.revision }, context);
   mutation.sale.lifecycle = { status: 'reserved', vehicleId: input.vehicleId, changedAt: now };
   (mutation.sale.providerPayments ??= {})[input.paymentIntentId] = { paymentId: mutation.sale.payments.at(-1)!.id, eventId: input.eventId };
@@ -227,7 +248,8 @@ export async function recordStripeReservationRefund(input: { dealerId: string; r
   await client.query('INSERT INTO sale_workspace_counters (dealer_id, numbers) VALUES ($1, $2::jsonb) ON CONFLICT DO NOTHING', [input.dealerId, '{}']);
   const numbers = (await client.query('SELECT numbers FROM sale_workspace_counters WHERE dealer_id = $1 FOR UPDATE', [input.dealerId])).rows[0].numbers as Record<string, number>;
   const now = new Date().toISOString();
-  const context: SaleWorkspaceContext = { now, actor: 'Stripe verified refund', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now), ...await readSaleWorkspaceAssets(current.draft, input.dealerId, client) };
+  const assets = await readSaleWorkspaceAssets(current.draft, input.dealerId, client);
+  const context: SaleWorkspaceContext = { now, actor: 'Stripe verified refund', nextId: randomUUID, nextNumber: type => saleWorkspaceNumber(numbers, type, now, assets.branding.invoiceSettings), ...assets };
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
   const command: SaleWorkspaceCommand = difference > 0
     ? { action: 'reverse', paymentId: original.id, amount: (difference / 100).toFixed(2), kind: 'refund', reason: 'Stripe confirmed refund', date }

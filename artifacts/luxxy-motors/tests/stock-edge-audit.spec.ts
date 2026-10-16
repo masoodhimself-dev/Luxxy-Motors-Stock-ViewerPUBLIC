@@ -50,13 +50,13 @@ for (const width of [390, 820, 1440]) {
       await mockStock(page, stock, cars);
       await page.goto('/stock');
       await expect(page.getByTestId('empty-stock')).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'No vehicles currently listed' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'No cars to show right now' })).toBeVisible();
       await expect(page.getByTestId('text-filtered-stock-count')).toHaveText('0 vehicles available');
       await expect(page.getByRole('heading', { name: 'No matches', exact: true })).toHaveCount(0);
       await expect(page.locator('#vehicle-results .vehicle-card')).toHaveCount(0);
       await capture(page, 'unavailable-stock');
       await page.goto('/');
-      await expect(page.locator('.rolling-stock')).toContainText('No vehicles currently listed');
+      await expect(page.locator('.rolling-stock')).toContainText('We have no cars online at the moment');
       await expect(page.locator('.rolling-stock .vehicle-card')).toHaveCount(0);
       await expect(page.getByRole('combobox', { name: 'Search make', exact: true }).locator('option')).toHaveText(['Any make']);
       await capture(page, 'unavailable-home');

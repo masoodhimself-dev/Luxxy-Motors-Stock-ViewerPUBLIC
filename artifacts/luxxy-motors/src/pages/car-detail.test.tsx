@@ -171,3 +171,13 @@ it('offers printing in the vehicle summary', () => {
   expect(link).toHaveAttribute('type', 'button');
   expect(link.closest('.vehicle-summary')).not.toBeNull();
 });
+
+it('opens a car-specific enquiry page and keeps print/share outside collapsed phone options', async () => {
+  window.history.replaceState({}, '', '/vehicle/with-plate');
+  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+  render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
+  const enquiry = await screen.findByRole('link', {name:'Enquire about this car'});
+  expect(enquiry).toHaveAttribute('href','/enquire?type=general&vehicleId=with-plate');
+  expect(screen.getByRole('button',{name:'Share this vehicle'}).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();
+  expect(screen.queryByText(/Check this car’s registration before driving/)).not.toBeInTheDocument();
+});

@@ -21,7 +21,7 @@ export function formatPhoneDisplay(phone: string) {
   const compact = phone.replace(/\s/g, '');
   return /^020\d{8}$/.test(compact)
     ? `${compact.slice(0, 3)} ${compact.slice(3, 7)} ${compact.slice(7)}`
-    : phone;
+    : /^07\d{9}$/.test(compact) ? `${compact.slice(0, 5)} ${compact.slice(5)}` : phone;
 }
 
 export function formatMileage(mileage: number) {
@@ -77,4 +77,9 @@ export function getThumbnailUrl(car: any): string {
   // 2. Fallback to first image
   const first = images[0];
   return typeof first === 'string' ? first : first.url;
+}
+
+/** Compact highlights retain mileage precision; full specifications use formatMileage. */
+export function formatCompactMileage(mileage: number) {
+  return mileage >= 1000 ? `${Number((mileage / 1000).toFixed(3))}k miles` : formatMileage(mileage);
 }

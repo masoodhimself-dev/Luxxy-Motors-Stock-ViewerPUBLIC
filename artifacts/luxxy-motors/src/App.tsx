@@ -1,3 +1,4 @@
+import { DemoNotice } from '@/components/demo-notice';
 import RetiredSalesPage from '@/pages/retired-sales';
 import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
@@ -24,12 +25,14 @@ const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const Compare = lazy(() => import("@/pages/compare"));
+const StaffUpload = lazy(() => import("@/pages/staff-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
 const Warranty = lazy(() => import('@/pages/warranty'));
 const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-return"));
 const CustomerSale = lazy(() => import("@/pages/customer-sale"));
+const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
@@ -64,8 +67,13 @@ if (!clerkPubKey) {
 }
 
 function Router() {
+  const [location] = useLocation();
+  if (location.startsWith('/verify-invoice/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/></Suspense></RoutedErrorBoundary>;
+  // Platform administration has its own identity and no dealership navigation or chat.
+  if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
+  if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
-    <Layout>
+    <><DemoNotice/><Layout>
       <RoutedErrorBoundary>
         <Suspense fallback={<RouteLoading />}>
           <Switch>
@@ -93,13 +101,13 @@ function Router() {
         </Switch>
         </Suspense>
       </RoutedErrorBoundary>
-    </Layout>
+    </Layout></>
   );
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={location} showCustomerHelp={location !== '/platform' && location !== '/staff-upload'}>{children}</ErrorBoundary>;
 }
 
 /** Clears cached portal data when the signed-in staff member changes. */
@@ -123,6 +131,11 @@ function ClerkQueryClientCacheInvalidator() {
   }, [addListener, cache]);
 
   return null;
+}
+
+function DealerProviders({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  return location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
 }
 
 function ClerkProviderWithRoutes() {
@@ -155,11 +168,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
-          <StockProvider>
-            <SavedCarsProvider>
-              <Router />
-            </SavedCarsProvider>
-          </StockProvider>
+          <DealerProviders><Router /></DealerProviders>
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

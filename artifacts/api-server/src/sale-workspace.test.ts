@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { changeSaleWorkspace, createSaleWorkspace, saleWorkspaceTotals, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
+import { changeSaleWorkspace, createSaleWorkspace, saleWorkspacePence, saleWorkspaceTotals, SaleWorkspaceError, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 
 let sequence = 0;
@@ -81,6 +81,58 @@ test('integer pence, three exchanges, overpayments and false final payments are 
   assert.throws(() => createSaleWorkspace({ draft: d, requestId: 'request-manypx' }, context(), 'SALE-1'), /exchanges/);
 });
 
+test('decimal parsing and aggregate arithmetic never accept rounded or unsafe penny amounts', () => {
+  assert.equal(saleWorkspacePence('90071992547409.91'), Number.MAX_SAFE_INTEGER);
+  assert.ok(Number.isNaN(saleWorkspacePence('90071992547409.92')));
+  assert.equal(saleWorkspacePence('8.04'), 804);
+  assert.equal(saleWorkspacePence('0.29'), 29);
+  const large = { ...draft(), price: '90071992547409', adjustments: [{ kind: 'fee' as const, description: 'Fixture fee', amount: '1' }] };
+  assert.ok(Number.isNaN(saleWorkspaceTotals(large).totalDue));
+  assert.throws(() => createSaleWorkspace({ draft: large, requestId: 'request-overflow' }, context(), 'SALE-OVERFLOW'), /valid amounts/);
+  for (const field of ['exchanges', 'adjustments']) {
+    for (const malformed of [null, 'invalid row', []]) {
+      assert.throws(() => createSaleWorkspace({ draft: { ...draft(), [field]: [malformed] }, requestId: 'request-invalid-row' }, context(), 'SALE-INVALID'), (error: unknown) => error instanceof SaleWorkspaceError && error.status === 422);
+    }
+  }
+  const largeSale = createSaleWorkspace({ draft: { ...draft(), price: '90071992547409' }, requestId: 'request-large-sale' }, context(), 'SALE-LARGE').sale;
+  const first = changeSaleWorkspace(largeSale, payment('90071992547409', 'part-payment', 'pending'), { expectedRevision: largeSale.revision, requestId: 'request-large-pending-one' }, context()).sale;
+  assert.throws(() => changeSaleWorkspace(first, payment('90071992547409', 'part-payment', 'pending'), { expectedRevision: first.revision, requestId: 'request-large-pending-two' }, context()), /supported range/);
+  assert.equal(first.payments.length, 1);
+});
+
+test('fifty mixed-method deals settle to the exact penny after fees, discounts, three exchanges and a partial refund', () => {
+  const pounds = (value: number) => `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
+  for (let index = 0; index < 50; index += 1) {
+    const agreedPrice = 1000000 + index * 137;
+    const fee = 1023 + index;
+    const discount = 2012 + index * 2;
+    const allowances = [10001 + index, 20002 + index * 2, 30003 + index * 3];
+    const due = agreedPrice + fee - discount - allowances.reduce((sum, value) => sum + value, 0);
+    const d = { ...draft(), price: pounds(agreedPrice),
+      adjustments: [{ kind: 'fee' as const, description: 'Delivery', amount: pounds(fee) }, { kind: 'discount' as const, description: 'Agreed discount', amount: pounds(discount) }],
+      exchanges: allowances.map((value, n) => ({ registration: `TEST-${index}-${n}`, description: 'Fictional part exchange', value: pounds(value) })) };
+    const c = { ...context(), paperwork: { saleTerms: 'Fictional approved test terms', reservationTerms: '' } };
+    let sale = createSaleWorkspace({ draft: d, requestId: `create-fixture-${index}` }, c, `SALE-FIXTURE-${index}`).sale;
+    assert.equal(saleWorkspaceTotals(sale.draft, sale.payments).totalDue, due);
+    const deposit = { action: 'take-deposit', payment: { amount: '100.01', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: '' } } as const;
+    sale = changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: `deposit-fixture-${index}` }, c).sale;
+    const frozen = JSON.stringify(sale.documents[0]);
+    sale = changeSaleWorkspace(sale, payment('500.02'), { expectedRevision: sale.revision, requestId: `part-fixture-${index}` }, c).sale;
+    sale = changeSaleWorkspace(sale, { action: 'reverse', paymentId: sale.payments[1].id, amount: '20.03', kind: 'refund', reason: 'Fictional agreed refund', date: '2026-10-04' }, { expectedRevision: sale.revision, requestId: `refund-fixture-${index}` }, c).sale;
+    assert.equal(saleWorkspaceTotals(sale.draft, sale.payments).confirmedPaid, 58000);
+    const balance = due - 58000;
+    assert.throws(() => changeSaleWorkspace(sale, payment(pounds(balance - 1), 'final-payment'), { expectedRevision: sale.revision, requestId: `bad-final-fixture-${index}` }, c), /settle/);
+    sale = changeSaleWorkspace(sale, payment(pounds(balance), 'final-payment'), { expectedRevision: sale.revision, requestId: `final-fixture-${index}` }, c).sale;
+    assert.equal(saleWorkspaceTotals(sale.draft, sale.payments).balance, 0);
+    const completed = changeSaleWorkspace(sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: sale.revision, requestId: `complete-fixture-${index}` }, c);
+    assert.equal(completed.sale.lifecycle?.status, 'sold');
+    assert.equal(completed.document?.snapshot.totals.balance, 0);
+    assert.equal(completed.document?.snapshot.totals.totalDue, due);
+    assert.equal(JSON.stringify(completed.sale.documents[0]), frozen);
+    assert.equal(completed.sale.documents.filter(doc => doc.type === 'receipt').length, 4);
+  }
+});
+
 test('pending expected dates are retained and confirmation uses the actual received date', () => {
   const command = payment('500', 'deposit', 'pending');
   if (command.action !== 'payment') throw new Error('Unexpected fixture');
@@ -156,11 +208,10 @@ test('production store loads branding and vehicle facts on its held transaction 
   assert.equal((await store.list())[0].payments.length, 1); assert.equal(numbers['receipt-2026'], 1);
 });
 
-test('deposit reservation and completion issue frozen packs, require terms and replay without duplicates', () => {
+test('supplied reservation terms and required sale terms are frozen into their respective packs', () => {
   const c = { ...context(), paperwork: { saleTerms: 'APPROVED TEST SALE TERMS', reservationTerms: 'APPROVED TEST DEPOSIT TERMS' } };
   let sale = create();
   const deposit = { action: 'take-deposit', payment: { amount: '500', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: '' } } as const;
-  assert.throws(() => changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: 'missing-terms' }, context()), /approved reservation terms/);
   const reserved = changeSaleWorkspace(sale, deposit, { expectedRevision: sale.revision, requestId: 'deposit-and-reserve' }, c);
   assert.equal(reserved.sale.lifecycle?.status, 'reserved');
   assert.equal(reserved.sale.documents.length, 3); assert.equal(reserved.sale.packDocumentIds?.length, 3);
@@ -179,11 +230,10 @@ test('deposit reservation and completion issue frozen packs, require terms and r
 });
 
 
-test('confirming a pending deposit reserves only with approved terms and creates the receipt pack', () => {
+test('confirming a pending deposit includes the dealer-supplied reservation agreement in its receipt pack', () => {
   const initial = create();
   const pending = changeSaleWorkspace(initial, payment('500', 'deposit', 'pending'), { expectedRevision: initial.revision, requestId: 'pending-deposit-new' }, context()).sale;
   const command = { action: 'confirm', paymentId: pending.payments[0].id, reserveVehicle: true } as const;
-  assert.throws(() => changeSaleWorkspace(pending, command, { expectedRevision: pending.revision, requestId: 'confirm-no-terms' }, context()), /approved reservation terms/);
   assert.equal(pending.payments[0].status, 'pending');
   const c = { ...context(), paperwork: { saleTerms: 'TEST', reservationTerms: 'APPROVED TEST RESERVATION' } };
   const reserved = changeSaleWorkspace(pending, command, { expectedRevision: pending.revision, requestId: 'confirm-reserved' }, c).sale;
@@ -192,19 +242,123 @@ test('confirming a pending deposit reserves only with approved terms and creates
   assert.equal(reserved.documents.find(d => d.type === 'reservation')?.content, c.paperwork.reservationTerms);
 });
 
-test('new invoices freeze editable seller details and terms without changing earlier invoices', () => {
-  const c = { ...context(), paperwork: { saleTerms: 'Nothing in these terms limits your statutory rights.', reservationTerms: '', invoiceDetails: { name: 'Invoice Motors', email: 'accounts@example.test', vatNumber: 'GB123' } } };
+test('received deposits reserve and issue receipts without missing, empty or whitespace reservation terms', () => {
+  for (const reservationTerms of [undefined, '', ' \n\t ']) {
+    const c = context();
+    if (reservationTerms !== undefined) c.paperwork = { saleTerms: '', reservationTerms };
+    const initial = create();
+    const command = { action: 'take-deposit', payment: { amount: '500.05', kind: 'deposit', status: 'confirmed', method: 'Cash', date: '2026-10-04', reference: 'Received at showroom' } } as const;
+    const input = { expectedRevision: initial.revision, requestId: 'deposit-no-terms' };
+    const reserved = changeSaleWorkspace(initial, command, input, c);
+    assert.equal(reserved.sale.lifecycle?.status, 'reserved');
+    assert.equal(saleWorkspaceTotals(reserved.sale.draft, reserved.sale.payments).confirmedPaid, 50005);
+    assert.equal(reserved.document?.title, 'Deposit receipt');
+    assert.equal(reserved.document?.paymentAmountPence, 50005);
+    assert.equal(reserved.document?.balanceAtIssue, 1149995);
+    assert.deepEqual(reserved.sale.documents.map(d => d.type), ['receipt', 'statement']);
+    assert.deepEqual(reserved.sale.packDocumentIds, reserved.sale.documents.map(d => d.id));
+    const frozenReceipt = JSON.stringify(reserved.document);
+    // An identical retry must not suddenly add an agreement if settings change afterwards.
+    const retry = changeSaleWorkspace(reserved.sale, command, input, { ...c, paperwork: { saleTerms: 'Later sale terms', reservationTerms: 'Later reservation terms' } });
+    assert.equal(retry.replayed, true);
+    assert.equal(retry.sale.payments.length, 1);
+    assert.deepEqual(retry.sale.documents, reserved.sale.documents);
+    const paid = changeSaleWorkspace(reserved.sale, payment('11499.95', 'final-payment'), { expectedRevision: reserved.sale.revision, requestId: 'remaining-no-terms' }, c);
+    assert.equal(JSON.stringify(paid.sale.documents[0]), frozenReceipt);
+    assert.throws(() => changeSaleWorkspace(paid.sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: paid.sale.revision, requestId: 'complete-no-sale-terms' }, c), /approved terms of sale/);
+    const completed = changeSaleWorkspace(paid.sale, { action: 'complete-sale', acknowledge: true }, { expectedRevision: paid.sale.revision, requestId: 'complete-approved-sale' }, { ...c, paperwork: { saleTerms: 'Approved sale terms', reservationTerms: '' } });
+    assert.equal(completed.sale.lifecycle?.status, 'sold');
+    assert.deepEqual(completed.sale.documents.filter(d => completed.sale.packDocumentIds?.includes(d.id)).map(d => d.type).sort(), ['invoice', 'receipt', 'receipt', 'terms', 'vehicle-details'].sort());
+    assert.equal(completed.sale.documents.find(d => d.type === 'terms')?.content, 'Approved sale terms');
+    assert.equal(JSON.stringify(completed.sale.documents[0]), frozenReceipt);
+  }
+});
+
+test('confirming a pending deposit without reservation terms records money once and reserves the car', () => {
+  for (const reservationTerms of [undefined, '', ' \n ']) {
+    const c = context();
+    if (reservationTerms !== undefined) c.paperwork = { saleTerms: '', reservationTerms };
+    const initial = create();
+    const pending = changeSaleWorkspace(initial, payment('500', 'deposit', 'pending'), { expectedRevision: initial.revision, requestId: 'pending-without-terms' }, c).sale;
+    assert.equal(pending.documents.length, 0);
+    assert.equal(saleWorkspaceTotals(pending.draft, pending.payments).confirmedPaid, 0);
+    const command = { action: 'confirm', paymentId: pending.payments[0].id, reserveVehicle: true } as const;
+    const input = { expectedRevision: pending.revision, requestId: 'confirmed-without-terms' };
+    const reserved = changeSaleWorkspace(pending, command, input, c);
+    assert.equal(reserved.sale.lifecycle?.status, 'reserved');
+    assert.equal(reserved.sale.payments[0].status, 'confirmed');
+    assert.equal(reserved.document?.paymentAmountPence, 50000);
+    assert.equal(saleWorkspaceTotals(reserved.sale.draft, reserved.sale.payments).balance, 1150000);
+    assert.deepEqual(reserved.sale.documents.map(d => d.type), ['receipt', 'statement']);
+    assert.deepEqual(reserved.sale.packDocumentIds, reserved.sale.documents.map(d => d.id));
+    const replay = changeSaleWorkspace(reserved.sale, command, input, c);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.sale.revision, reserved.sale.revision);
+    assert.equal(replay.sale.payments.length, 1);
+    assert.equal(replay.sale.documents.length, 2);
+    assert.equal(pending.payments[0].status, 'pending');
+  }
+});
+
+test('guided invoices record deposits without extra paperwork and retain all dated payments', () => {
+  const apply = (sale: ReturnType<typeof create>, command: SaleWorkspaceCommand, requestId: string) => changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId }, context());
+  const received: SaleWorkspaceCommand = { action:'invoice-payment', payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'DEP-1',kind:'deposit',status:'confirmed'} };
+  const deposited = apply(create(), received, 'guided-deposit');
+  assert.equal(deposited.sale.lifecycle?.status, 'reserved');assert.equal(deposited.sale.documents.length, 0);
+  const deposit = apply(deposited.sale, { action:'issue-invoice',kind:'deposit',acknowledge:true }, 'guided-deposit-invoice');
+  assert.equal(deposit.document?.title, 'Deposit invoice');assert.equal(deposit.document?.invoiceKind,'deposit');assert.equal(deposit.sale.documents.length,1);
+  const frozen=JSON.stringify(deposit.document);
+  const interim=apply(deposit.sale,{action:'invoice-payment',payment:{amount:'500',method:'Bank transfer',date:'2026-10-04',reference:'BANK-2',kind:'part-payment',status:'confirmed'}},'guided-interim');
+  const final=apply(interim.sale,{action:'invoice-payment',payment:{amount:'11000',method:'Debit card',date:'2026-10-04',reference:'CARD-3',kind:'final-payment',status:'confirmed'}},'guided-final');
+  const invoice=apply(final.sale,{action:'issue-invoice',kind:'full',acknowledge:true},'guided-full-invoice');
+  assert.equal(invoice.sale.documents.length,2);assert.equal(invoice.document?.snapshot.payments.length,3);assert.equal(invoice.document?.balanceAtIssue,0);
+  assert.equal(JSON.stringify(invoice.sale.documents[0]),frozen);assert.equal(invoice.sale.lifecycle?.status,'reserved');assert.equal(invoice.sale.completedAt,undefined);
+  const complete=apply(invoice.sale,{action:'finish-invoice-sale',acknowledge:true},'guided-sold');
+  assert.equal(complete.sale.lifecycle?.status,'sold');assert.ok(complete.sale.completedAt);assert.equal(complete.sale.documents.length,2);
+  const replay=changeSaleWorkspace(complete.sale,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:invoice.sale.revision,requestId:'guided-sold'},context());assert.equal(replay.replayed,true);
+});
+
+test('guided invoices reject unreceived or excessive payments and require a current settled full invoice for sold status', () => {
+  const sale=create();const input={expectedRevision:sale.revision,requestId:'guided-invalid'};
+  assert.throws(() => changeSaleWorkspace(sale,{action:'issue-invoice',kind:'deposit',acknowledge:true},input,context()),/received deposit/);
+  assert.throws(() => changeSaleWorkspace(sale,{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'pending'}},input,context()),/received funds/);
+  assert.throws(() => changeSaleWorkspace(sale,{action:'invoice-payment',payment:{amount:'12001',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},input,context()),/exceeds/);
+  const invoice=changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},input,context()).sale;
+  assert.equal(invoice.lifecycle,undefined);
+  assert.throws(() => changeSaleWorkspace(invoice,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:invoice.revision,requestId:'guided-unpaid-sold'},context()),/Settle/);
+  const paid=changeSaleWorkspace(invoice,{action:'invoice-payment',payment:{amount:'12000',method:'Cash',date:'2026-10-04',reference:'',kind:'final-payment',status:'confirmed'}},{expectedRevision:invoice.revision,requestId:'guided-paid'},context()).sale;
+  assert.throws(() => changeSaleWorkspace(paid,{action:'finish-invoice-sale',acknowledge:true},{expectedRevision:paid.revision,requestId:'guided-old-invoice'},context()),/updated full invoice/);
+});
+
+test('guided corrections preserve history without generating unwanted receipts', () => {
+  const deposited=changeSaleWorkspace(create(),{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},{expectedRevision:1,requestId:'guided-correction-deposit'},context()).sale;
+  const corrected=changeSaleWorkspace(deposited,{action:'reverse',paymentId:deposited.payments[0].id,amount:'100',kind:'refund',reason:'Customer refund',date:'2026-10-04',invoiceOnly:true},{expectedRevision:deposited.revision,requestId:'guided-correction'},context()).sale;
+  assert.equal(corrected.documents.length,0);assert.equal(corrected.payments.length,2);assert.equal(saleWorkspaceTotals(corrected.draft,corrected.payments).confirmedPaid,40000);
+});
+
+test('staff may explicitly sell with an outstanding balance, then record later funds without losing the debt or invoice', () => {
+  const sale=create();const issued=changeSaleWorkspace(sale,{action:'issue-invoice',kind:'full',acknowledge:true},{expectedRevision:sale.revision,requestId:'guided-credit-invoice'},context()).sale;
+  const sold=changeSaleWorkspace(issued,{action:'finish-invoice-sale',acknowledge:true,acknowledgeOutstanding:true},{expectedRevision:issued.revision,requestId:'guided-credit-sold'},context()).sale;
+  assert.equal(sold.lifecycle?.status,'sold');assert.equal(saleWorkspaceTotals(sold.draft,sold.payments).balance,1200000);assert.match(sold.events.at(-1)!.description,/staff acknowledged/);
+  const paid=changeSaleWorkspace(sold,{action:'invoice-payment',payment:{amount:'12000',method:'Bank transfer',date:'2026-10-04',reference:'LATE-BANK',kind:'final-payment',status:'confirmed'}},{expectedRevision:sold.revision,requestId:'guided-credit-final'},context()).sale;
+  assert.equal(saleWorkspaceTotals(paid.draft,paid.payments).balance,0);assert.equal(paid.lifecycle?.status,'sold');assert.equal(paid.documents.length,1);
+  assert.throws(() => changeSaleWorkspace(sold,{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},{expectedRevision:sold.revision,requestId:'guided-sold-reserve'},context()),/already sold/);
+});
+
+test('new invoices use current seller and terms while issued snapshots remain immutable', async () => {
+  const { invoiceBranding } = await import('@workspace/vehicle-meta');
+  const firstContext = context();
+  firstContext.branding = invoiceBranding(firstContext.branding, undefined, { name: 'First seller', vatNumber: '' });
+  firstContext.paperwork = { saleTerms: 'First custom terms', reservationTerms: 'Deposit terms' };
   const sale = create();
-  const first = changeSaleWorkspace(sale, { action: 'document', type: 'invoice' }, { expectedRevision: sale.revision, requestId: 'first-invoice-settings' }, c);
-  assert.equal(first.document?.content, c.paperwork.saleTerms);
-  assert.equal(first.document?.snapshot.branding.identity.name, 'Invoice Motors');
-  assert.equal(first.document?.snapshot.branding.contact.phone, context().branding.contact.phone);
-  assert.equal(first.document?.snapshot.branding.legal.vatNumber, 'GB123');
-  const original = JSON.stringify(first.document);
-  const changed = { ...c, paperwork: { ...c.paperwork, saleTerms: 'Revised wording', invoiceDetails: { name: 'New Invoice Motors', vatNumber: '' } } };
-  const second = changeSaleWorkspace(first.sale, { action: 'document', type: 'invoice' }, { expectedRevision: first.sale.revision, requestId: 'second-invoice-settings' }, changed);
-  assert.equal(JSON.stringify(second.sale.documents[0]), original);
-  assert.equal(second.document?.content, 'Revised wording');
-  assert.equal(second.document?.snapshot.branding.legal.vatNumber, '');
-  assert.equal(c.branding.identity.name, 'Test Motors');
+  const first = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: 'seller-first' }, firstContext);
+  const frozen = JSON.stringify(first.document);
+  const nextContext = context();
+  nextContext.branding = invoiceBranding(nextContext.branding, undefined, { name: 'Next seller' });
+  nextContext.paperwork = { saleTerms: 'Next custom terms', reservationTerms: 'Deposit terms' };
+  const next = changeSaleWorkspace(first.sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: first.sale.revision, requestId: 'seller-next' }, nextContext);
+  assert.equal(next.document?.snapshot.branding.identity.name, 'Next seller');
+  assert.equal(next.document?.content, 'Next custom terms');
+  assert.equal(JSON.stringify(next.sale.documents[0]), frozen);
+  assert.equal(first.document?.snapshot.branding.identity.name, 'First seller');
 });

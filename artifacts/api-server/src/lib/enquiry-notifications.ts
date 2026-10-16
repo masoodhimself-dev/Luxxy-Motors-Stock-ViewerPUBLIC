@@ -1,6 +1,6 @@
 import { forEachActiveDealer } from './tenant-jobs';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
-import { currentDealerId } from "./tenant-context";
+import { currentDealerId, multiTenantEnabled } from "./tenant-context";
 import { sendEmail, renderDealerEmail } from "./email-provider";
 import {
   and,
@@ -124,6 +124,7 @@ async function attemptEmail({
   to,
   subject,
   html,
+  text,
   idempotencyKey,
   missingRecipientMessage,
   log,
@@ -135,6 +136,7 @@ async function attemptEmail({
   to: string | null;
   subject: string;
   html: string;
+  text?: string;
   idempotencyKey: string;
   missingRecipientMessage: string;
   log: Logger;
@@ -160,6 +162,7 @@ async function attemptEmail({
       idempotencyKey,
       dealerName,
       attachments,
+      text,
     );
     return { status: "sent", error: null, sentAt: new Date(), providerId };
   } catch (error) {
@@ -369,7 +372,7 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
   if (!claimed) return;
 
   const result = await attemptEmail({
-    to: process.env.DEALER_NOTIFICATION_EMAIL?.trim() || dealer.contact.email || null,
+    to: dealerNotificationRecipient(dealer.contact.email),
     ...await enquiryEmail(claimed, dealer, 'dealer'),
     idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
@@ -553,6 +556,11 @@ export async function processDueNotifications(log: Logger) {
         lte(enquiriesTable.appointmentAt, now),
       ),
     );
+}
+
+/** A legacy server-wide recipient must never override another tenant's address. */
+export function dealerNotificationRecipient(email?: string | null): string | null {
+  return (!multiTenantEnabled() ? process.env.DEALER_NOTIFICATION_EMAIL?.trim() : '') || email?.trim() || null;
 }
 
 export function startReminderWorker(log: Logger) {

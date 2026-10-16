@@ -7,7 +7,8 @@ import { db, pool, enquiriesTable, stockImportRunsTable, vehiclesTable, vehicleC
 import type { SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { requirePermission, requireStaff, staffLabel } from '../middlewares/staff-auth';
 import { isStaffRole } from '../lib/staff-permissions';
-import { dealerOperationsSummary, paymentLedgerCsv, stockHealth } from '../lib/dealer-operations';
+import { paymentLedgerCsv, stockHealth } from '../lib/dealer-operations';
+import { readDealerOperationsData } from '../lib/dealer-operations-data';
 const router = Router();
 const dealerId = () => currentDealerId();
 const uuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -24,22 +25,23 @@ async function sales() {
 }
 function staleAfterHours() { const hours = Number(process.env.STOCK_STALE_AFTER_HOURS); return Number.isFinite(hours) && hours > 0 ? hours : 36; }
 async function monitoredStockRuns() {
+  const fields = { id: stockImportRunsTable.id, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, source: stockImportRunsTable.source, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, complete: stockImportRunsTable.complete, expectedCount: stockImportRunsTable.expectedCount, receivedCount: stockImportRunsTable.receivedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors };
   const [recent, successful] = await Promise.all([
-    db.select().from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId, dealerId())).orderBy(desc(stockImportRunsTable.receivedAt)).limit(100),
-    db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, dealerId()), eq(stockImportRunsTable.status, 'completed'), eq(stockImportRunsTable.complete, true))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1),
+    db.select(fields).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId, dealerId())).orderBy(desc(stockImportRunsTable.receivedAt)).limit(100),
+    db.select(fields).from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, dealerId()), eq(stockImportRunsTable.status, 'completed'), eq(stockImportRunsTable.complete, true))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1),
   ]);
   return successful[0] && !recent.some(run => run.id === successful[0].id) ? [...recent, successful[0]] : recent;
 }
 router.get('/dealer-operations', requireStaff, async (req, res) => {
   try {
-    const [enquiries, saleRows, stockRuns, [{ count }]] = await Promise.all([
-      db.select().from(enquiriesTable).where(eq(enquiriesTable.dealerId, dealerId())),
-      sales(),
+    const now = new Date();
+    const threshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD);
+    const [summary, stockRuns] = await Promise.all([
+      readDealerOperationsData(pool, dealerId(), now, Number.isFinite(threshold) && threshold >= 0 ? threshold : 2),
       monitoredStockRuns(),
-      db.select({ count: sql<number>`count(*)::int` }).from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, dealerId()), sql`${vehiclesTable.inventoryStatus} in ('available','reserved')`, sql`${vehiclesTable.missingCount} < ${Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD)) && Number(process.env.STOCK_MISSING_HIDE_THRESHOLD) >= 0 ? Number(process.env.STOCK_MISSING_HIDE_THRESHOLD) : 2}`, sql`not (${vehiclesTable.priceReviewRequired} and ${vehiclesTable.sourcePrice} is null and ${vehiclesTable.websitePriceOverride} is null)`)),
     ]);
     res.setHeader('Cache-Control', 'no-store');
-    res.json(dealerOperationsSummary({ enquiries, sales: saleRows, stockRuns, stockCount: count, staleAfterHours: staleAfterHours() }));
+    res.json({ generatedAt: now.toISOString(), ...summary, stock: stockHealth(stockRuns, now, staleAfterHours()) });
   } catch (error) { fail(req, res, error); }
 });
 function exportDate(value: unknown): string | undefined {

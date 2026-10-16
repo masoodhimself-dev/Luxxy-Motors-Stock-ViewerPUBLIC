@@ -2,6 +2,22 @@
 
 The Sales section keeps one sale file for a customer and vehicle. Customer details, agreed charges, up to three part exchanges, payments, documents and handover arrangements stay together. The staff portal retains its existing access boundary.
 
+## Focused invoice workspace
+
+Opening a sale or starting **New sale** enters a full-screen editing workspace. On desktop, the fields scroll independently beside the actual PDF; the steps, save action and next action remain visible. **Fit page** scales each A4 page to the available height, while **Larger view** enlarges the document inside its own scrolling preview. Printing and downloading still use the original PDF bytes.
+
+On narrower tablet/phone screens, **Edit sale** and **Invoice preview** switch between the two panes without discarding entered values. **Return to portal** restores the surrounding navigation and retains the draft; **Focus invoice** resumes editing. **All sales** still asks before discarding unsaved changes. Validation errors return to the top of the form, while payment/completion dialogs retain their own error and focus handling.
+
+`tests/invoice-focus.spec.ts` checks short desktop, tablet and phone viewports, independent scrolling, complete A4 visibility, resizing, zoom, draft retention and error recovery using unsaved fictional data with API writes blocked.
+
+## Invoice and receipt presentation
+
+The standard PDF uses a white masthead, the saved dealer accent colour, clear customer/vehicle blocks and a quiet itemised table. Invoices emphasise the remaining balance; payment receipts emphasise the individual payment received and show the cumulative paid total separately. Fees, discounts and up to three part exchanges remain itemised. Typography and spacing adapt to long dealer names, references and large amounts. Ordinary invoices fit one A4 page; longer statements and supplied terms continue onto numbered pages.
+
+The focused preview uses the same PDF renderer as issuing, downloading and emailing documents. Dealer presentation settings still control branding, premium/classic styles and ink-saving output. Existing PDF archives retain their original bytes; the new presentation applies to previews and newly generated documents. It does not alter payment calculations, document references or saved financial values. Drafts remain clearly marked, without an extra issued-document badge.
+
+`artifacts/api-server/src/sale-document-pdf.test.ts` checks page bounds, continuation-header collisions, three-car part exchanges, dense payment statements, exact monetary text, dealer colours, ink-saving output and deterministic archives.
+
 ## Staff workflow
 
 1. Start **New sale**, or reopen a sale by customer, telephone, registration or reference.

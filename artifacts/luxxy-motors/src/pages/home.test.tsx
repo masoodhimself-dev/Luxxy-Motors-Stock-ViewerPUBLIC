@@ -152,6 +152,9 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
   };
 });
 
+let demoSiteMode = false;
+vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
+
 let overrideSettings: typeof dealerConfigFixture & {
   presentation?: { heroImageUrl?: string; heroImageAlt?: string; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
@@ -206,6 +209,7 @@ const originalCars = stockFixture.cars.map((car) => ({ ...car }));
 afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
+  demoSiteMode=false;
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
   window.history.replaceState({}, '', '/');
   window.sessionStorage.clear();
@@ -221,7 +225,7 @@ describe('showroom data resilience', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError'); });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Blocked', 'QuotaExceededError'); });
     renderHome();
-    fireEvent.click(screen.getByRole('button', { name: 'Display & sharing' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
     expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('button-stock-view-compact'));
     expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
@@ -319,7 +323,8 @@ describe('showroom search filters', () => {
     const introduction = screen.getByRole('region', { name: 'Plan your visit' });
     expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
     expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
-    expect(within(introduction).getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why choose us?' })).toBeInTheDocument();
     expect(within(introduction).getByRole('link', { name: dealerConfigFixture.bookViewing.ctaLabel })).toHaveAttribute('href', '/enquire?type=viewing');
   });
 
@@ -383,13 +388,14 @@ describe('showroom search filters', () => {
     expect(screen.getByRole('heading', { name: 'Featured cars' })).toBeInTheDocument();
     expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse Stock' })).toHaveAttribute('href', '/stock');
-    fireEvent.click(screen.getByRole('button', { name: 'Pause cars' }));
-    expect(screen.getByRole('button', { name: 'Resume cars' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Auto-scroll cars' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Auto-scroll cars' }));
+    expect(screen.getByRole('button', { name: 'Pause cars' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('switches between full cards and the compact stock list', () => {
     renderHome();
-    fireEvent.click(screen.getByRole('button', { name: 'Display & sharing' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
 
     expect(screen.getByTestId('card-vehicle-bmw-1-series')).toBeInTheDocument();
     expect(screen.getByTestId('button-stock-view-cards')).toHaveAttribute('aria-pressed', 'true');
@@ -409,7 +415,7 @@ describe('showroom search filters', () => {
   it('restores the saved stock display preference', () => {
     window.localStorage.setItem('luxxy.stock-view.v1', 'compact');
     renderHome();
-    fireEvent.click(screen.getByRole('button', { name: 'Display & sharing' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
 
     expect(screen.getByTestId('button-stock-view-compact')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('compact-vehicle-bmw-1-series')).toBeInTheDocument();
@@ -499,7 +505,7 @@ describe('showroom search filters', () => {
     fireEvent.click(screen.getByRole('button', { name: /Reset all/i }));
 
     expect(resultTitles()).toHaveLength(5);
-    expect(screen.getByText('5 vehicles available')).toBeInTheDocument();
+    expect(screen.getByText('5 cars in stock')).toBeInTheDocument();
     expect((screen.getByTestId('input-showroom-search') as HTMLInputElement).value).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     expect((screen.getByLabelText('Make') as HTMLSelectElement).value).toBe('');
@@ -562,3 +568,116 @@ it('loads cars in batches and excludes sold stock while keeping reserved cars la
   expect(resultTitles().at(-1)).toBe('Batch car 0');
   expect(resultTitles()).not.toContain('Batch car 1');
 });
+
+describe('supplied vehicle benefit searches', () => {
+  const runningCosts = (annualTax: string, insuranceGroup: string) => ({
+    runningCosts: { items: [
+      { key: 'Tax', label: 'Tax per year', value: annualTax },
+      { key: 'Insurance', label: 'Insurance group', value: insuranceGroup },
+    ] },
+  });
+
+  it('really filters to 30,000 miles or less, rather than just sorting all cars', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], mileage: 30000 },
+      { ...originalCars[1], mileage: 30001 },
+      { ...originalCars[2], mileage: null },
+      { ...originalCars[3], mileage: 0 },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (2)');
+    fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'Audi A3']);
+    expect(window.location.search).toBe('?lowMileage=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Up to 30,000 miles filter' }));
+    expect(resultTitles()).toHaveLength(4);
+    expect(window.location.search).toBe('');
+  });
+
+  it('uses supplied fuel and emission standards independently from mileage', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], fuel: 'Petrol', emissionClass: 'Euro 4', mileage: 30001 },
+      { ...originalCars[1], fuel: 'Diesel', emissionClass: 'Euro 6', mileage: 80000 },
+      { ...originalCars[2], fuel: 'Diesel', emissionClass: 'Euro 5', mileage: 10000 },
+      { ...originalCars[3], fuel: null, emissionClass: 'Euro 6', mileage: 10000 },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    const choice = screen.getByTestId('button-quick-ulez');
+    expect(choice).toHaveTextContent('ULEZ compliant (2)');
+    expect(choice).toHaveAttribute('title', expect.stringContaining('Check the registration with TfL'));
+    fireEvent.click(choice);
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(window.location.search).toBe('?ulez=true');
+  });
+
+  it('combines explicit advertised annual tax and insurance ranges without guessing missing values', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], sourceExtras: runningCosts('£35', '15E') },
+      { ...originalCars[1], sourceExtras: runningCosts('£0', '1A') },
+      { ...originalCars[2], sourceExtras: runningCosts('£36', '8E') },
+      { ...originalCars[3], sourceExtras: runningCosts('£20', '16E') },
+      { ...originalCars[4], sourceExtras: null },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-lowAnnualTax')).toHaveTextContent('Road tax up to £35/year (3)');
+    fireEvent.click(screen.getByTestId('button-quick-lowAnnualTax'));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Audi A3']);
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-lowInsuranceGroup')).toHaveTextContent('Insurance groups 1–15 (3)');
+    fireEvent.click(screen.getByTestId('button-quick-lowInsuranceGroup'));
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(window.location.search).toBe('?lowAnnualTax=true&lowInsuranceGroup=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
+    expect(resultTitles()).toHaveLength(5);
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps existing make and budget selections when a benefit is added', () => {
+    renderHome();
+    fireEvent.change(screen.getByLabelText('Quick filter by make'), { target: { value: 'BMW' } });
+    fireEvent.change(screen.getByLabelText('Quick filter by maximum price'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    expect(window.location.search).toBe('?make=BMW&maxPrice=5000&lowMileage=true');
+    expect(screen.getByRole('button', { name: 'Advanced search' })).toHaveTextContent('(3)');
+  });
+
+  it('omits unavailable benefit choices and excludes sold vehicles from their counts', () => {
+    stockFixture.cars = [
+      { ...originalCars[0], mileage: 90000 },
+      { ...originalCars[1], mileage: 12000, fuel: 'Diesel', emissionClass: 'Euro 6', sourceExtras: runningCosts('£20', '8E'), inventoryStatus: 'sold' },
+    ];
+    renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    for (const testId of ['button-quick-low-mileage', 'button-quick-ulez', 'button-quick-lowAnnualTax', 'button-quick-lowInsuranceGroup']) {
+      expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+    }
+  });
+
+  it('restores shared benefit searches, supports empty results, and removes only the selected condition', () => {
+    window.history.replaceState({}, '', '/stock?make=Ford&lowMileage=true&ulez=true');
+    renderHome();
+    expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove ULEZ compliant filter' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove ULEZ compliant filter' }));
+    expect(window.location.search).toBe('?make=Ford&lowMileage=true');
+    fireEvent.click(screen.getByTestId('button-clear-filters'));
+    expect(resultTitles()).toHaveLength(5);
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps older saved filter sessions usable when they have no benefit fields', () => {
+    window.sessionStorage.setItem('luxxy.browse.v1', JSON.stringify({ filters: {
+      make: 'BMW', model: '', minPrice: '', maxPrice: '', fuel: '', transmission: '', search: '', catS: false, catN: false, noWriteOff: false, sort: '',
+    } }));
+    renderHome();
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
+    expect(window.location.search).toBe('?make=BMW');
+  });
+});
+
+it("uses an illustrative car hero for demos and avoids a repeated demo announcement",()=>{demoSiteMode=true;overrideSettings={...dealerConfigFixture,hero:{...dealerConfigFixture.hero,announcement:"Demonstration website — sample activity, no real payments."}};renderHome(false);expect(screen.getByAltText("Illustrative stock photograph of a white BMW coupe")).toBeInTheDocument();expect(screen.queryByText("Demonstration website — sample activity, no real payments.")).not.toBeInTheDocument();});

@@ -1,5 +1,5 @@
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
-import { websiteText } from "@/lib/website-content";
+import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { Link } from "wouter";
 import { ArrowRight, MapPin, Phone } from "lucide-react";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
@@ -39,8 +39,9 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
             <h2 id="visit-heading" tabIndex={-1} className="section-heading">{websiteText(settings, "visitHeading")}
             </h2>
             <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">
-              {content.visitInstructions ||
-                "Book a test drive and take a closer look. Contact the team for directions and appointment details before setting off."}
+              {customerDefaultCopy(content.visitInstructions,
+                'Book a test drive and take a closer look. Contact us for directions and appointment details before setting off.',
+                ['Book a test drive and take a closer look. Contact the team for directions and appointment details before setting off.'])}
             </p>
             <div className="mt-6 grid gap-6 sm:grid-cols-2">
               <div>
@@ -48,7 +49,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
                 <address className="mt-3 not-italic text-sm leading-6 text-muted-foreground">
                   {addressLines.length
                     ? addressLines.map((line, i) => <div key={i}>{line}</div>)
-                    : "Contact the showroom for directions."}
+                    : "Contact us for directions."}
                 </address>
                 {address?.mapsUrl && (
                   <a
@@ -123,7 +124,7 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
                   {content.teamImageUrl && (
                     <ShowroomPhoto
                       src={content.teamImageUrl}
-                      alt={content.teamImageAlt || "The dealership team"}
+                      alt={customerDefaultCopy(content.teamImageAlt, 'Our team', ['The dealership team'])}
                       className="mb-5 aspect-[16/9]"
                     />
                   )}

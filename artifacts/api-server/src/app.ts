@@ -1,3 +1,4 @@
+import demoOnboardingRouter from './routes/demo-onboarding';
 import platformDealersRouter from "./routes/platform-dealers";
 import { resolveTenant } from "./middlewares/tenant";
 import { serveFrontend } from "./lib/serve-frontend";
@@ -23,7 +24,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0]?.replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/, '$1[private]'),
+          url: req.url?.split("?")[0]?.replace(/\/(?:api\/invoice-verification|verify-invoice)\/[^?]*/, '/invoice-verification/[private]')?.replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/, '$1[private]'),
         };
       },
       res(res) {
@@ -38,6 +39,8 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
+app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
   if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
 } }));
@@ -45,10 +48,11 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 
+app.use("/api/demo-onboarding", demoOnboardingRouter);
 app.use("/api/platform", platformDealersRouter);
 app.use(resolveTenant);
 app.use("/api", router);
-app.use(['/my-purchase', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
+app.use(['/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api
 // because the URL is handed to buyers.
 app.use("/share", shareRouter);
@@ -56,7 +60,9 @@ app.use(["/api", "/share"], (_req, res) => { res.status(404).json({ error: "Not 
 if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_DIR);
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  req.log.error({ err: error }, "Unhandled API error");
+  if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
+  else if(req.path === '/api/service-book-upload' || req.path.startsWith('/api/staff/inventory')) req.log.warn('Private inventory request failed');
+  else req.log.error({ err: error }, "Unhandled API error");
   if (res.headersSent) return;
 
   const identity = /^\/api\/stock\/imports(?:\/|$)/.test(req.path) ? {
@@ -64,6 +70,8 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
     retailerId: typeof req.body?.retailerId === "string" ? req.body.retailerId : null,
   } : {};
   if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
+    if(req.path.startsWith('/api/demo-onboarding')){res.status(413).json({error:'Onboarding request exceeds the 450 KB limit.'});return;}
+    if(req.path === '/api/service-book-upload'){res.status(413).json({error:'Compressed upload exceeds the 2.2 MB request limit.'});return;}
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });
     return;
   }

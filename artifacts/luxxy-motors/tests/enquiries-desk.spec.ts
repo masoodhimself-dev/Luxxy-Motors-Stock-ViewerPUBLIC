@@ -80,6 +80,8 @@ async function setup(page: Page) {
   );
   await page.goto("/portal");
   await page.getByTestId("tab-enquiries").click();
+  await expect(page.getByRole("tab", { name: "Today", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "New enquiry", exact: true }).click();
 }
 for (const width of [390, 820, 1440]) {
   test(`call desk searches stock and saves a phone-only enquiry at ${width}`, async ({
@@ -145,7 +147,7 @@ for (const width of [390, 820, 1440]) {
       },
     );
     await page
-      .getByRole("tab", { name: "Find enquiry or appointment", exact: true })
+      .getByRole("tab", { name: "Enquiries", exact: true })
       .click();
     await page.getByLabel("Find a customer or car").fill("07700900123");
     await page.getByRole("button", { name: "Open enquiry for Alex Caller, CALL-123" }).click();
@@ -175,7 +177,7 @@ test("staff must review an out-of-hours reschedule before it is sent", async ({ 
     payload = route.request().postDataJSON();
     return route.fulfill({ json: { ...existing, appointmentAt: payload.appointmentAt, appointmentOutsideHours: true, appointmentRevision: 1 } });
   });
-  await page.getByRole("tab", { name: "Find enquiry or appointment", exact: true }).click();
+  await page.getByRole("tab", { name: "Enquiries", exact: true }).click();
   await page.getByLabel("Find a customer or car").fill("07700900123");
     await page.getByRole("button", { name: "Open enquiry for Alex Caller, CALL-123" }).click();
   await page.getByRole("button", { name: "Change appointment", exact: true }).click();
@@ -199,7 +201,9 @@ test("enquiry stock photos enlarge on hover and show only supplied plate details
   ] } }));
   await page.reload();
   await page.getByTestId("tab-enquiries").click();
-  await page.getByRole("tab", { name: "All cars", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Today", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "New enquiry", exact: true }).click();
+  await openStock(page);
   await page.getByRole("img", { name: "Preview Ford Focus" }).hover();
   const preview = page.getByRole("status", { name: "Enlarged photo of Ford Focus" });
   await expect(preview).toContainText("Colour: Blue");
@@ -225,6 +229,7 @@ test("reserved stock cannot be booked and failed requests retain caller details"
     .getByLabel("Customer name", { exact: true })
     .fill("Conflict Caller");
   await page.getByLabel("Phone number", { exact: true }).fill("07700900123");
+  await page.getByRole("combobox", {name:"Appointment date",exact:true}).selectOption({index:1});
   await page.getByRole("button", { name: "12:00", exact: true }).click();
   await page.route("**/api/staff/enquiries", (route) =>
     route.fulfill({
@@ -253,7 +258,7 @@ test("cancellation requires a second deliberate action", async ({ page }) => {
     },
   );
   await page
-    .getByRole("tab", { name: "Find enquiry or appointment", exact: true })
+    .getByRole("tab", { name: "Enquiries", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Change appointment", exact: true })
@@ -342,8 +347,8 @@ for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     await setup(page);
     await page.getByLabel('Customer name', { exact: true }).fill('Draft Caller');
-    await page.getByRole('tab', { name: 'All cars', exact: true }).click();
-    const panel = page.getByRole('tabpanel', { name: 'All cars', exact: true });
+    await openStock(page);
+    const panel = page.getByRole('tabpanel', { name: 'Showroom stock', exact: true });
     await expect(panel.getByRole('listitem')).toHaveCount(2);
     await expect(panel.getByRole('listitem').filter({ hasText: 'Reserved Ford Fiesta' }).getByRole('button', { name: 'Book test drive' })).toBeDisabled();
     await panel.getByLabel('Stock availability').selectOption('available');
@@ -353,7 +358,7 @@ for (const width of [390, 820, 1440]) {
     await panel.getByRole('button', { name: 'Log enquiry', exact: true }).click();
     await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
     await expect(page.getByRole('radio', { name: 'Log call / enquiry only' })).toBeChecked();
-    await page.getByRole('tab', { name: 'All cars', exact: true }).click();
+    await openStock(page);
     await panel.getByRole('button', { name: 'Book test drive' }).click();
     await expect(page.getByRole('radio', { name: 'Book a test drive', exact: true })).toBeChecked();
     await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
@@ -398,19 +403,21 @@ test('workspace draft survives refresh and universal search opens the existing e
   await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
   await page.reload();
   await page.getByTestId('tab-enquiries').click();
+  await page.getByRole('button', {name:'New enquiry',exact:true}).click();
   await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Draft Caller');
   await page.getByLabel('Search the workspace').fill('CALL-123');
   await page.getByRole('button', { name: /CALL-123/ }).click();
+  await page.getByText('More options', {exact:true}).click();
   await expect(page.getByRole('button', { name: 'Update enquiry', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Today', exact: true }).click();
   await page.screenshot({ path: '/tmp/luxxy-today-workspace.png', fullPage: true });
-  await page.getByRole('tab', { name: 'New call', exact: true }).click();
+  await page.getByRole('button', { name: 'New enquiry', exact: true }).click();
   await page.getByRole('button', { name: 'Discard draft' }).click();
   await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('');
 });
 
 for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
-  test(`desktop call desk keeps the save action in view with long details at ${width}`, async ({ page }) => {
+  test(`redesigned call desk keeps expanded cards separate with long details at ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await setup(page);
     await page.route('**/api/stock', route => route.fulfill({ json: {
@@ -426,14 +433,15 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
     await page.getByLabel('Phone number', { exact: true }).fill('07700900456');
     await page.getByLabel('Book a test drive', { exact: true }).check();
     await page.getByRole('button', { name: '12:00', exact: true }).click();
+    await page.getByText('Vehicle history and preparation', {exact:true}).click();
     await page.locator('.enquiry-vehicle-context summary').filter({ hasText: /^Description$/ }).click();
     await page.getByLabel('Request a follow-up', { exact: true }).check();
     await page.getByLabel('Follow-up date and time (UK)').fill('2027-01-07T10:00');
     await page.getByLabel('Follow-up note (optional)').fill('Discuss delivery after the test drive.');
     const save = page.getByRole('button', { name: 'Save test-drive booking', exact: true });
     await expect(save).toBeEnabled();
-    // Inputs can scroll within their columns; a booking never pushes Save down the document.
-    await page.evaluate(() => window.scrollTo(0, 0));
+    // Normal-flow cards expand without overlapping; Save remains reachable.
+    await save.scrollIntoViewIfNeeded();
     const geometry = await page.evaluate(() => {
       const sections = [...document.querySelectorAll('.enquiry-new-call > fieldset')].map(element => {
         const box = element.getBoundingClientRect();
@@ -444,24 +452,30 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
       return { sections, saveBottom: box.bottom, saveTop: box.top, workspaceWidth: workspace.width, scrollX: window.scrollX, overflow: document.documentElement.scrollWidth > window.innerWidth };
     });
     expect(geometry.sections).toHaveLength(3);
-    expect(geometry.sections[0].x).toBeLessThan(geometry.sections[1].x);
-    expect(geometry.sections[1].x).toBeLessThan(geometry.sections[2].x);
-    expect(Math.abs(geometry.sections[0].y - geometry.sections[2].y)).toBeLessThan(2);
-    expect(geometry.sections[0].scrollHeight).toBeGreaterThan(geometry.sections[0].clientHeight);
+    if (width >= 1100) expect(geometry.sections[0].x).toBeLessThan(geometry.sections[1].x);
+    else expect(geometry.sections[0].x).toBe(geometry.sections[1].x);
+    expect(geometry.sections[2].x).toBe(geometry.sections[0].x);
+    expect(geometry.sections[2].y).toBeGreaterThan(geometry.sections[0].y);
+    for (let i = 0; i < geometry.sections.length; i++) for (let j = i + 1; j < geometry.sections.length; j++) {
+      const a = geometry.sections[i], b = geometry.sections[j];
+      const intersectionWidth = Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x);
+      const intersectionHeight = Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y);
+      expect(intersectionWidth <= 0 || intersectionHeight <= 0).toBe(true);
+    }
     expect(geometry.saveBottom).toBeLessThanOrEqual(height);
     expect(geometry.saveTop).toBeGreaterThan(0);
     expect(geometry.workspaceWidth).toBeGreaterThanOrEqual(width - 50);
     expect(geometry.overflow).toBe(false);
-    await page.screenshot({ path: `/tmp/luxxy-enquiry-desktop-fit-${width}.png` });
-    await page.getByRole('tab', { name: 'All cars', exact: true }).click();
-    await page.getByRole('tab', { name: 'New call', exact: true }).click();
+    await page.screenshot({ path: `/tmp/luxxy-enquiry-desktop-fit-${width}.png`, fullPage:true });
+    await openStock(page);
+    await page.getByRole('button', { name: 'New enquiry', exact: true }).click();
     await expect(page.getByLabel('Customer name', { exact: true })).toHaveValue('Desktop Caller');
     await expect(page.getByLabel('Request a follow-up', { exact: true })).toBeChecked();
     await expect(page.getByRole('button', { name: '12:00', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
     await expect(page.locator('.enquiry-calendar-day')).toHaveCount(42);
     const lastDay = page.locator('.enquiry-calendar-day').last();
-    if (height < 900) await lastDay.scrollIntoViewIfNeeded();
+    await lastDay.scrollIntoViewIfNeeded();
     const diary = await page.evaluate(() => {
       const month = document.querySelector('.enquiry-calendar-month')!.getBoundingClientRect();
       const agenda = document.querySelector('.enquiry-calendar-agenda')!.getBoundingClientRect();
@@ -470,7 +484,14 @@ for (const [width, height] of [[1024, 768], [1440, 900], [1920, 1080]]) {
     });
     expect(diary.monthRight).toBeLessThan(diary.agendaLeft);
     expect(diary.lastBottom).toBeLessThanOrEqual(diary.monthBottom);
-    expect(diary.lastBottom).toBeLessThanOrEqual(height);
+    // Browser scroll offsets can leave a fractional pixel at the viewport edge.
+    expect(diary.lastBottom).toBeLessThanOrEqual(height + 1);
     await page.screenshot({ path: `/tmp/luxxy-enquiry-calendar-fit-${width}.png` });
   });
+}
+
+async function openStock(page: Page) {
+ const tools = page.locator('details').filter({has:page.getByText('More tools',{exact:true})});
+ if (await tools.getAttribute('open') === null) await tools.locator('summary').click();
+ await page.getByRole('button',{name:'Browse showroom stock',exact:true}).click();
 }

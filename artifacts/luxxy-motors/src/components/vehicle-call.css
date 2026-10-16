@@ -10,7 +10,7 @@
 }
 
 .vehicle-call-dialog .vehicle-action-eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: .025em;
 }
 
@@ -42,7 +42,7 @@
 }
 
 .vehicle-call-dialog .vehicle-dialog-muted {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -91,7 +91,7 @@
   justify-content: center;
   gap: 7px;
   color: var(--dialog-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -122,7 +122,7 @@
 
 .vehicle-call-dialog .vehicle-call-telephone > .vehicle-action-note {
   margin-top: 5px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .vehicle-call-dialog .vehicle-callback-form {
@@ -130,13 +130,13 @@
 }
 
 .vehicle-call-dialog .vehicle-call-copy { display: grid; justify-items: center; gap: 2px; }
-.vehicle-call-dialog .vehicle-call-copy button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 12px; color: var(--dialog-muted); font-size: 12px; font-weight: 500; }
-.vehicle-call-dialog .vehicle-call-copy p { color: var(--dialog-muted); font-size: 12px; }
+.vehicle-call-dialog .vehicle-call-copy button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 12px; color: var(--dialog-muted); font-size: 13px; font-weight: 500; }
+.vehicle-call-dialog .vehicle-call-copy p { color: var(--dialog-muted); font-size: 13px; }
 .vehicle-call-dialog .vehicle-call-callback-link { min-height: 44px; padding: 10px 8px; color: var(--dialog-accent); font-size: 13px; font-weight: 500; text-align: center; text-decoration: underline; text-underline-offset: 4px; }
-.vehicle-call-dialog .vehicle-call-optional-email summary { display: list-item; min-height: 44px; padding-block: 10px; color: var(--dialog-muted); font-size: 12px; cursor: pointer; }
+.vehicle-call-dialog .vehicle-call-optional-email summary { display: list-item; min-height: 44px; padding-block: 10px; color: var(--dialog-muted); font-size: 13px; cursor: pointer; }
 .vehicle-call-dialog .vehicle-call-optional-email[open] > label { padding-top: 4px; }
 .vehicle-call-dialog .vehicle-call-result { display: grid; gap: 16px; }
-.vehicle-call-dialog .vehicle-call-reference { margin-top: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.vehicle-call-dialog .vehicle-call-reference { margin-top: 8px; font-size: 13px; overflow-wrap: anywhere; }
 
 .vehicle-call-dialog .vehicle-action-form-grid {
   gap: 12px;
@@ -144,16 +144,16 @@
 
 .vehicle-call-dialog .vehicle-action-field {
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .vehicle-call-dialog .vehicle-action-field input {
-  min-height: 46px;
-  border-radius: 5px;
+  min-height: 48px;
+  border-radius: 6px;
 }
 
 .vehicle-call-dialog .vehicle-action-privacy {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .vehicle-call-dialog .vehicle-call-telephone-footer {

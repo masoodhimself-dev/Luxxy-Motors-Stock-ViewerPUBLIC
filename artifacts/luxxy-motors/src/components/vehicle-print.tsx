@@ -79,7 +79,7 @@ export function VehiclePrint({ car, dealer, features, description }: { car: Car;
       await nextFrame();
       await nextFrame();
       if (!fit()) {
-        setError('These details exceed one readable A4 page. Please contact the showroom for a complete vehicle sheet.');
+        setError('These details exceed one readable A4 page. Please contact us for a complete vehicle sheet.');
         return;
       }
       delete sheet.current.dataset.measuring;
@@ -105,20 +105,20 @@ export function VehiclePrint({ car, dealer, features, description }: { car: Car;
         <section className="vehicle-print-title"><div>{data.title && <h1>{data.title}</h1>}{data.variant && <p>{data.variant}</p>}</div>{data.price && <div className="vehicle-print-price"><span>Vehicle price</span><strong>{data.price}</strong>{data.priceNote && <small>{data.priceNote}</small>}</div>}</section>
         {photos.length > 0 && <div className="vehicle-print-photos" style={{ gridTemplateColumns: heroGallery ? '2fr 1fr' : `repeat(${photos.length}, minmax(0, 1fr))` }}>{photos.map(({ src, caption }) => <figure key={src} className="vehicle-print-photo"><img src={src} alt={caption || ''} referrerPolicy="no-referrer" onError={() => setFailedPhotos(current => current.includes(src) ? current : [...current, src])} />{caption && <figcaption>{caption}</figcaption>}</figure>)}</div>}
         {data.facts.length > 0 && <section className="vehicle-print-facts" aria-label="Vehicle at a glance"><Facts facts={data.facts} /></section>}
-        {data.description && <section className="vehicle-print-description"><h2>Dealer description · as supplied</h2><p>{data.description}</p></section>}
+        {data.description && <section className="vehicle-print-description"><h2>About this car</h2><p>{data.description}</p></section>}
         {data.features.length > 0 && <section className="vehicle-print-features"><h2>Features & equipment</h2><ul>{data.features.map(feature => <li key={feature}>{feature}</li>)}</ul></section>}
         {(data.specificationGroups.length > 0 || data.runningCosts.length > 0) && <div className="vehicle-print-specifications">
           {data.specificationGroups.map(group => <section key={group.title}><h2>{group.title}</h2><Facts facts={group.facts} /></section>)}
-          {data.runningCosts.length > 0 && <section><h2>Running costs · published figures</h2><Facts facts={data.runningCosts} /></section>}
+          {data.runningCosts.length > 0 && <section><h2>Running costs</h2><Facts facts={data.runningCosts} /></section>}
         </div>}
-        {data.history.length > 0 && <section className="vehicle-print-history"><h2>History & supplied information</h2><Facts facts={data.history} /></section>}
-        {data.sourceNotes.length > 0 && <aside className="vehicle-print-source-notes"><h2>Source information to confirm</h2>{data.sourceNotes.map(note => <p key={note}>{note}</p>)}</aside>}
+        {data.history.length > 0 && <section className="vehicle-print-history"><h2>Service & ownership history</h2><Facts facts={data.history} /></section>}
+        {data.sourceNotes.length > 0 && <aside className="vehicle-print-source-notes"><h2>Details to confirm with us</h2>{data.sourceNotes.map(note => <p key={note}>{note}</p>)}</aside>}
         <footer className="vehicle-print-footer">
           {address && <strong>{address}</strong>}
           <a href={url}>{url}</a>
           {legal && <p>{legal}</p>}
           {supplied(dealer.brochure?.footerNote) && <p>{dealer.brochure!.footerNote}</p>}
-          <small>Printed {new Date().toLocaleDateString('en-GB')} · Supplied listing details. Confirm price, availability and vehicle information with the showroom before purchase.</small>
+          <small>Printed {new Date().toLocaleDateString('en-GB')} · Please confirm price, availability and vehicle details with us before purchase.</small>
         </footer>
       </div>
     </article>, document.body)}
