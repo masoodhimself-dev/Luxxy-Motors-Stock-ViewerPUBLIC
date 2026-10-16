@@ -310,6 +310,12 @@ test('platform onboarding and operational views preserve access checks and omit 
   await livePrivate.update({expectedRevision:0,resend:{enabled:true,apiKey:'re_fictional_live_sender',from:'Conversion <sales@conversion.example.test>',replyTo:'sales@conversion.example.test'}});
   await livePrivate.updateSalesPaperwork({expectedRevision:1,saleTerms:'Approved test dealership sale terms.',reservationTerms:''});
   const cleanReview=await (await request(conversionPath)).json() as any;assert.equal(cleanReview.ready,true,JSON.stringify(cleanReview));assert.equal(cleanReview.domainOrigin,attempt.domainOrigin);
+  // Automated www companions are redirects, never an alternative canonical live origin.
+  await engine.query('INSERT INTO dealer_domains(hostname,dealer_id,verification_token,verified) VALUES ($1,$2,$3,true)',['www.conversion.example.test',conversionId,'fictional-alias']);
+  await engine.query("INSERT INTO domain_setup_jobs(dealer_id,hostname,hostnames,render_service_id,render_target,created_by,updated_by,status,stage) VALUES ($1,$2,$3::jsonb,'srv-fictional','fictional.onrender.com','user_admin','user_admin','completed','complete')",[conversionId,'conversion.example.test',JSON.stringify(['conversion.example.test','www.conversion.example.test'])]);
+  const aliasReview=await (await request(`${conversionPath}?origin=${encodeURIComponent('https://www.conversion.example.test')}`)).json() as any;
+  assert.equal(aliasReview.ready,false);assert.deepEqual(aliasReview.eligibleOrigins,['https://conversion.example.test']);
+  assert.equal((await request(conversionPath,'POST',{...attempt,expectedRevision:1,domainOrigin:'https://www.conversion.example.test'})).status,409);
   assert.ok(!JSON.stringify(cleanReview).includes('re_fictional_live_sender'));assert.ok(!('config' in cleanReview));
   const sampleSale=(await engine.query<any>('SELECT id,state FROM sale_workspace WHERE dealer_id=$1 ORDER BY reference LIMIT 1',[conversionId])).rows[0];
   for(const change of [{providerPayments:{pi_real:{paymentId:'real-payment',eventId:'real-event'}}},{payments:[...sampleSale.state.payments,{...sampleSale.state.payments[0],id:'real-added-payment',reference:'CUSTOMER TRANSFER',recordedBy:'Real staff'}]}]){

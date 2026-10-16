@@ -16,7 +16,9 @@ export async function conversionReadiness(client:SaleWorkspaceReadClient,id:stri
  const check=(key:string,label:string,ready:boolean,detail:string)=>checks.push({id:key,label,ready,detail});
  const domains=(await client.query('SELECT hostname,verified FROM dealer_domains WHERE dealer_id=$1 ORDER BY length(hostname),hostname',[id])).rows;
  const reserved=[normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST??''),normaliseTenantHost(process.env.STOCK_IMPORT_API_HOST??'')];
- const eligibleOrigins=domains.filter(d=>d.verified&&!isDemoHost(d.hostname)&&!reserved.includes(d.hostname)).map(d=>`https://${d.hostname}`);
+ const connected=(await client.query("SELECT hostname,hostnames FROM domain_setup_jobs WHERE dealer_id=$1 AND status='completed'",[id])).rows;
+ const redirects=new Set(connected.flatMap(j=>Array.isArray(j.hostnames)?j.hostnames.filter((h:string)=>h!==j.hostname):[]));
+ const eligibleOrigins=domains.filter(d=>d.verified&&!isDemoHost(d.hostname)&&!reserved.includes(d.hostname)&&!redirects.has(d.hostname)).map(d=>`https://${d.hostname}`);
  const domainOrigin=requestedOrigin??(eligibleOrigins.includes(dealer.canonical_origin)?dealer.canonical_origin:eligibleOrigins[0]??'');
  check('domain','Verified live dealership domain',eligibleOrigins.includes(domainOrigin),'Add and verify the dealer’s own domain in Domains, then confirm its Render HTTPS and Clerk setup in the launch checklist.');
  const config=(await client.query('SELECT config FROM dealer_settings WHERE dealer_id=$1',[id])).rows[0]?.config;

@@ -7,7 +7,7 @@ The operator promotes the existing tenant. Its internal ID can still start with 
 ## Prepare and review
 
 1. Agree the launch with the dealer. Finish practice actions and pause the dealer's Grok worker for cutover.
-2. Add the real domain under Domains, publish its ownership TXT record and verify it. Connect it to the existing Render service and test HTTPS and Clerk sign-in. The shared demo domain cannot be the live origin.
+2. Connect the real domain under Domains using [automatic Cloudflare/Render setup](./domain-automation.md), if configured, or publish the ownership TXT record and connect it in Render manually. Test HTTPS and Clerk sign-in. The shared demo domain cannot be the live origin.
 3. Assign the dealer's own existing Clerk account as an active owner through the dealer portal. Platform administrator access remains separate; the seeded platform owner's membership alone is insufficient.
 4. In dealer Settings replace the demo contact email, confirm phone/showroom address, review branding and approve real sales terms/invoice references.
 5. Store the dealer's own Resend key and verified live sender in secure integration settings. Shared demo credentials/senders are rejected. Verify the provider sender/reply-to and delivery manually and complete the launch checklist. While the tenant is still a demo, ordinary website email tests intentionally use demo protections; these are not proof of the live sender. Provider-side live sender verification/testing is separate. No live sender is automatically tested by conversion.

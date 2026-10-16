@@ -1,4 +1,5 @@
 import platformConversionRouter from './platform-conversion';
+import platformDomainAutomationRouter from './platform-domain-automation';
 import platformOnboardingKeysRouter from './platform-onboarding-keys';
 import platformDemosRouter from './platform-demos';
 import { sql } from 'drizzle-orm';
@@ -24,6 +25,7 @@ router.use((req, res, next) => {
 router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
 router.use(platformConversionRouter);
+router.use(platformDomainAutomationRouter);
 router.patch('/dealers/:id/checklist', async (req, res) => {
   const input = z.object({ itemId: z.string().refine(id => onboardingItems.some(item => item.id === id)), status: z.enum(['pending', 'done', 'skipped']), note: z.string().trim().max(1000) }).strict().safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: 'Choose a checklist item and valid status; notes must be at most 1,000 characters.' }); return; }

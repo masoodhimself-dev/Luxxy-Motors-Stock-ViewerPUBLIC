@@ -253,6 +253,13 @@
       "when": 1792141131324,
       "tag": "0035_demo_conversion",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792141131325,
+      "tag": "0036_domain_setup_jobs",
+      "breakpoints": true
     }
   ]
 }

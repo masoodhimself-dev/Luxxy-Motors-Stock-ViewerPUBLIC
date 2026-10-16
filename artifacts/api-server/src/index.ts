@@ -1,4 +1,5 @@
 import { startDemoCompletionWorker } from './lib/demo-completion-jobs';
+import { startDomainSetupWorker } from './lib/domain-setup-jobs';
 import { forEachActiveDealer } from './lib/tenant-jobs';
 import { siteOrigin } from "./lib/enquiry-links";
 import app from "./app";
@@ -34,6 +35,9 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
   startRetentionWorker(logger);
   startDemoCompletionWorker(logger);
+  const stopDomainSetup = startDomainSetupWorker(logger);
+  process.once('SIGTERM', stopDomainSetup);
+  process.once('SIGINT', stopDomainSetup);
   startReminderWorker(logger);
   startStripeReservationWorker(logger);
   // Enquiries taken before leads existed are carried across on boot. This is
