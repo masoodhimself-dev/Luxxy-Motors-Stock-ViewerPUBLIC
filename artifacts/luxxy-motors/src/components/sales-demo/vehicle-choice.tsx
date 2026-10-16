@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import type { Car } from '@/lib/stock-context';
 import { getThumbnailUrl,vehicleDisplayTitle,vehicleRegistration } from '@/lib/utils';
@@ -18,21 +18,22 @@ export function saleVehicleChoiceLabel(car:Car){
 /** Portalled preview avoids clipping in the invoice form; click/tap opens an accessible dialog. */
 export function SaleVehiclePhoto({car}:{car:Car}){
  const [expanded,setExpanded]=useState(false),[failed,setFailed]=useState('');
+ const trigger=useRef<HTMLButtonElement>(null);
  const src=getThumbnailUrl(car),title=vehicleDisplayTitle(car);
  if(!src||failed===src)return null;
  const details=[car.year,car.colour,vehicleRegistration(car)].filter(Boolean).join(' · ');
  return <>
   <HoverCard.Root openDelay={180} closeDelay={120}>
    <HoverCard.Trigger asChild>
-    <button type="button" className="invoice-car-photo" aria-label={`Enlarge photo of ${title}`} onClick={()=>setExpanded(true)}>
+    <button ref={trigger} type="button" className="invoice-car-photo" aria-label={`Enlarge photo of ${title}`} onClick={()=>setExpanded(true)}>
      <img src={src} alt={title} onError={()=>setFailed(src)}/><span>View photo</span>
     </button>
    </HoverCard.Trigger>
-   <HoverCard.Portal><HoverCard.Content side="right" align="start" sideOffset={12} collisionPadding={16} className="invoice-car-photo-preview">
+   {!expanded && <HoverCard.Portal><HoverCard.Content side="right" align="start" sideOffset={12} collisionPadding={16} className="invoice-car-photo-preview">
     <img src={src} alt={`Larger photo of ${title}`}/><p><strong>{title}</strong>{details&&<span>{details}</span>}</p>
-   </HoverCard.Content></HoverCard.Portal>
+   </HoverCard.Content></HoverCard.Portal>}
   </HoverCard.Root>
-  <Dialog open={expanded} onOpenChange={setExpanded}><DialogContent className="sm:max-w-3xl">
+  <Dialog open={expanded} onOpenChange={setExpanded}><DialogContent className="sales-action-dialog sm:max-w-3xl" onCloseAutoFocus={event=>{event.preventDefault();trigger.current?.focus();}}>
    <DialogTitle className="pr-12">{title}</DialogTitle><DialogDescription>{details||'Vehicle photograph'}</DialogDescription>
    <img src={src} alt={`Enlarged photo of ${title}`} className="max-h-[65dvh] w-full rounded-md object-contain"/>
   </DialogContent></Dialog>

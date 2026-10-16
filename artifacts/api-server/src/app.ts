@@ -2,6 +2,7 @@ import demoOnboardingRouter from './routes/demo-onboarding';
 import platformDealersRouter from "./routes/platform-dealers";
 import { resolveTenant } from "./middlewares/tenant";
 import { serveFrontend } from "./lib/serve-frontend";
+import { privateRequestLogUrl, protectPrivateCapabilityPages } from './middlewares/private-capability';
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -24,7 +25,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0]?.replace(/\/(?:api\/invoice-verification|verify-invoice)\/[^?]*/, '/invoice-verification/[private]')?.replace(/(\/api\/customer-sale\/|\/my-purchase\/)[^/]+/, '$1[private]'),
+          url: privateRequestLogUrl(req.url),
         };
       },
       res(res) {
@@ -35,6 +36,7 @@ app.use(
     },
   }),
 );
+protectPrivateCapabilityPages(app);
 // Mounted before the body parsers: the Clerk proxy streams raw bytes.
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
@@ -52,7 +54,6 @@ app.use("/api/demo-onboarding", demoOnboardingRouter);
 app.use("/api/platform", platformDealersRouter);
 app.use(resolveTenant);
 app.use("/api", router);
-app.use(['/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return'], (_req, res, next) => { res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }); next(); });
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api
 // because the URL is handed to buyers.
 app.use("/share", shareRouter);

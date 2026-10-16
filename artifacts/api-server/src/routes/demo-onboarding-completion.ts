@@ -4,7 +4,7 @@ import { pool } from '@workspace/db';
 import { demoProvisioning } from '../lib/demo-policy';
 import { saveDemoBaseline } from '../lib/demo-baseline';
 import { runWithTenant } from '../lib/tenant-context';
-import { sendEmailWithSettings } from '../lib/email-provider';
+import { EmailProviderError, sendEmailWithSettings } from '../lib/email-provider';
 
 import { isPlatformAdmin } from '../lib/platform-admin';
 export type CompletionKey={id:string;ownerAuthUserId:string};
@@ -68,7 +68,15 @@ export async function runDemoCompletionOperation(key:CompletionKey,id:string,ope
    await client.query('UPDATE dealer_demos SET revision=revision+1,updated_by=$2 WHERE dealer_id=$1',[id,key.ownerAuthUserId]);
    await client.query('UPDATE demo_onboarding_completion SET baseline_run_id=$2,completed_at=now() WHERE dealer_id=$1',[id,input.runId]);
    await client.query('COMMIT');return {httpStatus:200,body:{dealerId:id,status:'saved',baselineSaved:true}};
-  }catch{await client.query('ROLLBACK');return {httpStatus:503,body:{error:'Demo completion could not finish. Retry the same operation; no reset or new email is requested.'}};}finally{client.release();}
+  }catch(error){
+   await client.query('ROLLBACK');
+   if(error instanceof EmailProviderError){
+    // Sender authentication and message validation require an operator fix, not a retry loop.
+    if(error.httpStatus>=400&&error.httpStatus<500&&error.httpStatus!==429)return {httpStatus:409,body:{error:`Demo email was rejected by the provider (HTTP ${error.httpStatus}). Check the sender credentials and email configuration before retrying; no automatic resend.`}};
+    if(error.httpStatus===429)return {httpStatus:429,body:{error:'Demo email provider rate limit reached. Retry the same operation; no new email is requested.'}};
+   }
+   return {httpStatus:503,body:{error:'Demo completion could not finish. Retry the same operation; no reset or new email is requested.'}};
+  }finally{client.release();}
 }
 /** Mounted after the onboarding authentication/approved-host middleware. */
 export function demoCompletionRouter(transport:typeof fetch=(...args)=>fetch(...args)) {

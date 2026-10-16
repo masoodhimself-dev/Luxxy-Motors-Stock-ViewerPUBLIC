@@ -85,7 +85,7 @@ for (const width of [390, 820, 1440]) {
     await expect(dialog.getByLabel('Photograph sections', { exact: true })).toHaveCount(0);
     await expect(dialog.locator('.vehicle-lightbox-navigation')).toHaveCount(0);
     await expect(dialog.locator('[data-vehicle-contact="call"]')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Message', exact: true })).toBeVisible();
+    await expect(dialog.getByRole('link', { name: 'Message', exact: true })).toBeVisible();
     await fits(page, dialog);
     expect(await overview.locator('img').evaluateAll(images => images.every(image => image.getAttribute('loading') === 'lazy'))).toBe(true);
     const columns = await overview.locator('.vehicle-gallery-overview-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length);
@@ -135,10 +135,10 @@ for (const width of [390, 820, 1440]) {
       }).every(image => image.complete && image.naturalWidth > 0);
     }), { timeout: 20_000 }).toBe(true);
     await dialog.screenshot({ path: `/tmp/gallery-overview-${width}.png`, animations: 'disabled' });
-    await dialog.getByRole('button', { name: 'Message', exact: true }).click();
+    await dialog.getByRole('link', { name: 'Message', exact: true }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.locator('#vehicle-enquiry-heading')).toBeFocused();
-    await expect(page.locator('#vehicle-enquiry-heading')).toBeInViewport();
+    await expect(page).toHaveURL(/\/enquire\?type=general&vehicleId=/);
+    await expect(page.getByTestId('form-enquiry')).toBeVisible();
     expect(writes).toEqual([]);
   });
   });

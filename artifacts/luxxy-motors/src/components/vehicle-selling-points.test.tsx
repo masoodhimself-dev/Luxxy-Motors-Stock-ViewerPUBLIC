@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import type { Car } from "@/lib/stock-context";
-import { ULEZ_CHECK_URL } from "@/lib/vehicle-benefits";
 import { VehicleSellingPoints } from "./vehicle-selling-points";
 
 const car = (extra: Partial<Car> = {}) =>
@@ -22,7 +21,7 @@ const car = (extra: Partial<Car> = {}) =>
     ...extra,
   }) as Car;
 
-it("shows all supplied benefits with a visible emissions qualifier and genuine checker link", () => {
+it("shows all supplied benefits without restoring the removed emissions disclaimer", () => {
   render(<VehicleSellingPoints car={car()} />);
   const list = screen.getByRole("list", { name: "Vehicle highlights" });
   expect(within(list).getAllByRole("listitem")).toHaveLength(6);
@@ -30,10 +29,8 @@ it("shows all supplied benefits with a visible emissions qualifier and genuine c
   expect(list).toHaveTextContent("24k miles · low mileage");
   expect(list).toHaveTextContent("£20 road tax per year");
   expect(list).toHaveTextContent("Lower insurance group · 11E");
-  expect(screen.getByText("Check this car’s registration before driving in the zone.")).toBeInTheDocument();
-  expect(
-    screen.getByRole("link", { name: "Check with TfL" }),
-  ).toHaveAttribute("href", ULEZ_CHECK_URL);
+  expect(screen.queryByText("Check this car’s registration before driving in the zone.")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Check with TfL" })).not.toBeInTheDocument();
   expect(list.querySelectorAll("svg")).toHaveLength(6);
 });
 

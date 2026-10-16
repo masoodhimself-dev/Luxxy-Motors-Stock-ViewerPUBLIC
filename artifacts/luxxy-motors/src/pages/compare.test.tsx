@@ -3,16 +3,24 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import Compare from './compare';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 
+const state = vi.hoisted(() => ({ reserved: false }));
 vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ isLoading: false, error: null, stock: { cars: [
   { id: 'zero', title: 'Zero mileage car', year: 2013, plate: 'AB12 CDE', registrationBand: '2013 (13 reg)', mileage: 0, price: 12000, owners: 0, images: [], writeOffCategory: null },
-  { id: 'known', title: 'Known history car', year: 2012, registrationBand: '2012 (62 reg)', mileage: 1000, price: 12500, owners: 1, images: [], writeOffCategory: 'None' },
+  { id: 'known', title: 'Known history car', year: 2012, registrationBand: '2012 (62 reg)', mileage: 1000, price: 12500, owners: 1, images: [], writeOffCategory: 'None', inventoryStatus: state.reserved ? 'reserved' : 'available' },
 ] } }) }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Test Motors' }, contact: {}, presentation: { comparisonEnabled: true } } }) }));
 
 beforeEach(() => {
+  state.reserved = false;
   window.localStorage.clear();
   window.localStorage.setItem('luxxy.compare-cars.v1', JSON.stringify(['zero', 'known']));
   window.history.pushState({}, '', '/compare');
+});
+
+it('sends reserved-car enquiries straight to the car-specific enquiry form', () => {
+  state.reserved = true;
+  render(<SavedCarsProvider><Compare /></SavedCarsProvider>);
+  expect(screen.getByRole('link', { name: 'Enquire' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=known');
 });
 
 it('shows zero mileage and owners as supplied, while keeping missing history unknown', () => {

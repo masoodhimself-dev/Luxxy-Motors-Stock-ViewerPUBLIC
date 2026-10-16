@@ -41,6 +41,7 @@ import {
   availableBookingDates,
   appointmentLabel,
   bookingDateLabel,
+  bookingTimezone,
   defaultBookingSettings,
   londonDate,
   nextDate,
@@ -142,7 +143,8 @@ export function TestDriveBooking({
   const [details, setDetails] = useState(() => initialDetails(vehicle));
   const [draftSaved, setDraftSaved] = useState(false);
   const [phoneError, setPhoneError] = useState("");
-  const dates = useMemo(() => availableBookingDates(config), [config]);
+  const today = londonDate(bookingNow);
+  const dates = useMemo(() => availableBookingDates(config, bookingNow), [config, today]);
   const [selectedDate, setSelectedDate] = useState(
     () => dates[0] ?? londonDate(),
   );
@@ -291,6 +293,8 @@ export function TestDriveBooking({
       !currentCar ||
       !selectedSlot ||
       !selectedTime ||
+      availability.isFetching ||
+      availability.isError ||
       formDisabled
     )
       return;
@@ -774,11 +778,13 @@ export function TestDriveBooking({
                             : date === nextDate(londonDate(), 1)
                               ? "Tomorrow"
                               : new Intl.DateTimeFormat("en-GB", {
+                                  timeZone: bookingTimezone,
                                   weekday: "short",
                                 }).format(new Date(`${date}T12:00:00Z`))}
                         </span>
                         <span className="mt-1 block text-xs">
                           {new Intl.DateTimeFormat("en-GB", {
+                            timeZone: bookingTimezone,
                             day: "numeric",
                             month: "short",
                           }).format(new Date(`${date}T12:00:00Z`))}
@@ -877,7 +883,7 @@ export function TestDriveBooking({
                   <Button
                     type="button"
                     disabled={
-                      !selectedTime || availability.isFetching || !dates.length
+                      !selectedTime || availability.isFetching || availability.isError || !dates.length
                     }
                     className="mt-5 min-h-12 w-full"
                     data-testid="button-continue-to-details"
@@ -1144,10 +1150,11 @@ export function TestDriveBooking({
                       above; your contact details will be kept.
                     </p>
                   )}
+                  {selectedTime && availability.isError && <p role="alert" className="text-sm text-destructive">We couldn’t recheck this time. Choose “Change time” and try again; your contact details will be kept.</p>}
                   <Button
                     type="button"
                     disabled={
-                      formDisabled || !selectedTime || availability.isFetching
+                      formDisabled || !selectedTime || availability.isFetching || availability.isError
                     }
                     onClick={confirm}
                     className="min-h-12 w-full"

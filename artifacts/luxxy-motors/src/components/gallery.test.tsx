@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { Gallery } from './gallery';
+import type { Car } from '@/lib/stock-context';
+
+vi.mock('@/components/vehicle-call', () => ({ VehicleCall: () => null }));
 
 beforeAll(() => { HTMLElement.prototype.scrollIntoView = vi.fn(); });
 it('removes failed images from thumbnails and counts, and handles all failing', () => {
@@ -111,4 +114,16 @@ it('removes failed overview photos once and keeps selection, counts and numberin
   fireEvent.click(within(dialog).getByRole('button', { name: 'Back to photo' }));
   expect(within(dialog).getByText('3 / 3')).toBeInTheDocument();
   expect(dialog.querySelector('.vehicle-lightbox-photo img')).toHaveAttribute('src', photos[3]);
+});
+
+it('opens a car-specific enquiry from fullscreen without scrolling to the page footer', async () => {
+  const car = { id: 'gallery-car', title: 'Ford Fiesta' } as Car;
+  window.history.replaceState({}, '', '/vehicle/gallery-car');
+  render(<Gallery car={car} customerView images={labelledPhotos} />);
+  fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
+  const dialog = await screen.findByRole('dialog');
+  const message = within(dialog).getByRole('link', { name: 'Message' });
+  expect(message).toHaveAttribute('href', '/enquire?type=general&vehicleId=gallery-car');
+  fireEvent.click(message);
+  expect(window.location.pathname + window.location.search).toBe('/enquire?type=general&vehicleId=gallery-car');
 });

@@ -31,3 +31,17 @@ it('keeps an age registration label as text when no number plate was supplied', 
   expect(preview).toHaveTextContent('2019 (19 reg) · Number plate not supplied');
   expect(preview.querySelector('.bg-yellow-300')).toBeNull();
 });
+
+
+it('uses stock images when an imported car has no separate hero image', () => {
+  showPreview({ ...car, heroImage: null, images: [{ url: 'https://example.test/front.jpg', caption: 'Front left' }] } as Car);
+  expect(screen.getByRole('img', { name: 'Preview Ford Fiesta' })).toHaveAttribute('src', 'https://example.test/front.jpg');
+});
+
+it('does not keep a different car hidden after an earlier image failed', () => {
+  const view = render(<EnquiryPhotoPeek car={car} className="photo" />);
+  fireEvent.error(screen.getByRole('img', { name: 'Preview Ford Fiesta' }));
+  expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  view.rerender(<EnquiryPhotoPeek car={{ ...car, heroImage: 'https://example.test/replacement.jpg' }} className="photo" />);
+  expect(screen.getByRole('img', { name: 'Preview Ford Fiesta' })).toHaveAttribute('src', 'https://example.test/replacement.jpg');
+});

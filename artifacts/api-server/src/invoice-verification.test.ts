@@ -10,6 +10,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serveFrontend } from './lib/serve-frontend';
+import { privateRequestLogUrl, protectPrivateCapabilityPages } from './middlewares/private-capability';
 
 const draft: SaleWorkspaceDraft={id:'test',customer:'Private buyer',email:'private@customer.invalid',phone:'PRIVATE-PHONE',address:'PRIVATE-ADDRESS',vehicleId:'',vehicle:'2020 Mercedes-Benz E-Class',registration:'AB20 XYZ',price:'12000',partExchange:false,pxRegistration:'',pxDescription:'',pxValue:'',deposit:'',paymentMethod:'',notes:'PRIVATE-STAFF-NOTE',collection:'',preparation:false,documents:false,handover:false};
 function issued() {
@@ -50,19 +51,31 @@ test('verification reads the tenant-scoped saved row and never loads private dea
   await assert.rejects(b.verifyInvoice(sale.id,document!.id,token),/could not be verified/);
   assert.ok(queries.every(q=>String(q[0]).includes('dealer_id = $1 AND id = $2')));
 });
-test('the production SPA fallback preserves private verification-page response headers',async()=>{
+test('the production SPA and API preserve private invoice and viewing response headers',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'invoice-proof-spa-'));
   await writeFile(join(dir,'index.html'),'<!doctype html><title>Invoice proof fixture</title>');
   const app=express();
-  app.use('/verify-invoice',(_req,res,next)=>{res.set({'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'});next();});
+  protectPrivateCapabilityPages(app);
+  app.get('/api/viewings/:token',(_req,res)=>{res.status(404).json({error:'Invalid viewing link'});});
   serveFrontend(app,dir);
   const server=createServer(app);
   try {
     await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
     const address=server.address();assert.ok(address&&typeof address!=='string');
     const base=`http://127.0.0.1:${address.port}`;
-    const response=await fetch(base+'/verify-invoice/example',{headers:{Accept:'text/html'}});
-    assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('referrer-policy'),'no-referrer');assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
+    for(const route of ['/verify-invoice/example','/viewing/example','/viewing/example/change','/api/viewings/example']){
+      const response=await fetch(base+route,{headers:{Accept:'text/html'}});
+      assert.equal(response.status,route.startsWith('/api/')?404:200);
+      assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('referrer-policy'),'no-referrer');assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
+    }
     const publicResponse=await fetch(base+'/',{headers:{Accept:'text/html'}});assert.equal(publicResponse.headers.get('cache-control'),'no-cache');
   } finally {server.closeAllConnections();server.close();await rm(dir,{recursive:true,force:true});}
+});
+test('private viewing and invoice tokens are removed from request log URLs',()=>{
+  for(const route of ['/viewing/PRIVATE-TOKEN','/api/viewings/PRIVATE-TOKEN/reschedule','/API/VIEWINGS/PRIVATE-TOKEN/cancel','/verify-invoice/PRIVATE-TOKEN','/api/invoice-verification/sale/document/PRIVATE-TOKEN','/my-purchase/PRIVATE-TOKEN','/api/customer-sale/PRIVATE-TOKEN/documents','/api/customer-intake-sessions/PRIVATE-TOKEN','/api/signing/PRIVATE-TOKEN/complete','/sign/PRIVATE-TOKEN']){
+    assert.ok(!privateRequestLogUrl(route+'?token=PRIVATE-QUERY')!.includes('PRIVATE-TOKEN'));
+    assert.ok(!privateRequestLogUrl(route+'?token=PRIVATE-QUERY')!.includes('PRIVATE-QUERY'));
+  }
+  assert.equal(privateRequestLogUrl('/stock?sort=price'),'/stock');
+  assert.equal(privateRequestLogUrl(undefined),undefined);
 });

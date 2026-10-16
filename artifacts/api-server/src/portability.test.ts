@@ -47,7 +47,7 @@ test('missing email credentials fail before any network request', async () => {
 test('provider rejection does not leak response contents', async () => {
   process.env.RESEND_ENABLED = 'true'; process.env.RESEND_API_KEY = 're_syntheticIntegrationTestOnly'; process.env.RESEND_FROM_EMAIL = 'dealer@example.test';
   globalThis.fetch = async () => new Response('sensitive provider response', {status:429});
-  await assert.rejects(sendEmail('buyer@example.test','Receipt','<p>Confirmed</p>','receipt-test','Dealer'), /^Error: Email provider returned HTTP 429\.$/);
+  await assert.rejects(sendEmail('buyer@example.test','Receipt','<p>Confirmed</p>','receipt-test','Dealer'), (error: unknown) => error instanceof Error && error.message === 'Email provider returned HTTP 429.');
 });
 
 test('production links require an explicit public URL and preserve base path', () => {

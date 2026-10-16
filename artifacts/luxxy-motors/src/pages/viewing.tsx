@@ -42,7 +42,17 @@ export default function Viewing() {
   const queryClient = useQueryClient();
   const { token = '' } = useParams<{ token: string }>();
   const { settings: dealerConfig, isLoading: settingsLoading } = useDealerSettings();
-  usePageMeta({ title: `Your test drive | ${dealerConfig.identity.name}`, description: 'Check your test drive, request another time or contact us for help.' });
+  usePageMeta({ title: `Your test drive | ${dealerConfig.identity.name}`, description: 'Check your test drive, request another time or contact us for help.', url: window.location.origin });
+  useEffect(() => {
+    // This route contains a private booking token, including when reached
+    // through client-side navigation rather than a new document request.
+    const robots = document.createElement('meta');
+    robots.name = 'robots'; robots.content = 'noindex, nofollow';
+    const referrer = document.createElement('meta');
+    referrer.name = 'referrer'; referrer.content = 'no-referrer';
+    document.head.append(robots, referrer);
+    return () => { robots.remove(); referrer.remove(); };
+  }, []);
   const bookingSettings = useMemo(() => dealerConfig.testDriveBooking ?? defaultBookingSettings, [dealerConfig.testDriveBooking]);
   const dates = useMemo(() => bookingSettings.enabled ? availableBookingDates(bookingSettings) : [], [bookingSettings]);
   const [selectedDate, setSelectedDate] = useState('');

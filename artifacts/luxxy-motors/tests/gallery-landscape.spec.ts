@@ -16,7 +16,7 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 740, height: 360 }
       gallery.getByRole('button', { name: 'Next photograph' }),
       gallery.getByRole('button', { name: 'Previous photograph' }),
       gallery.getByRole('button', { name: 'Close', exact: true }),
-      gallery.getByRole('button', { name: 'Message', exact: true }),
+      gallery.getByRole('link', { name: 'Message', exact: true }),
       gallery.getByRole('link', { name: /Show phone number/ }),
     ]) {
       await expect(button).toBeInViewport();
@@ -36,9 +36,9 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 740, height: 360 }
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(1);
     await page.screenshot({ path: `/tmp/gallery-landscape-${viewport.width}.png` });
-    await gallery.getByRole('button', { name: 'Message', exact: true }).click();
+    await gallery.getByRole('link', { name: 'Message', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.locator('#vehicle-enquiry-heading')).toBeFocused();
-    await expect(page.locator('#vehicle-enquiry-heading')).toBeInViewport();
+    await expect(page).toHaveURL(/\/enquire\?type=general&vehicleId=/);
+    await expect(page.getByTestId('form-enquiry')).toBeVisible();
   });
 }

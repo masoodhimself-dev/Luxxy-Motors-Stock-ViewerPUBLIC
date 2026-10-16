@@ -2,6 +2,14 @@ import { demoEmailEnvelope } from './demo-policy';
 import { defaultEmailTemplates, renderEmailTemplate, type EmailFacts } from '@workspace/vehicle-meta';
 import { dealerIntegrationsStore, effectiveResendSettings, integrationReadiness, type ResendSettings } from './dealer-integrations-store';
 
+/** Preserve only the status, never the provider response body or credentials. */
+export class EmailProviderError extends Error {
+  constructor(readonly httpStatus: number) {
+    super(`Email provider returned HTTP ${httpStatus}.`);
+    this.name = 'EmailProviderError';
+  }
+}
+
 /** Transport is injectable so readiness and tests never send an email. */
 export async function sendEmailWithSettings(config: ResendSettings, request: { to: string; subject: string; html: string; text?: string; idempotencyKey: string; attachments?: Array<{ filename: string; content: string }> }, transport: typeof fetch = fetch): Promise<string> {
   const envelope = await demoEmailEnvelope(request, config); config = envelope.config; request = { ...request, ...envelope.request };
@@ -16,7 +24,7 @@ export async function sendEmailWithSettings(config: ResendSettings, request: { t
       body: JSON.stringify({ from: config.from, to: [request.to], subject: request.subject, html: request.html, ...(request.text ? { text: request.text } : {}), ...(config.replyTo ? { reply_to: config.replyTo } : {}), ...(request.attachments?.length ? { attachments: request.attachments } : {}) }),
     });
   } catch { throw new Error('Email provider connection failed.'); }
-  if (!response.ok) throw new Error(`Email provider returned HTTP ${response.status}.`);
+  if (!response.ok) throw new EmailProviderError(response.status);
   const result = await response.json() as { id?: string };
   if (!result.id || typeof result.id !== 'string') throw new Error('Email provider did not return a delivery identifier.');
   return result.id;

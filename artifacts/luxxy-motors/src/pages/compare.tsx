@@ -150,7 +150,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
             asChild
             className="w-full h-11 px-2 rounded-md bg-primary font-display text-[12px] font-normal text-primary-foreground shadow-none transition-all hover:bg-accent active:shadow-none"
           >
-            <a href={car.inventoryStatus && car.inventoryStatus !== 'available' ? `/vehicle/${car.id}#vehicle-enquiry` : bookingHref} onClick={() => recordBookingIntent({ source: 'compare_page', vehicleContext: true })}>
+            <a href={car.inventoryStatus && car.inventoryStatus !== 'available' ? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}` : bookingHref} onClick={() => recordBookingIntent({ source: 'compare_page', vehicleContext: true })}>
               <Calendar className="h-4 w-4" /> {car.inventoryStatus && car.inventoryStatus !== 'available' ? 'Enquire' : 'Book test drive'}
             </a>
           </Button>

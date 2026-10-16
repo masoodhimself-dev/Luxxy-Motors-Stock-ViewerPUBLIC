@@ -235,6 +235,17 @@ test('platform onboarding and operational views preserve access checks and omit 
   const secondBody={runId:secondRun,confirm:'demo-rollback-demo',publicSiteChecked:true,importReplayChecked:true};
   assert.equal((await enhanced('/demos/demo-rollback-demo/complete','POST',{...secondBody,publicSiteChecked:false},second.secret)).status,400);
   assert.equal((await enhanced('/demos/demo-rollback-demo/complete','POST',secondBody,second.secret)).status,202);
+  // A permanent provider rejection blocks the queue immediately instead of consuming
+  // all retry attempts. Provider response content must never reach job history.
+  let rejectedSends=0;
+  await processDemoCompletionJobs(async()=>{rejectedSends++;return Response.json({message:'private provider details'},{status:401});});
+  let rejectedJob=(await engine.query<any>("SELECT status,error,history FROM demo_completion_jobs WHERE dealer_id='demo-rollback-demo'")).rows[0];
+  assert.equal(rejectedSends,1);assert.equal(rejectedJob.status,'blocked');assert.match(rejectedJob.error,/HTTP 401/);
+  assert.ok(!JSON.stringify(rejectedJob).includes('private provider details'));
+  await processDemoCompletionJobs(async()=>{throw Error('A blocked sender rejection must not retry.');});
+  assert.equal(rejectedSends,1);
+  // Simulate an operator fixing configuration and explicitly releasing the test job.
+  await engine.exec("UPDATE demo_completion_jobs SET status='queued',next_attempt_at=now()-interval '1 minute' WHERE dealer_id='demo-rollback-demo'");
   let workerSends=0,workerEvent='bounced';const fakeProvider:typeof fetch=async(_url,options)=>{if(options?.method==='POST'){workerSends++;return Response.json({id:'second-provider'});}return Response.json({id:'second-provider',to:['operator@example.test'],last_event:workerEvent});};
   await processDemoCompletionJobs(fakeProvider);
   assert.equal(workerSends,1);

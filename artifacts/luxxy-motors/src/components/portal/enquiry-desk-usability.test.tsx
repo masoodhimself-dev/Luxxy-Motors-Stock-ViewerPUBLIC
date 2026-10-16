@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { customFetch, type Enquiry } from '@workspace/api-client-react';
 import { TodayDesk } from './enquiry-workspace-tools';
 import { EnquiryRecordBrowser, type EnquiryRecordActions } from './enquiry-record-browser';
+import type { Car } from '@/lib/stock-context';
 import { DealerDashboard } from './dealer-administration';
 
 vi.mock('@workspace/api-client-react', async importOriginal => ({
@@ -79,4 +80,26 @@ it('does not hide stock errors or pending booking approvals inside optional repo
   expect(screen.getByRole('link', { name: /Cars in stock\s*8/ })).toHaveAttribute('href', '/portal?section=inventory');
   expect(screen.getByText('More dealership details').closest('details')).not.toHaveAttribute('open');
   expect(screen.getByRole('link', { name: /Outstanding balance\s*£0\.00/ })).toBeVisible();
+});
+
+
+it.each(['sold', 'archived'] as const)('shows the known %s state when staff view a linked car', status => {
+  const selected = entry('selected', { vehicleId: 'car-one' });
+  const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[selected]} cars={[{ id: 'car-one', inventoryStatus: status } as unknown as Car]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  const vehicle = screen.getByRole('region', { name: 'Selected enquiry: Customer selected' }).querySelector('[aria-label="Enquiry vehicle"]')!;
+  expect(vehicle).toHaveTextContent(status === 'sold' ? 'Sold' : 'Archived');
+  expect(vehicle).not.toHaveTextContent('Availability unconfirmed');
+});
+
+
+it('allows a new test drive after cancellation while retaining the original appointment history', () => {
+  const cancelled = entry('cancelled', { appointmentAt: '2026-10-10T11:00:00Z', appointmentCancelledAt: '2026-10-09T10:00:00Z' });
+  const onBook = vi.fn();
+  const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook, onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[cancelled]} cars={[]} selectedId={cancelled.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  expect(screen.getByText('Cancelled', { exact: true })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Change appointment' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Book another test drive' }));
+  expect(onBook).toHaveBeenCalledWith(cancelled);
 });

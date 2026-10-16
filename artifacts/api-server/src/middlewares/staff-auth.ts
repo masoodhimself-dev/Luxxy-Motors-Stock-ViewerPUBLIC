@@ -184,7 +184,7 @@ export const requireStaff: RequestHandler<any> = (
       }
       if (access.state === "forbidden") {
         res.status(403).json({
-          error: "This account is not authorised for the Luxxy Motors portal.",
+          error: "This account is not authorised for this dealership’s portal.",
         });
         return;
       }

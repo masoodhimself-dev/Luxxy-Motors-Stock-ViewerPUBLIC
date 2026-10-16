@@ -7,6 +7,7 @@ import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid } from '
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type Car, type CarImage } from '@/lib/stock-context';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Link } from 'wouter';
 import './gallery-overview.css';
 
 interface GalleryProps {
@@ -264,11 +265,6 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           if (!messageRequested.current) return;
           event.preventDefault();
           messageRequested.current = false;
-          requestAnimationFrame(() => {
-            const heading = document.getElementById('vehicle-enquiry-heading');
-            heading?.focus({ preventScroll: true });
-            document.getElementById('vehicle-enquiry')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-          });
         }}
         aria-describedby={undefined}
         onKeyDown={(event) => {
@@ -349,9 +345,9 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         </>}
         {car && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
           <VehicleCall car={car} buttonLabel="Show phone number" className="vehicle-lightbox-contact-button" />
-          <button type="button" className="vehicle-lightbox-contact-button" onClick={() => { messageRequested.current = true; swiped.current = false; setOverview(false); setOpen(false); }}>
+          <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={() => { messageRequested.current = true; swiped.current = false; setOverview(false); setOpen(false); }}>
             <Mail className="h-5 w-5" /> Message
-          </button>
+          </Link>
         </div>}
       </DialogContent>
     </Dialog>

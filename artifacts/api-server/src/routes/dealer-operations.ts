@@ -53,7 +53,7 @@ router.get('/dealer-operations/payments.csv', requireStaff, requirePermission('f
   try {
     const from = exportDate(req.query.from); const to = exportDate(req.query.to);
     if (from && to && from > to) throw new OperationError('The export end date must follow the start date.');
-    res.setHeader('Cache-Control', 'no-store'); res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="luxxy-payments.csv"');
+    res.setHeader('Cache-Control', 'no-store'); res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="payments.csv"');
     res.send(paymentLedgerCsv(await sales(), { from, to }));
   } catch (error) { fail(req, res, error); }
 });
