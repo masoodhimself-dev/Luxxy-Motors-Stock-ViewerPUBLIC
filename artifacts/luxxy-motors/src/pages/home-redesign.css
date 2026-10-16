@@ -51,8 +51,9 @@
 .homepage-art-directed.homepage-premium .text-link { color: var(--dealer-link, var(--premium-ink, #20303c)); }
 
 .homepage-art-directed.homepage-premium .stock-search-hero {
-  min-height: 600px;
-  padding: calc(var(--site-header-height) + 48px) 0 48px;
+  min-height: 560px;
+  padding: calc(var(--site-header-height) + 24px) 0 36px;
+  align-items: flex-start;
   background: #18252d;
 }
 
@@ -241,7 +242,7 @@
   .homepage-art-directed.homepage-premium .stock-search-shade { background: linear-gradient(90deg, rgba(13, 25, 33, .83), rgba(13, 25, 33, .72)); }
 }
 @media (max-width: 639px) {
-  .homepage-art-directed.homepage-premium .stock-search-hero { min-height: 0; padding: calc(var(--site-header-height) + 28px) 0 24px; }
+  .homepage-art-directed.homepage-premium .stock-search-hero { min-height: 0; padding: calc(var(--site-header-height) + 16px) 0 24px; }
   .homepage-art-directed.homepage-premium .stock-search-panel { max-width: none; }
   .homepage-art-directed.homepage-premium .home-hero-eyebrow { font-size: 12px; }
   .homepage-art-directed.homepage-premium .home-hero-heading { font-size: 32px; margin-top: 8px; }

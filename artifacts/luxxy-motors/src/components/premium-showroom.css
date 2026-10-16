@@ -43,6 +43,23 @@
   --customer-error-surface: var(--dealer-panel-error-surface);
   background: var(--dealer-panel);
 }
+.customer-site [data-site-header].stock-home-header {
+  --primary: 0 0% 100%;
+  --primary-foreground: 195 28% 12%;
+  --secondary: 195 22% 20%;
+  --secondary-foreground: 0 0% 100%;
+}
+.customer-site .site-header-inner { gap: clamp(12px, 1.5vw, 24px); }
+.customer-site .site-header-brand { flex-shrink: 1; max-width: min(22vw, 260px); }
+.customer-site .site-header-brand img { height: 56px; width: auto; max-width: 100%; object-fit: contain; object-position: left center; }
+.customer-site .site-header-brand svg { height: 50px; width: 182px; max-width: 100%; }
+.customer-site .site-header-nav { flex-shrink: 0; margin-left: auto; }
+@media (max-width: 1023px) {
+  .customer-site .site-header-inner { height: 72px; gap: 12px; }
+  .customer-site .site-header-brand { max-width: min(52vw, 220px); }
+  .customer-site .site-header-brand img { height: 48px; }
+  .customer-site .site-header-brand svg { height: 46px; width: 166px; }
+}
 .customer-site [data-site-header] #mobile-navigation { background: var(--dealer-panel); color: var(--dealer-panel-ink); }
 .customer-site [data-site-header] #mobile-navigation :is(a, button) { color: var(--dealer-panel-ink); }
 .customer-site [data-site-header] :is(nav button, nav a) { color: var(--dealer-panel-ink); }

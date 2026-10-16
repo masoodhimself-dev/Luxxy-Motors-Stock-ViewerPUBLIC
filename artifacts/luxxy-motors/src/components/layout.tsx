@@ -35,6 +35,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const darkHomeHeader = location === '/' && !scrolled && !mobileMenuOpen;
+  const headerLogo = darkHomeHeader
+    ? dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset
+    : dealerConfig.identity.logoAsset;
   const headerRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLElement>(null);
@@ -96,7 +100,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
-    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -178,20 +183,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header
         ref={headerRef}
         data-site-header
-        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${location === "/" && !scrolled && !mobileMenuOpen ? "stock-home-header" : ""} ${
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${darkHomeHeader ? "stock-home-header" : ""} ${
           scrolled
             ? 'border-primary/15 bg-background shadow-none'
             : 'border-primary/10 bg-background'
         }`}
       >
-        <div className="container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <button type="button" onClick={handleLogoClick} className="flex min-w-0 items-center gap-3 text-left group">
-            <DealerWordmark {...dealerConfig.identity} className="text-primary" />
+        <div className="site-header-inner container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <button type="button" onClick={handleLogoClick} className="site-header-brand flex min-w-0 items-center gap-3 text-left group" aria-label={`${dealerConfig.identity.name || 'Our dealership'} home`}>
+            <DealerWordmark {...dealerConfig.identity} logoAsset={headerLogo} className="text-primary" />
           </button>
 
           {isStaff ? <Button variant="outline" className="shrink-0 px-3 text-xs" onClick={() => handleNav('top')}>View showroom <ArrowRight className="h-4 w-4" /></Button> : <>
           {/* Desktop Nav - Condensed */}
-          <nav className="hidden items-center gap-6 lg:flex 2xl:hidden" aria-label="Primary navigation">
+          <nav className="site-header-nav hidden items-center gap-4 lg:flex 2xl:hidden" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
             {dealerConfig.contact.phone && <a className={navLinkClass} href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}><Phone className="mr-2 h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(dealerConfig.contact.phone)}</a>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
@@ -212,21 +217,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </button>
             <Button
               onClick={() => setLocation(testDriveHref)}
-              className="h-11 px-6 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all ml-4"
+              className="h-11 px-4 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all"
             >
               {dealerConfig.bookViewing.ctaLabel}
             </Button>
           </nav>
 
           {/* Desktop Nav - Full */}
-          <nav className="hidden 2xl:flex items-center gap-8" aria-label="Primary navigation">
+          <nav className="site-header-nav hidden 2xl:flex items-center gap-6" aria-label="Primary navigation">
             <button onClick={() => handleNav('stock')} className={navLinkClass}>{websiteText(dealerConfig, "navigationStock")}</button>
             {dealerConfig.partExchange?.enabled && <button onClick={() => handleNav('part-exchange')} className={navLinkClass}>{websiteText(dealerConfig, "navigationPartExchange")}</button>}
             {dealerConfig.warranty?.enabled && <Link href="/warranty" aria-current={location === '/warranty' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>Warranty</Link>}
             {dealerConfig.delivery?.enabled && <button onClick={() => handleNav('delivery')} className={navLinkClass}>Delivery</button>}
             <Link href="/contact" aria-current={location === '/contact' ? 'page' : undefined} className={`inline-flex min-h-11 items-center ${navLinkClass}`}>{websiteText(dealerConfig, "navigationContact")}</Link>
 
-            <div className="flex items-center gap-6 ml-4 pl-8 border-l-2 border-primary/10">
+            <div className="flex items-center gap-4 pl-6 border-l border-primary/10">
               {dealerConfig.contact.phone && (
                 <a href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`} className="group flex min-h-11 items-center gap-2">
                   <Phone className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:scale-110" />
@@ -252,7 +257,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button>
                <Button
                  onClick={() => setLocation(testDriveHref)}
-                 className="h-12 px-7 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all ml-4"
+                 className="h-11 px-6 font-display text-[13px] font-bold tracking-normal bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground rounded-md shadow-none transition-all"
                >
                  {dealerConfig.bookViewing.ctaLabel}
               </Button>
@@ -284,7 +289,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <nav id="mobile-navigation" ref={mobileMenuRef} aria-label="Mobile navigation" onBlur={(event) => {
             const nextFocus = event.relatedTarget;
             if (!nextFocus || (!event.currentTarget.contains(nextFocus) && nextFocus !== menuButtonRef.current)) setMobileMenuOpen(false);
-          }} className="lg:hidden absolute left-0 top-[4.75rem] flex max-h-[calc(100dvh-4.75rem)] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
+          }} className="lg:hidden absolute left-0 top-full flex max-h-[calc(100dvh-var(--site-header-height))] w-full flex-col overflow-y-auto border-b border-primary/15 bg-background px-4 pb-8 pt-4 shadow-none">
             <button onClick={() => handleNav('top')} className={mobileNavRowClass}>Home <ArrowRight className="w-5 h-5 opacity-40" /></button>
             <button onClick={() => handleNav('stock')} className={mobileNavRowClass}>{websiteText(dealerConfig, "navigationStock")} <ArrowRight className="w-5 h-5 text-accent" />
             </button>
