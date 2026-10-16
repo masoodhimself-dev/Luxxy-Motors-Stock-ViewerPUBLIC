@@ -58,3 +58,25 @@ test('settings are isolated, revision protected, validated and backward compatib
   options.footer='Changed';assert.equal(frozen.invoiceSettings?.footer,'Thank you');assert.equal(frozen.presentation?.linkColour,'#6a3d70');
  } finally {await rm(dir,{recursive:true,force:true});}
 });
+
+test('seller overrides survive older settings clients, remain isolated and freeze into issued branding', async () => {
+ const dir = await mkdtemp(join(tmpdir(), 'invoice-seller-'));
+ try {
+  const a = new DealerIntegrationsStore({ filename: join(dir, 'a.json'), dealerId: 'seller-a', production: false, databaseBacked: false });
+  const b = new DealerIntegrationsStore({ filename: join(dir, 'b.json'), dealerId: 'seller-b', production: false, databaseBacked: false });
+  const initial = await a.readSalesPaperwork();
+  const saved = await a.updateSalesPaperwork({ expectedRevision: initial.revision, saleTerms: 'CUSTOM TERMS', reservationTerms: 'CUSTOM DEPOSIT', invoiceDetails: { name: 'Seller A', vatNumber: '', email: 'a@example.test' } });
+  const frozen = invoiceBranding(saleWorkspaceBranding({ identity: { name: 'Website A' } }), saved.invoiceSettings, saved.invoiceDetails);
+  const before = JSON.stringify(frozen);
+  await assert.rejects(a.updateSalesPaperwork({ expectedRevision: saved.revision, saleTerms: 'CUSTOM TERMS', reservationTerms: '', invoiceDetails: { name: 'bad\nname' } }));
+  await assert.rejects(a.updateSalesPaperwork({ expectedRevision: saved.revision, saleTerms: 'CUSTOM TERMS', reservationTerms: '', invoiceDetails: { email: 'invalid' } }));
+  const legacy = await a.updateSalesPaperwork({ expectedRevision: saved.revision, saleTerms: '', reservationTerms: 'CUSTOM DEPOSIT' });
+  assert.equal(legacy.invoiceDetails?.name, 'Seller A');
+  assert.equal((await a.readSalesPaperwork()).saleTerms, '');
+  assert.deepEqual((await b.readSalesPaperwork()).invoiceDetails, {});
+  await a.updateSalesPaperwork({ expectedRevision: legacy.revision, saleTerms: 'NEW TERMS', reservationTerms: '', invoiceDetails: { name: 'New seller' } });
+  assert.equal(JSON.stringify(frozen), before);
+  assert.equal(frozen.identity.name, 'Seller A');
+  assert.equal(frozen.legal.vatNumber, '');
+ } finally { await rm(dir, { recursive: true, force: true }); }
+});

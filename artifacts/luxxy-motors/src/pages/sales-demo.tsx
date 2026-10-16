@@ -8,6 +8,7 @@ import {
   useListReservations,
 } from "@workspace/api-client-react";
 import {
+  invoiceBranding, saleWorkspaceBranding, type SalesPaperwork, type InvoiceSettings,
   saleWorkspaceTotals,
   type SaleWorkspaceRecord,
   type SaleWorkspaceMutation,
@@ -88,6 +89,12 @@ export function SalesWorkspace({
       customFetch<{ sales: SaleWorkspaceRecord[] }>("/api/sale-workspace"),
     retry: false,
   });
+  const paperwork = useQuery({
+    queryKey: ["sale-paperwork"],
+    queryFn: () => customFetch<SalesPaperwork & { invoiceSettings?: InvoiceSettings }>("/api/sale-workspace/paperwork"),
+    refetchOnWindowFocus: true,
+  });
+  const seller = invoiceBranding(saleWorkspaceBranding(settings), paperwork.data?.invoiceSettings, paperwork.data?.invoiceDetails);
   const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [kind, setKind] = useState<"deposit" | "full">("full");
@@ -97,6 +104,7 @@ export function SalesWorkspace({
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("");
   const [reviewed, setReviewed] = useState(false);
+  useEffect(() => { setReviewed(false); }, [paperwork.data]);
   const [issued, setIssued] = useState<SaleWorkspaceDocument | null>(null);
   const [soldChoice, setSoldChoice] = useState(false);
   const [outstandingAccepted, setOutstandingAccepted] = useState(false);
@@ -1345,6 +1353,15 @@ export function SalesWorkspace({
                         The PDF will be generated once you confirm these
                         details.
                       </p>
+                      <section aria-label="Invoice seller preview">
+                        {paperwork.isFetching ? <p role="status">Refreshing invoice settings…</p> : paperwork.isError ? <div role="alert">Invoice settings could not be loaded. <Button onClick={() => void paperwork.refetch()}>Retry invoice settings</Button></div> : <>
+                          <h3>{seller.identity.name}</h3>
+                          <p>{[seller.address.street, seller.address.city, seller.address.region, seller.address.postcode].filter(Boolean).join(', ')}</p>
+                          <p>{seller.contact.phone} {seller.contact.email}</p>
+                          <p>{seller.legal.companyName} {seller.legal.companyNumber} {seller.legal.vatNumber}</p>
+                          <p>{kind === 'deposit' ? paperwork.data?.reservationTerms : paperwork.data?.saleTerms}</p>
+                        </>}
+                      </section>
                       <dl className="invoice-review">
                         <div>
                           <dt>Invoice</dt>
@@ -1457,7 +1474,7 @@ export function SalesWorkspace({
                     Continue <ArrowRight size={16} />
                   </Button>
                 ) : (
-                  <Button disabled={busy || !reviewed} onClick={generate}>
+                  <Button disabled={busy || !reviewed || paperwork.isFetching || paperwork.isError} onClick={generate}>
                     <FileText size={16} />
                     {busy
                       ? "Creating…"

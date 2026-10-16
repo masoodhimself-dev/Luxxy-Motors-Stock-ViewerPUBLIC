@@ -344,3 +344,21 @@ test('staff may explicitly sell with an outstanding balance, then record later f
   assert.equal(saleWorkspaceTotals(paid.draft,paid.payments).balance,0);assert.equal(paid.lifecycle?.status,'sold');assert.equal(paid.documents.length,1);
   assert.throws(() => changeSaleWorkspace(sold,{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},{expectedRevision:sold.revision,requestId:'guided-sold-reserve'},context()),/already sold/);
 });
+
+test('new invoices use current seller and terms while issued snapshots remain immutable', async () => {
+  const { invoiceBranding } = await import('@workspace/vehicle-meta');
+  const firstContext = context();
+  firstContext.branding = invoiceBranding(firstContext.branding, undefined, { name: 'First seller', vatNumber: '' });
+  firstContext.paperwork = { saleTerms: 'First custom terms', reservationTerms: 'Deposit terms' };
+  const sale = create();
+  const first = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: 'seller-first' }, firstContext);
+  const frozen = JSON.stringify(first.document);
+  const nextContext = context();
+  nextContext.branding = invoiceBranding(nextContext.branding, undefined, { name: 'Next seller' });
+  nextContext.paperwork = { saleTerms: 'Next custom terms', reservationTerms: 'Deposit terms' };
+  const next = changeSaleWorkspace(first.sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: first.sale.revision, requestId: 'seller-next' }, nextContext);
+  assert.equal(next.document?.snapshot.branding.identity.name, 'Next seller');
+  assert.equal(next.document?.content, 'Next custom terms');
+  assert.equal(JSON.stringify(next.sale.documents[0]), frozen);
+  assert.equal(first.document?.snapshot.branding.identity.name, 'First seller');
+});

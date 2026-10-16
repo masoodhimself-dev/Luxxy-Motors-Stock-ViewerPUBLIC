@@ -21,7 +21,7 @@ export class PreviewSaleWorkspaceStore {
     const settings = await readPreviewSettings();
     const vehicle = previewStock.cars.find(car => car.id === draft?.vehicleId);
     const paperwork = await previewIntegrationsStore.readSalesPaperwork();
-    return { paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engineSize, bodyType: vehicle.bodyType, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emissionClass, imageUrl: vehicle.heroImage, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
+    return { paperwork, branding: invoiceBranding(saleWorkspaceBranding(settings), paperwork.invoiceSettings, paperwork.invoiceDetails), ...(vehicle ? { vehicle: { id: vehicle.id, title: vehicle.title ?? '', registration: vehicle.plate || vehicle.vrm || vehicle.registration, engineSize: vehicle.engineSize, bodyType: vehicle.bodyType, doors: vehicle.doors, seats: vehicle.seats, emissionClass: vehicle.emissionClass, imageUrl: vehicle.heroImage, year: vehicle.year, fuel: vehicle.fuel, transmission: vehicle.transmission, mileage: vehicle.mileage, colour: vehicle.colour, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, description: typeof vehicle.sourceExtras?.description === 'string' ? vehicle.sourceExtras.description : null, serviceHistory: typeof vehicle.sourceExtras?.serviceHistory === 'string' ? vehicle.sourceExtras.serviceHistory : null } } : {}) };
   }) {}
   private serial<T>(work: () => Promise<T>): Promise<T> {
     const next = this.queue.then(work, work); this.queue = next.catch(() => {}); return next;
@@ -209,7 +209,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       const mutation = await store.mutate({ id: saleId, command, expectedRevision: input.expectedRevision, requestId: input.requestId });
       send(res, 200, { ...mutation, ...(token ? { customerUrl: `/my-purchase/${token}`, expiresAt: mutation.sale.customerAccess?.expiresAt } : {}) }); return true;
     }
-    if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings }); return true; }
+    if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings, invoiceDetails: p.invoiceDetails }); return true; }
     const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
     if (!route) throw new SaleWorkspaceError('Sale action not found.', 404);
     const [, id, section, paymentId, action] = route;

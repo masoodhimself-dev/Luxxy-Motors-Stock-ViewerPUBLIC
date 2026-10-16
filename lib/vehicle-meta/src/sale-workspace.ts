@@ -1,3 +1,4 @@
+import { invoiceSellerBranding, type InvoiceDetails } from "./invoice-settings.ts";
 /** Shared sale ledger contract and deterministic business rules. No payment processor is called here. */
 export type SaleWorkspaceExchange = { registration: string; description: string; value: string };
 export type SaleWorkspaceAdjustment = { description: string; amount: string; kind: 'fee' | 'discount' };
@@ -48,9 +49,9 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   logoSize: 'medium', inkSaving: false, footer: '', paymentInstructions: '',
   referencePrefix: '', startingSequence: 1,
 };
-export function invoiceBranding(branding: SaleWorkspaceBranding, settings?: InvoiceSettings): SaleWorkspaceBranding {
+export function invoiceBranding(branding: SaleWorkspaceBranding, settings?: InvoiceSettings, details?: InvoiceDetails): SaleWorkspaceBranding {
   const options = { ...defaultInvoiceSettings, ...settings };
-  return { ...branding, invoiceSettings: options,
+  return { ...invoiceSellerBranding(branding, details), invoiceSettings: options,
     presentation: { ...branding.presentation, linkColour: options.inkSaving ? '#34414b' : options.useWebsiteColour ? branding.presentation?.linkColour : options.accent } };
 }
 export type SaleWorkspaceBranding = {
@@ -246,6 +247,7 @@ function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContex
     version: record.documents.filter(item => item.type === type).length + 1,
     ...(payment ? { paymentId: payment.id, paymentAmountPence: payment.signedAmountPence } : {}),
     balanceAtIssue: amount.balance,
+    ...(type === 'invoice' && context.paperwork?.saleTerms.trim() ? { content: context.paperwork.saleTerms.trim() } : {}),
     snapshot: clone({ draft: { ...record.draft, payments: record.payments }, payments: record.payments, totals: amount, branding: context.branding, ...(vehicle ? { vehicle } : {}) }),
   };
   if (payment) { payment.receiptId = document.id; document.snapshot.payments.find(row => row.id === payment.id)!.receiptId = document.id; document.snapshot.draft.payments = clone(document.snapshot.payments); }

@@ -59,6 +59,7 @@ vi.mock("@workspace/api-client-react", () => ({
 vi.mock("@/components/sales-demo/sales-document", () => ({
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
 }));
+import { SalesPaperworkSettings } from "@/components/sales-paperwork-settings";
 import { SalesWorkspace } from "./sales-demo";
 let serial = 0;
 const context = (): SaleWorkspaceContext => ({
@@ -81,6 +82,7 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(
       async (url: string, options?: { method: string; body: string }) => {
+        if (url === '/api/sale-workspace/paperwork') return { saleTerms: '', reservationTerms: '' };
         if (!options) return { sales: state.sales };
         const payload = JSON.parse(options.body);
         if (url === "/api/sale-workspace") {
@@ -344,4 +346,43 @@ it("calculates a fee, discount and part exchange exactly before issuing the full
   await issue("full");
   expect(state.sales[0].documents[0].snapshot.totals.totalDue).toBe(890250);
   expect(state.sales[0].documents[0].balanceAtIssue).toBe(0);
+});
+
+it('refreshes seller details and custom terms after saving settings while Sales remains mounted', async () => {
+  let paperwork = { revision: 2, saleTerms: 'Original custom terms', reservationTerms: 'Keep deposit terms', invoiceDetails: { name: 'Original seller' } };
+  const originalFetch = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options?: { method: string; body: string }) => {
+    if (url === '/api/dealer-settings') return context().branding;
+    if (url === '/api/sale-workspace/paperwork' || url === '/api/dealer-integrations/sales-paperwork') {
+      if (options?.method === 'PUT') {
+        const { expectedRevision, ...next } = JSON.parse(options.body);
+        expect(expectedRevision).toBe(2);
+        paperwork = { ...next, revision: 3 };
+      }
+      return structuredClone(paperwork);
+    }
+    return originalFetch(url, options);
+  });
+  const cache = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  const view = (settings: boolean) => <QueryClientProvider client={cache}>
+    <div hidden={settings}><SalesWorkspace /></div>
+    {settings && <SalesPaperworkSettings />}
+  </QueryClientProvider>;
+  const mounted = render(view(false));
+  await details('full');
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Full invoice/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await screen.findByRole('heading', { name: 'Original seller' });
+  mounted.rerender(view(true));
+  fireEvent.change(await screen.findByLabelText('Dealership name'), { target: { value: 'Updated seller' } });
+  fireEvent.change(screen.getByLabelText('Terms and conditions of sale'), { target: { value: 'Updated custom terms' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save document settings' }));
+  await screen.findByText('Document settings saved. Existing issued documents keep their original design, reference and terms.');
+  mounted.rerender(view(false));
+  expect(await screen.findByRole('heading', { name: 'Updated seller' })).toBeInTheDocument();
+  expect(screen.getByText('Updated custom terms')).toBeInTheDocument();
+  expect(screen.queryByText('Original custom terms')).not.toBeInTheDocument();
+  expect(paperwork.reservationTerms).toBe('Keep deposit terms');
+  expect(state.sales).toEqual([]);
 });
