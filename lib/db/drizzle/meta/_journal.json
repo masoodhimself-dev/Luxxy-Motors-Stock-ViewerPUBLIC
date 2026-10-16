@@ -239,6 +239,13 @@
       "when": 1792141131322,
       "tag": "0033_demo_business_details",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792141131323,
+      "tag": "0034_demo_completion_jobs",
+      "breakpoints": true
     }
   ]
 }

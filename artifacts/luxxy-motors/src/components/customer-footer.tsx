@@ -59,7 +59,7 @@ export function CustomerFooter({ settings, testDriveHref }: { settings: DealerCo
       </div>
 
       <div className="footer-bottom">
-        <div><p>© {new Date().getFullYear()} {settings.legal.companyName || settings.identity.name}. All rights reserved.</p>{(settings.legal.companyNumber || settings.legal.vatNumber) && <p className="footer-company-details">{settings.legal.companyNumber && <span>Company no. {settings.legal.companyNumber}</span>}{settings.legal.vatNumber && <span>VAT no. {settings.legal.vatNumber}</span>}</p>}</div>
+        <div><p>© {new Date().getFullYear()} {settings.legal.companyName?.trim() || settings.identity.name?.trim() || 'Our dealership'}. All rights reserved.</p>{(settings.legal.companyNumber || settings.legal.vatNumber) && <p className="footer-company-details">{settings.legal.companyNumber && <span>Company no. {settings.legal.companyNumber}</span>}{settings.legal.vatNumber && <span>VAT no. {settings.legal.vatNumber}</span>}</p>}</div>
         {(settings.legal.privacyUrl || settings.legal.termsUrl || settings.legal.cookieUrl) && <nav aria-label="Legal information">{settings.legal.privacyUrl && <a href={settings.legal.privacyUrl}>Privacy policy</a>}{settings.legal.termsUrl && <a href={settings.legal.termsUrl}>Terms & conditions</a>}{settings.legal.cookieUrl && <a href={settings.legal.cookieUrl}>Cookies</a>}</nav>}
       </div>
     </div>

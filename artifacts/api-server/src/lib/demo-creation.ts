@@ -26,6 +26,7 @@ export function validatedDemoInput(raw:unknown) {
  const logo=readLogo(d.logoData),footerLogo=readLogo(d.footerLogoData);
  return {d,id,host,logo,footerLogo,p};
 }
+export const demoBrandingPatch=demoCreationInput.pick({logoData:true,footerLogoData:true,showroomAddress:true,openingHours:true}).partial().strict().refine(v=>Object.keys(v).length>0,'Supply at least one supported change.');
 export async function insertDemo(client:SaleWorkspaceReadClient, prepared:ReturnType<typeof validatedDemoInput>, ownerAuthUserId:string){
  const {d,id,host,logo,footerLogo,p}=prepared;
     const config={...newDealerSettings(d.name),hours:d.openingHours?publishedDemoHours(d.openingHours):[],...(footerLogo?{presentation:{footerLogoUrl:`https://${host}/api/demo-logo?variant=footer`}}:{})};config.identity.logoAsset=logo?'/api/demo-logo':'';config.hero.announcement='';

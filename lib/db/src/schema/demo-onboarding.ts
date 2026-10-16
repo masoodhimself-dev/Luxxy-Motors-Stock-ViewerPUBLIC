@@ -10,3 +10,7 @@ export const demoOnboardingRequestsTable=pgTable('demo_onboarding_requests',{
 export const demoOnboardingCompletionTable=pgTable('demo_onboarding_completion',{
  dealerId:text('dealer_id').primaryKey().references(()=>dealerDemosTable.dealerId),keyId:uuid('key_id').notNull().references(()=>demoOnboardingKeysTable.id),recipient:text('recipient').notNull(),providerId:text('provider_id'),emailStatus:text('email_status').notNull().default('pending'),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),checkedAt:timestamp('checked_at',{withTimezone:true}),baselineRunId:text('baseline_run_id'),completedAt:timestamp('completed_at',{withTimezone:true}),
 });
+
+export const demoCompletionJobsTable=pgTable('demo_completion_jobs',{
+ id:uuid('id').primaryKey().defaultRandom(),dealerId:text('dealer_id').notNull().unique().references(()=>dealerDemosTable.dealerId),keyId:uuid('key_id').notNull().references(()=>demoOnboardingKeysTable.id),runId:text('run_id').notNull(),status:text('status').notNull().default('queued'),stage:text('stage').notNull().default('import-check'),attempts:integer('attempts').notNull().default(0),deliveryChecks:integer('delivery_checks').notNull().default(0),nextAttemptAt:timestamp('next_attempt_at',{withTimezone:true}).notNull().defaultNow(),history:jsonb('history').notNull().default([]),error:text('error'),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+});

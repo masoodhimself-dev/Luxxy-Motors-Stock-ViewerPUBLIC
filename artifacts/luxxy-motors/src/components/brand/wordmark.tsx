@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from "@/lib/utils";
 
 /** A drawn Luxxy mark; other dealerships retain their configured name or uploaded logo. */
@@ -12,15 +13,17 @@ export function DealerWordmark({
   logoAsset?: string;
   className?: string;
 }) {
-  if (logoAsset)
+  const [failedAsset,setFailedAsset]=useState<string>();
+  const label=logoText?.trim() || name?.trim() || 'Our dealership';
+  if (logoAsset && failedAsset!==logoAsset)
     return (
       <img
         src={logoAsset}
-        alt={name}
+        alt={label}
+        onError={()=>setFailedAsset(logoAsset)}
         className={cn("h-10 max-w-[min(48vw,15rem)] object-contain", /[?&]theme=light(?:&|$)/.test(logoAsset) && "h-12 rounded-md bg-[#1b2526] px-2 py-1", className)}
       />
     );
-  const label = logoText || name;
   if (!/^luxxy\s+motors$/i.test(label.trim())) {
     return (
       <span

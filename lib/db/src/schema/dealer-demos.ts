@@ -5,6 +5,8 @@ export const dealerDemosTable = pgTable('dealer_demos', {
   dealerId: text('dealer_id').primaryKey().references(() => dealershipsTable.id),
   logoData: text('logo_data'),
   footerLogoData: text('footer_logo_data'),
+  onboardingPatchHash:text('onboarding_patch_hash'),
+  onboardingPatchRevision:integer('onboarding_patch_revision'),
   businessDetails: jsonb('business_details').$type<Record<string, unknown>>(),
   recipient: text('recipient').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
