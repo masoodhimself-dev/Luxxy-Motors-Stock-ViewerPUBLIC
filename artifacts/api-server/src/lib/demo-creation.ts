@@ -1,3 +1,4 @@
+import { demoShowroomAddress,demoOpeningHours,publishedDemoHours } from './demo-business-details';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod/v4';
 import { demoProvisioning } from './demo-policy';
@@ -5,7 +6,7 @@ import { seedDemo } from './demo-workspace';
 import { newDealerSettings } from '../routes/dealer-settings';
 import type { SaleWorkspaceReadClient } from './sale-workspace-store';
 export class DemoSetupError extends Error { constructor(message:string, readonly status=400){super(message);} }
-export const demoCreationInput=z.object({slug:z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/), name:z.string().trim().min(1).max(100),platform:z.enum(['autotrader','cazoo']),retailerId:z.string().trim().min(1).max(128),sourceUrl:z.string().url(),recipient:z.string().email(),days:z.number().int().min(1).max(90).default(14),logoData:z.string().max(400000).optional(),footerLogoData:z.string().max(400000).optional()}).strict();
+export const demoCreationInput=z.object({slug:z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/), name:z.string().trim().min(1).max(100),platform:z.enum(['autotrader','cazoo']),retailerId:z.string().trim().min(1).max(128),sourceUrl:z.string().url(),recipient:z.string().email(),days:z.number().int().min(1).max(90).default(14),logoData:z.string().max(400000).optional(),footerLogoData:z.string().max(400000).optional(),showroomAddress:demoShowroomAddress.optional(),openingHours:demoOpeningHours.optional()}).strict();
 
 export function validatedDemoInput(raw:unknown) {
  const parsed=demoCreationInput.safeParse(raw),p=demoProvisioning();
@@ -27,13 +28,14 @@ export function validatedDemoInput(raw:unknown) {
 }
 export async function insertDemo(client:SaleWorkspaceReadClient, prepared:ReturnType<typeof validatedDemoInput>, ownerAuthUserId:string){
  const {d,id,host,logo,footerLogo,p}=prepared;
-    const config={...newDealerSettings(d.name),...(footerLogo?{presentation:{footerLogoUrl:`https://${host}/api/demo-logo?variant=footer`}}:{})};config.identity.logoAsset=logo?'/api/demo-logo':'';config.hero.announcement='';
+    const config={...newDealerSettings(d.name),hours:d.openingHours?publishedDemoHours(d.openingHours):[],...(footerLogo?{presentation:{footerLogoUrl:`https://${host}/api/demo-logo?variant=footer`}}:{})};config.identity.logoAsset=logo?'/api/demo-logo':'';config.hero.announcement='';
+    if(d.showroomAddress){const {sourceUrl,checkedAt,...address}=d.showroomAddress;config.address={...address,mapsUrl:address.mapsUrl??''};}
     config.contact.email=p.emailDomain?`${id}@${p.emailDomain}`:'';
     await client.query("INSERT INTO dealerships (id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES ($1,$2,'active',$3,$4,$5,$6)",[id,d.name,`https://${host}`,d.platform,d.retailerId,d.sourceUrl]);
     await client.query('INSERT INTO dealer_domains (hostname,dealer_id,verified,verification_token) VALUES ($1,$2,true,$3)',[host,id,`platform-owned-demo=${randomBytes(24).toString('hex')}`]);
     await client.query("INSERT INTO portal_users (dealer_id,auth_user_id,role) VALUES ($1,$2,'owner')",[id,ownerAuthUserId]);
     await client.query('INSERT INTO dealer_settings (dealer_id,config) VALUES ($1,$2::jsonb)',[id,JSON.stringify(config)]);
-    await client.query('INSERT INTO dealer_demos (dealer_id,recipient,expires_at,updated_by,logo_data,footer_logo_data) VALUES ($1,$2,$3,$4,$5,$6)',[id,d.recipient.toLowerCase(),new Date(Date.now()+d.days*86400000),ownerAuthUserId,logo,footerLogo]);
+    await client.query('INSERT INTO dealer_demos (dealer_id,recipient,expires_at,updated_by,logo_data,footer_logo_data,business_details) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)',[id,d.recipient.toLowerCase(),new Date(Date.now()+d.days*86400000),ownerAuthUserId,logo,footerLogo,JSON.stringify({...(d.showroomAddress?{showroomAddress:d.showroomAddress}:{}),...(d.openingHours?{openingHours:d.openingHours}:{})})]);
     await seedDemo(client,id,config);
 
  return {dealerId:id,origin:`https://${host}`};

@@ -232,6 +232,13 @@
       "when": 1792102644063,
       "tag": "0032_demo_footer_logo",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792141131322,
+      "tag": "0033_demo_business_details",
+      "breakpoints": true
     }
   ]
 }

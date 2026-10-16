@@ -67,6 +67,7 @@ Contract:
 - `recipient`: optional; if omitted, the server chooses the first explicitly allowlisted operator test recipient. If provided, it must already be on that allowlist. The bot cannot add recipients.
 - `footerLogoData`: optional separate footer PNG/JPEG data URL, with the same validation as logoData. Both encoded logos together must be under 400,000 characters, and each decoded image under 250 KB.
 - `logoData`: optional PNG/JPEG base64 data URL, max 400,000 characters and decoded max 250,000 bytes. Do not send SVG or an arbitrary remote URL. The backend does not fetch remote logo URLs. Resize/compress authorised logos locally.
+- `showroomAddress` and `openingHours`: optional sourced business details, following the exact contract below.
 - Extra fields, including owner, status, origin, domain and live mode, are rejected.
 
 `201` response contains exactly these fields:
@@ -76,6 +77,45 @@ Contract:
 ```
 
 Creation, fictional activity and the idempotency record commit in one transaction. No stock credential is generated. The operator generates it in that dealership's **Stock connection** panel and enters it into the dealer bot's secure card. The onboarding credential cannot issue/retrieve stock keys, import stock or call platform administration.
+
+## Optional address and opening hours
+
+Collect these from an authorised dealer/marketplace page. Use the actual showroom address, not a registered office unless confirmed to be the showroom. Do not invent missing information. These objects are optional; omit an unconfirmed address. Each supplied object must include its own HTTPS `sourceUrl` (no credentials/custom port) and actual ISO `checkedAt` with timezone. Keep the original source-check timestamp; do not relabel cached or failed checks as fresh. Future checks beyond five minutes are rejected.
+
+Add these fields inside `demo` in the creation request. This is a **fictional example**, not Autex or Luxxy's real details:
+
+```json
+{
+  "showroomAddress": {
+    "street": "12 Fictional Road",
+    "city": "Example Town",
+    "region": "",
+    "postcode": "AB1 2CD",
+    "sourceUrl": "https://dealer.example.test/contact",
+    "checkedAt": "2026-10-15T10:00:00Z"
+  },
+  "openingHours": {
+    "timezone": "Europe/London",
+    "sourceUrl": "https://dealer.example.test/contact",
+    "checkedAt": "2026-10-15T10:00:00Z",
+    "days": [
+      {"day": 0, "status": "appointment_only"},
+      {"day": 1, "status": "open", "open": "09:00", "close": "17:30"},
+      {"day": 2, "status": "open", "open": "09:00", "close": "17:30"},
+      {"day": 3, "status": "unknown"},
+      {"day": 4, "status": "open", "open": "09:00", "close": "17:30"},
+      {"day": 5, "status": "open", "open": "09:00", "close": "17:30"},
+      {"day": 6, "status": "closed"}
+    ]
+  }
+}
+```
+
+Address: `street` 1–160 characters, `city` 1–80, `postcode` 1–20; optional `region` up to 80 (defaults blank), optional `mapsUrl` using the same HTTPS URL restrictions. All objects reject extra fields.
+
+Hours: `timezone` must be `Europe/London` (also the default). Supply exactly seven unique days: 0 Sunday through 6 Saturday. `open` days require 24-hour `HH:mm` open/close, with closing after opening. Other statuses accept only day/status: `closed`, `appointment_only`, `unknown`. Unconfirmed days must be `unknown`, never guessed closed. Split/overnight hours are not supported: ask the operator or leave that day unknown rather than flattening inaccurate times. Omit the hours object if no reliable information is available. Conflicting sources require operator review.
+
+The server populates existing editable website address/hours settings. It retains initial source evidence in `businessDetails` on the own-demo status response. This is collection provenance, not a permanent verification claim. Missing/unknown/appointment-only hours never become an automatic closed claim. Test-drive booking stays disabled until booking capacity and rules are configured separately. Initial baselines include these website settings. This creation API cannot update an existing demo's details; use its operator settings for existing demos. Reviews are not part of this contract.
 
 ## Retry
 
@@ -129,7 +169,7 @@ The same onboarding header authenticates these routes. This is **not** the stock
 
 ### Logo upload
 
-For new demos, create two matching **demo concept** logos from the confirmed dealer name; do not reuse marketplace banners. Keep clean typography, no small taglines, no mockups or heavy backgrounds. Check readability at the real display size. Do not claim that a concept is the dealer's existing official logo.
+For new demos, use the operator-provided header and footer logos. If none are supplied, ask before proceeding with branding. Only generate matching **demo concept** logos when explicitly requested; do not reuse marketplace banners. Keep clean typography, no small taglines, no mockups or heavy backgrounds. Check readability at the real display size. Do not claim that a concept is the dealer's existing official logo.
 
 Include `demo.logoData` for the compact header logo and `demo.footerLogoData` for the matching footer variant in the original creation request. Suggested working canvases: header 600×160, footer 600×200, preserving proportions and leaving padding. Use a transparent PNG where appropriate; JPEG is also supported. Each decoded image must be under 250 KB and their combined encoded data URLs under 400,000 characters (the request limit remains 450 KB). The footer is served at the tenant-scoped `/api/demo-logo?variant=footer`. Keep identical bytes on retries. SVG and remote logo URLs are not accepted. This API still cannot replace an existing demo's logo; ask the operator for existing demos.
 

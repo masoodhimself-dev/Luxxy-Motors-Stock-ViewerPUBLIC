@@ -110,6 +110,13 @@ test('platform onboarding and operational views preserve access checks and omit 
   const job={requestId:'33333333-3333-4333-8333-333333333333',demo:{slug:'bot-example',name:'Bot Example',platform:'autotrader',retailerId:'fictional-ref',sourceUrl:'https://www.autotrader.co.uk/fictional',logoData:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aOioAAAAASUVORK5CYII='}};
   assert.equal((await machine('/demos','POST',{...job,demo:{...job.demo,logoData:'data:image/svg+xml;base64,PHN2Zz4='}})).status,400);
   Object.assign(job.demo,{footerLogoData:job.demo.logoData});
+  const business={showroomAddress:{street:'12 Fictional Road',city:'Example Town',postcode:'AB1 2CD',sourceUrl:'https://dealer.example.test/contact',checkedAt:new Date().toISOString()},openingHours:{timezone:'Europe/London',sourceUrl:'https://dealer.example.test/contact',checkedAt:new Date().toISOString(),days:[{day:0,status:'appointment_only'},{day:1,status:'open',open:'09:00',close:'17:30'},{day:2,status:'open',open:'09:00',close:'17:30'},{day:3,status:'unknown'},{day:4,status:'open',open:'09:00',close:'17:30'},{day:5,status:'open',open:'09:00',close:'17:30'},{day:6,status:'closed'}]}};
+  const {validatedDemoInput}=await import('./lib/demo-creation');
+  assert.throws(()=>validatedDemoInput({...job.demo,...business,showroomAddress:{...business.showroomAddress,mapsUrl:'javascript:alert(1)'}}));
+  assert.throws(()=>validatedDemoInput({...job.demo,...business,openingHours:{...business.openingHours,days:[...business.openingHours.days.slice(0,6),business.openingHours.days[0]]}}));
+  assert.throws(()=>validatedDemoInput({...job.demo,...business,openingHours:{...business.openingHours,days:business.openingHours.days.map(r=>r.day===1?{day:1,status:'open',open:'17:00',close:'09:00'}:r)}}));
+  assert.throws(()=>validatedDemoInput({...job.demo,...business,showroomAddress:{...business.showroomAddress,checkedAt:new Date(Date.now()+3600000).toISOString()}}));
+  Object.assign(job.demo,business);
   const sent=await machine('/demos','POST',job);assert.equal(sent.status,201,await sent.clone().text());
   const receipt=await sent.json() as {dealerId:string;origin:string;status:string};
   assert.deepEqual(receipt,{dealerId:'demo-bot-example',origin:'https://bot-example.demo.example.test',status:'created'});
@@ -118,6 +125,14 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await engine.query<Record<string,any>>("SELECT footer_logo_data FROM dealer_demos WHERE dealer_id='demo-bot-example'")).rows[0].footer_logo_data,job.demo.logoData);
   assert.equal((await request('/api/demo-logo?variant=footer','GET',undefined,'','bot-example.demo.example.test')).status,200);
   assert.equal((await request('/api/demo-logo?variant=footer','GET',undefined,'','dealer.example.test')).status,421);
+  const sourcedConfig=(await engine.query<Record<string,any>>("SELECT config FROM dealer_settings WHERE dealer_id='demo-bot-example'")).rows[0].config;
+  assert.equal(sourcedConfig.address.street,'12 Fictional Road');assert.equal(sourcedConfig.address.region,'');assert.equal(sourcedConfig.hours.find((r:any)=>r.days==='Wednesday').times,'Contact us to confirm');assert.equal(sourcedConfig.testDriveBooking.enabled,false);
+  const {showroomAvailability}=await import('@workspace/vehicle-meta');
+  assert.equal(showroomAvailability(sourcedConfig.hours,new Date('2026-10-12T10:00:00Z')).state,'open');
+  assert.equal(showroomAvailability(sourcedConfig.hours,new Date('2026-10-14T10:00:00Z')).state,'unknown');
+  assert.equal(showroomAvailability(sourcedConfig.hours,new Date('2026-10-18T10:00:00Z')).state,'unknown');
+  assert.equal(showroomAvailability(sourcedConfig.hours,new Date('2026-10-17T10:00:00Z')).state,'closed');
+  const sourceRead=await (await machine('/demos/demo-bot-example')).json() as any;assert.equal(sourceRead.businessDetails.showroomAddress.sourceUrl,business.showroomAddress.sourceUrl);
   // A historical receipt containing a credential must never be exposed on replay.
   await engine.query("UPDATE demo_onboarding_requests SET sealed_response=$1::jsonb WHERE dealer_id='demo-bot-example'",[JSON.stringify({stockImport:{secret:'historical-secret'}})]);
   const repeated=await machine('/demos','POST',job);assert.equal(repeated.status,200);
