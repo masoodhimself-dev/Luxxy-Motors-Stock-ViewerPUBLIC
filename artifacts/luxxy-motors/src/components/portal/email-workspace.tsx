@@ -715,6 +715,10 @@ export function EmailWorkspace({
                         onClick={() => {
                           setConversation(null);
                           setSelected(null);
+                          if (scopedEnquiryId)
+                            navigate(
+                              "/portal?section=notifications&workView=email&view=sent",
+                            );
                         }}
                       >
                         <ArrowLeft size={17} aria-hidden="true" />

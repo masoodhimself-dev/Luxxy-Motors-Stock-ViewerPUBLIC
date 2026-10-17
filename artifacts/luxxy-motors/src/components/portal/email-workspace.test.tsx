@@ -9,6 +9,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({
   fetch: vi.fn(),
+  navigate: vi.fn(),
   search: "view=sent",
   enquiries: [] as any[],
 }));
@@ -29,7 +30,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 vi.mock("wouter", () => ({
   useSearch: () => state.search,
-  useLocation: () => ["/portal", vi.fn()],
+  useLocation: () => ["/portal", state.navigate],
   Link: ({ href, children }: any) => <a href={href}>{children}</a>,
 }));
 vi.mock("./enquiry-workspace-tools", () => ({
@@ -61,6 +62,7 @@ const message = {
   checked_at: null,
 };
 beforeEach(() => {
+  state.navigate.mockReset();
   state.search = "view=sent";
   state.enquiries = [enquiry];
   state.fetch
@@ -673,4 +675,16 @@ it("keeps embedded email controls in one toolbar and puts search inside the conv
   expect(
     screen.queryByRole("region", { name: "Customer conversations" }),
   ).not.toBeInTheDocument();
+});
+
+it("leaves scoped customer context when returning to the conversation list", async () => {
+  state.search =
+    "section=notifications&workView=email&enquiryId=enquiry-1&view=sent";
+  mount(true);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Back to conversations" }),
+  );
+  expect(state.navigate).toHaveBeenCalledWith(
+    "/portal?section=notifications&workView=email&view=sent",
+  );
 });
