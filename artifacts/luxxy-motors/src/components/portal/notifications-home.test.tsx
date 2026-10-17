@@ -92,6 +92,13 @@ it("hides email categories and compose links without email permission", async ()
     screen.queryByRole("link", { name: "Prepare reply" }),
   ).not.toBeInTheDocument();
 });
+it('explains staff-reviewed AI only for a permitted and enabled dealership without generating anything', async () => {
+  state.fetch.mockResolvedValue({ ...data, capabilities: { aiDrafts: true, automaticDrafts: false, automaticSending: false } });
+  show(<NotificationsHome />);
+  expect(await screen.findByRole('heading', { name: 'AI reply drafts' })).toBeVisible();
+  expect(screen.getByText(/Automatic sending is off/)).toBeVisible();
+  expect(state.fetch.mock.calls.every(call => call[0] === '/api/staff/notifications' && call.length === 1)).toBe(true);
+});
 it("shows an honest error instead of an empty success when notifications fail", async () => {
   state.fetch.mockRejectedValue(new Error("offline"));
   show(<NotificationsHome />);

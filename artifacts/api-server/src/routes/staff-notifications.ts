@@ -8,6 +8,7 @@ import { siteOrigin } from "../lib/enquiry-links";
 import { enquiryCaseIds } from "../lib/enquiry-case-ids";
 import { readEmailDraft } from "../lib/email-drafts";
 import { draftSchema } from "./enquiry-emails";
+import { aiDraftFeature, checkAiGenerationForSave, checkSavedAiDraftFresh, AiDraftError } from '../lib/ai-drafts';
 
 const editableDraft = draftSchema.extend({
   to: z.union([
@@ -19,6 +20,7 @@ const editableDraft = draftSchema.extend({
 const saveSchema = z
   .object({
     expectedVersion: z.number().int().nonnegative(),
+    aiGenerationId: z.string().uuid().optional(),
     content: editableDraft.extend({
       subject: z
         .string()
@@ -116,7 +118,7 @@ export function createStaffNotificationsRouter() {
         counts,
         items,
         capabilities: {
-          aiDrafts: false,
+          aiDrafts: emailAccess && aiDraftFeature().available,
           automaticDrafts: false,
           automaticSending: false,
         },
@@ -194,8 +196,13 @@ export function createStaffNotificationsRouter() {
               "The enquiry changed. Reopen the draft and review the latest details.",
           };
         const content = input.data.content;
+        if (input.data.aiGenerationId && content.templateId) return { status: 400, error: 'Use the AI suggestion or a template, then review before saving.' };
+        if (input.data.aiGenerationId) await checkAiGenerationForSave(tx, dealer, id, input.data.aiGenerationId, req.staff!.authUserId, content.expectedRevision, saved.version);
+        const source = input.data.aiGenerationId ? 'ai' : content.templateId ? 'template' : saved.savedDraft?.source === 'ai' ? 'ai' : 'manual';
+        if (source === 'ai' && !input.data.aiGenerationId) await checkSavedAiDraftFresh(tx, dealer, id, saved);
+        const aiGenerationId = input.data.aiGenerationId ?? (source === 'ai' ? saved.savedDraft?.aiGenerationId : null);
         await tx.execute(
-          sql`INSERT INTO enquiry_email_drafts(dealer_id,enquiry_id,version,status,source,content,updated_by) VALUES(${dealer},${id}::uuid,${saved.version + 1},'draft',${content.templateId ? "template" : "manual"},${JSON.stringify(content)}::jsonb,${req.staff!.authUserId}) ON CONFLICT(dealer_id,enquiry_id) DO UPDATE SET version=excluded.version,status='draft',source=excluded.source,content=excluded.content,updated_by=excluded.updated_by,updated_at=now(),send_request_id=NULL`,
+          sql`INSERT INTO enquiry_email_drafts(dealer_id,enquiry_id,version,status,source,content,updated_by,ai_generation_id) VALUES(${dealer},${id}::uuid,${saved.version + 1},'draft',${source},${JSON.stringify(content)}::jsonb,${req.staff!.authUserId},${aiGenerationId ?? null}::uuid) ON CONFLICT(dealer_id,enquiry_id) DO UPDATE SET version=excluded.version,status='draft',source=excluded.source,content=excluded.content,updated_by=excluded.updated_by,updated_at=now(),ai_generation_id=excluded.ai_generation_id,send_request_id=NULL`,
         );
         return {
           status: 200,
@@ -203,7 +210,8 @@ export function createStaffNotificationsRouter() {
         };
       });
       res.status(result.status).json(result);
-    } catch {
+    } catch (error) {
+      if (error instanceof AiDraftError) { res.status(error.status).json({ error: error.message }); return; }
       res
         .status(503)
         .json({

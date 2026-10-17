@@ -27,6 +27,7 @@
 .enquiry-email-form input:not([type="checkbox"]) {
   min-height: 46px;
 }
+.enquiry-email-form :is(input:not([type="checkbox"]), textarea, select) { font-size:16px; }
 .enquiry-email-form textarea {
   line-height: 1.6;
   font-weight: 400;

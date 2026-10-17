@@ -36,8 +36,10 @@ export async function communicationsPreview(
       "/api/staff/email-drafts",
       "/api/staff/email",
       "/api/staff/push",
+      "/api/staff/ai-drafts/config",
     ].includes(url.pathname) ||
     url.pathname.startsWith('/api/staff/push/') ||
+    /^\/api\/staff\/enquiries\/[^/]+\/ai-draft$/.test(url.pathname) ||
     /^\/api\/staff\/enquiries\/[^/]+\/email(?:-context|-draft(?:\/discard)?|-preview)?$/.test(
       url.pathname,
     );
@@ -57,6 +59,16 @@ export async function communicationsPreview(
     (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`)
   ) {
     send(403, { error: "Communications preview is loopback-only." });
+    return true;
+  }
+  if (url.pathname === '/api/staff/ai-drafts/config' || /^\/api\/staff\/enquiries\/[^/]+\/ai-draft$/.test(url.pathname)) {
+    // A file-backed preview must never use a real provider key or customer data.
+    const reason = 'AI drafting needs the authenticated backend and an operator-enabled dealership. Local preview never contacts OpenAI.';
+    if (req.method === 'GET' && url.pathname === '/api/staff/ai-drafts/config') {
+      send(200, { enabled: false, available: false, reason, model: 'gpt-6-luna', dailyLimit: 20, monthlyLimit: 500, dailyUsed: 0, monthlyUsed: 0 });
+    } else {
+      send(503, { error: reason });
+    }
     return true;
   }
   if (url.pathname === '/api/staff/push' || url.pathname.startsWith('/api/staff/push/')) {

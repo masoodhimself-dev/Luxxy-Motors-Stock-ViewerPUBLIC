@@ -12,6 +12,7 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 import { enquiriesTable } from "./enquiries";
+import { staffAiDraftGenerationsTable } from './staff-ai-drafts';
 
 export const enquiryEmailDraftsTable = pgTable(
   "enquiry_email_drafts",
@@ -27,6 +28,7 @@ export const enquiryEmailDraftsTable = pgTable(
       .notNull()
       .defaultNow(),
     sendRequestId: uuid("send_request_id"),
+    aiGenerationId: uuid('ai_generation_id').references(() => staffAiDraftGenerationsTable.id),
   },
   (t) => [
     primaryKey({ columns: [t.dealerId, t.enquiryId] }),

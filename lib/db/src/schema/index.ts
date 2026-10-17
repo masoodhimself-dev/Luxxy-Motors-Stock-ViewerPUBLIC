@@ -46,3 +46,4 @@ export * from './domain-setup-jobs';
 export * from './enquiry-email-drafts';
 
 export * from './staff-push';
+export * from './staff-ai-drafts';

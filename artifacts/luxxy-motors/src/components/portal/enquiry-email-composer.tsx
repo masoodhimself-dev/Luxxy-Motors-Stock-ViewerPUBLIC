@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRefreshDesk, workspaceError } from "./enquiry-workspace-tools";
 import { requestUuid } from "@/lib/request-uuid";
+import { AiDraftSuggestion } from "./ai-draft-suggestion";
 import "./enquiry-email-composer.css";
 
 type Delivery = {
@@ -31,6 +32,7 @@ type EmailContext = {
   savedDraft?: {
     version: number;
     status: string;
+    source?: string;
     content: EmailDraft;
     updatedAt: string;
   } | null;
@@ -140,7 +142,7 @@ function Photo({
 }
 
 /** No email leaves the app until staff review the server-generated message and confirm. */
-export function EnquiryEmailComposer({
+function EnquiryEmailEditor({
   entry,
   onClose,
 }: {
@@ -182,6 +184,9 @@ export function EnquiryEmailComposer({
     [delivery, setDelivery] = useState<Delivery | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiGenerationId, setAiGenerationId] = useState<string>();
+  useEffect(() => { setAiGenerationId(undefined); }, [context.data?.revision]);
   useEffect(() => {
     if (!context.data || initialized.current) return;
     const data = context.data;
@@ -189,7 +194,7 @@ export function EnquiryEmailComposer({
     savedVersion.current = data.version ?? 0;
     if (data.savedDraft) {
       setDraft(data.savedDraft.content);
-      setSaveNotice("Saved draft restored · not sent");
+      setSaveNotice(data.savedDraft.source === "ai" ? "AI-assisted draft restored · review before sending" : "Saved draft restored · not sent");
       return;
     }
     setDraft({
@@ -203,6 +208,7 @@ export function EnquiryEmailComposer({
     });
   }, [context.data]);
   function change(value: Partial<EmailDraft>) {
+    if ("templateId" in value || "expectedRevision" in value) setAiGenerationId(undefined);
     setDraft((d) => ({ ...d, ...value }));
     setDirty(true);
     setSaveNotice("Unsaved changes");
@@ -215,8 +221,10 @@ export function EnquiryEmailComposer({
     const result = await request<{ version: number }>(`${base}/email-draft`, {
       expectedVersion: savedVersion.current,
       content: draft,
+      ...(aiGenerationId ? { aiGenerationId } : {}),
     });
     savedVersion.current = result.version;
+    setAiGenerationId(undefined);
     setDirty(false);
     setSaveNotice("Draft saved · not sent");
     await Promise.all([
@@ -225,7 +233,7 @@ export function EnquiryEmailComposer({
     ]);
   }
   async function saveDraft() {
-    if (busyRef.current) return;
+    if (busyRef.current || aiBusy) return;
     busyRef.current = true;
     setBusy(true);
     setError("");
@@ -239,7 +247,7 @@ export function EnquiryEmailComposer({
     }
   }
   function close() {
-    if (busyRef.current) return;
+    if (busyRef.current || aiBusy) return;
     if (
       dirty &&
       !window.confirm(
@@ -250,7 +258,7 @@ export function EnquiryEmailComposer({
     onClose("draft");
   }
   async function review() {
-    if (busyRef.current) return;
+    if (busyRef.current || aiBusy) return;
     busyRef.current = true;
     setBusy(true);
     setError("");
@@ -483,7 +491,7 @@ export function EnquiryEmailComposer({
                       }}
                       className="enquiry-email-form"
                     >
-                      <fieldset disabled={busy}>
+                      <fieldset disabled={busy || aiBusy}>
                         <label>
                           Customer email
                           <Input
@@ -568,6 +576,20 @@ export function EnquiryEmailComposer({
                             </select>
                           </label>
                         )}
+                        <AiDraftSuggestion
+                          key={`${entry.id}:${data.revision}:${savedVersion.current}`}
+                          enquiryId={entry.id}
+                          expectedRevision={draft.expectedRevision}
+                          expectedVersion={savedVersion.current}
+                          draftFingerprint={JSON.stringify(draft)}
+                          disabled={busy || draft.expectedRevision !== data.revision}
+                          onBusyChange={setAiBusy}
+                          onUse={suggestion => {
+                            change({ templateId: undefined, subject: suggestion.subject, message: suggestion.message });
+                            setAiGenerationId(suggestion.generationId);
+                            setSaveNotice("AI suggestion added · unsaved · review before sending");
+                          }}
+                        />
                         <label>
                           Subject
                           <Input
@@ -724,7 +746,7 @@ export function EnquiryEmailComposer({
                           type="button"
                           variant="outline"
                           disabled={
-                            busy || draft.expectedRevision !== data.revision
+                            busy || aiBusy || draft.expectedRevision !== data.revision
                           }
                           onClick={() => void saveDraft()}
                         >
@@ -733,7 +755,7 @@ export function EnquiryEmailComposer({
                         <Button
                           type="submit"
                           disabled={
-                            busy || draft.expectedRevision !== data.revision
+                            busy || aiBusy || draft.expectedRevision !== data.revision
                           }
                         >
                           {busy ? "Preparing preview…" : "Review email"}
@@ -741,7 +763,7 @@ export function EnquiryEmailComposer({
                         <Button
                           type="button"
                           variant="outline"
-                          disabled={busy}
+                          disabled={busy || aiBusy}
                           onClick={close}
                         >
                           Cancel
@@ -780,4 +802,11 @@ export function EnquiryEmailComposer({
       </DialogContent>
     </Dialog>
   );
+}
+
+export function EnquiryEmailComposer(props: {
+  entry: Pick<Enquiry, "id" | "customerName" | "reference">;
+  onClose: (result?: "sent" | "draft") => void;
+}) {
+  return <EnquiryEmailEditor key={props.entry.id} {...props} />;
 }

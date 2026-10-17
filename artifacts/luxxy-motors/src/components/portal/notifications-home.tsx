@@ -39,6 +39,7 @@ export type Notifications = {
     href: string;
   }[];
   emailAccess: boolean;
+  capabilities?: { aiDrafts: boolean; automaticDrafts: boolean; automaticSending: boolean };
 };
 export function useWorkspaceNotifications() {
   return useQuery({
@@ -223,10 +224,11 @@ export function NotificationsHome({ embedded = false }: { embedded?: boolean } =
                 )}
               </article>
               <article className="notifications-quiet-note">
-                <h3>AI preparation</h3>
+                <h3>{data.emailAccess && data.capabilities?.aiDrafts ? 'AI reply drafts' : 'AI preparation'}</h3>
                 <p>
-                  AI drafting and new automatic email sending are off. Saved
-                  drafts give your team a place to review future suggestions.
+                  {data.emailAccess && data.capabilities?.aiDrafts
+                    ? 'Choose Draft with AI when preparing a reply. Check the suggestion, make any changes, then review and send it yourself. Automatic sending is off.'
+                    : 'AI drafting and new automatic email sending are off. Saved drafts give your team a place to review future suggestions.'}
                 </p>
               </article>
               <Link

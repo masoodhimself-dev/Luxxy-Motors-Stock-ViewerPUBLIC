@@ -1,4 +1,5 @@
 import { readEmailDraft } from "../lib/email-drafts";
+import { checkSavedAiDraftFresh, AiDraftError } from '../lib/ai-drafts';
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
 import { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
@@ -214,6 +215,7 @@ export function createEnquiryEmailRouter(
     executor: typeof db = db,
   ) {
     const enquiry = await entry(id, executor);
+    await checkSavedAiDraftFresh(executor, enquiry.dealerId, enquiry.id, await readEmailDraft(enquiry.dealerId, enquiry.id, executor));
     if (enquiry.workspaceRevision !== input.expectedRevision)
       throw new EmailError(
         "This enquiry changed. Close and reopen the email before sending.",
@@ -420,7 +422,7 @@ export function createEnquiryEmailRouter(
     return { enquiry, rendered, attachments, previewHash };
   }
   function failure(req: any, res: any, error: unknown) {
-    if (error instanceof EmailError) {
+    if (error instanceof EmailError || error instanceof AiDraftError) {
       res.status(error.status).json({ error: error.message });
       return;
     }
