@@ -16,6 +16,16 @@ Clerk supplies the registered account identity. Portal roles are kept in `portal
 
 A newly claimed portal grants owner access to the first authorised account. Additional accounts admitted by `PORTAL_STAFF_EMAILS` receive the salesperson role. Migration `0017_staff_roles_settings_history.sql` preserves the earliest existing account for each dealer as owner and gives additional legacy accounts salesperson access. Review and promote additional owners explicitly after deployment. The migration is prepared in this repository and is not automatically applied by the application.
 
+## Staff workspace and cars
+
+The portal uses a compact staff toolbar instead of the public showroom header and welcome banner. It keeps the dealer's branding, New sale, the account control and a showroom link that opens separately. Section navigation scrolls horizontally on smaller screens. Existing enquiry, email and test-drive links still open their respective notification views, and switching sections preserves the sale workspace.
+
+Cars separates current stock from the paged archive. Staff can search by vehicle details or registration, filter availability and preparation, and sort current stock by preparation remaining, price, name or arrival. Phone users open preparation and sorting with Filters; an active preparation filter remains visible with a clear action when that panel is closed. Archive search and paging remain server-side, so current-stock filters never give the impression that a partial archive page is the full result.
+
+Each row shows the year, registration (or the source's registration description), mileage, fuel, gearbox, price, availability, preparation progress and private service-photo count. Hovering or focusing the photograph enlarges it on larger screens; tapping opens the car on touch devices. The selected car keeps number-plate correction, private service/pre-accident photographs, phone-upload QR codes, preparation and linked customer activity together. Customer emails still open a reviewed draft. Unreserving a car still requires confirmation.
+
+The inventory list projection includes year, mileage, fuel and transmission alongside the existing summary. It does not load full vehicle records, customer histories or private photo bytes into every list row.
+
 ## Website publication history
 
 `GET /api/dealer-settings` returns the existing public JSON contract with an `x-settings-revision` response header and matching ETag. Settings clients must include that revision as `If-Match` when publishing. Missing revisions return 428; stale revisions return 409 without changing the published site.
@@ -43,3 +53,5 @@ Owners and accounts staff download `/api/dealer-operations/payments.csv`, option
 ## Local preview
 
 The local review service stores its team, history and price overrides in `.local/dealer-operations-preview.json`, separately from deployed data. It enforces the same permission rules and settings revision checks. It accepts only the configured local network and same-origin requests. Preview tests use temporary files and injected sale, enquiry and settings readers; they do not connect to a database or provider.
+
+The stock-only inventory preview can open car details without creating an operations file. It returns empty private photos/customer links and pending preparation checks with `previewReadOnly: true`; the UI disables edits, uploads, unreserve and email actions, and the adapter rejects inventory writes. This allows responsive visual checks against local stock without affecting live dealers.

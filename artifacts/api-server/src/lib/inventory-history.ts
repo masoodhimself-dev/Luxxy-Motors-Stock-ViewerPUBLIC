@@ -8,7 +8,7 @@ export async function inventoryHistory(dealerId: string, input: { scope: "curren
   const search = input.q ? sql`AND concat_ws(' ',v.website_title_override,v.title,v.plate,v.vrm,v.registration) ILIKE ${`%${input.q}%`}` : sql``;
   const cursor = input.cursor ? sql`AND (v.first_seen_at < ${input.cursor.at}::timestamptz OR (v.first_seen_at = ${input.cursor.at}::timestamptz AND v.id < ${input.cursor.id}::uuid))` : sql``;
   const [rows, counts, matched] = await Promise.all([
-    database.execute(sql`SELECT v.id,coalesce(v.website_title_override,v.title) AS title,coalesce(v.website_price_override,v.source_price) AS price,v.plate,v.vrm,v.registration,v.inventory_status,v.source_status,v.missing_count,v.archived_at,
+    database.execute(sql`SELECT v.id,coalesce(v.website_title_override,v.title) AS title,coalesce(v.website_price_override,v.source_price) AS price,v.plate,v.vrm,v.registration,v.year,v.mileage,v.fuel,v.transmission,v.inventory_status,v.source_status,v.missing_count,v.archived_at,
       coalesce(v.website_hero_image_override,(SELECT source_url FROM vehicle_images i WHERE i.vehicle_id=v.id AND i.is_active=true ORDER BY i.is_hero DESC,i.sort_order LIMIT 1)) AS photo,
       (SELECT count(*)::int FROM vehicle_service_photos photos WHERE photos.vehicle_id=v.id AND photos.dealer_id=v.dealer_id AND photos.category='service_book') AS service_photo_count,
       p.tasks,p.due_date,p.assigned_to_id,to_char(v.first_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at

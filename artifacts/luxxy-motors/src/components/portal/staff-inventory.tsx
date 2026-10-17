@@ -1,8 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { customFetch, useGetStaffDirectory } from "@workspace/api-client-react";
 import { useSearch, useLocation, Link } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
+import {
+  ArrowLeft,
+  Camera,
+  CarFront,
+  ChevronRight,
+  ClipboardCheck,
+  ExternalLink,
+  Mail,
+  RefreshCw,
+  Search,
+  ScanLine,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -29,6 +43,12 @@ type Car = {
   photo?: string | null;
   service_photo_count: number;
   tasks: Tasks | null;
+  assigned_to_id?: string | null;
+  due_date?: string | null;
+  year?: number | null;
+  mileage?: number | null;
+  fuel?: string | null;
+  transmission?: string | null;
 };
 type Prep = {
   revision: number;
@@ -38,6 +58,7 @@ type Prep = {
   notes: string;
 };
 type Details = {
+  previewReadOnly?: boolean;
   car: Car;
   preparation: Prep;
   photos: {
@@ -78,6 +99,82 @@ const price = (v: number | null) =>
         currency: "GBP",
         maximumFractionDigits: 0,
       }).format(v);
+const clearedTasks = (tasks: Tasks | null | undefined) =>
+  (Object.keys(taskLabels) as (keyof Tasks)[]).filter(
+    (key) => tasks?.[key] === "done" || tasks?.[key] === "not_required",
+  ).length;
+const carRegistration = (car: Car) =>
+  car.plate?.trim() ||
+  car.vrm?.trim() ||
+  car.registration?.trim() ||
+  "Registration not supplied";
+const carFacts = (car: Car) =>
+  [
+    car.year,
+    car.mileage != null ? `${car.mileage.toLocaleString("en-GB")} miles` : null,
+    car.fuel,
+    car.transmission,
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .join(" · ");
+function InventoryStatus({ car }: { car: Car }) {
+  return (
+    <span
+      className="inventory-status"
+      data-status={
+        car.archived_at || car.inventory_status === "archived"
+          ? "archived"
+          : car.inventory_status
+      }
+    >
+      {car.archived_at && car.inventory_status !== "archived"
+        ? `Archived · ${car.inventory_status}`
+        : car.inventory_status || "Status not supplied"}
+    </span>
+  );
+}
+function StockPhoto({
+  car,
+  onOpen,
+  disabled = false,
+}: {
+  car: Car;
+  onOpen: () => void;
+  disabled?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [car.photo]);
+  return car.photo && !failed ? (
+    <button
+      type="button"
+      className="inventory-hover-photo"
+      onClick={onOpen}
+      disabled={disabled}
+      aria-label={`Open ${car.title} photo and vehicle details`}
+    >
+      <img
+        src={car.photo}
+        alt={car.title}
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+      <span className="inventory-photo-hint">
+        <ScanLine aria-hidden size={14} />
+      </span>
+      <span className="inventory-photo-enlarged" aria-hidden="true">
+        <img src={car.photo} alt="" loading="lazy" />
+        <span>
+          Photo preview · Open car to check or correct the number plate
+        </span>
+      </span>
+    </button>
+  ) : (
+    <span className="inventory-no-photo">
+      <CarFront aria-hidden size={26} />
+      <span>No photo</span>
+    </span>
+  );
+}
 function PrivatePhoto({
   carId,
   id,
@@ -132,8 +229,15 @@ export function StaffInventory() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
+  const filterPanelId = useId();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [preparationFilter, setPreparationFilter] = useState("all");
+  const [sort, setSort] = useState("latest");
   const [searchTerm, setSearchTerm] = useState("");
-  useEffect(() => { const timer = setTimeout(() => setSearchTerm(term.trim()), 250); return () => clearTimeout(timer); }, [term]);
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(term.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [term]);
   const [plateDraft, setPlateDraft] = useState<string | null>(null),
     [photoCategory, setPhotoCategory] = useState("service_book"),
     [emailCustomer, setEmailCustomer] = useState<Customer | null>(null);
@@ -147,7 +251,6 @@ export function StaffInventory() {
   });
   const access = useStaffAccess(),
     directory = useGetStaffDirectory();
-  const writable = access.data?.permissions.includes("sales.manage");
   const scope = filter === "archived" ? "archived" : "current";
   const list = useInfiniteQuery({
     queryKey: ["staff-inventory", "list", scope, searchTerm],
@@ -157,9 +260,18 @@ export function StaffInventory() {
       if (scope === "archived") params.set("scope", scope);
       if (searchTerm) params.set("q", searchTerm);
       if (pageParam) params.set("cursor", pageParam);
-      return customFetch<{ cars: Car[]; counts?: { current: number; archived: number }; matchedCount?: number; nextCursor?: string | null; previewReadOnly?: boolean }>(`/api/staff/inventory${params.size ? `?${params}` : ""}`, { signal, responseType: "json" });
+      return customFetch<{
+        cars: Car[];
+        counts?: { current: number; archived: number };
+        matchedCount?: number;
+        nextCursor?: string | null;
+        previewReadOnly?: boolean;
+      }>(`/api/staff/inventory${params.size ? `?${params}` : ""}`, {
+        signal,
+        responseType: "json",
+      });
     },
-    getNextPageParam: page => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
   const details = useQuery({
     queryKey: ["staff-inventory", selected],
@@ -168,6 +280,11 @@ export function StaffInventory() {
     refetchInterval: () =>
       grant && Date.parse(grant.expiresAt) > Date.now() ? 5000 : false,
   });
+  const previewReadOnly = Boolean(
+    list.data?.pages[0].previewReadOnly || details.data?.previewReadOnly,
+  );
+  const writable =
+    access.data?.permissions.includes("sales.manage") && !previewReadOnly;
   useEffect(() => {
     setPlateDraft(null);
     setEmailCustomer(null);
@@ -217,17 +334,35 @@ export function StaffInventory() {
       return;
     navigate(`/portal?section=inventory${id ? `&vehicleId=${id}` : ""}`);
   }
-  const cars = (list.data?.pages.flatMap(page => page.cars) ?? []).filter(
-    (c) =>
-      (filter === "archived"
-        ? Boolean(c.archived_at) || c.inventory_status === "archived"
-        : !c.archived_at &&
-          c.inventory_status !== "archived" &&
-          (filter === "all" || c.inventory_status === filter)) &&
-      (c.title + " " + (c.plate ?? c.vrm ?? c.registration ?? ""))
-        .toLowerCase()
-        .includes(term.toLowerCase()),
+  const loadedCars = list.data?.pages.flatMap((page) => page.cars) ?? [];
+  const counts = list.data?.pages[0].counts;
+  const cars = loadedCars.filter((c) =>
+    scope === "archived"
+      ? Boolean(c.archived_at) || c.inventory_status === "archived"
+      : !c.archived_at &&
+        c.inventory_status !== "archived" &&
+        (filter === "all" || c.inventory_status === filter) &&
+        (preparationFilter === "all" ||
+          (preparationFilter === "pending" && clearedTasks(c.tasks) < 4) ||
+          (preparationFilter === "cleared" && clearedTasks(c.tasks) === 4) ||
+          (preparationFilter === "unassigned" && !c.assigned_to_id)),
   );
+  if (scope !== "archived" && sort !== "latest")
+    cars.sort((a, b) =>
+      sort === "name"
+        ? a.title.localeCompare(b.title)
+        : sort === "preparation"
+          ? clearedTasks(a.tasks) - clearedTasks(b.tasks)
+          : a.price == null
+            ? b.price == null
+              ? 0
+              : 1
+            : b.price == null
+              ? -1
+              : sort === "price-low"
+                ? a.price - b.price
+                : b.price - a.price,
+    );
   const car = details.data?.car;
   const selectedPhotos = (details.data?.photos ?? []).filter(
     (p) => (p.category ?? "service_book") === photoCategory,
@@ -235,26 +370,80 @@ export function StaffInventory() {
   return (
     <section className="staff-inventory">
       <header className="inventory-heading">
-        <div>
-          <p className="inventory-kicker">Your showroom</p>
-          <h2>{selected ? "Vehicle workspace" : "All cars"}</h2>
-          <p>Private service records, preparation and customer activity.</p>
+        <div className="inventory-heading-main">
+          {selected && (
+            <Button
+              variant="ghost"
+              className="inventory-back"
+              onClick={() => open(null)}
+            >
+              <ArrowLeft aria-hidden size={16} />
+              Back to cars
+            </Button>
+          )}
+          <h2>{selected ? "Car details" : "Cars"}</h2>
+          {!selected && (
+            <div
+              className="inventory-scopes"
+              role="group"
+              aria-label="Inventory records"
+            >
+              <button
+                type="button"
+                aria-pressed={scope === "current"}
+                onClick={() => setFilter("all")}
+              >
+                Current
+                {counts && (
+                  <>
+                    {" "}
+                    <span>{counts.current}</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                aria-pressed={scope === "archived"}
+                onClick={() => setFilter("archived")}
+              >
+                Archived
+                {counts && (
+                  <>
+                    {" "}
+                    <span>{counts.archived}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
         <Button
-          variant="outline"
+          variant="ghost"
+          className="inventory-refresh"
+          aria-label="Refresh cars"
+          disabled={list.isFetching || Boolean(selected && details.isFetching)}
           onClick={() => {
             void list.refetch();
             if (selected) void details.refetch();
           }}
         >
-          Refresh
+          <RefreshCw
+            aria-hidden
+            size={16}
+            className={
+              list.isFetching || details.isFetching ? "animate-spin" : ""
+            }
+          />
+          <span>Refresh</span>
         </Button>
       </header>
+      {previewReadOnly && (
+        <p className="inventory-preview-note">
+          Read-only preview · Changes, uploads and emails are disabled.
+        </p>
+      )}
       {selected ? (
         <>
-          <Button variant="outline" onClick={() => open(null)}>
-            Back to all cars
-          </Button>
           {details.isLoading && <p role="status">Loading vehicle…</p>}
           {details.isError && (
             <p role="alert" className="inventory-error">
@@ -264,30 +453,38 @@ export function StaffInventory() {
           {car && (
             <>
               <div className="inventory-vehicle-heading">
-                <h3>{car.display_title ?? car.title}</h3>
-                <p>
-                  {car.plate ??
-                    car.vrm ??
-                    car.registration ??
-                    "Registration not supplied"}{" "}
-                  · {price(car.price)}
-                </p>
-                <span className="inventory-status">
-                  {car.archived_at
-                    ? `Archived · ${car.inventory_status}`
-                    : car.inventory_status}
-                </span>
-                {car.photo && (
-                  <div className="inventory-photo-inspect">
-                    <img
-                      src={car.photo}
-                      alt={`Inspect the number plate on ${car.title}`}
-                    />
-                    <a href={car.photo} target="_blank" rel="noreferrer">
-                      Open full-size photo
-                    </a>
+                <div className="inventory-selected-summary">
+                  <StockPhoto
+                    car={car}
+                    onOpen={() =>
+                      window.open(car.photo!, "_blank", "noopener,noreferrer")
+                    }
+                  />
+                  <div className="inventory-selected-copy">
+                    <div className="inventory-selected-title">
+                      <h3>{car.display_title ?? car.title}</h3>
+                      <InventoryStatus car={car} />
+                    </div>
+                    <p className="inventory-plate">{carRegistration(car)}</p>
+                    {carFacts(car) && (
+                      <p className="inventory-muted">{carFacts(car)}</p>
+                    )}
+                    <strong className="inventory-price">
+                      {price(car.price)}
+                    </strong>
+                    {car.photo && (
+                      <a
+                        className="inventory-photo-original"
+                        href={car.photo}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open full-size photo
+                        <ExternalLink aria-hidden size={13} />
+                      </a>
+                    )}
                   </div>
-                )}
+                </div>
                 {writable && (
                   <div className="inventory-vehicle-controls">
                     <label>
@@ -355,8 +552,114 @@ export function StaffInventory() {
                 )}
               </div>
               <div className="inventory-workspace-grid">
-                <section className="inventory-card">
-                  <h3>Private vehicle photos</h3>
+                <section className="inventory-card inventory-preparation-card">
+                  <h3>
+                    <ClipboardCheck aria-hidden size={18} />
+                    Preparation
+                  </h3>
+                  <p>
+                    Internal work tracking; these checks do not certify
+                    condition or change public vehicle facts.
+                  </p>
+                  {draft && (
+                    <>
+                      <fieldset disabled={!writable || busy}>
+                        {(Object.keys(taskLabels) as (keyof Tasks)[]).map(
+                          (key) => (
+                            <label key={key}>
+                              {taskLabels[key]}
+                              <NativeSelect
+                                value={draft.tasks[key]}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    tasks: {
+                                      ...draft.tasks,
+                                      [key]: e.target
+                                        .value as Tasks[typeof key],
+                                    },
+                                  })
+                                }
+                              >
+                                <option value="pending">To do</option>
+                                <option value="done">Done</option>
+                                <option value="not_required">
+                                  Not required
+                                </option>
+                              </NativeSelect>
+                            </label>
+                          ),
+                        )}
+                        <label>
+                          Assigned to
+                          <NativeSelect
+                            value={draft.assigned_to_id ?? ""}
+                            onChange={(e) =>
+                              setDraft({
+                                ...draft,
+                                assigned_to_id: e.target.value || null,
+                              })
+                            }
+                          >
+                            <option value="">Unassigned</option>
+                            {draft.assigned_to_id &&
+                              !directory.data?.members.some(
+                                (m) => m.id === draft.assigned_to_id,
+                              ) && (
+                                <option value={draft.assigned_to_id}>
+                                  Previously assigned staff member
+                                </option>
+                              )}
+                            {directory.data?.members.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </NativeSelect>
+                        </label>
+                        <label>
+                          Target date
+                          <Input
+                            type="date"
+                            value={draft.due_date ?? ""}
+                            onChange={(e) =>
+                              setDraft({
+                                ...draft,
+                                due_date: e.target.value || null,
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          Internal notes
+                          <textarea
+                            maxLength={2000}
+                            rows={3}
+                            value={draft.notes}
+                            onChange={(e) =>
+                              setDraft({ ...draft, notes: e.target.value })
+                            }
+                          />
+                        </label>
+                      </fieldset>
+                      {directory.isError && (
+                        <p role="alert">
+                          Staff list unavailable. Refresh before assigning work.
+                        </p>
+                      )}
+                      {writable && (
+                        <Button disabled={busy} onClick={() => void save()}>
+                          {busy ? "Saving…" : "Save preparation"}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </section>
+                <section className="inventory-card inventory-private-photos">
+                  <h3>
+                    <Camera aria-hidden size={18} />
+                    Private photos
+                  </h3>
                   <div
                     className="inventory-photo-tabs"
                     role="group"
@@ -484,8 +787,11 @@ export function StaffInventory() {
                     </div>
                   )}
                 </section>
-                <section className="inventory-card">
-                  <h3>Email photos to a customer</h3>
+                <section className="inventory-card inventory-customer-email">
+                  <h3>
+                    <Mail aria-hidden size={18} />
+                    Email a customer
+                  </h3>
                   <p>
                     Choose a linked enquiry, then select photos and review the
                     email before sending. The recipient can be changed in the
@@ -494,7 +800,7 @@ export function StaffInventory() {
                   <NativeSelect
                     aria-label="Choose customer to email"
                     value=""
-                    disabled={busy}
+                    disabled={busy || previewReadOnly}
                     onChange={(e) =>
                       setEmailCustomer(
                         customers.data?.customers.find(
@@ -510,7 +816,8 @@ export function StaffInventory() {
                       </option>
                     ))}
                   </NativeSelect>
-                  {!customers.isLoading &&
+                  {!previewReadOnly &&
+                    !customers.isLoading &&
                     !customers.data?.customers.length && (
                       <p className="inventory-muted">
                         Log a customer enquiry for this car first.{" "}
@@ -521,120 +828,22 @@ export function StaffInventory() {
                         </Link>
                       </p>
                     )}
-                  {emailCustomer && (
+                  {!previewReadOnly && emailCustomer && (
                     <EnquiryEmailComposer
                       entry={emailCustomer}
                       onClose={() => setEmailCustomer(null)}
                     />
                   )}
                 </section>
-                <section className="inventory-card">
-                  <h3>Preparation checklist</h3>
-                  <p>
-                    Internal work tracking; these checks do not certify
-                    condition or change public vehicle facts.
-                  </p>
-                  {draft && (
-                    <>
-                      <fieldset disabled={!writable || busy}>
-                        {(Object.keys(taskLabels) as (keyof Tasks)[]).map(
-                          (key) => (
-                            <label key={key}>
-                              {taskLabels[key]}
-                              <NativeSelect
-                                value={draft.tasks[key]}
-                                onChange={(e) =>
-                                  setDraft({
-                                    ...draft,
-                                    tasks: {
-                                      ...draft.tasks,
-                                      [key]: e.target
-                                        .value as Tasks[typeof key],
-                                    },
-                                  })
-                                }
-                              >
-                                <option value="pending">To do</option>
-                                <option value="done">Done</option>
-                                <option value="not_required">
-                                  Not required
-                                </option>
-                              </NativeSelect>
-                            </label>
-                          ),
-                        )}
-                        <label>
-                          Assigned to
-                          <NativeSelect
-                            value={draft.assigned_to_id ?? ""}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                assigned_to_id: e.target.value || null,
-                              })
-                            }
-                          >
-                            <option value="">Unassigned</option>
-                            {draft.assigned_to_id &&
-                              !directory.data?.members.some(
-                                (m) => m.id === draft.assigned_to_id,
-                              ) && (
-                                <option value={draft.assigned_to_id}>
-                                  Previously assigned staff member
-                                </option>
-                              )}
-                            {directory.data?.members.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name}
-                              </option>
-                            ))}
-                          </NativeSelect>
-                        </label>
-                        <label>
-                          Target date
-                          <Input
-                            type="date"
-                            value={draft.due_date ?? ""}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                due_date: e.target.value || null,
-                              })
-                            }
-                          />
-                        </label>
-                        <label>
-                          Internal notes
-                          <textarea
-                            maxLength={2000}
-                            rows={3}
-                            value={draft.notes}
-                            onChange={(e) =>
-                              setDraft({ ...draft, notes: e.target.value })
-                            }
-                          />
-                        </label>
-                      </fieldset>
-                      {directory.isError && (
-                        <p role="alert">
-                          Staff list unavailable. Refresh before assigning work.
-                        </p>
-                      )}
-                      {writable && (
-                        <Button disabled={busy} onClick={() => void save()}>
-                          {busy ? "Saving…" : "Save preparation"}
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </section>
               </div>
-              <section className="inventory-card">
-                <h3>Vehicle activity</h3>
-                <p>
-                  See this car’s enquiries, appointments, reservations and sales
-                  together.
-                </p>
+              <section className="inventory-card inventory-activity-card">
+                <div>
+                  <h3>Vehicle activity</h3>
+                  <p>
+                    See this car’s enquiries, appointments, reservations and
+                    sales together.
+                  </p>
+                </div>
                 <Button asChild variant="outline">
                   <Link
                     href={`/portal?section=history&view=vehicles&vehicleId=${car.id}`}
@@ -657,41 +866,133 @@ export function StaffInventory() {
         </>
       ) : (
         <>
-          <p className="inventory-muted">
-            Sold and confirmed-missing cars move to Archived after seven days.
-            Select Archived to find their retained records.
-          </p>
-          <div className="inventory-filters">
-            <label>
-              Search cars
-              <Input
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                placeholder="Make, model or registration"
-              />
-            </label>
-            <label>
-              Availability
-              <NativeSelect
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+          <div className="inventory-toolbar">
+            <div className="inventory-search-row">
+              <label
+                className="inventory-search"
+                data-has-value={Boolean(term)}
               >
-                {[
-                  "all",
-                  "available",
-                  "reserved",
-                  "sold",
-                  "hidden",
-                  "archived",
-                ].map((s) => (
-                  <option key={s} value={s}>
-                    {s === "all" ? "All cars" : s[0].toUpperCase() + s.slice(1)}{s === "archived" && list.data?.pages[0].counts ? ` (${list.data.pages[0].counts.archived})` : ""}
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
+                <span className="sr-only">Search cars</span>
+                <Search aria-hidden size={18} />
+                <Input
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                  placeholder="Find a car…"
+                />
+                {term && (
+                  <button
+                    type="button"
+                    onClick={() => setTerm("")}
+                    aria-label="Clear car search"
+                  >
+                    Clear
+                  </button>
+                )}
+              </label>
+              {scope === "current" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="inventory-filter-toggle"
+                  aria-label="Filters"
+                  aria-expanded={filtersOpen}
+                  aria-controls={filterPanelId}
+                  onClick={() => setFiltersOpen((open) => !open)}
+                >
+                  <SlidersHorizontal aria-hidden size={16} />
+                  Filters
+                  {preparationFilter !== "all" && (
+                    <span className="inventory-filter-count">1</span>
+                  )}
+                </Button>
+              )}
+            </div>
+            {scope === "current" && (
+              <div
+                className="inventory-work-filters"
+                id={filterPanelId}
+                data-collapsed={!filtersOpen}
+              >
+                <label>
+                  <span>Preparation</span>
+                  <NativeSelect
+                    aria-label="Preparation"
+                    value={preparationFilter}
+                    onChange={(e) => setPreparationFilter(e.target.value)}
+                  >
+                    <option value="all">All preparation</option>
+                    <option value="pending">Work to do</option>
+                    <option value="cleared">Checks cleared</option>
+                    <option value="unassigned">Unassigned</option>
+                  </NativeSelect>
+                </label>
+                <label>
+                  <span>Sort</span>
+                  <NativeSelect
+                    aria-label="Sort cars"
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value)}
+                  >
+                    <option value="latest">Newest in stock</option>
+                    <option value="preparation">Preparation remaining</option>
+                    <option value="price-low">Price: low to high</option>
+                    <option value="price-high">Price: high to low</option>
+                    <option value="name">Make / model</option>
+                  </NativeSelect>
+                </label>
+              </div>
+            )}
           </div>
-          {list.data?.pages[0].previewReadOnly && <p className="inventory-muted">Local preview shows the stock list. Preparation, plate changes and private photos are available on the connected dealership.</p>}
+          <div className="inventory-list-tools">
+            {scope === "current" ? (
+              <div
+                className="inventory-status-filters"
+                role="group"
+                aria-label="Availability"
+              >
+                {["all", "available", "reserved", "sold", "hidden"].map(
+                  (status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      aria-pressed={filter === status}
+                      onClick={() => setFilter(status)}
+                    >
+                      {status === "all"
+                        ? "All current"
+                        : status[0].toUpperCase() + status.slice(1)}
+                    </button>
+                  ),
+                )}
+              </div>
+            ) : (
+              <p className="inventory-muted">
+                Retained vehicle records · newest first
+              </p>
+            )}
+            <p className="inventory-result-count" aria-live="polite">
+              {list.isFetching && !list.isFetchingNextPage
+                ? "Searching…"
+                : `${cars.length} ${cars.length === 1 ? "car" : "cars"}${term.trim() || preparationFilter !== "all" || (filter !== "all" && scope !== "archived") ? " shown" : ""}`}
+            </p>
+          </div>
+          {scope === "current" && preparationFilter !== "all" && (
+            <div className="inventory-active-filters">
+              <button
+                type="button"
+                onClick={() => setPreparationFilter("all")}
+                aria-label="Clear preparation filter"
+              >
+                Preparation:{" "}
+                {preparationFilter === "pending"
+                  ? "Work to do"
+                  : preparationFilter === "cleared"
+                    ? "Checks cleared"
+                    : "Unassigned"}
+                <X aria-hidden size={13} />
+              </button>
+            </div>
+          )}
           {list.isLoading && <p role="status">Loading cars…</p>}
           {list.isError && (
             <p role="alert" className="inventory-error">
@@ -700,57 +1001,119 @@ export function StaffInventory() {
           )}
           <div className="inventory-car-list">
             {cars.map((c) => (
-              <button
-                className="inventory-car"
-                disabled={list.data?.pages[0].previewReadOnly}
-                key={c.id}
-                onClick={() => open(c.id)}
-              >
-                {c.photo ? (
-                  <span className="inventory-hover-photo">
-                    <img src={c.photo} alt={c.title} />
-                    <span className="inventory-photo-enlarged">
-                      <img
-                        src={c.photo}
-                        alt={`Enlarged photo of ${c.title} — inspect its number plate`}
-                      />
-                      <span>Open car to correct its number plate</span>
+              <article className="inventory-car" key={c.id}>
+                <StockPhoto car={c} onOpen={() => open(c.id)} />
+                <button
+                  type="button"
+                  className="inventory-car-open"
+                  onClick={() => open(c.id)}
+                  aria-label={`Open ${c.title}, ${carRegistration(c)}`}
+                >
+                  <div className="inventory-row-main">
+                    <div className="inventory-row-identity">
+                      <h3>{c.title}</h3>
+                      <p className="inventory-row-registration">
+                        {carRegistration(c)}
+                      </p>
+                      {carFacts(c) && (
+                        <p className="inventory-row-facts">{carFacts(c)}</p>
+                      )}
+                    </div>
+                    <div className="inventory-row-price">
+                      <strong>{price(c.price)}</strong>
+                      <InventoryStatus car={c} />
+                    </div>
+                    <ChevronRight
+                      aria-hidden
+                      className="inventory-row-chevron"
+                      size={18}
+                    />
+                  </div>
+                  <div className="inventory-row-work">
+                    <span className="inventory-prep-summary">
+                      <ClipboardCheck aria-hidden size={14} />
+                      <span>
+                        {c.tasks
+                          ? `${clearedTasks(c.tasks)}/4 preparation checks`
+                          : "Preparation not started"}
+                      </span>
+                      <span
+                        className="inventory-prep-track"
+                        role="progressbar"
+                        aria-label={`${c.title} preparation checks cleared`}
+                        aria-valuemin={0}
+                        aria-valuemax={4}
+                        aria-valuenow={clearedTasks(c.tasks)}
+                      >
+                        <span
+                          style={{ width: `${clearedTasks(c.tasks) * 25}%` }}
+                        />
+                      </span>
                     </span>
-                  </span>
-                ) : (
-                  <div className="inventory-no-photo">No stock photo</div>
-                )}
-                <div>
-                  <h3>{c.title}</h3>
-                  <p>
-                    {c.plate ??
-                      c.vrm ??
-                      c.registration ??
-                      "Registration not supplied"}
-                  </p>
-                  <strong>{price(c.price)}</strong>
-                  <p className="inventory-muted">
-                    {c.service_photo_count}/3 service-book photos ·{" "}
-                    {c.tasks
-                      ? `${Object.values(c.tasks).filter((t) => t !== "pending").length}/4 preparation tasks cleared`
-                      : "Preparation not started"}
-                  </p>
-                  {c.source_status === "missing" && (
-                    <p className="inventory-muted">Absent from stock source</p>
-                  )}
-                </div>
-                <span className="inventory-status">
-                  {c.archived_at
-                    ? `Archived · ${c.inventory_status}`
-                    : c.inventory_status}
-                </span>
-              </button>
+                    <span title="Private service-book photos">
+                      <Camera aria-hidden size={14} />
+                      {c.service_photo_count ?? 0}/3 service photos
+                    </span>
+                    {c.due_date && (
+                      <span>
+                        Due{" "}
+                        {new Date(`${c.due_date}T12:00:00`).toLocaleDateString(
+                          "en-GB",
+                          { day: "numeric", month: "short" },
+                        )}
+                      </span>
+                    )}
+                    {c.source_status === "missing" && (
+                      <span className="inventory-source-missing">
+                        Absent from source
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </article>
             ))}
           </div>
-          {scope === "archived" && list.data?.pages[0].matchedCount != null && <p className="inventory-muted">Showing {cars.length} of {list.data.pages[0].matchedCount} matching archived cars.</p>}
-          {list.hasNextPage && <Button type="button" variant="outline" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>{list.isFetchingNextPage ? "Loading older cars…" : "Load older archived cars"}</Button>}
+          {scope === "archived" && list.data?.pages[0].matchedCount != null && (
+            <p className="inventory-muted">
+              Showing {cars.length} of {list.data.pages[0].matchedCount}{" "}
+              matching archived cars.
+            </p>
+          )}
+          {list.hasNextPage && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={list.isFetchingNextPage}
+              onClick={() => void list.fetchNextPage()}
+            >
+              {list.isFetchingNextPage
+                ? "Loading older cars…"
+                : "Load older archived cars"}
+            </Button>
+          )}
           {!list.isLoading && !list.isError && !cars.length && (
-            <p>No cars match this search.</p>
+            <div className="inventory-empty">
+              <CarFront aria-hidden size={28} />
+              <p>
+                {scope === "archived" && !term.trim()
+                  ? "No archived cars yet."
+                  : "No cars match these filters."}
+              </p>
+              {(term ||
+                preparationFilter !== "all" ||
+                (filter !== "all" && scope !== "archived")) && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTerm("");
+                    setPreparationFilter("all");
+                    if (scope === "current") setFilter("all");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
           )}
         </>
       )}

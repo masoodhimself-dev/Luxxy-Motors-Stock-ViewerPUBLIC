@@ -91,11 +91,20 @@ test("default inventory omits archives, exact counts/search cover every retained
     SELECT $1,'autotrader','archive-'||n,CASE WHEN n=1 THEN 'Fictional needle oldest' ELSE 'Fictional archived car '||n END,now(), '2026-10-17 10:00:00Z'::timestamptz+n*interval '1 microsecond' FROM generate_series(1,500) n`, [dealer]);
   await engine.query("INSERT INTO vehicles(dealer_id,source,advert_id,title) SELECT $1,'autotrader','current-'||n,'Fictional current car '||n FROM generate_series(1,30) n", [dealer]);
   await engine.query("INSERT INTO vehicles(dealer_id,source,advert_id,title,archived_at) SELECT $1,'autotrader','foreign-'||n,'Other dealership',now() FROM generate_series(1,7) n", [other]);
+  await engine.query("UPDATE vehicles SET year=2019,mileage=52000,fuel='Petrol',transmission='Manual',raw_source_data=$2::jsonb,audit_metadata=$3::jsonb WHERE dealer_id=$1 AND advert_id IN ('current-1','archive-1')", [dealer, JSON.stringify({ privateSource: "PRIVATE-SOURCE-BULK".repeat(10000) }), JSON.stringify({ privateAudit: "PRIVATE-AUDIT-BULK".repeat(10000) })]);
   const current = await inventoryHistory(dealer, { scope: "current", q: "", cursor: null });
   assert.equal(current.cars.length, 30); assert.equal(current.nextCursor, null); assert.deepEqual(current.counts, { current: 30, archived: 500 });
   assert.equal(current.matchedCount, 30);
+  const facts = (car: Record<string, unknown>) => ({ year: car.year, mileage: car.mileage, fuel: car.fuel, transmission: car.transmission });
+  assert.deepEqual(facts(current.cars.find(car => car.title === "Fictional current car 1")!), { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual" });
+  assert.deepEqual(facts(current.cars.find(car => car.title === "Fictional current car 2")!), { year: null, mileage: null, fuel: null, transmission: null });
+  assert.ok(!JSON.stringify(current).includes("PRIVATE-"));
+  assert.ok(current.cars.every(car => !["raw_source_data", "audit_metadata", "photo_bytes", "images"].some(key => key in car)));
+  assert.ok(bytes(current) < 30_000);
   const search = await inventoryHistory(dealer, { scope: "archived", q: "needle oldest", cursor: null });
   assert.equal(search.matchedCount, 1); assert.equal(search.cars.length, 1); assert.equal(search.cars[0].title, "Fictional needle oldest");
+  assert.deepEqual(facts(search.cars[0]!), { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual" });
+  assert.ok(!JSON.stringify(search).includes("PRIVATE-"));
   const seen = new Set<string>(); let cursor: string | null = null, maxBytes = 0;
   do {
     const page = await inventoryHistory(dealer, { scope: "archived", q: "", cursor: parseHistoryCursor(cursor) });

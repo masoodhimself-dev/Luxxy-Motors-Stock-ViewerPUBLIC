@@ -37,12 +37,12 @@
 .premium-portal [data-site-header] > .container > button:last-child { min-height: 40px; border-color: var(--portal-border); background: var(--portal-panel); color: var(--portal-accent); font-size: 13px; font-weight: 500; }
 .premium-portal [data-site-header] > .container > button:last-child:hover { background: var(--portal-canvas); }
 .portal-premium-workspace { padding-inline: clamp(16px, 3vw, 40px); padding-block: 26px 40px; background: var(--portal-canvas); }
-.portal-workspace-inner { max-width: 1480px; }
+.portal-workspace-inner { width: 100%; max-width: 1480px; }
 .portal-workspace-heading { margin-bottom: 18px; padding-bottom: 20px; border-color: var(--portal-border); }
 .portal-workspace-heading h1 { color: var(--portal-ink); font-size: clamp(25px, 2.3vw, 32px); font-weight: 600; line-height: 1.25; letter-spacing: -.035em; }
 .portal-workspace-eyebrow { color: var(--portal-accent); font-size: 12px; font-weight: 500; letter-spacing: normal; }
 .portal-staff-name { color: var(--portal-muted); font-size: 13px; }
-.portal-section-nav { gap: 16px; margin-bottom: 24px; border-color: var(--portal-border); scrollbar-width: thin; }
+.portal-section-nav { gap: 16px; margin-bottom: 18px; border-color: var(--portal-border); scrollbar-width: thin; }
 .portal-section-nav > button { gap: 8px; min-height: 48px; padding: 10px 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--portal-muted); background: transparent; font-size: 14px; font-weight: 500; line-height: 1.5; }
 .portal-section-nav > button:first-child { padding-left: 0; }
 .portal-section-nav > button[aria-current="page"] { color: var(--portal-accent); border-bottom-color: var(--portal-accent); }
@@ -118,4 +118,43 @@
 }
 @media(prefers-reduced-motion:reduce) {
   :is(.premium-portal,.portal-action-dialog) *, .portal-action-dialog { transition: none !important; animation: none !important; }
+}
+
+/* Staff routes own one small toolbar, with the task title in the content. */
+.portal-premium-workspace.portal-workspace { padding: 0 clamp(16px, 3vw, 40px) 32px; }
+.portal-toolbar { border-bottom: 1px solid var(--portal-border); background: var(--portal-panel); color: var(--portal-ink); }
+.portal-workspace > .portal-toolbar { margin-inline: calc(-1 * clamp(16px, 3vw, 40px)); }
+.portal-toolbar-inner { min-height: 64px; max-width: 1560px; margin-inline: auto; padding: 8px clamp(16px, 3vw, 40px); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.portal-toolbar-identity { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.portal-workspace-brand { display: flex; align-items: center; min-height: 44px; min-width: 0; color: var(--portal-ink); text-decoration: none; }
+.portal-workspace-brand :is(img,svg) { height: 32px; max-width: 148px; width: auto; object-fit: contain; }
+.portal-workspace-brand > span { max-width: 240px; font-size: 16px; line-height: 1.2; }
+.portal-toolbar-label { border-left: 1px solid var(--portal-border); padding-left: 20px; color: var(--portal-muted); font-size: 13px; font-weight: 500; }
+.portal-toolbar-actions { display: flex; flex-shrink: 0; align-items: center; gap: 10px; }
+.portal-toolbar-actions .portal-new-sale { min-height: 40px; padding: 8px 14px; gap: 6px; }
+.portal-showroom-link { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border-radius: 6px; color: var(--portal-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.portal-showroom-link:hover { color: var(--portal-accent); background: var(--portal-canvas); }
+.portal-account-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--portal-muted); font-size: 13px; }
+.portal-account { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.portal-account :is(button,.cl-userButtonTrigger) { min-width: 40px; min-height: 40px; display: grid; place-items: center; }
+.portal-toolbar :is(a,button):focus-visible { outline: 2px solid var(--portal-accent); outline-offset: 2px; }
+.portal-workspace .portal-section-nav { min-height: 52px; margin-block: 0 18px; gap: clamp(8px, 1.6vw, 24px); }
+.portal-workspace .portal-section-nav > button { min-height: 48px; padding-block: 10px; }
+@media(max-width:767px) {
+  .portal-toolbar-inner { min-height: 60px; gap: 10px; }
+  .portal-toolbar-identity { gap: 0; }
+  .portal-toolbar-label,.portal-account-name { display: none; }
+  .portal-workspace-brand :is(img,svg) { max-width: 122px; height: 30px; }
+  .portal-workspace-brand > span { max-width: 132px; font-size: 14px; }
+  .portal-toolbar-actions { gap: 4px; }
+  .portal-toolbar-actions .portal-new-sale { min-height: 44px; padding-inline: 10px; }
+  .portal-showroom-link { min-width: 44px; padding-inline: 8px; }
+  .portal-showroom-link span { display: none; }
+  .portal-workspace .portal-section-nav { min-height: 48px; gap: 8px; margin-bottom: 16px; }
+  .portal-workspace .portal-section-nav > button { min-height: 48px; padding-inline: 9px; font-size: 13px; }
+}
+@media(max-width:359px) {
+  .portal-workspace-brand :is(img,svg) { max-width: 92px; height: 26px; }
+  .portal-workspace-brand > span { max-width: 92px; font-size: 13px; }
+  .portal-toolbar-actions .portal-new-sale { padding-inline: 8px; }
 }

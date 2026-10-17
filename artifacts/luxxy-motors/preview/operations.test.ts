@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { operationsPreview } from './operations';
 import { previewSettings } from './settings';
+import { previewStock } from './stock';
 test('local operations enforce roles, require publication revisions and preserve concurrent edits in history',async()=>{
   const folder=await mkdtemp(join(tmpdir(),'luxxy-operations-test-'));
   let settings=structuredClone(previewSettings) as unknown as Record<string,unknown>;
@@ -14,6 +15,19 @@ test('local operations enforce roles, require publication revisions and preserve
   const address=server.address();assert.ok(address&&typeof address!=='string');const base=`http://127.0.0.1:${address.port}`;
   try {
     const inventory=await(await fetch(`${base}/api/staff/inventory`)).json();assert.equal(inventory.previewReadOnly,true);assert.equal(inventory.nextCursor,null);assert.equal(inventory.counts.archived,0);assert.ok(inventory.cars.length>0);assert.equal(inventory.matchedCount,inventory.cars.length);
+    const sample=previewStock.cars[0]!,listed=inventory.cars.find((car:{id:string})=>car.id===sample.id);
+    assert.deepEqual({year:listed.year,mileage:listed.mileage,fuel:listed.fuel,transmission:listed.transmission},{year:sample.year??null,mileage:sample.mileage??null,fuel:sample.fuel??null,transmission:sample.transmission??null});
+    assert.ok(inventory.cars.every((car:Record<string,unknown>)=>!['images','rawSourceData','raw_source_data','photo_bytes'].some(key=>key in car)));
+    const detail=await(await fetch(`${base}/api/staff/inventory/${sample.id}`)).json();
+    assert.equal(detail.previewReadOnly,true);assert.deepEqual(detail.car,listed);assert.deepEqual(detail.photos,[]);
+    assert.deepEqual(detail.preparation,{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''});
+    assert.deepEqual(await(await fetch(`${base}/api/staff/inventory/${sample.id}/customers`)).json(),{customers:[],previewReadOnly:true});
+    assert.equal((await fetch(`${base}/api/staff/inventory/00000000-0000-4000-8000-000000000099`)).status,404);
+    assert.equal((await fetch(`${base}/api/staff/inventory/00000000-0000-4000-8000-000000000099/customers`)).status,404);
+    for(const [suffix,method] of [['preparation','PUT'],['plate','PUT'],['upload-session','POST'],['unreserve','POST'],['email','POST']] as const)assert.equal((await fetch(`${base}/api/staff/inventory/${sample.id}/${suffix}`,{method,headers:{'Content-Type':'application/json'},body:'{}'})).status,405);
+    assert.equal((await fetch(`${base}/api/staff/inventory/${sample.id}/photos/00000000-0000-4000-8000-000000000099`)).status,405);
+    // Opening a sample must not manufacture or persist preparation/customer data.
+    await assert.rejects(readFile(join(folder,'operations.json')),{code:'ENOENT'});
     const archives=await(await fetch(`${base}/api/staff/inventory?scope=archived`)).json();assert.deepEqual(archives.cars,[]);assert.equal(archives.matchedCount,0);
     const invalidScope=await fetch(`${base}/api/staff/inventory?scope=everything`);assert.equal(invalidScope.status,400);
     const original=await fetch(`${base}/api/dealer-settings`);assert.equal(original.headers.get('x-settings-revision'),'0');const config=await original.json();

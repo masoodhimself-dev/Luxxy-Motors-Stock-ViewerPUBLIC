@@ -42,9 +42,17 @@ describe('header artwork follows the background', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close navigation menu' }));
     expect(logo()).toHaveAttribute('src', '/footer-logo.png');
   });
-  it.each(['/stock', '/portal'])('keeps the regular artwork on %s', path => {
+  it.each(['/stock'])('keeps the regular artwork on %s', path => {
     state.path = path; render(<Layout><p>Page</p></Layout>);
     expect(logo()).toHaveAttribute('src', '/header-logo.png');
+  });
+  it('lets the portal own its compact staff toolbar without customer header spacing or widgets', () => {
+    state.path = '/portal';
+    const { container } = render(<Layout><p>Staff content</p></Layout>);
+    expect(container.querySelector('[data-site-header]')).toBeNull();
+    expect(screen.getByRole('main')).not.toHaveClass('pt-[var(--site-header-height)]');
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#main-content');
+    expect(document.documentElement.style.getPropertyValue('--site-header-height')).toBe('0px');
   });
   it('honours a restored scroll position immediately', () => {
     Object.defineProperty(window, 'scrollY', { value: 300 });

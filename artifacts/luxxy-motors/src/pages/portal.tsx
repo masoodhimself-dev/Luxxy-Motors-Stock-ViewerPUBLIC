@@ -13,11 +13,15 @@ import {
   Plus,
   Settings2,
   LayoutDashboard,
+  CarFront,
+  ExternalLink,
   History,
   MessageSquare,
   Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DealerWordmark } from '@/components/brand/wordmark';
+import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { DealerDashboard, DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
 import { StripeReservationsPanel } from '@/components/portal/stripe-reservations-panel';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
@@ -37,13 +41,42 @@ type TabKey = 'notifications' | 'inventory' | 'overview' | 'chat' | 'sales' | 'r
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { key: 'inventory', label: 'Cars', icon: LayoutDashboard },
+  { key: 'inventory', label: 'Cars', icon: CarFront },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
   { key: 'sales', label: 'Sales', icon: FileText },
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
   { key: 'history', label: 'History', icon: History },
   { key: 'settings', label: 'Settings', icon: Settings2 },
 ];
+
+function requestedSection(search: string): TabKey {
+  const section = new URLSearchParams(search).get('section');
+  if (isNotificationsSection(section) || section === 'chat' && !customerFeaturePolicy.websiteChat) return 'notifications';
+  return tabs.some(item => item.key === section) ? section as TabKey : 'notifications';
+}
+
+/** One staff bar replaces the separate showroom header and workspace welcome. */
+function PortalToolbar({ children, staffName, account }: { children?: React.ReactNode; staffName?: string; account?: React.ReactNode }) {
+  const { settings } = useDealerSettings();
+  return <header className="portal-toolbar" aria-label="Staff workspace">
+    <div className="portal-toolbar-inner">
+      <div className="portal-toolbar-identity">
+        <Link href="/portal" className="portal-workspace-brand" aria-label={`${settings.identity.name || 'Dealership'} workspace`}>
+          <DealerWordmark {...settings.identity} />
+        </Link>
+        <span className="portal-toolbar-label">Workspace</span>
+      </div>
+      <div className="portal-toolbar-actions">
+        {children}
+        <a href="/" target="_blank" rel="noopener noreferrer" className="portal-showroom-link" aria-label="View showroom (opens in a new tab)" title="View showroom in a new tab">
+          <ExternalLink size={16} aria-hidden="true" /><span>View showroom</span>
+        </a>
+        {staffName && <span className="portal-account-name" title={`Signed in as ${staffName}`}>{staffName}</span>}
+        {account && <div className="portal-account" aria-label="Staff account" title={staffName ? `Signed in as ${staffName}` : 'Staff account'}>{account}</div>}
+      </div>
+    </div>
+  </header>;
+}
 
 function PortalFrame({
   children,
@@ -57,7 +90,7 @@ function PortalFrame({
   blurb: string;
 }) {
   return (
-    <div className="portal-premium-workspace portal-access-screen luxxy-shell min-h-[calc(100dvh-var(--site-header-height))] bg-background px-4 py-16">
+    <><PortalToolbar /><div className="portal-premium-workspace portal-access-screen luxxy-shell min-h-[calc(100dvh-var(--site-header-height))] bg-background px-4 py-16">
       <div className="portal-access-card luxxy-surface mx-auto max-w-xl rounded-lg border border-border p-10 text-center">
         <p className="luxxy-kicker mx-auto mb-4 justify-center text-[12px]">
           <Lock className="h-4 w-4" /> {kicker}
@@ -68,7 +101,7 @@ function PortalFrame({
         <p className="mt-4 text-[14px] leading-relaxed text-muted-foreground">{blurb}</p>
         <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">{children}</div>
       </div>
-    </div>
+    </div></>
   );
 }
 
@@ -94,10 +127,7 @@ function AccessDenied({ email }: { email: string | null }) {
 }
 
 function PortalDesk() {
-  const [tab, setTab] = useState<TabKey>(() => {
-    const section = new URLSearchParams(window.location.search).get('section');
-    return isNotificationsSection(section) ? 'notifications' : tabs.some(item => item.key === section) ? section as TabKey : 'notifications';
-  });
+  const [tab, setTab] = useState<TabKey>(() => requestedSection(window.location.search));
   const { user } = useUser();
   const [salesOpened, setSalesOpened] = useState(tab === 'sales');
   const [newSaleRequest, setNewSaleRequest] = useState(0);
@@ -113,7 +143,13 @@ function PortalDesk() {
     },
   });
   const access = useStaffAccess(sessionQuery.data?.state === 'allowed');
-  useEffect(() => { const section = new URLSearchParams(search).get('section'); if (isNotificationsSection(section)) setTab('notifications'); else if (tabs.some(item => item.key === section)) { setTab(section as TabKey); if (section === 'sales') setSalesOpened(true); } }, [search]);
+  useEffect(() => {
+    const requested = requestedSection(search);
+    // Do not discard an owner's Settings bookmark while permissions are loading.
+    const next = requested === 'settings' && access.data && !access.data.permissions.includes('settings.publish') ? 'notifications' : requested;
+    setTab(next);
+    if (next === 'sales') setSalesOpened(true);
+  }, [search, access.data]);
   const canSell = access.data?.permissions.includes('sales.manage') ?? false;
   const visibleTabs = tabs.filter(item => (item.key !== 'chat' || customerFeaturePolicy.websiteChat)
     && (item.key !== 'settings' || access.data?.permissions.includes('settings.publish')));
@@ -137,10 +173,10 @@ function PortalDesk() {
 
   if (sessionQuery.isLoading) {
     return (
-      <div className="portal-premium-workspace portal-loading-state flex min-h-[60vh] items-center justify-center bg-background text-primary" role="status">
+      <><PortalToolbar /><div className="portal-premium-workspace portal-loading-state flex min-h-[60vh] items-center justify-center bg-background text-primary" role="status">
         <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-accent" />
         <span className="font-display text-[14px] font-semibold tracking-normal">Loading your workspace…</span>
-      </div>
+      </div></>
     );
   }
 
@@ -179,29 +215,13 @@ function PortalDesk() {
     sessionQuery.data?.name ?? user?.firstName ?? sessionQuery.data?.email ?? 'there';
 
   return (
-    <div data-section={tab} className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background px-4 py-5 sm:py-6">
+    <div data-section={tab} className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background">
       <PortalInstallMetadata />
+      <PortalToolbar staffName={staffName} account={<UserButton />}>
+        {canSell && <Button type="button" className="portal-new-sale" onClick={() => { setSalesOpened(true); setTab('sales'); navigate('/portal?section=sales'); setNewSaleRequest(request => request + 1); }}><Plus className="h-4 w-4" aria-hidden="true" />New sale</Button>}
+      </PortalToolbar>
+      <h1 className="sr-only">Dealership workspace</h1>
       <div className="portal-workspace-inner mx-auto">
-        <header className="portal-workspace-heading mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <div>
-            <p className="portal-workspace-eyebrow luxxy-kicker mb-1 text-[11px]">
-              <Settings2 className="h-4 w-4" /> Staff portal
-            </p>
-            <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-primary">
-              Dealership workspace
-            </h1>
-            <p className="portal-staff-name mt-1 text-sm text-muted-foreground">
-              Signed in as {staffName}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {canSell && <Button type="button" className="portal-new-sale" onClick={() => { setSalesOpened(true); setTab('sales'); navigate('/portal?section=sales'); setNewSaleRequest(request => request + 1); }}><Plus className="h-4 w-4" aria-hidden="true" />New sale</Button>}
-            <div className="rounded-md border border-border bg-card p-1 shadow-none">
-              <UserButton />
-            </div>
-          </div>
-        </header>
-
           <div className="min-w-0">
             <nav
               ref={sectionNav}
@@ -247,14 +267,7 @@ function PortalDesk() {
             </div>
           </div>
 
-        <div className="portal-workspace-footer mt-12 flex justify-between border-t border-primary/20 pt-6">
-          <Link
-            href="/"
-            className="font-display text-[12px] font-semibold tracking-normal text-primary underline-offset-4 hover:text-accent hover:underline"
-          >
-            Back to showroom
-          </Link>
-        </div>
+
       </div>
 
 
@@ -267,10 +280,10 @@ export default function Portal() {
 
   if (!isLoaded) {
     return (
-      <div className="portal-premium-workspace portal-loading-state flex min-h-[60vh] items-center justify-center bg-background text-primary" role="status">
+      <><PortalToolbar /><div className="portal-premium-workspace portal-loading-state flex min-h-[60vh] items-center justify-center bg-background text-primary" role="status">
         <LoaderCircle className="mr-3 h-6 w-6 animate-spin text-accent" />
         <span className="font-display text-[14px] font-semibold tracking-normal">Checking staff access…</span>
-      </div>
+      </div></>
     );
   }
 

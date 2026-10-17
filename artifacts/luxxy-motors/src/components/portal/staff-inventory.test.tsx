@@ -1,10 +1,22 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const state = vi.hoisted(() => ({ fetch: vi.fn(), writable: true, selected: true }));
+const state = vi.hoisted(() => ({
+  fetch: vi.fn(),
+  writable: true,
+  selected: true,
+  navigate: vi.fn(),
+}));
 vi.mock("wouter", () => ({
-  useSearch: () => state.selected ? "?vehicleId=11111111-1111-4111-8111-111111111111" : "",
-  useLocation: () => ["", vi.fn()],
+  useSearch: () =>
+    state.selected ? "?vehicleId=11111111-1111-4111-8111-111111111111" : "",
+  useLocation: () => ["", state.navigate],
   Link: ({ children, href }: any) => <a href={href}>{children}</a>,
 }));
 vi.mock("@workspace/api-client-react", () => ({
@@ -40,6 +52,7 @@ const car = {
 beforeEach(() => {
   state.writable = true;
   state.selected = true;
+  state.navigate.mockReset();
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
@@ -93,7 +106,7 @@ function mount() {
     </QueryClientProvider>,
   );
 }
-it("shows a large plate-inspection photo and only saves corrections explicitly", async () => {
+it("keeps full-size plate inspection available and only saves corrections explicitly", async () => {
   mount();
   const field = await screen.findByRole("textbox", { name: "Number plate" });
   fireEvent.change(field, { target: { value: "xy22 zzz" } });
@@ -164,29 +177,330 @@ it("keeps the plate readable for staff without edit permission", async () => {
 
 it("loads archived cars separately and searches across older archive pages", async () => {
   state.selected = false;
-  const archived = { ...car, id: "archive-one", title: "Older Toyota", inventory_status: "archived", archived_at: "2026-01-01T00:00:00Z" };
-  const oldest = { ...archived, id: "archive-two", title: "Oldest needle vehicle", plate: "ZX99OLD" };
+  const archived = {
+    ...car,
+    id: "archive-one",
+    title: "Older Toyota",
+    inventory_status: "archived",
+    archived_at: "2026-01-01T00:00:00Z",
+  };
+  const oldest = {
+    ...archived,
+    id: "archive-two",
+    title: "Oldest needle vehicle",
+    plate: "ZX99OLD",
+  };
   state.fetch.mockImplementation(async (url: string) => {
     const parsed = new URL(url, "https://fictional.example.test");
-    if (parsed.searchParams.has("q")) return { cars: [oldest], counts: { current: 1, archived: 2 }, matchedCount: 1, nextCursor: null };
-    if (parsed.searchParams.get("scope") === "archived") return parsed.searchParams.has("cursor")
-      ? { cars: [oldest], counts: { current: 1, archived: 2 }, matchedCount: 2, nextCursor: null }
-      : { cars: [archived], counts: { current: 1, archived: 2 }, matchedCount: 2, nextCursor: "older-cars" };
-    return { cars: [car], counts: { current: 1, archived: 2 }, matchedCount: 1, nextCursor: null };
+    if (parsed.searchParams.has("q"))
+      return {
+        cars: [oldest],
+        counts: { current: 1, archived: 2 },
+        matchedCount: 1,
+        nextCursor: null,
+      };
+    if (parsed.searchParams.get("scope") === "archived")
+      return parsed.searchParams.has("cursor")
+        ? {
+            cars: [oldest],
+            counts: { current: 1, archived: 2 },
+            matchedCount: 2,
+            nextCursor: null,
+          }
+        : {
+            cars: [archived],
+            counts: { current: 1, archived: 2 },
+            matchedCount: 2,
+            nextCursor: "older-cars",
+          };
+    return {
+      cars: [car],
+      counts: { current: 1, archived: 2 },
+      matchedCount: 1,
+      nextCursor: null,
+    };
   });
   mount();
   expect(await screen.findByText("Ford Focus")).toBeVisible();
   expect(screen.queryByText("Older Toyota")).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole("combobox", { name: "Availability" }), { target: { value: "archived" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "cleared" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
   expect(await screen.findByText("Older Toyota")).toBeVisible();
   expect(screen.queryByText("Ford Focus")).not.toBeInTheDocument();
-  expect(screen.getByText("Showing 1 of 2 matching archived cars.")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Load older archived cars" }));
+  expect(
+    screen.queryByRole("combobox", { name: "Preparation" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("combobox", { name: "Sort cars" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText("Showing 1 of 2 matching archived cars."),
+  ).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Load older archived cars" }),
+  );
   expect(await screen.findByText("Oldest needle vehicle")).toBeVisible();
-  expect(screen.getByText("Showing 2 of 2 matching archived cars.")).toBeVisible();
-  fireEvent.change(screen.getByRole("textbox", { name: "Search cars" }), { target: { value: "needle" } });
-  await waitFor(() => expect(state.fetch.mock.calls.some(([url]) => String(url).includes("q=needle"))).toBe(true));
-  expect(await screen.findByText("Showing 1 of 1 matching archived cars.")).toBeVisible();
+  expect(
+    screen.getByText("Showing 2 of 2 matching archived cars."),
+  ).toBeVisible();
+  fireEvent.change(screen.getByRole("textbox", { name: "Search cars" }), {
+    target: { value: "needle" },
+  });
+  await waitFor(() =>
+    expect(
+      state.fetch.mock.calls.some(([url]) => String(url).includes("q=needle")),
+    ).toBe(true),
+  );
+  expect(
+    await screen.findByText("Showing 1 of 1 matching archived cars."),
+  ).toBeVisible();
   expect(screen.queryByText("Older Toyota")).not.toBeInTheDocument();
-  expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === "GET")).toBe(true);
+  expect(
+    state.fetch.mock.calls.every(
+      ([, options]) => !options?.method || options.method === "GET",
+    ),
+  ).toBe(true);
+});
+
+it("keeps the stock list compact, identifies cars clearly and filters preparation without changing stock", async () => {
+  state.selected = false;
+  const tasks = {
+    cleaning: "done",
+    inspection: "pending",
+    mot: "not_required",
+    servicing: "pending",
+  };
+  const rows = [
+    {
+      ...car,
+      year: 2020,
+      mileage: 52000,
+      fuel: "Petrol",
+      transmission: "Manual",
+      tasks,
+      service_photo_count: 2,
+      assigned_to_id: "staff-one",
+      due_date: "2026-10-20",
+    },
+    {
+      ...car,
+      id: "second",
+      title: "BMW 1 Series",
+      price: 5000,
+      plate: "ZX22ABC",
+      inventory_status: "available",
+      tasks: {
+        cleaning: "done",
+        inspection: "done",
+        mot: "not_required",
+        servicing: "done",
+      },
+      assigned_to_id: null,
+    },
+    {
+      ...car,
+      id: "third",
+      title: "Toyota Yaris",
+      price: null,
+      plate: null,
+      vrm: null,
+      registration: null,
+      photo: null,
+      inventory_status: "hidden",
+      tasks: null,
+      assigned_to_id: "staff-one",
+    },
+  ];
+  state.fetch.mockResolvedValue({
+    cars: rows,
+    counts: { current: 3, archived: 12 },
+    matchedCount: 3,
+    nextCursor: null,
+  });
+  mount();
+  expect(
+    await screen.findByRole("heading", { name: "Ford Focus" }),
+  ).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Cars", level: 2 })).toBeVisible();
+  expect(screen.queryByText("Your showroom")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      "Private service records, preparation and customer activity.",
+    ),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText("2020 · 52,000 miles · Petrol · Manual"),
+  ).toBeVisible();
+  expect(screen.getByText("2/3 service photos")).toBeVisible();
+  expect(
+    screen.getByRole("progressbar", {
+      name: "Ford Focus preparation checks cleared",
+    }),
+  ).toHaveAttribute("aria-valuenow", "2");
+  expect(screen.getByText("Registration not supplied")).toBeVisible();
+  expect(screen.getByText("Price not supplied")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Available" }));
+  expect(
+    screen.queryByRole("heading", { name: "Ford Focus" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "BMW 1 Series" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "All current" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "cleared" },
+  });
+  expect(screen.getAllByRole("article")).toHaveLength(1);
+  expect(screen.getByRole("heading", { name: "BMW 1 Series" })).toBeVisible();
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "pending" },
+  });
+  expect(screen.getAllByRole("article")).toHaveLength(2);
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "unassigned" },
+  });
+  expect(screen.getAllByRole("article")).toHaveLength(1);
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "all" },
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Sort cars" }), {
+    target: { value: "price-low" },
+  });
+  expect(
+    screen
+      .getAllByRole("article")
+      .map((row) => within(row).getByRole("heading").textContent),
+  ).toEqual(["BMW 1 Series", "Ford Focus", "Toyota Yaris"]);
+  const photo = screen.getByRole("button", {
+    name: "Open Ford Focus photo and vehicle details",
+  });
+  expect(photo.querySelector(".inventory-photo-enlarged")).not.toBeNull();
+  expect(
+    screen
+      .getByRole("button", { name: "Open Ford Focus, AB12CDE" })
+      .querySelector(".inventory-photo-enlarged"),
+  ).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Open Ford Focus, AB12CDE" }),
+  );
+  expect(state.navigate).toHaveBeenCalledWith(
+    `/portal?section=inventory&vehicleId=${id}`,
+  );
+  expect(
+    state.fetch.mock.calls.every(
+      ([, options]) => !options?.method || options.method === "GET",
+    ),
+  ).toBe(true);
+});
+it("searches on the server after trimming input and handles missing photos without broken image rows", async () => {
+  state.selected = false;
+  state.fetch.mockResolvedValue({
+    cars: [car],
+    counts: { current: 1, archived: 0 },
+    matchedCount: 1,
+    nextCursor: null,
+  });
+  mount();
+  const image = await screen.findByRole("img", { name: "Ford Focus" });
+  fireEvent.error(image);
+  expect(screen.getByText("No photo")).toBeVisible();
+  fireEvent.change(screen.getByRole("textbox", { name: "Search cars" }), {
+    target: { value: "  AB12CDE  " },
+  });
+  expect(screen.getByRole("heading", { name: "Ford Focus" })).toBeVisible();
+  await waitFor(() =>
+    expect(
+      state.fetch.mock.calls.some(([url]) => String(url).includes("q=AB12CDE")),
+    ).toBe(true),
+  );
+  expect(
+    state.fetch.mock.calls.some(([url]) => String(url).includes("q=++")),
+  ).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Clear car search" }));
+  expect(screen.getByRole("textbox", { name: "Search cars" })).toHaveValue("");
+});
+
+it("lets preview cards open while keeping every mutation and email action disabled", async () => {
+  const normal = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => ({
+    ...(await normal(url, options)),
+    previewReadOnly: true,
+  }));
+  mount();
+  expect(
+    await screen.findByRole("heading", { name: "Ford Focus" }),
+  ).toBeVisible();
+  expect(screen.getByText(/Read-only preview/)).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Save number plate" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Save preparation" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Unreserve car" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Upload from phone" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("combobox", { name: "Choose customer to email" }),
+  ).toBeDisabled();
+  expect(screen.getByLabelText("Cleaning & presentation")).toBeDisabled();
+  expect(screen.queryByText("Email customer Alex")).not.toBeInTheDocument();
+  expect(
+    state.fetch.mock.calls.every(
+      ([, options]) => !options?.method || options.method === "GET",
+    ),
+  ).toBe(true);
+});
+
+it("opens read-only preview rows and keeps a collapsed preparation filter easy to clear", async () => {
+  state.selected = false;
+  state.fetch.mockResolvedValue({
+    cars: [car],
+    counts: { current: 1, archived: 0 },
+    matchedCount: 1,
+    previewReadOnly: true,
+  });
+  const { container } = render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <StaffInventory />
+    </QueryClientProvider>,
+  );
+  const row = await screen.findByRole("button", {
+    name: "Open Ford Focus, AB12CDE",
+  });
+  expect(row).not.toBeDisabled();
+  fireEvent.click(row);
+  expect(state.navigate).toHaveBeenCalledWith(
+    `/portal?section=inventory&vehicleId=${id}`,
+  );
+  const toggle = container.querySelector<HTMLButtonElement>(
+    ".inventory-filter-toggle",
+  )!;
+  const panel = container.querySelector(".inventory-work-filters")!;
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(panel).toHaveAttribute("data-collapsed", "true");
+  expect(toggle).toHaveAttribute("aria-controls", panel.id);
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "pending" },
+  });
+  fireEvent.click(toggle);
+  expect(panel).toHaveAttribute("data-collapsed", "true");
+  expect(
+    screen.getByRole("button", { name: "Clear preparation filter" }),
+  ).toHaveTextContent("Work to do");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Clear preparation filter" }),
+  );
+  expect(
+    screen.queryByRole("button", { name: "Clear preparation filter" }),
+  ).not.toBeInTheDocument();
 });

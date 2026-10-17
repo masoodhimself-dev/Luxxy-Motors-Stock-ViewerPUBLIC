@@ -59,6 +59,7 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
       advertId: d,
       title: `Car ${d}`,
       sourcePrice: 9000,
+      ...(d === "a" ? { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual", rawSourceData: { privateSource: "PRIVATE-SOURCE-BULK".repeat(1000) } } : {}),
     });
   }
   await db
@@ -126,7 +127,13 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
       (await call("/api/staff/inventory", { host: "b" })).status,
       403,
     );
-    assert.equal((await call("/api/staff/inventory")).data.cars.length, 1);
+    const listed = (await call("/api/staff/inventory")).data;
+    assert.equal(listed.cars.length, 1);
+    const identifyingFacts = (car: Record<string, unknown>) => ({ year: car.year, mileage: car.mileage, fuel: car.fuel, transmission: car.transmission });
+    assert.deepEqual(identifyingFacts(listed.cars[0]), { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual" });
+    const ownDetail = (await call(`/api/staff/inventory/${carA}`)).data;
+    assert.deepEqual(identifyingFacts(ownDetail.car), identifyingFacts(listed.cars[0]));
+    assert.ok(!JSON.stringify({ listed, ownDetail }).includes("PRIVATE-SOURCE-BULK"));
     assert.equal((await call(`/api/staff/inventory/${carB}`)).status, 404);
     assert.equal(
       (

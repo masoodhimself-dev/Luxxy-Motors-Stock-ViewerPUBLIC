@@ -71,7 +71,8 @@ function validatedSettings(config:Record<string,unknown>,previous:Record<string,
 /** Root middleware mounts this before booking, sales and integration handlers. */
 export async function operationsPreview(req:IncomingMessage,res:ServerResponse,url:URL,options:PreviewOperationsOptions={}):Promise<boolean> {
   const path=url.pathname.replace(/^\/api/,''); const permission=operationPermission(req.method??'GET',path);
-  const own=path==='/dealer-settings'||path==='/dealer-operations'||path==='/dealer-operations/payments.csv'||path==='/staff/stock-health'||path==='/staff/access'||path==='/staff/inventory'||path==='/staff/team'||path.startsWith('/staff/team/')||path.startsWith('/staff/settings-history')||/^\/staff\/vehicles\/[^/]+\/price$/.test(path);
+  const inventoryPath=path==='/staff/inventory'||path.startsWith('/staff/inventory/');
+  const own=path==='/dealer-settings'||path==='/dealer-operations'||path==='/dealer-operations/payments.csv'||path==='/staff/stock-health'||path==='/staff/access'||inventoryPath||path==='/staff/team'||path.startsWith('/staff/team/')||path.startsWith('/staff/settings-history')||/^\/staff\/vehicles\/[^/]+\/price$/.test(path);
   if(!own&&!permission) return false;
   if(!local(req)){send(res,403,{error:'This service is available only on the authorised network.'});return true;}
   const file=options.stateFile??defaultFile;
@@ -86,11 +87,21 @@ export async function operationsPreview(req:IncomingMessage,res:ServerResponse,u
       const current=state.versions.at(-1)!;
       if(path==='/dealer-settings'&&req.method==='GET') { res.setHeader('x-settings-revision',String(current.revision));res.setHeader('ETag',`"${current.revision}"`);send(res,200,current.config);return true; }
       if(!staff){send(res,401,{error:'Sign in to use the dealer portal.'});return true;}
-      if(path==='/staff/inventory'&&req.method==='GET') {
+      if(inventoryPath&&req.method!=='GET') { send(res,405,{error:'Inventory is read-only in this local preview.',previewReadOnly:true});return true; }
+      if(inventoryPath&&req.method==='GET') {
+        const detail=/^\/staff\/inventory\/([^/]+)(\/customers)?$/.exec(path);
+        if(path!=='/staff/inventory'&&!detail) { send(res,405,{error:'This inventory action is unavailable in the local preview.',previewReadOnly:true});return true; }
         const scope=url.searchParams.get('scope')??'current',q=(url.searchParams.get('q')??'').trim().toLowerCase();
-        if(!['current','archived'].includes(scope)||q.length>200||url.searchParams.has('cursor'))throw new SettingsVersionError('Check the inventory search.',400);
+        if(!detail&&(!['current','archived'].includes(scope)||q.length>200||url.searchParams.has('cursor')))throw new SettingsVersionError('Check the inventory search.',400);
         const {readPreviewSaleInventory}=await import('./sales');const statuses=await readPreviewSaleInventory();
-        const all=previewStock.cars.map(car=>({id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
+        const all=previewStock.cars.map(car=>({id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,year:car.year??null,mileage:car.mileage??null,fuel:car.fuel??null,transmission:car.transmission??null,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
+        if(detail) {
+          const car=all.find(car=>car.id===detail[1]);
+          if(!car) { send(res,404,{error:'Car not found.',previewReadOnly:true});return true; }
+          if(detail[2])send(res,200,{customers:[],previewReadOnly:true});
+          else send(res,200,{car,preparation:{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''},photos:[],previewReadOnly:true});
+          return true;
+        }
         const archived=all.filter(car=>car.inventory_status==='archived'),current=all.filter(car=>car.inventory_status!=='archived');
         const cars=(scope==='archived'?archived:current).filter(car=>`${car.title} ${car.plate??car.vrm??car.registration??''}`.toLowerCase().includes(q));
         send(res,200,{cars,scope,counts:{current:current.length,archived:archived.length},matchedCount:cars.length,nextCursor:null,previewReadOnly:true});return true;
