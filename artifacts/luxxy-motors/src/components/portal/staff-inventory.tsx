@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { customFetch, useGetStaffDirectory } from "@workspace/api-client-react";
 import { useSearch, useLocation, Link } from "wouter";
@@ -222,6 +222,8 @@ export function StaffInventory() {
   const search = useSearch(),
     [, navigate] = useLocation();
   const selected = new URLSearchParams(search).get("vehicleId");
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const [term, setTerm] = useState(""),
     [filter, setFilter] = useState("all"),
     [draft, setDraft] = useState<Prep>(),
@@ -298,30 +300,35 @@ export function StaffInventory() {
     if (details.data && !draft) setDraft(details.data.preparation);
   }, [details.data, draft]);
   async function act(work: () => Promise<unknown>, message: string) {
+    const vehicleId = selected;
     setBusy(true);
     setError("");
     try {
       await work();
+      if (selectedRef.current !== vehicleId) return;
       setNotice(message);
       await Promise.all([list.refetch(), details.refetch()]);
     } catch (e) {
-      setError(workspaceError(e));
+      if (selectedRef.current === vehicleId) setError(workspaceError(e));
     } finally {
       setBusy(false);
     }
   }
   async function save() {
-    if (!draft) return;
+    if (!draft || !selected) return;
+    const vehicleId = selected;
     await act(async () => {
-      await send(`/api/staff/inventory/${selected}/preparation`, "PUT", {
+      await send(`/api/staff/inventory/${vehicleId}/preparation`, "PUT", {
         revision: draft.revision,
         tasks: draft.tasks,
         assignedToId: draft.assigned_to_id,
         dueDate: draft.due_date,
         notes: draft.notes,
       });
+      if (selectedRef.current !== vehicleId) return;
       const fresh = await details.refetch();
-      if (fresh.data) setDraft(fresh.data.preparation);
+      if (selectedRef.current === vehicleId && fresh.data?.car.id === vehicleId)
+        setDraft(fresh.data.preparation);
     }, "Preparation saved.");
   }
   function open(id: string | null) {
@@ -513,7 +520,7 @@ export function StaffInventory() {
                               expectedPlate: car.plate ?? car.vrm ?? null,
                             },
                           );
-                          setPlateDraft(null);
+                          if (selectedRef.current === car.id) setPlateDraft(null);
                         }, "Number plate corrected. Future stock imports will keep this correction.")
                       }
                     >
@@ -733,13 +740,12 @@ export function StaffInventory() {
                       disabled={busy}
                       onClick={() =>
                         void act(async () => {
-                          setGrant(
-                            await send<Grant>(
-                              `/api/staff/inventory/${car.id}/upload-session`,
-                              "POST",
-                              { category: photoCategory },
-                            ),
+                          const created = await send<Grant>(
+                            `/api/staff/inventory/${car.id}/upload-session`,
+                            "POST",
+                            { category: photoCategory },
                           );
+                          if (selectedRef.current === car.id) setGrant(created);
                         }, "Scan the QR code using your phone camera.")
                       }
                     >
@@ -778,7 +784,7 @@ export function StaffInventory() {
                               `/api/staff/inventory/${car.id}/upload-session/${grant.id}`,
                               "DELETE",
                             );
-                            setGrant(undefined);
+                            if (selectedRef.current === car.id) setGrant(undefined);
                           }, "Upload link cancelled.")
                         }
                       >
