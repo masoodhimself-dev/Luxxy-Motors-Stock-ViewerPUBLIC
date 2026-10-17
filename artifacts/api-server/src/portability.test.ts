@@ -1,7 +1,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { sendEmail } from './lib/email-provider';
@@ -65,6 +65,8 @@ test('portable frontend serves deep links and assets without swallowing API or a
   const dir = await mkdtemp(path.join(tmpdir(), 'luxxy-static-'));
   await writeFile(path.join(dir, 'index.html'), '<html>Standalone showroom</html>');
   await writeFile(path.join(dir, 'app.js'), 'console.log("test");');
+  await mkdir(path.join(dir, 'assets'));
+  await writeFile(path.join(dir, 'assets', 'app-test.js'), 'console.log("hashed asset");');
   await writeFile(path.join(dir, 'portal-push-worker.js'), 'self.addEventListener("push", () => {});');
   await writeFile(path.join(dir, 'portal.webmanifest'), JSON.stringify({ name: 'Dealership workspace', start_url: '/portal' }));
   const app = express();
@@ -92,6 +94,18 @@ test('portable frontend serves deep links and assets without swallowing API or a
     assert.equal(manifest.headers.get('cache-control'), 'no-cache');
     assert.equal((await manifest.json() as { start_url: string }).start_url, '/portal');
     assert.equal((await fetch(base+'/missing.js')).status,404);
+    const asset = await fetch(base+'/assets/app-test.js');
+    assert.equal(asset.status, 200);
+    assert.match(asset.headers.get('content-type') ?? '', /javascript/);
+    assert.equal(await asset.text(), 'console.log("hashed asset");');
+    for (const method of ['GET', 'HEAD']) {
+      const missingAsset = await fetch(base+'/assets/missing-build.js', { method });
+      assert.equal(missingAsset.status, 404);
+      assert.equal(missingAsset.headers.get('cache-control'), 'no-store');
+      assert.equal(missingAsset.headers.get('x-content-type-options'), 'nosniff');
+      assert.match(missingAsset.headers.get('content-type') ?? '', /^text\/plain/);
+      assert.equal(await missingAsset.text(), method === 'HEAD' ? '' : 'Asset not found.');
+    }
     assert.equal((await fetch(base+'/api/missing')).status,404);
     assert.equal((await fetch(base+'/share/missing')).status,404);
     assert.deepEqual(await (await fetch(base+'/api/healthz')).json(), {status:'ok'});

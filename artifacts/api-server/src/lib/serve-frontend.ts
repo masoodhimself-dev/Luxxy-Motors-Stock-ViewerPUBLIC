@@ -32,6 +32,12 @@ export function serveFrontend(app: Express, directory: string) {
       }
     },
   }));
+  // A rolling deploy may briefly route a new chunk request to the old instance.
+  // Never let a CDN retain that temporary miss after the new build is ready.
+  app.use('/assets', (_req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' })
+      .status(404).type('text/plain').send('Asset not found.');
+  });
   app.get('/{*path}', (req, res, next) => {
     // Missing assets must be 404s, not HTML masquerading as JavaScript/images.
     if (path.extname(req.path) || !req.accepts('html')) return next();
