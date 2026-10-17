@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetEnquiriesQueryKey,
@@ -28,6 +28,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (result: QuickEnquiryResult) => void;
+  initialVehicleId?: string | null;
 };
 const emptyForm = { name: "", phone: "", email: "", vehicleId: "", notes: "" };
 function saveError(error: unknown) {
@@ -38,11 +39,19 @@ function saveError(error: unknown) {
 }
 
 /** A staff capture only: the server's quick mode suppresses all automatic emails. */
-export function QuickEnquiryDialog({ open, onOpenChange, onCreated }: Props) {
+export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehicleId }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      setForm({ ...emptyForm, vehicleId: initialVehicleId || "" });
+      setError("");
+    }
+    wasOpen.current = open;
+  }, [open, initialVehicleId]);
   const cache = useQueryClient();
   const access = useStaffAccess(open);
   const allowed = Boolean(access.data?.permissions.includes("sales.manage"));
@@ -59,7 +68,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated }: Props) {
     mutation: { retry: false },
   });
   const pending = saving || mutation.isPending;
-  const dirty = Object.values(form).some((value) => value.trim());
+  const dirty = [form.name, form.phone, form.email, form.notes].some((value) => value.trim()) || form.vehicleId !== (initialVehicleId || "");
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   function dismiss(next: boolean) {

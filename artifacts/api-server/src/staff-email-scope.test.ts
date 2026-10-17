@@ -59,12 +59,15 @@ test("customer email history follows explicit merged cases without contact-based
       id: randomUUID(), dealerId: name === "foreign" ? "scope-b" : "scope-a",
       enquiryId: id, requestId: randomUUID(), requestHash: "fictional", status: "sent",
       recipient: "same@example.test", subject: `${name} reply`, message: "Saved message",
+      ...(name === "root" ? { renderedText: "The exact rendered reply saved for the customer." } : {}),
       createdBy: "fictional", createdAt: new Date("2026-10-16T10:00:00Z"),
     });
   }
+  const saleIds: Record<string, string> = {};
   for (const source of ["child", "unrelated", "none"]) {
+    saleIds[source] = randomUUID();
     await db.insert(saleWorkspaceTable).values({
-      id: randomUUID(), dealerId: "scope-a", reference: `SALE-${source}`, revision: 0,
+      id: saleIds[source], dealerId: "scope-a", reference: `SALE-${source}`, revision: 0,
       state: {
         draft: {
           customer: "Same fictional customer",
@@ -152,6 +155,28 @@ test("customer email history follows explicit merged cases without contact-based
       assert.deepEqual(offset.data.messages, full.data.messages.slice(2));
       assert.equal((await call("?offset=-1")).status, 400);
     });
+    await t.test("loads saved bodies only inside an authorised case or sale conversation", async () => {
+      assert.equal((await call("?includeBody=true")).status, 400);
+      assert.equal((await call("?includeBody=yes")).status, 400);
+      assert.equal((await call(`?enquiryId=${ids.root}&saleId=${saleIds.child}&includeBody=true`)).status, 400);
+      const summaries = await call(`?enquiryId=${ids.root}`);
+      assert.ok(summaries.data.messages.every((row: any) => !("message" in row)));
+      const conversation = await call(`?enquiryId=${ids.root}&includeBody=true`);
+      assert.equal(conversation.status, 200);
+      assert.equal(conversation.data.messages.length, 7);
+      assert.equal(conversation.data.messages.find((row: any) => row.subject === "root reply").message, "The exact rendered reply saved for the customer.");
+      assert.equal(conversation.data.messages.find((row: any) => row.subject === "child reply").message, "Saved message");
+      assert.ok(conversation.data.messages.filter((row: any) => row.kind !== "enquiry").every((row: any) => typeof row.message === "string"));
+      assert.deepEqual((await call(`?enquiryId=${ids.foreign}&includeBody=true`)).data.messages, []);
+      const sale = await call(`?saleId=${saleIds.none}&includeBody=true`);
+      assert.equal(sale.status, 200);
+      assert.equal(sale.data.messages.length, 1);
+      assert.equal(sale.data.messages[0].sale_id, saleIds.none);
+      assert.equal(sale.data.messages[0].message, "The original saved document was attached to this email.");
+      assert.deepEqual((await call(`?saleId=${saleIds.none}&includeBody=true`, "scope-b")).data.messages, []);
+      assert.equal((await call("?saleId=invalid&includeBody=true")).status, 400);
+      assert.equal(providerCalls, 0);
+    });
     await t.test("applies the case filter before pagination and never calls a sender", async () => {
       const before = (await db.execute(sql`SELECT count(*)::int AS count FROM enquiry_emails`)).rows[0].count;
       for (let index = 0; index < 53; index++) {
@@ -162,13 +187,14 @@ test("customer email history follows explicit merged cases without contact-based
           createdAt: new Date("2026-10-15T10:00:00Z"),
         });
       }
-      const first = await call(`?enquiryId=${ids.root}`);
-      const second = await call(`?enquiryId=${ids.root}&offset=50`);
+      const first = await call(`?enquiryId=${ids.root}&includeBody=true`);
+      const second = await call(`?enquiryId=${ids.root}&includeBody=true&offset=50`);
       assert.equal(first.data.messages.length, 50);
       assert.equal(first.data.hasMore, true);
       assert.equal(second.data.messages.length, 10);
       assert.equal(second.data.hasMore, false);
       assert.equal(new Set([...first.data.messages, ...second.data.messages].map((message: any) => message.key)).size, 60);
+      assert.ok([...first.data.messages, ...second.data.messages].every((message: any) => typeof message.message === "string"));
       assert.equal(providerCalls, 0);
       const after = (await db.execute(sql`SELECT count(*)::int AS count FROM enquiry_emails`)).rows[0].count;
       assert.equal(Number(after) - Number(before), 53, "GETs did not create delivery records");

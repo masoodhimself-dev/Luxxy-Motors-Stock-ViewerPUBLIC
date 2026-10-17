@@ -31,29 +31,29 @@ const dateLabel = (value: string) => new Date(value).toLocaleString('en-GB', {
 });
 
 /** Read-only, opened on demand. Opening a customer never checks a provider or sends mail. */
-export function CustomerEmailSummary({ enquiryId, reference, onPrepare }: {
+export function CustomerEmailSummary({ enquiryId, onPrepare }: {
   enquiryId: string;
   reference: string;
   onPrepare: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const history = useQuery({
-    queryKey: ['staff-email', reference, 0],
-    queryFn: () => customFetch<{ messages: CustomerEmail[]; hasMore: boolean }>(`/api/staff/email?q=${encodeURIComponent(reference)}&offset=0`),
+    queryKey: ['staff-email', '', 0, enquiryId],
+    queryFn: () => customFetch<{ messages: CustomerEmail[]; hasMore: boolean }>(`/api/staff/email?enquiryId=${encodeURIComponent(enquiryId)}&offset=0`),
     enabled: expanded,
     staleTime: 30_000,
     retry: false,
   });
   const drafts = useQuery({
-    queryKey: ['staff-email-drafts'],
-    queryFn: () => customFetch<{ drafts: CustomerDraft[]; hasMore: boolean }>('/api/staff/email-drafts'),
+    queryKey: ['staff-email-drafts', enquiryId],
+    queryFn: () => customFetch<{ drafts: CustomerDraft[]; hasMore: boolean }>(`/api/staff/email-drafts?enquiryId=${encodeURIComponent(enquiryId)}`),
     enabled: expanded,
     staleTime: 30_000,
     retry: false,
   });
-  const draft = drafts.data?.drafts.find(row => row.enquiryId === enquiryId);
-  // A reference search can also match another record. Never show it in this enquiry's summary.
-  const messages = history.data?.messages.filter(row => row.enquiry_id === enquiryId) ?? [];
+  const draft = drafts.data?.drafts.find(row => row.enquiryId === enquiryId) ?? drafts.data?.drafts[0];
+  // Both endpoints scope records to this dealer's explicitly merged case before paging.
+  const messages = history.data?.messages ?? [];
   const hasReadSignal = messages.some(row => ['opened', 'clicked'].includes(row.last_event ?? row.status));
   const emailHref = `/portal?section=notifications&workView=email&enquiryId=${encodeURIComponent(enquiryId)}&view=sent`;
   return <section className="min-w-0 rounded-lg border border-border bg-secondary/20 p-4" aria-label="Customer email and drafts">
@@ -71,13 +71,13 @@ export function CustomerEmailSummary({ enquiryId, reference, onPrepare }: {
         <p className="text-xs font-semibold">{draft.status === 'draft' ? 'Saved draft · not sent' : draft.status === 'sending' ? 'Sending · check history before retrying' : 'Acceptance unconfirmed · check before resending'}</p>
         <p className="mt-1 break-words text-sm">{draft.subject || 'Untitled reply'}</p>
         <p className="mt-1 text-xs text-muted-foreground">Saved {dateLabel(draft.updatedAt)}</p>
-        <Button type="button" variant="outline" size="sm" className="mt-2" onClick={onPrepare}>{draft.status === 'draft' ? 'Continue draft' : 'Check draft'}</Button>
+        {draft.enquiryId === enquiryId ? <Button type="button" variant="outline" size="sm" className="mt-2" onClick={onPrepare}>{draft.status === 'draft' ? 'Continue draft' : 'Check draft'}</Button> : <Button variant="outline" size="sm" className="mt-2" asChild><Link href={`/portal?section=notifications&workView=email&enquiryId=${encodeURIComponent(draft.enquiryId)}&draft=${encodeURIComponent(draft.enquiryId)}`}>{draft.status === 'draft' ? 'Continue draft' : 'Check draft'}</Link></Button>}
       </div>}
       {history.data && messages.length > 0 && <ul className="grid gap-3" aria-label="Recent emails for this enquiry">{messages.slice(0, 3).map(message => <li key={message.key} className="min-w-0 text-sm"><p className="break-words font-medium">{message.subject || 'Customer email'}</p><p className="mt-1 text-xs text-muted-foreground">{statusLabels[message.last_event ?? message.status] ?? 'Status unavailable'} · {dateLabel(message.created_at)}</p></li>)}</ul>}
       {history.data && drafts.data && !messages.length && !draft && <p className="text-sm text-muted-foreground">No recent email or draft recorded for this enquiry.</p>}
       {hasReadSignal && <p className="text-xs text-muted-foreground">Open and click tracking does not prove the customer read the email.</p>}
-      {drafts.data?.hasMore && !draft && <p className="text-xs text-muted-foreground">Older drafts may not appear here. Prepare reply checks the saved draft for this enquiry.</p>}
-      <Button variant="outline" size="sm" className="justify-self-start" asChild><Link href={emailHref}>Open email workspace</Link></Button>
+      {drafts.data?.hasMore && !draft && <p className="text-xs text-muted-foreground">Older drafts may not appear here. Open the conversation to review this case’s saved drafts.</p>}
+      <Button variant="outline" size="sm" className="justify-self-start" asChild><Link href={emailHref}>Open conversation</Link></Button>
     </div>}
   </section>;
 }

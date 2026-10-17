@@ -117,7 +117,11 @@ export function createStaffEmailRouter(
         q: z.string().max(200).default(""),
         offset: z.coerce.number().int().min(0).max(10000).default(0),
         enquiryId: z.string().uuid().optional(),
+        saleId: z.string().uuid().optional(),
+        includeBody: z.enum(["true", "false"]).default("false"),
       })
+      .refine((value) => !(value.enquiryId && value.saleId))
+      .refine((value) => value.includeBody !== "true" || Boolean(value.enquiryId || value.saleId))
       .safeParse(req.query);
     if (!input.success) {
       res.status(400).json({ error: "Check the email search." });
@@ -133,13 +137,15 @@ export function createStaffEmailRouter(
       : caseIds.length
         ? sql`AND m.enquiry_id IN (${sql.join(caseIds.map((id) => sql`${id}`), sql`, `)})`
         : sql`AND false`;
+    const saleFilter = input.data.saleId ? sql`AND m.sale_id=${input.data.saleId}` : sql``;
+    const includeBody = input.data.includeBody === "true";
     const rows = await db.execute(sql`WITH messages AS (
-    SELECT 'enquiry:'||m.id::text AS key,'enquiry' AS kind,m.created_at,e.customer_name,m.recipient,m.subject,m.status,m.provider_id,e.id::text AS enquiry_id,NULL::text AS sale_id,NULL::text AS document_id,e.vehicle_id::text AS vehicle_id,e.vehicle_title,e.reference,jsonb_array_length(m.photo_ids)+jsonb_array_length(m.document_ids) AS attachment_count FROM enquiry_emails m JOIN enquiries e ON e.id=m.enquiry_id AND e.dealer_id=m.dealer_id WHERE m.dealer_id=${dealer}
+    SELECT 'enquiry:'||m.id::text AS key,'enquiry' AS kind,m.created_at,e.customer_name,m.recipient,m.subject,m.status,m.provider_id,e.id::text AS enquiry_id,NULL::text AS sale_id,NULL::text AS document_id,e.vehicle_id::text AS vehicle_id,e.vehicle_title,e.reference,jsonb_array_length(m.photo_ids)+jsonb_array_length(m.document_ids) AS attachment_count,${includeBody ? sql`coalesce(m.rendered_text,m.message)` : sql`NULL::text`} AS message FROM enquiry_emails m JOIN enquiries e ON e.id=m.enquiry_id AND e.dealer_id=m.dealer_id WHERE m.dealer_id=${dealer}
     UNION ALL
-    SELECT n.kind||':'||e.id::text,n.kind,n.attempted_at,e.customer_name,e.email,n.subject,n.status,n.provider_id,e.id::text,NULL::text,NULL::text,e.vehicle_id::text,e.vehicle_title,e.reference,0 FROM enquiries e CROSS JOIN LATERAL (VALUES ('notification',e.customer_notification_attempted_at,'Customer confirmation — '||e.reference,e.customer_notification_status,e.customer_notification_provider_id),('reminder',e.reminder_attempted_at,'Appointment reminder — '||e.reference,e.reminder_status,e.reminder_provider_id)) n(kind,attempted_at,subject,status,provider_id) WHERE e.dealer_id=${dealer} AND n.attempted_at IS NOT NULL
+    SELECT n.kind||':'||e.id::text,n.kind,n.attempted_at,e.customer_name,e.email,n.subject,n.status,n.provider_id,e.id::text,NULL::text,NULL::text,e.vehicle_id::text,e.vehicle_title,e.reference,0,${includeBody ? sql`'This is the latest automated email recorded for this enquiry. Open the enquiry to review the appointment details.'::text` : sql`NULL::text`} FROM enquiries e CROSS JOIN LATERAL (VALUES ('notification',e.customer_notification_attempted_at,'Customer confirmation — '||e.reference,e.customer_notification_status,e.customer_notification_provider_id),('reminder',e.reminder_attempted_at,'Appointment reminder — '||e.reference,e.reminder_status,e.reminder_provider_id)) n(kind,attempted_at,subject,status,provider_id) WHERE e.dealer_id=${dealer} AND n.attempted_at IS NOT NULL
     UNION ALL
-    SELECT 'sale:'||s.id::text||':'||(d->>'id'),'sale',coalesce((d->>'attemptedAt')::timestamptz,s.updated_at),s.state#>>'{draft,customer}',d->>'to',coalesce(doc->>'title','Sales document')||' '||coalesce(doc->>'number',''),d->>'status',d->>'providerId',s.state#>>'{draft,sourceEnquiryId}',s.id::text,d->>'documentId',s.state#>>'{draft,vehicleId}',s.state#>>'{draft,vehicle}',s.reference,1 FROM sale_workspace s CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.state->'emailDeliveries')='array' THEN s.state->'emailDeliveries' ELSE '[]'::jsonb END) d LEFT JOIN LATERAL (SELECT doc FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s.state->'documents')='array' THEN s.state->'documents' ELSE '[]'::jsonb END) doc WHERE doc->>'id'=d->>'documentId' LIMIT 1) details ON true WHERE s.dealer_id=${dealer}
-   ) SELECT m.*,c.last_event,c.checked_at FROM messages m LEFT JOIN email_delivery_checks c ON c.dealer_id=${dealer} AND c.message_key=m.key AND c.provider_id=m.provider_id WHERE concat_ws(' ',m.customer_name,m.recipient,m.subject,m.vehicle_title,m.reference) ILIKE ${term} ${caseFilter} ORDER BY m.created_at DESC,m.key LIMIT 51 OFFSET ${input.data.offset}`);
+    SELECT 'sale:'||s.id::text||':'||(d->>'id'),'sale',coalesce((d->>'attemptedAt')::timestamptz,s.updated_at),s.state#>>'{draft,customer}',d->>'to',coalesce(doc->>'title','Sales document')||' '||coalesce(doc->>'number',''),d->>'status',d->>'providerId',s.state#>>'{draft,sourceEnquiryId}',s.id::text,d->>'documentId',s.state#>>'{draft,vehicleId}',s.state#>>'{draft,vehicle}',s.reference,1,${includeBody ? sql`'The original saved document was attached to this email.'::text` : sql`NULL::text`} FROM sale_workspace s CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.state->'emailDeliveries')='array' THEN s.state->'emailDeliveries' ELSE '[]'::jsonb END) d LEFT JOIN LATERAL (SELECT doc FROM jsonb_array_elements(CASE WHEN jsonb_typeof(s.state->'documents')='array' THEN s.state->'documents' ELSE '[]'::jsonb END) doc WHERE doc->>'id'=d->>'documentId' LIMIT 1) details ON true WHERE s.dealer_id=${dealer}
+   ) SELECT m.*,c.last_event,c.checked_at FROM messages m LEFT JOIN email_delivery_checks c ON c.dealer_id=${dealer} AND c.message_key=m.key AND c.provider_id=m.provider_id WHERE concat_ws(' ',m.customer_name,m.recipient,m.subject,m.vehicle_title,m.reference) ILIKE ${term} ${caseFilter} ${saleFilter} ORDER BY m.created_at DESC,m.key LIMIT 51 OFFSET ${input.data.offset}`);
     let replyTo: string | null = null;
     try {
       const settings = await settingsProvider();
@@ -147,7 +153,11 @@ export function createStaffEmailRouter(
     } catch {}
     res.json({
       replyTo,
-      messages: rows.rows.slice(0, 50),
+      messages: rows.rows.slice(0, 50).map((row) => {
+        if (includeBody) return row;
+        const { message: _message, ...summary } = row;
+        return summary;
+      }),
       hasMore: rows.rows.length > 50,
     });
   });

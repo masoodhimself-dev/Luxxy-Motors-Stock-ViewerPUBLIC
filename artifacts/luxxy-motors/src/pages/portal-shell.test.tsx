@@ -101,8 +101,8 @@ vi.mock("@/components/portal/notifications-workspace", async () => {
   };
 });
 vi.mock("@/components/portal/staff-inventory", () => ({
-  StaffInventory: () => (
-    <section aria-label="Inventory fixture">All cars</section>
+  StaffInventory: ({ onQuickEnquiry }: { onQuickEnquiry?: (vehicleId: string) => void }) => (
+    <section aria-label="Inventory fixture">All cars{onQuickEnquiry && <button type="button" onClick={() => onQuickEnquiry("stock-car-one")}>Enquire about fixture car</button>}</section>
   ),
 }));
 vi.mock("@/components/portal/quick-enquiry", () => ({
@@ -110,13 +110,15 @@ vi.mock("@/components/portal/quick-enquiry", () => ({
     open,
     onOpenChange,
     onCreated,
+    initialVehicleId,
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onCreated: (enquiry: { id: string; reference?: string }) => void;
+    initialVehicleId?: string | null;
   }) =>
     open ? (
-      <section role="dialog" aria-label="Quick enquiry">
+      <section role="dialog" aria-label="Quick enquiry" data-vehicle-id={initialVehicleId || ""}>
         <button type="button" onClick={() => onOpenChange(false)}>
           Close fixture enquiry
         </button>
@@ -487,6 +489,18 @@ describe("portal shell access and navigation", () => {
     expect(
       screen.queryByRole("dialog", { name: "Quick enquiry" }),
     ).not.toBeInTheDocument();
+    expect(location.history).toEqual(initialHistory);
+  });
+
+  it("prefills a car enquiry in place and resets the car for a later general enquiry", async () => {
+    const { location } = mount("section=inventory&vehicleId=stock-car-one");
+    const initialHistory = [...location.history];
+    fireEvent.click(screen.getByRole("button", { name: "Enquire about fixture car" }));
+    expect(screen.getByRole("dialog", { name: "Quick enquiry" })).toHaveAttribute("data-vehicle-id", "stock-car-one");
+    expect(location.history).toEqual(initialHistory);
+    fireEvent.click(screen.getByRole("button", { name: "Close fixture enquiry" }));
+    await chooseQuickAction("Quick enquiry");
+    expect(screen.getByRole("dialog", { name: "Quick enquiry" })).toHaveAttribute("data-vehicle-id", "");
     expect(location.history).toEqual(initialHistory);
   });
 

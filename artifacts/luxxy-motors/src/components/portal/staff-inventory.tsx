@@ -7,19 +7,30 @@ import {
   ArrowLeft,
   Camera,
   CarFront,
-  ChevronRight,
   ClipboardCheck,
+  Clock3,
+  Copy,
   ExternalLink,
+  History,
   Mail,
+  MessageSquarePlus,
+  MoreHorizontal,
   RefreshCw,
   Search,
   ScanLine,
   SlidersHorizontal,
+  UserRound,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useStaffAccess } from "./dealer-administration";
 import "./staff-inventory.css";
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
@@ -108,6 +119,33 @@ const carRegistration = (car: Car) =>
   car.vrm?.trim() ||
   car.registration?.trim() ||
   "Registration not supplied";
+// Marketplace registrations such as “2019 (68 reg)” identify an age, not a plate.
+const hasNumberPlate = (car: Car) => {
+  if (car.plate?.trim() || car.vrm?.trim()) return true;
+  const registration = car.registration?.replace(/\s/g, "").toUpperCase() ?? "";
+  return (
+    /^[A-Z0-9]{2,8}$/.test(registration) &&
+    /[A-Z]/.test(registration) &&
+    /\d/.test(registration)
+  );
+};
+const londonDate = () => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  return ["year", "month", "day"]
+    .map((type) => parts.find((part) => part.type === type)?.value)
+    .join("-");
+};
+type AttentionFilter = "all" | "missing-plate" | "missing-service" | "overdue";
+const attentionLabels: Record<Exclude<AttentionFilter, "all">, string> = {
+  "missing-plate": "Missing number plate",
+  "missing-service": "No service-book photos",
+  overdue: "Overdue preparation",
+};
 const carFacts = (car: Car) =>
   [
     car.year,
@@ -117,6 +155,10 @@ const carFacts = (car: Car) =>
   ]
     .filter((value) => value !== null && value !== undefined && value !== "")
     .join(" · ");
+const isAdvertisedCar = (car: Car) =>
+  !car.archived_at &&
+  ["available", "reserved"].includes(car.inventory_status) &&
+  car.source_status !== "missing";
 function InventoryStatus({ car }: { car: Car }) {
   return (
     <span
@@ -218,7 +260,9 @@ function PrivatePhoto({
     <p>Loading photo…</p>
   );
 }
-export function StaffInventory() {
+export function StaffInventory({
+  onQuickEnquiry,
+}: { onQuickEnquiry?: (vehicleId: string) => void } = {}) {
   const search = useSearch(),
     [, navigate] = useLocation();
   const selected = new URLSearchParams(search).get("vehicleId");
@@ -234,6 +278,9 @@ export function StaffInventory() {
   const filterPanelId = useId();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [preparationFilter, setPreparationFilter] = useState("all");
+  const [attentionFilter, setAttentionFilter] =
+    useState<AttentionFilter>("all");
+  const [customerLink, setCustomerLink] = useState("");
   const [sort, setSort] = useState("latest");
   const [searchTerm, setSearchTerm] = useState("");
   useEffect(() => {
@@ -295,6 +342,7 @@ export function StaffInventory() {
     setGrant(undefined);
     setError("");
     setNotice("");
+    setCustomerLink("");
   }, [selected]);
   useEffect(() => {
     if (details.data && !draft) setDraft(details.data.preparation);
@@ -331,29 +379,122 @@ export function StaffInventory() {
         setDraft(fresh.data.preparation);
     }, "Preparation saved.");
   }
-  function open(id: string | null) {
+  function canLeavePreparation() {
     if (
       draft &&
       details.data &&
       JSON.stringify(draft) !== JSON.stringify(details.data.preparation) &&
       !window.confirm("Leave unsaved preparation changes?")
     )
-      return;
+      return false;
+    return true;
+  }
+  function open(id: string | null) {
+    if (!canLeavePreparation()) return;
     navigate(`/portal?section=inventory${id ? `&vehicleId=${id}` : ""}`);
+  }
+  function openActivity(id: string) {
+    if (!canLeavePreparation()) return;
+    navigate(`/portal?section=history&view=vehicles&vehicleId=${id}`);
+  }
+  async function copyCustomerLink(id: string) {
+    const url = new URL(
+      `/vehicle/${encodeURIComponent(id)}`,
+      window.location.origin,
+    ).href;
+    setCustomerLink(url);
+    setError("");
+    try {
+      if (!navigator.clipboard?.writeText)
+        throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      setNotice("Customer link copied.");
+    } catch {
+      setNotice(
+        "Copy the customer link below, or open it and share the address.",
+      );
+    }
+  }
+  function carActions(vehicle: Car) {
+    const isPublic = isAdvertisedCar(vehicle);
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="inventory-car-actions"
+            aria-label={`Actions for ${vehicle.title}, ${carRegistration(vehicle)}`}
+          >
+            <MoreHorizontal aria-hidden size={19} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="inventory-action-menu">
+          {writable && isPublic && onQuickEnquiry && (
+            <DropdownMenuItem onSelect={() => onQuickEnquiry(vehicle.id)}>
+              <MessageSquarePlus aria-hidden /> Quick enquiry
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={() => openActivity(vehicle.id)}>
+            <History aria-hidden /> Customer activity
+          </DropdownMenuItem>
+          {isPublic && (
+            <>
+              <DropdownMenuItem asChild>
+                <a
+                  href={`/vehicle/${vehicle.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink aria-hidden /> View customer page
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => void copyCustomerLink(vehicle.id)}
+              >
+                <Copy aria-hidden /> Copy customer link
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   }
   const loadedCars = list.data?.pages.flatMap((page) => page.cars) ?? [];
   const counts = list.data?.pages[0].counts;
-  const cars = loadedCars.filter((c) =>
-    scope === "archived"
-      ? Boolean(c.archived_at) || c.inventory_status === "archived"
-      : !c.archived_at &&
-        c.inventory_status !== "archived" &&
-        (filter === "all" || c.inventory_status === filter) &&
-        (preparationFilter === "all" ||
-          (preparationFilter === "pending" && clearedTasks(c.tasks) < 4) ||
-          (preparationFilter === "cleared" && clearedTasks(c.tasks) === 4) ||
-          (preparationFilter === "unassigned" && !c.assigned_to_id)),
+  const today = londonDate();
+  const isOverdue = (vehicle: Car) =>
+    Boolean(
+      vehicle.due_date &&
+      vehicle.due_date < today &&
+      clearedTasks(vehicle.tasks) < 4 &&
+      vehicle.inventory_status !== "sold",
+    );
+  const needsAttention = (vehicle: Car, attention: AttentionFilter) =>
+    attention === "all" ||
+    (attention === "missing-plate" && !hasNumberPlate(vehicle)) ||
+    (attention === "missing-service" &&
+      (vehicle.service_photo_count ?? 0) === 0) ||
+    (attention === "overdue" && isOverdue(vehicle));
+  const currentCars = loadedCars.filter(
+    (vehicle) =>
+      !vehicle.archived_at &&
+      vehicle.inventory_status !== "archived" &&
+      (filter === "all" || vehicle.inventory_status === filter) &&
+      (preparationFilter === "all" ||
+        (preparationFilter === "pending" && clearedTasks(vehicle.tasks) < 4) ||
+        (preparationFilter === "cleared" &&
+          clearedTasks(vehicle.tasks) === 4) ||
+        (preparationFilter === "unassigned" && !vehicle.assigned_to_id) ||
+        (preparationFilter === "mine" &&
+          vehicle.assigned_to_id === directory.data?.currentUserId)),
   );
+  const cars =
+    scope === "archived"
+      ? loadedCars.filter(
+          (c) => Boolean(c.archived_at) || c.inventory_status === "archived",
+        )
+      : currentCars.filter((c) => needsAttention(c, attentionFilter));
   if (scope !== "archived" && sort !== "latest")
     cars.sort((a, b) =>
       sort === "name"
@@ -449,6 +590,21 @@ export function StaffInventory() {
           Read-only preview · Changes, uploads and emails are disabled.
         </p>
       )}
+      {error && (
+        <p role="alert" className="inventory-error">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <div role="status" className="inventory-feedback">
+          <p>{notice}</p>
+          {customerLink && (
+            <a href={customerLink} target="_blank" rel="noopener noreferrer">
+              {customerLink}
+            </a>
+          )}
+        </div>
+      )}
       {selected ? (
         <>
           {details.isLoading && <p role="status">Loading vehicle…</p>}
@@ -492,6 +648,18 @@ export function StaffInventory() {
                     )}
                   </div>
                 </div>
+                <div className="inventory-detail-actions">
+                  {writable && isAdvertisedCar(car) && onQuickEnquiry && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onQuickEnquiry(car.id)}
+                    >
+                      <MessageSquarePlus aria-hidden size={16} /> Quick enquiry
+                    </Button>
+                  )}
+                  {carActions(car)}
+                </div>
                 {writable && (
                   <div className="inventory-vehicle-controls">
                     <label>
@@ -520,7 +688,8 @@ export function StaffInventory() {
                               expectedPlate: car.plate ?? car.vrm ?? null,
                             },
                           );
-                          if (selectedRef.current === car.id) setPlateDraft(null);
+                          if (selectedRef.current === car.id)
+                            setPlateDraft(null);
                         }, "Number plate corrected. Future stock imports will keep this correction.")
                       }
                     >
@@ -784,7 +953,8 @@ export function StaffInventory() {
                               `/api/staff/inventory/${car.id}/upload-session/${grant.id}`,
                               "DELETE",
                             );
-                            if (selectedRef.current === car.id) setGrant(undefined);
+                            if (selectedRef.current === car.id)
+                              setGrant(undefined);
                           }, "Upload link cancelled.")
                         }
                       >
@@ -863,12 +1033,6 @@ export function StaffInventory() {
               </section>
             </>
           )}
-          {error && (
-            <p role="alert" className="inventory-error">
-              {error}
-            </p>
-          )}
-          {notice && <p role="status">{notice}</p>}
         </>
       ) : (
         <>
@@ -883,7 +1047,7 @@ export function StaffInventory() {
                 <Input
                   value={term}
                   onChange={(e) => setTerm(e.target.value)}
-                  placeholder="Find a car…"
+                  placeholder="Search make, model or number plate…"
                 />
                 {term && (
                   <button
@@ -930,6 +1094,9 @@ export function StaffInventory() {
                     <option value="pending">Work to do</option>
                     <option value="cleared">Checks cleared</option>
                     <option value="unassigned">Unassigned</option>
+                    {directory.data?.currentUserId && (
+                      <option value="mine">Assigned to me</option>
+                    )}
                   </NativeSelect>
                 </label>
                 <label>
@@ -979,26 +1146,77 @@ export function StaffInventory() {
             <p className="inventory-result-count" aria-live="polite">
               {list.isFetching && !list.isFetchingNextPage
                 ? "Searching…"
-                : `${cars.length} ${cars.length === 1 ? "car" : "cars"}${term.trim() || preparationFilter !== "all" || (filter !== "all" && scope !== "archived") ? " shown" : ""}`}
+                : `${cars.length} ${cars.length === 1 ? "car" : "cars"}${term.trim() || preparationFilter !== "all" || attentionFilter !== "all" || (filter !== "all" && scope !== "archived") ? " shown" : ""}`}
             </p>
           </div>
-          {scope === "current" && preparationFilter !== "all" && (
-            <div className="inventory-active-filters">
-              <button
-                type="button"
-                onClick={() => setPreparationFilter("all")}
-                aria-label="Clear preparation filter"
-              >
-                Preparation:{" "}
-                {preparationFilter === "pending"
-                  ? "Work to do"
-                  : preparationFilter === "cleared"
-                    ? "Checks cleared"
-                    : "Unassigned"}
-                <X aria-hidden size={13} />
-              </button>
+          {scope === "current" && !list.isLoading && !list.isError && (
+            <div
+              className="inventory-attention-filters"
+              role="group"
+              aria-label="Cars to check"
+            >
+              {(
+                [
+                  ["missing-plate", ScanLine],
+                  ["missing-service", Camera],
+                  ["overdue", Clock3],
+                ] as const
+              ).map(([value, Icon]) => (
+                <button
+                  type="button"
+                  key={value}
+                  aria-pressed={attentionFilter === value}
+                  onClick={() =>
+                    setAttentionFilter(
+                      attentionFilter === value ? "all" : value,
+                    )
+                  }
+                >
+                  <Icon aria-hidden size={14} />
+                  {attentionLabels[value]}{" "}
+                  <span>
+                    {
+                      currentCars.filter((vehicle) =>
+                        needsAttention(vehicle, value),
+                      ).length
+                    }
+                  </span>
+                </button>
+              ))}
             </div>
           )}
+          {scope === "current" &&
+            (preparationFilter !== "all" || attentionFilter !== "all") && (
+              <div className="inventory-active-filters">
+                {preparationFilter !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setPreparationFilter("all")}
+                    aria-label="Clear preparation filter"
+                  >
+                    Preparation:{" "}
+                    {preparationFilter === "pending"
+                      ? "Work to do"
+                      : preparationFilter === "cleared"
+                        ? "Checks cleared"
+                        : preparationFilter === "mine"
+                          ? "Assigned to me"
+                          : "Unassigned"}
+                    <X aria-hidden size={13} />
+                  </button>
+                )}
+                {attentionFilter !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setAttentionFilter("all")}
+                    aria-label="Clear car check filter"
+                  >
+                    {attentionLabels[attentionFilter]}{" "}
+                    <X aria-hidden size={13} />
+                  </button>
+                )}
+              </div>
+            )}
           {list.isLoading && <p role="status">Loading cars…</p>}
           {list.isError && (
             <p role="alert" className="inventory-error">
@@ -1020,6 +1238,11 @@ export function StaffInventory() {
                       <h3>{c.title}</h3>
                       <p className="inventory-row-registration">
                         {carRegistration(c)}
+                        {!hasNumberPlate(c) && (
+                          <span className="inventory-plate-needed">
+                            Plate needed
+                          </span>
+                        )}
                       </p>
                       {carFacts(c) && (
                         <p className="inventory-row-facts">{carFacts(c)}</p>
@@ -1029,11 +1252,6 @@ export function StaffInventory() {
                       <strong>{price(c.price)}</strong>
                       <InventoryStatus car={c} />
                     </div>
-                    <ChevronRight
-                      aria-hidden
-                      className="inventory-row-chevron"
-                      size={18}
-                    />
                   </div>
                   <div className="inventory-row-work">
                     <span className="inventory-prep-summary">
@@ -1060,9 +1278,21 @@ export function StaffInventory() {
                       <Camera aria-hidden size={14} />
                       {c.service_photo_count ?? 0}/3 service photos
                     </span>
-                    {c.due_date && (
+                    {c.assigned_to_id && (
                       <span>
-                        Due{" "}
+                        <UserRound aria-hidden size={14} />
+                        {directory.data?.members.find(
+                          (member) => member.id === c.assigned_to_id,
+                        )?.name ?? "Assigned"}
+                      </span>
+                    )}
+                    {c.due_date && (
+                      <span
+                        className={
+                          isOverdue(c) ? "inventory-work-overdue" : undefined
+                        }
+                      >
+                        {isOverdue(c) ? "Overdue" : "Due"}{" "}
                         {new Date(`${c.due_date}T12:00:00`).toLocaleDateString(
                           "en-GB",
                           { day: "numeric", month: "short" },
@@ -1076,6 +1306,7 @@ export function StaffInventory() {
                     )}
                   </div>
                 </button>
+                {carActions(c)}
               </article>
             ))}
           </div>
@@ -1107,12 +1338,14 @@ export function StaffInventory() {
               </p>
               {(term ||
                 preparationFilter !== "all" ||
+                attentionFilter !== "all" ||
                 (filter !== "all" && scope !== "archived")) && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setTerm("");
                     setPreparationFilter("all");
+                    setAttentionFilter("all");
                     if (scope === "current") setFilter("all");
                   }}
                 >

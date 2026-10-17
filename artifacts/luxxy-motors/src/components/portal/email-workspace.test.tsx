@@ -1,29 +1,46 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const state = vi.hoisted(() => ({ fetch: vi.fn(), search: "view=sent" }));
+const state = vi.hoisted(() => ({
+  fetch: vi.fn(),
+  search: "view=sent",
+  enquiries: [] as any[],
+}));
 const enquiry = {
   id: "enquiry-1",
   customerName: "Alex",
   reference: "ENQ-001",
   email: "alex@example.test",
   vehicleTitle: "Ford Focus",
+  message: "Is the Ford Focus still available?",
+  source: "website",
+  createdAt: "2026-10-12T10:00:00Z",
 };
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: any[]) => state.fetch(...args),
   getGetEnquiriesQueryKey: () => ["/api/enquiries"],
-  useGetEnquiries: () => ({ data: [enquiry] }),
+  useGetEnquiries: () => ({ data: state.enquiries }),
 }));
 vi.mock("wouter", () => ({
   useSearch: () => state.search,
-  useLocation: () => ['/portal', vi.fn()],
+  useLocation: () => ["/portal", vi.fn()],
   Link: ({ href, children }: any) => <a href={href}>{children}</a>,
 }));
 vi.mock("./enquiry-workspace-tools", () => ({
   workspaceError: (e: any) => e.data?.error || e.message,
   useRefreshDesk: () => vi.fn(),
 }));
-import { EmailWorkspace, emailStatusLabel } from "./email-workspace";
+import {
+  EmailWorkspace,
+  emailStatusLabel,
+  groupEmailConversations,
+} from "./email-workspace";
 const message = {
   key: "enquiry:message-1",
   kind: "enquiry",
@@ -45,6 +62,7 @@ const message = {
 };
 beforeEach(() => {
   state.search = "view=sent";
+  state.enquiries = [enquiry];
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
@@ -100,14 +118,14 @@ beforeEach(() => {
       return { messages: [message], hasMore: false };
     });
 });
-function mount() {
+function mount(embedded = false) {
   return render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <EmailWorkspace />
+      <EmailWorkspace embedded={embedded} />
     </QueryClientProvider>,
   );
 }
@@ -256,35 +274,403 @@ it("retains staff text on a draft conflict and prevents preview or sending", asy
   ).toBe(false);
 });
 
-it('keeps email history scoped to the selected customer case when changing views', async () => {
-  state.search = 'section=notifications&workView=email&enquiryId=enquiry-1&view=sent';
+it("keeps email history scoped to the selected customer case when changing views", async () => {
+  state.search =
+    "section=notifications&workView=email&enquiryId=enquiry-1&view=sent";
   mount();
-  expect(await screen.findByRole('link', { name: 'Open customer' })).toHaveAttribute('href', '/portal?section=notifications&workView=customers&enquiryId=enquiry-1');
-  const historyCalls = state.fetch.mock.calls.filter(c => c[0].startsWith('/api/staff/email?'));
+  expect(
+    await screen.findByRole("link", { name: "Open customer" }),
+  ).toHaveAttribute(
+    "href",
+    "/portal?section=notifications&workView=customers&enquiryId=enquiry-1",
+  );
+  const historyCalls = state.fetch.mock.calls.filter((c) =>
+    c[0].startsWith("/api/staff/email?"),
+  );
   expect(historyCalls.length).toBeGreaterThan(0);
-  expect(historyCalls.every(c => new URL(c[0], 'https://example.test').searchParams.get('enquiryId') === 'enquiry-1')).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Drafts to review' }));
-  await screen.findByRole('heading', { name: 'No saved drafts yet' });
-  expect(state.fetch.mock.calls.some(c => c[0] === '/api/staff/email-drafts?enquiryId=enquiry-1')).toBe(true);
+  expect(
+    historyCalls.every(
+      (c) =>
+        new URL(c[0], "https://example.test").searchParams.get("enquiryId") ===
+        "enquiry-1",
+    ),
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Drafts to review" }));
+  await screen.findByRole("heading", { name: "No saved drafts yet" });
+  expect(
+    state.fetch.mock.calls.some(
+      (c) => c[0] === "/api/staff/email-drafts?enquiryId=enquiry-1",
+    ),
+  ).toBe(true);
 });
 
-it('never falls back to all customer emails when a selected customer is unavailable', async () => {
-  state.search = 'section=notifications&workView=email&enquiryId=missing-customer&view=sent';
+it("never falls back to all customer emails when a selected customer is unavailable", async () => {
+  state.search =
+    "section=notifications&workView=email&enquiryId=missing-customer&view=sent";
   mount();
-  expect(await screen.findByRole('alert')).toHaveTextContent('customer record could not be loaded');
-  expect(state.fetch.mock.calls.some(c => c[0].startsWith('/api/staff/email?') || c[0].startsWith('/api/staff/email-drafts'))).toBe(false);
-  expect(screen.queryByText('Your Ford Focus')).not.toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "customer record could not be loaded",
+  );
+  expect(
+    state.fetch.mock.calls.some(
+      (c) =>
+        c[0].startsWith("/api/staff/email?") ||
+        c[0].startsWith("/api/staff/email-drafts"),
+    ),
+  ).toBe(false);
+  expect(screen.queryByText("Your Ford Focus")).not.toBeInTheDocument();
 });
 
-it('closes the previous customer composer when the route changes to an unavailable customer', async () => {
-  state.search = 'section=notifications&workView=email&compose=enquiry-1';
+it("closes the previous customer composer when the route changes to an unavailable customer", async () => {
+  state.search = "section=notifications&workView=email&compose=enquiry-1";
   const ui = mount();
-  expect(await screen.findByRole('textbox', { name: 'Subject' })).toBeInTheDocument();
-  state.search = 'section=notifications&workView=email&enquiryId=missing-customer';
-  ui.rerender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EmailWorkspace /></QueryClientProvider>);
-  expect(await screen.findByRole('alert')).toHaveTextContent('customer record could not be loaded');
-  await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Subject' })).not.toBeInTheDocument());
-  expect(screen.getByRole('button', { name: 'New email' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-  expect(state.fetch.mock.calls.some(c => c[0].startsWith('/api/staff/email?'))).toBe(false);
+  expect(
+    await screen.findByRole("textbox", { name: "Subject" }),
+  ).toBeInTheDocument();
+  state.fetch.mockClear();
+  state.search =
+    "section=notifications&workView=email&enquiryId=missing-customer";
+  ui.rerender(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <EmailWorkspace />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "customer record could not be loaded",
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("textbox", { name: "Subject" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "New email" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(
+    state.fetch.mock.calls.some((c) => c[0].startsWith("/api/staff/email?")),
+  ).toBe(false);
+});
+
+it("groups by case identity and keeps unrelated customers with the same email separate", () => {
+  const second = {
+    ...message,
+    key: "enquiry:message-2",
+    subject: "Service history",
+    created_at: "2026-10-14T12:00:00Z",
+  };
+  const separate = {
+    ...message,
+    key: "enquiry:message-3",
+    enquiry_id: "different-case",
+    subject: "A different car",
+  };
+  const orphanSale = {
+    ...message,
+    key: "sale:sale-1:doc-1",
+    enquiry_id: null,
+    sale_id: "sale-1",
+    kind: "sale",
+  };
+  const anotherSale = {
+    ...orphanSale,
+    key: "sale:sale-2:doc-2",
+    sale_id: "sale-2",
+  };
+  const groups = groupEmailConversations([
+    message,
+    separate,
+    second,
+    orphanSale,
+    anotherSale,
+  ] as any);
+  expect(groups).toHaveLength(4);
+  expect(groups[0].messages.map((entry) => entry.key)).toEqual([
+    message.key,
+    second.key,
+  ]);
+  expect(groups[0].latest?.subject).toBe("Service history");
+  expect(
+    groups.find((entry) => entry.key === "sale:sale-1")?.messages,
+  ).toHaveLength(1);
+});
+
+it("loads the whole selected conversation without retaining fuzzy search and orders its bubbles chronologically", async () => {
+  state.search = "view=sent&customer=Focus";
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    if (url.includes("includeBody=true"))
+      return {
+        messages: [
+          {
+            ...message,
+            key: "enquiry:later",
+            created_at: "2026-10-14T13:00:00Z",
+            subject: "Service history",
+            message: "Here is your service history.",
+            last_event: "delivered",
+          },
+          { ...message, message: "Yes, the car is available." },
+        ],
+        hasMore: false,
+        replyTo: "sales@showroom.test",
+      };
+    return original(url, options);
+  });
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Your Ford Focus/ }),
+  );
+  const timeline = await screen.findByRole("list", {
+    name: "Conversation messages",
+  });
+  await within(timeline).findByText("Here is your service history.");
+  const bubbles = within(timeline).getAllByRole("article");
+  expect(bubbles).toHaveLength(3);
+  expect(bubbles[0]).toHaveTextContent("Is the Ford Focus still available?");
+  expect(bubbles[0]).toHaveTextContent("Website enquiry");
+  expect(bubbles[1]).toHaveTextContent("Yes, the car is available.");
+  expect(bubbles[2]).toHaveTextContent("Here is your service history.");
+  const request = state.fetch.mock.calls.find(([url]) =>
+    url.includes("includeBody=true"),
+  )![0];
+  const params = new URL(request, "https://example.test").searchParams;
+  expect(params.get("enquiryId")).toBe("enquiry-1");
+  expect(params.has("q")).toBe(false);
+  expect(
+    screen.getByText(/Inbox replies are not connected here yet/),
+  ).toBeInTheDocument();
+  expect(
+    state.fetch.mock.calls.some(([url]) => url.includes("/email-context")),
+  ).toBe(false);
+});
+
+it("loads earlier messages without duplicates or a new email send", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    if (url.includes("includeBody=true")) {
+      const older =
+        new URL(url, "https://example.test").searchParams.get("offset") ===
+        "50";
+      return {
+        messages: older
+          ? [
+              {
+                ...message,
+                key: "enquiry:older",
+                created_at: "2026-10-11T10:00:00Z",
+                subject: "Earlier email",
+                message: "The earlier saved reply.",
+              },
+              { ...message, message: "The latest reply." },
+            ]
+          : [{ ...message, message: "The latest reply." }],
+        hasMore: !older,
+      };
+    }
+    return original(url, options);
+  });
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Your Ford Focus/ }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Load earlier emails" }),
+  );
+  await screen.findByText("The earlier saved reply.");
+  expect(screen.getAllByText("The latest reply.")).toHaveLength(1);
+  expect(
+    screen.queryByRole("button", { name: "Load earlier emails" }),
+  ).not.toBeInTheDocument();
+  expect(
+    state.fetch.mock.calls.some(([, options]) => options?.method === "POST"),
+  ).toBe(false);
+});
+
+it("distinguishes a staff enquiry record and failed email attempt from an incoming or delivered message", async () => {
+  enquiry.source = "phone";
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    if (url.startsWith("/api/staff/email?"))
+      return {
+        messages: [
+          {
+            ...message,
+            status: "failed",
+            message: "A reply that was not delivered.",
+          },
+        ],
+        hasMore: false,
+      };
+    return original(url, options);
+  });
+  try {
+    mount();
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Your Ford Focus/ }),
+    );
+    expect(
+      await screen.findByText("Recorded by staff · not an incoming email"),
+    ).toBeInTheDocument();
+    const bubble = screen.getByRole("article", {
+      name: "Your Ford Focus, email from your dealership",
+    });
+    expect(bubble).toHaveTextContent("Failed");
+    expect(within(bubble).queryByText("Delivered")).not.toBeInTheDocument();
+    expect(within(bubble).queryByText("Sent")).not.toBeInTheDocument();
+  } finally {
+    enquiry.source = "website";
+  }
+});
+
+it("keeps an unlinked sale conversation scoped to its exact sale", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    if (url.startsWith("/api/staff/email?"))
+      return {
+        messages: [
+          {
+            ...message,
+            key: "sale:sale-1:document-1",
+            kind: "sale",
+            enquiry_id: null,
+            sale_id: "sale-1",
+            document_id: "document-1",
+            message: "The original saved document was attached to this email.",
+          },
+        ],
+        hasMore: false,
+      };
+    return original(url, options);
+  });
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Your Ford Focus/ }),
+  );
+  await screen.findByText("Email record summary");
+  const request = state.fetch.mock.calls.find(([url]) =>
+    url.includes("includeBody=true"),
+  )![0];
+  expect(
+    new URL(request, "https://example.test").searchParams.get("saleId"),
+  ).toBe("sale-1");
+  expect(
+    screen.queryByText("Is the Ford Focus still available?"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Write an email" }),
+  ).not.toBeInTheDocument();
+});
+
+it("opens an original enquiry and its reply action before any email has been sent", async () => {
+  state.search = "section=notifications&workView=email&enquiryId=enquiry-1";
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) =>
+    url.startsWith("/api/staff/email?")
+      ? { messages: [], hasMore: false }
+      : original(url, options),
+  );
+  mount();
+  expect(
+    await screen.findByText("Is the Ford Focus still available?"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Write an email" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("No email sent yet")).toBeInTheDocument();
+  expect(
+    state.fetch.mock.calls.some(([url]) => url.includes("/email-context")),
+  ).toBe(false);
+});
+
+it("shows explicitly merged records as one conversation and retains all original enquiries", async () => {
+  state.enquiries = [
+    enquiry,
+    {
+      ...enquiry,
+      id: "source-2",
+      mergedIntoId: enquiry.id,
+      reference: "ENQ-002",
+      message: "Can I also see the service book?",
+      createdAt: "2026-10-12T11:00:00Z",
+    },
+    {
+      ...enquiry,
+      id: "source-3",
+      mergedIntoId: enquiry.id,
+      reference: "ENQ-003",
+      message: "I have a part exchange.",
+      createdAt: "2026-10-12T11:30:00Z",
+    },
+  ];
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) =>
+    url.startsWith("/api/staff/email?")
+      ? {
+          messages: [
+            { ...message, message: "First reply." },
+            {
+              ...message,
+              key: "enquiry:source-reply",
+              enquiry_id: "source-2",
+              message: "Second reply.",
+            },
+          ],
+          hasMore: false,
+        }
+      : original(url, options),
+  );
+  mount();
+  const list = await screen.findByRole("region", {
+    name: "Customer conversations",
+  });
+  await within(list).findByText("2 emails");
+  const threads = within(list).getAllByRole("button", {
+    name: /Your Ford Focus/,
+  });
+  expect(threads).toHaveLength(1);
+  fireEvent.click(threads[0]);
+  expect(
+    await screen.findByText("Can I also see the service book?"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("I have a part exchange.")).toBeInTheDocument();
+  expect(
+    state.fetch.mock.calls.some(
+      ([url]) =>
+        url.includes("includeBody=true") &&
+        new URL(url, "https://example.test").searchParams.get("enquiryId") ===
+          enquiry.id,
+    ),
+  ).toBe(true);
+});
+
+it("keeps embedded email controls in one toolbar and puts search inside the conversation list", async () => {
+  mount(true);
+  expect(
+    screen.queryByRole("heading", { name: "Email" }),
+  ).not.toBeInTheDocument();
+  const toolbar = screen
+    .getByRole("button", { name: "Refresh" })
+    .closest(".email-toolbar");
+  expect(toolbar).toContainElement(
+    screen.getByRole("button", { name: "Conversations" }),
+  );
+  expect(toolbar).toContainElement(
+    screen.getByRole("button", { name: "New email" }),
+  );
+  const list = await screen.findByRole("region", {
+    name: "Customer conversations",
+  });
+  expect(list).toContainElement(
+    screen.getByRole("textbox", { name: "Search email" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Drafts to review" }));
+  expect(
+    await screen.findByRole("textbox", { name: "Search email" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", { name: "Customer conversations" }),
+  ).not.toBeInTheDocument();
 });

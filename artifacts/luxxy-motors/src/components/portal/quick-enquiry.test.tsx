@@ -79,7 +79,7 @@ beforeEach(() => {
   state.stockLoading = false;
   state.stockError = null;
 });
-function mount(open = true) {
+function mount(open = true, initialVehicleId?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -90,6 +90,7 @@ function mount(open = true) {
     <QueryClientProvider client={client}>
       <QuickEnquiryDialog
         open={open}
+        initialVehicleId={initialVehicleId}
         onOpenChange={onOpenChange}
         onCreated={onCreated}
       />
@@ -105,6 +106,22 @@ function fill() {
     target: { value: " 07700 900123 " },
   });
 }
+it("starts a car enquiry with the chosen stock car and keeps capture in place", async () => {
+  const view = mount(true, "car-one");
+  expect(screen.getByRole("combobox", { name: "Car (optional)" })).toHaveValue("car-one");
+  fill();
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  await waitFor(() => expect(view.onCreated).toHaveBeenCalled());
+  expect(state.create.mock.calls[0][0].data.vehicleId).toBe("car-one");
+});
+it("lets staff cancel a preselected car enquiry without a discard warning until they edit it", () => {
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const view = mount(true, "car-one");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(confirm).not.toHaveBeenCalled();
+  expect(view.onOpenChange).toHaveBeenCalledWith(false);
+  confirm.mockRestore();
+});
 it("captures a general enquiry in place using the no-email mode and the current staff owner", async () => {
   const view = mount();
   fill();

@@ -28,6 +28,8 @@ Cars separates current stock from the paged archive. Staff can search by vehicle
 
 Each row shows the year, registration (or the source's registration description), mileage, fuel, gearbox, price, availability, preparation progress and private service-photo count. Hovering or focusing the photograph enlarges it on larger screens; tapping opens the car on touch devices. The selected car keeps number-plate correction, private service/pre-accident photographs, phone-upload QR codes, preparation and linked customer activity together. Customer emails still open a reviewed draft. Unreserving a car still requires confirmation.
 
+Cars to check shortcuts find missing number plates, missing service-book photos and overdue preparation within current stock. A source description such as `2019 (68 reg)` is not treated as a complete number plate. Preparation can be filtered to the signed-in staff member. Per-car actions link to customer activity and the public car page, copy an eligible advert link, or capture a Quick enquiry with that car selected. Public links are offered only for available/reserved cars still present in the source. Quick enquiry stays over the current Cars view and sends no email. Sold/archived and read-only previews keep their existing write restrictions.
+
 The inventory list projection includes year, mileage, fuel and transmission alongside the existing summary. It does not load full vehicle records, customer histories or private photo bytes into every list row.
 
 ## Website publication history

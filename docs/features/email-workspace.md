@@ -1,8 +1,12 @@
 # Dealer Email workspace
 
-The combined Notifications workspace and persistent Drafts to review queue are described in [Notifications and reply drafts](notifications-and-reply-drafts.md). Email now sits inside Notifications and opens on saved drafts; Sent & delivery retains the outgoing history described below. Existing `section=email` links remain compatible.
+The combined Home workspace and persistent Drafts to review queue are described in [Notifications and reply drafts](notifications-and-reply-drafts.md). Email sits inside Home, with saved drafts and Conversations. Existing `section=email` and `view=sent` links remain compatible.
 
 Portal → Notifications → Email brings together staff enquiry messages, emailed sales documents, and the latest recorded automated customer confirmation/reminder for each enquiry. It is an outgoing-mail workspace; incoming replies are not connected. Search covers customer name, recipient, subject/document title, vehicle and reference, with 50-item pagination. Messages link to their enquiry, customer history, car workspace and sale/PDF where available. Each query is scoped to the authenticated dealership and requires sales permission. An optional `enquiryId` scopes history to that record's explicitly merged case before pagination; it never groups records solely by contact details.
+
+Conversations place original website enquiries on the left and dealership emails on the right, in chronological order with date separators. Staff-captured enquiries are labelled as recorded details rather than incoming emails. A conversation opens its own scoped history rather than relying on whichever messages matched the list search. Earlier messages load in 50-record pages, while unlinked sales remain separate conversations. Failed and acceptance-unconfirmed attempts keep explicit status labels; automated confirmations and sales-document entries are labelled summaries where the original email text was not archived. Selecting an email retains its attachment and delivery controls. Viewing history never sends mail or runs outbox recovery. External inbox replies still require a future incoming-mail connection, and the UI states that limitation.
+
+`GET /api/staff/email?includeBody=true` returns saved text only when a UUID `enquiryId` or `saleId` is supplied. These scopes are mutually exclusive, applied before pagination and always dealer-scoped. The global list omits bodies. The enquiry scope includes explicitly merged records; the sale scope matches one sale only. Customer summaries use these same case-scoped endpoints and do not search by reference/contact as an identity shortcut.
 
 ## Compose and attachments
 

@@ -138,6 +138,7 @@ function PortalDesk() {
   const [salesOpened, setSalesOpened] = useState(tab === 'sales');
   const [newSaleRequest, setNewSaleRequest] = useState(0);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
+  const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<string | null>(null);
   const [quickCreated, setQuickCreated] = useState<{ id: string; reference: string } | null>(null);
   const sectionNav = useRef<HTMLElement>(null);
   const search = useSearch();
@@ -227,6 +228,10 @@ function PortalDesk() {
     navigate('/portal?section=sales');
     setNewSaleRequest(request => request + 1);
   }
+  function quickEnquiry(vehicleId?: string) {
+    setQuickEnquiryVehicleId(vehicleId || null);
+    setQuickEnquiryOpen(true);
+  }
 
   return (
     <div data-section={tab} className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background">
@@ -235,7 +240,7 @@ function PortalDesk() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button type="button" className="portal-quick-trigger" aria-label="Quick actions"><Plus size={16} aria-hidden="true" /><span className="portal-quick-full-label">Quick add</span><span className="portal-quick-short-label">Add</span><ChevronDown size={14} aria-hidden="true" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="portal-quick-menu">
-            {canSell && <><DropdownMenuItem onSelect={() => setQuickEnquiryOpen(true)}><UserRoundPlus aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem onSelect={newSale}><FileText aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
+            {canSell && <><DropdownMenuItem onSelect={() => quickEnquiry()}><UserRoundPlus aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem onSelect={newSale}><FileText aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
             <DropdownMenuItem onSelect={() => navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays aria-hidden="true" />Calendar</DropdownMenuItem>
             {canSell && <DropdownMenuItem onSelect={() => navigate('/portal?section=notifications&workView=email&view=drafts')}><Mail aria-hidden="true" />Saved email drafts</DropdownMenuItem>}
           </DropdownMenuContent>
@@ -278,8 +283,8 @@ function PortalDesk() {
 
             <div className="portal-section-content min-h-[50vh]">
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
-              {tab === 'notifications' && <NotificationsWorkspace canEmail={canSell} onQuickEnquiry={() => setQuickEnquiryOpen(true)} onNewSale={newSale} />}
-              {tab === 'inventory' && <StaffInventory />}
+              {tab === 'notifications' && <NotificationsWorkspace canEmail={canSell} onQuickEnquiry={() => quickEnquiry()} onNewSale={newSale} />}
+              {tab === 'inventory' && <StaffInventory onQuickEnquiry={canSell ? quickEnquiry : undefined} />}
               {tab === 'chat' && <ChatPanel />}
               {tab === 'reservations' && <><ReservationsPanel /><StripeReservationsPanel /></>}
               {tab === 'history' && <RelationshipsPanel />}
@@ -291,7 +296,7 @@ function PortalDesk() {
 
 
       </div>
-      {canSell && <QuickEnquiryDialog open={quickEnquiryOpen} onOpenChange={setQuickEnquiryOpen} onCreated={enquiry => { setQuickEnquiryOpen(false); setQuickCreated({ id: enquiry.id, reference: enquiry.reference }); }} />}
+      {canSell && <QuickEnquiryDialog open={quickEnquiryOpen} initialVehicleId={quickEnquiryVehicleId} onOpenChange={setQuickEnquiryOpen} onCreated={enquiry => { setQuickEnquiryOpen(false); setQuickCreated({ id: enquiry.id, reference: enquiry.reference }); }} />}
     </div>
   );
 }
