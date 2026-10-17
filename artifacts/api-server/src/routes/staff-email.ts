@@ -34,6 +34,13 @@ const events = new Set([
 export function providerEmailStatus(value: unknown) {
   return typeof value === "string" && events.has(value) ? value : "unknown";
 }
+// Raw SQL timestamps use PostgreSQL's text format. Return ISO dates so browsers
+// share one format and mixed enquiry/email timelines sort by the same instant.
+function emailTimestamp(value: unknown) {
+  if (value == null) return value;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
 export function createStaffEmailRouter(
   transport: typeof fetch = fetch,
   settingsProvider: () => Promise<ResendSettings> = async () =>
@@ -154,8 +161,9 @@ export function createStaffEmailRouter(
     res.json({
       replyTo,
       messages: rows.rows.slice(0, 50).map((row) => {
-        if (includeBody) return row;
-        const { message: _message, ...summary } = row;
+        const normalized: Record<string, unknown> = { ...row, created_at: emailTimestamp(row.created_at), checked_at: emailTimestamp(row.checked_at) };
+        if (includeBody) return normalized;
+        const { message: _message, ...summary } = normalized;
         return summary;
       }),
       hasMore: rows.rows.length > 50,

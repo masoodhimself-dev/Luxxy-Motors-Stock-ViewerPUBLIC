@@ -688,3 +688,68 @@ it("leaves scoped customer context when returning to the conversation list", asy
     "/portal?section=notifications&workView=email&view=sent",
   );
 });
+
+it("sorts PostgreSQL timestamps, ISO UTC and offset timestamps by their actual instant", async () => {
+  const at1900 = {
+    ...message,
+    key: "enquiry:at-1900",
+    subject: "Earlier receipt",
+    created_at: "2026-10-12 19:00:00+00",
+    message: "Receipt before the enquiry.",
+  };
+  const at1908 = {
+    ...message,
+    key: "enquiry:at-1908",
+    subject: "Deposit receipt",
+    created_at: "2026-10-12 19:08:00+00",
+    message: "Your deposit receipt.",
+  };
+  const at1912 = {
+    ...message,
+    key: "enquiry:at-1912",
+    subject: "Later update",
+    created_at: "2026-10-12T20:12:00+01:00",
+    message: "The final update.",
+  };
+  const anotherCase = {
+    ...message,
+    key: "enquiry:other-case",
+    enquiry_id: "another-case",
+    created_at: "2026-10-12T19:10:00Z",
+  };
+  const grouped = groupEmailConversations([
+    at1900,
+    at1912,
+    at1908,
+    anotherCase,
+  ] as any);
+  expect(grouped[0].latest?.key).toBe(at1912.key);
+  expect(grouped[1].latest?.key).toBe(anotherCase.key);
+  state.enquiries = [
+    {
+      ...enquiry,
+      source: "phone",
+      createdAt: "2026-10-12T19:01:00.000Z",
+      message: "The original staff enquiry.",
+    },
+  ];
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) =>
+    url.startsWith("/api/staff/email?")
+      ? { messages: [at1912, at1908, at1900], hasMore: false }
+      : original(url, options),
+  );
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: /Later update/ }));
+  const timeline = await screen.findByRole("list", {
+    name: "Conversation messages",
+  });
+  await within(timeline).findByText("Your deposit receipt.");
+  const bubbles = within(timeline).getAllByRole("article");
+  expect(bubbles.map((bubble) => bubble.textContent)).toEqual([
+    expect.stringContaining("Receipt before the enquiry."),
+    expect.stringContaining("The original staff enquiry."),
+    expect.stringContaining("Your deposit receipt."),
+    expect.stringContaining("The final update."),
+  ]);
+});

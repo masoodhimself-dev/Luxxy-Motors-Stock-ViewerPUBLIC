@@ -70,6 +70,17 @@ type EmailHistory = {
   hasMore: boolean;
   replyTo?: string | null;
 };
+// Compare instants, not serialisations (PostgreSQL, UTC and explicit offsets can mix).
+const emailTimestamp = (value: string) => {
+  const parsed = Date.parse(
+    value
+      .replace(/^(\d{4}-\d{2}-\d{2}) /, "$1T")
+      .replace(/([+-]\d{2})$/, "$1:00"),
+  );
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+const compareEmailTimes = (left: string, right: string) =>
+  emailTimestamp(left) - emailTimestamp(right);
 const conversationKey = (message: Message) =>
   message.enquiry_id
     ? `enquiry:${message.enquiry_id}`
@@ -89,7 +100,11 @@ export function groupEmailConversations(
       existing = groups.get(key);
     if (existing) {
       existing.messages.push(message);
-      if (message.created_at > existing.updatedAt) {
+      if (
+        compareEmailTimes(message.created_at, existing.updatedAt) > 0 ||
+        (compareEmailTimes(message.created_at, existing.updatedAt) === 0 &&
+          message.key.localeCompare(existing.latest?.key ?? "") > 0)
+      ) {
         existing.latest = message;
         existing.updatedAt = message.created_at;
       }
@@ -108,8 +123,9 @@ export function groupEmailConversations(
         messages: [message],
       });
   }
-  return [...groups.values()].sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt),
+  return [...groups.values()].sort(
+    (a, b) =>
+      compareEmailTimes(b.updatedAt, a.updatedAt) || a.key.localeCompare(b.key),
   );
 }
 const labels: Record<string, string> = {
@@ -262,7 +278,8 @@ export function EmailWorkspace({
       ...new Map(rows.map((message) => [message.key, message])).values(),
     ].sort(
       (a, b) =>
-        a.created_at.localeCompare(b.created_at) || a.key.localeCompare(b.key),
+        compareEmailTimes(a.created_at, b.created_at) ||
+        a.key.localeCompare(b.key),
     );
   }, [thread.data, conversation]);
   const originalEnquiries = useMemo(() => {
@@ -292,7 +309,9 @@ export function EmailWorkspace({
           at: message.created_at,
           message,
         })),
-      ].sort((a, b) => a.at.localeCompare(b.at) || a.key.localeCompare(b.key)),
+      ].sort(
+        (a, b) => compareEmailTimes(a.at, b.at) || a.key.localeCompare(b.key),
+      ),
     [originalEnquiries, threadMessages],
   );
   const detail = useQuery({

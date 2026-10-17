@@ -164,6 +164,7 @@ test("customer email history follows explicit merged cases without contact-based
       const conversation = await call(`?enquiryId=${ids.root}&includeBody=true`);
       assert.equal(conversation.status, 200);
       assert.equal(conversation.data.messages.length, 7);
+      assert.ok(conversation.data.messages.every((row: any) => /^\d{4}-\d\d-\d\dT.*Z$/.test(row.created_at)), "history timestamps use browser-safe ISO dates");
       assert.equal(conversation.data.messages.find((row: any) => row.subject === "root reply").message, "The exact rendered reply saved for the customer.");
       assert.equal(conversation.data.messages.find((row: any) => row.subject === "child reply").message, "Saved message");
       assert.ok(conversation.data.messages.filter((row: any) => row.kind !== "enquiry").every((row: any) => typeof row.message === "string"));
