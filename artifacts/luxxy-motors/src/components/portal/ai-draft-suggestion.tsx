@@ -28,11 +28,26 @@ type GenerationRequest = {
   expectedVersion: number;
 };
 
-function generationError(cause: unknown) {
-  const error = cause as { data?: { error?: unknown } } | null;
-  return typeof error?.data?.error === "string"
-    ? error.data.error
-    : "We couldn’t prepare an AI draft. Your message is unchanged. Try again or use a template.";
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+export function aiDraftFailure(cause: unknown) {
+  const wrapper = record(cause);
+  // customFetch puts decoded server JSON in ApiError.data. Never display an
+  // arbitrary Error.message, which might contain raw provider diagnostics.
+  const payload =
+    record(wrapper?.data) ??
+    (typeof wrapper?.error === "string" ? wrapper : null);
+  return {
+    message:
+      typeof payload?.error === "string" && payload.error.trim()
+        ? payload.error.trim()
+        : "We couldn’t prepare an AI draft. Your message is unchanged. Try again or use a template.",
+    canStartNew:
+      payload?.code === "generation_failed" && payload.canStartNew === true,
+  };
 }
 
 /** Generating is an explicit request; using, saving and sending are separate actions. */
@@ -56,7 +71,10 @@ export function AiDraftSuggestion({
   const cache = useQueryClient();
   const config = useQuery({
     queryKey: ["staff-ai-drafts-config", enquiryId],
-    queryFn: () => customFetch<AiDraftConfig>("/api/staff/ai-drafts/config"),
+    queryFn: () =>
+      customFetch<AiDraftConfig>("/api/staff/ai-drafts/config", {
+        responseType: "json",
+      }),
     retry: false,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -64,6 +82,8 @@ export function AiDraftSuggestion({
   const [disclosure, setDisclosure] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [canStartNew, setCanStartNew] = useState(false);
+  const [confirmNewRequest, setConfirmNewRequest] = useState(false);
   const [suggestion, setSuggestion] = useState<AiDraftSuggestionValue | null>(
     null,
   );
@@ -91,6 +111,8 @@ export function AiDraftSuggestion({
     setDisclosure(false);
     setConfirmReplacement(false);
     setError("");
+    setCanStartNew(false);
+    setConfirmNewRequest(false);
   }, [contextKey]);
   useEffect(() => {
     if (suggestion) suggestionHeading.current?.focus({ preventScroll: true });
@@ -121,6 +143,8 @@ export function AiDraftSuggestion({
     setBusy(true);
     busyCallback.current?.(true);
     setError("");
+    setCanStartNew(false);
+    setConfirmNewRequest(false);
     setConfirmReplacement(false);
     const startingContext = contextKey;
     const startingFingerprint = draftFingerprint;
@@ -134,6 +158,7 @@ export function AiDraftSuggestion({
         `/api/staff/enquiries/${encodeURIComponent(enquiryId)}/ai-draft`,
         {
           method: "POST",
+          responseType: "json",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(request.current),
         },
@@ -156,8 +181,11 @@ export function AiDraftSuggestion({
       setDisclosure(false);
       request.current = null;
     } catch (cause) {
-      if (alive.current && latestContext.current === startingContext)
-        setError(generationError(cause));
+      if (alive.current && latestContext.current === startingContext) {
+        const failure = aiDraftFailure(cause);
+        setError(failure.message);
+        setCanStartNew(failure.canStartNew);
+      }
     } finally {
       inFlight.current = false;
       if (alive.current) {
@@ -181,7 +209,21 @@ export function AiDraftSuggestion({
     setSuggestion(null);
     setConfirmReplacement(false);
     setError("");
+    setCanStartNew(false);
+    setConfirmNewRequest(false);
     request.current = null;
+  }
+  function generateNew() {
+    if (
+      !canStartNew ||
+      !confirmNewRequest ||
+      !available ||
+      disabled ||
+      inFlight.current
+    )
+      return;
+    request.current = null;
+    void generate();
   }
 
   return (
@@ -248,26 +290,28 @@ export function AiDraftSuggestion({
             automatically.
           </p>
           <div className="ai-draft-actions">
-            <Button
-              type="button"
-              disabled={disabled || busy || (!available && !request.current)}
-              onClick={() => void generate()}
-            >
-              {busy ? (
-                <>
-                  <LoaderCircle
-                    size={16}
-                    aria-hidden="true"
-                    className="ai-draft-spinner"
-                  />
-                  Preparing draft…
-                </>
-              ) : error ? (
-                "Try AI draft again"
-              ) : (
-                "Generate draft"
-              )}
-            </Button>
+            {!canStartNew && (
+              <Button
+                type="button"
+                disabled={disabled || busy || (!available && !request.current)}
+                onClick={() => void generate()}
+              >
+                {busy ? (
+                  <>
+                    <LoaderCircle
+                      size={16}
+                      aria-hidden="true"
+                      className="ai-draft-spinner"
+                    />
+                    Preparing draft…
+                  </>
+                ) : error ? (
+                  "Try AI draft again"
+                ) : (
+                  "Generate draft"
+                )}
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -275,6 +319,8 @@ export function AiDraftSuggestion({
               onClick={() => {
                 setDisclosure(false);
                 setError("");
+                setCanStartNew(false);
+                setConfirmNewRequest(false);
               }}
             >
               Not now
@@ -291,6 +337,44 @@ export function AiDraftSuggestion({
         <p role="alert" className="ai-draft-error">
           {error}
         </p>
+      )}
+      {canStartNew && !busy && (
+        <div className="ai-draft-new-request">
+          {confirmNewRequest ? (
+            <>
+              <p>
+                This starts a separate AI request and uses another draft
+                allowance. The previous attempt may have incurred a provider
+                charge. Your current email will stay unchanged.
+              </p>
+              <div className="ai-draft-actions">
+                <Button
+                  type="button"
+                  disabled={disabled || !available || config.isFetching}
+                  onClick={generateNew}
+                >
+                  Generate new suggestion
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirmNewRequest(false)}
+                >
+                  Keep my current email
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled || !available || config.isFetching}
+              onClick={() => setConfirmNewRequest(true)}
+            >
+              Start a new suggestion
+            </Button>
+          )}
+        </div>
       )}
       {suggestion && (
         <section className="ai-draft-suggestion" aria-label="Suggested email">

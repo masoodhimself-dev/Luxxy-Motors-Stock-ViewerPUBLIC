@@ -6,18 +6,154 @@ export const aiDraftMaxOutputTokens = 800;
 // 2,048 framing tokens at $0.125/M input and $0.50/M output stays below $0.0025.
 export const aiDraftMaxRequestBytes = 12_000;
 export const aiDraftReservedMicroUsd = 2_500;
+export type AiDraftFailureDetails = {
+  code: "generation_failed" | "generation_unconfirmed" | "generation_pending";
+  canStartNew: boolean;
+  providerCode?: string;
+  providerStatus?: number;
+};
 export class AiDraftError extends Error {
   constructor(
     message: string,
     readonly status = 400,
+    readonly details?: AiDraftFailureDetails,
   ) {
     super(message);
   }
 }
 export class AiProviderError extends Error {
-  constructor(readonly uncertain: boolean) {
+  constructor(
+    readonly uncertain: boolean,
+    readonly failureCode = uncertain ? "unconfirmed" : "invalid_output",
+    readonly httpStatus?: number,
+  ) {
     super("AI provider did not return a usable suggestion.");
   }
+}
+const safeFailureCodes = new Set([
+  "invalid_api_key",
+  "insufficient_quota",
+  "billing_hard_limit_reached",
+  "model_not_found",
+  "model_not_supported",
+  "unsupported_parameter",
+  "unsupported_value",
+  "invalid_request_error",
+  "context_length_exceeded",
+  "rate_limit_exceeded",
+  "content_policy_violation",
+  "organization_deactivated",
+  "permission_denied",
+  "authentication_rejected",
+  "request_rejected",
+  "provider_unavailable",
+  "invalid_output",
+  "response_refused",
+  "response_incomplete",
+  "unconfirmed",
+]);
+export function aiProviderFailure(
+  error: AiProviderError,
+  status = 502,
+): AiDraftError {
+  const code = safeFailureCodes.has(error.failureCode)
+    ? error.failureCode
+    : "invalid_output";
+  const httpStatus =
+    error.httpStatus &&
+    Number.isInteger(error.httpStatus) &&
+    error.httpStatus >= 100 &&
+    error.httpStatus <= 599
+      ? error.httpStatus
+      : undefined;
+  const details: AiDraftFailureDetails = {
+    code: error.uncertain ? "generation_unconfirmed" : "generation_failed",
+    canStartNew: !error.uncertain,
+    providerCode: code,
+    ...(httpStatus ? { providerStatus: httpStatus } : {}),
+  };
+  let message =
+    "AI could not prepare a safe suggestion. Your original draft is unchanged; please write the reply yourself.";
+  if (error.uncertain)
+    message =
+      "The AI request could not be confirmed. We won’t repeat it automatically. Your original draft is unchanged.";
+  else if (
+    [
+      "invalid_api_key",
+      "authentication_rejected",
+      "permission_denied",
+      "organization_deactivated",
+    ].includes(code) ||
+    httpStatus === 401 ||
+    httpStatus === 403
+  )
+    message =
+      "The AI service could not authenticate this API account. Ask your platform administrator to check its key and permissions.";
+  else if (["insufficient_quota", "billing_hard_limit_reached"].includes(code))
+    message =
+      "The AI API account has no available credit or has reached its billing limit. Ask your platform administrator to check API billing.";
+  else if (["model_not_found", "model_not_supported"].includes(code))
+    message =
+      "This AI model is not available to the connected API account. Ask your platform administrator to check model access.";
+  else if (
+    [
+      "unsupported_parameter",
+      "unsupported_value",
+      "invalid_request_error",
+      "context_length_exceeded",
+      "request_rejected",
+    ].includes(code)
+  )
+    message =
+      "The AI provider did not accept this draft request. Your platform administrator needs to check the AI integration.";
+  else if (code === "rate_limit_exceeded" || httpStatus === 429)
+    message =
+      "The AI provider has reached a request limit. Wait before explicitly starting another suggestion, or write the reply yourself.";
+  else if (code === "provider_unavailable")
+    message =
+      "The AI provider is temporarily unavailable. Your draft is unchanged. You can write the reply yourself.";
+  return new AiDraftError(message, status, details);
+}
+async function rejectedResponse(response: Response) {
+  let code =
+    response.status === 401 || response.status === 403
+      ? "authentication_rejected"
+      : response.status === 429
+        ? "rate_limit_exceeded"
+        : response.status >= 500
+          ? "provider_unavailable"
+          : "request_rejected";
+  // Read only a bounded error document, retain only its allowlisted code, discard all messages/parameters.
+  const reader = response.body?.getReader();
+  if (reader) {
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    try {
+      for (;;) {
+        const part = await reader.read();
+        if (part.done) break;
+        length += part.value.byteLength;
+        if (length > 8192) {
+          await reader.cancel();
+          break;
+        }
+        chunks.push(part.value);
+      }
+      if (length <= 8192) {
+        const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+          error?: { code?: unknown };
+        };
+        if (
+          typeof parsed.error?.code === "string" &&
+          safeFailureCodes.has(parsed.error.code)
+        )
+          code = parsed.error.code;
+      }
+    } catch {
+      /* Do not retain or log provider errors. The HTTP fallback remains useful. */
+    }
+  }
+  return new AiProviderError(false, code, response.status);
 }
 const cleanText = (maximum: number) =>
   z
@@ -145,14 +281,14 @@ export function createAiDraftProvider(transport: typeof fetch = fetch) {
       throw new AiProviderError(true);
     }
     if (!response.ok) {
-      await response.body?.cancel().catch(() => {});
-      throw new AiProviderError(false);
+      throw await rejectedResponse(response);
     }
     // Bound the response before JSON parsing; an API error/body never reaches logs.
     const reader = response.body?.getReader();
     if (!reader) throw new AiProviderError(true);
     const chunks: Uint8Array[] = [];
     let length = 0;
+    let receivedFully = false;
     try {
       for (;;) {
         const part = await reader.read();
@@ -164,6 +300,7 @@ export function createAiDraftProvider(transport: typeof fetch = fetch) {
         }
         chunks.push(part.value);
       }
+      receivedFully = true;
       const data = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
         status?: string;
         output?: Array<{
@@ -171,7 +308,12 @@ export function createAiDraftProvider(transport: typeof fetch = fetch) {
           content?: Array<{ type?: string; text?: string }>;
         }>;
       };
-      if (data.status !== "completed") throw new AiProviderError(false);
+      if (data.status !== "completed")
+        throw new AiProviderError(
+          false,
+          "response_incomplete",
+          response.status,
+        );
       const texts =
         data.output?.flatMap((item) =>
           item.type === "message"
@@ -180,11 +322,21 @@ export function createAiDraftProvider(transport: typeof fetch = fetch) {
                 .map((content) => content.text ?? "")
             : [],
         ) ?? [];
-      if (texts.length !== 1) throw new AiProviderError(false);
+      if (texts.length !== 1)
+        throw new AiProviderError(false, "response_refused", response.status);
       return validateAiSuggestion(JSON.parse(texts[0]!), input);
     } catch (error) {
-      if (error instanceof AiProviderError) throw error;
-      throw new AiProviderError(true);
+      if (error instanceof AiProviderError)
+        throw new AiProviderError(
+          error.uncertain,
+          error.failureCode,
+          error.httpStatus ?? response.status,
+        );
+      throw new AiProviderError(
+        !receivedFully,
+        receivedFully ? "invalid_output" : "unconfirmed",
+        response.status,
+      );
     }
   };
 }

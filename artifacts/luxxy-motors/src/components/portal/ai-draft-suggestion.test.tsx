@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -15,7 +15,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
 }));
-import { AiDraftSuggestion } from "./ai-draft-suggestion";
+import { AiDraftSuggestion, aiDraftFailure } from "./ai-draft-suggestion";
 
 const config = {
   enabled: true,
@@ -73,6 +73,7 @@ beforeEach(() => {
   state.use.mockReset();
   state.busy.mockReset();
 });
+afterEach(() => vi.restoreAllMocks());
 
 it("loads availability and usage without generating, saving or sending on open", async () => {
   mount();
@@ -249,4 +250,161 @@ it("respects the dealer allowance and retains a generated suggestion when the al
   fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
   expect(state.use).toHaveBeenCalledExactlyOnceWith(suggestion);
   expect(screen.getByRole("button", { name: "Draft with AI" })).toBeDisabled();
+});
+
+it("shows the safe server error from a real customFetch HTTP 502 ApiError", async () => {
+  const real =
+    await import("../../../../../lib/api-client-react/src/custom-fetch");
+  const payload = {
+    error:
+      "The AI service rejected this request. Your original email is unchanged.",
+    code: "generation_failed",
+    canStartNew: true,
+  };
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify(payload), {
+      status: 502,
+      statusText: "Bad Gateway",
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+  const error = await real
+    .customFetch("/api/staff/enquiries/enquiry-one/ai-draft", {
+      method: "POST",
+      responseType: "json",
+    })
+    .catch((cause) => cause);
+  expect(error).toBeInstanceOf(real.ApiError);
+  expect(aiDraftFailure(error)).toEqual({
+    message: payload.error,
+    canStartNew: true,
+  });
+  state.fetch.mockImplementation(async (url: string) => {
+    if (url.endsWith("/config")) return config;
+    throw error;
+  });
+  mount();
+  await generate();
+  expect(await screen.findByRole("alert")).toHaveTextContent(payload.error);
+  expect(state.use).not.toHaveBeenCalled();
+  expect(aiDraftFailure({ error: payload.error })).toEqual({
+    message: payload.error,
+    canStartNew: false,
+  });
+  expect(
+    aiDraftFailure(new Error("Raw secret provider diagnostic")).message,
+  ).not.toContain("secret");
+});
+
+it("starts a fresh paid request only after a definite failure and two explicit staff choices", async () => {
+  let attempts = 0;
+  state.fetch.mockImplementation(async (url: string) => {
+    if (url.endsWith("/config")) return config;
+    if (++attempts === 1)
+      throw {
+        data: {
+          error: "AI could not prepare this suggestion.",
+          code: "generation_failed",
+          canStartNew: true,
+        },
+      };
+    return suggestion;
+  });
+  mount();
+  await generate();
+  await screen.findByRole("alert");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Start a new suggestion" }),
+    ).toBeEnabled(),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Start a new suggestion" }),
+  );
+  expect(
+    screen.getByText(/previous attempt may have incurred a provider charge/),
+  ).toBeInTheDocument();
+  expect(posts()).toHaveLength(1);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Keep my current email" }),
+  );
+  expect(posts()).toHaveLength(1);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Start a new suggestion" }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Generate new suggestion" }),
+  );
+  await screen.findByRole("button", { name: "Use this draft" });
+  expect(posts()).toHaveLength(2);
+  const original = JSON.parse(posts()[0][1].body),
+    next = JSON.parse(posts()[1][1].body);
+  expect(next.requestId).not.toBe(original.requestId);
+  expect(next).toMatchObject({
+    expectedRevision: original.expectedRevision,
+    expectedVersion: original.expectedVersion,
+  });
+  expect(state.use).not.toHaveBeenCalled();
+});
+
+it.each([
+  { code: "generation_unconfirmed", canStartNew: false },
+  { code: "generation_pending", canStartNew: false },
+  { code: "generation_unconfirmed", canStartNew: true },
+])(
+  "keeps the original request for non-definite failure metadata %o",
+  async (metadata) => {
+    state.fetch.mockImplementation(async (url: string) => {
+      if (url.endsWith("/config")) return config;
+      throw {
+        data: {
+          error: "Check this request again before trying anything else.",
+          ...metadata,
+        },
+      };
+    });
+    mount();
+    await generate();
+    await screen.findByRole("alert");
+    expect(
+      screen.queryByRole("button", { name: "Start a new suggestion" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try AI draft again" }));
+    await waitFor(() => expect(posts()).toHaveLength(2));
+    expect(posts()[1][1].body).toBe(posts()[0][1].body);
+    expect(state.use).not.toHaveBeenCalled();
+  },
+);
+
+it("does not let explicit fresh-request recovery bypass an exhausted allowance", async () => {
+  let attempted = false;
+  state.fetch.mockImplementation(async (url: string) => {
+    if (url.endsWith("/config"))
+      return attempted
+        ? {
+            ...config,
+            available: false,
+            dailyUsed: 20,
+            reason: "Today’s allowance has been reached.",
+          }
+        : config;
+    attempted = true;
+    throw {
+      data: {
+        error: "AI could not prepare this suggestion.",
+        code: "generation_failed",
+        canStartNew: true,
+      },
+    };
+  });
+  mount();
+  await generate();
+  await screen.findByText("Today’s allowance has been reached.");
+  expect(
+    screen.getByRole("button", { name: "Start a new suggestion" }),
+  ).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Start a new suggestion" }),
+  );
+  expect(posts()).toHaveLength(1);
 });

@@ -24,6 +24,7 @@ import {
   createAiDraftProvider,
   validateAiSuggestion,
   AiProviderError,
+  aiProviderFailure,
   type AiDraftInput,
   type AiDraftProvider,
 } from "./lib/ai-draft-provider";
@@ -243,6 +244,56 @@ test("provider errors, malformed output and unsafe claims never leak bodies or c
     AiProviderError,
   );
 });
+test("provider diagnostics expose only allowlisted codes and HTTP status, with friendly recovery guidance", async () => {
+  for (const [code, status, message] of [
+    ["invalid_api_key", 401, /authenticate/],
+    ["insufficient_quota", 429, /billing/],
+    ["model_not_found", 404, /model access/],
+    ["unsupported_parameter", 400, /integration/],
+    ["rate_limit_exceeded", 429, /request limit/],
+  ] as const) {
+    const provider = createAiDraftProvider(async () =>
+      response(
+        {
+          error: {
+            code,
+            message: "sk-private-provider-message",
+            param: "private-parameter",
+          },
+        },
+        status,
+      ),
+    );
+    await assert.rejects(provider(sample), (error: unknown) => {
+      assert.ok(error instanceof AiProviderError);
+      assert.equal(error.failureCode, code);
+      assert.equal(error.httpStatus, status);
+      const publicError = aiProviderFailure(error);
+      assert.match(publicError.message, message);
+      assert.deepEqual(publicError.details, {
+        code: "generation_failed",
+        canStartNew: true,
+        providerCode: code,
+        providerStatus: status,
+      });
+      assert.ok(!JSON.stringify(publicError).includes("private"));
+      return true;
+    });
+  }
+  await assert.rejects(
+    createAiDraftProvider(async () =>
+      response(
+        { error: { code: "sk-private-error-code", message: "private" } },
+        400,
+      ),
+    )(sample),
+    (error: unknown) =>
+      error instanceof AiProviderError &&
+      error.failureCode === "request_rejected" &&
+      error.httpStatus === 400,
+  );
+});
+
 test("AI usage boundaries use London calendar dates across BST, GMT and month rollover", () => {
   assert.deepEqual(aiDraftPeriod(new Date("2026-07-31T23:30:00Z")), {
     day: "2026-08-01",
@@ -661,6 +712,43 @@ test("staff AI drafts: permissions, isolation, durable quotas, idempotency, stal
         assert.equal((await first).status, 200);
         assert.equal(calls, 1);
         assert.equal((await counts()).count, 1);
+      },
+    );
+    await t.test(
+      "known provider failures return the same safe diagnosis without another charge, and permit explicit new requests",
+      async () => {
+        await reset();
+        runProvider = async () => {
+          calls++;
+          throw new AiProviderError(false, "insufficient_quota", 429);
+        };
+        const requestId = randomUUID(),
+          first = await generate({ requestId }),
+          same = await generate({ requestId });
+        assert.equal(first.status, 502);
+        assert.equal(same.status, 409);
+        for (const result of [first, same]) {
+          assert.equal(result.data.code, "generation_failed");
+          assert.equal(result.data.canStartNew, true);
+          assert.equal(result.data.providerCode, "insufficient_quota");
+          assert.equal(result.data.providerStatus, 429);
+          assert.match(result.data.error, /billing/);
+        }
+        assert.equal(calls, 1);
+        assert.equal((await counts()).count, 1);
+        assert.equal(
+          (
+            await db.execute(
+              sql`SELECT failure_code FROM staff_ai_draft_generations`,
+            )
+          ).rows[0]!.failure_code,
+          "insufficient_quota:429",
+        );
+        assert.equal(logs.length, 0);
+        const explicitNew = await generate();
+        assert.equal(explicitNew.status, 502);
+        assert.equal(calls, 2);
+        assert.equal((await counts()).count, 2);
       },
     );
     await t.test(

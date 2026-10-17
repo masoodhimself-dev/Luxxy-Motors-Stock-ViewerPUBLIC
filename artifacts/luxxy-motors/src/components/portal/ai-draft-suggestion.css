@@ -113,6 +113,11 @@
 .ai-draft-progress {
   color: #526a7a;
 }
+.ai-draft-new-request {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
 .ai-draft-assistant :is(button, a):focus-visible {
   outline: 2px solid #315c77;
   outline-offset: 3px;

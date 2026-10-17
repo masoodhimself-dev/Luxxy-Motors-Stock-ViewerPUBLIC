@@ -5,6 +5,7 @@ import { currentDealerId, currentTenant } from "./tenant-context";
 import {
   AiDraftError,
   AiProviderError,
+  aiProviderFailure,
   aiDraftModel,
   aiDraftRequest,
   aiDraftReservedMicroUsd,
@@ -223,12 +224,10 @@ async function context(
         text(config.identity?.name ?? registered?.name, 120) || "The showroom",
       town: text(config.address?.city, 80),
       openingHours: Array.isArray(config.hours)
-        ? config.hours
-            .slice(0, 7)
-            .map((row) => ({
-              days: text(row.days, 40),
-              times: text(row.times, 80),
-            }))
+        ? config.hours.slice(0, 7).map((row) => ({
+            days: text(row.days, 40),
+            times: text(row.times, 80),
+          }))
         : [],
     },
     vehicle: vehicle
@@ -286,6 +285,7 @@ type GenerationRow = {
   status: string;
   result: AiSuggestion | null;
   created_at: Date | string;
+  failure_code?: string | null;
 };
 export async function generateAiDraft(
   enquiryId: string,
@@ -329,13 +329,29 @@ export async function generateAiDraft(
         "This AI request was already used for another draft. Reopen the email.",
         409,
       );
-    if (existing && existing.status !== "succeeded")
+    if (existing && existing.status !== "succeeded") {
+      if (existing.status === "reserved")
+        throw new AiDraftError(
+          "This suggestion is still being prepared. Wait a moment before checking again.",
+          409,
+          { code: "generation_pending", canStartNew: false },
+        );
+      if (existing.status === "failed" || existing.status === "unknown") {
+        const [code, status] = String(existing.failure_code ?? "").split(":");
+        throw aiProviderFailure(
+          new AiProviderError(
+            existing.status === "unknown",
+            code || "invalid_output",
+            Number(status) || undefined,
+          ),
+          409,
+        );
+      }
       throw new AiDraftError(
-        existing.status === "reserved"
-          ? "This suggestion is still being prepared. Wait a moment before checking again."
-          : "That AI request did not finish safely. It will not be repeated automatically; write the reply yourself or start a new suggestion.",
+        "The details changed while AI was working. Reopen this email before starting a new suggestion.",
         409,
       );
+    }
     const current = await context(
       tx,
       dealer,
@@ -375,16 +391,15 @@ export async function generateAiDraft(
   try {
     suggestion = await provider(reservation.input!);
   } catch (error) {
-    const uncertain = !(error instanceof AiProviderError) || error.uncertain;
+    const providerError =
+      error instanceof AiProviderError ? error : new AiProviderError(true);
+    const failure = aiProviderFailure(providerError);
+    const uncertain = providerError.uncertain;
+    const failureCode = `${failure.details!.providerCode}:${failure.details!.providerStatus ?? 0}`;
     await db.execute(
-      sql`UPDATE staff_ai_draft_generations SET status=${uncertain ? "unknown" : "failed"},finished_at=now(),failure_code=${uncertain ? "unconfirmed" : "unusable"} WHERE id=${reservation.id!}::uuid AND dealer_id=${dealer} AND status='reserved'`,
+      sql`UPDATE staff_ai_draft_generations SET status=${uncertain ? "unknown" : "failed"},finished_at=now(),failure_code=${failureCode} WHERE id=${reservation.id!}::uuid AND dealer_id=${dealer} AND status='reserved'`,
     );
-    throw new AiDraftError(
-      uncertain
-        ? "The AI request could not be confirmed. We won’t repeat it automatically. Your original draft is unchanged."
-        : "AI could not prepare a safe suggestion. Your original draft is unchanged; please write the reply yourself.",
-      502,
-    );
+    throw failure;
   }
   let stale = false;
   await db.transaction(async (tx) => {

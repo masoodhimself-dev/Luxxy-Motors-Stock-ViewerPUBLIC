@@ -53,24 +53,19 @@ export function createStaffAiDraftsRouter(
     try {
       res.json(await aiDraftConfig());
     } catch {
-      res
-        .status(503)
-        .json({
-          error:
-            "AI draft settings are temporarily unavailable. Manual replies still work.",
-        });
+      res.status(503).json({
+        error:
+          "AI draft settings are temporarily unavailable. Manual replies still work.",
+      });
     }
   });
   router.post("/staff/enquiries/:id/ai-draft", async (req, res) => {
     const parsed = generateSchema.safeParse(req.body),
       id = String(req.params.id);
     if (!parsed.success || !z.string().uuid().safeParse(id).success) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Reopen this email and check its current draft before using AI.",
-        });
+      res.status(400).json({
+        error: "Reopen this email and check its current draft before using AI.",
+      });
       return;
     }
     try {
@@ -84,16 +79,16 @@ export function createStaffAiDraftsRouter(
       );
     } catch (error) {
       if (error instanceof AiDraftError) {
-        res.status(error.status).json({ error: error.message });
+        res
+          .status(error.status)
+          .json({ error: error.message, ...error.details });
         return;
       }
       // No error object, prompt, provider body or key may enter the request log.
-      res
-        .status(503)
-        .json({
-          error:
-            "AI drafts are temporarily unavailable. Your original draft is unchanged.",
-        });
+      res.status(503).json({
+        error:
+          "AI drafts are temporarily unavailable. Your original draft is unchanged.",
+      });
     }
   });
   return router;
