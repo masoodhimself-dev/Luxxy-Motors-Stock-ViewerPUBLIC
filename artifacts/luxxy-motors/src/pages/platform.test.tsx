@@ -79,6 +79,16 @@ it('expands price reductions and missing adverts with recorded backend timing', 
  expect(screen.getByText('Absent from source; not marked sold.')).toBeInTheDocument();
 });
 
+it('explains unavailable retained snapshot comparisons without claiming no cars disappeared', async () => {
+ const run = {dealerId:dealer.id,runId:'retained-run',status:'completed',receivedAt:'2026-10-01T15:00:00Z',updatedAt:'2026-10-01T15:00:02Z',scrapedAt:'2026-10-01T14:59:00Z',receivedCount:8,addedCount:1,changedCount:0,missingCount:1};
+ vi.stubGlobal('fetch',vi.fn(async path => String(path).endsWith('/imports/retained-run') ? Response.json({duration_ms:2000,change_count:0,previous_run_id:'previous',changes:[],newly_missing:null,snapshot_details_available:false}) : Response.json({dealers:[dealer],activity:[run]})));
+ render(<Platform />); await screen.findAllByText('Example Dealer');
+ fireEvent.click(screen.getByRole('button',{name:'Import activity'}));
+ fireEvent.click(screen.getByRole('button',{name:'View vehicle changes'}));
+ expect(await screen.findByText(/The original snapshot comparison is no longer retained/)).toBeInTheDocument();
+ expect(screen.queryByText('No newly missing adverts.')).not.toBeInTheDocument();
+});
+
 it('saves per-dealer onboarding evidence and requires a reason for skipped checks', async () => {
   let entries = {};
   const fetch = vi.fn(async (path, init) => {

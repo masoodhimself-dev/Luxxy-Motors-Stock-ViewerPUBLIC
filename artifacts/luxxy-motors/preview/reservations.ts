@@ -17,6 +17,7 @@ import { LogEnquiryConversationBody, UpdateEnquiryStatusBody, UpdateEnquiryWorks
 import { attendanceError, outcomeError } from '../../api-server/src/lib/enquiry-workspace';
 import { conversationChange, ConversationError } from '../../api-server/src/lib/enquiry-conversations';
 import { roleHasPermission, type StaffRole } from '../../api-server/src/lib/staff-permissions';
+import { appointmentDiaryWindow } from '../../api-server/src/lib/appointment-diary-window';
 
 let previewStaff = [{ id: 'preview-alex', name: 'Alex' }, { id: 'preview-jamie', name: 'Jamie' }];
 function previewAssignment(id?: string | null) {
@@ -258,6 +259,15 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
   const policy = bookingPolicyFromConfig(settings);
   const enquiries = state.enquiries ??= [];
   if (req.method === 'GET' && path === '/api/staff/directory') return { status: 200, data: { currentUserId: 'preview-alex', members: previewStaff } };
+  if (req.method === 'GET' && path === '/api/staff/enquiries/appointments') {
+    const date = url.searchParams.get('date') ?? '';
+    if (!isValidDateString(date) || date < '2000-01-01' || date > '2100-12-31') throw new ReservationError('Choose a valid appointment date.', 400);
+    const { from, to } = appointmentDiaryWindow(date);
+    const appointments = enquiries.filter(entry => entry.type === 'viewing' && !entry.appointmentCancelledAt && entry.appointmentAt && new Date(entry.appointmentAt) >= from && new Date(entry.appointmentAt) < to)
+      .map(({ id, reference, customerName, vehicleTitle, assignedToName, appointmentAt, appointmentDurationMinutes, appointmentBufferMinutes }) => ({ id, reference, customerName, vehicleTitle, assignedToName, appointmentAt, appointmentDurationMinutes, appointmentBufferMinutes }))
+      .sort((a, b) => a.appointmentAt!.localeCompare(b.appointmentAt!) || a.id.localeCompare(b.id));
+    return { status: 200, data: { date, timezone: 'Europe/London', appointments } };
+  }
   const statusChange = /^\/api\/enquiries\/([^/]+)\/status$/.exec(path);
   if (req.method === 'PATCH' && statusChange) {
     const parsed = UpdateEnquiryStatusBody.safeParse(await body(req));

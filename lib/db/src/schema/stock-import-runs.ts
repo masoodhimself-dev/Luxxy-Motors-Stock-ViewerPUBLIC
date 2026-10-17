@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -43,7 +45,10 @@ export const stockImportRunsTable = pgTable(
       .notNull()
       .default([]),
     errors: jsonb("errors").$type<unknown[]>().notNull().default([]),
-    rawSnapshot: jsonb("raw_snapshot").$type<unknown>().notNull(),
+    rawSnapshot: jsonb("raw_snapshot").$type<unknown>(),
+    // Keep replay identity after optional removal of an old completed payload.
+    payloadHash: text("payload_hash"),
+    rawSnapshotCompactedAt: timestamp("raw_snapshot_compacted_at", { withTimezone: true }),
     addedCount: integer("added_count").notNull().default(0),
     changedCount: integer("changed_count").notNull().default(0),
     missingCount: integer("missing_count").notNull().default(0),
@@ -56,11 +61,15 @@ export const stockImportRunsTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    check("stock_import_runs_payload_hash_check", sql`${table.payloadHash} is null or ${table.payloadHash} ~ '^[a-f0-9]{64}$'`),
+    check("stock_import_runs_compaction_check", sql`(${table.rawSnapshotCompactedAt} is null and ${table.rawSnapshot} is not null) or (${table.rawSnapshotCompactedAt} is not null and ${table.status} = 'completed' and ${table.payloadHash} is not null and ${table.rawSnapshot} is null)`),
     uniqueIndex("stock_import_runs_run_id_uidx").on(table.runId),
     index("stock_import_runs_dealer_source_idx").on(
       table.dealerId,
       table.source,
     ),
+    index("stock_import_runs_dealer_received_idx").on(table.dealerId, table.receivedAt.desc()),
+    index("stock_import_runs_dealer_completed_received_idx").on(table.dealerId, table.receivedAt.desc()).where(sql`${table.status} = 'completed'`),
     index("stock_import_runs_status_received_at_idx").on(
       table.status,
       table.receivedAt,

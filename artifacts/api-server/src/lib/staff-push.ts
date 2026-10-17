@@ -180,7 +180,7 @@ export async function processStaffPush(log:Pick<Logger,'warn'>,sender:PushSender
 export function startStaffPushWorker(log:Logger) {
   if(!pushConfiguration()) { log.info('Staff device notifications are disabled or await Web Push configuration');return ()=>{}; }
   let running=false,stopped=false;
-  const run=async()=>{if(running||stopped)return;running=true;try {await forEachActiveDealer(()=>processStaffPush(log));}catch {log.warn('Staff device notification worker could not complete its check');}finally{running=false;}};
+  const run=async()=>{if(running||stopped)return;running=true;try {await forEachActiveDealer(()=>processStaffPush(log), { name: 'staff-push', log });}catch {log.warn('Staff device notification worker could not complete its check');}finally{running=false;}};
   void run();const timer=setInterval(()=>void run(),60000);timer.unref();
   return ()=>{stopped=true;clearInterval(timer);};
 }

@@ -3,6 +3,7 @@
 # compiled output
 dist
 dist-test
+dist-capacity
 /output/pdf/
 tmp
 out-tsc

@@ -10,6 +10,7 @@ import router from "./routes";
 import shareRouter from "./routes/share";
 import { logger } from "./lib/logger";
 import { clerkMiddleware } from "@clerk/express";
+import { importAdmission } from './lib/stock-import-admission';
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -41,6 +42,7 @@ protectPrivateCapabilityPages(app);
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+app.use(importAdmission.middleware);
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {

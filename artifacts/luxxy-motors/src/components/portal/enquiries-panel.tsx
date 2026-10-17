@@ -70,6 +70,7 @@ import { enquiryGroup, enquiryGroupSearchText, enquiryRootRecords, primaryEnquir
 import { EnquiryRecordBrowser, type EnquiryRecordActions } from "./enquiry-record-browser";
 import { CallbacksDesk } from "./enquiry-callbacks";
 import { isOutstandingCallback } from "./enquiry-callback-model";
+import { useStaffAppointmentDiary } from "@/lib/staff-appointment-diary";
 import "./enquiries-workspace.css";
 import "./staff-appointment-picker.css";
 
@@ -274,11 +275,11 @@ export function StaffAppointmentPicker({ bookingId, initialDate, time, onTime, m
   const hintId = useId();
   const { settings } = useDealerSettings();
   const policy = settings.testDriveBooking ?? defaultBookingSettings;
-  const query = useGetEnquiries(undefined, { query: { queryKey: getGetEnquiriesQueryKey(), refetchInterval: 30_000 } });
+  const query = useStaffAppointmentDiary(date, manual);
   const appointment = time ? new Date(time) : null;
   const valid = Boolean(appointment && validStaffAppointmentDateTime(appointment));
   const checking = query.data === undefined && !query.isError;
-  const occupied = (query.data ?? []).filter(item => item.appointmentAt && !item.appointmentCancelledAt).map(item => ({ id: item.id, appointmentAt: new Date(item.appointmentAt!), appointmentDurationMinutes: item.appointmentDurationMinutes, appointmentBufferMinutes: item.appointmentBufferMinutes }));
+  const occupied = (query.data?.appointments ?? []).map(item => ({ id: item.id, appointmentAt: new Date(item.appointmentAt), appointmentDurationMinutes: item.appointmentDurationMinutes, appointmentBufferMinutes: item.appointmentBufferMinutes }));
   const outside = Boolean(valid && appointment && !withinBookingHours(appointment, policy));
   const pressure = valid && appointment && !checking && !query.isError ? bookingPressure(appointment, policy, occupied, bookingId) : null;
   const needsException = outside || Boolean(pressure?.overlapping || pressure?.overCapacity);
@@ -323,12 +324,12 @@ export function StaffAppointmentPicker({ bookingId, initialDate, time, onTime, m
 }
 
 function AppointmentConflicts({ time, bookingId }: { time: string; bookingId?: string }) {
-  const query = useGetEnquiries();
+  const query = useStaffAppointmentDiary(time && Number.isFinite(Date.parse(time)) ? londonDate(new Date(time)) : "");
   const { settings } = useDealerSettings();
   const at = new Date(time);
   if (!validStaffAppointmentDateTime(at)) return null;
-  const clashes = (query.data ?? []).filter(entry => entry.appointmentAt && !entry.appointmentCancelledAt && bookingPressure(at, settings.testDriveBooking ?? defaultBookingSettings, [{ ...entry, appointmentAt: new Date(entry.appointmentAt) }], bookingId).overlapping);
-  return <div className="text-sm">{query.isLoading ? <p>Checking the diary…</p> : query.isError ? <p role="alert">The diary could not be loaded. Refresh before overriding a booking.</p> : clashes.length ? <><p className="font-semibold">Appointments already at this time</p><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{clashes.map(entry => <li key={entry.id} className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-950"><p className="font-semibold">{entry.vehicleTitle} · {entry.reference}</p><p>{appointmentLabel(entry.appointmentAt!)} · {entry.appointmentDurationMinutes ?? 30} minutes</p><p>Staff: {entry.assignedToName || 'Unassigned'} · {entry.customerName}</p></li>)}</ul></> : <p>No overlapping appointments currently shown. Capacity is checked again when saving.</p>}</div>;
+  const clashes = (query.data?.appointments ?? []).filter(entry => bookingPressure(at, settings.testDriveBooking ?? defaultBookingSettings, [{ ...entry, appointmentAt: new Date(entry.appointmentAt) }], bookingId).overlapping);
+  return <div className="text-sm">{query.data === undefined && !query.isError ? <p>Checking the diary…</p> : query.isError ? <p role="alert">The diary could not be loaded. Refresh before overriding a booking.</p> : clashes.length ? <><p className="font-semibold">Appointments already at this time</p><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{clashes.map(entry => <li key={entry.id} className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-950"><p className="font-semibold">{entry.vehicleTitle} · {entry.reference}</p><p>{appointmentLabel(entry.appointmentAt)} · {entry.appointmentDurationMinutes ?? 30} minutes</p><p>Staff: {entry.assignedToName || 'Unassigned'} · {entry.customerName}</p></li>)}</ul></> : <p>No overlapping appointments currently shown. Capacity is checked again when saving.</p>}</div>;
 }
 
 function StaffExceptionReview({ time, bookingId, outside, double, onConfirm, onClose }: { time: string; bookingId?: string; outside: boolean; double: boolean; onConfirm: () => void; onClose: () => void }) {
@@ -975,7 +976,14 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   const [editing, setEditing] = useState<Enquiry | null>(null);
   const client = useQueryClient();
   const query = useGetEnquiries(undefined, {
-    query: { queryKey: getGetEnquiriesQueryKey(), refetchInterval: 30_000 },
+    query: {
+      queryKey: getGetEnquiriesQueryKey(),
+      // Keep the initial customer history for matching, but don't repeatedly
+      // reload every timeline while staff fill in a form. The date diary above
+      // checks current appointment conflicts, and saving rechecks under a lock.
+      refetchInterval: mode === "new" || editing ? false : 30_000,
+      refetchOnWindowFocus: mode !== "new" && !editing,
+    },
   });
   const { stock } = useStock();
   useEffect(() => {

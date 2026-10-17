@@ -69,6 +69,7 @@ import { BookingConflict, bookingsForDate, checkStaffAppointment, ensureBookingA
 import { openLeadForEnquiry } from "../lib/leads";
 import { attendanceError, outcomeError } from "../lib/enquiry-workspace";
 import { conversationChange, ConversationError } from "../lib/enquiry-conversations";
+import { readAppointmentDiary } from "../lib/appointment-diary";
 
 const router: IRouter = Router();
 const uuidPattern =
@@ -97,6 +98,21 @@ router.get("/staff/directory", requireStaff, async (req, res) => {
     if (req.staff && !members.some(member => member.id === req.staff!.authUserId)) members.push({ id: req.staff.authUserId, name: req.staff.name || req.staff.email || "Staff member" });
     res.json({ currentUserId: req.staff!.authUserId, members });
   } catch (error) { req.log.error({ err: error }, "Unable to list staff"); res.status(500).json(errorResponse("Unable to load staff members.")); }
+});
+
+router.get("/staff/enquiries/appointments", requireStaff, async (req, res) => {
+  const date = typeof req.query.date === "string" ? req.query.date : "";
+  if (!isValidDateString(date) || date < "2000-01-01" || date > "2100-12-31") {
+    res.status(400).json(errorResponse("Choose a valid appointment date."));
+    return;
+  }
+  try {
+    const appointments = await readAppointmentDiary(settings().dealerId, date);
+    res.json({ date, timezone: bookingTimezone, appointments });
+  } catch (error) {
+    req.log.error({ err: error }, "Unable to check appointment diary");
+    res.status(500).json(errorResponse("Unable to check other appointments."));
+  }
 });
 
 router.patch("/staff/enquiries/:id/workspace", requireStaff, async (req, res) => {

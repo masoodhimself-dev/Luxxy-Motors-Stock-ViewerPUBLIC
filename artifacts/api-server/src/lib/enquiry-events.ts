@@ -5,6 +5,7 @@ import {
   type EnquiryEvent,
   type InsertEnquiryEvent,
 } from "@workspace/db";
+import { currentDealerId } from "./tenant-context";
 
 /** How far back an anonymous call/WhatsApp tap can be attached to a new lead. */
 const visitorAttachWindowMs = 14 * 24 * 60 * 60 * 1000;
@@ -74,18 +75,20 @@ export async function eventsForEnquiries(enquiryIds: string[]) {
   const events = await db
     .select()
     .from(enquiryEventsTable)
-    .where(inArray(enquiryEventsTable.enquiryId, enquiryIds))
-    .orderBy(desc(enquiryEventsTable.occurredAt));
+    .where(and(eq(enquiryEventsTable.dealerId, currentDealerId()), inArray(enquiryEventsTable.enquiryId, enquiryIds)))
+    .orderBy(desc(enquiryEventsTable.occurredAt), desc(enquiryEventsTable.id));
 
   for (const event of events) {
     if (!event.enquiryId) continue;
     const bucket = grouped.get(event.enquiryId);
     if (bucket) {
-      bucket.unshift(serializeEnquiryEvent(event));
+      bucket.push(serializeEnquiryEvent(event));
     } else {
       grouped.set(event.enquiryId, [serializeEnquiryEvent(event)]);
     }
   }
+  // Reverse each bucket once instead of repeatedly moving its entire timeline.
+  for (const bucket of grouped.values()) bucket.reverse();
   return grouped;
 }
 

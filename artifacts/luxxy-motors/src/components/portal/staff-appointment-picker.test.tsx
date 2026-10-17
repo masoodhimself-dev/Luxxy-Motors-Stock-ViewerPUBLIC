@@ -21,6 +21,9 @@ vi.mock("@workspace/api-client-react", async importOriginal => ({
   useGetEnquiryAvailability: () => ({ data: { slots: [] }, isLoading: false, isError: false }),
   useGetStaffAppointmentAvailability: () => ({ data: { slots: [] }, isLoading: false, isError: false }),
 }));
+vi.mock("@/lib/staff-appointment-diary", () => ({
+  useStaffAppointmentDiary: () => ({ ...query, data: query.data === undefined ? undefined : { appointments: query.data } }),
+}));
 
 let policy = structuredClone(defaultBookingSettings);
 vi.mock("@/lib/dealer-settings-context", () => ({

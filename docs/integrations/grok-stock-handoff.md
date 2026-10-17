@@ -6,16 +6,18 @@ This handoff describes the existing implementation, not a proposed API. Send it 
 
 You supply the stock feed. The website backend validates and stores it, applies visibility/price safeguards and serves saved stock to customers. You do not communicate with the coding assistant at runtime. Do not access customer, reservation, authentication, settings or sales routes for stock synchronisation.
 
-For each separate dealership deployment we will provide an HTTPS base URL, a retailer ID and an import secret via a secure channel. Never embed the secret in JSON, browser code, URLs or logs.
+For each dealership we provide an HTTPS import host, dealer-specific path, retailer ID and dedicated import secret via a secure channel. Dealers may share one application; their credentials cannot authorise one another's paths. Never embed the secret in JSON, browser code, URLs or logs.
 
 ### Routes
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| POST | `/api/stock/imports/grok` | Send a complete stock snapshot; header `x-stock-import-secret` required |
+| POST | `/api/stock/imports/{dealerId}/grok` | Shared platform: send a complete stock snapshot; dedicated `x-stock-import-secret` required |
+| POST | `/api/stock/imports/grok` | Legacy single-dealer deployments only |
 | GET | `/api/stock` | Read the currently public stock and website-generated vehicle IDs |
 | GET | `/api/vehicles/{id}` | Read one public vehicle using its website ID, not its source advertId |
 | GET | `/api/healthz` | Basic service liveness only; not a database/import readiness check |
+| GET | `/api/readyz` | Safe database connectivity readiness only; not an import/email test |
 
 Use `Content-Type: application/json`. The backend body limit is 25 MB. Send image URLs, not base64 images. There is also a legacy `/api/stock/imports/autotrader` adapter; use the Grok route only. Grok is the collector; the platform administrator selects one active marketplace (Auto Trader or Cazoo). Vehicles are stored in that marketplace namespace. Do not alternate marketplaces as if they were separate inventories. See [stock platform settings](stock-platforms.md).
 
@@ -35,9 +37,9 @@ Use schemaVersion 1 and source `grok`. See the accompanying complete example and
 
 ### Delivery and acknowledgements
 
-Send one run at a time, oldest first. Start with a proposed 30-minute cadence, subject to source permissions and dealer needs. The website does not schedule Grok or call a Grok polling URL.
+Send one run at a time per dealer, oldest first, on the operator-approved schedule. A shared coordinator should pace dealers and respect marketplace limits. The website does not schedule Grok or call a Grok polling URL. Existing live schedules are unchanged by this handoff.
 
-Create a new runId per new snapshot. After a timeout or transient 5xx, retry the identical payload with the same runId using bounded exponential backoff. Do not regenerate the timestamp on a retry. Changed/corrected content needs a new runId. Avoid overlapping or out-of-order jobs: there is no strict per-retailer timestamp-order rejection within the freshness window.
+Create a new runId per new snapshot. After a timeout or transient 5xx, retry the identical payload with the same runId using bounded exponential backoff. Do not regenerate the timestamp on a retry. Changed/corrected content needs a new runId. A new snapshot older than the dealer's newest completed collection is rejected. Completed identical replay is detected before freshness/order checks.
 
 | HTTP | Meaning / action |
 | --- | --- |
@@ -45,10 +47,14 @@ Create a new runId per new snapshot. After a timeout or transient 5xx, retry the
 | 200 | Identical completed run replayed safely |
 | 400 | Invalid fields/retailer/data; fix before sending a new run |
 | 401 | Import secret missing/incorrect; stop and check configuration |
+| 403 | Credential is valid for a different dealer; stop and correct the binding |
 | 409 | runId conflict, feed paused or connection changed; inspect the error code and resolve it before retrying |
 | 422 | Quarantined; investigate completeness, errors, age or stock-count drop; do not circumvent by repeatedly sending smaller snapshots |
 | 413 | Body too large; reduce metadata/image URL volume or agree a server limit change; do not split into partial stock snapshots |
 | 500 | Inspect error code: configuration_error needs setup correction; transient failures can use bounded retries |
+| 503 | `import_capacity_busy`: process import slots are full; respect `Retry-After` (currently 15 seconds) and retry the identical saved body/runId, with bounded backoff |
+
+Capacity rejection happens before the JSON body is parsed, so its `status: busy` response has null `runId` and `retailerId`. It creates no import run and is never success. Authentication, validation and dealer binding are still checked when the saved request is admitted. The collector must pace all dealers centrally; it must not repeatedly launch new collections to work around congestion.
 
 A success response includes schemaVersion, status (imported/replayed), runId, source, retailerId, received, created, updated, deleted, unchanged and errors. Errors include code/message/path/advertId. There is no separate authenticated import-history/status endpoint or webhook back to Grok at present. Public stock is not a complete import audit, since hidden/quarantined prices and dealer-controlled status affect visibility.
 
@@ -58,6 +64,6 @@ Defaults (deployment configurable): more than a 30% stock-count drop quarantines
 
 ### Deployment configuration / first test
 
-Operator sets `STOCK_IMPORT_SECRET`, `STOCK_RETAILER_ID` and `STOCK_DEALER_ID` separately for each deployment. The base URL must reach the actual backend. `127.0.0.1:4175` and local `preview-*` cars are a development preview, not a public integration destination. There is no dry-run import flag: an accepted POST changes the target stock database. First use an isolated staging database, test a complete snapshot, repeat it unchanged to confirm replay, then verify the public GET routes. Production imports require an explicitly agreed destination and go-live.
+On the shared platform, register/activate the dealer, configure its marketplace/retailer/source and generate a dedicated import credential in the dashboard. The worker uses that dealer's exact import path and approved host. Legacy single-dealer deployments instead use `STOCK_IMPORT_SECRET`, `STOCK_RETAILER_ID` and `STOCK_DEALER_ID`. The base URL must reach the actual backend. `127.0.0.1:4175` and local `preview-*` cars are a development preview, not a public integration destination. There is no dry-run import flag: an accepted POST changes the target stock database. First use an isolated staging database, test a complete snapshot, repeat it unchanged to confirm replay, then verify the public GET routes. Production imports require an explicitly agreed destination and go-live.
 
 Please reply with your proposed JSON sample, source of truth, update schedule, image-host behaviour and whether you can preserve stable advert IDs. We can validate your sample against this schema before any real import.

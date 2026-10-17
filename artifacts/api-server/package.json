@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -37,7 +37,9 @@
     "test:email-workspace": "node test-enquiry-emails-build.mjs src/email-workspace.test.ts && node --test dist-test/email-workspace.test.mjs && node test-enquiry-emails-build.mjs src/staff-email-scope.test.ts && node --test dist-test/staff-email-scope.test.mjs",
     "test:push": "node test-enquiry-emails-build.mjs src/staff-push.test.ts && node --test dist-test/staff-push.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-push.test.ts && node --test dist-test/communications-push.test.mjs",
     "test:email-design": "node test-build.mjs src/email-design.test.ts && node --test dist-test/email-design.test.mjs && node test-enquiry-emails-build.mjs src/enquiry-emails.test.ts && node --test dist-test/enquiry-emails.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-email.test.ts && node --test dist-test/communications-email.test.mjs",
-    "test:ai-drafts": "node test-enquiry-emails-build.mjs src/ai-drafts.test.ts && node --test dist-test/ai-drafts.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-ai.test.ts && node --test dist-test/communications-ai.test.mjs"
+    "test:ai-drafts": "node test-enquiry-emails-build.mjs src/ai-drafts.test.ts && node --test dist-test/ai-drafts.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-ai.test.ts && node --test dist-test/communications-ai.test.mjs",
+    "test:capacity:guards": "node test-capacity-run.mjs",
+    "test:capacity": "node test-capacity-run.mjs --benchmark"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

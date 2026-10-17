@@ -9,7 +9,7 @@ export function matchesImportSecret(secret: string, digest: string): boolean {
   return timingSafeEqual(Buffer.from(importSecretDigest(secret), 'hex'), Buffer.from(digest, 'hex'));
 }
 export const resolveTenant: RequestHandler = (req, res, next) => {
-  if (!multiTenantEnabled() || req.path === '/api/healthz') { next(); return; }
+  if (!multiTenantEnabled() || req.path === '/api/healthz' || req.path === '/api/readyz') { next(); return; }
   void (async () => {
     const rejectImport = (httpStatus: number, code: string, message: string) => res.status(httpStatus).json({
       status: 'rejected', runId: typeof req.body?.runId === 'string' ? req.body.runId : null,

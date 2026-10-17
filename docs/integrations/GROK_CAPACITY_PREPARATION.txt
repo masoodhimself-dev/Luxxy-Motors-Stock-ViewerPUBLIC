@@ -1,0 +1,19 @@
+Please start preparing the shared stock worker for 100–200 dealerships, coordinated with Codex's backend work.
+
+Agreed design:
+- One bot per dealer for dealer instructions, chat, manual help and failure alerts.
+- One maintained worker codebase and a shared coordinator/queue for routine collections.
+- No automatic number-plate reading for any dealer, ever. Keep source-supplied registrations and allow staff to correct them manually in the portal.
+
+Build and test the following in a separate candidate version, without switching the live worker to it:
+1. Remove/disable OCR throughout the worker, new-dealer builder and all example/config paths. Test that a legacy ocrEnabled:true cannot enable OCR. Report any existing live configuration still enabling it; do not run OCR.
+2. Replace the coordinator's 23-start restriction with a bounded queue and configurable concurrency. Start at two HTTP jobs; treat four as unproven until measured. Use a global per-marketplace request limiter, fair spacing, backoff and Retry-After handling. Don't bypass provider blocks or restrictions.
+3. Keep all dealer locks, window duplicate guards, immutable same-runId/same-byte retries, ordering, complete/fresh-only validation, host/TLS checks, quarantine/auth blocks and stock-drop safeguards.
+4. Test backend capacity responses: Codex is adding early HTTP503 with Retry-After when import slots are full. A busy response can have null runId/retailerId because the body is not parsed. Retry the original saved bytes and runId after the delay; never collect a new snapshot to work around it. Never treat a busy/blocked/quarantined response as success.
+5. Add retention for old successful submissions. Preserve pending/uncertain retries, blocked/quarantined runs needed for investigation, the latest accepted baseline, ordering state and audit evidence. State age/count/disk policies before deleting existing files. Do not touch invoices or payment records.
+6. Record collection/delivery/queue timings, request counts, response codes, bytes, peak memory and failures. Separate cached runs, changed cars and first imports. Keep secrets and customer data out of logs.
+7. Test 100 and 200 fictional dealers offline: normal windows, duplicate launches, congestion, 429/503, network failures, restarts, outage recovery and alert routing. Report actual wall time and waiting time, not just per-run duration divided by concurrency. No real marketplace traffic for these tests.
+8. Investigate real credential isolation. Different bot names, folders, environment-variable names, or a vault accessed with one shared unrestricted identity do not isolate secrets. Propose a feasible scoped-runtime/access design and its remaining limitations. Do not claim this solved until cross-bot access tests prove it. Do not copy, print, rotate or revoke current credentials.
+9. Verify how a code coordinator can route an alert to the correct bot and whether a routine must still wake an AI turn to start/check it. State unsupported platform capabilities and unknown bot/routine/account limits or costs explicitly. Do not create 100–200 bots.
+
+Leave live Luxxy/Paramount delivery and schedules unchanged, create no new schedules, send no live imports, and do not switch the coordinator on yet. First return the candidate version, tests, measured results, rollback plan and a proposed controlled pilot. Coordinate a fictional backend import/replay test with Codex after both sides are ready. Progress live pilots through 10, 25 and 50 only with separate approval.

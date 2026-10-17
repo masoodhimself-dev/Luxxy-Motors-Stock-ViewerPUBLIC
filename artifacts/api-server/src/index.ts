@@ -46,7 +46,7 @@ app.listen(port, (err) => {
   startStripeReservationWorker(logger);
   // Enquiries taken before leads existed are carried across on boot. This is
   // idempotent, so it is safe on every restart.
-  forEachActiveDealer(() => backfillLeadsFromEnquiries(logger)).catch((err: unknown) => {
+  forEachActiveDealer(() => backfillLeadsFromEnquiries(logger), { name: 'lead-backfill', log: logger }).catch((err: unknown) => {
     logger.error(
       { err },
       "Unable to carry existing enquiries across into leads",

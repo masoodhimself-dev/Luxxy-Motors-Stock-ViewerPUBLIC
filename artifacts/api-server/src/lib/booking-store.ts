@@ -1,7 +1,8 @@
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { db, dealerSettingsTable, enquiriesTable, vehiclesTable } from "@workspace/db";
 import { dealerIntegrationsStore } from "./dealer-integrations-store";
-import { addDays, bookingPolicyFromConfig, bookingPressure, dateStringInTimezone, localDateTimeToUtc, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy } from "./booking-slots";
+import { addDays, bookingPolicyFromConfig, bookingPressure, dateStringInTimezone, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy } from "./booking-slots";
+import { appointmentDiaryWindow } from "./appointment-diary-window";
 
 export type BookingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export class BookingConflict extends Error {}
@@ -25,8 +26,9 @@ export async function getBookingPolicy(dealerId: string) {
 
 export async function bookingsForDate(dealerId: string, date: string, connection: BookingTransaction | typeof db = db) {
   // Include adjacent dates to account for appointments saved under earlier hours.
+  const { from, to } = appointmentDiaryWindow(date);
   return connection.select({ id: enquiriesTable.id, appointmentAt: enquiriesTable.appointmentAt, appointmentDurationMinutes: enquiriesTable.appointmentDurationMinutes, appointmentBufferMinutes: enquiriesTable.appointmentBufferMinutes })
-    .from(enquiriesTable).where(and(eq(enquiriesTable.dealerId, dealerId), eq(enquiriesTable.type, "viewing"), isNull(enquiriesTable.appointmentCancelledAt), gte(enquiriesTable.appointmentAt, localDateTimeToUtc(addDays(date, -1), 0, 0)), lt(enquiriesTable.appointmentAt, localDateTimeToUtc(addDays(date, 2), 0, 0))));
+    .from(enquiriesTable).where(and(eq(enquiriesTable.dealerId, dealerId), eq(enquiriesTable.type, "viewing"), isNull(enquiriesTable.appointmentCancelledAt), gte(enquiriesTable.appointmentAt, from), lt(enquiriesTable.appointmentAt, to)));
 }
 
 export async function lockBookingDays(tx: BookingTransaction, dealerId: string, appointments: Date[]) {

@@ -2,12 +2,14 @@ import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { matchesImportSecret } from "../middlewares/tenant";
 import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
 import { stockPlatformIssues } from "../lib/stock-platform";
+import { importAdmission } from '../lib/stock-import-admission';
 import { stockDescriptionExtras } from "@workspace/vehicle-meta";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { stockSourceData, projectedStockSourceData } from "../lib/stock-source-data";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
+import { canonicalJson, stockPayloadHash as hash, retainedStockPayloadHash } from "../lib/stock-payload-hash";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
-import { and, or, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, or, desc, eq, inArray, notInArray, isNull, isNotNull, lt, sql } from "drizzle-orm";
 import {
   GetStockResponse,
   GetVehicleParams,
@@ -48,24 +50,6 @@ const config = async (transaction?: unknown) => { const { connection } = await d
   missingHideThreshold: envNumber("STOCK_MISSING_HIDE_THRESHOLD", 2),
 }); };
 const issue = (code: string, message: string, path: string | null = null, advertId: string | null = null): Issue => ({ code, message, path, advertId });
-/** Stable JSON for idempotency: JSONB does not preserve object insertion order. */
-function canonicalJson(value: unknown): string {
-  if (value === null) return "null";
-  if (value instanceof Date) return JSON.stringify(value.toISOString());
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record)
-      .filter((key) => record[key] !== undefined)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
-      .join(",")}}`;
-  }
-  if (typeof value === "number" && !Number.isFinite(value)) return "null";
-  if (typeof value === "undefined") return "null";
-  return JSON.stringify(value);
-}
-const hash = (value: unknown) => createHash("sha256").update(canonicalJson(value)).digest("hex");
 const safeUrl = (value: string | null): value is string => {
   if (!value) return false;
   try { return new URL(value).protocol === "https:"; } catch { return false; }
@@ -108,13 +92,13 @@ async function recordRejected(body: unknown, status: "failed" | "quarantined", p
   if (Number.isNaN(scrapedAt.getTime())) return "stored";
   try {
     const [existing] = await db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.runId, candidate.runId), eq(stockImportRunsTable.dealerId, currentDealerId())));
-    if (existing) return hash(existing.rawSnapshot) === hash(body) ? "existing" : "conflict";
+    if (existing) return retainedStockPayloadHash(existing) === hash(body) ? "existing" : "conflict";
     await db.insert(stockImportRunsTable).values({
       runId: candidate.runId, dealerId: (await config()).dealerId, retailerId: candidate.retailerId, source: (await config()).platform,
       schemaVersion: String(candidate.schemaVersion ?? "unknown"), scrapedAt, expectedCount: Number(candidate.expectedAdvertCount) || 0,
       receivedCount: Array.isArray(candidate.cars) ? candidate.cars.length : 0, complete: candidate.complete === true,
       status, failedAdvertIds: Array.isArray(candidate.failedAdvertIds) ? candidate.failedAdvertIds.filter((x): x is string => typeof x === "string") : [],
-      errors: problems, rawSnapshot: body,
+      errors: problems, rawSnapshot: body, payloadHash: hash(body),
     }).onConflictDoNothing();
     return "stored";
   } catch { return "stored"; /* rejected imports must not mask the validation response */ }
@@ -243,7 +227,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${settings.dealerId}`}))`);
       const [prior] = await tx.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.runId, data.runId), eq(stockImportRunsTable.dealerId, currentDealerId())));
       if (prior) {
-        if (hash(prior.rawSnapshot) !== payloadHash) return { conflict: true as const };
+        if (retainedStockPayloadHash(prior) !== payloadHash) return { conflict: true as const };
         if (prior.status === "quarantined") return { priorQuarantined: true as const };
         if (prior.status !== "completed") return { conflict: true as const };
         return { replay: true as const, prior };
@@ -251,7 +235,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
       // Replay detection precedes freshness/order checks, under the same dealer lock.
       if (Date.now() - data.scrapedAt.getTime() > settings.maxAgeHours * 3_600_000 || data.scrapedAt.getTime() > Date.now() + 300_000) {
         const errors = [issue("stale_snapshot", "Snapshot is outside the allowed freshness window", "scrapedAt")];
-        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors, rawSnapshot: req.body });
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors, rawSnapshot: req.body, payloadHash });
         return { freshnessQuarantine: true as const, errors };
       }
       const [latest] = await tx.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"))).orderBy(desc(stockImportRunsTable.scrapedAt)).limit(1);
@@ -261,10 +245,10 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
       const current = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform)));
       const liveCount = current.filter((v) => v.sourceStatus === "live").length;
       if (liveCount && data.cars.length < liveCount * (1 - settings.maxDrop / 100)) {
-        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body });
+        await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: data.complete, status: "quarantined", failedAdvertIds: [], errors: [issue("stock_drop", "Snapshot drop exceeds configured limit")], rawSnapshot: req.body, payloadHash });
         return { quarantined: true as const };
       }
-      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body }).returning();
+      const [run] = await tx.insert(stockImportRunsTable).values({ runId: data.runId, dealerId: settings.dealerId, source: settings.platform, retailerId: data.retailerId, schemaVersion: "1", scrapedAt: data.scrapedAt, expectedCount: data.expectedAdvertCount, receivedCount: data.count, complete: true, status: "processing", failedAdvertIds: [], errors: [], rawSnapshot: req.body, payloadHash }).returning();
       let created = 0, updated = 0, unchanged = 0, missing = 0;
       const now = new Date(), incomingIds = new Set(data.cars.map((car) => car.advertId));
       const currentByAdvert = new Map(current.map(vehicle => [vehicle.advertId, vehicle]));
@@ -347,23 +331,29 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
 }
 
 router.post("/stock/imports/autotrader", async (req, res): Promise<void> => {
-  await importStock(req, res, "autotrader");
+  await importAdmission.run(req, res, () => importStock(req, res, "autotrader"));
 });
 
 router.post("/stock/imports/:dealerId/grok", async (req, res): Promise<void> => {
   if (!multiTenantEnabled() || req.params.dealerId !== currentDealerId()) { res.status(404).json({ error: "Stock connection not found" }); return; }
-  await importStock(req, res, "grok");
+  await importAdmission.run(req, res, () => importStock(req, res, "grok"));
 });
 router.post("/stock/imports/grok", async (req, res): Promise<void> => {
-  await importStock(req, res, "grok");
+  await importAdmission.run(req, res, () => importStock(req, res, "grok"));
 });
 
 async function projectVehicles(vehicles: Vehicle[]) {
   const ids = vehicles.map((vehicle) => vehicle.id);
   const images = ids.length ? await db.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
+  const byVehicle = new Map<string, VehicleImage[]>();
+  for (const image of images) {
+    const gallery = byVehicle.get(image.vehicleId);
+    if (gallery) gallery.push(image); else byVehicle.set(image.vehicleId, [image]);
+  }
   return vehicles.map((vehicle) => {
-    const vehicleImages = images.filter((image) => image.vehicleId === vehicle.id).map((image) => ({ url: image.sourceUrl, caption: image.caption }));
-    const hero = vehicle.websiteHeroImageOverride ?? images.find((image) => image.vehicleId === vehicle.id && image.isHero)?.sourceUrl ?? null;
+    const gallery = byVehicle.get(vehicle.id) ?? [];
+    const vehicleImages = gallery.map((image) => ({ url: image.sourceUrl, caption: image.caption }));
+    const hero = vehicle.websiteHeroImageOverride ?? gallery.find((image) => image.isHero)?.sourceUrl ?? null;
     const raw = projectedStockSourceData(vehicle.rawSourceData, vehicle.auditMetadata);
     const imported = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
     const specifications = imported?.specifications;
@@ -376,11 +366,17 @@ function visible(vehicle: Vehicle, settings: Awaited<ReturnType<typeof config>>)
 }
 router.get("/stock", async (req, res): Promise<void> => {
   const settings = await config();
-  const all = await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, settings.dealerId)).orderBy(vehiclesTable.advertId);
+  const all = await db.select().from(vehiclesTable).where(and(
+    eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform),
+    inArray(vehiclesTable.inventoryStatus, ['available', 'reserved']), isNull(vehiclesTable.archivedAt),
+    lt(vehiclesTable.missingCount, settings.missingHideThreshold),
+    or(eq(vehiclesTable.priceReviewRequired, false), isNotNull(vehiclesTable.sourcePrice), isNotNull(vehiclesTable.websitePriceOverride)),
+  )).orderBy(vehiclesTable.advertId);
   const cars = await projectVehicles(all.filter((vehicle) => vehicle.source === settings.platform && visible(vehicle, settings)));
-  const [latest] = await db.select().from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"), eq(stockImportRunsTable.source, settings.platform))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
-  const snapshot = latest?.rawSnapshot as { dealerName?: unknown } | undefined;
-  res.json(GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof snapshot?.dealerName === "string" ? snapshot.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
+  // Only the source label and check time are needed; don't transfer a whole
+  // raw inventory snapshot from Postgres on every public stock page request.
+  const [latest] = await db.select({ scrapedAt: stockImportRunsTable.scrapedAt, dealerName: sql<unknown>`${stockImportRunsTable.rawSnapshot} -> 'dealerName'` }).from(stockImportRunsTable).where(and(eq(stockImportRunsTable.dealerId, settings.dealerId), eq(stockImportRunsTable.status, "completed"), eq(stockImportRunsTable.source, settings.platform))).orderBy(desc(stockImportRunsTable.receivedAt)).limit(1);
+  res.json(GetStockResponse.parse({ schemaVersion: 1, dealerName: typeof latest?.dealerName === "string" ? latest.dealerName : null, dealerLocation: cars[0]?.dealerLocation ?? null, count: cars.length, scrapedAt: latest?.scrapedAt ?? null, cars }));
 });
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

@@ -483,6 +483,8 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
     );
 }
 
+export const notificationBatchSize = 50;
+
 export async function processDueNotifications(log: Logger) {
   const now = new Date();
   const staleBefore = new Date(now.getTime() - deliveryLeaseMs);
@@ -502,7 +504,9 @@ export async function processDueNotifications(log: Logger) {
           staleBefore,
         ),
       )),
-    );
+    )
+    .orderBy(enquiriesTable.createdAt, enquiriesTable.id)
+    .limit(notificationBatchSize);
 
   for (const enquiry of pending) {
     await deliverEnquiryNotifications(enquiry, log);
@@ -516,7 +520,8 @@ export async function processDueNotifications(log: Logger) {
       and(
         eq(enquiriesTable.dealerId, currentDealerId()),
         eq(enquiriesTable.type, "viewing"),
-        or(eq(enquiriesTable.appointmentStatus, "confirmed"), isNull(enquiriesTable.appointmentStatus)),
+        // Match processReminder's claim: legacy null statuses cannot consume this batch.
+        eq(enquiriesTable.appointmentStatus, "confirmed"),
         isNull(enquiriesTable.appointmentCancelledAt),
         claimable(
           enquiriesTable.reminderStatus,
@@ -526,7 +531,9 @@ export async function processDueNotifications(log: Logger) {
         gt(enquiriesTable.appointmentAt, now),
         lte(enquiriesTable.appointmentAt, dueBefore),
       ),
-    );
+    )
+    .orderBy(enquiriesTable.appointmentAt, enquiriesTable.id)
+    .limit(notificationBatchSize);
   for (const enquiry of reminders) {
     await processReminder(enquiry, log);
   }
@@ -568,7 +575,7 @@ export function startReminderWorker(log: Logger) {
   const run = async () => {
     if (running) return;
     running = true;
-    await forEachActiveDealer(() => processDueNotifications(log)).catch((error) => {
+    await forEachActiveDealer(() => processDueNotifications(log), { name: 'reminders', log }).catch((error) => {
       log.error({ err: error }, "Notification worker failed");
     }).finally(() => { running = false; });
   };

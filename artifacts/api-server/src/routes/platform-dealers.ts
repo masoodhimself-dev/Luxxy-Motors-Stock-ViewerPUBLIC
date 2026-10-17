@@ -9,8 +9,12 @@ import { getAuth, clerkClient } from '@clerk/express';
 import { randomBytes } from 'node:crypto';
 import { resolveTxt } from 'node:dns/promises';
 import { z } from 'zod/v4';
-import { and, eq, desc } from 'drizzle-orm';
-import { db, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, dealerSettingsTable, portalUsersTable, stockImportRunsTable } from '@workspace/db';
+import { and, eq, desc, isNull } from 'drizzle-orm';
+import { db, pool, databasePoolStatus, dealershipsTable, dealerDomainsTable, dealerImportKeysTable, dealerSettingsTable, portalUsersTable, stockImportRunsTable } from '@workspace/db';
+import { databaseReady } from './health';
+import { importCapacitySql, importCapacitySummary } from '../lib/platform-capacity';
+import { processJobStatus } from '../lib/tenant-jobs';
+import { importAdmission } from '../lib/stock-import-admission';
 import { isPlatformAdmin } from '../lib/platform-admin';
 import { normaliseTenantHost, multiTenantEnabled } from '../lib/tenant-context';
 import { importSecretDigest } from '../middlewares/tenant';
@@ -26,6 +30,20 @@ router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
 router.use(platformConversionRouter);
 router.use(platformDomainAutomationRouter);
+router.get('/capacity', async (req, res) => {
+  let ready = await databaseReady();
+  let imports: ReturnType<typeof importCapacitySummary> | { available: false } = { available: false };
+  if (ready) {
+    try { imports = importCapacitySummary((await pool.query(importCapacitySql)).rows); }
+    catch { ready = false; req.log?.warn('Platform capacity import summary unavailable'); }
+  }
+  res.json({
+    generatedAt: new Date().toISOString(), scope: 'this_process',
+    database: { ready, pool: databasePoolStatus() },
+    imports: { admission: importAdmission.status(), ...imports },
+    jobs: processJobStatus(),
+  });
+});
 router.patch('/dealers/:id/checklist', async (req, res) => {
   const input = z.object({ itemId: z.string().refine(id => onboardingItems.some(item => item.id === id)), status: z.enum(['pending', 'done', 'skipped']), note: z.string().trim().max(1000) }).strict().safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: 'Choose a checklist item and valid status; notes must be at most 1,000 characters.' }); return; }
@@ -47,14 +65,14 @@ router.get('/overview', async (_req, res) => {
   const [dealers, domains, keys, latest, successful, runs] = await Promise.all([
     db.select().from(dealershipsTable),
     db.select({ dealerId: dealerDomainsTable.dealerId, hostname: dealerDomainsTable.hostname, verified: dealerDomainsTable.verified }).from(dealerDomainsTable),
-    db.select({ dealerId: dealerImportKeysTable.dealerId, disabledAt: dealerImportKeysTable.disabledAt }).from(dealerImportKeysTable),
+    db.select({ dealerId: dealerImportKeysTable.dealerId, activeCount: sql<number>`count(*)::int` }).from(dealerImportKeysTable).where(isNull(dealerImportKeysTable.disabledAt)).groupBy(dealerImportKeysTable.dealerId),
     db.selectDistinctOn([stockImportRunsTable.dealerId], { dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).orderBy(stockImportRunsTable.dealerId, desc(stockImportRunsTable.receivedAt)),
     db.selectDistinctOn([stockImportRunsTable.dealerId], { dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).where(eq(stockImportRunsTable.status, 'completed')).orderBy(stockImportRunsTable.dealerId, desc(stockImportRunsTable.receivedAt)),
     db.select({ dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).orderBy(desc(stockImportRunsTable.receivedAt)).limit(30),
   ]);
   res.json({ dealers: dealers.map(dealer => ({ ...dealer,
     domains: domains.filter(d => d.dealerId === dealer.id),
-    activeKeyCount: keys.filter(k => k.dealerId === dealer.id && !k.disabledAt).length,
+    activeKeyCount: keys.find(k => k.dealerId === dealer.id)?.activeCount ?? 0,
     latestImport: latest.find(r => r.dealerId === dealer.id) ?? null,
     lastSuccessfulImport: successful.find(r => r.dealerId === dealer.id) ?? null,
   })), activity: runs.slice(0, 30) });

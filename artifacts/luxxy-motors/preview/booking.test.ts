@@ -15,6 +15,26 @@ async function call(state: BookingPreviewState, settings: typeof previewSettings
   assert.ok(result); return result as { status: number; data: any };
 }
 
+test('local staff diary mirrors the bounded production day window and omits customer correspondence', async () => {
+  const state: BookingPreviewState = { reservations: [] };
+  const settings = { ...previewSettings, testDriveBooking: policy() };
+  await call(state, settings, 'POST', '/api/staff/enquiries', { vehicleId: null, type: 'general', customerName: 'Fictional diary fixture', email: null, phone: '07700900123', preferredContact: 'phone', message: 'Private fictional correspondence', appointmentAt: null });
+  const template = state.enquiries![0];
+  state.enquiries = [
+    { ...template, id: 'adjacent', type: 'viewing', appointmentAt: '2026-10-24T22:45:00Z' },
+    { ...template, id: 'day', type: 'viewing', appointmentAt: '2026-10-25T10:00:00Z' },
+    { ...template, id: 'cancelled', type: 'viewing', appointmentAt: '2026-10-25T11:00:00Z', appointmentCancelledAt: '2026-10-24T10:00:00Z' },
+    { ...template, id: 'old', type: 'viewing', appointmentAt: '2020-01-01T10:00:00Z' },
+    { ...template, id: 'general', appointmentAt: '2026-10-25T12:00:00Z' },
+  ];
+  const result = await call(state, settings, 'GET', '/api/staff/enquiries/appointments?date=2026-10-25');
+  assert.deepEqual(result.data.appointments.map((item: { id: string }) => item.id), ['adjacent', 'day']);
+  assert.equal(result.data.timezone, 'Europe/London');
+  assert.equal(Object.keys(result.data.appointments[0]).length, 8);
+  assert.ok(!JSON.stringify(result.data).includes('Private fictional correspondence'));
+  await assert.rejects(call(state, settings, 'GET', '/api/staff/enquiries/appointments?date=2026-02-30'), /valid appointment date/);
+});
+
 test('legacy enquiry labels are neutral in responses while stored identifiers and history remain unchanged', async () => {
   const state: BookingPreviewState = { reservations: [] };
   const settings = { ...previewSettings, testDriveBooking: policy() };

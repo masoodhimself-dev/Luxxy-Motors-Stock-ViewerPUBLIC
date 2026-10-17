@@ -5,6 +5,7 @@ import { db } from "@workspace/db";
 import type { Logger } from "pino";
 import { currentDealerId } from "./tenant-context";
 import { forEachActiveDealer } from "./tenant-jobs";
+import { compactCompletedStockSnapshots } from './stock-snapshot-retention';
 
 export const retentionPolicy = {
   archiveDays: 7,
@@ -101,7 +102,14 @@ export function startRetentionWorker(log: Logger) {
             { dealerId: currentDealerId(), ...counts },
             "Data retention completed",
           );
-      });
+        // This separate stock-only policy remains disabled until an operator opts in.
+        const snapshots = await compactCompletedStockSnapshots(currentDealerId());
+        if (snapshots.enabled && (snapshots.compacted || snapshots.hashBackfilled || snapshots.integritySkipped))
+          log.info(
+            { retentionDays: snapshots.retentionDays, compacted: snapshots.compacted, hashBackfilled: snapshots.hashBackfilled, rawBytesRemoved: snapshots.rawBytesRemoved, integritySkipped: snapshots.integritySkipped },
+            'Stock snapshot retention completed',
+          );
+      }, { name: 'retention', log });
       await cleanupRetentionTemporaryFiles();
     } catch {
       log.warn(

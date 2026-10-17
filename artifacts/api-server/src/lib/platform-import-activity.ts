@@ -32,7 +32,12 @@ export async function importActivityDetails(database: Pick<typeof db, 'execute'>
       CASE WHEN t.status = 'completed' THEN greatest(0, extract(epoch FROM (t.updated_at - t.received_at)) * 1000) ELSE NULL END AS duration_ms,
       (SELECT count(*) FROM changes) AS change_count,
       coalesce((SELECT jsonb_agg(row_to_json(c)) FROM (SELECT * FROM changes ORDER BY added DESC, title, advert_id LIMIT 250) c), '[]'::jsonb) AS changes,
-      CASE WHEN t.status = 'completed' THEN coalesce((SELECT jsonb_agg(row_to_json(m)) FROM (SELECT * FROM missing ORDER BY title, advert_id LIMIT 250) m), '[]'::jsonb) ELSE '[]'::jsonb END AS newly_missing,
+      CASE WHEN t.status <> 'completed' THEN '[]'::jsonb
+        WHEN t.raw_snapshot_compacted_at IS NOT NULL OR t.raw_snapshot IS NULL
+          OR EXISTS (SELECT 1 FROM previous p WHERE p.raw_snapshot_compacted_at IS NOT NULL OR p.raw_snapshot IS NULL) THEN NULL
+        ELSE coalesce((SELECT jsonb_agg(row_to_json(m)) FROM (SELECT * FROM missing ORDER BY title, advert_id LIMIT 250) m), '[]'::jsonb) END AS newly_missing,
+      (t.raw_snapshot_compacted_at IS NULL AND t.raw_snapshot IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM previous p WHERE p.raw_snapshot_compacted_at IS NOT NULL OR p.raw_snapshot IS NULL)) AS snapshot_details_available,
       (SELECT run_id FROM previous) AS previous_run_id
     FROM target t`);
   return result.rows[0] ?? null;

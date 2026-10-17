@@ -556,6 +556,56 @@ paths:
           description: Record unavailable
         "409":
           description: Booking or availability has changed
+  /staff/enquiries/appointments:
+    get:
+      operationId: getStaffAppointmentDiary
+      tags: [enquiries]
+      summary: Check nearby staff appointments
+      description: Requires dealership staff. Returns only active viewings in the selected London date and its adjacent dates, matching the transactional overlap check. No enquiry messages, contact details or event history are included. Saving still rechecks availability under a lock.
+      parameters:
+        - in: query
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Nearby appointments for this dealership only
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [date, timezone, appointments]
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  timezone:
+                    type: string
+                    enum: [Europe/London]
+                  appointments:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, reference, customerName, vehicleTitle, assignedToName, appointmentAt, appointmentDurationMinutes, appointmentBufferMinutes]
+                      properties:
+                        id: { type: string, format: uuid }
+                        reference: { type: string }
+                        customerName: { type: string }
+                        vehicleTitle: { type: [string, "null"] }
+                        assignedToName: { type: [string, "null"] }
+                        appointmentAt: { type: string, format: date-time }
+                        appointmentDurationMinutes: { type: [integer, "null"] }
+                        appointmentBufferMinutes: { type: [integer, "null"] }
+        "400":
+          description: Invalid date
+        "401":
+          description: Staff sign-in required
+        "403":
+          description: Staff access denied
+        "500":
+          description: Unable to check appointments
   /enquiries:
     get:
       operationId: getEnquiries
