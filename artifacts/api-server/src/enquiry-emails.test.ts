@@ -19,7 +19,12 @@ import {
 } from "./test/tenant-test-db";
 import { resolveTenant } from "./middlewares/tenant";
 import { createStaffEmailRouter } from "./routes/staff-email";
-import { createEnquiryEmailRouter } from "./routes/enquiry-emails";
+import {
+  createEnquiryEmailRouter,
+  rebuildStaffOutboxEmail,
+} from "./routes/enquiry-emails";
+import { deliverEmailOutbox } from "./lib/email-outbox";
+import { runWithTenant } from "./lib/tenant-context";
 import { defaultEmailAppearance } from "@workspace/vehicle-meta";
 import type { PrivateDealerSettings } from "./lib/dealer-integrations-store";
 
@@ -48,22 +53,20 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       verified: true,
       verificationToken: "fictional",
     });
-    await db
-      .insert(dealerSettingsTable)
-      .values({
-        dealerId: dealer,
-        config: {
-          identity: { name: `Dealer ${dealer}` },
-          contact: {
-            email: `showroom-${dealer}@example.test`,
-            phone: "07700 900123",
-          },
-          testDriveBooking: {
-            instructions: "Please bring your driving licence.",
-          },
-          presentation: { parkingInstructions: "Use the visitor parking bay." },
+    await db.insert(dealerSettingsTable).values({
+      dealerId: dealer,
+      config: {
+        identity: { name: `Dealer ${dealer}` },
+        contact: {
+          email: `showroom-${dealer}@example.test`,
+          phone: "07700 900123",
         },
-      });
+        testDriveBooking: {
+          instructions: "Please bring your driving licence.",
+        },
+        presentation: { parkingInstructions: "Use the visitor parking bay." },
+      },
+    });
     await db.insert(portalUsersTable).values({
       dealerId: dealer,
       authUserId: `user_${dealer}`,
@@ -707,6 +710,61 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     ).message;
     assert.ok(!withoutAppointment.includes("Confirmed"));
     assert.ok(!withoutAppointment.includes("30 minutes"));
+    // A queued approved message cannot acquire a new price/body under its old key.
+    const queuedDraft = {
+      ...noPhotos,
+      expectedRevision: 1,
+      includeAppointment: false,
+    };
+    const approved = await call(base + "/email-preview", queuedDraft);
+    failure = "Email provider returned HTTP 429.";
+    const queued = await call(base + "/email", {
+      ...queuedDraft,
+      requestId: randomUUID(),
+      previewHash: approved.data.previewHash,
+    });
+    assert.equal(queued.status, 201);
+    assert.equal(queued.data.delivery.status, "sending");
+    assert.ok(queued.data.delivery.retryAt);
+    assert.equal(queued.data.delivery.attempts, 1);
+    const [outbox] = (
+      await db.execute(
+        sql`SELECT id FROM email_outbox WHERE delivery_id=${queued.data.delivery.id}::uuid AND dealer_id='a'`,
+      )
+    ).rows;
+    await db
+      .update(vehiclesTable)
+      .set({ sourcePrice: 8600 })
+      .where(eq(vehiclesTable.id, cars[0]));
+    const before = sends.length;
+    await runWithTenant(
+      {
+        dealerId: "a",
+        canonicalOrigin: "https://a.example.test",
+        platform: "autotrader",
+        retailerId: "a",
+        sourceUrl: "https://www.autotrader.co.uk/example",
+      },
+      async () => {
+        const outcome = await deliverEmailOutbox(String(outbox!.id), {
+          now: new Date(Date.parse(queued.data.delivery.retryAt) + 1000),
+          settings: async () => config.resend,
+          rebuild: (row) => rebuildStaffOutboxEmail(row, config),
+          send: async () => {
+            assert.fail("Changed price must not be sent");
+          },
+        });
+        assert.equal(outcome!.status, "unknown");
+      },
+    );
+    assert.equal(sends.length, before);
+    const refreshed = await call(base + "/email-context");
+    assert.equal(
+      refreshed.data.deliveries.find(
+        (row: any) => row.id === queued.data.delivery.id,
+      ).status,
+      "unknown",
+    );
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
     await engine.close();

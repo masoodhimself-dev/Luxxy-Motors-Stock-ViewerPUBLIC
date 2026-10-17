@@ -71,7 +71,7 @@ function validatedSettings(config:Record<string,unknown>,previous:Record<string,
 /** Root middleware mounts this before booking, sales and integration handlers. */
 export async function operationsPreview(req:IncomingMessage,res:ServerResponse,url:URL,options:PreviewOperationsOptions={}):Promise<boolean> {
   const path=url.pathname.replace(/^\/api/,''); const permission=operationPermission(req.method??'GET',path);
-  const own=path==='/dealer-settings'||path==='/dealer-operations'||path==='/dealer-operations/payments.csv'||path==='/staff/stock-health'||path==='/staff/access'||path==='/staff/team'||path.startsWith('/staff/team/')||path.startsWith('/staff/settings-history')||/^\/staff\/vehicles\/[^/]+\/price$/.test(path);
+  const own=path==='/dealer-settings'||path==='/dealer-operations'||path==='/dealer-operations/payments.csv'||path==='/staff/stock-health'||path==='/staff/access'||path==='/staff/inventory'||path==='/staff/team'||path.startsWith('/staff/team/')||path.startsWith('/staff/settings-history')||/^\/staff\/vehicles\/[^/]+\/price$/.test(path);
   if(!own&&!permission) return false;
   if(!local(req)){send(res,403,{error:'This service is available only on the authorised network.'});return true;}
   const file=options.stateFile??defaultFile;
@@ -86,6 +86,15 @@ export async function operationsPreview(req:IncomingMessage,res:ServerResponse,u
       const current=state.versions.at(-1)!;
       if(path==='/dealer-settings'&&req.method==='GET') { res.setHeader('x-settings-revision',String(current.revision));res.setHeader('ETag',`"${current.revision}"`);send(res,200,current.config);return true; }
       if(!staff){send(res,401,{error:'Sign in to use the dealer portal.'});return true;}
+      if(path==='/staff/inventory'&&req.method==='GET') {
+        const scope=url.searchParams.get('scope')??'current',q=(url.searchParams.get('q')??'').trim().toLowerCase();
+        if(!['current','archived'].includes(scope)||q.length>200||url.searchParams.has('cursor'))throw new SettingsVersionError('Check the inventory search.',400);
+        const {readPreviewSaleInventory}=await import('./sales');const statuses=await readPreviewSaleInventory();
+        const all=previewStock.cars.map(car=>({id:car.id,title:car.title,price:car.price,plate:car.plate,vrm:car.vrm,registration:car.registration,inventory_status:statuses[car.id]??car.inventoryStatus??'available',source_status:'live',missing_count:0,archived_at:null,photo:car.heroImage,service_photo_count:0,tasks:null}));
+        const archived=all.filter(car=>car.inventory_status==='archived'),current=all.filter(car=>car.inventory_status!=='archived');
+        const cars=(scope==='archived'?archived:current).filter(car=>`${car.title} ${car.plate??car.vrm??car.registration??''}`.toLowerCase().includes(q));
+        send(res,200,{cars,scope,counts:{current:current.length,archived:archived.length},matchedCount:cars.length,nextCursor:null,previewReadOnly:true});return true;
+      }
       if(path==='/staff/access'&&req.method==='GET'){send(res,200,{role:staff.role,permissions:permissionsForRole(staff.role),user:{authUserId:staff.authUserId,name:staff.name,email:staff.email}});return true;}
       if(path==='/staff/team'&&req.method==='GET'){send(res,200,{members:state.members});return true;}
       if(path==='/staff/team'&&req.method==='POST') {

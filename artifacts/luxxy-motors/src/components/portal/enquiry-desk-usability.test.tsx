@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { customFetch, type Enquiry } from '@workspace/api-client-react';
@@ -28,7 +28,7 @@ function show(ui: React.ReactNode) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 beforeEach(() => {
-  vi.mocked(customFetch).mockReset();
+  vi.mocked(customFetch).mockReset().mockResolvedValue({ events: [], total: 0, nextCursor: null });
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
 });
 
@@ -61,7 +61,8 @@ it('passes the selected original record to the email action and keeps occasional
   fireEvent.click(within(detail).getByRole('button', { name: 'Update enquiry' }));
   expect(update).toHaveBeenCalledWith(selected);
   expect(within(detail).getByRole('link', { name: 'Start sale' })).toHaveAttribute('href', '/portal?section=sales&enquiryId=selected');
-  expect(customFetch).not.toHaveBeenCalled();
+  expect(customFetch).toHaveBeenCalledExactlyOnceWith('/api/staff/enquiries/selected/conversations', expect.objectContaining({ responseType: 'json' }));
+  expect(vi.mocked(customFetch).mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });
 
 it('does not hide stock errors or pending booking approvals inside optional reporting', async () => {
@@ -129,4 +130,21 @@ it('keeps changing an existing future appointment separate from creating a secon
   fireEvent.click(screen.getByRole('button', { name: 'Change appointment' }));
   expect(onAppointment).toHaveBeenCalledExactlyOnceWith(upcoming);
   expect(onBook).not.toHaveBeenCalled();
+});
+
+it('loads each merged original conversation only when that original is expanded', async () => {
+  const main = entry('main', { createdAt: '2026-10-17T09:00:00Z' });
+  const original = entry('original', { mergedIntoId: 'main', createdAt: '2026-10-16T09:00:00Z' });
+  const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[main]} allEntries={[main, original]} cars={[]} selectedId="main" onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  await waitFor(() => expect(customFetch).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(customFetch).mock.calls[0][0]).toBe('/api/staff/enquiries/main/conversations');
+  const originals = screen.getByRole('region', { name: 'Merged case original records' });
+  const details = originals.querySelector('details')!;
+  expect(details).not.toHaveAttribute('open');
+  details.open = true;
+  fireEvent(details, new Event('toggle'));
+  await waitFor(() => expect(customFetch).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(customFetch).mock.calls[1][0]).toBe('/api/staff/enquiries/original/conversations');
+  expect(within(originals).getByText('Customer original')).toBeVisible();
 });

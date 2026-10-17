@@ -8,9 +8,10 @@ import { previewSettings } from "./settings";
 import { previewStock } from "./stock";
 const policy = (overrides: Partial<BookingPolicy> = {}): BookingPolicy => ({ ...structuredClone(defaultBookingPolicy), ...overrides });
 
-async function call(state: BookingPreviewState, settings: typeof previewSettings, method: string, path: string, data?: object) {
+async function call(state: BookingPreviewState, settings: typeof previewSettings, method: string, path: string, data?: object, headers: Record<string, string> = {}) {
   const req = Readable.from(data ? [JSON.stringify(data)] : []) as IncomingMessage;
   req.method = method;
+  req.headers = headers;
   const result = await handlePreviewBooking(req, new URL(path, "http://localhost"), state, settings);
   assert.ok(result); return result as { status: number; data: any };
 }
@@ -249,4 +250,23 @@ test('unavailable cars cannot be confirmed or moved, but their appointments can 
       assert.equal((await call(customerState, settings, 'POST', `${customerPath}/cancel`, {})).data.status, 'cancelled', `${status} appointments remain cancellable by customers`);
     }
   } finally { previewStock.cars.splice(previewStock.cars.indexOf(car), 1); }
+});
+
+test('local history summaries omit timelines and selected conversation pages retain all older notes', async () => {
+  const state: BookingPreviewState = { reservations: [] };
+  const settings = { ...previewSettings, testDriveBooking: policy() };
+  await call(state, settings, 'POST', '/api/staff/enquiries', { vehicleId: null, type: 'general', customerName: 'Fictional history fixture', email: null, phone: '07700900123', preferredContact: 'phone', message: 'Original retained question', appointmentAt: null });
+  const entry = state.enquiries![0];
+  entry.events = Array.from({ length: 51 }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`, kind: 'conversation_logged', occurredAt: new Date(Date.UTC(2026, 9, 17, 10, 0, i)).toISOString(), staffName: 'Fictional staff', summary: 'Call', note: `Older note ${i}` }));
+  const full = (await call(state, settings, 'GET', '/api/enquiries')).data;
+  const summary = (await call(state, settings, 'GET', '/api/enquiries', undefined, { 'x-enquiry-timeline': 'omit' })).data;
+  assert.equal(full[0].events.length, 51); assert.equal(summary[0].events.length, 0);
+  assert.equal(summary[0].message, 'Original retained question');
+  let cursor: string | null = null; const ids: string[] = [];
+  do {
+    const page = (await call(state, settings, 'GET', `/api/staff/enquiries/${entry.id}/conversations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`)).data;
+    assert.equal(page.total, 51); assert.ok(page.events.length <= 25); ids.push(...page.events.map((event: { id: string }) => event.id)); cursor = page.nextCursor;
+  } while (cursor);
+  assert.equal(ids.length, 51); assert.equal(new Set(ids).size, 51);
+  await assert.rejects(call(state, settings, 'GET', `/api/staff/enquiries/${entry.id}/conversations?cursor=bad`), /history page is invalid/i);
 });

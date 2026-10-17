@@ -1,9 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const state = vi.hoisted(() => ({ fetch: vi.fn(), writable: true }));
+const state = vi.hoisted(() => ({ fetch: vi.fn(), writable: true, selected: true }));
 vi.mock("wouter", () => ({
-  useSearch: () => "?vehicleId=11111111-1111-4111-8111-111111111111",
+  useSearch: () => state.selected ? "?vehicleId=11111111-1111-4111-8111-111111111111" : "",
   useLocation: () => ["", vi.fn()],
   Link: ({ children, href }: any) => <a href={href}>{children}</a>,
 }));
@@ -39,6 +39,7 @@ const car = {
 };
 beforeEach(() => {
   state.writable = true;
+  state.selected = true;
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
@@ -159,4 +160,33 @@ it("keeps the plate readable for staff without edit permission", async () => {
   expect(
     screen.queryByRole("button", { name: "Unreserve car" }),
   ).not.toBeInTheDocument();
+});
+
+it("loads archived cars separately and searches across older archive pages", async () => {
+  state.selected = false;
+  const archived = { ...car, id: "archive-one", title: "Older Toyota", inventory_status: "archived", archived_at: "2026-01-01T00:00:00Z" };
+  const oldest = { ...archived, id: "archive-two", title: "Oldest needle vehicle", plate: "ZX99OLD" };
+  state.fetch.mockImplementation(async (url: string) => {
+    const parsed = new URL(url, "https://fictional.example.test");
+    if (parsed.searchParams.has("q")) return { cars: [oldest], counts: { current: 1, archived: 2 }, matchedCount: 1, nextCursor: null };
+    if (parsed.searchParams.get("scope") === "archived") return parsed.searchParams.has("cursor")
+      ? { cars: [oldest], counts: { current: 1, archived: 2 }, matchedCount: 2, nextCursor: null }
+      : { cars: [archived], counts: { current: 1, archived: 2 }, matchedCount: 2, nextCursor: "older-cars" };
+    return { cars: [car], counts: { current: 1, archived: 2 }, matchedCount: 1, nextCursor: null };
+  });
+  mount();
+  expect(await screen.findByText("Ford Focus")).toBeVisible();
+  expect(screen.queryByText("Older Toyota")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole("combobox", { name: "Availability" }), { target: { value: "archived" } });
+  expect(await screen.findByText("Older Toyota")).toBeVisible();
+  expect(screen.queryByText("Ford Focus")).not.toBeInTheDocument();
+  expect(screen.getByText("Showing 1 of 2 matching archived cars.")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Load older archived cars" }));
+  expect(await screen.findByText("Oldest needle vehicle")).toBeVisible();
+  expect(screen.getByText("Showing 2 of 2 matching archived cars.")).toBeVisible();
+  fireEvent.change(screen.getByRole("textbox", { name: "Search cars" }), { target: { value: "needle" } });
+  await waitFor(() => expect(state.fetch.mock.calls.some(([url]) => String(url).includes("q=needle"))).toBe(true));
+  expect(await screen.findByText("Showing 1 of 1 matching archived cars.")).toBeVisible();
+  expect(screen.queryByText("Older Toyota")).not.toBeInTheDocument();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === "GET")).toBe(true);
 });

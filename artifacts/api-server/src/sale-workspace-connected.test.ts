@@ -20,7 +20,7 @@ function fixture(reservationTerms = 'TEST APPROVED RESERVATION') {
     if (q.startsWith('SELECT stage FROM leads')) return { rows: [{ stage: 'reserved' }] };
     if (q.startsWith('SELECT l.vehicle_id FROM leads')) return { rows: [{ vehicle_id: vehicleId }] };
     if (q.startsWith('SELECT id FROM leads')) return { rows: [] };
-    if (q.startsWith('SELECT state FROM sale_workspace')) {
+    if (q.startsWith('SELECT state') && q.includes('FROM sale_workspace')) {
       let list = [...records.values()];
       if (q.includes("state->'requests'")) list = list.filter(s => s.requests?.[p[1]]);
       else if (q.includes("state->'providerPayments'")) list = list.filter(s => s.providerPayments?.[p[1]]);

@@ -1,3 +1,4 @@
+import { useEnquirySummaries as useGetEnquiries, enquirySummaryKey } from "@/lib/enquiry-summary-query";
 import { AppointmentExceptionLabels, EnquiryCalendar } from "./enquiry-calendar";
 import { EnquiryPhotoPeek } from "./enquiry-photo-peek";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,6 @@ import { bookingPressure, validStaffAppointmentDateTime, withinBookingHours } fr
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useGetEnquiries,
   useGetStaffDirectory,
   useListReservations,
   getListReservationsQueryKey,
@@ -998,7 +998,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
     else { setSelectedEnquiryId(null); setSearch(''); setNotice('This enquiry could not be found. Refresh or search by customer details.'); }
   }, [requestedEnquiry, requestedDeskView, initialView, query.data]);
   async function saved(entry: Enquiry) {
-    client.setQueryData<Enquiry[]>(getGetEnquiriesQueryKey(), current => {
+    client.setQueryData<Enquiry[]>(enquirySummaryKey(), current => {
       const entries = current ?? [];
       return entries.some(item => item.id === entry.id)
         ? entries.map(item => item.id === entry.id ? entry : item)
@@ -1147,7 +1147,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         setNotice(`${result.recordIds.length} records merged into one case. ${result.cancelledAppointmentIds.length ? `${result.cancelledAppointmentIds.length} appointments cancelled.` : "All active appointments retained."}`);
         await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith("/availability") })]);
       }} />}
-      {conversationEntry && <ConversationEditor entry={conversationEntry} onClose={() => setConversationEntry(null)} onSaved={async entry => { client.setQueryData(getGetEnquiriesQueryKey(), (current: Enquiry[] | undefined) => current?.map(item => item.id === entry.id ? entry : item)); setConversationEntry(null); setSelectedEnquiryId(mode === "callbacks" ? entry.id : primaryEnquiry(entry, allEntries).id); setNotice(`${entry.reference}: conversation saved.`); await Promise.all([query.refetch(), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]); }} />}
+      {conversationEntry && <ConversationEditor entry={conversationEntry} onClose={() => setConversationEntry(null)} onSaved={async entry => { client.setQueryData(enquirySummaryKey(), (current: Enquiry[] | undefined) => current?.map(item => item.id === entry.id ? entry : item)); setConversationEntry(null); setSelectedEnquiryId(mode === "callbacks" ? entry.id : primaryEnquiry(entry, allEntries).id); setNotice(`${entry.reference}: conversation saved.`); await Promise.all([query.refetch(), client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]); }} />}
       {emailEntry && <EnquiryEmailComposer entry={emailEntry} onClose={() => setEmailEntry(null)} />}
       {workspaceEntry && <WorkspaceEditor entry={workspaceEntry} onClose={() => setWorkspaceEntry(null)} />}
       {historyContact && <Dialog open onOpenChange={open => { if (!open) setHistoryContact(null); }}><DialogContent className="portal-action-dialog portal-action-dialog-wide enquiry-action-dialog max-w-2xl"><DialogHeader><DialogTitle>{historyContact.customerName} — customer history</DialogTitle><DialogDescription>Enquiries, appointments and reservations matched by contact details.</DialogDescription></DialogHeader><CustomerHistory contact={historyContact} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} />{(query.isError || reservations.isError) && <p role="alert">Some records could not be loaded. Refresh to retry.</p>}</DialogContent></Dialog>}

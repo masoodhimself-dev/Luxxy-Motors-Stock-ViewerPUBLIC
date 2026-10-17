@@ -11,12 +11,15 @@ import shareRouter from "./routes/share";
 import { logger } from "./lib/logger";
 import { clerkMiddleware } from "@clerk/express";
 import { importAdmission } from './lib/stock-import-admission';
+import { serviceLifecycle } from './lib/service-lifecycle';
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
 } from "./middlewares/clerkProxyMiddleware";
 
 const app: Express = express();
+// Before body buffering, tenant lookups and authentication/provider work.
+app.use(serviceLifecycle.middleware);
 
 app.use(
   pinoHttp({

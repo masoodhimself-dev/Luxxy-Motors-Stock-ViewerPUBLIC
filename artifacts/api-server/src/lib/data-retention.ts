@@ -1,3 +1,4 @@
+import { startLifecycleWorker } from './service-lifecycle';
 import { resolve, join } from "node:path";
 import { readdir, lstat, unlink } from "node:fs/promises";
 import { sql } from "drizzle-orm";
@@ -90,37 +91,20 @@ export async function cleanupRetentionTemporaryFiles(
   return removed;
 }
 export function startRetentionWorker(log: Logger) {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
+  return startLifecycleWorker({
+    intervalMs: 3_600_000,
+    work: async () => {
       await forEachActiveDealer(async () => {
         const counts = await retainDealerData();
         if (Object.values(counts).some(Boolean))
-          log.info(
-            { dealerId: currentDealerId(), ...counts },
-            "Data retention completed",
-          );
-        // This separate stock-only policy remains disabled until an operator opts in.
+          log.info({ dealerId: currentDealerId(), ...counts }, 'Data retention completed');
+        // This stock-only policy remains disabled until an operator opts in.
         const snapshots = await compactCompletedStockSnapshots(currentDealerId());
         if (snapshots.enabled && (snapshots.compacted || snapshots.hashBackfilled || snapshots.integritySkipped))
-          log.info(
-            { retentionDays: snapshots.retentionDays, compacted: snapshots.compacted, hashBackfilled: snapshots.hashBackfilled, rawBytesRemoved: snapshots.rawBytesRemoved, integritySkipped: snapshots.integritySkipped },
-            'Stock snapshot retention completed',
-          );
+          log.info({ retentionDays: snapshots.retentionDays, compacted: snapshots.compacted, hashBackfilled: snapshots.hashBackfilled, rawBytesRemoved: snapshots.rawBytesRemoved, integritySkipped: snapshots.integritySkipped }, 'Stock snapshot retention completed');
       }, { name: 'retention', log });
       await cleanupRetentionTemporaryFiles();
-    } catch {
-      log.warn(
-        "Data retention did not complete; protected records remain retained.",
-      );
-    } finally {
-      running = false;
-    }
-  };
-  const timer = setInterval(() => void tick(), 3600000);
-  timer.unref();
-  void tick();
-  return () => clearInterval(timer);
+    },
+    onError: () => log.warn('Data retention did not complete; protected records remain retained.'),
+  });
 }

@@ -11,6 +11,7 @@ const enquiry = {
 };
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: any[]) => state.fetch(...args),
+  getGetEnquiriesQueryKey: () => ["/api/enquiries"],
   useGetEnquiries: () => ({ data: [enquiry] }),
 }));
 vi.mock("wouter", () => ({

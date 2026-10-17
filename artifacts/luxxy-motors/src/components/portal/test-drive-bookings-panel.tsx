@@ -1,3 +1,4 @@
+import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
@@ -5,7 +6,6 @@ import {
   getGetTestDriveBookingsQueryKey,
   getGetEnquiriesQueryKey,
   useDecideTestDriveBooking,
-  useGetEnquiries,
   useGetTestDriveBookings,
   type Enquiry,
 } from '@workspace/api-client-react';
@@ -129,7 +129,7 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
   const [mergeEntry, setMergeEntry] = useState<Enquiry | null>(null);
   const client = useQueryClient();
   const enquiries = useGetEnquiries(undefined, { query: { queryKey: getGetEnquiriesQueryKey(), enabled: Boolean(mergeEntry || enquiryId), staleTime: 0 } });
-  const query = useGetTestDriveBookings({ query: { queryKey: getGetTestDriveBookingsQueryKey(), refetchInterval: 60_000 } });
+  const query = useGetTestDriveBookings({ request: { headers: { "X-Enquiry-Timeline": "omit" } }, query: { queryKey: [...getGetTestDriveBookingsQueryKey(), "timeline-omitted"], refetchInterval: 60_000 } });
   const now = Date.now();
   const selectedEnquiry = enquiryId ? enquiries.data?.find(entry => entry.id === enquiryId) : undefined;
   const relatedEnquiries = selectedEnquiry ? enquiryGroup(primaryEnquiry(selectedEnquiry, enquiries.data!), enquiries.data!) : [];

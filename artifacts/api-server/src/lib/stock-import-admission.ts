@@ -1,20 +1,22 @@
 import type { NextFunction, Request, Response } from 'express';
+import { serviceLifecycle } from './service-lifecycle';
 
 type Lease = { startedAt: number; processing: boolean; released: boolean; release: () => void };
 
 /** Reject excess uploads before buffering JSON. This bounds one API process,
  * not the whole fleet; the collector must also pace and retry immutable runs. */
-export function createStockImportAdmission(maximum = 2, now: () => number = Date.now) {
+export function createStockImportAdmission(maximum = 2, now: () => number = Date.now, lifecycle = serviceLifecycle) {
   maximum = Number.isInteger(maximum) && maximum >= 1 && maximum <= 4 ? maximum : 2;
   const leases = new Set<Lease>();
   const requests = new WeakMap<Request, Lease>();
   let accepted = 0, rejected = 0, completed = 0, peakActive = 0;
   function middleware(req: Request, res: Response, next: NextFunction) {
     if (req.method !== 'POST' || !/^\/api\/stock\/imports(?:\/|$)/i.test(req.path)) { next(); return; }
-    if (leases.size >= maximum) {
+    const restarting = lifecycle.isDraining();
+    if (restarting || leases.size >= maximum) {
       rejected++;
       res.set({ 'Retry-After': '15', 'Cache-Control': 'no-store' });
-      res.status(503).json({ status: 'busy', runId: null, retailerId: null, errors: [{ code: 'import_capacity_busy', message: 'Stock import capacity is busy. Retry the same runId and identical body after Retry-After.', path: null, advertId: null }] });
+      res.status(503).json({ status: 'busy', runId: null, retailerId: null, errors: [{ code: restarting ? 'service_restarting' : 'import_capacity_busy', message: `${restarting ? 'The service is restarting.' : 'Stock import capacity is busy.'} Retry the same runId and identical body after Retry-After.`, path: null, advertId: null }] });
       return;
     }
     const lease: Lease = { startedAt: now(), processing: false, released: false, release: () => {
@@ -33,8 +35,8 @@ export function createStockImportAdmission(maximum = 2, now: () => number = Date
     const lease = requests.get(req);
     if (lease?.released || res.destroyed) return;
     if (lease) lease.processing = true;
-    try { await operation(); }
-    finally { lease?.release(); }
+    try { await lifecycle.track(operation); }
+    finally { lease?.release(); lifecycle.finishRequest(req); }
   }
   function status() {
     const oldest = [...leases].reduce((value, lease) => Math.min(value, lease.startedAt), now());

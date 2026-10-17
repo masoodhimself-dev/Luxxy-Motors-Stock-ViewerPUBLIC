@@ -117,15 +117,10 @@ export async function readDealerChatRecords(
   database: ChatQueryClient,
 ) {
   try {
-    const state = (
-      await database.query("SELECT state FROM dealer_chat WHERE dealer_id=$1", [
-        dealerId,
-      ])
-    ).rows[0]?.state as ChatState | undefined;
-    return (state?.records ?? []).map((record) => ({
-      conversation: record.conversation,
-      messages: record.messages,
-    }));
+    const result = await database.query(`SELECT record->'conversation' AS conversation,record->'messages' AS messages
+      FROM dealer_chat CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(state->'records')='array' THEN state->'records' ELSE '[]'::jsonb END) record
+      WHERE dealer_id=$1`, [dealerId]);
+    return result.rows.map(record => ({ conversation: record.conversation, messages: Array.isArray(record.messages) ? record.messages : [] })) as Array<{ conversation: ChatState['records'][number]['conversation']; messages: ChatState['records'][number]['messages'] }>;
   } catch (error) {
     if ((error as { code?: string }).code === "42P01") return [];
     throw error;

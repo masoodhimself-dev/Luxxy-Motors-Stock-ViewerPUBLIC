@@ -43,7 +43,7 @@ const jordan = enquiry('jordan', 'Jordan Customer');
 
 function mount(search: string, entries: Enquiry[] = [alex, jordan]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } });
-  client.setQueryData(['enquiries'], entries);
+  client.setQueryData(['enquiries', 'timeline-omitted'], entries);
   const location = memoryLocation({ path: `/portal?${search}`, record: true });
   const rendered = render(<QueryClientProvider client={client}><Router hook={location.hook}><EnquiriesPanel embedded initialView="history" /></Router></QueryClientProvider>);
   return { client, location, ...rendered };
@@ -80,7 +80,7 @@ it('shows a newly saved customer before the invalidated enquiry list finishes re
   fireEvent.click(screen.getByRole('button', { name: 'Save phone enquiry' }));
   await waitFor(() => expect(screen.getByTestId('selected-enquiry')).toHaveTextContent(fresh.id));
   expect(screen.getByText('New Customer · ENQ-new-customer')).toBeVisible();
-  expect(client.getQueryData<Enquiry[]>(['enquiries'])?.find(entry => entry.id === fresh.id)).toEqual(fresh);
+  expect(client.getQueryData<Enquiry[]>(['enquiries', 'timeline-omitted'])?.find(entry => entry.id === fresh.id)).toEqual(fresh);
   expect(screen.queryByText(/This enquiry could not be found/)).not.toBeInTheDocument();
   const query = new URL(location.history!.at(-1)!, 'https://dealer.example').searchParams;
   expect(query.get('enquiryId')).toBe(fresh.id);
@@ -93,7 +93,7 @@ it('opens a requested record when it becomes available after a query refresh', a
   expect(await screen.findByText(/This enquiry could not be found/)).toBeVisible();
   expect(screen.queryByRole('region', { name: 'Customer records' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Show all enquiries' })).toBeVisible();
-  await act(async () => { client.setQueryData(['enquiries'], [fresh, alex, jordan]); });
+  await act(async () => { client.setQueryData(['enquiries', 'timeline-omitted'], [fresh, alex, jordan]); });
   await waitFor(() => expect(screen.getByTestId('selected-enquiry')).toHaveTextContent(fresh.id));
   expect(screen.getByRole('textbox', { name: 'Find a customer or car' })).toHaveValue(fresh.reference);
   expect(screen.queryByText(/This enquiry could not be found/)).not.toBeInTheDocument();

@@ -1,6 +1,7 @@
+import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { customFetch, useGetEnquiries } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { Mail, Paperclip, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";

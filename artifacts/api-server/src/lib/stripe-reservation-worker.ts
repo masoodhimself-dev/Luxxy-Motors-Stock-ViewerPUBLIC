@@ -1,3 +1,4 @@
+import { serviceLifecycle } from './service-lifecycle';
 import { currentDealerId } from './tenant-context';
 import { forEachActiveDealer } from './tenant-jobs';
 import type { Logger } from 'pino';
@@ -7,7 +8,7 @@ let running = false;
 export function startStripeReservationWorker(log: Logger) {
   let stopped = false;
   const tick = async () => {
-    if (running || stopped) return; running = true;
+    if (running || stopped || serviceLifecycle.isDraining()) return; running = true;
     const check = async () => {
       const settings = (await dealerIntegrationsStore.readPrivate()).stripe;
       if (settings.enabled) await expireAbandonedStripeReservations(currentDealerId(), settings);

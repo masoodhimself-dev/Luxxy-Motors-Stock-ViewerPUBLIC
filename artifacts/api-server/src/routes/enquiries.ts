@@ -70,6 +70,8 @@ import { openLeadForEnquiry } from "../lib/leads";
 import { attendanceError, outcomeError } from "../lib/enquiry-workspace";
 import { conversationChange, ConversationError } from "../lib/enquiry-conversations";
 import { readAppointmentDiary } from "../lib/appointment-diary";
+import { enquiryConversationPage } from "../lib/enquiry-conversation-history";
+import { HistoryCursorError, parseHistoryCursor } from "../lib/history-cursor";
 
 const router: IRouter = Router();
 const uuidPattern =
@@ -166,6 +168,19 @@ router.post("/staff/enquiries/:id/conversations", requireStaff, requirePermissio
   } catch (error) {
     if (error instanceof ConversationError) { res.status(error.status).json(errorResponse(error.message)); return; }
     req.log.error({ err: error }, "Unable to log conversation"); res.status(500).json(errorResponse("Unable to save the conversation."));
+  }
+});
+
+router.get("/staff/enquiries/:id/conversations", requireStaff, async (req, res) => {
+  if (!uuidPattern.test(String(req.params.id))) { res.status(400).json(errorResponse("Choose a valid enquiry.")); return; }
+  try {
+    const page = await enquiryConversationPage(settings().dealerId, String(req.params.id), parseHistoryCursor(req.query.cursor));
+    if (!page) { res.status(404).json(errorResponse("Enquiry not found.")); return; }
+    res.json(page);
+  } catch (error) {
+    if (error instanceof HistoryCursorError) { res.status(400).json(errorResponse(error.message)); return; }
+    req.log.error({ err: error }, "Unable to load conversation history");
+    res.status(500).json(errorResponse("Unable to load conversation history."));
   }
 });
 
@@ -292,7 +307,7 @@ router.get("/enquiries", requireStaff, async (req, res): Promise<void> => {
       .from(enquiriesTable)
       .where(and(...conditions))
       .orderBy(desc(enquiriesTable.createdAt));
-    const events = await eventsForEnquiries(enquiries.map((entry) => entry.id));
+    const events = req.get("x-enquiry-timeline") === "omit" ? new Map() : await eventsForEnquiries(enquiries.map((entry) => entry.id));
     res.json(
       GetEnquiriesResponse.parse(
         enquiries.map((enquiry) =>
@@ -705,7 +720,7 @@ router.patch("/enquiries/:id/status", requireStaff, async (req, res): Promise<vo
 router.get("/test-drive-bookings", requireStaff, async (req, res): Promise<void> => {
   try {
     const appointments = await db.select().from(enquiriesTable).where(and(eq(enquiriesTable.dealerId, settings().dealerId), eq(enquiriesTable.type, "viewing"))).orderBy(desc(enquiriesTable.createdAt));
-    const events = await eventsForEnquiries(appointments.map(entry => entry.id));
+    const events = req.get("x-enquiry-timeline") === "omit" ? new Map() : await eventsForEnquiries(appointments.map(entry => entry.id));
     res.json(GetTestDriveBookingsResponse.parse(appointments.map((entry) => toEnquiryResponse(entry, { events: events.get(entry.id) ?? [] }))));
   } catch (error) {
     req.log.error({ err: error }, "Unable to list test-drive appointments");

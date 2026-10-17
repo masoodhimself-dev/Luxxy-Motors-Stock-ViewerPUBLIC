@@ -1,7 +1,19 @@
-import { forEachActiveDealer } from './tenant-jobs';
+import { forEachActiveDealer } from "./tenant-jobs";
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { currentDealerId, multiTenantEnabled } from "./tenant-context";
-import { sendEmail, renderDealerEmail } from "./email-provider";
+import { renderDealerEmail, type EmailRequest } from "./email-provider";
+import {
+  enqueueEmailOutbox,
+  attemptQueuedEmail,
+  recoverEmailOutbox,
+  type EmailOutbox,
+  type OutboxKind,
+} from "./email-outbox";
+import {
+  dealerIntegrationsStore,
+  effectiveResendSettings,
+} from "./dealer-integrations-store";
+import { serviceLifecycle } from "./service-lifecycle";
 import {
   and,
   desc,
@@ -11,6 +23,7 @@ import {
   lt,
   lte,
   or,
+  sql,
   type AnyColumn,
 } from "drizzle-orm";
 import {
@@ -21,14 +34,18 @@ import {
   type Enquiry,
 } from "@workspace/db";
 import type { Logger } from "pino";
-import { notificationVersion, viewingCalendarIcs, viewingManageUrl } from "./enquiry-links";
+import {
+  notificationVersion,
+  viewingCalendarIcs,
+  viewingManageUrl,
+} from "./enquiry-links";
 
 export const bookingTimezone = "Europe/London";
 const reminderLeadTimeMs = 24 * 60 * 60 * 1000;
 const deliveryLeaseMs = 15 * 60 * 1000;
 
 type DeliveryResult = {
-  status: "sent" | "failed";
+  status: "sent" | "failed" | "sending" | "unknown";
   error: string | null;
   sentAt: Date | null;
   providerId: string | null;
@@ -88,24 +105,27 @@ async function getDealerProfile(): Promise<DealerProfile> {
   const [settings] = await db
     .select({ config: dealerSettingsTable.config })
     .from(dealerSettingsTable)
-    .where(
-      eq(
-        dealerSettingsTable.dealerId,
-        currentDealerId(),
-      ),
-    );
+    .where(eq(dealerSettingsTable.dealerId, currentDealerId()));
   const config = settings?.config as DealerSettingsConfig | undefined;
   return {
-    instructions: config?.testDriveBooking?.instructions?.trim() || config?.presentation?.visitInstructions?.trim() || "",
-    parkingInstructions: config?.presentation?.parkingInstructions?.trim() || "",
+    instructions:
+      config?.testDriveBooking?.instructions?.trim() ||
+      config?.presentation?.visitInstructions?.trim() ||
+      "",
+    parkingInstructions:
+      config?.presentation?.parkingInstructions?.trim() || "",
     identity: {
-      name: config?.identity?.name?.trim() || defaultDealerProfile.identity.name,
+      name:
+        config?.identity?.name?.trim() || defaultDealerProfile.identity.name,
     },
     contact: {
-      email: config?.contact?.email?.trim() || defaultDealerProfile.contact.email,
-      phone: config?.contact?.phone?.trim() || defaultDealerProfile.contact.phone,
+      email:
+        config?.contact?.email?.trim() || defaultDealerProfile.contact.email,
+      phone:
+        config?.contact?.phone?.trim() || defaultDealerProfile.contact.phone,
       whatsapp:
-        config?.contact?.whatsapp?.trim() || defaultDealerProfile.contact.whatsapp,
+        config?.contact?.whatsapp?.trim() ||
+        defaultDealerProfile.contact.whatsapp,
       address: formatAddress(config?.address),
     },
   };
@@ -132,6 +152,8 @@ async function attemptEmail({
   logMessage,
   dealerName,
   attachments,
+  enquiry,
+  kind,
 }: {
   to: string | null;
   subject: string;
@@ -144,6 +166,8 @@ async function attemptEmail({
   logMessage: string;
   dealerName: string;
   attachments?: Array<{ filename: string; content: string }>;
+  enquiry: Enquiry;
+  kind: OutboxKind;
 }): Promise<DeliveryResult> {
   if (!to) {
     return {
@@ -155,21 +179,50 @@ async function attemptEmail({
   }
 
   try {
-    const providerId = await sendEmail(
-      to,
-      subject,
-      html,
-      idempotencyKey,
-      dealerName,
-      attachments,
-      text,
+    const config = effectiveResendSettings(
+      await dealerIntegrationsStore.readPrivate(),
     );
-    return { status: "sent", error: null, sentAt: new Date(), providerId };
-  } catch (error) {
-    log.error({ err: error, enquiryId }, logMessage);
+    const outbox = await enqueueEmailOutbox({
+      enquiryId: enquiry.id,
+      kind,
+      config,
+      request: { to, subject, html, text, idempotencyKey, attachments },
+      validation: {
+        appointmentRevision: enquiry.appointmentRevision,
+        workspaceRevision: enquiry.workspaceRevision,
+        version: notificationVersion(enquiry),
+      },
+    });
+    const outcome = await attemptQueuedEmail(outbox.id);
+    const status =
+      outcome?.status === "sent"
+        ? "sent"
+        : outcome?.status === "failed"
+          ? "failed"
+          : outcome?.status === "unknown" || outcome?.status === "cancelled"
+            ? "unknown"
+            : "sending";
     return {
-      status: "failed",
-      error: "Resend could not deliver this email.",
+      status,
+      error:
+        status === "sent"
+          ? null
+          : status === "sending"
+            ? "The same approved email is queued for delivery."
+            : "Email delivery needs review. Check Resend before preparing another copy.",
+      sentAt: status === "sent" ? new Date() : null,
+      providerId: outcome?.provider_id ?? null,
+    };
+  } catch {
+    // Drizzle errors may embed INSERT parameters, including private attachments.
+    log.warn(
+      { stage: "email_queue", code: "email_queue_unavailable" },
+      logMessage,
+    );
+    return {
+      status: "unknown",
+      error:
+        "Email acceptance could not be confirmed. Check the delivery history and Resend before preparing another copy.",
       sentAt: null,
       providerId: null,
     };
@@ -213,52 +266,130 @@ function partExchangeSection(enquiry: Enquiry) {
 }
 
 function appointmentState(enquiry: Enquiry) {
-  return enquiry.appointmentCancelledAt ? "cancelled" : enquiry.appointmentStatus === "pending" ? "requested — awaiting confirmation" : "confirmed";
+  return enquiry.appointmentCancelledAt
+    ? "cancelled"
+    : enquiry.appointmentStatus === "pending"
+      ? "requested — awaiting confirmation"
+      : "confirmed";
 }
 
-async function enquiryEmail(enquiry: Enquiry, dealer: DealerProfile, audience: 'customer' | 'dealer', reminder = false) {
-  const isViewing = enquiry.type === 'viewing' && enquiry.appointmentAt != null;
+async function enquiryEmail(
+  enquiry: Enquiry,
+  dealer: DealerProfile,
+  audience: "customer" | "dealer",
+  reminder = false,
+) {
+  const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
   let moved = false;
-  if (audience === 'customer' && isViewing && !reminder && !enquiry.appointmentCancelledAt && enquiry.appointmentStatus === 'confirmed' && enquiry.appointmentRevision > 0) {
-    const [latest] = await db.select({ kind: enquiryEventsTable.kind }).from(enquiryEventsTable)
-      .where(and(eq(enquiryEventsTable.dealerId, enquiry.dealerId), eq(enquiryEventsTable.enquiryId, enquiry.id)))
-      .orderBy(desc(enquiryEventsTable.occurredAt)).limit(1);
-    moved = latest?.kind === 'viewing_rescheduled';
+  if (
+    audience === "customer" &&
+    isViewing &&
+    !reminder &&
+    !enquiry.appointmentCancelledAt &&
+    enquiry.appointmentStatus === "confirmed" &&
+    enquiry.appointmentRevision > 0
+  ) {
+    const [latest] = await db
+      .select({ kind: enquiryEventsTable.kind })
+      .from(enquiryEventsTable)
+      .where(
+        and(
+          eq(enquiryEventsTable.dealerId, enquiry.dealerId),
+          eq(enquiryEventsTable.enquiryId, enquiry.id),
+        ),
+      )
+      .orderBy(desc(enquiryEventsTable.occurredAt))
+      .limit(1);
+    moved = latest?.kind === "viewing_rescheduled";
   }
-  const templateId = audience === 'dealer' ? 'dealer_notification' : isViewing
-    ? enquiry.appointmentCancelledAt ? 'booking_cancellation'
-      : enquiry.appointmentStatus === 'pending' ? 'booking_request'
-      : reminder ? 'booking_reminder'
-      : moved ? 'booking_change' : 'booking_confirmation'
-    : enquiry.preferredContact === 'phone' && /^Callback requested at next opening/.test(enquiry.message) ? 'callback' : 'enquiry_acknowledgement';
+  const templateId =
+    audience === "dealer"
+      ? "dealer_notification"
+      : isViewing
+        ? enquiry.appointmentCancelledAt
+          ? "booking_cancellation"
+          : enquiry.appointmentStatus === "pending"
+            ? "booking_request"
+            : reminder
+              ? "booking_reminder"
+              : moved
+                ? "booking_change"
+                : "booking_confirmation"
+        : enquiry.preferredContact === "phone" &&
+            /^Callback requested at next opening/.test(enquiry.message)
+          ? "callback"
+          : "enquiry_acknowledgement";
   const facts = [
-    { label: 'Reference', value: enquiry.reference },
-    { label: 'Vehicle', value: vehicleLabel(enquiry, dealer.identity.name) },
-    ...(isViewing ? [
-      { label: 'Appointment status', value: appointmentState(enquiry) },
-      { label: 'Appointment', value: `${formatAppointment(enquiry.appointmentAt)} (${bookingTimezone})` },
-      { label: 'Duration', value: `${enquiry.appointmentDurationMinutes ?? 30} minutes` },
-      ...(dealer.contact.address ? [{ label: 'Showroom', value: dealer.contact.address }] : []),
-    ] : []),
-    ...(audience === 'dealer' ? [
-      { label: 'Customer', value: enquiry.customerName },
-      { label: 'Phone', value: enquiry.phone ?? 'Not provided' },
-      ...(enquiry.email ? [{ label: 'Email', value: enquiry.email }] : []),
-      ...(enquiry.partExchangeRegistration ? [{ label: 'Part-exchange registration', value: enquiry.partExchangeRegistration }] : []),
-      ...(enquiry.partExchangeMileage != null ? [{ label: 'Part-exchange mileage', value: `${enquiry.partExchangeMileage} miles` }] : []),
-    ] : []),
+    { label: "Reference", value: enquiry.reference },
+    { label: "Vehicle", value: vehicleLabel(enquiry, dealer.identity.name) },
+    ...(isViewing
+      ? [
+          { label: "Appointment status", value: appointmentState(enquiry) },
+          {
+            label: "Appointment",
+            value: `${formatAppointment(enquiry.appointmentAt)} (${bookingTimezone})`,
+          },
+          {
+            label: "Duration",
+            value: `${enquiry.appointmentDurationMinutes ?? 30} minutes`,
+          },
+          ...(dealer.contact.address
+            ? [{ label: "Showroom", value: dealer.contact.address }]
+            : []),
+        ]
+      : []),
+    ...(audience === "dealer"
+      ? [
+          { label: "Customer", value: enquiry.customerName },
+          { label: "Phone", value: enquiry.phone ?? "Not provided" },
+          ...(enquiry.email ? [{ label: "Email", value: enquiry.email }] : []),
+          ...(enquiry.partExchangeRegistration
+            ? [
+                {
+                  label: "Part-exchange registration",
+                  value: enquiry.partExchangeRegistration,
+                },
+              ]
+            : []),
+          ...(enquiry.partExchangeMileage != null
+            ? [
+                {
+                  label: "Part-exchange mileage",
+                  value: `${enquiry.partExchangeMileage} miles`,
+                },
+              ]
+            : []),
+        ]
+      : []),
   ];
-  return renderDealerEmail({ templateId, variables: {
-    dealer_name: dealer.identity.name, dealer_email: dealer.contact.email,
-    dealer_phone: dealer.contact.phone, dealer_address: dealer.contact.address,
-    customer_name: enquiry.customerName, customer_email: enquiry.email ?? '',
-    reference: enquiry.reference, vehicle_title: vehicleLabel(enquiry, dealer.identity.name),
-    appointment_time: formatAppointment(enquiry.appointmentAt) ?? '', appointment_status: appointmentState(enquiry),
-    duration: `${enquiry.appointmentDurationMinutes ?? 30} minutes`, visit_instructions: dealer.instructions ?? '',
-    parking_instructions: dealer.parkingInstructions ?? '',
-    manage_url: isViewing && !enquiry.appointmentCancelledAt ? viewingManageUrl(enquiry.id) ?? '' : '',
-    message: enquiry.message, preferred_contact: enquiry.preferredContact ? contactMethodLabels[enquiry.preferredContact] ?? enquiry.preferredContact : '',
-  }, facts });
+  return renderDealerEmail({
+    templateId,
+    variables: {
+      dealer_name: dealer.identity.name,
+      dealer_email: dealer.contact.email,
+      dealer_phone: dealer.contact.phone,
+      dealer_address: dealer.contact.address,
+      customer_name: enquiry.customerName,
+      customer_email: enquiry.email ?? "",
+      reference: enquiry.reference,
+      vehicle_title: vehicleLabel(enquiry, dealer.identity.name),
+      appointment_time: formatAppointment(enquiry.appointmentAt) ?? "",
+      appointment_status: appointmentState(enquiry),
+      duration: `${enquiry.appointmentDurationMinutes ?? 30} minutes`,
+      visit_instructions: dealer.instructions ?? "",
+      parking_instructions: dealer.parkingInstructions ?? "",
+      manage_url:
+        isViewing && !enquiry.appointmentCancelledAt
+          ? (viewingManageUrl(enquiry.id) ?? "")
+          : "",
+      message: enquiry.message,
+      preferred_contact: enquiry.preferredContact
+        ? (contactMethodLabels[enquiry.preferredContact] ??
+          enquiry.preferredContact)
+        : "",
+    },
+    facts,
+  });
 }
 
 function calendarAttachment(enquiry: Enquiry, dealer: DealerProfile) {
@@ -281,17 +412,23 @@ function claimable(
   status: AnyColumn,
   attemptedAt: AnyColumn,
   staleBefore: Date,
+  kind: OutboxKind,
 ) {
   return or(
     eq(status, "pending"),
     and(
       eq(status, "sending"),
       or(isNull(attemptedAt), lt(attemptedAt, staleBefore)),
+      sql`NOT EXISTS(SELECT 1 FROM email_outbox q WHERE q.dealer_id=${currentDealerId()} AND q.enquiry_id=${enquiriesTable.id} AND q.kind=${kind} AND (q.validation->>'appointmentRevision')::integer=${enquiriesTable.appointmentRevision})`,
     ),
   );
 }
 
-async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer: DealerProfile) {
+async function processCustomerConfirmation(
+  enquiry: Enquiry,
+  log: Logger,
+  dealer: DealerProfile,
+) {
   const attemptedAt = new Date();
   const staleBefore = new Date(attemptedAt.getTime() - deliveryLeaseMs);
   const [claimed] = await db
@@ -309,6 +446,7 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
           enquiriesTable.customerNotificationStatus,
           enquiriesTable.customerNotificationAttemptedAt,
           staleBefore,
+          "customer",
         ),
       ),
     )
@@ -317,7 +455,7 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
 
   const result = await attemptEmail({
     to: claimed.email,
-    ...await enquiryEmail(claimed, dealer, 'customer'),
+    ...(await enquiryEmail(claimed, dealer, "customer")),
     idempotencyKey: `enquiry-${claimed.id}-customer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Customer email address is missing.",
@@ -325,6 +463,8 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
     enquiryId: claimed.id,
     logMessage: "Customer confirmation delivery failed",
     attachments: calendarAttachment(claimed, dealer),
+    enquiry: claimed,
+    kind: "customer",
   });
   await db
     .update(enquiriesTable)
@@ -347,7 +487,11 @@ async function processCustomerConfirmation(enquiry: Enquiry, log: Logger, dealer
     );
 }
 
-async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: DealerProfile) {
+async function processDealerNotification(
+  enquiry: Enquiry,
+  log: Logger,
+  dealer: DealerProfile,
+) {
   const attemptedAt = new Date();
   const staleBefore = new Date(attemptedAt.getTime() - deliveryLeaseMs);
   const [claimed] = await db
@@ -365,6 +509,7 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
           enquiriesTable.dealerNotificationStatus,
           enquiriesTable.dealerNotificationAttemptedAt,
           staleBefore,
+          "dealer",
         ),
       ),
     )
@@ -373,13 +518,15 @@ async function processDealerNotification(enquiry: Enquiry, log: Logger, dealer: 
 
   const result = await attemptEmail({
     to: dealerNotificationRecipient(dealer.contact.email),
-    ...await enquiryEmail(claimed, dealer, 'dealer'),
+    ...(await enquiryEmail(claimed, dealer, "dealer")),
     idempotencyKey: `enquiry-${claimed.id}-dealer-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
     missingRecipientMessage: "Dealer notification email is not configured.",
     log,
     enquiryId: claimed.id,
     logMessage: "Dealer notification delivery failed",
+    enquiry: claimed,
+    kind: "dealer",
   });
   await db
     .update(enquiriesTable)
@@ -414,7 +561,12 @@ export async function deliverEnquiryNotifications(
   const [updated] = await db
     .select()
     .from(enquiriesTable)
-    .where(tenantAnd(eq(enquiriesTable.id, enquiry.id), tenantEq(enquiriesTable.dealerId, currentDealerId())));
+    .where(
+      tenantAnd(
+        eq(enquiriesTable.id, enquiry.id),
+        tenantEq(enquiriesTable.dealerId, currentDealerId()),
+      ),
+    );
   return updated ?? enquiry;
 }
 
@@ -437,11 +589,15 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
         eq(enquiriesTable.appointmentStatus, "confirmed"),
         isNull(enquiriesTable.appointmentCancelledAt),
         gt(enquiriesTable.appointmentAt, attemptedAt),
-        lte(enquiriesTable.appointmentAt, new Date(attemptedAt.getTime() + reminderLeadTimeMs)),
+        lte(
+          enquiriesTable.appointmentAt,
+          new Date(attemptedAt.getTime() + reminderLeadTimeMs),
+        ),
         claimable(
           enquiriesTable.reminderStatus,
           enquiriesTable.reminderAttemptedAt,
           staleBefore,
+          "reminder",
         ),
       ),
     )
@@ -450,7 +606,7 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
 
   const result = await attemptEmail({
     to: claimed.email,
-    ...await enquiryEmail(claimed, dealer, 'customer', true),
+    ...(await enquiryEmail(claimed, dealer, "customer", true)),
     // Retries deduplicate, while a later change back to the same time is new.
     idempotencyKey: `enquiry-${claimed.id}-customer-reminder-${notificationVersion(claimed)}`,
     dealerName: dealer.identity.name,
@@ -459,6 +615,8 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
     enquiryId: claimed.id,
     logMessage: "Viewing reminder delivery failed",
     attachments: calendarAttachment(claimed, dealer),
+    enquiry: claimed,
+    kind: "reminder",
   });
   await db
     .update(enquiriesTable)
@@ -475,35 +633,91 @@ async function processReminder(enquiry: Enquiry, log: Logger) {
         eq(enquiriesTable.appointmentStatus, "confirmed"),
         isNull(enquiriesTable.appointmentCancelledAt),
         eq(enquiriesTable.reminderStatus, "sending"),
-        eq(
-          enquiriesTable.reminderAttemptedAt,
-          claimed.reminderAttemptedAt!,
-        ),
+        eq(enquiriesTable.reminderAttemptedAt, claimed.reminderAttemptedAt!),
       ),
     );
 }
 
 export const notificationBatchSize = 50;
 
+/** Rebuild only to verify facts/policy. The outbox transports its original bytes. */
+export async function rebuildAutomaticOutboxEmail(
+  row: EmailOutbox,
+): Promise<EmailRequest> {
+  const [enquiry] = await db
+    .select()
+    .from(enquiriesTable)
+    .where(
+      and(
+        eq(enquiriesTable.id, row.enquiry_id),
+        eq(enquiriesTable.dealerId, currentDealerId()),
+      ),
+    );
+  if (
+    !enquiry ||
+    row.dealer_id !== currentDealerId() ||
+    enquiry.workspaceRevision !== row.validation.workspaceRevision ||
+    notificationVersion(enquiry) !== row.validation.version ||
+    row.kind === "staff"
+  )
+    throw new Error("The approved email details changed.");
+  if (
+    row.kind === "reminder" &&
+    (enquiry.appointmentStatus !== "confirmed" ||
+      enquiry.appointmentCancelledAt ||
+      !enquiry.appointmentAt ||
+      enquiry.appointmentAt.getTime() <= Date.now())
+  )
+    throw new Error("The reminder is no longer applicable.");
+  const dealer = await getDealerProfile(),
+    audience = row.kind === "dealer" ? "dealer" : "customer";
+  const rendered = await enquiryEmail(
+    enquiry,
+    dealer,
+    audience,
+    row.kind === "reminder",
+  );
+  const to =
+    audience === "dealer"
+      ? dealerNotificationRecipient(dealer.contact.email)
+      : enquiry.email;
+  if (!to)
+    throw new Error("The approved email recipient is no longer available.");
+  return {
+    to,
+    ...rendered,
+    idempotencyKey: row.send_key,
+    ...(row.kind === "dealer"
+      ? {}
+      : { attachments: calendarAttachment(enquiry, dealer) }),
+  };
+}
+
 export async function processDueNotifications(log: Logger) {
+  await recoverEmailOutbox();
   const now = new Date();
   const staleBefore = new Date(now.getTime() - deliveryLeaseMs);
   const pending = await db
     .select()
     .from(enquiriesTable)
     .where(
-      and(eq(enquiriesTable.dealerId, currentDealerId()), or(
-        claimable(
-          enquiriesTable.customerNotificationStatus,
-          enquiriesTable.customerNotificationAttemptedAt,
-          staleBefore,
+      and(
+        eq(enquiriesTable.dealerId, currentDealerId()),
+        or(
+          claimable(
+            enquiriesTable.customerNotificationStatus,
+            enquiriesTable.customerNotificationAttemptedAt,
+            staleBefore,
+            "customer",
+          ),
+          claimable(
+            enquiriesTable.dealerNotificationStatus,
+            enquiriesTable.dealerNotificationAttemptedAt,
+            staleBefore,
+            "dealer",
+          ),
         ),
-        claimable(
-          enquiriesTable.dealerNotificationStatus,
-          enquiriesTable.dealerNotificationAttemptedAt,
-          staleBefore,
-        ),
-      )),
+      ),
     )
     .orderBy(enquiriesTable.createdAt, enquiriesTable.id)
     .limit(notificationBatchSize);
@@ -527,6 +741,7 @@ export async function processDueNotifications(log: Logger) {
           enquiriesTable.reminderStatus,
           enquiriesTable.reminderAttemptedAt,
           staleBefore,
+          "reminder",
         ),
         gt(enquiriesTable.appointmentAt, now),
         lte(enquiriesTable.appointmentAt, dueBefore),
@@ -548,7 +763,10 @@ export async function processDueNotifications(log: Logger) {
       and(
         eq(enquiriesTable.dealerId, currentDealerId()),
         eq(enquiriesTable.type, "viewing"),
-        or(eq(enquiriesTable.appointmentStatus, "confirmed"), isNull(enquiriesTable.appointmentStatus)),
+        or(
+          eq(enquiriesTable.appointmentStatus, "confirmed"),
+          isNull(enquiriesTable.appointmentStatus),
+        ),
         isNull(enquiriesTable.appointmentCancelledAt),
         or(
           eq(enquiriesTable.reminderStatus, "pending"),
@@ -566,21 +784,46 @@ export async function processDueNotifications(log: Logger) {
 }
 
 /** A legacy server-wide recipient must never override another tenant's address. */
-export function dealerNotificationRecipient(email?: string | null): string | null {
-  return (!multiTenantEnabled() ? process.env.DEALER_NOTIFICATION_EMAIL?.trim() : '') || email?.trim() || null;
+export function dealerNotificationRecipient(
+  email?: string | null,
+): string | null {
+  return (
+    (!multiTenantEnabled()
+      ? process.env.DEALER_NOTIFICATION_EMAIL?.trim()
+      : "") ||
+    email?.trim() ||
+    null
+  );
 }
 
 export function startReminderWorker(log: Logger) {
-  let running = false;
+  let running = false,
+    stopped = false;
   const run = async () => {
-    if (running) return;
+    if (running || stopped || serviceLifecycle.isDraining()) return;
     running = true;
-    await forEachActiveDealer(() => processDueNotifications(log), { name: 'reminders', log }).catch((error) => {
-      log.error({ err: error }, "Notification worker failed");
-    }).finally(() => { running = false; });
+    await forEachActiveDealer(() => processDueNotifications(log), {
+      name: "reminders",
+      log,
+    })
+      .catch(() => {
+        log.warn(
+          {
+            stage: "notification_sweep",
+            code: "notification_check_unavailable",
+          },
+          "Notification worker failed",
+        );
+      })
+      .finally(() => {
+        running = false;
+      });
   };
   void run();
   const interval = setInterval(run, 5 * 60 * 1000);
   interval.unref();
-  return interval;
+  return () => {
+    stopped = true;
+    clearInterval(interval);
+  };
 }

@@ -686,3 +686,48 @@ it.each([
     expect(calls("/email-draft")).toHaveLength(0);
   },
 );
+
+it('refreshes a queued email from its journal without making a second send request', async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let submitted = false, completed = false;
+  const delivery = { id: 'delivery-one', requestId: 'approved-request', to: 'alex@example.test', subject: 'Approved reply', status: 'sending', photoCount: 0, documentCount: 0, createdAt: '2026-10-17T10:00:00Z', error: 'The provider is busy. The approved email will retry automatically.', retryAt: '2026-10-17T10:01:00Z', attempts: 1 };
+  state.fetch.mockImplementation(async (url: string, options?: {method?: string}) => {
+    if (url.endsWith('/email') && options?.method === 'POST') { submitted = true; return {delivery}; }
+    if (url.endsWith('/email-context')) return {...context(), deliveries: submitted ? [{...delivery, ...(completed ? {status: 'sent', retryAt: null, error: null} : {})}] : []};
+    return original(url, options);
+  });
+  mount();
+  await screen.findByRole('textbox', {name: 'Message'});
+  fireEvent.click(screen.getByRole('button', {name: 'Review email'}));
+  fireEvent.click(await screen.findByRole('button', {name: 'Send email'}));
+  expect(await screen.findByRole('heading', {name: 'Retry scheduled'})).toBeInTheDocument();
+  expect(screen.getByText(/The same approved email is queued/)).toBeInTheDocument();
+  completed = true;
+  fireEvent.click(screen.getByRole('button', {name: 'Refresh saved status'}));
+  expect(await screen.findByRole('heading', {name: 'Submitted to Resend'})).toBeInTheDocument();
+  expect(screen.queryByRole('button', {name: 'Send email'})).not.toBeInTheDocument();
+  expect(calls('/email')).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', {name: 'Done'}));
+  expect(state.close).toHaveBeenCalledWith('sent');
+});
+
+it('keeps uncertain email acceptance protected when a saved-status refresh fails', async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let failStatus = false;
+  state.fetch.mockImplementation(async (url: string, options?: {method?: string}) => {
+    if (url.endsWith('/email') && options?.method === 'POST') return {delivery: {id: 'unknown-one', requestId: 'uncertain-request', to: 'alex@example.test', subject: 'Approved reply', status: 'unknown', photoCount: 0, createdAt: '2026-10-17T10:00:00Z', error: 'Check Resend before sending another copy.'}};
+    if (url.endsWith('/email-context') && failStatus) throw new Error('Fictional read failure');
+    return original(url, options);
+  });
+  mount();
+  await screen.findByRole('textbox', {name: 'Message'});
+  fireEvent.click(screen.getByRole('button', {name: 'Review email'}));
+  fireEvent.click(await screen.findByRole('button', {name: 'Send email'}));
+  await screen.findByRole('heading', {name: 'Acceptance unconfirmed'});
+  failStatus = true;
+  fireEvent.click(screen.getByRole('button', {name: 'Refresh saved status'}));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not refresh the saved status');
+  expect(screen.getByRole('heading', {name: 'Acceptance unconfirmed'})).toBeInTheDocument();
+  expect(screen.queryByRole('button', {name: 'Send email'})).not.toBeInTheDocument();
+  expect(calls('/email')).toHaveLength(1);
+});

@@ -2,9 +2,10 @@ import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { pool } from '@workspace/db';
 import { createDatabaseReadiness } from '../lib/database-readiness';
+import { serviceLifecycle } from '../lib/service-lifecycle';
 
 export const databaseReady = createDatabaseReadiness(pool);
-export function createHealthRouter(checkDatabase = databaseReady): IRouter {
+export function createHealthRouter(checkDatabase = databaseReady, lifecycle = serviceLifecycle): IRouter {
 const router: IRouter = Router();
 
 router.get("/healthz", (_req, res) => {
@@ -18,7 +19,7 @@ router.get("/healthz", (_req, res) => {
 router.get('/readyz', async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   let ready = false;
-  try { ready = await checkDatabase(); } catch { /* Readiness must fail closed. */ }
+  try { ready = !lifecycle.isDraining() && await checkDatabase(); } catch { /* Readiness must fail closed. */ }
   if (!ready) res.set('Retry-After', '5');
   res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready' });
 });

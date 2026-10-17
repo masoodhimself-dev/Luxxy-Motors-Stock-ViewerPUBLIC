@@ -89,7 +89,7 @@ test('isolated registry batches and notification backlog remain bounded and tena
       assert.equal(row(fresh!.id).reminderStatus, 'sending'); assert.equal(row(expired!.id).reminderStatus, 'failed');
       await runWithTenant(tenant, () => processDueNotifications(log));
       all = await db.select().from(enquiriesTable).where(eq(enquiriesTable.dealerId, tenant.dealerId));
-      assert.equal(row(rows.at(-1)!.id).reminderStatus, 'failed'); assert.equal(row(stale!.id).reminderStatus, 'failed'); assert.equal(row(fresh!.id).reminderStatus, 'sending');
+      assert.equal(row(rows.at(-1)!.id).reminderStatus, 'failed'); assert.equal(row(stale!.id).reminderStatus, 'unknown'); assert.equal(row(fresh!.id).reminderStatus, 'sending');
       assert.ok(legacy.every(item => row(item.id).reminderStatus === 'pending' && row(item.id).reminderAttemptedAt === null));
       assert.equal(externalCalls, 0);
     });

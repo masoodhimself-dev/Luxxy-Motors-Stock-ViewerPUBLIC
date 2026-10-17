@@ -1,3 +1,4 @@
+import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -5,7 +6,6 @@ import { useLocation, useSearch } from "wouter";
 import { customFetch, HttpApiError } from "@workspace/api-client-react";
 import {
   getGetStockQueryKey,
-  useGetEnquiries,
   useListReservations,
 } from "@workspace/api-client-react";
 import {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, CalendarDays, Phone } from 'lucide-react';
 import { useGetStaffDirectory, useUpdateEnquiryWorkspace, type Enquiry } from '@workspace/api-client-react';
@@ -77,7 +77,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       {entry.callOutcome && <p><strong>Latest outcome: </strong>{callOutcomes[entry.callOutcome as CallOutcome] || entry.callOutcome}</p>}
       {entry.createdAt && <p>{entry.source === 'website_callback' ? 'Callback requested' : 'Received'} <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>{entry.preferredContact ? ` · Preferred contact: ${entry.preferredContact}` : ''}</p>}
     </div>
-    <ConversationHistory entry={entry} />
+    <ConversationHistory entry={entry} loadOnDemand />
   </>;
 }
 
@@ -87,6 +87,7 @@ export function EnquiryRecordBrowser({ entries, allEntries = entries, cars, sele
   const primary = selected ? primaryEnquiry(selected, allEntries) : undefined;
   const explicitSelection = Boolean(selectedId && entries.some(entry => entry.id === selectedId));
   const detail = useRef<HTMLDivElement>(null);
+  const [openedOriginals, setOpenedOriginals] = useState<Set<string>>(() => new Set());
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => { if (detail.current) detail.current.scrollTop = 0; if (explicitSelection && window.matchMedia('(max-width: 899px)').matches) { detail.current?.focus(); detail.current?.scrollIntoView({ block: 'start' }); } }, [selected?.id, selectedId, explicitSelection]);
   if (!entries.length) return <p className="py-6 text-center text-muted-foreground">{emptyMessage}</p>;
@@ -104,7 +105,7 @@ export function EnquiryRecordBrowser({ entries, allEntries = entries, cars, sele
     <div ref={detail} tabIndex={-1} className="enquiry-record-detail-pane" role="region" aria-label={`Selected enquiry: ${selected.customerName}`}>
       <Button className="enquiry-record-back" size="sm" variant="outline" onClick={() => { onBack(); requestAnimationFrame(() => { list.current?.focus(); list.current?.scrollIntoView({ block: 'start' }); }); }}><ArrowLeft aria-hidden className="mr-1 h-4 w-4" />Back to {callbacks ? 'callbacks' : 'enquiries'}</Button>
       <EnquiryDetail key={selected.id} entry={selected} car={cars.find(car => car.id === selected.vehicleId)} actions={actions} />
-      {group.length > 1 && <section className="enquiry-linked-originals" aria-label="Merged case original records"><h4>Merged case · {primary?.reference}</h4><p className="text-xs text-muted-foreground">Each original keeps its customer, car, appointments, follow-ups and conversation history.</p>{group.filter(item => item.id !== selected.id).map(original => <details key={original.id} className="enquiry-linked-original"><summary>{original.customerName} · {original.reference}{original.id === primary?.id ? ' · Main record' : ''}<span>{original.vehicleTitle || 'General showroom enquiry'}{original.vehicleRegistration ? ` · ${original.vehicleRegistration}` : ''}</span></summary><div><EnquiryDetail entry={original} car={cars.find(car => car.id === original.vehicleId)} actions={actions} /></div></details>)}</section>}
+      {group.length > 1 && <section className="enquiry-linked-originals" aria-label="Merged case original records"><h4>Merged case · {primary?.reference}</h4><p className="text-xs text-muted-foreground">Each original keeps its customer, car, appointments, follow-ups and conversation history.</p>{group.filter(item => item.id !== selected.id).map(original => <details key={original.id} className="enquiry-linked-original" onToggle={event => { const open = event.currentTarget.open; setOpenedOriginals(current => { const next = new Set(current); if (open) next.add(original.id); else next.delete(original.id); return next; }); }}><summary>{original.customerName} · {original.reference}{original.id === primary?.id ? ' · Main record' : ''}<span>{original.vehicleTitle || 'General showroom enquiry'}{original.vehicleRegistration ? ` · ${original.vehicleRegistration}` : ''}</span></summary>{openedOriginals.has(original.id) && <div><EnquiryDetail entry={original} car={cars.find(car => car.id === original.vehicleId)} actions={actions} /></div>}</details>)}</section>}
     </div>
   </div>;
 }

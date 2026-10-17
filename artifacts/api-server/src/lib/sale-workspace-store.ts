@@ -33,7 +33,9 @@ export async function readSaleWorkspaceAssets(draft: SaleWorkspaceDraft, dealerI
 export class PostgresSaleWorkspaceStore {
   constructor(private dealerId: string, private assets: (draft: SaleWorkspaceDraft, client: SaleWorkspaceReadClient) => Promise<SaleWorkspaceAssets>, private database: SaleWorkspaceDatabase) {}
   async list(): Promise<SaleWorkspaceRecord[]> {
-    const result = await this.database.query('SELECT state FROM sale_workspace WHERE dealer_id = $1 ORDER BY updated_at DESC', [this.dealerId]);
+    // List screens never need PDF bytes, provider receipts or mutation replay
+    // ledgers. Exclude those inside Postgres, before crossing the connection.
+    const result = await this.database.query("SELECT state - 'documentArchives' - 'requests' - 'providerPayments' AS state FROM sale_workspace WHERE dealer_id = $1 ORDER BY updated_at DESC", [this.dealerId]);
     return result.rows.map(row => publicSaleWorkspace(row.state));
   }
   async get(id: string): Promise<SaleWorkspaceRecord> {

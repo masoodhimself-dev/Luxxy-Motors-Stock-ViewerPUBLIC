@@ -7,6 +7,8 @@ import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { currentDealerId } from "../lib/tenant-context";
 import { siteOrigin } from "../lib/enquiry-links";
 import { serviceBookJpeg } from "../lib/service-book-jpeg";
+import { inventoryHistory } from "../lib/inventory-history";
+import { HistoryCursorError, parseHistoryCursor } from "../lib/history-cursor";
 const router = Router();
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const uuid = z.string().uuid();
@@ -36,13 +38,16 @@ const vehicle = (id: string) =>
   db.execute(
     sql`SELECT id,title,coalesce(website_title_override,title) AS display_title,coalesce(website_price_override,source_price) AS price,plate,vrm,registration,inventory_status,source_status,missing_count,archived_at,coalesce(website_hero_image_override,source_hero_image) AS photo FROM vehicles WHERE id=${id}::uuid AND dealer_id=${currentDealerId()}`,
   );
-router.get("/staff/inventory", async (_req, res) => {
-  const rows =
-    await db.execute(sql`SELECT v.id,coalesce(v.website_title_override,v.title) AS title,coalesce(v.website_price_override,v.source_price) AS price,v.plate,v.vrm,v.registration,v.inventory_status,v.source_status,v.missing_count,v.archived_at,
- coalesce(v.website_hero_image_override,(SELECT source_url FROM vehicle_images i WHERE i.vehicle_id=v.id AND i.is_active=true ORDER BY i.is_hero DESC,i.sort_order LIMIT 1)) AS photo,
- (SELECT count(*)::int FROM vehicle_service_photos p WHERE p.vehicle_id=v.id AND p.dealer_id=v.dealer_id AND p.category='service_book') AS service_photo_count,
- p.tasks,p.due_date,p.assigned_to_id FROM vehicles v LEFT JOIN vehicle_preparation p ON p.vehicle_id=v.id AND p.dealer_id=v.dealer_id WHERE v.dealer_id=${currentDealerId()} ORDER BY v.first_seen_at DESC,v.id`);
-  res.json({ cars: rows.rows });
+router.get("/staff/inventory", async (req, res) => {
+  const input = z.object({ scope: z.enum(["current", "archived"]).default("current"), q: z.string().trim().max(200).default(""), cursor: z.string().max(250).optional() }).safeParse(req.query);
+  if (!input.success || (input.data.cursor && input.data.scope !== "archived")) { res.status(400).json({ error: "Check the inventory search." }); return; }
+  try {
+    res.json(await inventoryHistory(currentDealerId(), { ...input.data, cursor: parseHistoryCursor(input.data.cursor) }));
+  } catch (error) {
+    if (error instanceof HistoryCursorError) { res.status(400).json({ error: error.message }); return; }
+    req.log.error({ err: error }, "Unable to load inventory");
+    res.status(500).json({ error: "Inventory could not be loaded." });
+  }
 });
 router.get("/staff/inventory/:id", async (req, res) => {
   if (!uuid.safeParse(req.params.id).success) {

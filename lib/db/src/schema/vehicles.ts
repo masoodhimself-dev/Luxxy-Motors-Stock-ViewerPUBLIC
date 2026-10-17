@@ -123,6 +123,8 @@ export const vehiclesTable = pgTable(
       table.dealerId,
       table.inventoryStatus,
     ),
+    index("vehicles_current_history_idx").on(table.dealerId, table.firstSeenAt.desc(), table.id.desc()).where(sql`${table.archivedAt} is null and ${table.inventoryStatus}<>'archived'`),
+    index("vehicles_archived_history_idx").on(table.dealerId, table.firstSeenAt.desc(), table.id.desc()).where(sql`${table.archivedAt} is not null or ${table.inventoryStatus}='archived'`),
     index("vehicles_dealer_source_status_idx").on(
       table.dealerId,
       table.sourceStatus,

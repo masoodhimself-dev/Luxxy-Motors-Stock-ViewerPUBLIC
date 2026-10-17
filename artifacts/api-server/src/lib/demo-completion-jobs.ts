@@ -1,3 +1,4 @@
+import { serviceLifecycle } from './service-lifecycle';
 import { pool } from '@workspace/db';
 import type { Logger } from 'pino';
 import { multiTenantEnabled } from './tenant-context';
@@ -51,7 +52,7 @@ export async function processDemoCompletionJobs(transport:typeof fetch=(...args)
  }
 }
 export function startDemoCompletionWorker(log:Logger){
- let running=false;
- const tick=async()=>{if(!multiTenantEnabled()||running)return;running=true;try{await processDemoCompletionJobs();}catch{log.warn('Demo completion queue unavailable; saved work will retry.');}finally{running=false;}};
- const timer=setInterval(()=>void tick(),15000);timer.unref();void tick();return()=>clearInterval(timer);
+ let running=false,stopped=false;
+ const tick=async()=>{if(stopped||serviceLifecycle.isDraining()||!multiTenantEnabled()||running)return;running=true;try{await serviceLifecycle.track(() => processDemoCompletionJobs());}catch{log.warn('Demo completion queue unavailable; saved work will retry.');}finally{running=false;}};
+ const timer=setInterval(()=>void tick(),15000);timer.unref();void tick();return()=>{stopped=true;clearInterval(timer);};
 }

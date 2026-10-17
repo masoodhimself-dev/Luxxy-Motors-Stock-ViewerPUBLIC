@@ -27,6 +27,8 @@ type Delivery = {
   documentCount?: number;
   createdAt: string;
   error: string | null;
+  retryAt?: string | null;
+  attempts?: number;
 };
 type EmailContext = {
   version?: number;
@@ -97,6 +99,8 @@ const stateLabel = (state: Delivery["status"]) =>
       : state === "unknown"
         ? "Acceptance unconfirmed"
         : "Sending — check before resending";
+const deliveryLabel = (item: Delivery) =>
+  item.status === "sending" && item.retryAt ? "Retry scheduled" : stateLabel(item.status);
 
 function Photo({
   carId,
@@ -188,7 +192,7 @@ function EnquiryEmailEditor({
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
   const [busyAction, setBusyAction] = useState<
-    "save" | "review" | "send" | null
+    "save" | "review" | "send" | "status" | null
   >(null);
   const busy = busyAction !== null;
   const [error, setError] = useState("");
@@ -387,6 +391,24 @@ function EnquiryEmailEditor({
       setBusyAction(null);
     }
   }
+  async function refreshDelivery() {
+    if (!delivery || busyRef.current) return;
+    busyRef.current = true;
+    setBusyAction("status");
+    setError("");
+    try {
+      // This reads our saved journal only. It never sends or re-approves mail.
+      const result = await context.refetch({ throwOnError: true });
+      const latest = result.data?.deliveries.find(item => item.id === delivery.id);
+      if (!latest) throw new Error('The saved email status is unavailable. Open the email workspace to check it.');
+      setDelivery(latest);
+    } catch {
+      setError("Could not refresh the saved status. Your existing email request is unchanged.");
+    } finally {
+      busyRef.current = false;
+      setBusyAction(null);
+    }
+  }
   const data = initialized.current ? context.data : undefined;
   const photoCategory =
     draft.templateId === "service_history"
@@ -416,7 +438,7 @@ function EnquiryEmailEditor({
         <DialogHeader>
           <DialogTitle>
             {delivery
-              ? stateLabel(delivery.status)
+              ? deliveryLabel(delivery)
               : preview
                 ? "Review customer email"
                 : "Prepare customer email"}
@@ -428,7 +450,7 @@ function EnquiryEmailEditor({
         {!initialized.current && !context.isError && (
           <p role="status">Loading latest email details…</p>
         )}
-        {context.isError && (
+        {context.isError && !delivery && (
           <div>
             <p role="alert">{workspaceError(context.error)}</p>
             <Button variant="outline" onClick={() => void context.refetch()}>
@@ -442,6 +464,10 @@ function EnquiryEmailEditor({
               <strong>{delivery.to}</strong>
             </p>
             <p>{delivery.subject}</p>
+            {delivery.status === "sending" && delivery.retryAt && Number.isFinite(Date.parse(delivery.retryAt)) && <p>
+              Next attempt: {new Date(delivery.retryAt).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" })} (UK).
+              {" "}The same approved email is queued. You do not need to send another copy.
+            </p>}
             <p>
               {delivery.status === "sent"
                 ? "Resend accepted this email for delivery. This does not confirm that it was delivered or read."
@@ -461,6 +487,10 @@ function EnquiryEmailEditor({
             >
               Done
             </Button>
+            {["sending", "unknown"].includes(delivery.status) && <Button type="button" variant="outline" disabled={busy} onClick={() => void refreshDelivery()}>
+              {busyAction === "status" ? "Refreshing status…" : "Refresh saved status"}
+            </Button>}
+            {["sending", "unknown"].includes(delivery.status) && <p className="enquiry-email-hint">Refreshing reads the saved status. It does not send an email.</p>}
           </div>
         ) : (
           data && (
@@ -891,7 +921,7 @@ function EnquiryEmailEditor({
                   <summary>Recent emails · {data.deliveries.length}</summary>
                   {data.deliveries.map((item) => (
                     <article key={item.id}>
-                      <strong>{stateLabel(item.status)}</strong>
+                      <strong>{deliveryLabel(item)}</strong>
                       <p>{item.subject}</p>
                       <small>
                         {item.to} ·{" "}
@@ -908,7 +938,7 @@ function EnquiryEmailEditor({
         {error && (
           <p role="alert" className="enquiry-email-error">
             {error}
-            {sendingRequest.current &&
+            {!delivery && sendingRequest.current &&
               " Retry uses the same email request so it cannot create a duplicate."}
           </p>
         )}

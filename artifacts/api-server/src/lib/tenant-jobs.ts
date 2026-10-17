@@ -2,7 +2,8 @@ import { performance } from 'node:perf_hooks';
 import type { Logger } from 'pino';
 import { db, dealershipsTable, dealerDemosTable } from '@workspace/db';
 import { eq, isNull } from 'drizzle-orm';
-import { multiTenantEnabled } from './tenant-context';
+import { multiTenantEnabled, runWithTenant, type TenantContext } from './tenant-context';
+import { serviceLifecycle } from './service-lifecycle';
 import { createDealerJobLimiter, createDealerJobSweepGuard, runDealerJobBatch, tenantJobConcurrency, type DealerJobSummary } from './dealer-job-runner';
 
 const execute = createDealerJobLimiter(tenantJobConcurrency);
@@ -30,7 +31,8 @@ export function processJobStatus() {
 
 /** Background work enumerates active dealers explicitly and shares one process-wide bound. */
 export function forEachActiveDealer(job: () => Promise<unknown>, options: TenantJobOptions = {}): Promise<void> {
-  return sweep(options.name, async () => {
+  // Track the single accepted sweep, preserving the shared promise for duplicate ticks.
+  return sweep(options.name, () => serviceLifecycle.track(async () => {
     const started = performance.now();
     const name = options.name ?? 'dealer-background-job';
     const status: SweepStatus = { name, state: 'running', startedAt: new Date().toISOString(), finishedAt: null, durationMs: 0, dealers: 0, completed: 0, failed: 0, excludedDemos: 0, maxActive: 0 };
@@ -64,5 +66,10 @@ export function forEachActiveDealer(job: () => Promise<unknown>, options: Tenant
       status.durationMs = Math.round(performance.now() - started);
       status.finishedAt = new Date().toISOString();
     }
-  });
+  }));
+}
+
+/** Targeted durable jobs share the same process-wide dealer bound as sweeps. */
+export function runBoundedDealerJob<T>(tenant: TenantContext, work: () => Promise<T>): Promise<T> {
+  return serviceLifecycle.track(() => execute(() => runWithTenant(tenant, work)));
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { customFetch, useGetStaffDirectory } from "@workspace/api-client-react";
 import { useSearch, useLocation, Link } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
@@ -132,6 +132,8 @@ export function StaffInventory() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  useEffect(() => { const timer = setTimeout(() => setSearchTerm(term.trim()), 250); return () => clearTimeout(timer); }, [term]);
   const [plateDraft, setPlateDraft] = useState<string | null>(null),
     [photoCategory, setPhotoCategory] = useState("service_book"),
     [emailCustomer, setEmailCustomer] = useState<Customer | null>(null);
@@ -146,9 +148,18 @@ export function StaffInventory() {
   const access = useStaffAccess(),
     directory = useGetStaffDirectory();
   const writable = access.data?.permissions.includes("sales.manage");
-  const list = useQuery({
-    queryKey: ["staff-inventory"],
-    queryFn: () => send<{ cars: Car[] }>("/api/staff/inventory"),
+  const scope = filter === "archived" ? "archived" : "current";
+  const list = useInfiniteQuery({
+    queryKey: ["staff-inventory", "list", scope, searchTerm],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams();
+      if (scope === "archived") params.set("scope", scope);
+      if (searchTerm) params.set("q", searchTerm);
+      if (pageParam) params.set("cursor", pageParam);
+      return customFetch<{ cars: Car[]; counts?: { current: number; archived: number }; matchedCount?: number; nextCursor?: string | null; previewReadOnly?: boolean }>(`/api/staff/inventory${params.size ? `?${params}` : ""}`, { signal, responseType: "json" });
+    },
+    getNextPageParam: page => page.nextCursor ?? undefined,
   });
   const details = useQuery({
     queryKey: ["staff-inventory", selected],
@@ -206,7 +217,7 @@ export function StaffInventory() {
       return;
     navigate(`/portal?section=inventory${id ? `&vehicleId=${id}` : ""}`);
   }
-  const cars = (list.data?.cars ?? []).filter(
+  const cars = (list.data?.pages.flatMap(page => page.cars) ?? []).filter(
     (c) =>
       (filter === "archived"
         ? Boolean(c.archived_at) || c.inventory_status === "archived"
@@ -674,12 +685,13 @@ export function StaffInventory() {
                   "archived",
                 ].map((s) => (
                   <option key={s} value={s}>
-                    {s === "all" ? "All cars" : s[0].toUpperCase() + s.slice(1)}
+                    {s === "all" ? "All cars" : s[0].toUpperCase() + s.slice(1)}{s === "archived" && list.data?.pages[0].counts ? ` (${list.data.pages[0].counts.archived})` : ""}
                   </option>
                 ))}
               </NativeSelect>
             </label>
           </div>
+          {list.data?.pages[0].previewReadOnly && <p className="inventory-muted">Local preview shows the stock list. Preparation, plate changes and private photos are available on the connected dealership.</p>}
           {list.isLoading && <p role="status">Loading cars…</p>}
           {list.isError && (
             <p role="alert" className="inventory-error">
@@ -690,6 +702,7 @@ export function StaffInventory() {
             {cars.map((c) => (
               <button
                 className="inventory-car"
+                disabled={list.data?.pages[0].previewReadOnly}
                 key={c.id}
                 onClick={() => open(c.id)}
               >
@@ -734,6 +747,8 @@ export function StaffInventory() {
               </button>
             ))}
           </div>
+          {scope === "archived" && list.data?.pages[0].matchedCount != null && <p className="inventory-muted">Showing {cars.length} of {list.data.pages[0].matchedCount} matching archived cars.</p>}
+          {list.hasNextPage && <Button type="button" variant="outline" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>{list.isFetchingNextPage ? "Loading older cars…" : "Load older archived cars"}</Button>}
           {!list.isLoading && !list.isError && !cars.length && (
             <p>No cars match this search.</p>
           )}

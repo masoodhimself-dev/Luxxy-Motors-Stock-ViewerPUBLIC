@@ -18,6 +18,7 @@ import { attendanceError, outcomeError } from '../../api-server/src/lib/enquiry-
 import { conversationChange, ConversationError } from '../../api-server/src/lib/enquiry-conversations';
 import { roleHasPermission, type StaffRole } from '../../api-server/src/lib/staff-permissions';
 import { appointmentDiaryWindow } from '../../api-server/src/lib/appointment-diary-window';
+import { HistoryCursorError, historyCursor, parseHistoryCursor } from '../../api-server/src/lib/history-cursor';
 
 let previewStaff = [{ id: 'preview-alex', name: 'Alex' }, { id: 'preview-jamie', name: 'Jamie' }];
 function previewAssignment(id?: string | null) {
@@ -321,6 +322,18 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     return { status: 200, data: publicBooking(entry, settings) };
   }
   const conversation = /^\/api\/staff\/enquiries\/([^/]+)\/conversations$/.exec(path);
+  if (req.method === 'GET' && conversation) {
+    const entry = enquiries.find(entry => entry.id === conversation[1]);
+    if (!entry) throw new ReservationError('Enquiry not found.', 404);
+    try {
+      const cursor = parseHistoryCursor(url.searchParams.get('cursor'));
+      const at = (value: string) => new Date(value).toISOString().replace(/Z$/, '000Z');
+      const all = (entry.events ?? []).filter(event => event.kind === 'conversation_logged').sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id));
+      const remaining = all.filter(event => !cursor || at(event.occurredAt) < cursor.at || (at(event.occurredAt) === cursor.at && event.id < cursor.id));
+      const page = remaining.slice(0, 25), last = page.at(-1);
+      return { status: 200, data: { events: page, total: all.length, nextCursor: remaining.length > 25 && last ? historyCursor({ at: at(last.occurredAt), id: last.id }) : null } };
+    } catch (error) { if (error instanceof HistoryCursorError) throw new ReservationError(error.message, 400); throw error; }
+  }
   if (req.method === 'POST' && conversation) {
     const staffId = typeof req.headers?.['x-preview-staff-id'] === 'string' ? req.headers['x-preview-staff-id'] : 'preview-alex';
     const member = previewStaff.find(member => member.id === staffId);
@@ -346,7 +359,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if (!isValidDateString(date) || !bookingDateIsInWindow(date, policy)) throw new ReservationError(`Choose a date within the next ${policy.daysAhead} days.`, 400);
     return { status: 200, data: { date, timezone: 'Europe/London', slots: getSlotsForDate(date, policy).map((slot) => ({ startAt: slot.startAt.toISOString(), label: slot.label, available: slotIsAvailable(slot.startAt, policy, occupied(), new Date(), staffAvailability?.[1]) })) } };
   }
-  if (req.method === 'GET' && (path === '/api/enquiries' || path === '/api/test-drive-bookings')) return { status: 200, data: enquiries.filter((entry) => path === '/api/enquiries' || entry.type === 'viewing').map((entry) => publicBooking(entry, settings)) };
+  if (req.method === 'GET' && (path === '/api/enquiries' || path === '/api/test-drive-bookings')) return { status: 200, data: enquiries.filter((entry) => path === '/api/enquiries' || entry.type === 'viewing').map((entry) => ({ ...publicBooking(entry, settings), ...(req.headers?.['x-enquiry-timeline'] === 'omit' ? { events: [] } : {}) })) };
   if (req.method === 'POST' && (path === '/api/enquiries' || path === '/api/staff/enquiries')) {
     const staff = path === '/api/staff/enquiries';
     const rawInput = await body(req);

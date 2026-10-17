@@ -53,6 +53,7 @@ vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
   HttpApiError: class extends Error {},
   getGetStockQueryKey: () => ["stock"],
+  getGetEnquiriesQueryKey: () => ["/api/enquiries"],
   useGetEnquiries: () => ({ data: [] }),
   useListReservations: () => ({ data: { reservations: [] } }),
 }));

@@ -13,6 +13,9 @@ test('local operations enforce roles, require publication revisions and preserve
   await new Promise<void>((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
   const address=server.address();assert.ok(address&&typeof address!=='string');const base=`http://127.0.0.1:${address.port}`;
   try {
+    const inventory=await(await fetch(`${base}/api/staff/inventory`)).json();assert.equal(inventory.previewReadOnly,true);assert.equal(inventory.nextCursor,null);assert.equal(inventory.counts.archived,0);assert.ok(inventory.cars.length>0);assert.equal(inventory.matchedCount,inventory.cars.length);
+    const archives=await(await fetch(`${base}/api/staff/inventory?scope=archived`)).json();assert.deepEqual(archives.cars,[]);assert.equal(archives.matchedCount,0);
+    const invalidScope=await fetch(`${base}/api/staff/inventory?scope=everything`);assert.equal(invalidScope.status,400);
     const original=await fetch(`${base}/api/dealer-settings`);assert.equal(original.headers.get('x-settings-revision'),'0');const config=await original.json();
     const missing=await fetch(`${base}/api/dealer-settings`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});assert.equal(missing.status,428);
     const denied=await fetch(`${base}/api/dealer-integrations`,{headers:{'x-preview-staff-id':'preview-jamie'}});assert.equal(denied.status,403);

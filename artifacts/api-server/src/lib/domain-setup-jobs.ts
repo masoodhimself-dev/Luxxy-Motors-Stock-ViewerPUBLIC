@@ -1,3 +1,4 @@
+import { serviceLifecycle } from './service-lifecycle';
 import { resolveTxt } from 'node:dns/promises';
 import { pool } from '@workspace/db';
 import type { Logger } from 'pino';
@@ -96,9 +97,9 @@ export async function processDomainSetupJobs(deps: Dependencies = {}) {
 export function startDomainSetupWorker(log: Logger) {
   let running = false, stopped = false;
   const tick = async () => {
-    if (stopped || running || !multiTenantEnabled() || !automationConfig().ready) return;
+    if (stopped || running || serviceLifecycle.isDraining() || !multiTenantEnabled() || !automationConfig().ready) return;
     running = true;
-    try { await processDomainSetupJobs(); } catch { log.warn('Domain setup queue unavailable; saved work will retry.'); }
+    try { await serviceLifecycle.track(() => processDomainSetupJobs()); } catch { log.warn('Domain setup queue unavailable; saved work will retry.'); }
     finally { running = false; }
   };
   const timer = setInterval(() => void tick(), 15_000);

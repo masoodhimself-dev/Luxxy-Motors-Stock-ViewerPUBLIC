@@ -114,3 +114,34 @@ Recorded workload on this development machine (two client lanes; embedded databa
 Measurements include per-request and queue-wait percentiles, CPU time, bytes and process memory in `output/capacity-2026-10-17/backend-capacity-results.json`. PGlite's embedded database/WASM memory is included in RSS; these figures cannot size the Render API's RAM. Its scheduling differs from network PostgreSQL and reached one active import at a time despite two client lanes. The separate burst test proves the two-permit gate with 200 simultaneous requests, including retryable refusal and disconnect handling. Neither test proves two real PostgreSQL imports' throughput or provider tolerance. Development-machine load can affect timings.
 
 Before promising 100 or 200 live dealerships: complete Grok's scheduler/rate-limit/credential-isolation work, run an approved staging workload on network PostgreSQL with realistic public/portal traffic, measure database/CPU/memory/backlog/failure rates, and exercise restart and full-window outage recovery. Grow the controlled live pilot through 10, 25 and 50 dealers. Multiple API replicas additionally need cross-instance singleton leases/durable job coordination and pooled-connection sizing; the new process-local limits alone do not provide those.
+
+## Growing sales, enquiry and stock history (17 October 2026)
+
+The portal's enquiry and appointment lists now request `X-Enquiry-Timeline: omit`. They retain every matching enquiry, merge link, customer and appointment field, with `events: []`; unmodified API clients still receive the original full response. Summary and full query caches have separate keys under the existing invalidation prefix. This removes the repeated transfer of all conversation notes during polling without silently excluding customers or appointments.
+
+Opening an enquiry loads `GET /api/staff/enquiries/:id/conversations`, with at most 25 conversation notes per page, an exact total and an opaque `nextCursor`. “Load older conversation notes” reaches the rest. Merged originals load their own history when expanded. Original messages and internal notes remain visible while a request is pending or fails; failed history requests have a retry action. The endpoint requires staff access and explicitly matches the dealer and enquiry. Its `(occurred_at, id)` cursor preserves PostgreSQL microseconds, including multiple notes created within one JavaScript millisecond. Existing enquiry-prefix invalidation refreshes an opened conversation after a write.
+
+The sale workspace list removes archived document PDF data, private request replay maps and provider payment replay maps in PostgreSQL before transfer. Its public fields, payment records and document summaries are unchanged; the original documents remain available through their existing detail/download paths. Relationship reads similarly project public chat conversations/messages before transferring them, leaving private chat state behind.
+
+`GET /api/staff/inventory` now defaults to current inventory. An explicit `scope=archived` returns 50 older cars per page, tenant totals, the exact matching count and `nextCursor`. The portal's Archived filter loads these pages on demand. Its `q` search runs in PostgreSQL before the page limit, so an older archived car remains findable without loading every prior page. Migration 0042 adds partial tenant/date/id indexes for current and archived inventory. No cars are archived or removed by this migration. The local preview mirrors the list/search contracts as a clearly labelled read-only adapter; connected-only photo, plate and preparation editing is not simulated.
+
+Reproducible fictional PGlite fixtures (`pnpm run test:history` from `artifacts/api-server`):
+
+| Workload and transfer boundary | Before | After |
+| --- | ---: | ---: |
+| 100 sales: database-to-API, including large archived PDFs/private replay maps | 2,588,671 bytes | 42,671 bytes |
+| 100 chat records: database-to-API | 383,731 bytes | 19,871 bytes |
+| Two merged enquiries / 1,000 notes: recurring list response | 1,868,768 bytes | 2,876 bytes |
+| Selected enquiry conversation page | Full history above | At most 46,799 bytes in this fixture |
+| 30 current / 500 archived vehicles: initial current response | All retained cars previously loaded | 9,604 bytes |
+| Archived inventory page | All retained cars previously loaded | At most 17,360 bytes in this fixture |
+
+The tests reach all 1,000 conversation notes exactly once over 40 pages and all 500 archived cars, including microsecond cursor boundaries; search finds the oldest archived match, foreign-dealer records remain inaccessible, and authentication/invalid cursors are checked. These are logical local transfer sizes, not Render RAM, production response times or limits on legitimate note content.
+
+**Remaining scope:** enquiry/customer matching and calendars still receive the full set of enquiry summary records; the current inventory list, sales list and relationship graph are not fully paginated. Sale lists retain public document/payment history, and relationships still return full public messages when explicitly opened. These reads need further measurement as individual dealers accumulate years of records. Event data in legacy clients and mutation responses remains unchanged. The new pages do not impose a hidden maximum on retained history.
+
+## Safe service restart
+
+SIGTERM and SIGINT begin a drain before new request bodies are read. New work receives HTTP 503 and `Retry-After: 15`; stock imports retain their retryable busy response shape with null identity fields because the body has not been buffered. Worker intervals stop immediately. The retained HTTP server and tracked startup, worker, provider and import operations finish before `pool.end()` and a successful exit. A 25-second hard deadline exits with failure instead of closing the pool underneath unfinished work. Durable work remains eligible for its existing recovery path on restart.
+
+`healthz` remains liveness (200) while `readyz` returns 503 during the drain. Start scripts use `exec` to pass termination to Node through the package-manager/shell chain. `pnpm run test:shutdown` covers nine checks, including a real child-process SIGTERM through that start-command chain. No Render configuration, schedule or secret is changed by this restart handling.

@@ -24,14 +24,34 @@ import {
   requirePermission,
   staffLabel,
 } from "../middlewares/staff-auth";
-import { currentDealerId, currentTenant } from "../lib/tenant-context";
+import {
+  currentDealerId,
+  currentTenant,
+  multiTenantEnabled,
+} from "../lib/tenant-context";
 import {
   dealerIntegrationsStore,
   effectiveResendSettings,
   integrationReadiness,
   type PrivateDealerSettings,
 } from "../lib/dealer-integrations-store";
-import { sendEmailWithSettings } from "../lib/email-provider";
+import {
+  sendEmailWithSettings,
+  sendPreparedEmail,
+  type EmailEnvelope,
+  type EmailRequest,
+} from "../lib/email-provider";
+import {
+  enqueueEmailOutbox,
+  attemptQueuedEmail,
+  recoverEmailOutbox,
+  staffOutboxMetadata,
+  type EmailOutbox,
+} from "../lib/email-outbox";
+import {
+  withEmailPreparation,
+  EmailPreparationBusy,
+} from "../lib/email-preparation";
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { siteOrigin } from "../lib/enquiry-links";
 
@@ -93,7 +113,10 @@ const hash = (value: string) =>
 const uuid = (value: unknown): value is string =>
   z.string().uuid().safeParse(value).success;
 const key = (dealer: string, id: string) => `enquiry-email:${dealer}:${id}`;
-const describe = (row: typeof enquiryEmailsTable.$inferSelect) => ({
+const describe = (
+  row: typeof enquiryEmailsTable.$inferSelect,
+  metadata?: { retryAt: string | null; attempts: number },
+) => ({
   id: row.id,
   requestId: row.requestId,
   to: row.recipient,
@@ -104,129 +127,81 @@ const describe = (row: typeof enquiryEmailsTable.$inferSelect) => ({
   createdAt: row.createdAt,
   finishedAt: row.finishedAt,
   error: row.error,
+  ...(metadata ?? {}),
 });
 const dependencies = {
   settings: () => dealerIntegrationsStore.readPrivate(),
   send: sendEmailWithSettings,
 };
 
-/** Provider is injectable: tests only send to a recording transport. */
-export function createEnquiryEmailRouter(
-  overrides: Partial<typeof dependencies> = {},
+async function entry(id: string, executor: typeof db = db) {
+  if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
+  const [row] = await executor
+    .select()
+    .from(enquiriesTable)
+    .where(
+      and(
+        eq(enquiriesTable.id, id),
+        eq(enquiriesTable.dealerId, currentDealerId()),
+      ),
+    );
+  if (!row) throw new EmailError("Enquiry not found.", 404);
+  if (row.mergedIntoId)
+    throw new EmailError(
+      "This enquiry was merged. Open the current enquiry before preparing a reply.",
+      409,
+    );
+  return row;
+}
+async function invoiceAttachments(
+  enquiry: typeof enquiriesTable.$inferSelect,
+  executor: typeof db = db,
+  content = false,
 ) {
-  const deps = { ...dependencies, ...overrides },
-    router = Router();
-  router.use(
-    "/staff/enquiries/:id/email-context",
-    requireStaff,
-    requirePermission("sales.manage"),
-  );
-  router.use(
-    "/staff/enquiries/:id/email-preview",
-    requireStaff,
-    requirePermission("sales.manage"),
-  );
-  router.use(
-    "/staff/enquiries/:id/email",
-    requireStaff,
-    requirePermission("sales.manage"),
-  );
-  router.use("/staff/enquiries/:id/email{*rest}", (req, res, next) => {
-    res.setHeader("Cache-Control", "no-store, private");
-    const origin = req.get("origin");
-    let sameDealerOrigin = !origin;
-    if (origin) {
-      try {
-        const source = new URL(origin),
-          canonical = new URL(siteOrigin());
-        sameDealerOrigin =
-          !source.username &&
-          !source.password &&
-          source.origin === origin &&
-          (source.origin === canonical.origin ||
-            (currentTenant()?.kind === "website" &&
-              source.protocol === canonical.protocol &&
-              source.host.toLowerCase() ===
-                (req.get("host") || "").toLowerCase()));
-      } catch {
-        sameDealerOrigin = false;
-      }
-    }
-    if (!sameDealerOrigin) {
-      res
-        .status(403)
-        .json({ error: "Open enquiry emails from this dealership website." });
-      return;
-    }
-    next();
-  });
-  async function entry(id: string, executor: typeof db = db) {
-    if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
-    const [row] = await executor
-      .select()
-      .from(enquiriesTable)
-      .where(
-        and(
-          eq(enquiriesTable.id, id),
-          eq(enquiriesTable.dealerId, currentDealerId()),
-        ),
-      );
-    if (!row) throw new EmailError("Enquiry not found.", 404);
-    if (row.mergedIntoId)
-      throw new EmailError(
-        "This enquiry was merged. Open the current enquiry before preparing a reply.",
-        409,
-      );
-    return row;
-  }
-  async function invoiceAttachments(
-    enquiry: typeof enquiriesTable.$inferSelect,
-    executor: typeof db = db,
-    content = false,
-  ) {
-    if (!enquiry.vehicleId) return [];
-    const rows = (
-      await executor.execute(
-        sql`SELECT id,state->'documents' AS documents,CASE WHEN ${content} THEN state->'documentArchives' ELSE NULL END AS archives FROM sale_workspace WHERE dealer_id=${enquiry.dealerId} AND state#>>'{draft,vehicleId}'=${enquiry.vehicleId} AND (state#>>'{draft,sourceEnquiryId}'=${enquiry.id} OR (${enquiry.email ?? ""}<>'' AND lower(state#>>'{draft,email}')=lower(${enquiry.email ?? ""}))) ORDER BY updated_at DESC LIMIT 20`,
-      )
-    ).rows;
-    return rows
-      .flatMap((row) =>
-        ((row.documents ?? []) as SaleWorkspaceDocument[])
-          .filter(
-            (doc) =>
-              doc.type === "invoice" &&
-              doc.snapshot.draft.customer.trim().toLowerCase() ===
-                enquiry.customerName.trim().toLowerCase() &&
-              (!enquiry.email ||
-                doc.snapshot.draft.email.trim().toLowerCase() ===
-                  enquiry.email.trim().toLowerCase()),
-          )
-          .map((doc) => ({
-            id: `${row.id}:${doc.id}`,
-            title: doc.title,
-            number: doc.number,
-            saleId: String(row.id),
-            issuedAt: doc.issuedAt,
-            document: doc,
-            archive: (
-              row.archives as Record<
-                string,
-                { content: string; sha256: string }
-              > | null
-            )?.[doc.id],
-          })),
-      )
-      .sort((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt))
-      .slice(0, 30);
-  }
-  async function preview(
-    id: string,
-    input: Draft,
-    config: PrivateDealerSettings,
-    profile: Awaited<ReturnType<typeof dealerProfile>>,
-    executor: typeof db = db,
-  ) {
+  if (!enquiry.vehicleId) return [];
+  const rows = (
+    await executor.execute(
+      sql`SELECT id,state->'documents' AS documents,CASE WHEN ${content} THEN state->'documentArchives' ELSE NULL END AS archives FROM sale_workspace WHERE dealer_id=${enquiry.dealerId} AND state#>>'{draft,vehicleId}'=${enquiry.vehicleId} AND (state#>>'{draft,sourceEnquiryId}'=${enquiry.id} OR (${enquiry.email ?? ""}<>'' AND lower(state#>>'{draft,email}')=lower(${enquiry.email ?? ""}))) ORDER BY updated_at DESC LIMIT 20`,
+    )
+  ).rows;
+  return rows
+    .flatMap((row) =>
+      ((row.documents ?? []) as SaleWorkspaceDocument[])
+        .filter(
+          (doc) =>
+            doc.type === "invoice" &&
+            doc.snapshot.draft.customer.trim().toLowerCase() ===
+              enquiry.customerName.trim().toLowerCase() &&
+            (!enquiry.email ||
+              doc.snapshot.draft.email.trim().toLowerCase() ===
+                enquiry.email.trim().toLowerCase()),
+        )
+        .map((doc) => ({
+          id: `${row.id}:${doc.id}`,
+          title: doc.title,
+          number: doc.number,
+          saleId: String(row.id),
+          issuedAt: doc.issuedAt,
+          document: doc,
+          archive: (
+            row.archives as Record<
+              string,
+              { content: string; sha256: string }
+            > | null
+          )?.[doc.id],
+        })),
+    )
+    .sort((a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt))
+    .slice(0, 30);
+}
+async function preview(
+  id: string,
+  input: Draft,
+  config: PrivateDealerSettings,
+  profile: Awaited<ReturnType<typeof dealerProfile>>,
+  executor: typeof db = db,
+) {
+  return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
     await checkSavedAiDraftFresh(
       executor,
@@ -467,8 +442,111 @@ export function createEnquiryEmailRouter(
       }),
     );
     return { enquiry, rendered, attachments, previewHash };
-  }
+  });
+}
+
+export async function rebuildStaffOutboxEmail(
+  row: EmailOutbox,
+  suppliedConfig?: PrivateDealerSettings,
+): Promise<EmailRequest> {
+  if (row.kind !== "staff" || row.dealer_id !== currentDealerId())
+    throw new Error("The approved email context is invalid.");
+  const actor = (
+    await db.execute(
+      sql`SELECT m.created_by,u.role,u.disabled_at FROM enquiry_emails m LEFT JOIN portal_users u ON u.dealer_id=m.dealer_id AND u.auth_user_id=m.created_by WHERE m.id=${row.delivery_id}::uuid AND m.dealer_id=${row.dealer_id} AND m.enquiry_id=${row.enquiry_id}::uuid`,
+    )
+  ).rows[0];
+  const machine =
+    !multiTenantEnabled() &&
+    actor?.created_by === "machine" &&
+    Boolean(process.env.PORTAL_API_TOKEN) &&
+    row.validation.machineTokenHash === hash(process.env.PORTAL_API_TOKEN!);
+  if (
+    !machine &&
+    (!actor ||
+      actor.disabled_at ||
+      !["owner", "salesperson"].includes(String(actor.role)))
+  )
+    throw new Error("The email approval is no longer authorised.");
+  const input = draftSchema.parse(row.validation.input),
+    config = suppliedConfig ?? (await dealerIntegrationsStore.readPrivate());
+  const result = await preview(
+    row.enquiry_id,
+    input,
+    config,
+    await dealerProfile(),
+  );
+  if (result.previewHash !== row.validation.previewHash)
+    throw new Error(
+      "The approved customer, car or attachment details changed.",
+    );
+  return {
+    to: input.to,
+    ...result.rendered,
+    idempotencyKey: row.send_key,
+    attachments: result.attachments.map(({ filename, content }) => ({
+      filename,
+      content,
+    })),
+  };
+}
+export { preview as previewEnquiryEmail };
+
+/** Provider is injectable: tests only send to a recording transport. */
+export function createEnquiryEmailRouter(
+  overrides: Partial<typeof dependencies> = {},
+) {
+  const deps = { ...dependencies, ...overrides },
+    router = Router();
+  router.use(
+    "/staff/enquiries/:id/email-context",
+    requireStaff,
+    requirePermission("sales.manage"),
+  );
+  router.use(
+    "/staff/enquiries/:id/email-preview",
+    requireStaff,
+    requirePermission("sales.manage"),
+  );
+  router.use(
+    "/staff/enquiries/:id/email",
+    requireStaff,
+    requirePermission("sales.manage"),
+  );
+  router.use("/staff/enquiries/:id/email{*rest}", (req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, private");
+    const origin = req.get("origin");
+    let sameDealerOrigin = !origin;
+    if (origin) {
+      try {
+        const source = new URL(origin),
+          canonical = new URL(siteOrigin());
+        sameDealerOrigin =
+          !source.username &&
+          !source.password &&
+          source.origin === origin &&
+          (source.origin === canonical.origin ||
+            (currentTenant()?.kind === "website" &&
+              source.protocol === canonical.protocol &&
+              source.host.toLowerCase() ===
+                (req.get("host") || "").toLowerCase()));
+      } catch {
+        sameDealerOrigin = false;
+      }
+    }
+    if (!sameDealerOrigin) {
+      res
+        .status(403)
+        .json({ error: "Open enquiry emails from this dealership website." });
+      return;
+    }
+    next();
+  });
   function failure(req: any, res: any, error: unknown) {
+    if (error instanceof EmailPreparationBusy) {
+      res.set("Retry-After", "15").status(503).json({ error: error.message });
+      return;
+    }
     if (error instanceof EmailError || error instanceof AiDraftError) {
       res.status(error.status).json({ error: error.message });
       return;
@@ -482,6 +560,7 @@ export function createEnquiryEmailRouter(
   router.get("/staff/enquiries/:id/email-context", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, private");
     try {
+      await recoverEmailOutbox();
       const enquiry = await entry(String(req.params.id)),
         config = await deps.settings(),
         profile = await dealerProfile();
@@ -545,6 +624,7 @@ export function createEnquiryEmailRouter(
         )
         .orderBy(desc(enquiryEmailsTable.createdAt))
         .limit(5);
+      const outboxMetadata = await staffOutboxMetadata(enquiry.id);
       const resend = effectiveResendSettings(config),
         ready =
           resend.enabled &&
@@ -632,7 +712,9 @@ export function createEnquiryEmailRouter(
         defaults: { subject: defaults.subject, message: defaults.bodyText },
         ready,
         photos,
-        deliveries: deliveries.map(describe),
+        deliveries: deliveries.map((row) =>
+          describe(row, outboxMetadata.get(row.id)),
+        ),
       });
     } catch (error) {
       failure(req, res, error);
@@ -678,175 +760,223 @@ export function createEnquiryEmailRouter(
       return;
     }
     try {
-      const input = parsed.data,
-        dealer = currentDealerId(),
-        id = String(req.params.id),
-        requestHash = hash(
-          JSON.stringify({
-            ...input,
-            documentIds: input.documentIds.length
-              ? input.documentIds
-              : undefined,
-          }),
-        );
-      if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
-      const config = await deps.settings(),
-        resend = effectiveResendSettings(config),
-        profile = await dealerProfile();
-      const claimed = await db.transaction(async (tx) => {
-        await tx.execute(
-          sql`SELECT pg_advisory_xact_lock(hashtext(${key(dealer, id)}))`,
-        );
-        const [existing] = await tx
-          .select()
-          .from(enquiryEmailsTable)
-          .where(
-            and(
-              eq(enquiryEmailsTable.dealerId, dealer),
-              eq(enquiryEmailsTable.enquiryId, id),
-              eq(enquiryEmailsTable.requestId, input.requestId),
-            ),
+      await withEmailPreparation(async () => {
+        const input = parsed.data,
+          dealer = currentDealerId(),
+          id = String(req.params.id),
+          requestHash = hash(
+            JSON.stringify({
+              ...input,
+              documentIds: input.documentIds.length
+                ? input.documentIds
+                : undefined,
+            }),
           );
-        if (existing) {
-          if (existing.requestHash !== requestHash)
-            throw new EmailError(
-              "This email request was already used for different content.",
-              409,
+        if (!uuid(id)) throw new EmailError("Enquiry not found.", 404);
+        const config = await deps.settings(),
+          resend = effectiveResendSettings(config),
+          profile = await dealerProfile();
+        const claimed = await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtext(${key(dealer, id)}))`,
+          );
+          const [existing] = await tx
+            .select()
+            .from(enquiryEmailsTable)
+            .where(
+              and(
+                eq(enquiryEmailsTable.dealerId, dealer),
+                eq(enquiryEmailsTable.enquiryId, id),
+                eq(enquiryEmailsTable.requestId, input.requestId),
+              ),
             );
-          return { existing };
-        }
-        if (
-          !resend.enabled ||
-          !integrationReadiness({ ...config, resend }).resend.ready
-        )
-          throw new EmailError(
-            "Email delivery is not ready. Ask the owner to enable Resend in Settings → API integrations.",
-            503,
-          );
-        await tx
-          .select({ id: enquiriesTable.id })
-          .from(enquiriesTable)
-          .where(
-            and(eq(enquiriesTable.id, id), eq(enquiriesTable.dealerId, dealer)),
+          if (existing) {
+            if (existing.requestHash !== requestHash)
+              throw new EmailError(
+                "This email request was already used for different content.",
+                409,
+              );
+            return { existing };
+          }
+          if (
+            !resend.enabled ||
+            !integrationReadiness({ ...config, resend }).resend.ready
           )
-          .for("update");
-        const result = await preview(
-          id,
-          input,
-          config,
-          profile,
-          tx as unknown as typeof db,
-        );
-        if (input.savedDraftVersion !== undefined) {
-          const saved = await readEmailDraft(
-            dealer,
+            throw new EmailError(
+              "Email delivery is not ready. Ask the owner to enable Resend in Settings → API integrations.",
+              503,
+            );
+          await tx
+            .select({ id: enquiriesTable.id })
+            .from(enquiriesTable)
+            .where(
+              and(
+                eq(enquiriesTable.id, id),
+                eq(enquiriesTable.dealerId, dealer),
+              ),
+            )
+            .for("update");
+          const result = await preview(
             id,
+            input,
+            config,
+            profile,
             tx as unknown as typeof db,
           );
-          const {
-            savedDraftVersion: _version,
-            requestId: _request,
-            previewHash: _preview,
-            ...copy
-          } = input;
-          const savedContent = draftSchema.safeParse(saved.savedDraft?.content);
-          if (
-            saved.version !== input.savedDraftVersion ||
-            saved.savedDraft?.status !== "draft" ||
-            !savedContent.success ||
-            JSON.stringify(savedContent.data) !== JSON.stringify(copy)
-          )
+          if (input.savedDraftVersion !== undefined) {
+            const saved = await readEmailDraft(
+              dealer,
+              id,
+              tx as unknown as typeof db,
+            );
+            const {
+              savedDraftVersion: _version,
+              requestId: _request,
+              previewHash: _preview,
+              ...copy
+            } = input;
+            const savedContent = draftSchema.safeParse(
+              saved.savedDraft?.content,
+            );
+            if (
+              saved.version !== input.savedDraftVersion ||
+              saved.savedDraft?.status !== "draft" ||
+              !savedContent.success ||
+              JSON.stringify(savedContent.data) !== JSON.stringify(copy)
+            )
+              throw new EmailError(
+                "The saved draft changed. Reopen it and review before sending.",
+                409,
+              );
+          }
+          if (result.previewHash !== input.previewHash)
             throw new EmailError(
-              "The saved draft changed. Reopen it and review before sending.",
+              "The details or attachments changed after your preview. Review the email again.",
               409,
             );
-        }
-        if (result.previewHash !== input.previewHash)
-          throw new EmailError(
-            "The details or attachments changed after your preview. Review the email again.",
-            409,
+          const recent = (
+            await tx.execute(
+              sql`SELECT count(*) AS n FROM enquiry_emails WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND created_at>now()-interval '1 hour'`,
+            )
+          ).rows[0];
+          if (Number(recent?.n ?? 0) >= 20)
+            throw new EmailError(
+              "This enquiry has reached its email limit. Wait before sending another message.",
+              429,
+            );
+          const [delivery] = await tx
+            .insert(enquiryEmailsTable)
+            .values({
+              id: randomUUID(),
+              dealerId: dealer,
+              enquiryId: id,
+              requestId: input.requestId,
+              requestHash,
+              status: "sending",
+              recipient: input.to,
+              subject: input.subject,
+              message: input.message,
+              renderedText: result.rendered.text,
+              attachmentManifest: result.attachments.map((a) => ({
+                id: a.id,
+                filename: a.filename,
+                byteSize: Buffer.byteLength(a.content, "base64"),
+              })),
+              photoIds: input.photoIds,
+              documentIds: input.documentIds,
+              createdBy: req.staff!.authUserId,
+            })
+            .returning();
+          const {
+            requestId: _requestId,
+            previewHash: _previewHash,
+            savedDraftVersion: _savedVersion,
+            ...approvedInput
+          } = input;
+          const outbox = await enqueueEmailOutbox(
+            {
+              enquiryId: id,
+              deliveryId: delivery!.id,
+              kind: "staff",
+              config: resend,
+              request: {
+                to: input.to,
+                ...result.rendered,
+                idempotencyKey: `enquiry-${delivery!.id}`,
+                attachments: result.attachments.map(
+                  ({ filename, content }) => ({ filename, content }),
+                ),
+              },
+              validation: {
+                input: approvedInput,
+                previewHash: input.previewHash,
+                ...(!multiTenantEnabled() && req.staff!.authUserId === "machine"
+                  ? {
+                      machineTokenHash: hash(
+                        process.env.PORTAL_API_TOKEN ?? "",
+                      ),
+                    }
+                  : {}),
+              },
+            },
+            tx,
           );
-        const recent = (
-          await tx.execute(
-            sql`SELECT count(*) AS n FROM enquiry_emails WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND created_at>now()-interval '1 hour'`,
-          )
-        ).rows[0];
-        if (Number(recent?.n ?? 0) >= 20)
-          throw new EmailError(
-            "This enquiry has reached its email limit. Wait before sending another message.",
-            429,
-          );
-        const [delivery] = await tx
-          .insert(enquiryEmailsTable)
-          .values({
-            id: randomUUID(),
-            dealerId: dealer,
-            enquiryId: id,
-            requestId: input.requestId,
-            requestHash,
-            status: "sending",
-            recipient: input.to,
-            subject: input.subject,
-            message: input.message,
-            renderedText: result.rendered.text,
-            attachmentManifest: result.attachments.map((a) => ({
-              id: a.id,
-              filename: a.filename,
-              byteSize: Buffer.byteLength(a.content, "base64"),
-            })),
-            photoIds: input.photoIds,
-            documentIds: input.documentIds,
-            createdBy: req.staff!.authUserId,
-          })
-          .returning();
-        if (input.savedDraftVersion !== undefined)
-          await tx.execute(
-            sql`UPDATE enquiry_email_drafts SET status='sending',send_request_id=${input.requestId}::uuid,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion}`,
-          );
-        return { delivery: delivery!, result };
-      });
-      if ("existing" in claimed) {
-        res.json({ delivery: describe(claimed.existing!), replayed: true });
-        return;
-      }
-      const { delivery, result } = claimed;
-      let status: "sent" | "failed" | "unknown" = "sent",
-        providerId: string | null = null,
-        error: string | null = null;
-      try {
-        providerId = await deps.send(resend, {
-          to: input.to,
-          ...result!.rendered,
-          idempotencyKey: `enquiry-${delivery!.id}`,
-          attachments: result!.attachments.map(({ filename, content }) => ({
-            filename,
-            content,
-          })),
+          if (input.savedDraftVersion !== undefined)
+            await tx.execute(
+              sql`UPDATE enquiry_email_drafts SET status='sending',send_request_id=${input.requestId}::uuid,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion}`,
+            );
+          return { delivery: delivery!, result, outboxId: outbox.id };
         });
-      } catch (cause) {
-        const reason = cause instanceof Error ? cause.message : "";
-        status = /HTTP 4\d\d\./.test(reason) ? "failed" : "unknown";
-        error =
-          status === "failed"
-            ? "The email provider rejected this message. Check the sender and recipient before preparing another email."
-            : "Provider acceptance could not be confirmed. Check Resend before sending another copy.";
-      }
-      const finished = await db.transaction(async (tx) => {
-        const [row] = await tx
-          .update(enquiryEmailsTable)
-          .set({ status, providerId, error, finishedAt: new Date() })
+        if ("existing" in claimed) {
+          res.json({
+            delivery: describe(
+              claimed.existing!,
+              (await staffOutboxMetadata(id)).get(claimed.existing!.id),
+            ),
+            replayed: true,
+          });
+          return;
+        }
+        const { delivery, result, outboxId } = claimed;
+        await attemptQueuedEmail(outboxId!, {
+          settings: async () => effectiveResendSettings(await deps.settings()),
+          rebuild: async (row) =>
+            rebuildStaffOutboxEmail(row, await deps.settings()),
+          ...(deps.send === sendEmailWithSettings
+            ? {}
+            : {
+                send: async (settings, body, sendKey) => {
+                  const envelope = JSON.parse(body) as EmailEnvelope;
+                  return deps.send(
+                    {
+                      ...settings,
+                      from: envelope.from,
+                      replyTo: envelope.reply_to ?? "",
+                    },
+                    {
+                      to: envelope.to[0]!,
+                      subject: envelope.subject,
+                      html: envelope.html,
+                      text: envelope.text,
+                      attachments: envelope.attachments,
+                      idempotencyKey: sendKey,
+                    },
+                  );
+                },
+              }),
+        });
+        const [finished] = await db
+          .select()
+          .from(enquiryEmailsTable)
           .where(
             and(
               eq(enquiryEmailsTable.id, delivery!.id),
               eq(enquiryEmailsTable.dealerId, dealer),
             ),
-          )
-          .returning();
-        if (input.savedDraftVersion !== undefined)
-          await tx.execute(
-            sql`UPDATE enquiry_email_drafts SET status=${status === "failed" ? "draft" : status},version=version+1,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion} AND send_request_id=${input.requestId}::uuid`,
           );
-        await tx.insert(enquiryEventsTable).values({
+        if (!finished)
+          throw new EmailError("The saved email is unavailable.", 503);
+        await db.insert(enquiryEventsTable).values({
           dealerId: dealer,
           enquiryId: id,
           vehicleId: result!.enquiry.vehicleId,
@@ -854,21 +984,28 @@ export function createEnquiryEmailRouter(
           kind: "conversation_logged",
           actor: "dealer",
           summary:
-            status === "sent"
+            finished.status === "sent"
               ? "Email submitted to Resend"
-              : status === "unknown"
-                ? "Email acceptance unconfirmed"
-                : "Email not sent",
+              : finished.status === "sending"
+                ? "Approved email queued for delivery"
+                : finished.status === "unknown"
+                  ? "Email acceptance unconfirmed"
+                  : "Email not sent",
           detail: {
             channel: "email",
             staffId: req.staff!.authUserId,
             staffName: staffLabel(req),
-            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} vehicle photo${input.photoIds.length === 1 ? "" : "s"} and ${input.documentIds.length} invoice(s) attached.${error ? "\n" + error : ""}`,
+            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} vehicle photo(s) and ${input.documentIds.length} invoice(s) attached.${finished.error ? "\n" + finished.error : ""}`,
           },
         });
-        return row!;
+        res.status(201).json({
+          delivery: describe(
+            finished,
+            (await staffOutboxMetadata(id)).get(finished.id),
+          ),
+          replayed: false,
+        });
       });
-      res.status(201).json({ delivery: describe(finished), replayed: false });
     } catch (error) {
       failure(req, res, error);
     }

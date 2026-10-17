@@ -23,9 +23,15 @@ Draft fields are `to`, `subject`, `message`, `includeVehicle`, `includeAppointme
 
 Every photo query binds dealer, enquiry vehicle and photo ID. The backend rechecks current rendered facts and exact photo contents: changed/deleted photos, prices or appointment information require a new review. Staff text is escaped literally, including HTML and template-looking braces. Per-enquiry locking and a durable unique delivery journal prevent concurrent or identical retries from sending twice; changed-content request reuse is rejected.
 
-Uncertain provider failures become **acceptance unconfirmed**. Identical retries read the journal, never send again. A server interruption during delivery can leave **sending**: check Resend and the recorded request before deliberately preparing another email. There is no automatic recovery resend that could duplicate a message. Definitive provider 4xx rejection becomes **not sent**. An enquiry allows 20 new requests per hour; identical retries do not count again.
+The approved provider envelope is saved in a tenant-bound outbox before sending. Definite temporary provider rejections are retried with the same bytes and idempotency key, at most three provider attempts and only within 23 hours. The queue respects `Retry-After`; local capacity deferrals do not consume a provider attempt. Pending retries show **Retry scheduled**, with a **Refresh saved status** action that only reads the journal. It never creates another send.
 
-Migration `0023_enquiry_emails.sql` adds the delivery journal and supporting composite enquiry/dealer key. No stock, payments, issued documents or customer records are replaced. Email content and recipient history are private dealer records. Attachment bytes are not duplicated in the journal.
+Uncertain acceptance, including a timeout, lost connection or an expired in-flight lease after a restart, becomes **acceptance unconfirmed** for operator review. It is never blindly resent. Every queued retry rechecks the staff approval, current customer/car/appointment facts, attachments, sender and provider account; changed details require a new review. Permanent provider rejection becomes **not sent**. An enquiry allows 20 new requests per hour; identical request retries read the existing journal and do not count again.
+
+Migration `0041_email_outbox.sql` creates the outbox without re-sending old failures or backfilling old messages. Older abandoned **sending** records without an approved outbox snapshot are marked unconfirmed, rather than resent. The existing confirmation/reminder paths use the same bounded retry mechanism for new messages. A targeted sweep finds due dealers instead of repeatedly scanning every dealer's history. The provider transport and message preparation each admit at most two active operations per API process, with no in-memory queue of attachment payloads.
+
+Terminal outbox transport copies (including attachment bytes) are cleared after 48 hours in small batches. The delivery journal, original invoice archives, payment records and customer history follow their existing retention rules. No provider API key is stored in the outbox; its account binding is a one-way fingerprint.
+
+Migration `0023_enquiry_emails.sql` adds the delivery journal and supporting composite enquiry/dealer key. No stock, payments, issued documents or customer records are replaced. Email content and recipient history are private dealer records. Attachment bytes are not duplicated in the permanent journal.
 
 ## Verification and local preview
 

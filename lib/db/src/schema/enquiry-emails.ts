@@ -53,6 +53,9 @@ export const enquiryEmailsTable = pgTable(
       t.enquiryId,
       t.createdAt,
     ),
+    index("enquiry_emails_interrupted_idx")
+      .on(t.createdAt, t.dealerId)
+      .where(sql`${t.status}='sending'`),
     foreignKey({
       columns: [t.enquiryId, t.dealerId],
       foreignColumns: [enquiriesTable.id, enquiriesTable.dealerId],

@@ -1,5 +1,6 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { useLogEnquiryConversation, type Enquiry } from '@workspace/api-client-react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { customFetch, getGetEnquiriesQueryKey, useLogEnquiryConversation, type Enquiry } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,13 +60,34 @@ export function ConversationEditor({ entry, onClose, onSaved }: { entry: Enquiry
   </Dialog>;
 }
 
-export function ConversationHistory({ entry }: { entry: Enquiry }) {
+type ConversationPage = { events: Enquiry['events']; total: number; nextCursor: string | null };
+function LoadedConversationHistory({ entry }: { entry: Enquiry }) {
+  const history = useInfiniteQuery({
+    queryKey: [...getGetEnquiriesQueryKey(), 'conversations', entry.id, entry.workspaceRevision ?? 0],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => customFetch<ConversationPage>(`/api/staff/enquiries/${encodeURIComponent(entry.id)}/conversations${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`, { signal, responseType: 'json' }),
+    getNextPageParam: page => page.nextCursor ?? undefined,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const events = [...new Map((history.data?.pages.flatMap(page => page.events) ?? []).map(event => [event.id, event])).values()];
+  const total = history.data?.pages[0]?.total;
+  return <ConversationHistoryView entry={{ ...entry, events }} total={total} status={history.isPending ? <p role="status">Loading conversation notes…</p> : history.isError ? <div role="alert"><p>Conversation notes could not be loaded. The original enquiry and internal note are still shown.</p><Button size="sm" variant="outline" onClick={() => void history.refetch()}>Retry conversation notes</Button></div> : undefined} footer={history.hasNextPage ? <div className="mt-3 grid gap-2"><p className="text-xs text-muted-foreground">Showing {events.length} of {total} conversation notes.</p><Button size="sm" variant="outline" disabled={history.isFetchingNextPage} onClick={() => void history.fetchNextPage()}>{history.isFetchingNextPage ? 'Loading older notes…' : 'Load older conversation notes'}</Button></div> : undefined} />;
+}
+
+export function ConversationHistory({ entry, loadOnDemand = false }: { entry: Enquiry; loadOnDemand?: boolean }) {
+  return loadOnDemand ? <LoadedConversationHistory entry={entry} /> : <ConversationHistoryView entry={entry} />;
+}
+
+function ConversationHistoryView({ entry, total, status, footer }: { entry: Enquiry; total?: number; status?: ReactNode; footer?: ReactNode }) {
   const conversations = (entry.events ?? []).filter(event => event.kind === 'conversation_logged').sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
   return <section className="enquiry-conversation-history" aria-label="Conversation history">
-    <h4>Conversation history{conversations.length ? ` · ${conversations.length}` : ''}</h4>
+    <h4>Conversation history{(total ?? conversations.length) ? ` · ${total ?? conversations.length}` : ''}</h4>
     {entry.message && <article><p className="enquiry-conversation-meta">Original {entry.source === 'website_callback' ? 'website callback request' : entry.source === 'phone' ? 'call' : 'enquiry'}{entry.createdAt ? ` · ${appointmentLabel(entry.createdAt)}` : ''}</p><p className="whitespace-pre-wrap break-words">{entry.message}</p></article>}
     {entry.staffNote && <article><p className="enquiry-conversation-meta">Internal note</p><p className="whitespace-pre-wrap break-words">{entry.staffNote}</p></article>}
     {conversations.map(event => <article key={event.id} data-testid={`conversation-${event.id}`}><p className="enquiry-conversation-meta"><time dateTime={event.occurredAt}>{appointmentLabel(event.occurredAt)}</time> · {event.staffName || 'Staff member'}</p><p className="font-medium">{event.callOutcome ? callOutcomes[event.callOutcome as CallOutcome] || event.callOutcome : event.summary}</p><p className="whitespace-pre-wrap break-words">{event.note || event.summary}</p>{event.followUpAt && <p className="text-xs text-muted-foreground">Next follow-up: {appointmentLabel(event.followUpAt)}</p>}</article>)}
-    {!conversations.length && !entry.message && !entry.staffNote && <p className="text-sm text-muted-foreground">No conversation notes recorded yet.</p>}
+    {status}
+    {!status && !conversations.length && !entry.message && !entry.staffNote && <p className="text-sm text-muted-foreground">No conversation notes recorded yet.</p>}
+    {footer}
   </section>;
 }
