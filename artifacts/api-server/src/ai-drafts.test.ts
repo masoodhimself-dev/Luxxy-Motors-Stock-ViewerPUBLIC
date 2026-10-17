@@ -725,7 +725,7 @@ test("staff AI drafts: permissions, isolation, durable quotas, idempotency, stal
         const requestId = randomUUID(),
           first = await generate({ requestId }),
           same = await generate({ requestId });
-        assert.equal(first.status, 502);
+        assert.equal(first.status, 424);
         assert.equal(same.status, 409);
         for (const result of [first, same]) {
           assert.equal(result.data.code, "generation_failed");
@@ -746,7 +746,7 @@ test("staff AI drafts: permissions, isolation, durable quotas, idempotency, stal
         );
         assert.equal(logs.length, 0);
         const explicitNew = await generate();
-        assert.equal(explicitNew.status, 502);
+        assert.equal(explicitNew.status, 424);
         assert.equal(calls, 2);
         assert.equal((await counts()).count, 2);
       },
@@ -760,7 +760,7 @@ test("staff AI drafts: permissions, isolation, durable quotas, idempotency, stal
           throw new AiProviderError(true);
         };
         const id = randomUUID();
-        assert.equal((await generate({ requestId: id })).status, 502);
+        assert.equal((await generate({ requestId: id })).status, 424);
         assert.equal((await generate({ requestId: id })).status, 409);
         assert.equal(calls, 1);
         const row = (

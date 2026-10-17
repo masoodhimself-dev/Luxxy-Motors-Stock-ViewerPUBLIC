@@ -54,7 +54,7 @@ const safeFailureCodes = new Set([
 ]);
 export function aiProviderFailure(
   error: AiProviderError,
-  status = 502,
+  status = 424,
 ): AiDraftError {
   const code = safeFailureCodes.has(error.failureCode)
     ? error.failureCode

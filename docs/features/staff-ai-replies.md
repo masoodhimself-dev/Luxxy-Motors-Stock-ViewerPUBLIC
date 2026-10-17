@@ -38,6 +38,8 @@ No API key is returned by configuration endpoints. Removing the allowlist entry 
 
 These application guards are conservative estimates, not the provider's final invoice. Review current OpenAI pricing before changing the model, processing tier or reservation rates.
 
+Provider failures return application HTTP **424 Failed Dependency**, preserving the friendly JSON error through upstream proxies. Checking the same failed request returns **409** and never makes another provider call or consumes another allowance. Safe error metadata includes `generation_failed`, `generation_unconfirmed` or `generation_pending`, `canStartNew`, and only an allowlisted provider code and HTTP status; provider messages and bodies are never retained or logged. Staff can explicitly start a new request only after a definite failure. Pending or uncertain outcomes retain the original request ID.
+
 `store:false` is requested for Responses. This is not a promise of zero provider retention: OpenAI's abuse-monitoring and other applicable retention policies still apply unless the account has separately approved controls.
 
 ## Official references
