@@ -77,16 +77,17 @@ function context(second = false) {
     deliveries: [],
   };
 }
-function mount() {
-  const client = new QueryClient({
+function mount(
+  client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  }),
+) {
   const content = (value = entry) => (
     <QueryClientProvider client={client}>
       <EnquiryEmailComposer entry={value} onClose={state.close} />
     </QueryClientProvider>
   );
-  return { ...render(content()), content };
+  return { ...render(content()), content, client };
 }
 const calls = (suffix: string) =>
   state.fetch.mock.calls.filter(
@@ -313,4 +314,237 @@ it("does not carry a suggestion or its provenance into another customer's compos
   expect(JSON.parse(calls("/email-draft")[0][1].body)).not.toHaveProperty(
     "aiGenerationId",
   );
+});
+
+it("restores saved AI text, source and version after closing and reopening with the same query cache", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let stored: Record<string, unknown> = context();
+  state.fetch.mockImplementation(
+    async (url: string, options?: { body?: string }) => {
+      if (url.endsWith("/email-context")) return stored;
+      if (url.endsWith("/email-draft")) {
+        const input = JSON.parse(options!.body!);
+        const version = input.expectedVersion + 1;
+        const previous = stored.savedDraft as {
+          aiGenerationId?: string;
+        } | null;
+        stored = {
+          ...stored,
+          version,
+          savedDraft: {
+            version,
+            status: "draft",
+            source: "ai",
+            aiGenerationId: input.aiGenerationId ?? previous?.aiGenerationId,
+            content: input.content,
+            updatedAt: "2026-10-17T11:00:00Z",
+          },
+        };
+        return { version, savedDraft: stored.savedDraft };
+      }
+      return original(url, options);
+    },
+  );
+  const first = mount();
+  await generate();
+  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Draft saved · not sent");
+  expect(
+    first.client.getQueryData(["enquiry-email-context", entry.id]),
+  ).toMatchObject({
+    version: 5,
+    savedDraft: {
+      source: "ai",
+      aiGenerationId: suggestion.generationId,
+      content: { subject: suggestion.subject, message: suggestion.message },
+    },
+  });
+  first.unmount();
+  mount(first.client);
+  expect(await screen.findByRole("textbox", { name: "Subject" })).toHaveValue(
+    suggestion.subject,
+  );
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+    suggestion.message,
+  );
+  expect(
+    screen.getByText("AI-assisted draft restored · review before sending"),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Draft saved · not sent");
+  expect(JSON.parse(calls("/email-draft")[1][1].body).expectedVersion).toBe(5);
+  expect(calls("/ai-draft")).toHaveLength(1);
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("waits for the latest server draft instead of hydrating cached defaults from before another staff member saved", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let finish!: (value: unknown) => void;
+  state.fetch.mockImplementation((url: string, options?: unknown) =>
+    url.endsWith("/email-context")
+      ? new Promise((resolve) => {
+          finish = resolve;
+        })
+      : original(url, options),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(["enquiry-email-context", entry.id], context());
+  mount(client);
+  expect(screen.getByText("Loading latest email details…")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("textbox", { name: "Message" }),
+  ).not.toBeInTheDocument();
+  await act(async () => {
+    finish({
+      ...context(),
+      version: 8,
+      savedDraft: {
+        version: 8,
+        status: "draft",
+        source: "manual",
+        updatedAt: "2026-10-17T11:00:00Z",
+        content: {
+          to: "alex@example.test",
+          subject: "A teammate’s saved subject",
+          message: "A teammate’s saved reply",
+          includeVehicle: true,
+          includeAppointment: false,
+          photoIds: [],
+          documentIds: [],
+          expectedRevision: 2,
+        },
+      },
+    });
+  });
+  expect(await screen.findByRole("textbox", { name: "Subject" })).toHaveValue(
+    "A teammate’s saved subject",
+  );
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+    "A teammate’s saved reply",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Draft saved · not sent");
+  expect(JSON.parse(calls("/email-draft")[0][1].body).expectedVersion).toBe(8);
+  expect(calls("/ai-draft")).toHaveLength(0);
+});
+
+it("does not overwrite unsaved staff edits when the context refetches", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let fresh = context();
+  state.fetch.mockImplementation((url: string, options?: unknown) =>
+    url.endsWith("/email-context")
+      ? Promise.resolve(fresh)
+      : original(url, options),
+  );
+  const view = mount();
+  await screen.findByRole("textbox", { name: "Message" });
+  fireEvent.change(screen.getByRole("textbox", { name: "Message" }), {
+    target: { value: "Keep this unsaved staff reply" },
+  });
+  fresh = {
+    ...context(),
+    defaults: {
+      subject: "New server default",
+      message: "New server default reply",
+    },
+  };
+  await act(async () => {
+    await view.client.refetchQueries({
+      queryKey: ["enquiry-email-context", entry.id],
+      exact: true,
+    });
+  });
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+    "Keep this unsaved staff reply",
+  );
+  expect(screen.getByRole("textbox", { name: "Subject" })).toHaveValue(
+    "Original subject",
+  );
+  expect(calls("/email-draft")).toHaveLength(0);
+  expect(calls("/ai-draft")).toHaveLength(0);
+});
+
+it("labels saving separately from preparing an email preview", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let finish!: (value: unknown) => void;
+  state.fetch.mockImplementation((url: string, options?: unknown) =>
+    url.endsWith("/email-draft")
+      ? new Promise((resolve) => {
+          finish = resolve;
+        })
+      : original(url, options),
+  );
+  mount();
+  await screen.findByRole("textbox", { name: "Message" });
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  expect(screen.getByRole("button", { name: "Saving draft…" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
+  expect(screen.queryByText("Preparing preview…")).not.toBeInTheDocument();
+  await act(async () => {
+    finish({ version: 5 });
+  });
+  expect(screen.getByRole("button", { name: "Save draft" })).toBeEnabled();
+  expect(calls("/email-preview")).toHaveLength(0);
+});
+
+it("can explicitly refresh stale enquiry details and generate a fresh reply without choosing a template", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation((url: string, options?: unknown) =>
+    url.endsWith("/email-context")
+      ? Promise.resolve({
+          ...context(),
+          savedDraft: {
+            version: 4,
+            status: "draft",
+            source: "ai",
+            aiGenerationId: "00000000-0000-4000-8000-000000000009",
+            updatedAt: "2026-10-17T10:00:00Z",
+            content: {
+              to: "alex@example.test",
+              subject: "Old saved subject",
+              message: "Old saved reply to review",
+              includeVehicle: true,
+              includeAppointment: false,
+              photoIds: [],
+              documentIds: ["invoice-one"],
+              expectedRevision: 1,
+            },
+          },
+        })
+      : original(url, options),
+  );
+  mount();
+  await screen.findByRole("textbox", { name: "Message" });
+  expect(screen.getByRole("button", { name: "Save draft" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Draft with AI" })).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Use latest enquiry details" }),
+  );
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+    "Old saved reply to review",
+  );
+  expect(
+    screen.getByRole("checkbox", { name: /Full invoice.*INV-001/ }),
+  ).toBeChecked();
+  await generate();
+  expect(JSON.parse(calls("/ai-draft")[0][1].body)).toMatchObject({
+    expectedRevision: 2,
+    expectedVersion: 4,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Draft saved · not sent");
+  expect(JSON.parse(calls("/email-draft")[0][1].body)).toMatchObject({
+    aiGenerationId: suggestion.generationId,
+    content: {
+      expectedRevision: 2,
+      message: suggestion.message,
+      documentIds: ["invoice-one"],
+    },
+  });
+  expect(calls("/email")).toHaveLength(0);
 });

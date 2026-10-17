@@ -33,6 +33,7 @@ type EmailContext = {
     version: number;
     status: string;
     source?: string;
+    aiGenerationId?: string | null;
     content: EmailDraft;
     updatedAt: string;
   } | null;
@@ -150,11 +151,13 @@ function EnquiryEmailEditor({
   onClose: (result?: "sent" | "draft") => void;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
+  const contextKey = ["enquiry-email-context", entry.id] as const;
   const context = useQuery({
-    queryKey: ["enquiry-email-context", entry.id],
+    queryKey: contextKey,
     queryFn: () => request<EmailContext>(`${base}/email-context`),
     staleTime: 0,
     retry: false,
+    refetchOnMount: "always",
   });
   const refresh = useRefreshDesk(),
     initialized = useRef(false),
@@ -182,19 +185,35 @@ function EnquiryEmailEditor({
   const [preview, setPreview] = useState<EmailPreview | null>(null),
     [reviewedDraft, setReviewedDraft] = useState<EmailDraft | null>(null),
     [delivery, setDelivery] = useState<Delivery | null>(null);
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const [busyAction, setBusyAction] = useState<
+    "save" | "review" | "send" | null
+  >(null);
+  const busy = busyAction !== null;
+  const [error, setError] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiGenerationId, setAiGenerationId] = useState<string>();
-  useEffect(() => { setAiGenerationId(undefined); }, [context.data?.revision]);
   useEffect(() => {
-    if (!context.data || initialized.current) return;
+    setAiGenerationId(undefined);
+  }, [context.data?.revision]);
+  useEffect(() => {
+    if (
+      !context.data ||
+      !context.isFetchedAfterMount ||
+      context.isFetching ||
+      context.isError ||
+      initialized.current
+    )
+      return;
     const data = context.data;
     initialized.current = true;
     savedVersion.current = data.version ?? 0;
     if (data.savedDraft) {
       setDraft(data.savedDraft.content);
-      setSaveNotice(data.savedDraft.source === "ai" ? "AI-assisted draft restored · review before sending" : "Saved draft restored · not sent");
+      setSaveNotice(
+        data.savedDraft.source === "ai"
+          ? "AI-assisted draft restored · review before sending"
+          : "Saved draft restored · not sent",
+      );
       return;
     }
     setDraft({
@@ -206,9 +225,15 @@ function EnquiryEmailEditor({
       documentIds: [],
       expectedRevision: data.revision,
     });
-  }, [context.data]);
+  }, [
+    context.data,
+    context.isFetchedAfterMount,
+    context.isFetching,
+    context.isError,
+  ]);
   function change(value: Partial<EmailDraft>) {
-    if ("templateId" in value || "expectedRevision" in value) setAiGenerationId(undefined);
+    if ("templateId" in value || "expectedRevision" in value)
+      setAiGenerationId(undefined);
     setDraft((d) => ({ ...d, ...value }));
     setDirty(true);
     setSaveNotice("Unsaved changes");
@@ -218,12 +243,45 @@ function EnquiryEmailEditor({
     setError("");
   }
   async function persistDraft() {
-    const result = await request<{ version: number }>(`${base}/email-draft`, {
+    const result = await request<{
+      version: number;
+      savedDraft?: EmailContext["savedDraft"];
+    }>(`${base}/email-draft`, {
       expectedVersion: savedVersion.current,
       content: draft,
       ...(aiGenerationId ? { aiGenerationId } : {}),
     });
     savedVersion.current = result.version;
+    await cache.cancelQueries({ queryKey: contextKey, exact: true });
+    cache.setQueryData<EmailContext>(contextKey, (current) => {
+      if (!current) return current;
+      const source = aiGenerationId
+        ? "ai"
+        : draft.templateId
+          ? "template"
+          : current.savedDraft?.source === "ai"
+            ? "ai"
+            : "manual";
+      return {
+        ...current,
+        version: result.version,
+        savedDraft: result.savedDraft ?? {
+          version: result.version,
+          status: "draft",
+          source,
+          aiGenerationId:
+            source === "ai"
+              ? (aiGenerationId ?? current.savedDraft?.aiGenerationId)
+              : null,
+          content: {
+            ...draft,
+            photoIds: [...draft.photoIds],
+            documentIds: [...draft.documentIds],
+          },
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    });
     setAiGenerationId(undefined);
     setDirty(false);
     setSaveNotice("Draft saved · not sent");
@@ -235,7 +293,7 @@ function EnquiryEmailEditor({
   async function saveDraft() {
     if (busyRef.current || aiBusy) return;
     busyRef.current = true;
-    setBusy(true);
+    setBusyAction("save");
     setError("");
     try {
       await persistDraft();
@@ -243,7 +301,7 @@ function EnquiryEmailEditor({
       setError(workspaceError(cause));
     } finally {
       busyRef.current = false;
-      setBusy(false);
+      setBusyAction(null);
     }
   }
   function close() {
@@ -260,7 +318,7 @@ function EnquiryEmailEditor({
   async function review() {
     if (busyRef.current || aiBusy) return;
     busyRef.current = true;
-    setBusy(true);
+    setBusyAction("review");
     setError("");
     try {
       await persistDraft();
@@ -275,13 +333,13 @@ function EnquiryEmailEditor({
       setError(workspaceError(cause));
     } finally {
       busyRef.current = false;
-      setBusy(false);
+      setBusyAction(null);
     }
   }
   async function send() {
     if (!preview || !reviewedDraft || busyRef.current) return;
     busyRef.current = true;
-    setBusy(true);
+    setBusyAction("send");
     setError("");
     // A lost response retries the exact request; changing the draft creates a new review.
     try {
@@ -320,10 +378,10 @@ function EnquiryEmailEditor({
       setError(workspaceError(cause));
     } finally {
       busyRef.current = false;
-      setBusy(false);
+      setBusyAction(null);
     }
   }
-  const data = context.data;
+  const data = initialized.current ? context.data : undefined;
   return (
     <Dialog
       open
@@ -344,7 +402,9 @@ function EnquiryEmailEditor({
             {entry.customerName} · {entry.reference}
           </DialogDescription>
         </DialogHeader>
-        {context.isLoading && <p role="status">Loading email details…</p>}
+        {!initialized.current && !context.isError && (
+          <p role="status">Loading latest email details…</p>
+        )}
         {context.isError && (
           <div>
             <p role="alert">{workspaceError(context.error)}</p>
@@ -463,7 +523,7 @@ function EnquiryEmailEditor({
                           disabled={busy || !data.ready}
                           onClick={() => void send()}
                         >
-                          {busy
+                          {busyAction === "send"
                             ? "Sending…"
                             : sendingRequest.current
                               ? "Check or retry same email"
@@ -582,12 +642,20 @@ function EnquiryEmailEditor({
                           expectedRevision={draft.expectedRevision}
                           expectedVersion={savedVersion.current}
                           draftFingerprint={JSON.stringify(draft)}
-                          disabled={busy || draft.expectedRevision !== data.revision}
+                          disabled={
+                            busy || draft.expectedRevision !== data.revision
+                          }
                           onBusyChange={setAiBusy}
-                          onUse={suggestion => {
-                            change({ templateId: undefined, subject: suggestion.subject, message: suggestion.message });
+                          onUse={(suggestion) => {
+                            change({
+                              templateId: undefined,
+                              subject: suggestion.subject,
+                              message: suggestion.message,
+                            });
                             setAiGenerationId(suggestion.generationId);
-                            setSaveNotice("AI suggestion added · unsaved · review before sending");
+                            setSaveNotice(
+                              "AI suggestion added · unsaved · review before sending",
+                            );
                           }}
                         />
                         <label>
@@ -746,19 +814,27 @@ function EnquiryEmailEditor({
                           type="button"
                           variant="outline"
                           disabled={
-                            busy || aiBusy || draft.expectedRevision !== data.revision
+                            busy ||
+                            aiBusy ||
+                            draft.expectedRevision !== data.revision
                           }
                           onClick={() => void saveDraft()}
                         >
-                          Save draft
+                          {busyAction === "save"
+                            ? "Saving draft…"
+                            : "Save draft"}
                         </Button>
                         <Button
                           type="submit"
                           disabled={
-                            busy || aiBusy || draft.expectedRevision !== data.revision
+                            busy ||
+                            aiBusy ||
+                            draft.expectedRevision !== data.revision
                           }
                         >
-                          {busy ? "Preparing preview…" : "Review email"}
+                          {busyAction === "review"
+                            ? "Preparing preview…"
+                            : "Review email"}
                         </Button>
                         <Button
                           type="button"
