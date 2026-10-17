@@ -10,6 +10,7 @@ import {
   engine,
   dealershipsTable,
   dealerDomainsTable,
+  dealerSettingsTable,
   enquiriesTable,
   vehiclesTable,
   portalUsersTable,
@@ -47,6 +48,22 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       verified: true,
       verificationToken: "fictional",
     });
+    await db
+      .insert(dealerSettingsTable)
+      .values({
+        dealerId: dealer,
+        config: {
+          identity: { name: `Dealer ${dealer}` },
+          contact: {
+            email: `showroom-${dealer}@example.test`,
+            phone: "07700 900123",
+          },
+          testDriveBooking: {
+            instructions: "Please bring your driving licence.",
+          },
+          presentation: { parkingInstructions: "Use the visitor parking bay." },
+        },
+      });
     await db.insert(portalUsersTable).values({
       dealerId: dealer,
       authUserId: `user_${dealer}`,
@@ -105,7 +122,17 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       secretKey: "",
       webhookSecret: "",
     },
-    templates: { service_history: { subject: 'Service photos', body: 'Your photos are attached.', headline: 'Your service photos, {{customer_name}}' } },
+    templates: {
+      service_history: {
+        subject: "Service photos",
+        body: "Your photos are attached.",
+        headline: "Your service photos, {{customer_name}}",
+      },
+      appointment_details: {
+        subject: "Your appointment",
+        body: "Time: {{appointment_time}}\nStatus: {{appointment_status}}\nDuration: {{duration}}\n{{visit_instructions}}\n{{parking_instructions}}",
+      },
+    },
     appearance: { ...defaultEmailAppearance },
   };
   const sends: any[] = [];
@@ -189,7 +216,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
   }
   const base = `/api/staff/enquiries/${enquiries[0]}`;
   const draft = {
-    templateId: 'service_history',
+    templateId: "service_history",
     to: "a@example.test",
     subject: "Your car",
     message:
@@ -257,6 +284,63 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       ),
     );
     assert.ok(!JSON.stringify(context.data).includes("re_fictional"));
+    assert.ok(
+      !context.data.defaults.message.includes("showroom-a@example.test"),
+    );
+    assert.ok(!context.data.defaults.message.includes("07700 900123"));
+    assert.equal(
+      context.data.templates.find((item: any) => item.id === "service_history")
+        .message,
+      "Your photos are attached.",
+      "editable copy excludes automatic heading, facts and contact footer",
+    );
+    const appointmentCopy = context.data.templates.find(
+      (item: any) => item.id === "appointment_details",
+    ).message;
+    assert.match(appointmentCopy, /5 January 2027/);
+    assert.match(appointmentCopy, /11:00 \(UK time\)/);
+    assert.match(appointmentCopy, /Awaiting showroom approval/);
+    assert.match(appointmentCopy, /30 minutes/);
+    assert.match(appointmentCopy, /driving licence/);
+    assert.match(appointmentCopy, /visitor parking bay/);
+    assert.equal(
+      (await call(base + "/email-preview", { ...draft, photoIds: [] })).status,
+      400,
+    );
+    assert.equal(
+      (await call(base + "/email-preview", draft)).status,
+      400,
+      "service-history copy needs a service-book photo, not only pre-accident photos",
+    );
+    const accidentPreview = await call(base + "/email-preview", {
+      ...draft,
+      templateId: "pre_accident_photos",
+    });
+    assert.equal(accidentPreview.status, 200);
+    assert.match(accidentPreview.data.attachments[0].filename, /pre-accident/);
+    await db.execute(
+      sql`UPDATE vehicle_service_photos SET category='service_book' WHERE id=${photos[0]}::uuid`,
+    );
+    assert.equal(
+      (
+        await call(base + "/email-preview", {
+          ...draft,
+          templateId: "pre_accident_photos",
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await call(base + "/email-preview", {
+          ...draft,
+          templateId: "invoice_copy",
+          photoIds: [],
+          documentIds: [],
+        })
+      ).status,
+      400,
+    );
     assert.equal(
       (await call(base + "/email-preview", { ...draft, photoIds: [photos[1]] }))
         .status,
@@ -282,6 +366,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     );
     let preview = await call(base + "/email-preview", draft);
     assert.equal(preview.status, 200);
+    assert.match(preview.data.html, /<!doctype html>/i);
     assert.match(preview.data.text, /Your service photos, Customer a/);
     assert.equal(sends.length, 0);
     assert.match(preview.data.text, /Awaiting showroom approval/);
@@ -299,6 +384,11 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     ]);
     assert.deepEqual(pair.map((r) => r.status).sort(), [200, 201]);
     assert.equal(sends.length, 1);
+    assert.equal(
+      sends[0].html,
+      preview.data.html,
+      "the reviewed design is exactly the HTML sent",
+    );
     assert.match(sends[0].html, /Your service photos, Customer a/);
     const emails = await call("/api/staff/email");
     assert.equal(emails.status, 200);
@@ -348,7 +438,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       0,
     );
     assert.equal(sends[0].attachments.length, 1);
-    assert.ok(sends[0].attachments[0].filename.includes("pre-accident"));
+    assert.ok(sends[0].attachments[0].filename.includes("service-book"));
     assert.equal(
       Buffer.from(sends[0].attachments[0].content, "base64").toString("hex"),
       "ffd8ffd9",
@@ -392,7 +482,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       409,
     );
     assert.equal(sends.length, 1);
-    const noPhotos = { ...draft, photoIds: [] };
+    const noPhotos = { ...draft, templateId: "enquiry_message", photoIds: [] };
     preview = await call(base + "/email-preview", noPhotos);
     failure = "Email provider connection failed.";
     const uncertain = {
@@ -607,6 +697,16 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
       .set({ workspaceRevision: 1 })
       .where(eq(enquiriesTable.id, enquiries[0]));
     assert.equal((await call(base + "/email-preview", noPhotos)).status, 409);
+    await db
+      .update(enquiriesTable)
+      .set({ type: "general", appointmentAt: null, appointmentStatus: null })
+      .where(eq(enquiriesTable.id, enquiries[0]));
+    const generalContext = await call(base + "/email-context");
+    const withoutAppointment = generalContext.data.templates.find(
+      (item: any) => item.id === "appointment_details",
+    ).message;
+    assert.ok(!withoutAppointment.includes("Confirmed"));
+    assert.ok(!withoutAppointment.includes("30 minutes"));
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
     await engine.close();

@@ -1,0 +1,109 @@
+.customer-email-preview {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+.customer-email-preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.customer-email-preview-formats,
+.customer-email-preview-widths {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dce5ec;
+  border-radius: 9px;
+  background: #f3f6f8;
+}
+.customer-email-preview-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 13px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #536b7b;
+}
+.customer-email-preview-widths button {
+  min-width: 44px;
+  padding: 8px;
+}
+.customer-email-preview-toolbar button[aria-pressed="true"] {
+  background: #fff;
+  color: #244f6b;
+  box-shadow: 0 1px 4px #20374712;
+}
+.customer-email-preview-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.customer-email-preview-toolbar button:focus-visible {
+  outline: 2px solid #315c77;
+  outline-offset: 3px;
+}
+.customer-email-preview-canvas {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dce5ec;
+  border-radius: 10px;
+  background: #eaf0f4;
+}
+.customer-email-preview-canvas iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: min(58dvh, 640px);
+  min-height: 320px;
+  border: 0;
+  border-radius: 5px;
+  background: #fff;
+}
+.customer-email-preview-canvas.is-phone iframe {
+  width: 375px;
+}
+.customer-email-preview-text {
+  min-width: 0;
+  max-height: 58dvh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #dce5ec;
+  border-radius: 10px;
+  background: #fafcfd;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.customer-email-preview-note {
+  margin: 0;
+  color: #627787;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .customer-email-preview-canvas {
+    padding: 4px;
+    border-radius: 8px;
+  }
+  .customer-email-preview-widths {
+    display: none;
+  }
+  .customer-email-preview-formats {
+    width: 100%;
+  }
+  .customer-email-preview-formats button {
+    flex: 1;
+  }
+  .customer-email-preview-text {
+    padding: 16px;
+  }
+}

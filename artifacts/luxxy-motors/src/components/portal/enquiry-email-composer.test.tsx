@@ -131,6 +131,21 @@ beforeEach(() => {
   });
 });
 
+it("links an unconfigured sender directly to Advanced connection settings", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    const result = await original(url, options);
+    return url.endsWith("/email-context") ? { ...result, ready: false } : result;
+  });
+  mount();
+  expect(
+    await screen.findByRole("link", {
+      name: "Settings → Advanced → Connections → Resend",
+    }),
+  ).toHaveAttribute("href", "/portal?section=settings&settingsTab=integrations");
+  expect(calls("/email")).toHaveLength(0);
+});
+
 it("keeps AI separate until accepted, then preserves the recipient and attachments when explicitly saved", async () => {
   mount();
   await screen.findByRole("textbox", { name: "Message" });
@@ -548,3 +563,126 @@ it("can explicitly refresh stale enquiry details and generate a fresh reply with
   });
   expect(calls("/email")).toHaveLength(0);
 });
+
+it("shows the exact server design before an explicitly requested email send", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options?: unknown) => {
+    const result = await original(url, options);
+    if (url.endsWith("/email-preview"))
+      return {
+        ...result,
+        html: '<html><body><h1>Approved Test Motors design</h1><p>Original staff message</p><a href="https://dealer.example/car">View car</a></body></html>',
+      };
+    return result;
+  });
+  mount();
+  await screen.findByRole("textbox", { name: "Message" });
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  const frame = await screen.findByTitle("Customer email design preview");
+  expect(frame.getAttribute("srcdoc")).toContain("Approved Test Motors design");
+  expect(frame).toHaveAttribute("sandbox", "");
+  expect(calls("/email")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Plain text" }));
+  expect(screen.getByText("Previewed draft")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Send email" })).toBeEnabled();
+  expect(calls("/email")).toHaveLength(0);
+});
+
+it("restores a saved template selection and clears it when an AI reply replaces the template", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation((url: string, options?: unknown) =>
+    url.endsWith("/email-context")
+      ? Promise.resolve({
+          ...context(),
+          savedDraft: {
+            version: 4,
+            status: "draft",
+            source: "template",
+            updatedAt: "2026-10-17T10:00:00Z",
+            content: {
+              to: "alex@example.test",
+              templateId: "vehicle_details",
+              subject: "Saved template subject",
+              message: "Saved template reply",
+              includeVehicle: true,
+              includeAppointment: false,
+              photoIds: [],
+              documentIds: [],
+              expectedRevision: 2,
+            },
+          },
+        })
+      : original(url, options),
+  );
+  mount();
+  expect(
+    await screen.findByRole("combobox", { name: "Email template" }),
+  ).toHaveValue("vehicle_details");
+  await generate();
+  fireEvent.click(screen.getByRole("button", { name: "Use this draft" }));
+  expect(screen.getByRole("combobox", { name: "Email template" })).toHaveValue(
+    "",
+  );
+  expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+    suggestion.message,
+  );
+});
+
+it.each([
+  {
+    templateId: "invoice_copy",
+    checkbox: /Full invoice.*INV-001/,
+    warning: /Choose an invoice to attach/,
+  },
+  {
+    templateId: "service_history",
+    checkbox: /Service book.*Photo 1/,
+    warning: /Choose at least one service-book photo/,
+  },
+  {
+    templateId: "pre_accident_photos",
+    checkbox: /Pre-accident.*Photo 2/,
+    warning: /Choose at least one pre-accident photo/,
+  },
+])(
+  "requires the promised attachment for $templateId without blocking an unfinished draft save",
+  async ({ templateId, checkbox, warning }) => {
+    const original = state.fetch.getMockImplementation()!;
+    state.fetch.mockImplementation((url: string, options?: unknown) =>
+      url.endsWith("/email-context")
+        ? Promise.resolve({
+            ...context(),
+            photos: [
+              ...context().photos,
+              { id: "photo-two", byte_size: 1024, category: "pre_accident" },
+            ],
+            templates: [
+              {
+                id: templateId,
+                label: "Attachment template",
+                subject: "Your documents",
+                message: "Please find your documents attached.",
+              },
+            ],
+          })
+        : original(url, options),
+    );
+    mount();
+    fireEvent.change(
+      await screen.findByRole("combobox", { name: "Email template" }),
+      { target: { value: templateId } },
+    );
+    expect(screen.getByRole("checkbox", { name: checkbox })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Review email" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: checkbox }));
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review email" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeEnabled();
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Review email" }).closest("form")!,
+    );
+    expect(calls("/email-preview")).toHaveLength(0);
+    expect(calls("/email")).toHaveLength(0);
+    expect(calls("/email-draft")).toHaveLength(0);
+  },
+);

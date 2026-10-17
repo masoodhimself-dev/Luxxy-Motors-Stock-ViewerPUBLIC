@@ -55,9 +55,11 @@ const date = (value: string) =>
     dateStyle: "medium",
     timeStyle: "short",
   });
-export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}) {
+export function EmailWorkspace({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
   const locationSearch = useSearch();
-  const [,navigate] = useLocation();
+  const [, navigate] = useLocation();
   const initial = new URLSearchParams(locationSearch);
   const cache = useQueryClient();
   const [view, setView] = useState<"sent" | "drafts">(
@@ -67,8 +69,9 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
   );
   const openedRequest = useRef("");
   const enquiries = useGetEnquiries();
-  const scopedEnquiryId = initial.get('enquiryId') || initial.get('compose') || initial.get('draft');
-  const scopedEnquiry = enquiries.data?.find(e => e.id === scopedEnquiryId);
+  const scopedEnquiryId =
+    initial.get("enquiryId") || initial.get("compose") || initial.get("draft");
+  const scopedEnquiry = enquiries.data?.find((e) => e.id === scopedEnquiryId);
   const unavailableContext = Boolean(scopedEnquiryId && !scopedEnquiry);
   const [search, setSearch] = useState(initial.get("customer") ?? ""),
     [query, setQuery] = useState(search),
@@ -94,7 +97,9 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
         messages: Message[];
         hasMore: boolean;
         replyTo?: string | null;
-      }>(`/api/staff/email?q=${encodeURIComponent(query)}&offset=${offset}${scopedEnquiryId ? `&enquiryId=${encodeURIComponent(scopedEnquiryId)}` : ''}`),
+      }>(
+        `/api/staff/email?q=${encodeURIComponent(query)}&offset=${offset}${scopedEnquiryId ? `&enquiryId=${encodeURIComponent(scopedEnquiryId)}` : ""}`,
+      ),
     retry: false,
   });
   const detail = useQuery({
@@ -117,14 +122,20 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
   const customer = enquiries.data?.find((e) => e.id === entryId);
   useEffect(() => {
     const params = new URLSearchParams(locationSearch);
-    if (params.get("view") === "drafts" || params.has("draft")) setView("drafts");
-    else if (params.get('view') === 'sent' || params.has('customer')) setView('sent');
-    setSearch(params.get('customer') || '');
-    setSelected(null); setOffset(0);
-    setCompose(false); setEntryId(''); setError('');
+    if (params.get("view") === "drafts" || params.has("draft"))
+      setView("drafts");
+    else if (params.get("view") === "sent" || params.has("customer"))
+      setView("sent");
+    setSearch(params.get("customer") || "");
+    setSelected(null);
+    setOffset(0);
+    setCompose(false);
+    setEntryId("");
+    setError("");
   }, [locationSearch]);
   useEffect(() => {
-    const params = new URLSearchParams(locationSearch), id = params.get('draft') || params.get('compose');
+    const params = new URLSearchParams(locationSearch),
+      id = params.get("draft") || params.get("compose");
     if (!id || !enquiries.data || openedRequest.current === locationSearch)
       return;
     openedRequest.current = locationSearch;
@@ -191,7 +202,9 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
     <section className="email-workspace">
       <header className="email-heading">
         <div>
-          {!embedded && <p className="inventory-kicker">Customer correspondence</p>}
+          {!embedded && (
+            <p className="inventory-kicker">Customer correspondence</p>
+          )}
           <h2>Email</h2>
           <p>
             Prepare replies, keep drafts and track sent messages in one place.
@@ -201,7 +214,8 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
           <Button
             variant="outline"
             onClick={() => {
-              if (view === 'sent' && !unavailableContext) void history.refetch();
+              if (view === "sent" && !unavailableContext)
+                void history.refetch();
               void cache.invalidateQueries({
                 queryKey: ["staff-email-drafts"],
               });
@@ -213,8 +227,13 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
           <Button
             disabled={unavailableContext}
             onClick={() => {
-              if (scopedEnquiry) { setEntryId(scopedEnquiry.id); setCompose(true); }
-              else { setCompose(true); setEntryId(""); }
+              if (scopedEnquiry) {
+                setEntryId(scopedEnquiry.id);
+                setCompose(true);
+              } else {
+                setCompose(true);
+                setEntryId("");
+              }
             }}
           >
             <Mail size={16} />
@@ -222,9 +241,55 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
           </Button>
         </div>
       </header>
-      {scopedEnquiry && <div className="email-customer-context"><div><strong>{scopedEnquiry.customerName}</strong><span>{scopedEnquiry.vehicleTitle || 'General enquiry'} · {scopedEnquiry.reference}</span></div><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(scopedEnquiry.id)}`}>Open customer</Link><Button variant="ghost" onClick={() => { setSearch(''); setQuery(''); setSelected(null); setCompose(false); navigate('/portal?section=notifications&workView=email'); }}>Show all email</Button></div>}
-      {unavailableContext && <div role={enquiries.isLoading ? 'status' : 'alert'} className="email-customer-context"><span>{enquiries.isLoading ? 'Loading this customer’s email…' : 'This customer record could not be loaded. Refresh the enquiries or choose another customer.'}</span><Button variant="ghost" onClick={() => navigate('/portal?section=notifications&workView=email')}>Show all email</Button></div>}
-      <div className="email-view-tabs" aria-label="Email views">
+      {scopedEnquiry && (
+        <div className="email-customer-context">
+          <div>
+            <strong>{scopedEnquiry.customerName}</strong>
+            <span>
+              {scopedEnquiry.vehicleTitle || "General enquiry"} ·{" "}
+              {scopedEnquiry.reference}
+            </span>
+          </div>
+          <Link
+            href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(scopedEnquiry.id)}`}
+          >
+            Open customer
+          </Link>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch("");
+              setQuery("");
+              setSelected(null);
+              setCompose(false);
+              navigate("/portal?section=notifications&workView=email");
+            }}
+          >
+            Show all email
+          </Button>
+        </div>
+      )}
+      {unavailableContext && (
+        <div
+          role={enquiries.isLoading ? "status" : "alert"}
+          className="email-customer-context"
+        >
+          <span>
+            {enquiries.isLoading
+              ? "Loading this customer’s email…"
+              : "This customer record could not be loaded. Refresh the enquiries or choose another customer."}
+          </span>
+          <Button
+            variant="ghost"
+            onClick={() =>
+              navigate("/portal?section=notifications&workView=email")
+            }
+          >
+            Show all email
+          </Button>
+        </div>
+      )}
+      <div className="email-view-tabs" role="group" aria-label="Email views">
         <Button
           variant={view === "drafts" ? "default" : "outline"}
           aria-pressed={view === "drafts"}
@@ -239,7 +304,7 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
         >
           Sent & delivery
         </Button>
-        <span>AI and new automatic sending are off</span>
+        <span>Review replies before sending.</span>
       </div>
       {error && !selected && <p role="alert">{error}</p>}
       {compose && !customer && (
@@ -302,249 +367,253 @@ export function EmailWorkspace({ embedded = false }: { embedded?: boolean } = {}
           onChange={(e) => setSearch(e.target.value)}
         />
       </label>
-      {!unavailableContext && (view === "drafts" ? (
-        <EmailDraftQueue
-          search={search}
-          enquiryId={scopedEnquiryId || undefined}
-          onOpen={(id) => {
-            setEntryId(id);
-            setCompose(true);
-          }}
-        />
-      ) : (
-        <>
-          <div className={`email-columns${selected ? " has-selection" : ""}`}>
-            <section
-              className="email-message-list"
-              aria-label="Sent email list"
-            >
-              {history.isLoading && <p role="status">Loading emails…</p>}
-              {history.isError && (
-                <p role="alert">
-                  Email history could not be loaded. Use Refresh to retry.
-                </p>
-              )}
-              {history.data?.messages.map((message) => (
-                <button
-                  key={message.key}
-                  className={selected?.key === message.key ? "selected" : ""}
-                  onClick={() => {
-                    setSelected(message);
-                    setError("");
-                  }}
-                >
-                  <span>
-                    <strong>
-                      {message.customer_name || message.recipient}
-                    </strong>
-                    <small>{date(message.created_at)}</small>
-                  </span>
-                  <b>{message.subject}</b>
-                  <p>{message.vehicle_title || message.reference}</p>
-                  <span className="email-row-meta">
-                    <em>
-                      {emailStatusLabel(message.last_event ?? message.status)}
-                    </em>
-                    {message.attachment_count > 0 && (
-                      <small>
-                        <Paperclip size={13} />
-                        {message.attachment_count} attachment
-                        {message.attachment_count === 1 ? "" : "s"}
-                      </small>
+      {!unavailableContext &&
+        (view === "drafts" ? (
+          <EmailDraftQueue
+            search={search}
+            enquiryId={scopedEnquiryId || undefined}
+            onOpen={(id) => {
+              setEntryId(id);
+              setCompose(true);
+            }}
+          />
+        ) : (
+          <>
+            <div className={`email-columns${selected ? " has-selection" : ""}`}>
+              <section
+                className="email-message-list"
+                aria-label="Sent email list"
+              >
+                {history.isLoading && <p role="status">Loading emails…</p>}
+                {history.isError && (
+                  <p role="alert">
+                    Email history could not be loaded. Use Refresh to retry.
+                  </p>
+                )}
+                {history.data?.messages.map((message) => (
+                  <button
+                    key={message.key}
+                    type="button"
+                    aria-pressed={selected?.key === message.key}
+                    className={selected?.key === message.key ? "selected" : ""}
+                    onClick={() => {
+                      setSelected(message);
+                      setError("");
+                    }}
+                  >
+                    <span>
+                      <strong>
+                        {message.customer_name || message.recipient}
+                      </strong>
+                      <small>{date(message.created_at)}</small>
+                    </span>
+                    <b>{message.subject}</b>
+                    <p>{message.vehicle_title || message.reference}</p>
+                    <span className="email-row-meta">
+                      <em>
+                        {emailStatusLabel(message.last_event ?? message.status)}
+                      </em>
+                      {message.attachment_count > 0 && (
+                        <small>
+                          <Paperclip size={13} />
+                          {message.attachment_count} attachment
+                          {message.attachment_count === 1 ? "" : "s"}
+                        </small>
+                      )}
+                    </span>
+                  </button>
+                ))}
+                {!history.isLoading &&
+                  !history.isError &&
+                  !history.data?.messages.length && (
+                    <div className="email-empty">
+                      <Mail size={28} />
+                      <h3>
+                        {query
+                          ? "No matching emails"
+                          : "Your sent emails appear here"}
+                      </h3>
+                      <p>
+                        Send a customer message or invoice to start its
+                        correspondence history.
+                      </p>
+                    </div>
+                  )}
+                <div className="email-pagination">
+                  <Button
+                    variant="outline"
+                    disabled={offset === 0}
+                    onClick={() => {
+                      setOffset(Math.max(0, offset - 50));
+                      setSelected(null);
+                    }}
+                  >
+                    Newer
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!history.data?.hasMore}
+                    onClick={() => {
+                      setOffset(offset + 50);
+                      setSelected(null);
+                    }}
+                  >
+                    Older
+                  </Button>
+                </div>
+              </section>
+              <section
+                className="email-message-detail"
+                aria-label="Email details"
+              >
+                {selected ? (
+                  <>
+                    <Button
+                      className="email-back"
+                      variant="ghost"
+                      onClick={() => setSelected(null)}
+                    >
+                      Back to emails
+                    </Button>
+                    <p className="inventory-kicker">
+                      {selected.kind === "sale"
+                        ? "Invoice / sales document"
+                        : "Customer message"}
+                    </p>
+                    <h3>{selected.subject}</h3>
+                    <dl>
+                      <div>
+                        <dt>Customer</dt>
+                        <dd>{selected.customer_name}</dd>
+                      </div>
+                      <div>
+                        <dt>To</dt>
+                        <dd>{selected.recipient}</dd>
+                      </div>
+                      <div>
+                        <dt>Sent / attempted</dt>
+                        <dd>{date(selected.created_at)}</dd>
+                      </div>
+                      <div>
+                        <dt>Status</dt>
+                        <dd>{emailStatusLabel(currentStatus)}</dd>
+                      </div>
+                    </dl>
+                    <div className="email-record-links">
+                      {selected.enquiry_id && (
+                        <Link
+                          href={`/portal?section=notifications&workView=customers&enquiryId=${selected.enquiry_id}`}
+                        >
+                          Open enquiry
+                        </Link>
+                      )}
+                      {selected.vehicle_id && (
+                        <Link
+                          href={`/portal?section=inventory&vehicleId=${selected.vehicle_id}`}
+                        >
+                          Open car
+                        </Link>
+                      )}
+                      <Link
+                        href={customerHistoryHref(
+                          selected.kind === "sale" ? "sale" : "enquiry",
+                          selected.sale_id ?? selected.enquiry_id ?? "",
+                        )}
+                      >
+                        Customer history
+                      </Link>
+                      {selected.sale_id && (
+                        <Link
+                          href={`/portal?section=sales&saleId=${selected.sale_id}`}
+                        >
+                          Open sale
+                        </Link>
+                      )}
+                      {selected.sale_id && selected.document_id && (
+                        <Button
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => void downloadPdf()}
+                        >
+                          Download original PDF
+                        </Button>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={busy || !selected.provider_id}
+                      onClick={() => void checkStatus()}
+                    >
+                      <RefreshCw size={15} />
+                      {busy ? "Checking…" : "Check delivery status"}
+                    </Button>
+                    {selected.checked_at && (
+                      <p className="email-note">
+                        Last checked {date(selected.checked_at)}
+                      </p>
                     )}
-                  </span>
-                </button>
-              ))}
-              {!history.isLoading &&
-                !history.isError &&
-                !history.data?.messages.length && (
+                    {error && (
+                      <p role="alert" className="inventory-error">
+                        {error}
+                      </p>
+                    )}
+                    {["opened", "clicked"].includes(currentStatus) && (
+                      <p className="email-note">
+                        Open and click tracking can be affected by privacy
+                        tools. This does not prove the customer read the
+                        message.
+                      </p>
+                    )}
+                    {detail.isLoading ? (
+                      <p>Loading message…</p>
+                    ) : detail.isError ? (
+                      <p role="alert">The saved message could not be loaded.</p>
+                    ) : (
+                      <div className="email-message-body">
+                        {detail.data?.message.message}
+                      </div>
+                    )}
+                    {Boolean(detail.data?.message.attachments?.length) && (
+                      <section>
+                        <h4>Attachments</h4>
+                        {detail.data!.message.attachments!.map((a) => (
+                          <p key={a.id}>
+                            {a.filename} · {Math.ceil(a.byteSize / 1024)} KB
+                          </p>
+                        ))}
+                      </section>
+                    )}
+                    {selected.enquiry_id && (
+                      <Button
+                        onClick={() => {
+                          setEntryId(selected.enquiry_id!);
+                          setCompose(true);
+                        }}
+                      >
+                        Prepare another reply
+                      </Button>
+                    )}
+                    <p className="email-note">
+                      {history.data?.replyTo
+                        ? `Replies are addressed to ${history.data.replyTo}.`
+                        : "Set a working reply-to address in Settings."}{" "}
+                      Incoming replies are not shown in the portal yet.
+                    </p>
+                  </>
+                ) : (
                   <div className="email-empty">
-                    <Mail size={28} />
-                    <h3>
-                      {query
-                        ? "No matching emails"
-                        : "Your sent emails appear here"}
-                    </h3>
+                    <Mail size={30} />
+                    <h3>Select an email</h3>
                     <p>
-                      Send a customer message or invoice to start its
-                      correspondence history.
+                      See its message, attachments and delivery status alongside
+                      the customer and car.
                     </p>
                   </div>
                 )}
-              <div className="email-pagination">
-                <Button
-                  variant="outline"
-                  disabled={offset === 0}
-                  onClick={() => {
-                    setOffset(Math.max(0, offset - 50));
-                    setSelected(null);
-                  }}
-                >
-                  Newer
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={!history.data?.hasMore}
-                  onClick={() => {
-                    setOffset(offset + 50);
-                    setSelected(null);
-                  }}
-                >
-                  Older
-                </Button>
-              </div>
-            </section>
-            <section
-              className="email-message-detail"
-              aria-label="Email details"
-            >
-              {selected ? (
-                <>
-                  <Button
-                    className="email-back"
-                    variant="ghost"
-                    onClick={() => setSelected(null)}
-                  >
-                    Back to emails
-                  </Button>
-                  <p className="inventory-kicker">
-                    {selected.kind === "sale"
-                      ? "Invoice / sales document"
-                      : "Customer message"}
-                  </p>
-                  <h3>{selected.subject}</h3>
-                  <dl>
-                    <div>
-                      <dt>Customer</dt>
-                      <dd>{selected.customer_name}</dd>
-                    </div>
-                    <div>
-                      <dt>To</dt>
-                      <dd>{selected.recipient}</dd>
-                    </div>
-                    <div>
-                      <dt>Sent / attempted</dt>
-                      <dd>{date(selected.created_at)}</dd>
-                    </div>
-                    <div>
-                      <dt>Status</dt>
-                      <dd>{emailStatusLabel(currentStatus)}</dd>
-                    </div>
-                  </dl>
-                  <div className="email-record-links">
-                    {selected.enquiry_id && (
-                      <Link
-                        href={`/portal?section=notifications&workView=customers&enquiryId=${selected.enquiry_id}`}
-                      >
-                        Open enquiry
-                      </Link>
-                    )}
-                    {selected.vehicle_id && (
-                      <Link
-                        href={`/portal?section=inventory&vehicleId=${selected.vehicle_id}`}
-                      >
-                        Open car
-                      </Link>
-                    )}
-                    <Link
-                      href={customerHistoryHref(
-                        selected.kind === "sale" ? "sale" : "enquiry",
-                        selected.sale_id ?? selected.enquiry_id ?? "",
-                      )}
-                    >
-                      Customer history
-                    </Link>
-                    {selected.sale_id && (
-                      <Link
-                        href={`/portal?section=sales&saleId=${selected.sale_id}`}
-                      >
-                        Open sale
-                      </Link>
-                    )}
-                    {selected.sale_id && selected.document_id && (
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => void downloadPdf()}
-                      >
-                        Download original PDF
-                      </Button>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    disabled={busy || !selected.provider_id}
-                    onClick={() => void checkStatus()}
-                  >
-                    <RefreshCw size={15} />
-                    {busy ? "Checking…" : "Check delivery status"}
-                  </Button>
-                  {selected.checked_at && (
-                    <p className="email-note">
-                      Last checked {date(selected.checked_at)}
-                    </p>
-                  )}
-                  {error && (
-                    <p role="alert" className="inventory-error">
-                      {error}
-                    </p>
-                  )}
-                  {["opened", "clicked"].includes(currentStatus) && (
-                    <p className="email-note">
-                      Open and click tracking can be affected by privacy tools.
-                      This does not prove the customer read the message.
-                    </p>
-                  )}
-                  {detail.isLoading ? (
-                    <p>Loading message…</p>
-                  ) : detail.isError ? (
-                    <p role="alert">The saved message could not be loaded.</p>
-                  ) : (
-                    <div className="email-message-body">
-                      {detail.data?.message.message}
-                    </div>
-                  )}
-                  {Boolean(detail.data?.message.attachments?.length) && (
-                    <section>
-                      <h4>Attachments</h4>
-                      {detail.data!.message.attachments!.map((a) => (
-                        <p key={a.id}>
-                          {a.filename} · {Math.ceil(a.byteSize / 1024)} KB
-                        </p>
-                      ))}
-                    </section>
-                  )}
-                  {selected.enquiry_id && (
-                    <Button
-                      onClick={() => {
-                        setEntryId(selected.enquiry_id!);
-                        setCompose(true);
-                      }}
-                    >
-                      Prepare another reply
-                    </Button>
-                  )}
-                  <p className="email-note">
-                    {history.data?.replyTo
-                      ? `Replies are addressed to ${history.data.replyTo}.`
-                      : "Set a working reply-to address in Settings."}{" "}
-                    Incoming replies are not shown in the portal yet.
-                  </p>
-                </>
-              ) : (
-                <div className="email-empty">
-                  <Mail size={30} />
-                  <h3>Select an email</h3>
-                  <p>
-                    See its message, attachments and delivery status alongside
-                    the customer and car.
-                  </p>
-                </div>
-              )}
-            </section>
-          </div>
-        </>
-      ))}
+              </section>
+            </div>
+          </>
+        ))}
     </section>
   );
 }

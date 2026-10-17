@@ -3,12 +3,12 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { defaultEmailAppearance, defaultEmailTemplates, emailTemplateVariables } from '@workspace/vehicle-meta';
 import { EmailTemplatesSettings } from './email-templates-settings';
 afterEach(()=>vi.unstubAllGlobals());
-function api() {
+function api(options: { failPreviewAfterSave?: boolean } = {}) {
  let revision=1;const templates=structuredClone(defaultEmailTemplates);let appearance={...defaultEmailAppearance};
  const writes: Array<{url:string;body:any}>=[];const previews: any[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
   const body=init?.body ? JSON.parse(init.body):undefined;
-  if(String(url).endsWith('/preview')){previews.push(body);return Response.json({subject:body.subject,html:'<!doctype html><html><body><h1>Rendered sample email</h1></body></html>',text:'Plain-text sample email'});}
+  if(String(url).endsWith('/preview')){previews.push(body);if(options.failPreviewAfterSave && writes.length)return Response.json({error:'Preview temporarily unavailable'},{status:503});return Response.json({subject:body.subject,html:'<!doctype html><html><body><h1>Rendered sample email</h1></body></html>',text:'Plain-text sample email'});}
   if(init?.method==='PUT') {writes.push({url:String(url),body});expect(body.expectedRevision).toBe(revision);revision++;if(String(url).endsWith('/appearance'))appearance=body.appearance;else {const entry=templates.find(t=>t.id===body.id)!;entry.subject=body.subject;entry.body=body.body;entry.headline=body.headline;}}
   return Response.json({revision,templates,appearance,variables:emailTemplateVariables});
  }));return {writes,previews};
@@ -20,6 +20,7 @@ it('renders a server preview without writes and marks edits stale until refreshe
  expect(screen.getByText('Preview needs updating')).toBeInTheDocument();expect(previews).toHaveLength(1);
  fireEvent.click(screen.getByRole('button',{name:'Update preview'}));
  await screen.findByText('Preview is current');expect(previews).toHaveLength(2);expect(writes).toHaveLength(0);
+ expect(screen.getByRole('tabpanel',{name:'Preview'})).toBeVisible();
  fireEvent.click(screen.getByRole('button',{name:'Phone'}));
  expect(screen.getByTitle('Email preview using sample customer information').parentElement).toHaveClass('email-preview-phone');
  fireEvent.click(screen.getByRole('button',{name:'Plain text'}));expect(screen.getByText('Plain-text sample email')).toBeInTheDocument();
@@ -67,4 +68,38 @@ it('switches email tabs without losing drafts, making writes or exposing inactiv
  fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
  expect(screen.getByLabelText('Brand heading')).toHaveValue('My dealership');
  expect(writes).toHaveLength(0);expect(previews).toHaveLength(1);
+});
+
+it('opens Preview directly without saving or losing an unsaved message',async()=>{
+ const {writes,previews}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'My unsaved draft'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Preview'}));
+ expect(screen.getByRole('tabpanel',{name:'Preview'})).toBeVisible();
+ expect(screen.queryByRole('textbox',{name:'Your message'})).not.toBeInTheDocument();
+ expect(screen.getByTitle('Email preview using sample customer information')).toHaveAttribute('sandbox','');
+ expect(screen.getByText('Preview needs updating')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
+ expect(screen.getByLabelText('Your message')).toHaveValue('My unsaved draft');
+ expect(writes).toHaveLength(0);expect(previews).toHaveLength(1);
+});
+
+it('keeps the existing message intact when a customer variable would exceed the limit',async()=>{
+ api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ const message='a'.repeat(12000);
+ fireEvent.change(screen.getByLabelText('Your message'),{target:{value:message}});
+ fireEvent.click(screen.getByText('Personalise with customer details'));
+ fireEvent.click(screen.getByRole('button',{name:'{{customer_name}}'}));
+ expect(screen.getByRole('alert')).toHaveTextContent('Shorten your message first');
+ expect(screen.getByLabelText('Your message')).toHaveValue(message);
+ expect(screen.getByText('12,000 / 12,000')).toBeInTheDocument();
+});
+
+it('distinguishes a saved template from a failed preview refresh',async()=>{
+ const {writes}=api({failPreviewAfterSave:true});render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Saved successfully'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save template'}));
+ await screen.findByText('Email template saved. Future emails will use this wording.');
+ expect(await screen.findByRole('alert')).toHaveTextContent('Your template is saved, but the preview could not be refreshed');
+ expect(screen.getByRole('button',{name:'Save template'})).toBeDisabled();
+ expect(writes).toHaveLength(1);
 });

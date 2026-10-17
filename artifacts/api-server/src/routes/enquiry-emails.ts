@@ -1,5 +1,5 @@
 import { readEmailDraft } from "../lib/email-drafts";
-import { checkSavedAiDraftFresh, AiDraftError } from '../lib/ai-drafts';
+import { checkSavedAiDraftFresh, AiDraftError } from "../lib/ai-drafts";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
 import { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
@@ -50,7 +50,16 @@ export const draftSchema = z
       .min(1)
       .max(12000)
       .refine((v) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v)),
-    templateId: z.enum(['enquiry_message','invoice_copy','vehicle_details','service_history','pre_accident_photos','appointment_details']).optional(),
+    templateId: z
+      .enum([
+        "enquiry_message",
+        "invoice_copy",
+        "vehicle_details",
+        "service_history",
+        "pre_accident_photos",
+        "appointment_details",
+      ])
+      .optional(),
     includeVehicle: z.boolean(),
     includeAppointment: z.boolean(),
     photoIds: z
@@ -163,7 +172,11 @@ export function createEnquiryEmailRouter(
         ),
       );
     if (!row) throw new EmailError("Enquiry not found.", 404);
-    if (row.mergedIntoId) throw new EmailError("This enquiry was merged. Open the current enquiry before preparing a reply.", 409);
+    if (row.mergedIntoId)
+      throw new EmailError(
+        "This enquiry was merged. Open the current enquiry before preparing a reply.",
+        409,
+      );
     return row;
   }
   async function invoiceAttachments(
@@ -215,7 +228,12 @@ export function createEnquiryEmailRouter(
     executor: typeof db = db,
   ) {
     const enquiry = await entry(id, executor);
-    await checkSavedAiDraftFresh(executor, enquiry.dealerId, enquiry.id, await readEmailDraft(enquiry.dealerId, enquiry.id, executor));
+    await checkSavedAiDraftFresh(
+      executor,
+      enquiry.dealerId,
+      enquiry.id,
+      await readEmailDraft(enquiry.dealerId, enquiry.id, executor),
+    );
     if (enquiry.workspaceRevision !== input.expectedRevision)
       throw new EmailError(
         "This enquiry changed. Close and reopen the email before sending.",
@@ -333,6 +351,20 @@ export function createEnquiryEmailRouter(
       filename: string;
       content: string;
     }> = [];
+    const requiredPhotoCategory =
+      input.templateId === "service_history"
+        ? "service_book"
+        : input.templateId === "pre_accident_photos"
+          ? "pre_accident"
+          : null;
+    if (input.templateId === "invoice_copy" && input.documentIds.length === 0)
+      throw new EmailError(
+        "Attach an invoice for this customer before reviewing this invoice email.",
+      );
+    if (requiredPhotoCategory && input.photoIds.length === 0)
+      throw new EmailError(
+        `Attach at least one ${requiredPhotoCategory === "service_book" ? "service-book" : "pre-accident"} photo before reviewing this email.`,
+      );
     if (input.photoIds.length) {
       if (!car)
         throw new EmailError("Vehicle photos need a linked stock vehicle.");
@@ -348,6 +380,13 @@ export function createEnquiryEmailRouter(
         throw new EmailError(
           "A selected vehicle photo was removed or belongs to another car. Review the attachments.",
           409,
+        );
+      if (
+        requiredPhotoCategory &&
+        !rows.some((row) => row.category === requiredPhotoCategory)
+      )
+        throw new EmailError(
+          `This template needs a ${requiredPhotoCategory === "service_book" ? "service-book" : "pre-accident"} photo. Review the attachments.`,
         );
       for (const [index, id] of input.photoIds.entries()) {
         const row = rows.find((r) => r.id === id)!;
@@ -387,7 +426,12 @@ export function createEnquiryEmailRouter(
     facts.push({ label: "Enquiry reference", value: enquiry.reference });
     // Submitted copy is literal text; braces/HTML entered by staff never become templates or markup.
     const rendered = renderEmailTemplate(
-      { subject: "{{document_type}}", body: "{{message}}", headline: config.templates[input.templateId ?? 'enquiry_message']?.headline },
+      {
+        subject: "{{document_type}}",
+        body: "{{message}}",
+        headline:
+          config.templates[input.templateId ?? "enquiry_message"]?.headline,
+      },
       {
         document_type: input.subject,
         message: input.message,
@@ -406,7 +450,10 @@ export function createEnquiryEmailRouter(
       },
       facts,
       config.appearance,
-      { templateId: input.templateId ?? 'enquiry_message', attachments: attachments.map(item => item.filename) },
+      {
+        templateId: input.templateId ?? "enquiry_message",
+        attachments: attachments.map((item) => item.filename),
+      },
     );
     const previewHash = hash(
       JSON.stringify({
@@ -451,7 +498,29 @@ export function createEnquiryEmailRouter(
           dealer_name: profile.identity.name,
           dealer_phone: profile.contact.phone,
           dealer_email: profile.contact.email,
+          dealer_address: profile.contact.address,
           reference: enquiry.reference,
+          appointment_time: enquiry.appointmentAt
+            ? new Intl.DateTimeFormat("en-GB", {
+                timeZone: "Europe/London",
+                dateStyle: "full",
+                timeStyle: "short",
+              }).format(enquiry.appointmentAt) + " (UK time)"
+            : "",
+          appointment_status: enquiry.appointmentAt
+            ? enquiry.appointmentCancelledAt
+              ? "Cancelled"
+              : enquiry.appointmentStatus === "confirmed"
+                ? "Confirmed"
+                : "Awaiting showroom approval"
+            : "",
+          duration: enquiry.appointmentAt
+            ? `${enquiry.appointmentDurationMinutes ?? 30} minutes`
+            : "",
+          visit_instructions: enquiry.appointmentAt ? profile.instructions : "",
+          parking_instructions: enquiry.appointmentAt
+            ? profile.parkingInstructions
+            : "",
           message:
             "Here are the details we discussed. Please let us know if you have any questions.",
         },
@@ -488,7 +557,29 @@ export function createEnquiryEmailRouter(
         dealer_name: profile.identity.name,
         dealer_phone: profile.contact.phone,
         dealer_email: profile.contact.email,
+        dealer_address: profile.contact.address,
         reference: enquiry.reference,
+        appointment_time: enquiry.appointmentAt
+          ? new Intl.DateTimeFormat("en-GB", {
+              timeZone: "Europe/London",
+              dateStyle: "full",
+              timeStyle: "short",
+            }).format(enquiry.appointmentAt) + " (UK time)"
+          : "",
+        appointment_status: enquiry.appointmentAt
+          ? enquiry.appointmentCancelledAt
+            ? "Cancelled"
+            : enquiry.appointmentStatus === "confirmed"
+              ? "Confirmed"
+              : "Awaiting showroom approval"
+          : "",
+        duration: enquiry.appointmentAt
+          ? `${enquiry.appointmentDurationMinutes ?? 30} minutes`
+          : "",
+        visit_instructions: enquiry.appointmentAt ? profile.instructions : "",
+        parking_instructions: enquiry.appointmentAt
+          ? profile.parkingInstructions
+          : "",
         message:
           "Here are the details we discussed. Please let us know if you have any questions.",
       };
@@ -514,7 +605,7 @@ export function createEnquiryEmailRouter(
             id: t.id,
             label: t.label,
             subject: rendered.subject,
-            message: rendered.text,
+            message: rendered.bodyText,
           };
         });
       const invoices = (await invoiceAttachments(enquiry)).map(
@@ -538,7 +629,7 @@ export function createEnquiryEmailRouter(
         revision: enquiry.workspaceRevision,
         vehicleAvailable: Boolean(enquiry.vehicleTitle || enquiry.vehicleId),
         appointmentAvailable: Boolean(enquiry.appointmentAt),
-        defaults: { subject: defaults.subject, message: defaults.text },
+        defaults: { subject: defaults.subject, message: defaults.bodyText },
         ready,
         photos,
         deliveries: deliveries.map(describe),
@@ -567,6 +658,7 @@ export function createEnquiryEmailRouter(
         to: parsed.data.to,
         subject: result.rendered.subject,
         text: result.rendered.text,
+        html: result.rendered.html,
         previewHash: result.previewHash,
         attachments: result.attachments.map(({ id, filename, content }) => ({
           id,
@@ -646,11 +738,28 @@ export function createEnquiryEmailRouter(
           tx as unknown as typeof db,
         );
         if (input.savedDraftVersion !== undefined) {
-          const saved = await readEmailDraft(dealer, id, tx as unknown as typeof db);
-          const { savedDraftVersion: _version, requestId: _request, previewHash: _preview, ...copy } = input;
+          const saved = await readEmailDraft(
+            dealer,
+            id,
+            tx as unknown as typeof db,
+          );
+          const {
+            savedDraftVersion: _version,
+            requestId: _request,
+            previewHash: _preview,
+            ...copy
+          } = input;
           const savedContent = draftSchema.safeParse(saved.savedDraft?.content);
-          if (saved.version !== input.savedDraftVersion || saved.savedDraft?.status !== 'draft' || !savedContent.success || JSON.stringify(savedContent.data) !== JSON.stringify(copy))
-            throw new EmailError('The saved draft changed. Reopen it and review before sending.', 409);
+          if (
+            saved.version !== input.savedDraftVersion ||
+            saved.savedDraft?.status !== "draft" ||
+            !savedContent.success ||
+            JSON.stringify(savedContent.data) !== JSON.stringify(copy)
+          )
+            throw new EmailError(
+              "The saved draft changed. Reopen it and review before sending.",
+              409,
+            );
         }
         if (result.previewHash !== input.previewHash)
           throw new EmailError(
@@ -691,7 +800,9 @@ export function createEnquiryEmailRouter(
           })
           .returning();
         if (input.savedDraftVersion !== undefined)
-          await tx.execute(sql`UPDATE enquiry_email_drafts SET status='sending',send_request_id=${input.requestId}::uuid,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion}`);
+          await tx.execute(
+            sql`UPDATE enquiry_email_drafts SET status='sending',send_request_id=${input.requestId}::uuid,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion}`,
+          );
         return { delivery: delivery!, result };
       });
       if ("existing" in claimed) {
@@ -732,7 +843,9 @@ export function createEnquiryEmailRouter(
           )
           .returning();
         if (input.savedDraftVersion !== undefined)
-          await tx.execute(sql`UPDATE enquiry_email_drafts SET status=${status === 'failed' ? 'draft' : status},version=version+1,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion} AND send_request_id=${input.requestId}::uuid`);
+          await tx.execute(
+            sql`UPDATE enquiry_email_drafts SET status=${status === "failed" ? "draft" : status},version=version+1,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion} AND send_request_id=${input.requestId}::uuid`,
+          );
         await tx.insert(enquiryEventsTable).values({
           dealerId: dealer,
           enquiryId: id,

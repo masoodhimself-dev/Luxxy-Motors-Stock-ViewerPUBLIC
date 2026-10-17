@@ -1,8 +1,11 @@
 // Isolated local review only. Drafts live in memory; this module has no email transport.
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod/v4";
+import { createHash } from 'node:crypto';
+import { defaultEmailTemplates, defaultEmailAppearance, renderEmailTemplate, type EmailFacts, type EmailTemplate, type EmailAppearance } from '@workspace/vehicle-meta';
 import { enquiryGroup } from "../src/lib/enquiry-groups";
-import { readPreviewEnquiries } from "./reservations";
+import { readPreviewEnquiries, readPreviewSettings } from "./reservations";
+import { previewStock } from './stock';
 const drafts = new Map<
   string,
   {
@@ -17,7 +20,7 @@ const contentSchema = z
     to: z.union([z.literal(""), z.string().max(254).email()]),
     subject: z.string().max(200),
     message: z.string().max(12000),
-    templateId: z.string().max(50).optional(),
+    templateId: z.enum(['enquiry_message','invoice_copy','vehicle_details','service_history','pre_accident_photos','appointment_details']).optional(),
     includeVehicle: z.boolean(),
     includeAppointment: z.boolean(),
     photoIds: z.array(z.string()).max(6),
@@ -29,6 +32,7 @@ export async function communicationsPreview(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
+  options: { readEnquiries?: typeof readPreviewEnquiries; readSettings?: typeof readPreviewSettings; readTemplates?: () => Promise<{ templates: readonly EmailTemplate[]; appearance: EmailAppearance }> } = {},
 ) {
   const own =
     [
@@ -92,7 +96,7 @@ export async function communicationsPreview(
     return true;
   }
   try {
-    const enquiries = await readPreviewEnquiries();
+    const enquiries = await (options.readEnquiries ?? readPreviewEnquiries)();
     const scopeId = url.searchParams.get('enquiryId'), scopeEntry = enquiries.find(e => e.id === scopeId);
     const scopeIds = scopeId ? new Set(scopeEntry ? enquiryGroup(scopeEntry, enquiries).map(e => e.id) : []) : null;
     if (req.method === "GET" && url.pathname === "/api/staff/notifications") {
@@ -215,7 +219,17 @@ export async function communicationsPreview(
     }
     const saved = drafts.get(id),
       version = saved?.version ?? 0;
+    const settings = await (options.readSettings ?? readPreviewSettings)();
+    const templateSettings = options.readTemplates ? await options.readTemplates() : await (await import('./dealer-integrations')).previewIntegrationsStore.listTemplates();
+    const appearance = templateSettings.appearance ?? defaultEmailAppearance;
+    const address = [settings.address.street, settings.address.city, settings.address.region, settings.address.postcode].filter(Boolean).join(', ');
+    const appointmentTime = entry.appointmentAt ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' }).format(new Date(entry.appointmentAt)) + ' (UK time)' : '';
+    const appointmentStatus = entry.appointmentAt ? entry.appointmentCancelledAt ? 'Cancelled' : entry.appointmentStatus === 'confirmed' ? 'Confirmed' : 'Awaiting showroom approval' : '';
+    const variables = { dealer_name: settings.identity.name, dealer_email: settings.contact.email, dealer_phone: settings.contact.phone, dealer_address: address, customer_name: entry.customerName, customer_email: entry.email || '', reference: entry.reference, vehicle_title: entry.vehicleTitle || 'Your enquiry', vehicle_registration: entry.vehicleRegistration || '', appointment_time: appointmentTime, appointment_status: appointmentStatus, duration: entry.appointmentAt ? `${entry.appointmentDurationMinutes ?? 30} minutes` : '', visit_instructions: entry.appointmentAt ? settings.testDriveBooking?.instructions || settings.presentation?.visitInstructions || '' : '', parking_instructions: entry.appointmentAt ? settings.presentation?.parkingInstructions || '' : '', message: 'Here are the details we discussed. Please let us know if you have any questions.' };
     if (req.method === "GET" && url.pathname.endsWith("/email-context")) {
+      const availableTemplates = templateSettings.templates.filter(template => ['enquiry_message','invoice_copy','vehicle_details','service_history','pre_accident_photos','appointment_details'].includes(template.id));
+      const baseTemplate = availableTemplates.find(template => template.id === 'enquiry_message') ?? defaultEmailTemplates.find(template => template.id === 'enquiry_message')!;
+      const defaults = renderEmailTemplate(baseTemplate, variables, [], { ...appearance, heading: '', footer: '' });
       send(200, {
         version,
         savedDraft: saved?.status === "draft" ? saved : null,
@@ -228,11 +242,11 @@ export async function communicationsPreview(
         vehicleAvailable: !!entry.vehicleTitle,
         appointmentAvailable: !!entry.appointmentAt,
         defaults: {
-          subject: `Your enquiry · ${entry.reference}`,
-          message: `Hello ${entry.customerName},\n\nThank you for your enquiry. How can we help?`,
+          subject: defaults.subject,
+          message: defaults.bodyText,
         },
         ready: false,
-        templates: [],
+        templates: availableTemplates.map(template => { const rendered = renderEmailTemplate(template, variables, [], { ...appearance, heading: '', footer: '' }); return { id: template.id, label: template.label, subject: rendered.subject, message: rendered.bodyText }; }),
         invoices: [],
         photos: [],
         deliveries: [],
@@ -299,11 +313,28 @@ export async function communicationsPreview(
           send(400, { error: "Add a recipient, subject and message." });
           return true;
         }
+        if (parsed.data.expectedRevision !== (entry.workspaceRevision ?? 0)) { send(409, { error: 'The enquiry changed. Reopen the email before reviewing it.' }); return true; }
+        if (parsed.data.templateId === 'invoice_copy' && !parsed.data.documentIds.length) { send(400, { error: 'Attach an invoice for this customer before reviewing this invoice email.' }); return true; }
+        if (['service_history','pre_accident_photos'].includes(parsed.data.templateId ?? '') && !parsed.data.photoIds.length) { send(400, { error: 'Attach a matching approved vehicle photo before reviewing this email.' }); return true; }
+        if (parsed.data.photoIds.length || parsed.data.documentIds.length) { send(409, { error: 'Private attachments need the authenticated backend. Local preview cannot validate or send them.' }); return true; }
+        if (parsed.data.includeAppointment && !entry.appointmentAt) { send(400, { error: 'There is no appointment on this enquiry.' }); return true; }
+        const car = previewStock.cars.find(car => car.id === entry.vehicleId);
+        const facts: EmailFacts = [];
+        if (parsed.data.includeVehicle) {
+          if (!car && !entry.vehicleTitle) { send(400, { error: 'There is no vehicle information on this enquiry.' }); return true; }
+          facts.push({ label: 'Vehicle', value: car?.title || entry.vehicleTitle }, { label: 'Registration', value: entry.vehicleRegistration });
+          if (car?.price != null) facts.push({ label: 'Cash price', value: new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(car.price) });
+          if (car?.mileage != null) facts.push({ label: 'Mileage', value: `${car.mileage.toLocaleString('en-GB')} miles` });
+        }
+        if (parsed.data.includeAppointment) facts.push({ label: 'Appointment', value: appointmentTime }, { label: 'Appointment status', value: appointmentStatus }, { label: 'Showroom', value: address });
+        facts.push({ label: 'Enquiry reference', value: entry.reference });
+        const rendered = renderEmailTemplate({ subject: '{{document_type}}', body: '{{message}}', headline: templateSettings.templates.find(template => template.id === (parsed.data.templateId ?? 'enquiry_message'))?.headline }, { ...variables, customer_email: parsed.data.to, document_type: parsed.data.subject, message: parsed.data.message }, facts, appearance, { templateId: parsed.data.templateId ?? 'enquiry_message' });
         send(200, {
-          to: body.to,
-          subject: body.subject,
-          text: body.message,
-          previewHash: "0".repeat(64),
+          to: parsed.data.to,
+          subject: rendered.subject,
+          text: rendered.text,
+          html: rendered.html,
+          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments: [] })).digest('hex'),
           attachments: [],
         });
         return true;

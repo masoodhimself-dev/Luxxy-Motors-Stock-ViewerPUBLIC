@@ -14,6 +14,7 @@ import {
 import { useRefreshDesk, workspaceError } from "./enquiry-workspace-tools";
 import { requestUuid } from "@/lib/request-uuid";
 import { AiDraftSuggestion } from "./ai-draft-suggestion";
+import { CustomerEmailPreview } from "./customer-email-preview";
 import "./enquiry-email-composer.css";
 
 type Delivery = {
@@ -73,6 +74,7 @@ type EmailPreview = {
   to: string;
   subject: string;
   text: string;
+  html?: string;
   previewHash: string;
   attachments: { id: string; filename: string; byteSize: number }[];
 };
@@ -317,6 +319,10 @@ function EnquiryEmailEditor({
   }
   async function review() {
     if (busyRef.current || aiBusy) return;
+    if (missingAttachment) {
+      setError(missingAttachment);
+      return;
+    }
     busyRef.current = true;
     setBusyAction("review");
     setError("");
@@ -382,6 +388,23 @@ function EnquiryEmailEditor({
     }
   }
   const data = initialized.current ? context.data : undefined;
+  const photoCategory =
+    draft.templateId === "service_history"
+      ? "service_book"
+      : draft.templateId === "pre_accident_photos"
+        ? "pre_accident"
+        : null;
+  const missingAttachment =
+    draft.templateId === "invoice_copy" && !draft.documentIds.length
+      ? "Choose an invoice to attach, or use a different template."
+      : photoCategory &&
+          !data?.photos.some(
+            (photo) =>
+              draft.photoIds.includes(photo.id) &&
+              (photo.category ?? "service_book") === photoCategory,
+          )
+        ? `Choose at least one ${photoCategory === "pre_accident" ? "pre-accident" : "service-book"} photo to attach, or use a different template.`
+        : "";
   return (
     <Dialog
       open
@@ -446,8 +469,8 @@ function EnquiryEmailEditor({
                 <p role="status" className="enquiry-email-readiness">
                   Email is not enabled for this dealership. Ask the owner to
                   complete{" "}
-                  <a href="/portal?section=settings">
-                    Settings → Email & stock → Resend
+                  <a href="/portal?section=settings&settingsTab=integrations">
+                    Settings → Advanced → Connections → Resend
                   </a>
                   . You can prepare and review the message here.
                 </p>
@@ -501,9 +524,10 @@ function EnquiryEmailEditor({
                           <dd>{preview.subject}</dd>
                         </div>
                       </dl>
-                      <div className="enquiry-email-preview-copy">
-                        {preview.text}
-                      </div>
+                      <CustomerEmailPreview
+                        html={preview.html}
+                        text={preview.text}
+                      />
                       {preview.attachments.length > 0 && (
                         <div className="enquiry-email-attachment-list">
                           <strong>Attachments</strong>
@@ -567,14 +591,18 @@ function EnquiryEmailEditor({
                         </label>
                         {Boolean(data.templates?.length) && (
                           <label>
-                            Use a template
+                            Start from a template
                             <select
                               aria-label="Email template"
-                              defaultValue=""
+                              value={draft.templateId ?? ""}
                               onChange={(event) => {
                                 const selected = data.templates?.find(
                                   (t) => t.id === event.target.value,
                                 );
+                                if (!selected) {
+                                  change({ templateId: undefined });
+                                  return;
+                                }
                                 if (selected) {
                                   const category =
                                     selected.id === "service_history"
@@ -608,7 +636,7 @@ function EnquiryEmailEditor({
                                 }
                               }}
                             >
-                              <option value="">Choose a template</option>
+                              <option value="">Custom message</option>
                               {data.templates?.map((t) => (
                                 <option
                                   key={t.id}
@@ -809,6 +837,14 @@ function EnquiryEmailEditor({
                           </section>
                         )}
                       </fieldset>
+                      {missingAttachment && (
+                        <p
+                          role="status"
+                          className="enquiry-email-attachment-warning"
+                        >
+                          {missingAttachment}
+                        </p>
+                      )}
                       <div className="enquiry-email-actions">
                         <Button
                           type="button"
@@ -829,7 +865,8 @@ function EnquiryEmailEditor({
                           disabled={
                             busy ||
                             aiBusy ||
-                            draft.expectedRevision !== data.revision
+                            draft.expectedRevision !== data.revision ||
+                            Boolean(missingAttachment)
                           }
                         >
                           {busyAction === "review"
