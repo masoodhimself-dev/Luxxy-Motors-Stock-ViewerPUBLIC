@@ -459,6 +459,7 @@ paths:
       operationId: createStaffEnquiry
       tags: [enquiries]
       summary: Staff-only createStaffEnquiry
+      description: "Set the optional X-Enquiry-Capture header to quick for a general staff enquiry with no appointment, ad-hoc vehicle or follow-up. Quick capture creates an actionable new enquiry without sending customer/dealer email or scheduling notifications. Omitting this header preserves the full enquiry workflow."
       requestBody:
         required: true
         content:

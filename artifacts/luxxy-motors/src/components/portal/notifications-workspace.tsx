@@ -1,5 +1,6 @@
 import { useLocation, useSearch } from 'wouter';
-import { Bell, CalendarDays, Inbox, Mail, MessageSquare, Plus } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { CalendarDays, Inbox, Mail, MessageSquare, Plus, FileText, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notificationHref, notificationView, type NotificationView } from '@/lib/notifications-navigation';
 import { NotificationsHome } from './notifications-home';
@@ -16,20 +17,42 @@ const views = [
   { id: 'email', label: 'Email', description: 'Drafts and delivery', icon: Mail },
 ] as const;
 
-export function NotificationsWorkspace({ canEmail }: { canEmail: boolean }) {
+export function NotificationsWorkspace({ canEmail, onQuickEnquiry, onNewSale }: { canEmail: boolean; onQuickEnquiry?: () => void; onNewSale?: () => void }) {
   const search = useSearch(), [,navigate] = useLocation(), params = new URLSearchParams(search);
   const view = notificationView(search), calendar = view === 'test-drives' && params.get('deskView') === 'calendar';
+  const viewsNav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = viewsNav.current;
+    if (!nav) return;
+    const reveal = () => {
+      const current = nav.querySelector('[aria-current="page"]');
+      if (!current) return;
+      const item = current.getBoundingClientRect(), area = nav.getBoundingClientRect();
+      if (item.left < area.left) nav.scrollLeft -= area.left - item.left;
+      else if (item.right > area.right) nav.scrollLeft += item.right - area.right;
+    };
+    reveal();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(reveal);
+    observer?.observe(nav);
+    return () => observer?.disconnect();
+  }, [view, canEmail]);
   function choose(next: NotificationView) { navigate(notificationHref(next, search)); }
   function newEnquiry() {
-    navigate('/portal?section=notifications&workView=customers&deskView=new');
+    if (onQuickEnquiry) onQuickEnquiry();
+    else navigate('/portal?section=notifications&workView=customers&deskView=new');
   }
   function openCustomer(id: string) {
     navigate(`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(id)}`);
   }
   return <section className="customer-notifications-workspace" data-calendar={calendar} aria-label="Customer notifications workspace">
-    {!calendar && <header className="customer-workspace-heading"><div><p><Bell size={16} aria-hidden="true" />Your customer workspace</p><h2>Notifications</h2><span>Enquiries, test drives and email. One place to keep the conversation moving.</span></div><Button onClick={newEnquiry}><Plus size={17} aria-hidden="true" />New enquiry</Button></header>}
-    <DeviceNotifications canEmail={canEmail} />
-    <nav className="customer-workspace-views" aria-label="Notifications views">{views.filter(item=>item.id!=='email'||canEmail).map(item=>{const Icon=item.icon;return <button type="button" id={`customer-view-${item.id}`} key={item.id} aria-current={view===item.id?'page':undefined} aria-controls="customer-workspace-content" onClick={()=>choose(item.id)}><Icon size={19} aria-hidden="true" /><span><strong>{item.label}</strong><small>{item.description}</small></span></button>;})}</nav>
+    {!calendar && <header className="customer-workspace-heading"><h2>{view === 'attention' ? 'Your day' : views.find(item => item.id === view)?.label}</h2>{view !== 'attention' && canEmail && <Button onClick={newEnquiry}><Plus size={17} aria-hidden="true" />Quick enquiry</Button>}
+    {view === 'attention' && <div className="customer-quick-actions" aria-label="Home shortcuts">
+      {canEmail && <Button variant="outline" onClick={newEnquiry}><UserRoundPlus size={17} aria-hidden="true" />Quick enquiry</Button>}
+      <Button variant="outline" onClick={() => navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays size={17} aria-hidden="true" />Calendar</Button>
+      {canEmail && <><Button variant="outline" onClick={() => onNewSale ? onNewSale() : navigate('/portal?section=sales')}><FileText size={17} aria-hidden="true" />New sale</Button><Button variant="outline" onClick={() => navigate('/portal?section=notifications&workView=email&view=drafts')}><Mail size={17} aria-hidden="true" />Saved email drafts</Button></>}
+    </div>}
+    </header>}
+    <nav ref={viewsNav} className="customer-workspace-views" aria-label="Notifications views">{views.filter(item=>item.id!=='email'||canEmail).map(item=>{const Icon=item.icon;return <button type="button" id={`customer-view-${item.id}`} key={item.id} aria-current={view===item.id?'page':undefined} aria-controls="customer-workspace-content" onClick={()=>choose(item.id)}><Icon size={19} aria-hidden="true" /><span><strong>{item.label}</strong><small>{item.description}</small></span></button>;})}</nav>
     <div id="customer-workspace-content" className="customer-workspace-content" role="region" aria-label={views.find(item=>item.id===view)?.label}>
       {view==='attention' && <NotificationsHome embedded />}
       {view==='customers' && <EnquiriesPanel embedded initialView="history" canEmail={canEmail} />}
@@ -39,5 +62,6 @@ export function NotificationsWorkspace({ canEmail }: { canEmail: boolean }) {
       </>}
       {view==='email' && (canEmail ? <EmailWorkspace embedded /> : <div className="customer-workspace-denied" role="status"><h3>Email access isn’t included in your staff role</h3><p>You can still open customer enquiries and test drives.</p><Button variant="outline" onClick={()=>choose('attention')}>Back to needs attention</Button></div>)}
     </div>
+    <DeviceNotifications canEmail={canEmail} />
   </section>;
 }

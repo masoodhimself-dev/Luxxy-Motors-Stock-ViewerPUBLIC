@@ -1,6 +1,6 @@
 export const notificationViews = ['attention', 'customers', 'test-drives', 'email'] as const;
 export type NotificationView = typeof notificationViews[number];
-const legacyViews: Record<string, NotificationView> = { enquiries: 'customers', 'test-drives': 'test-drives', email: 'email' };
+const legacyViews: Record<string, NotificationView> = { overview: 'attention', enquiries: 'customers', 'test-drives': 'test-drives', email: 'email' };
 
 /** Old emailed/bookmarked portal links remain valid inside the combined workspace. */
 export function notificationView(search: string): NotificationView {

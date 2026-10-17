@@ -43,6 +43,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 it("opens Needs attention by default with one integrated navigation", () => {
   mount();
+  expect(screen.getByRole("heading", { name: "Your day" })).toBeVisible();
   expect(screen.getByRole("region", { name: "Attention panel" })).toBeVisible();
   for (const name of [
     "Needs attention",
@@ -67,6 +68,7 @@ it.each([
 });
 
 it.each([
+  ["overview", "Attention panel"],
   ["enquiries", "Customer panel"],
   ["test-drives", "Test drive panel"],
   ["email", "Email panel"],
@@ -122,17 +124,46 @@ it("gives the diary space without repeating the notifications heading and new-en
   mount("section=notifications&workView=test-drives&deskView=calendar");
   expect(screen.getByRole("region", { name: "Customer notifications workspace" })).toHaveAttribute("data-calendar", "true");
   expect(screen.queryByRole("heading", { name: "Notifications" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "New enquiry" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Your day" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Test drives" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Quick enquiry" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Bookings" })).toBeVisible();
 });
 
-it("starts a new enquiry in the integrated customer workspace", () => {
+it("keeps the full new-enquiry route as a standalone fallback", () => {
   const location = mount();
-  fireEvent.click(screen.getByRole("button", { name: "New enquiry" }));
+  fireEvent.click(screen.getByRole("button", { name: "Quick enquiry" }));
   expect(currentQuery(location).get("section")).toBe("notifications");
   expect(currentQuery(location).get("workView")).toBe("customers");
   expect(currentQuery(location).get("deskView")).toBe("new");
   expect(screen.getByRole("region", { name: "Customer panel" })).toBeVisible();
+});
+
+it("opens a quick enquiry over the home screen without navigating", () => {
+  const location = memoryLocation({ path: '/portal?section=notifications', record: true });
+  const quick = vi.fn(), sale = vi.fn();
+  render(<Router hook={location.hook}><NotificationsWorkspace canEmail onQuickEnquiry={quick} onNewSale={sale} /></Router>);
+  fireEvent.click(screen.getByRole('button', { name: 'Quick enquiry' }));
+  expect(quick).toHaveBeenCalledOnce();
+  expect(currentQuery(location).get('section')).toBe('notifications');
+  expect(currentQuery(location).has('workView')).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'New sale' }));
+  expect(sale).toHaveBeenCalledOnce();
+});
+
+it("keeps creation and email shortcuts out of read-only staff views", () => {
+  mount('', false);
+  expect(screen.queryByRole('button', { name: 'Quick enquiry' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'New sale' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Saved email drafts' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Calendar' })).toBeVisible();
+});
+
+it("opens calendar and saved drafts directly from home shortcuts", () => {
+  const location = mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Saved email drafts' }));
+  expect(currentQuery(location).get('workView')).toBe('email');
+  expect(currentQuery(location).get('view')).toBe('drafts');
 });
 
 it.each([

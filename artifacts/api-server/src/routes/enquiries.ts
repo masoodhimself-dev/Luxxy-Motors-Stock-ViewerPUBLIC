@@ -72,6 +72,7 @@ import { conversationChange, ConversationError } from "../lib/enquiry-conversati
 import { readAppointmentDiary } from "../lib/appointment-diary";
 import { enquiryConversationPage } from "../lib/enquiry-conversation-history";
 import { HistoryCursorError, parseHistoryCursor } from "../lib/history-cursor";
+import { quickEnquiryCapture } from "../lib/quick-enquiry-capture";
 
 const router: IRouter = Router();
 const uuidPattern =
@@ -373,6 +374,8 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
   }
 
   const input = parsed.data as ReturnType<typeof CreateStaffEnquiryBody.parse>;
+  const capture = quickEnquiryCapture(req.get('x-enquiry-capture'), staff, input);
+  if (capture.error) { res.status(400).json(errorResponse(capture.error)); return; }
   const requestCallback = !staff && "requestCallback" in input && input.requestCallback === true;
   if (!staff && "requestCallback" in input && input.type !== "general") { res.status(400).json(errorResponse("Callback requests are only available for general enquiries.")); return; }
   if (requestCallback && input.appointmentAt) { res.status(400).json(errorResponse("Callback requests cannot include an appointment.")); return; }
@@ -477,7 +480,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     const vehicleUrl = vehicle ? `/vehicle/${vehicle.id}` : null;
     const isViewing = input.type === "viewing";
     const owner = staff ? await assignedStaff("assignedToId" in input ? input.assignedToId : null, req) : requestCallback ? { assignedToId: null, assignedToName: null } : {};
-    const callOutcome = staff ? ("callOutcome" in input ? input.callOutcome : undefined) ?? (isViewing ? "test_drive_booked" : "information_given") : requestCallback ? "callback_requested" : null;
+    const callOutcome = capture.quick ? null : staff ? ("callOutcome" in input ? input.callOutcome : undefined) ?? (isViewing ? "test_drive_booked" : "information_given") : requestCallback ? "callback_requested" : null;
     const outcomeProblem = requestCallback ? null : outcomeError({ appointmentAt: input.appointmentAt, followUpAt }, callOutcome);
     if (outcomeProblem) { res.status(400).json(errorResponse(outcomeProblem)); return; }
 
@@ -512,11 +515,11 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
       appointmentDurationMinutes: isViewing ? policy.durationMinutes : null,
       appointmentBufferMinutes: isViewing ? policy.bufferMinutes : null,
       visitorId: input.visitorId?.trim() || null,
-      customerNotificationStatus: input.email ? "pending" : "not_sent",
-      dealerNotificationStatus: "pending",
+      customerNotificationStatus: !capture.quick && input.email ? "pending" : "not_sent",
+      dealerNotificationStatus: capture.quick ? "not_sent" : "pending",
       reminderStatus: Boolean(input.email) && isViewing && policy.confirmationMode === "instant" ? "pending" : "not_scheduled",
       source: staff ? adHoc ? "phone_ad_hoc" : "phone" : requestCallback ? "website_callback" : "website",
-      status: staff ? "contacted" : "new",
+      status: staff && !capture.quick ? "contacted" : "new",
     }, policy, staffOptions);
 
     // A booked viewing gets a capability link so the customer can move or drop
@@ -575,7 +578,7 @@ async function createEnquiry(req: Request, res: Response, staff = false): Promis
     };
 
     try {
-      const updated = await deliverEnquiryNotifications(created, req.log);
+      const updated = capture.quick ? created : await deliverEnquiryNotifications(created, req.log);
       await respond(updated);
     } catch (error) {
       req.log.error(

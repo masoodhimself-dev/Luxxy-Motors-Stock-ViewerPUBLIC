@@ -1,5 +1,5 @@
-import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck, CarFront, Wallet } from 'lucide-react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { Link, useLocation, useSearch } from 'wouter';
@@ -33,23 +33,339 @@ type Summary = {
   balances: { id: string; reference: string; customer: string; balancePence: number }[];
   deliveries: { id: string; reference: string; customer: string; scheduledDate: string; timeWindow: string }[];
 };
-export function DealerDashboard() {
+export function DealerDashboard({
+  compact = false,
+  children,
+}: { compact?: boolean; children?: ReactNode } = {}) {
   const access = useStaffAccess();
-  const query = useQuery({ queryKey: ['dealer-operations'], queryFn: () => request<Summary>('/api/dealer-operations'), refetchInterval: 60000 });
-  const [exportError, setExportError] = useState(''), [exporting, setExporting] = useState(false);
-  async function exportCsv() { setExporting(true); setExportError(''); try { const blob = await customFetch<Blob>('/api/dealer-operations/payments.csv', { responseType: 'blob' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `payment-ledger-${new Date().toISOString().slice(0,10)}.csv`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); } catch (error) { setExportError(message(error)); } finally { setExporting(false); } }
+  const query = useQuery({
+    queryKey: ['dealer-operations'],
+    queryFn: () => request<Summary>('/api/dealer-operations'),
+    refetchInterval: 60000,
+    retry: false,
+  });
+  const [exportError, setExportError] = useState(''),
+    [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    setExportError('');
+    try {
+      const blob = await customFetch<Blob>(
+        '/api/dealer-operations/payments.csv',
+        { responseType: 'blob' },
+      );
+      const url = URL.createObjectURL(blob),
+        anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `payment-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setExportError(message(error));
+    } finally {
+      setExporting(false);
+    }
+  }
   const data = query.data;
-  return <section className="dealer-admin dealer-overview" aria-label="Dealership overview"><header className="admin-heading"><div><p className="admin-kicker">Your dealership</p><h2>Today at a glance</h2><p>Customers to help, appointments to prepare and payments to finish.</p></div><Button variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching}>{query.isFetching ? 'Refreshing…' : 'Refresh overview'}</Button></header><Feedback error={query.error} />
-    {!data ? <p role="status">{query.isLoading ? 'Loading overview…' : 'The overview is unavailable.'}</p> : <>
-    <div className="admin-metrics">{[
-      ['Enquiries awaiting a reply', data.unansweredEnquiries, '/portal?section=enquiries'], ['Upcoming appointments', data.upcomingAppointments, '/portal?section=test-drives'], ['Overdue follow-ups', data.overdueFollowUps, '/portal?section=enquiries'], ['Cars in stock', data.stockCount, '/portal?section=inventory'],
-    ].map(([label, value, url]) => <Link key={label} href={String(url)} className="admin-metric"><span>{label}</span><strong>{value}</strong></Link>)}</div>
-    {(data.stock.stale || data.stock.alerts.length > 0 || data.pendingAppointments > 0) && <div className="admin-attention" aria-label="Dealership items needing attention">{data.pendingAppointments > 0 && <Link href="/portal?section=test-drives" className="admin-attention-link"><strong>{data.pendingAppointments} {data.pendingAppointments === 1 ? 'booking needs' : 'bookings need'} approval</strong><span>Review appointments →</span></Link>}{data.stock.stale && <p className="admin-warning">Stock feed needs attention. Check the last successful update below.</p>}{data.stock.alerts.map(alert => <p key={alert.code} className={alert.severity === 'error' ? 'admin-error' : 'admin-warning'}>{alert.message}</p>)}</div>}
-    <div className="admin-columns"><article className="admin-card"><h3>Next appointments</h3>{data.appointments.length ? <ul className="admin-records">{data.appointments.slice(0,6).map(item => <li key={item.id}><Link href={`/portal?section=enquiries&enquiryId=${encodeURIComponent(item.id)}`}><strong>{item.customer}</strong><span>{item.vehicle}</span><span>{date(item.at)} · {item.status}</span></Link></li>)}</ul> : <p>No upcoming appointments.</p>}<Link href="/portal?section=enquiries&deskView=calendar" className="admin-text-link">Open calendar</Link></article>
-    <article className="admin-card"><h3>Payments and delivery</h3><div className="admin-task-totals"><Link href="/portal?section=sales"><span>Outstanding balance</span><strong>{money(data.outstandingBalancePence)}</strong></Link><Link href="/portal?section=sales"><span>Upcoming deliveries</span><strong>{data.upcomingDeliveries}</strong></Link></div>{data.balances.length ? <ul className="admin-records">{data.balances.slice(0,5).map(item => <li key={item.id}><Link href={`/portal?section=sales&saleId=${item.id}`}><strong>{item.reference} · {item.customer}</strong><span>{money(item.balancePence)} outstanding</span></Link></li>)}</ul> : <p>No outstanding sale balances.</p>}{data.deliveries.slice(0,3).map(item => <p key={item.id}><Link href={`/portal?section=sales&saleId=${item.id}`}>{item.customer} · {item.scheduledDate} {item.timeWindow}</Link></p>)}{access.data?.permissions.includes('finance.export') && <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>{exporting ? 'Preparing export…' : 'Export payment ledger'}</Button>}{exportError && <p className="admin-error" role="alert">{exportError}</p>}</article></div>
-    <details className="admin-overview-details"><summary>More dealership details<span>Stock connection and sales performance</span></summary><div className="admin-columns"><article className="admin-card"><h3>Stock connection</h3><p className="admin-status">{data.stock.stale ? 'Stock feed needs attention' : 'Stock feed is current'}</p><p>{data.stock.lastSuccessfulSync ? `Last successful update: ${date(data.stock.lastSuccessfulSync)}` : 'No successful API import has been recorded.'}</p><Link href="/portal?section=settings" className="admin-text-link">Connection settings</Link></article><article className="admin-card"><h3>Customer conversion</h3><div className="admin-stat"><strong>{data.completedConversionPercent}%</strong><span>Enquiries resulting in completed sales</span></div><p>{data.convertedEnquiries} of {data.totalEnquiries} enquiries have a linked sale file.</p><p className="admin-muted">Based on recorded enquiries and connected sales.</p><Link href="/portal?section=sales" className="admin-text-link">Completed sales · {data.completedSales}</Link></article></div></details>
-    <p className="admin-muted">Updated {date(data.generatedAt)} · London time</p></>}
-  </section>;
+  const records = data && (
+    <div className="admin-columns">
+      <article className="admin-card">
+        <h3>Next appointments</h3>
+        {data.appointments.length ? (
+          <ul className="admin-records">
+            {data.appointments.slice(0, 6).map((item) => (
+              <li key={item.id}>
+                <Link
+                  href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(item.id)}`}
+                >
+                  <strong>{item.customer}</strong>
+                  <span>{item.vehicle}</span>
+                  <span>
+                    {date(item.at)} · {item.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No upcoming appointments.</p>
+        )}
+        <Link
+          href="/portal?section=notifications&workView=test-drives&deskView=calendar"
+          className="admin-text-link"
+        >
+          Open calendar
+        </Link>
+      </article>
+      <article className="admin-card">
+        <h3>Payments</h3>
+        <div className="admin-task-totals">
+          <Link href="/portal?section=sales">
+            <span>Outstanding balance</span>
+            <strong>{money(data.outstandingBalancePence)}</strong>
+          </Link>
+          {data.upcomingDeliveries > 0 && (
+            <Link href="/portal?section=sales">
+              <span>Upcoming deliveries</span>
+              <strong>{data.upcomingDeliveries}</strong>
+            </Link>
+          )}
+        </div>
+        {data.balances.length ? (
+          <ul className="admin-records">
+            {data.balances.slice(0, 5).map((item) => (
+              <li key={item.id}>
+                <Link
+                  href={`/portal?section=sales&saleId=${encodeURIComponent(item.id)}`}
+                >
+                  <strong>
+                    {item.reference} · {item.customer}
+                  </strong>
+                  <span>{money(item.balancePence)} outstanding</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No outstanding sale balances.</p>
+        )}
+        {data.deliveries.slice(0, 3).map((item) => (
+          <p key={item.id}>
+            <Link
+              href={`/portal?section=sales&saleId=${encodeURIComponent(item.id)}`}
+            >
+              {item.customer} · {item.scheduledDate} {item.timeWindow}
+            </Link>
+          </p>
+        ))}
+        {access.data?.permissions.includes('finance.export') && (
+          <Button
+            variant="outline"
+            onClick={() => void exportCsv()}
+            disabled={exporting}
+          >
+            {exporting ? 'Preparing export…' : 'Export payment ledger'}
+          </Button>
+        )}
+        {exportError && (
+          <p className="admin-error" role="alert">
+            {exportError}
+          </p>
+        )}
+      </article>
+    </div>
+  );
+  const reporting = data && (
+    <div className="admin-columns">
+      <article className="admin-card">
+        <h3>Stock connection</h3>
+        <p className="admin-status">
+          {data.stock.stale
+            ? 'Stock feed needs attention'
+            : 'Stock feed is current'}
+        </p>
+        <p>
+          {data.stock.lastSuccessfulSync
+            ? `Last successful update: ${date(data.stock.lastSuccessfulSync)}`
+            : 'No successful API import has been recorded.'}
+        </p>
+        <Link
+          href="/portal?section=settings&settingsTab=integrations"
+          className="admin-text-link"
+        >
+          Connection settings
+        </Link>
+      </article>
+      <article className="admin-card">
+        <h3>Customer conversion</h3>
+        <div className="admin-stat">
+          <strong>{data.completedConversionPercent}%</strong>
+          <span>Enquiries resulting in completed sales</span>
+        </div>
+        <p>
+          {data.convertedEnquiries} of {data.totalEnquiries} enquiries have a
+          linked sale file.
+        </p>
+        <p className="admin-muted">
+          Based on recorded enquiries and connected sales.
+        </p>
+        <Link href="/portal?section=sales" className="admin-text-link">
+          Completed sales · {data.completedSales}
+        </Link>
+      </article>
+    </div>
+  );
+  const stockAttention = data &&
+    (data.stock.stale || data.stock.alerts.length > 0) && (
+      <div className="admin-attention" aria-label="Stock needing attention">
+        {data.stock.stale && (!compact || !data.stock.alerts.length) && (
+          <p className="admin-warning">
+            Stock feed needs attention. Check the last successful update below.
+          </p>
+        )}
+        {data.stock.alerts.map((alert) => (
+          <p
+            key={alert.code}
+            className={
+              alert.severity === 'error' ? 'admin-error' : 'admin-warning'
+            }
+          >
+            {alert.message}
+          </p>
+        ))}
+      </div>
+    );
+  if (compact)
+    return (
+      <section
+        className="dealer-admin dealer-overview dealer-overview-compact"
+        aria-label="Daily dealership summary"
+      >
+        {query.isError && (
+          <div className="admin-summary-error" role="alert">
+            <p>
+              Dealership summary could not be refreshed.
+              {data ? ' The last loaded figures are shown.' : ''}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void query.refetch()}
+              disabled={query.isFetching}
+            >
+              Retry summary
+            </Button>
+          </div>
+        )}
+        {!data ? (
+          query.isLoading && (
+            <p role="status" className="admin-muted">
+              Loading dealership summary…
+            </p>
+          )
+        ) : (
+          <>
+            <div
+              className="admin-daily-summary"
+              role="group"
+              aria-label="Dealership figures"
+            >
+              <Link href="/portal?section=inventory">
+                <CarFront aria-hidden size={19} />
+                <span>Cars in stock</span>
+                <strong>{data.stockCount}</strong>
+              </Link>
+              <Link href="/portal?section=sales">
+                <Wallet aria-hidden size={19} />
+                <span>Outstanding balance</span>
+                <strong>{money(data.outstandingBalancePence)}</strong>
+              </Link>
+            </div>
+            {stockAttention}
+          </>
+        )}
+        {children}
+        {data && (
+          <details className="admin-overview-details admin-daily-details">
+            <summary>
+              More dealership details
+              <span>Appointments, payments and stock connection</span>
+            </summary>
+            {records}
+            {reporting}
+            <p className="admin-muted admin-details-updated">
+              Updated {date(data.generatedAt)} · London time
+            </p>
+          </details>
+        )}
+      </section>
+    );
+  return (
+    <section
+      className="dealer-admin dealer-overview"
+      aria-label="Dealership overview"
+    >
+      <header className="admin-heading">
+        <div>
+          <p className="admin-kicker">Your dealership</p>
+          <h2>Today at a glance</h2>
+          <p>
+            Customers to help, appointments to prepare and payments to finish.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => void query.refetch()}
+          disabled={query.isFetching}
+        >
+          {query.isFetching ? 'Refreshing…' : 'Refresh overview'}
+        </Button>
+      </header>
+      <Feedback error={query.error} />
+      {!data ? (
+        <p role="status">
+          {query.isLoading
+            ? 'Loading overview…'
+            : 'The overview is unavailable.'}
+        </p>
+      ) : (
+        <>
+          <div className="admin-metrics">
+            {[
+              [
+                'Enquiries awaiting a reply',
+                data.unansweredEnquiries,
+                '/portal?section=notifications&workView=customers',
+              ],
+              [
+                'Upcoming appointments',
+                data.upcomingAppointments,
+                '/portal?section=notifications&workView=test-drives',
+              ],
+              [
+                'Overdue follow-ups',
+                data.overdueFollowUps,
+                '/portal?section=notifications&workView=customers',
+              ],
+              ['Cars in stock', data.stockCount, '/portal?section=inventory'],
+            ].map(([label, value, url]) => (
+              <Link key={label} href={String(url)} className="admin-metric">
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </Link>
+            ))}
+          </div>
+          {data.pendingAppointments > 0 && (
+            <Link
+              href="/portal?section=notifications&workView=test-drives"
+              className="admin-attention-link"
+            >
+              <strong>
+                {data.pendingAppointments}{' '}
+                {data.pendingAppointments === 1
+                  ? 'booking needs'
+                  : 'bookings need'}{' '}
+                approval
+              </strong>
+              <span>Review appointments →</span>
+            </Link>
+          )}
+          {stockAttention}
+          {records}
+          <details className="admin-overview-details">
+            <summary>
+              More dealership details
+              <span>Stock connection and sales performance</span>
+            </summary>
+            {reporting}
+          </details>
+          <p className="admin-muted">
+            Updated {date(data.generatedAt)} · London time
+          </p>
+        </>
+      )}
+    </section>
+  );
 }
 
 type Member = { id: string; email: string | null; name: string | null; role: Role; active: boolean };

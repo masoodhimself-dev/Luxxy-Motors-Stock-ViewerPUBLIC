@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { dealerConfig } from "@/config/dealer";
@@ -64,9 +71,6 @@ vi.mock("@/components/portal/dealer-administration", () => ({
     state.accessHook(...args);
     return state.access;
   },
-  DealerDashboard: () => (
-    <section aria-label="Overview fixture">Overview</section>
-  ),
   DealerSettingsHub: () => (
     <section aria-label="Settings fixture">Settings</section>
   ),
@@ -74,13 +78,24 @@ vi.mock("@/components/portal/dealer-administration", () => ({
 vi.mock("@/components/portal/notifications-workspace", async () => {
   const { useSearch } = await import("wouter");
   return {
-    NotificationsWorkspace: ({ canEmail }: { canEmail: boolean }) => (
+    NotificationsWorkspace: ({
+      canEmail,
+      onQuickEnquiry,
+    }: {
+      canEmail: boolean;
+      onQuickEnquiry?: () => void;
+    }) => (
       <section
         aria-label="Notifications fixture"
         data-can-email={String(canEmail)}
         data-search={useSearch()}
       >
         Customer work
+        {canEmail && (
+          <button type="button" onClick={onQuickEnquiry}>
+            Panel quick enquiry
+          </button>
+        )}
       </section>
     ),
   };
@@ -89,6 +104,30 @@ vi.mock("@/components/portal/staff-inventory", () => ({
   StaffInventory: () => (
     <section aria-label="Inventory fixture">All cars</section>
   ),
+}));
+vi.mock("@/components/portal/quick-enquiry", () => ({
+  QuickEnquiryDialog: ({
+    open,
+    onOpenChange,
+    onCreated,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onCreated: (enquiry: { id: string; reference?: string }) => void;
+  }) =>
+    open ? (
+      <section role="dialog" aria-label="Quick enquiry">
+        <button type="button" onClick={() => onOpenChange(false)}>
+          Close fixture enquiry
+        </button>
+        <button
+          type="button"
+          onClick={() => onCreated({ id: "quick-id", reference: "Q-123" })}
+        >
+          Save fixture enquiry
+        </button>
+      </section>
+    ) : null,
 }));
 vi.mock("@/components/portal/relationships-panel", () => ({
   RelationshipsPanel: () => (
@@ -166,6 +205,15 @@ function query(location: ReturnType<typeof memoryLocation>) {
 }
 function section(key: string) {
   return screen.getByTestId(`tab-${key}`);
+}
+async function openQuickActions() {
+  const trigger = screen.getByRole("button", { name: "Quick actions" });
+  fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
+  return screen.findByRole("menu");
+}
+async function chooseQuickAction(name: string) {
+  await openQuickActions();
+  fireEvent.click(screen.getByRole("menuitem", { name }));
 }
 function expectCurrent(key: string) {
   const navigation = screen.getByRole("navigation", {
@@ -301,10 +349,15 @@ describe("portal shell access and navigation", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("opens notifications by default and gives every section an accessible current target", () => {
+  it("opens one Home workspace by default and gives every section an accessible current target", () => {
     mount();
     expectCurrent("notifications");
     const nav = screen.getByRole("navigation", { name: "Portal sections" });
+    expect(section("notifications")).toHaveAccessibleName("Home");
+    expect(screen.queryByTestId("tab-overview")).not.toBeInTheDocument();
+    expect(
+      within(nav).queryByRole("button", { name: "Overview" }),
+    ).not.toBeInTheDocument();
     expect(within(nav).getByTestId("tab-inventory")).toHaveAccessibleName(
       "Cars",
     );
@@ -336,7 +389,7 @@ describe("portal shell access and navigation", () => {
       1,
     );
     expect(
-      within(toolbar).getByRole("button", { name: "New sale" }),
+      within(toolbar).getByRole("button", { name: "Quick actions" }),
     ).toBeVisible();
     expect(
       within(toolbar).getByRole("button", { name: "Account menu" }),
@@ -401,6 +454,108 @@ describe("portal shell access and navigation", () => {
     },
   );
 
+  it("opens legacy Overview bookmarks in Home without a duplicate navigation section", () => {
+    const { location } = mount("section=overview");
+    expectCurrent("notifications");
+    expect(section("notifications")).toHaveAccessibleName("Home");
+    expect(
+      screen.getByRole("region", { name: "Notifications fixture" }),
+    ).toBeVisible();
+    expect(screen.queryByTestId("tab-overview")).not.toBeInTheDocument();
+    act(() => location.navigate("/portal?section=inventory"));
+    act(() => location.navigate("/portal?section=overview"));
+    expectCurrent("notifications");
+  });
+
+  it.each([
+    "section=inventory&vehicleId=car-1",
+    "section=history&view=vehicles&vehicleId=car-1",
+    "section=sales&saleId=sale-1",
+  ])("opens and cancels Quick enquiry without leaving %s", async (search) => {
+    const { location } = mount(search);
+    const initialHistory = [...location.history];
+    const active = screen
+      .getByRole("navigation", { name: "Portal sections" })
+      .querySelector('[aria-current="page"]')!;
+    await chooseQuickAction("Quick enquiry");
+    expect(screen.getByRole("dialog", { name: "Quick enquiry" })).toBeVisible();
+    expect(location.history).toEqual(initialHistory);
+    expect(active).toHaveAttribute("aria-current", "page");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Close fixture enquiry" }),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Quick enquiry" }),
+    ).not.toBeInTheDocument();
+    expect(location.history).toEqual(initialHistory);
+  });
+
+  it("confirms a quick enquiry without moving away or replacing an open sale worksheet", async () => {
+    const { location } = mount("section=sales&saleId=sale-1");
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Retained sale worksheet" }),
+      { target: { value: "Keep this invoice" } },
+    );
+    const initialHistory = [...location.history];
+    await chooseQuickAction("Quick enquiry");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save fixture enquiry" }),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Quick enquiry" }),
+    ).not.toBeInTheDocument();
+    expect(location.history).toEqual(initialHistory);
+    expectCurrent("sales");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Enquiry Q-123 saved.",
+    );
+    expect(screen.getByRole("link", { name: "Open enquiry" })).toHaveAttribute(
+      "href",
+      "/portal?section=notifications&workView=customers&enquiryId=quick-id",
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Retained sale worksheet" }),
+    ).toHaveValue("Keep this invoice");
+    expect(state.salesMounts).toBe(1);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Dismiss confirmation" }),
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(location.history).toEqual(initialHistory);
+  });
+
+  it("opens the same Quick enquiry dialog from the combined customer workspace", () => {
+    const { location } = mount(
+      "section=notifications&workView=customers&enquiryId=customer-1",
+    );
+    const initialHistory = [...location.history];
+    fireEvent.click(
+      screen.getByRole("button", { name: "Panel quick enquiry" }),
+    );
+    expect(screen.getByRole("dialog", { name: "Quick enquiry" })).toBeVisible();
+    expect(location.history).toEqual(initialHistory);
+  });
+
+  it.each([
+    ["Calendar", "test-drives", "deskView", "calendar"],
+    ["Saved email drafts", "email", "view", "drafts"],
+  ])(
+    "opens %s using the existing workspace route and clears unrelated context",
+    async (label, workView, parameter, value) => {
+      const { location } = mount("section=inventory&vehicleId=car-1");
+      await chooseQuickAction(label);
+      const params = query(location);
+      expectCurrent("notifications");
+      expect(params.get("section")).toBe("notifications");
+      expect(params.get("workView")).toBe(workView);
+      expect(params.get(parameter)).toBe(value);
+      expect(params.has("vehicleId")).toBe(false);
+      expect(
+        screen.queryByRole("dialog", { name: "Quick enquiry" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("honours deep links and external history changes between staff sections", () => {
     const { location } = mount("section=inventory&vehicleId=car-1");
     expectCurrent("inventory");
@@ -423,17 +578,47 @@ describe("portal shell access and navigation", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("only exposes owner settings and a new-sale shortcut to authorised staff", () => {
+  it("only exposes owner settings and creation shortcuts to authorised staff", async () => {
     state.access.data = { role: "accounts", permissions: ["finance.export"] };
     mount();
     expect(
       screen.queryByRole("button", { name: "New sale" }),
+    ).not.toBeInTheDocument();
+    if (screen.queryByRole("button", { name: "Quick actions" }))
+      await openQuickActions();
+    for (const name of ["Quick enquiry", "New sale", "Saved email drafts"])
+      expect(screen.queryByRole("menuitem", { name })).not.toBeInTheDocument();
+    const menu = screen.queryByRole("menu");
+    if (menu) {
+      fireEvent.keyDown(menu, { key: "Escape" });
+      await waitFor(() =>
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument(),
+      );
+    }
+    expect(
+      screen.queryByRole("dialog", { name: "Quick enquiry" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("tab-settings")).not.toBeInTheDocument();
     expect(screen.queryByTestId("tab-chat")).not.toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Notifications fixture" }),
     ).toHaveAttribute("data-can-email", "false");
+  });
+
+  it("hides an open quick-create dialog if the current staff role loses permission", async () => {
+    const { location, rerender } = mount("section=inventory");
+    await chooseQuickAction("Quick enquiry");
+    expect(screen.getByRole("dialog", { name: "Quick enquiry" })).toBeVisible();
+    state.access.data = { role: "accounts", permissions: ["finance.export"] };
+    rerender(
+      <Router hook={location.hook}>
+        <Portal />
+      </Router>,
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Quick enquiry" }),
+    ).not.toBeInTheDocument();
+    expectCurrent("inventory");
   });
 
   it("navigates without carrying another section’s record selection", () => {
@@ -499,9 +684,9 @@ describe("portal shell access and navigation", () => {
     expect(navigation.scrollLeft).toBe(70);
   });
 
-  it("keeps an open sale worksheet while switching sections and returns to customer work", () => {
+  it("keeps an open sale worksheet while switching sections and returns to customer work", async () => {
     const { location } = mount();
-    fireEvent.click(screen.getByRole("button", { name: "New sale" }));
+    await chooseQuickAction("New sale");
     expectCurrent("sales");
     const sale = screen.getByRole("region", { name: "Sales fixture" });
     expect(sale).toHaveAttribute("data-request", "1");
@@ -517,7 +702,7 @@ describe("portal shell access and navigation", () => {
     ).toHaveValue("Keep this customer");
     expect(sale).toHaveAttribute("data-mount", "1");
     expect(state.salesMounts).toBe(1);
-    fireEvent.click(screen.getByRole("button", { name: "New sale" }));
+    await chooseQuickAction("New sale");
     expect(sale).toHaveAttribute("data-request", "2");
     fireEvent.click(
       screen.getByRole("button", { name: "Return to customer work" }),

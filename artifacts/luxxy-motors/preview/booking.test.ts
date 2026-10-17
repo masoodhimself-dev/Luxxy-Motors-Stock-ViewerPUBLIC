@@ -16,6 +16,19 @@ async function call(state: BookingPreviewState, settings: typeof previewSettings
   assert.ok(result); return result as { status: number; data: any };
 }
 
+test('quick enquiry preview mirrors silent actionable capture and rejects booking shortcuts', async () => {
+  const state: BookingPreviewState = { reservations: [] };
+  const settings = { ...previewSettings, testDriveBooking: policy() };
+  const input = { vehicleId: null, type: 'general', customerName: 'Fictional quick caller', email: 'fictional@example.test', phone: '07700900123', preferredContact: 'phone', message: 'Asked for details', appointmentAt: null };
+  const headers = { 'x-enquiry-capture': 'quick' };
+  const result = await call(state, settings, 'POST', '/api/staff/enquiries', input, headers);
+  assert.equal(result.status, 201); assert.equal(result.data.status, 'new'); assert.equal(result.data.callOutcome, null);
+  assert.equal(result.data.customerNotificationStatus, 'not_sent'); assert.equal(result.data.customerNotificationError, null); assert.equal(result.data.dealerNotificationStatus, 'not_sent');
+  await assert.rejects(call(state, settings, 'POST', '/api/enquiries', input, headers), /only for staff/);
+  await assert.rejects(call(state, settings, 'POST', '/api/staff/enquiries', { ...input, type: 'viewing', appointmentAt: '2026-12-01T10:00:00Z' }, headers), /full enquiry or booking form/);
+  assert.equal(state.enquiries?.length, 1);
+});
+
 test('local staff diary mirrors the bounded production day window and omits customer correspondence', async () => {
   const state: BookingPreviewState = { reservations: [] };
   const settings = { ...previewSettings, testDriveBooking: policy() };

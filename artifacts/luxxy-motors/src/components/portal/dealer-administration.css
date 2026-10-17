@@ -94,3 +94,127 @@
  .settings-tabs-workspace .integration-actions>button { flex:1 1 150px; min-height:48px; }
  .settings-tabs-workspace :is(.integration-heading h2,.admin-heading h2) { font-size:21px; }
 }
+
+/* The daily home supports the action feed; reporting stays collapsed below it. */
+.dealer-overview-compact {
+  gap: 14px;
+}
+.admin-daily-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--portal-border, #dce5ec);
+  border-radius: 9px;
+  background: #fff;
+}
+.admin-daily-summary > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  min-height: 64px;
+  min-width: 0;
+  color: var(--portal-ink, #203747);
+}
+.admin-daily-summary > a + a {
+  border-left: 1px solid var(--portal-border, #dce5ec);
+}
+.admin-daily-summary > a:hover {
+  background: #f5f9fa;
+}
+.admin-daily-summary svg {
+  flex-shrink: 0;
+  color: var(--portal-accent, #315e75);
+}
+.admin-daily-summary span {
+  font-size: 12px;
+  color: var(--portal-muted, #617484);
+}
+.admin-daily-summary strong {
+  font-size: 20px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.dealer-overview-compact .admin-attention {
+  gap: 6px;
+}
+.dealer-overview-compact .admin-attention > p {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.admin-summary-error {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid #e8cda5;
+  border-radius: 8px;
+  background: #fff7ec;
+  font-size: 12px;
+  color: #795a2d;
+}
+.admin-summary-error > button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+.admin-daily-details > summary {
+  min-height: 48px;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+.admin-daily-details > summary span {
+  display: inline;
+  margin-left: 12px;
+}
+.admin-daily-details .admin-card {
+  padding: 16px;
+}
+.admin-daily-details .admin-card h3 {
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.admin-daily-details .admin-card > p {
+  font-size: 12px;
+}
+.admin-daily-details .admin-task-totals:has(> a:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.admin-daily-details .admin-columns {
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+.admin-details-updated {
+  padding: 0 16px 12px;
+}
+@media (max-width: 600px) {
+  .admin-daily-summary > a {
+    display: grid;
+    grid-template-columns: 17px minmax(0, 1fr);
+    gap: 5px 8px;
+    padding: 10px 12px;
+    min-height: 70px;
+  }
+  .admin-daily-summary svg {
+    width: 17px;
+    height: 17px;
+  }
+  .admin-daily-summary span {
+    font-size: 11px;
+  }
+  .admin-daily-summary strong {
+    grid-column: 2;
+    margin-left: 0;
+    font-size: 19px;
+  }
+  .admin-daily-details > summary span {
+    display: block;
+    margin: 4px 0 0;
+    font-size: 11px;
+  }
+  .admin-summary-error {
+    flex-wrap: wrap;
+  }
+}

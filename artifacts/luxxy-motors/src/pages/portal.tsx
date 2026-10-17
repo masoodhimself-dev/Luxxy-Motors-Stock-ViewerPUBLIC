@@ -12,17 +12,24 @@ import {
   FileText,
   Plus,
   Settings2,
-  LayoutDashboard,
+  House,
   CarFront,
   ExternalLink,
   History,
   MessageSquare,
-  Bell,
+  CalendarDays,
+  Mail,
+  UserRoundPlus,
+  ChevronDown,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerWordmark } from '@/components/brand/wordmark';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { DealerDashboard, DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
+import { DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { QuickEnquiryDialog } from '@/components/portal/quick-enquiry';
 import { StripeReservationsPanel } from '@/components/portal/stripe-reservations-panel';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 import { RelationshipsPanel } from '@/components/portal/relationships-panel';
@@ -36,11 +43,10 @@ import { PortalInstallMetadata } from '@/components/portal/device-notifications'
 import { isNotificationsSection, notificationHref } from '@/lib/notifications-navigation';
 import { StaffInventory } from '@/components/portal/staff-inventory';
 
-type TabKey = 'notifications' | 'inventory' | 'overview' | 'chat' | 'sales' | 'reservations' | 'history' | 'settings';
+type TabKey = 'notifications' | 'inventory' | 'chat' | 'sales' | 'reservations' | 'history' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
-  { key: 'notifications', label: 'Notifications', icon: Bell },
-  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'notifications', label: 'Home', icon: House },
   { key: 'inventory', label: 'Cars', icon: CarFront },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
   { key: 'sales', label: 'Sales', icon: FileText },
@@ -131,6 +137,8 @@ function PortalDesk() {
   const { user } = useUser();
   const [salesOpened, setSalesOpened] = useState(tab === 'sales');
   const [newSaleRequest, setNewSaleRequest] = useState(0);
+  const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
+  const [quickCreated, setQuickCreated] = useState<{ id: string; reference: string } | null>(null);
   const sectionNav = useRef<HTMLElement>(null);
   const search = useSearch();
   const [, navigate] = useLocation();
@@ -213,12 +221,25 @@ function PortalDesk() {
 
   const staffName =
     sessionQuery.data?.name ?? user?.firstName ?? sessionQuery.data?.email ?? 'there';
+  function newSale() {
+    setSalesOpened(true);
+    setTab('sales');
+    navigate('/portal?section=sales');
+    setNewSaleRequest(request => request + 1);
+  }
 
   return (
     <div data-section={tab} className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background">
       <PortalInstallMetadata />
       <PortalToolbar staffName={staffName} account={<UserButton />}>
-        {canSell && <Button type="button" className="portal-new-sale" onClick={() => { setSalesOpened(true); setTab('sales'); navigate('/portal?section=sales'); setNewSaleRequest(request => request + 1); }}><Plus className="h-4 w-4" aria-hidden="true" />New sale</Button>}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button type="button" className="portal-quick-trigger" aria-label="Quick actions"><Plus size={16} aria-hidden="true" /><span className="portal-quick-full-label">Quick add</span><span className="portal-quick-short-label">Add</span><ChevronDown size={14} aria-hidden="true" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="portal-quick-menu">
+            {canSell && <><DropdownMenuItem onSelect={() => setQuickEnquiryOpen(true)}><UserRoundPlus aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem onSelect={newSale}><FileText aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
+            <DropdownMenuItem onSelect={() => navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays aria-hidden="true" />Calendar</DropdownMenuItem>
+            {canSell && <DropdownMenuItem onSelect={() => navigate('/portal?section=notifications&workView=email&view=drafts')}><Mail aria-hidden="true" />Saved email drafts</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PortalToolbar>
       <h1 className="sr-only">Dealership workspace</h1>
       <div className="portal-workspace-inner mx-auto">
@@ -253,10 +274,11 @@ function PortalDesk() {
               })}
             </nav>
 
+            {quickCreated && <div className="portal-quick-confirmation" role="status"><CheckCircle2 size={18} aria-hidden="true" /><span>Enquiry {quickCreated.reference} saved.</span><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(quickCreated.id)}`}>Open enquiry</Link><button type="button" aria-label="Dismiss confirmation" onClick={() => setQuickCreated(null)}><X size={16} aria-hidden="true" /></button></div>}
+
             <div className="portal-section-content min-h-[50vh]">
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
-              {tab === 'notifications' && <NotificationsWorkspace canEmail={canSell} />}
-              {tab === 'overview' && <DealerDashboard />}
+              {tab === 'notifications' && <NotificationsWorkspace canEmail={canSell} onQuickEnquiry={() => setQuickEnquiryOpen(true)} onNewSale={newSale} />}
               {tab === 'inventory' && <StaffInventory />}
               {tab === 'chat' && <ChatPanel />}
               {tab === 'reservations' && <><ReservationsPanel /><StripeReservationsPanel /></>}
@@ -269,8 +291,7 @@ function PortalDesk() {
 
 
       </div>
-
-
+      {canSell && <QuickEnquiryDialog open={quickEnquiryOpen} onOpenChange={setQuickEnquiryOpen} onCreated={enquiry => { setQuickEnquiryOpen(false); setQuickCreated({ id: enquiry.id, reference: enquiry.reference }); }} />}
     </div>
   );
 }

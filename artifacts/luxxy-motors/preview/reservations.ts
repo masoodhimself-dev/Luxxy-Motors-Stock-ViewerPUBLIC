@@ -19,6 +19,7 @@ import { conversationChange, ConversationError } from '../../api-server/src/lib/
 import { roleHasPermission, type StaffRole } from '../../api-server/src/lib/staff-permissions';
 import { appointmentDiaryWindow } from '../../api-server/src/lib/appointment-diary-window';
 import { HistoryCursorError, historyCursor, parseHistoryCursor } from '../../api-server/src/lib/history-cursor';
+import { quickEnquiryCapture } from '../../api-server/src/lib/quick-enquiry-capture';
 
 let previewStaff = [{ id: 'preview-alex', name: 'Alex' }, { id: 'preview-jamie', name: 'Jamie' }];
 function previewAssignment(id?: string | null) {
@@ -367,6 +368,9 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     const parsed = (staff ? CreateStaffEnquiryBody : CreateEnquiryBody).safeParse(rawInput);
     if (!parsed.success) throw new ReservationError('Please check your contact details and chosen time.', 400);
     const input = parsed.data as ReturnType<typeof CreateStaffEnquiryBody.parse>;
+    const captureHeader = req.headers['x-enquiry-capture'];
+    const capture = quickEnquiryCapture(Array.isArray(captureHeader) ? captureHeader.join(',') : captureHeader, staff, input);
+    if (capture.error) throw new ReservationError(capture.error, 400);
     const requestCallback = !staff && "requestCallback" in input && input.requestCallback === true;
     if (!staff && "requestCallback" in input && input.type !== 'general') throw new ReservationError('Callback requests are only available for general enquiries.', 400);
     if (requestCallback && input.appointmentAt) throw new ReservationError('Callback requests cannot include an appointment.', 400);
@@ -392,7 +396,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if (input.type === 'viewing' && vehicle && state.reservations.some(entry => entry.vehicleId === internalId(vehicle.id) && entry.status === 'reserved')) throw new ReservationError('This car is reserved and cannot be booked.', 409);
     if (input.type !== 'viewing' && input.appointmentAt) throw new ReservationError('Appointments are only available for test drives.', 400);
     const exception = input.appointmentAt && staffOptions ? staffException(input.appointmentAt, policy, occupied(), staffOptions) : null;
-    const callOutcome = staff ? ('callOutcome' in input ? input.callOutcome : undefined) ?? (input.type === 'viewing' ? 'test_drive_booked' : 'information_given') : requestCallback ? 'callback_requested' : null;
+    const callOutcome = capture.quick ? null : staff ? ('callOutcome' in input ? input.callOutcome : undefined) ?? (input.type === 'viewing' ? 'test_drive_booked' : 'information_given') : requestCallback ? 'callback_requested' : null;
     const outcomeProblem = requestCallback ? null : outcomeError({ appointmentAt: input.appointmentAt, followUpAt }, callOutcome);
     if (outcomeProblem) throw new ReservationError(outcomeProblem, 400);
     if (input.appointmentAt && !staff && !slotIsAvailable(input.appointmentAt, policy, occupied())) throw new ReservationError('That test-drive time is no longer available. Please choose another.', 409);
@@ -400,6 +404,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     const viewing = input.type === 'viewing';
     const enquiry: PreviewEnquiry = { id, dealerId: 'local-preview', reference: `ENQ-${id.slice(0, 8).toUpperCase()}`, vehicleId: vehicle?.id ?? null, vehicleTitle: vehicle?.title ?? adHoc?.title.trim() ?? null, vehicleRegistration: vehicle ? vehicleRegistrationLabel(vehicle) : adHoc?.registration?.trim().toUpperCase() ?? null, vehiclePrice: vehicle?.price ?? adHoc?.price ?? null, vehicleUrl: vehicle ? `/vehicle/${vehicle.id}` : null, type: input.type, status: staff ? 'contacted' : 'new', customerName: input.customerName.trim(), email: input.email?.trim().toLowerCase() || null, phone: input.phone?.trim().replace(/[\s().\-/]/g, '') || null, preferredContact: staff || requestCallback ? 'phone' : input.preferredContact ?? 'email', message: input.message.trim(), followUpAt: followUpAt?.toISOString() ?? null, followUpNote: followUpAt ? followUpNote?.trim() || null : null, followUpCompletedAt: null, followUpRevision: 0, partExchangeRegistration: input.partExchange?.registration ?? null, partExchangeMileage: input.partExchange?.mileage ?? null, partExchangeCondition: input.partExchange?.condition ?? null, appointmentAt: input.appointmentAt?.toISOString() ?? null, appointmentCancelledAt: null, appointmentRevision: 0, appointmentStatus: viewing ? policy.confirmationMode === 'approval' ? 'pending' : 'confirmed' : null, appointmentDurationMinutes: viewing ? policy.durationMinutes : null, appointmentBufferMinutes: viewing ? policy.bufferMinutes : null, manageToken: viewing ? token : undefined, managePath: viewing ? `/viewing/${token}` : null, calendarIcs: null, events: [], customerNotificationStatus: 'not_sent', customerNotificationError: 'Email delivery is not configured.', customerNotificationSentAt: null, dealerNotificationStatus: 'not_sent', dealerNotificationError: 'Email delivery is not configured.', dealerNotificationSentAt: null, reminderStatus: 'not_scheduled', reminderError: null, reminderSentAt: null, source: staff ? adHoc ? 'phone_ad_hoc' : 'phone' : requestCallback ? 'website_callback' : 'website', createdAt: now, updatedAt: now };
     Object.assign(enquiry, exception ?? { appointmentOutsideHours: false, appointmentDoubleBooked: false, appointmentOverCapacity: false });
+    if (capture.quick) Object.assign(enquiry, { status: 'new', customerNotificationError: null, dealerNotificationError: null });
     Object.assign(enquiry, owner, { callOutcome, workspaceRevision: 0, attendance: 'scheduled', staffNote: null });
     if (requestCallback) enquiry.events = [{ id: randomUUID(), kind: 'enquiry_received', actor: 'customer', summary: 'Website callback requested', vehicleId: enquiry.vehicleId, vehicleTitle: enquiry.vehicleTitle, vehicleUrl: enquiry.vehicleUrl, occurredAt: now }];
     enquiries.unshift(enquiry);

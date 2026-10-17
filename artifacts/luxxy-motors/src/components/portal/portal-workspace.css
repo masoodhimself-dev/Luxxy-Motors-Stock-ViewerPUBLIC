@@ -132,6 +132,14 @@
 .portal-toolbar-label { border-left: 1px solid var(--portal-border); padding-left: 20px; color: var(--portal-muted); font-size: 13px; font-weight: 500; }
 .portal-toolbar-actions { display: flex; flex-shrink: 0; align-items: center; gap: 10px; }
 .portal-toolbar-actions .portal-new-sale { min-height: 40px; padding: 8px 14px; gap: 6px; }
+.portal-toolbar-actions .portal-quick-trigger { min-height: 44px; padding: 8px 12px; gap: 6px; font-size: 13px; }
+.portal-quick-short-label { display: none; }
+.portal-quick-menu { min-width: 224px; padding: 6px; border-radius: 10px; background: #fff; color: #203747; box-shadow: 0 12px 30px #17354a24; }
+.portal-quick-menu [role=menuitem] { min-height: 44px; padding: 10px; gap: 10px; font-size: 14px; }
+.portal-quick-menu [role=menuitem]:focus { background: #eaf2f6; color: #203747; }
+.portal-quick-confirmation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; padding: 8px 12px; border: 1px solid #c8ded6; border-radius: 8px; background: #eff8f3; color: #285545; font-size: 13px; }
+.portal-quick-confirmation > a { min-height: 44px; display: inline-flex; align-items: center; padding: 6px 8px; text-decoration: underline; font-weight: 600; }
+.portal-quick-confirmation > button { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin-left: auto; }
 .portal-showroom-link { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border-radius: 6px; color: var(--portal-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
 .portal-showroom-link:hover { color: var(--portal-accent); background: var(--portal-canvas); }
 .portal-account-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--portal-muted); font-size: 13px; }
@@ -154,6 +162,9 @@
   .portal-workspace .portal-section-nav > button { min-height: 48px; padding-inline: 9px; font-size: 13px; }
 }
 @media(max-width:359px) {
+  .portal-quick-full-label { display: none; }
+  .portal-quick-short-label { display: inline; }
+  .portal-toolbar-actions .portal-quick-trigger { padding-inline: 8px; }
   .portal-workspace-brand :is(img,svg) { max-width: 92px; height: 26px; }
   .portal-workspace-brand > span { max-width: 92px; font-size: 13px; }
   .portal-toolbar-actions .portal-new-sale { padding-inline: 8px; }

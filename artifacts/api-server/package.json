@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "exec node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -42,7 +42,8 @@
     "test:capacity": "node test-capacity-run.mjs --benchmark",
     "test:shutdown": "node test-shutdown-build.mjs && node --test .cache/shutdown-tests/service-lifecycle.test.mjs",
     "test:history": "node test-capacity-build.mjs src/history-queries.test.ts && node --test dist-capacity/history-queries.test.mjs",
-    "test:email-recovery": "node test-enquiry-emails-build.mjs src/email-outbox.test.ts && node --test dist-test/email-outbox.test.mjs"
+    "test:email-recovery": "node test-enquiry-emails-build.mjs src/email-outbox.test.ts && node --test dist-test/email-outbox.test.mjs",
+    "test:quick-enquiry": "node test-enquiry-emails-build.mjs src/quick-enquiry.test.ts && node --test dist-test/quick-enquiry.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

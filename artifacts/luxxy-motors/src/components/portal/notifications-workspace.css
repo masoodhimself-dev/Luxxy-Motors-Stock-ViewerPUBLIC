@@ -1,7 +1,11 @@
 .customer-notifications-workspace { color:#203747; min-width:0; }
 .customer-workspace-heading { display:flex; gap:20px; justify-content:space-between; align-items:center; margin-bottom:23px; }
 .customer-workspace-heading > div > p { display:flex; align-items:center; gap:7px; color:#617584; font-size:12px; }
-.customer-workspace-heading h2 { font-size:clamp(27px,3vw,33px); font-weight:650; letter-spacing:-.04em; margin:5px 0; }
+.customer-workspace-heading h2 { font-size:clamp(23px,2.4vw,28px); font-weight:650; letter-spacing:-.035em; margin:0; }
+.customer-workspace-heading { margin-bottom:14px; min-height:44px; }
+.customer-quick-actions { display:flex; flex-wrap:wrap; gap:8px; margin:0; }
+.customer-quick-actions > button { min-height:44px; padding:9px 13px; gap:7px; font-size:13px; border-color:#d9e3e9; color:#294e64; background:#fff; }
+.customer-quick-actions > button:first-child { background:#e8f1f5; border-color:#b9cfdc; }
 .customer-workspace-heading > div > span { color:#5d7180; font-size:14px; line-height:1.6; }
 .customer-workspace-views { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; background:#eaf0f4; border:1px solid #dbe4eb; padding:6px; border-radius:14px; margin-bottom:23px; }
 .customer-workspace-views > button { display:flex; align-items:center; gap:12px; min-height:66px; padding:11px 15px; border-radius:9px; text-align:left; color:#577080; }
@@ -28,8 +32,27 @@
 @media(max-width:1050px) { .customer-workspace-views small { display:none; }.customer-workspace-views > button { min-height:55px; gap:8px; padding:10px; } }
 @media(max-width:640px) { .customer-workspace-views { grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin-bottom:18px; }.customer-workspace-views > button { min-height:54px; }.customer-workspace-heading { align-items:flex-start; gap:10px; }.customer-workspace-heading > div > span { font-size:13px; }.customer-workspace-heading > button { min-width:44px; flex-shrink:0; padding:0 12px; }.customer-workspace-views strong { font-size:12px; }.customer-workspace-heading h2 { font-size:27px; } }
 @media(max-width:640px) {
+  .customer-quick-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+  .customer-quick-actions > button { justify-content:flex-start; padding-inline:10px; font-size:12px; min-width:0; }
+  .customer-workspace-heading h2 { font-size:24px; }
   .customer-notifications-workspace[data-calendar="true"] > .customer-workspace-views { grid-template-columns:repeat(4,minmax(0,1fr)); padding:4px; gap:3px; }
   .customer-notifications-workspace[data-calendar="true"] > .customer-workspace-views > button { flex-direction:column; justify-content:center; text-align:center; min-height:64px; padding:7px 4px; gap:5px; }
   .customer-notifications-workspace[data-calendar="true"] > .customer-workspace-views strong { font-size:10px; line-height:1.25; overflow-wrap:anywhere; }
   .customer-notifications-workspace[data-calendar="true"] .customer-diary-views { margin-bottom:12px; }
+}
+
+/* Keep navigation and occasional device setup out of the main work area. */
+.customer-workspace-views { padding:4px; gap:4px; margin-bottom:16px; border-radius:10px; }
+.customer-workspace-views > button { min-height:48px; padding:9px 12px; border-radius:7px; }
+.customer-workspace-views small { display:none; }
+.customer-notifications-workspace > .device-alerts { margin:18px 0 0; }
+@media(max-width:760px) {
+  .customer-workspace-heading { flex-wrap:wrap; }
+  .customer-workspace-heading > .customer-quick-actions { width:100%; }
+  .customer-workspace-views { display:flex; overflow-x:auto; scrollbar-width:thin; }
+  .customer-workspace-views > button { flex:0 0 auto; min-width:118px; min-height:48px; }
+  .customer-workspace-views > button:nth-child(2) { min-width:174px; }
+  .customer-workspace-views strong { white-space:nowrap; font-size:12px; }
+  .customer-notifications-workspace[data-calendar="true"] > .customer-workspace-views { display:flex; }
+  .customer-notifications-workspace[data-calendar="true"] > .customer-workspace-views > button { flex-direction:row; min-height:48px; padding:9px 12px; }
 }
