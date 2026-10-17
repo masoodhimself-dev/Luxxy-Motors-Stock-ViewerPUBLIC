@@ -44,7 +44,7 @@ const sample: AiDraftInput = {
 const reply = {
   subject: "About the Ford Focus",
   message:
-    "Hello,\n\nThank you for your enquiry. The listed mileage is 40,000 miles.\n\nFictional Motors",
+    "Hello,\n\nThank you for your enquiry. The listed mileage is 40,000 miles.",
   followUpQuestions: ["What else would you like to know?"],
 };
 const response = (value: unknown, status = 200) =>
@@ -86,6 +86,16 @@ test("AI provider fixes the economical model, bounds, no-store, no-tools, standa
   const suggestion = await provider(sample);
   assert.equal(calls, 1);
   assert.match(suggestion.message, /What else would you like to know/);
+  assert.ok(suggestion.message.endsWith(`\n\n${sample.dealer.name}`));
+  assert.ok(
+    suggestion.message.indexOf(reply.followUpQuestions[0]!) <
+      suggestion.message.lastIndexOf(sample.dealer.name),
+  );
+  const withoutQuestions = validateAiSuggestion(
+    { ...reply, followUpQuestions: [] },
+    sample,
+  );
+  assert.ok(withoutQuestions.message.endsWith(`\n\n${sample.dealer.name}`));
   assert.ok(suggestion.warnings.length);
   // 12,000 UTF-8 bytes + framing at the higher cache-write input rate, plus all output.
   assert.ok(
