@@ -48,9 +48,10 @@ function normalisePhone(value: string) {
 function apiErrorMessage(error: unknown) {
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as { data?: { error?: string } }).data;
-    if (data?.error) return data.error;
+    const status = 'status' in error ? Number(error.status) : undefined;
+    if (data?.error && (!status || status < 500)) return data.error;
   }
-  return 'We could not send your enquiry. Please try again or call us directly.';
+  return 'We couldn’t confirm receipt. Your details are still here. Please contact us before sending again so we can check whether your enquiry arrived.';
 }
 
 export function EnquiryForm({
@@ -291,16 +292,7 @@ export function EnquiryForm({
   return (
     <form onSubmit={submit} onInvalidCapture={event => { if ((event.target as HTMLElement).closest('.customer-enquiry-exchange')) setExchangeExpanded(true); }} className="customer-enquiry-form space-y-4 sm:space-y-6" data-testid="form-enquiry">
       {draftSaved && draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>Your unfinished enquiry was restored.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
-      <div className="flex items-start justify-between gap-5 border-b border-border/70 pb-4 sm:pb-6">
-        <div>
-          <h2 id="enquiry-form-heading" className="font-display text-xl font-semibold leading-tight tracking-tight text-primary sm:text-2xl">
-            Your enquiry
-          </h2>
-          <p className="mt-2 max-w-md text-sm leading-6 text-primary/70 sm:mt-3 sm:leading-7">
-            Choose how we should reply, then tell us what you need.
-          </p>
-        </div>
-      </div>
+      <h2 id="enquiry-form-heading" className="sr-only">Your enquiry</h2>
 
       {vehicle && !isPartExchange && !embedded && (
         <div className="flex items-start gap-3 rounded-md border border-border bg-card p-3 sm:gap-4 sm:p-4 lg:hidden" data-testid="card-enquiry-vehicle">

@@ -140,7 +140,12 @@ export default function Viewing() {
       {!isCancelled && mode === 'idle' && <div className="mt-6 flex flex-wrap gap-3">
         {!isPending && booking.calendarIcs && <Button asChild variant="outline" className="min-h-12 text-sm"><a href={`data:text/calendar;charset=utf8,${encodeURIComponent(booking.calendarIcs)}`} download="test-drive.ics" data-testid="link-viewing-calendar"><CalendarPlus className="mr-2 h-4 w-4" /> Add to calendar</a></Button>}
         {booking.canChange && <>
-          <Button variant="outline" disabled={!canReschedule} onClick={() => { reschedule.reset(); setMode('reschedule'); }} className="min-h-12 text-sm" data-testid="button-viewing-reschedule">Reschedule</Button>
+          <Button variant="outline" disabled={!canReschedule} onClick={() => {
+            const currentDay = booking.appointmentAt ? londonDate(new Date(booking.appointmentAt)) : '';
+            setSelectedDate(dates.includes(currentDay) ? currentDay : dates[0] ?? '');
+            setSelectedSlot(null);
+            reschedule.reset(); setMode('reschedule');
+          }} className="min-h-12 text-sm" data-testid="button-viewing-reschedule">Reschedule</Button>
           <Button variant="ghost" onClick={() => { cancel.reset(); setMode('confirm-cancel'); }} className="min-h-12 text-sm text-muted-foreground" data-testid="button-viewing-cancel">Cancel</Button>
         </>}
       </div>}

@@ -12,7 +12,7 @@ import {
   RescheduleViewingParams,
   RescheduleViewingResponse,
 } from "@workspace/api-zod";
-import { db, enquiriesTable, vehiclesTable, type Enquiry } from "@workspace/db";
+import { db, enquiriesTable, type Enquiry } from "@workspace/db";
 import {
   bookingTimezone,
   formatAppointmentLabel,
@@ -25,7 +25,7 @@ import {
   viewingTokenHash,
   viewingTokenMatches,
 } from "../lib/enquiry-links";
-import { BookingConflict, ensureBookingAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
+import { BookingConflict, ensureBookingAvailable, ensureBookingVehicleAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
 import { deliverEnquiryNotifications, dealerProfile } from "../lib/enquiry-notifications";
 
 const router: IRouter = Router();
@@ -195,10 +195,7 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
       await lockBookingDays(tx, dealerId(), [appointmentAt, ...(previous ? [previous] : [])]);
       const [current] = await tx.select().from(enquiriesTable).where(tenantAnd(eq(enquiriesTable.id, enquiry.id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).for("update");
       if (!current || !canChange(current)) throw new BookingConflict("This booking has changed. Reload it before choosing another time.");
-      if (current.vehicleId) {
-        const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, current.vehicleId), eq(vehiclesTable.dealerId, dealerId()))).for("update");
-        if (!vehicle || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for online test-drive changes. Please contact the showroom.");
-      }
+      await ensureBookingVehicleAvailable(tx, dealerId(), current.vehicleId);
       await ensureBookingAvailable(tx, dealerId(), appointmentAt, policy, enquiry.id);
       const [changed] = await tx.update(enquiriesTable).set({
         appointmentAt,
@@ -243,7 +240,11 @@ router.post("/viewings/:token/reschedule", async (req, res): Promise<void> => {
       RescheduleViewingResponse.parse(await viewingBooking(updated)),
     );
   } catch (error) {
-    if (error instanceof BookingConflict || isUniqueViolation(error)) {
+    if (error instanceof BookingConflict) {
+      res.status(409).json(errorResponse(error.message));
+      return;
+    }
+    if (isUniqueViolation(error)) {
       res
         .status(409)
         .json(errorResponse("That slot has just been taken. Please choose another."));

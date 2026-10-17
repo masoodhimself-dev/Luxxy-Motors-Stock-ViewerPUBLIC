@@ -1,6 +1,8 @@
 # Dealer Email workspace
 
-Portal → Email brings together staff enquiry messages, emailed sales documents, and the latest recorded automated customer confirmation/reminder for each enquiry. It is an outgoing-mail workspace; incoming replies are not connected. Search covers customer name, recipient, subject/document title, vehicle and reference, with 50-item pagination. Messages link to their enquiry, customer history, car workspace and sale/PDF where available. Each query is scoped to the authenticated dealership and requires sales permission.
+The combined Notifications workspace and persistent Drafts to review queue are described in [Notifications and reply drafts](notifications-and-reply-drafts.md). Email now sits inside Notifications and opens on saved drafts; Sent & delivery retains the outgoing history described below. Existing `section=email` links remain compatible.
+
+Portal → Notifications → Email brings together staff enquiry messages, emailed sales documents, and the latest recorded automated customer confirmation/reminder for each enquiry. It is an outgoing-mail workspace; incoming replies are not connected. Search covers customer name, recipient, subject/document title, vehicle and reference, with 50-item pagination. Messages link to their enquiry, customer history, car workspace and sale/PDF where available. Each query is scoped to the authenticated dealership and requires sales permission. An optional `enquiryId` scopes history to that record's explicitly merged case before pagination; it never groups records solely by contact details.
 
 ## Compose and attachments
 

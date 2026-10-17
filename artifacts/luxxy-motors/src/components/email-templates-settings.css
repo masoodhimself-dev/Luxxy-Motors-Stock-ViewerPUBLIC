@@ -1,9 +1,16 @@
 .email-design-studio { font-family:var(--app-font-sans); }
 .email-studio-fields { display:grid; gap:24px; min-width:0; }
-.email-design-studio .email-branding-details>summary { display:flex; justify-content:space-between; align-items:center; gap:12px; list-style:none; cursor:pointer; }
-.email-design-studio .email-branding-details>summary::-webkit-details-marker { display:none; }
-.email-branding-details>summary small { display:block; font-size:13px; font-weight:400; color:#607282; margin-top:5px; }
-.email-design-studio .email-branding-details[open] { gap:22px; }
+ .email-settings-tabs { display:grid; gap:24px; min-width:0; }
+.email-settings-panel[hidden] { display:none !important; }
+.email-settings-panel { display:grid; gap:20px; min-width:0; margin:0; }
+.email-studio-editing { min-width:0; }
+.email-branding-panel>header { padding-bottom:18px; border-bottom:1px solid #e2e8f0; }
+.email-branding-panel header h3 { margin:5px 0 8px; font-size:20px; color:#172b38; }
+.email-branding-panel header>p:not(.email-studio-kicker), .email-branding-panel header>span { color:#64748b; font-size:13px; }
+.email-branding-panel header>span { display:block; margin-top:8px; }
+.email-branding-panel .integration-grid { grid-template-columns:minmax(0,1fr); }
+.email-design-studio .integration-actions>button:first-child { background:#0f766e; color:#fff; }
+.email-design-studio .integration-actions>button:first-child:hover { background:#115e59; }
 .email-colour-field { display:flex; gap:10px; }
 .email-colour-field input[type=color] { flex:0 0 48px; width:48px; height:46px; border:1px solid #cad6df; border-radius:8px; background:#fff; padding:5px; cursor:pointer; }
 .email-colour-presets { display:flex; gap:7px; flex-wrap:wrap; }
@@ -26,7 +33,7 @@
 .email-studio-preview header p { color:#607282; font-size:12px; margin-top:4px; }
 .email-preview-switch { display:inline-flex; align-items:center; gap:3px; padding:3px; border:1px solid #dce5ec; background:#eaf0f4; border-radius:10px; }
 .email-preview-switch button { display:inline-flex; align-items:center; gap:6px; padding:8px 10px; min-height:38px; border-radius:7px; font-size:12px; }
-.email-preview-switch button[aria-pressed=true] { background:white; box-shadow:0 1px 4px #172d3e12; color:#215a7e; font-weight:600; }
+.email-preview-switch button[aria-pressed=true] { background:white; box-shadow:0 1px 4px #172d3e12; color:#0f766e; font-weight:600; }
 .email-preview-envelope { display:grid; gap:5px; border:1px solid #dce5ec; border-radius:10px; background:#fff; padding:14px 16px; }
 .email-preview-envelope :is(span,small) { font-size:12px; color:#607282; }
 .email-preview-envelope strong { font-size:14px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }

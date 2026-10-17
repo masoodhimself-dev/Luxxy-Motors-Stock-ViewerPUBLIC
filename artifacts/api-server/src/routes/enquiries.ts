@@ -65,7 +65,7 @@ import {
   viewingToken,
   viewingTokenHash,
 } from "../lib/enquiry-links";
-import { BookingConflict, bookingsForDate, checkStaffAppointment, ensureBookingAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
+import { BookingConflict, bookingsForDate, checkStaffAppointment, ensureBookingAvailable, ensureBookingVehicleAvailable, getBookingPolicy, lockBookingDays } from "../lib/booking-store";
 import { openLeadForEnquiry } from "../lib/leads";
 import { attendanceError, outcomeError } from "../lib/enquiry-workspace";
 import { conversationChange, ConversationError } from "../lib/enquiry-conversations";
@@ -217,10 +217,7 @@ async function insertEnquiryWithReference(
           await lockBookingDays(tx, values.dealerId, [values.appointmentAt]);
           if (staffOptions) exception = await checkStaffAppointment(tx, values.dealerId, values.appointmentAt, policy, staffOptions);
           else await ensureBookingAvailable(tx, values.dealerId, values.appointmentAt, policy);
-          if (values.vehicleId) {
-            const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, values.vehicleId), eq(vehiclesTable.dealerId, values.dealerId))).for("update");
-            if (!vehicle || !(await visibleVehicle(vehicle)) || vehicle.inventoryStatus !== "available") throw new BookingConflict("This car is no longer available for a test drive.");
-          }
+          await ensureBookingVehicleAvailable(tx, values.dealerId, values.vehicleId ?? null);
         }
         const [created] = await tx
           .insert(enquiriesTable)
@@ -615,6 +612,7 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
       await lockBookingDays(tx, settings().dealerId, [before.appointmentAt, ...(input.appointmentAt ? [input.appointmentAt] : [])]);
       const [current] = await tx.select().from(enquiriesTable).where(tenantAnd(eq(enquiriesTable.id, id), tenantEq(enquiriesTable.dealerId, currentDealerId()))).for("update");
       if (!current || current.appointmentRevision !== input.expectedRevision || current.appointmentCancelledAt || !current.appointmentAt || current.appointmentAt.getTime() <= Date.now()) throw new BookingConflict("This appointment changed. Refresh and try again.");
+      if (input.action === "reschedule") await ensureBookingVehicleAvailable(tx, settings().dealerId, current.vehicleId);
       const exception = input.action === "reschedule" ? await checkStaffAppointment(tx, settings().dealerId, input.appointmentAt!, policy, input, id) : null;
       const cancelled = input.action === "cancel";
       const [changed] = await tx.update(enquiriesTable).set({
@@ -642,7 +640,8 @@ router.post("/staff/enquiries/:id/appointment", requireStaff, async (req, res): 
     try { notified = await deliverEnquiryNotifications(updated, req.log); } catch (error) { req.log.error({ err: error }, "Staff appointment notification failed"); }
     res.json(toEnquiryResponse(notified, { events: await eventsForEnquiry(notified.id) }));
   } catch (error) {
-    if (error instanceof BookingConflict || isUniqueViolation(error)) { res.status(409).json(errorResponse("The appointment or availability changed. Refresh before trying again.")); return; }
+    if (error instanceof BookingConflict) { res.status(409).json(errorResponse(error.message)); return; }
+    if (isUniqueViolation(error)) { res.status(409).json(errorResponse("The appointment or availability changed. Refresh before trying again.")); return; }
     req.log.error({ err: error }, "Unable to update staff appointment");
     res.status(500).json(errorResponse("Unable to update this appointment."));
   }
@@ -713,6 +712,7 @@ router.post("/test-drive-bookings/:id/decision", requireStaff, async (req, res):
       if (parsed.data.decision === "confirm" && booking.appointmentStatus === "confirmed" && !booking.appointmentCancelledAt) return { booking, changed: false };
       if (booking.appointmentCancelledAt || booking.appointmentStatus !== "pending" || !booking.appointmentAt || booking.appointmentAt.getTime() <= Date.now()) throw new BookingConflict("Only a future pending test drive can be confirmed or declined.");
       const confirm = parsed.data.decision === "confirm";
+      if (confirm) await ensureBookingVehicleAvailable(tx, settings().dealerId, booking.vehicleId);
       const [updated] = await tx.update(enquiriesTable).set({
         appointmentRevision: sql`${enquiriesTable.appointmentRevision} + 1`,
         appointmentStatus: confirm ? "confirmed" : "pending",

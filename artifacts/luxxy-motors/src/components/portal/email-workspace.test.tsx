@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-const state = vi.hoisted(() => ({ fetch: vi.fn() }));
+const state = vi.hoisted(() => ({ fetch: vi.fn(), search: "view=sent" }));
 const enquiry = {
   id: "enquiry-1",
   customerName: "Alex",
@@ -14,7 +14,8 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetEnquiries: () => ({ data: [enquiry] }),
 }));
 vi.mock("wouter", () => ({
-  useSearch: () => "",
+  useSearch: () => state.search,
+  useLocation: () => ['/portal', vi.fn()],
   Link: ({ href, children }: any) => <a href={href}>{children}</a>,
 }));
 vi.mock("./enquiry-workspace-tools", () => ({
@@ -42,9 +43,13 @@ const message = {
   checked_at: null,
 };
 beforeEach(() => {
+  state.search = "view=sent";
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
+      if (url.endsWith("/email-draft")) return { version: 1 };
+      if (url.startsWith("/api/staff/email-drafts"))
+        return { drafts: [], hasMore: false };
       if (url.includes("/email-context"))
         return {
           email: enquiry.email,
@@ -95,7 +100,7 @@ beforeEach(() => {
     });
 });
 function mount() {
-  render(
+  return render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -115,7 +120,7 @@ it("links sent messages to their customer, enquiry and car without resending", a
   ).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open enquiry" })).toHaveAttribute(
     "href",
-    "/portal?section=enquiries&enquiryId=enquiry-1",
+    "/portal?section=notifications&workView=customers&enquiryId=enquiry-1",
   );
   expect(screen.getByRole("link", { name: "Open car" })).toHaveAttribute(
     "href",
@@ -171,4 +176,114 @@ it("labels provider acceptance and unknown status without claiming delivery or r
   expect(emailStatusLabel("unknown")).toBe("Acceptance unconfirmed");
   expect(emailStatusLabel("opened")).toBe("Opened");
   expect(emailStatusLabel("invented")).toBe("Status unavailable");
+});
+
+it("restores a saved reply and saves edits with its version without sending or previewing", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    const result = await original(url, options);
+    if (url.endsWith("/email-context"))
+      return {
+        ...result,
+        version: 7,
+        savedDraft: {
+          version: 7,
+          status: "draft",
+          content: {
+            to: enquiry.email,
+            subject: "Saved subject",
+            message: "Saved reply",
+            includeVehicle: true,
+            includeAppointment: false,
+            photoIds: [],
+            documentIds: [],
+            expectedRevision: 0,
+          },
+          updatedAt: "2026-10-16T10:00:00Z",
+        },
+      };
+    return result;
+  });
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "New email" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Customer enquiry" }), {
+    target: { value: enquiry.id },
+  });
+  expect(await screen.findByRole("textbox", { name: "Subject" })).toHaveValue(
+    "Saved subject",
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "Message" }), {
+    target: { value: "Updated reply" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Draft saved · not sent");
+  const save = state.fetch.mock.calls.find((c) =>
+    c[0].endsWith("/email-draft"),
+  );
+  expect(JSON.parse(save![1].body)).toMatchObject({
+    expectedVersion: 7,
+    content: { message: "Updated reply" },
+  });
+  expect(
+    state.fetch.mock.calls.some(
+      (c) => /\/email(?:-preview)?$/.test(c[0]) && c[1]?.method === "POST",
+    ),
+  ).toBe(false);
+});
+
+it("retains staff text on a draft conflict and prevents preview or sending", async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: any) => {
+    if (url.endsWith("/email-draft"))
+      throw { status: 409, data: { error: "This draft changed. Reopen it." } };
+    return original(url, options);
+  });
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "New email" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Customer enquiry" }), {
+    target: { value: enquiry.id },
+  });
+  const message = await screen.findByRole("textbox", { name: "Message" });
+  fireEvent.change(message, { target: { value: "Keep my text" } });
+  fireEvent.click(screen.getByRole("button", { name: "Review email" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This draft changed",
+  );
+  expect(message).toHaveValue("Keep my text");
+  expect(
+    state.fetch.mock.calls.some((c) => c[0].endsWith("/email-preview")),
+  ).toBe(false);
+});
+
+it('keeps email history scoped to the selected customer case when changing views', async () => {
+  state.search = 'section=notifications&workView=email&enquiryId=enquiry-1&view=sent';
+  mount();
+  expect(await screen.findByRole('link', { name: 'Open customer' })).toHaveAttribute('href', '/portal?section=notifications&workView=customers&enquiryId=enquiry-1');
+  const historyCalls = state.fetch.mock.calls.filter(c => c[0].startsWith('/api/staff/email?'));
+  expect(historyCalls.length).toBeGreaterThan(0);
+  expect(historyCalls.every(c => new URL(c[0], 'https://example.test').searchParams.get('enquiryId') === 'enquiry-1')).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Drafts to review' }));
+  await screen.findByRole('heading', { name: 'No saved drafts yet' });
+  expect(state.fetch.mock.calls.some(c => c[0] === '/api/staff/email-drafts?enquiryId=enquiry-1')).toBe(true);
+});
+
+it('never falls back to all customer emails when a selected customer is unavailable', async () => {
+  state.search = 'section=notifications&workView=email&enquiryId=missing-customer&view=sent';
+  mount();
+  expect(await screen.findByRole('alert')).toHaveTextContent('customer record could not be loaded');
+  expect(state.fetch.mock.calls.some(c => c[0].startsWith('/api/staff/email?') || c[0].startsWith('/api/staff/email-drafts'))).toBe(false);
+  expect(screen.queryByText('Your Ford Focus')).not.toBeInTheDocument();
+});
+
+it('closes the previous customer composer when the route changes to an unavailable customer', async () => {
+  state.search = 'section=notifications&workView=email&compose=enquiry-1';
+  const ui = mount();
+  expect(await screen.findByRole('textbox', { name: 'Subject' })).toBeInTheDocument();
+  state.search = 'section=notifications&workView=email&enquiryId=missing-customer';
+  ui.rerender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EmailWorkspace /></QueryClientProvider>);
+  expect(await screen.findByRole('alert')).toHaveTextContent('customer record could not be loaded');
+  await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Subject' })).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: 'New email' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(state.fetch.mock.calls.some(c => c[0].startsWith('/api/staff/email?'))).toBe(false);
 });

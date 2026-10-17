@@ -1,3 +1,4 @@
+import { startStaffPushWorker } from './lib/staff-push';
 import { startDemoCompletionWorker } from './lib/demo-completion-jobs';
 import { startDomainSetupWorker } from './lib/domain-setup-jobs';
 import { forEachActiveDealer } from './lib/tenant-jobs';
@@ -39,6 +40,9 @@ app.listen(port, (err) => {
   process.once('SIGTERM', stopDomainSetup);
   process.once('SIGINT', stopDomainSetup);
   startReminderWorker(logger);
+  const stopStaffPush = startStaffPushWorker(logger);
+  process.once('SIGTERM', stopStaffPush);
+  process.once('SIGINT', stopStaffPush);
   startStripeReservationWorker(logger);
   // Enquiries taken before leads existed are carried across on boot. This is
   // idempotent, so it is safe on every restart.

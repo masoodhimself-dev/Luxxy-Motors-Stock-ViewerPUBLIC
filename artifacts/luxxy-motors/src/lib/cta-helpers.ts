@@ -64,7 +64,8 @@ export function getVehicleShareUrl(car: Car) {
 export function getVehicleContactMessage(car: Car, request: string, config: DealerContactDetails = dealerConfig) {
   const registration = vehicleRegistration(car);
   const price = car.price != null ? formatPrice(car.price, car.currency) : null;
-  const summary = [getVehicleLabel(car), price].filter(Boolean).join(' · ');
+  const title = getVehicleLabel(car);
+  const summary = [car.year && !title.startsWith(String(car.year)) ? `${car.year} ${title}` : title, price].filter(Boolean).join(' · ');
   const registrationLabel = vehicleRegistrationLabel(car);
   const registrationLine = registration ? `Registration: ${registration}` : registrationLabel ? `${registrationLabel === String(car.year) ? 'Year' : 'Year / plate'}: ${registrationLabel}` : null;
   const opening = request === 'get more information about this vehicle'

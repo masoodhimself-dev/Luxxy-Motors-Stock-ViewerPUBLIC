@@ -53,7 +53,7 @@ it('passes the selected original record to the email action and keeps occasional
   const actions: EnquiryRecordActions = { onEmail: email, onUpdate: update, onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
   show(<EnquiryRecordBrowser entries={[first, selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
   const detail = screen.getByRole('region', { name: 'Selected enquiry: Customer selected' });
-  fireEvent.click(within(detail).getByRole('button', { name: 'Email customer' }));
+  fireEvent.click(within(detail).getByRole('button', { name: 'Prepare reply' }));
   expect(email).toHaveBeenCalledWith(selected);
   const more = detail.querySelector('details')!;
   expect(more).not.toHaveAttribute('open');
@@ -102,4 +102,31 @@ it('allows a new test drive after cancellation while retaining the original appo
   expect(screen.queryByRole('button', { name: 'Change appointment' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Book another test drive' }));
   expect(onBook).toHaveBeenCalledWith(cancelled);
+});
+
+it.each([
+  ['past', { appointmentAt: '2020-10-10T11:00:00Z', attendance: 'scheduled' }],
+  ['completed', { appointmentAt: '2099-10-10T11:00:00Z', attendance: 'completed' }],
+  ['no-show', { appointmentAt: '2020-10-10T11:00:00Z', attendance: 'no_show' }],
+] as const)('can arrange another visit after a %s appointment without editing the original', (_kind, appointment) => {
+  const previous = entry('previous', { appointmentStatus: 'confirmed', ...appointment });
+  const onBook = vi.fn(), onAppointment = vi.fn();
+  const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment, onBook, onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[previous]} cars={[]} selectedId={previous.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  expect(screen.queryByRole('button', { name: 'Change appointment' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Book another test drive' }));
+  expect(onBook).toHaveBeenCalledExactlyOnceWith(previous);
+  expect(onAppointment).not.toHaveBeenCalled();
+  expect(previous.appointmentAt).toBe(appointment.appointmentAt);
+});
+
+it('keeps changing an existing future appointment separate from creating a second visit', () => {
+  const upcoming = entry('upcoming', { appointmentStatus: 'confirmed', appointmentAt: '2099-10-10T11:00:00Z', attendance: 'scheduled' });
+  const onBook = vi.fn(), onAppointment = vi.fn();
+  const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment, onBook, onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[upcoming]} cars={[]} selectedId={upcoming.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  expect(screen.queryByRole('button', { name: 'Book another test drive' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Change appointment' }));
+  expect(onAppointment).toHaveBeenCalledExactlyOnceWith(upcoming);
+  expect(onBook).not.toHaveBeenCalled();
 });

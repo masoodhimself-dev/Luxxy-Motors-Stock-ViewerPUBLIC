@@ -7,6 +7,7 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { useStockHeader } from '@/hooks/use-stock-header';
 import { useSavedCars } from '@/lib/saved-cars-context';
 import { CompareTray } from '@/components/compare-tray';
 import { CustomerChat } from '@/components/customer-chat';
@@ -14,6 +15,7 @@ import { isWritableFormControl } from '@/lib/form-draft';
 import { formatPhoneDisplay } from '@/lib/utils';
 import { CustomerFooter } from '@/components/customer-footer';
 import './premium-showroom.css';
+import './stock-browsing-header.css';
 import './portal/portal-workspace.css';
 import { readableAccentForHsl, readableForegroundForHsl } from '@/lib/brand-colour';
 import { customerThemeVariables } from '@/lib/customer-theme';
@@ -31,6 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isStaff = location.startsWith('/portal');
   const isCustomerTask = /^\/(sign|customer-details|viewing|my-purchase)\//.test(location);
   const isPremiumShowroom = location === '/' || location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
+  const isBrowsingPage = location === '/stock' || /^\/vehicle\/[^/]+\/?$/.test(location);
   const { settings: dealerConfig } = useDealerSettings();
   const { savedCount } = useSavedCars();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -40,6 +43,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     ? dealerConfig.presentation?.footerLogoUrl || dealerConfig.identity.logoAsset
     : dealerConfig.identity.logoAsset;
   const headerRef = useRef<HTMLElement>(null);
+  const stockHeader = useStockHeader(isBrowsingPage, mobileMenuOpen, headerRef, location);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLElement>(null);
   const hasEditedFormRef = useRef(false);
@@ -183,7 +187,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header
         ref={headerRef}
         data-site-header
-        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${darkHomeHeader ? "stock-home-header" : ""} ${
+        data-scroll-hidden={stockHeader.hidden}
+        onFocusCapture={stockHeader.reveal}
+        className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${isBrowsingPage ? 'stock-browsing-header' : ''} ${darkHomeHeader ? "stock-home-header" : ""} ${
           scrolled
             ? 'border-primary/15 bg-background shadow-none'
             : 'border-primary/10 bg-background'

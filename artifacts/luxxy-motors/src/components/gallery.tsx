@@ -1,9 +1,9 @@
 import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
-import { orderVehiclePhotos, photoGroup } from "@/lib/vehicle-photography";
+import { orderVehiclePhotos, photoGroup, type PhotoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw } from 'lucide-react';
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type Car, type CarImage } from '@/lib/stock-context';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -33,15 +33,30 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const failedUrls = useRef(new Set<string>());
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [selectedGroup, setSelectedGroup] = useState<PhotoGroup | 'All'>('All');
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
-  const allImages = useMemo(
+  const availableImages = useMemo(
     () => orderVehiclePhotos(images, heroImage).filter(image => !failedImages.has(getSafeImageUrl(image))),
     [images, heroImage, failedImages],
   );
+  const allImages = useMemo(() => selectedGroup === 'All' ? availableImages : availableImages.filter(image => photoGroup(image) === selectedGroup), [availableImages, selectedGroup]);
   const index = Math.min(activeIndex, Math.max(0, allImages.length - 1));
   const [loadedUrl, setLoadedUrl] = useState('');
   const activeUrl = getSafeImageUrl(allImages[index]);
+  const retryPhotos = () => {
+    failedUrls.current.clear();
+    setFailedImages(new Set());
+    setLoadedUrl('');
+    setActiveIndex(0);
+    setSelectedGroup('All');
+  };
+  useEffect(() => {
+    if (selectedGroup !== 'All' && !allImages.length && availableImages.length) {
+      setSelectedGroup('All');
+      setActiveIndex(0);
+    }
+  }, [selectedGroup, allImages.length, availableImages.length]);
   const showOverview = () => {
     setOverviewFocusIndex(index);
     setOverview(true);
@@ -101,17 +116,17 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     onTouchCancel: () => { touchStart.current = null; swiped.current = false; },
   };
   const groups = (["Exterior", "Interior", "Details", "Other"] as const)
-    .filter(group => allImages.some(image => photoGroup(image) === group));
-  const groupNavigation = (fullscreen = false) => groups.length > 1 && (
+    .filter(group => availableImages.some(image => photoGroup(image) === group));
+  const groupNavigation = () => groups.some(group => group !== 'Other') && groups.length > 1 && (
     <div className="vehicle-photo-sections mt-3 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Photograph sections">
-      {groups.map(group => <button type="button" key={group} aria-label={group === "Other" ? "More photos" : group} aria-pressed={photoGroup(allImages[index]) === group}
+      {(['All', ...groups] as const).map(group => <button type="button" key={group} aria-label={group === 'All' ? 'All photographs' : group === "Other" ? "More photos" : group} aria-pressed={selectedGroup === group}
         onClick={() => {
-          const target = allImages.findIndex(image => photoGroup(image) === group);
-          setActiveIndex(target);
-          if (!fullscreen) thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          setSelectedGroup(group);
+          setActiveIndex(0);
+          setOverviewFocusIndex(0);
         }}
-        className={cn('min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 text-xs', photoGroup(allImages[index]) === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
-        {group === "Other" ? "More photos" : group} ({allImages.filter(image => photoGroup(image) === group).length})
+        className={cn('min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3 text-xs', selectedGroup === group ? 'border-primary text-primary' : 'border-transparent text-muted-foreground')}>
+        {group === "Other" ? "More photos" : group} ({group === 'All' ? availableImages.length : availableImages.filter(image => photoGroup(image) === group).length})
       </button>)}
     </div>
   );
@@ -156,7 +171,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     return (
       <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">
         <Camera className="h-8 w-8" />
-        <p className="text-sm">Photographs to follow</p>
+        {failedImages.size > 0 ? <><p className="text-sm" role="status">Photos couldn’t be loaded</p><button type="button" onClick={retryPhotos} className="inline-flex min-h-11 items-center gap-2 px-4 text-sm font-medium underline underline-offset-4"><RotateCw className="h-4 w-4" aria-hidden="true" />Try photos again</button></> : <p className="text-sm">Photographs to follow</p>}
       </div>
     );
   return (
@@ -175,6 +190,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             "gallery-photo absolute inset-0 h-full w-full object-contain",
             true,
           )}
+          {loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
           <DialogTrigger asChild>
             <button
               type="button"
@@ -220,7 +236,8 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             {index + 1} / {allImages.length} photographs
           </span>
         </div>
-        {!customerView && groupNavigation()}
+        {failedImages.size > 0 && <p className="mt-2 text-xs text-muted-foreground">{failedImages.size} {failedImages.size === 1 ? 'photo couldn’t' : 'photos couldn’t'} be loaded. <button type="button" onClick={retryPhotos} className="min-h-11 px-2 font-medium underline underline-offset-4">Retry photos</button></p>}
+        {groupNavigation()}
         {allImages.length > 1 && (
           <div
             className="vehicle-thumbnail-grid mt-3 flex gap-2"
@@ -292,7 +309,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             {overview ? 'Back to photo' : 'All photos'}
           </button>
         </div>}
-        {!customerView && groupNavigation(true)}
+        {groupNavigation()}
         {customerView && overview ? <div className="vehicle-gallery-overview" role="region" aria-label={`All ${allImages.length} photographs`}>
           <div className="vehicle-gallery-overview-grid" aria-label="Choose a photo to view fullscreen">
             {allImages.map((image, i) => <button key={getSafeImageUrl(image)} type="button"

@@ -216,3 +216,5 @@
     flex: 1;
   }
 }
+
+.enquiry-email-save-state { color:#426653; background:#eff7f1; border-radius:8px; padding:9px 12px; font-size:13px; }

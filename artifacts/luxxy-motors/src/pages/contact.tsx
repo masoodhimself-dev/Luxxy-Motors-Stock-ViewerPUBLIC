@@ -4,11 +4,9 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { EnquiryForm } from '@/components/enquiry-form';
 import { DealershipPhotograph } from '@/components/dealership-photograph';
 import { dealershipPhotography } from '@/lib/dealership-photography';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { useStock } from '@/lib/stock-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
 import { formatPhoneDisplay } from '@/lib/utils';
@@ -16,12 +14,13 @@ import { dealershipLocation } from '@/lib/dealership-location';
 
 export default function Contact() {
   const { settings, isLoading, isError } = useDealerSettings();
-  const { stock } = useStock();
   const [copyStatus, setCopyStatus] = useState('');
   const location = dealershipLocation(settings.address);
   const phoneHref = getPhoneHref(settings);
   const whatsAppHref = getWhatsAppHref(`Hello ${settings.identity.name}, I’d like to ask about a car or arrange a visit.`, settings);
   const content = settings.presentation;
+  const visitInstructions = content?.visitInstructions?.trim();
+  const parkingInstructions = content?.parkingInstructions?.trim();
   const photos = dealershipPhotography(settings);
   const email = settings.contact.email?.trim();
   usePageMeta({
@@ -44,7 +43,7 @@ export default function Contact() {
         <p className="luxxy-kicker">{settings.identity.name}{settings.address?.city ? ` · ${settings.address.city}` : ''}</p>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{websiteText(settings, "contactTitle")}</h1>
         <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">{websiteText(settings, "contactIntroduction")}</p>
-        <a href="#find-us-heading" onClick={event => { event.preventDefault(); const heading = document.getElementById('find-us-heading'); heading?.scrollIntoView({ block: 'start' }); heading?.focus({ preventScroll: true }); }} className="text-link mt-3 inline-flex min-h-11 items-center gap-2 lg:hidden">{websiteText(settings, "contactDirectionsHeading")}<MapPin className="h-4 w-4" aria-hidden="true" /></a>
+
       </header>
 
       {isLoading ? <div role="status" aria-busy="true" className="mb-8 border-y border-border py-8 text-sm text-muted-foreground">Loading contact and visiting details…</div> : isError ? <div role="alert" className="mb-8 flex flex-wrap items-center justify-between gap-4 border-y border-border py-5"><p className="max-w-xl text-sm leading-6">We couldn’t load our latest contact and visiting details. Please confirm the address and opening hours before travelling.</p><Button variant="outline" onClick={() => window.location.reload()}>Try again</Button></div> : null}
@@ -57,11 +56,9 @@ export default function Contact() {
             {whatsAppHref && <a href={whatsAppHref} target="_blank" rel="noopener noreferrer" className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-whatsapp"><MessageCircle className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Prefer a message?</span><span className="mt-1 block font-display text-lg font-semibold group-hover:text-accent">Chat on WhatsApp</span><span className="mt-1 block text-xs text-muted-foreground">Opens WhatsApp with a message ready to edit.</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
             {email && <a href={`mailto:${email}`} className="group flex min-h-24 items-center gap-4 py-5" data-testid="contact-email"><Mail className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" /><span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">Email us</span><span className="mt-1 block break-all font-semibold group-hover:text-accent">{email}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></a>}
           </div>
-          <a href="#contact-message" onClick={event => { event.preventDefault(); document.getElementById('contact-message')?.scrollIntoView({ block: 'start' }); document.getElementById('contact-message-heading')?.focus({ preventScroll: true }); }} className="text-link mt-4 inline-flex min-h-11 items-center gap-2">Send an enquiry online<ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
-          <div className="mt-7 border-t border-border pt-6">
-            <h3 className="font-display text-xl font-semibold">{websiteText(settings, "contactVisitHeading")}</h3>
-            <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">{websiteText(settings, "contactVisitDescription")}</p>
-            <Button asChild className="mt-5"><Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Button asChild className="min-h-12"><Link href="/enquire?type=general">Send an enquiry<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+            <Button asChild variant="outline" className="min-h-12"><Link href="/enquire?type=viewing">Book a test drive<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
           </div>
         </section>
 
@@ -85,15 +82,10 @@ export default function Contact() {
         </section>
       </div>
 
-      {!isLoading && !isError && <section className="mt-10 grid gap-7 border-y border-border py-7 sm:grid-cols-2 lg:gap-16" aria-label="Before your visit">
-        <div><h2 className="font-display text-xl font-semibold">{websiteText(settings, "contactBeforeHeading")}</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.visitInstructions || 'Contact us to confirm the car is available and book a test drive time. We’ll help with any questions before you travel.'}</p></div>
-        <div><h2 className="font-display text-xl font-semibold">{websiteText(settings, "contactParkingHeading")}</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{content?.parkingInstructions || 'Ask us about parking, the entrance and any access requirements when arranging your visit.'}</p></div>
+      {!isLoading && !isError && (visitInstructions || parkingInstructions) && <section className={`mt-10 grid gap-7 border-y border-border py-7 lg:gap-16${visitInstructions && parkingInstructions ? ' sm:grid-cols-2' : ''}`} aria-label="Before your visit">
+        {visitInstructions && <div><h2 className="font-display text-xl font-semibold">{websiteText(settings, "contactBeforeHeading")}</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{visitInstructions}</p></div>}
+        {parkingInstructions && <div><h2 className="font-display text-xl font-semibold">{websiteText(settings, "contactParkingHeading")}</h2><p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground">{parkingInstructions}</p></div>}
       </section>}
-
-      <section id="contact-message" aria-labelledby="contact-message-heading" className="mt-10 grid scroll-mt-28 items-start gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-16">
-        <div><p className="luxxy-kicker">Send a message</p><h2 id="contact-message-heading" tabIndex={-1} className="mt-3 font-display text-2xl font-semibold tracking-tight outline-none">{websiteText(settings, "contactMessageHeading")}</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">{websiteText(settings, "contactMessageDescription")}</p><p className="mt-4 text-xs leading-6 text-muted-foreground">Send us your question below. We’ll show your reference once we’ve received it.</p>{photos.reception && !isLoading && !isError && <DealershipPhotograph photo={photos.reception} className="mt-6" />}</div>
-        <div className="min-w-0"><EnquiryForm initialType="general" stockCars={stock?.cars ?? []} /></div>
-      </section>
     </div>
   </div>;
 }

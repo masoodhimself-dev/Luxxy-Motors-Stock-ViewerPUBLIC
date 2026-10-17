@@ -195,3 +195,38 @@ test('customer phone enquiry needs no email but email replies and test drives st
  await assert.rejects(call(state, settings, 'POST', '/api/enquiries', { ...payload, phone: null }), /phone/);
  await assert.rejects(call(state, settings, 'POST', '/api/enquiries', { ...payload, type: 'viewing' }), /email/);
 });
+
+test('unavailable cars cannot be confirmed or moved, but their appointments can still be cancelled', async () => {
+  const car = { ...previewStock.cars[0], id: '00000000-0000-4000-8000-000000009991', inventoryStatus: 'available' };
+  previewStock.cars.push(car);
+  const config = policy({ confirmationMode: 'approval' });
+  const settings = { ...previewSettings, testDriveBooking: config };
+  let day = addDays(dateStringInTimezone(new Date()), 2);
+  while (!getSlotsForDate(day, config).length) day = addDays(day, 1);
+  const times = getSlotsForDate(day, config).map(slot => slot.startAt.toISOString());
+  const payload = { vehicleId: car.id, type: 'viewing', customerName: 'Fictional Availability Test', email: 'availability@example.test', phone: '07700900123', preferredContact: 'email', message: 'Isolated test only', appointmentAt: times[0] };
+  try {
+    for (const status of ['reserved', 'sold', 'hidden', 'archived']) {
+      car.inventoryStatus = 'available';
+      const state: BookingPreviewState = { reservations: [] };
+      const created = (await call(state, settings, 'POST', '/api/enquiries', payload)).data;
+      const managed = `/api${created.managePath}`.replace('/viewing/', '/viewings/');
+      car.inventoryStatus = status;
+      const before = structuredClone(state.enquiries![0]);
+      await assert.rejects(call(state, settings, 'POST', `/api/test-drive-bookings/${created.id}/decision`, { decision: 'confirm', expectedRevision: 0 }), /car is no longer available.*contact the showroom/i);
+      await assert.rejects(call(state, settings, 'POST', `/api/staff/enquiries/${created.id}/appointment`, { action: 'reschedule', appointmentAt: times[1], expectedRevision: 0 }), /car is no longer available.*contact the showroom/i);
+      await assert.rejects(call(state, settings, 'POST', `${managed}/reschedule`, { appointmentAt: times[1] }), /car is no longer available.*contact the showroom/i);
+      assert.deepEqual(state.enquiries![0], before, `${status} rejection preserves the original appointment and revision`);
+      const cancelled = await call(state, settings, 'POST', `/api/staff/enquiries/${created.id}/appointment`, { action: 'cancel', expectedRevision: 0 });
+      assert.ok(cancelled.data.appointmentCancelledAt, `${status} appointments remain cancellable by staff`);
+      assert.equal(cancelled.data.appointmentRevision, 1);
+
+      car.inventoryStatus = 'available';
+      const customerState: BookingPreviewState = { reservations: [] };
+      const customerBooking = (await call(customerState, settings, 'POST', '/api/enquiries', payload)).data;
+      car.inventoryStatus = status;
+      const customerPath = `/api${customerBooking.managePath}`.replace('/viewing/', '/viewings/');
+      assert.equal((await call(customerState, settings, 'POST', `${customerPath}/cancel`, {})).data.status, 'cancelled', `${status} appointments remain cancellable by customers`);
+    }
+  } finally { previewStock.cars.splice(previewStock.cars.indexOf(car), 1); }
+});

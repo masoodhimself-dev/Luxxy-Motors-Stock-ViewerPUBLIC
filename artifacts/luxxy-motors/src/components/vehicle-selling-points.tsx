@@ -24,12 +24,14 @@ export function VehicleSellingPoint({ point }: { point: SellingPoint }) {
 export function VehicleSellingPoints({
   car,
   compact = false,
+  omitMileage = false,
 }: {
   car: Car;
   compact?: boolean;
+  omitMileage?: boolean;
 }) {
-  const allPoints = vehicleSellingPoints(car);
-  const points = compact ? allPoints.slice(0, 4) : allPoints;
+  const allPoints = vehicleSellingPoints(car).filter(point => !omitMileage || point.label !== "Mileage");
+  const points = compact ? allPoints.slice(0, 3) : allPoints;
   if (!points.length) return null;
   return (
     <div

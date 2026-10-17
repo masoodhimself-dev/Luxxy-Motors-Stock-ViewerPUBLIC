@@ -31,18 +31,14 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
       className="border-t border-border bg-card py-8 md:py-10"
       aria-labelledby="visit-heading"
     >
-      <div id="about" className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div
           className={`grid items-start gap-6 lg:gap-10 ${hasStory || visitPhoto || children ? "md:grid-cols-2" : "max-w-4xl"}`}
         >
           <div>
             <h2 id="visit-heading" tabIndex={-1} className="section-heading">{websiteText(settings, "visitHeading")}
             </h2>
-            <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">
-              {customerDefaultCopy(content.visitInstructions,
-                'Book a test drive and take a closer look. Contact us for directions and appointment details before setting off.',
-                ['Book a test drive and take a closer look. Contact the team for directions and appointment details before setting off.'])}
-            </p>
+            {content.visitInstructions?.trim() && <p className="mt-4 max-w-lg whitespace-pre-line text-sm leading-7 text-muted-foreground">{content.visitInstructions}</p>}
             <div className="mt-6 grid gap-6 sm:grid-cols-2">
               <div>
                 <h3 className="text-sm font-semibold">Find us</h3>
@@ -89,7 +85,6 @@ export function DealershipVisit({ children }: { children?: React.ReactNode }) {
               </div>
             )}
             <div className="mt-6 flex flex-wrap gap-3">
-              <div className="w-full"><h3 className="text-lg font-semibold">{settings.bookViewing.title}</h3><p className="mt-2 text-sm text-muted-foreground">{settings.bookViewing.description}</p></div>
               <Button asChild>
                 <Link href="/enquire?type=viewing">
                   {settings.bookViewing.ctaLabel} <ArrowRight className="h-4 w-4" />

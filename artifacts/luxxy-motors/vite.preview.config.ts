@@ -1,3 +1,4 @@
+import { communicationsPreview } from "./preview/communications";
 import { platformPreview } from "./preview/platform";
 import { deferredCustomerFeatureResponse } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
@@ -57,6 +58,7 @@ export default mergeConfig(
             if (await chatPreview(req, res, url)) return;
             if (await relationshipsPreview(req, res, url)) return;
             if (await dealerIntegrationsPreview(req, res, url)) return;
+            if (await communicationsPreview(req, res, url)) return;
             if (await reservationPreview(req, res, url)) return;
             if (await salesPreview(req, res, url)) return;
             if (req.method !== 'GET') {

@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -23,7 +23,7 @@
     "test:retired-sales": "node ./test-build.mjs src/retired-sales.test.ts && node --test ./dist-test/retired-sales.test.mjs",
     "test:callback-conversations": "node ./test-build.mjs ../luxxy-motors/preview/callback-conversations.test.ts && node --enable-source-maps --test ./dist-test/callback-conversations.test.mjs",
     "test:staff-enquiries": "node ./test-build.mjs src/staff-enquiries-access.test.ts && node --enable-source-maps --test ./dist-test/staff-enquiries-access.test.mjs",
-    "test:bookings": "node ./test-build.mjs src/booking-policy.test.ts && node --enable-source-maps --test ./dist-test/booking-policy.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/booking.test.ts && node --enable-source-maps --test ./dist-test/booking.test.mjs",
+    "test:bookings": "node ./test-build.mjs src/booking-policy.test.ts && node --enable-source-maps --test ./dist-test/booking-policy.test.mjs && node ./test-build.mjs src/booking-availability.test.ts && node --enable-source-maps --test ./dist-test/booking-availability.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/booking.test.ts && node --enable-source-maps --test ./dist-test/booking.test.mjs",
     "test:sale-workspace": "node ./test-build.mjs src/invoice-verification.test.ts && node --test ./dist-test/invoice-verification.test.mjs && node ./test-build.mjs src/invoice-settings.test.ts && node --test ./dist-test/invoice-settings.test.mjs && node ./test-build.mjs src/sale-document-pdf.test.ts && node --test ./dist-test/sale-document-pdf.test.mjs && node ./test-build.mjs src/sale-workspace.test.ts && node --enable-source-maps --test ./dist-test/sale-workspace.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/sales.test.ts && node --enable-source-maps --test ./dist-test/sales.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/sales-http.test.ts && node --enable-source-maps --test ./dist-test/sales-http.test.mjs",
     "test:dealer-improvements": "node ./test-build.mjs src/dealer-operations.test.ts && node --enable-source-maps --test ./dist-test/dealer-operations.test.mjs && node ./test-build.mjs src/staff-directory.test.ts && node --enable-source-maps --test ./dist-test/staff-directory.test.mjs && node ./test-build.mjs src/integrations-ready.test.ts && node --enable-source-maps --test ./dist-test/integrations-ready.test.mjs && node ./test-build.mjs src/stripe-reservation-recovery.test.ts && node --enable-source-maps --test ./dist-test/stripe-reservation-recovery.test.mjs && node ./test-build.mjs src/sale-workspace-connected.test.ts && node --enable-source-maps --test ./dist-test/sale-workspace-connected.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/operations.test.ts && node --enable-source-maps --test ./dist-test/operations.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/sales-connected.test.ts && node --enable-source-maps --test ./dist-test/sales-connected.test.mjs",
     "test:relationships": "node ./test-build.mjs src/dealer-relationships.test.ts && node --enable-source-maps --test ./dist-test/dealer-relationships.test.mjs && node ./test-build.mjs ../luxxy-motors/preview/relationships.test.ts && node --enable-source-maps --test ./dist-test/relationships.test.mjs",
@@ -33,7 +33,9 @@
     "build:cazoo-demo": "node build-cazoo-demo.mjs",
     "test:tenancy": "node test-tenancy-build.mjs && node --test dist-test/multitenancy.test.mjs",
     "test:platform": "node test-platform-build.mjs && node --test dist-test/platform-console.test.mjs",
-    "test:domain": "node ./test-build.mjs src/domain-providers.test.ts && node --test ./dist-test/domain-providers.test.mjs && node ./test-domain-build.mjs && node --test ./dist-test/domain-automation.test.mjs"
+    "test:domain": "node ./test-build.mjs src/domain-providers.test.ts && node --test ./dist-test/domain-providers.test.mjs && node ./test-domain-build.mjs && node --test ./dist-test/domain-automation.test.mjs",
+    "test:email-workspace": "node test-enquiry-emails-build.mjs src/email-workspace.test.ts && node --test dist-test/email-workspace.test.mjs && node test-enquiry-emails-build.mjs src/staff-email-scope.test.ts && node --test dist-test/staff-email-scope.test.mjs",
+    "test:push": "node test-enquiry-emails-build.mjs src/staff-push.test.ts && node --test dist-test/staff-push.test.mjs && node test-build.mjs ../luxxy-motors/preview/communications-push.test.ts && node --test dist-test/communications-push.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",
@@ -49,6 +51,7 @@
     "jspdf": "4.2.1",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
+    "web-push": "^3.6.7",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -57,6 +60,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@types/web-push": "^3.6.4",
     "esbuild": "0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
     "pino-pretty": "^13.1.3",

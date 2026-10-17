@@ -2,7 +2,7 @@ import { websiteText } from "@/lib/website-content";
 import './customer-workflows.css';
 import { questionMessage } from "@/lib/vehicle-questions";
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Car as CarIcon, CircleAlert } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, CircleAlert } from 'lucide-react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { TestDriveBooking } from '@/components/test-drive-booking';
@@ -66,7 +66,7 @@ export default function Enquire() {
   const vehicleHighlights = vehicle
     ? [
         { label: vehicleRegistration(vehicle) ? 'Year & registration' : 'Year', value: customerRegistrationDetails(vehicle) },
-        { label: 'Mileage', value: vehicle.mileage ? formatMileage(vehicle.mileage) : vehicle.mileageText },
+        { label: 'Mileage', value: vehicle.mileage != null ? formatMileage(vehicle.mileage) : vehicle.mileageText },
         { label: 'Fuel', value: vehicle.fuel },
         { label: 'Gearbox', value: vehicle.transmission },
       ].filter((highlight): highlight is { label: string; value: string } => Boolean(highlight.value))
@@ -102,9 +102,8 @@ export default function Enquire() {
                 <p>Tell us about your car, choose one from our stock, then send your details here or through WhatsApp.</p>
                 <ol className="hidden space-y-3 lg:block">
                   <li><span className="mr-3 text-accent">01</span>Your car and mileage</li>
-                  <li><span className="mr-3 text-accent">02</span>Condition, keys and V5C</li>
-                  <li><span className="mr-3 text-accent">03</span>Your next car</li>
-                  <li><span className="mr-3 text-accent">04</span>Contact details and review</li>
+                  <li><span className="mr-3 text-accent">02</span>Your next car</li>
+                  <li><span className="mr-3 text-accent">03</span>Contact details and review</li>
                 </ol>
                 <p className="text-xs">Have photos ready to attach in the WhatsApp chat. No obligation to proceed.</p>
               </div>
@@ -146,10 +145,8 @@ export default function Enquire() {
                 )}
               </div>
             ) : (
-              <div className="mt-5 hidden flex-col gap-4 border-t border-border pt-5 lg:flex" data-testid="enquiry-no-vehicle-summary">
-                <CarIcon className="h-8 w-8 text-primary/40" />
+              <div className="mt-5 hidden flex-col gap-3 border-t border-border pt-5 lg:flex" data-testid="enquiry-no-vehicle-summary">
                 <div>
-                  <p className="font-display text-lg font-semibold tracking-tight text-primary">No vehicle selected</p>
                   <p className="mt-2 text-[12px] font-normal leading-relaxed text-primary/70">
                     If you have a specific car in mind, choose it from our stock and we’ll include it with your enquiry.
                   </p>

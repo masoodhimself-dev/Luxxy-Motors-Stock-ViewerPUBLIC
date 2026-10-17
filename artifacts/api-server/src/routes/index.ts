@@ -23,11 +23,15 @@ import { enforceCustomerFeaturePolicy } from '../middlewares/customer-feature-po
 import staffInventoryRouter from "./staff-inventory";
 import staffEmailRouter from "./staff-email";
 import enquiryEmailsRouter from "./enquiry-emails";
+import staffNotificationsRouter from "./staff-notifications";
+import staffPushRouter from './staff-push';
 const router: IRouter = Router();
 router.use(requireStaffOperationAccess);
 router.use(enforceCustomerFeaturePolicy);
 router.use(staffInventoryRouter);
 router.use(enquiryEmailsRouter);
+router.use(staffNotificationsRouter);
+router.use(staffPushRouter);
 router.use(staffEmailRouter);
 router.use(dealerIntegrationsRouter);
 router.use(dealerOperationsRouter);

@@ -17,7 +17,16 @@ it('removes failed images from thumbnails and counts, and handles all failing', 
   expect(screen.getByText('1 / 1 photographs')).toBeInTheDocument();
   expect(screen.queryByText('Photograph unavailable')).not.toBeInTheDocument();
   fail('https://example.com/one.jpg');
+  expect(screen.getByText('Photos couldn’t be loaded')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Try photos again' }));
+  expect(screen.getByText('1 / 2 photographs')).toBeInTheDocument();
+  expect(screen.getByText('Loading photo…')).toBeInTheDocument();
+});
+
+it('uses photographs to follow only when no photographs were supplied', () => {
+  render(<Gallery images={[]} />);
   expect(screen.getByText('Photographs to follow')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Try photos/ })).not.toBeInTheDocument();
 });
 
 const labelledPhotos = [
@@ -27,15 +36,20 @@ const labelledPhotos = [
   { url: 'https://example.com/other.jpg', caption: 'Another photograph' },
 ];
 
-it('keeps every customer photograph reachable without category tabs', async () => {
+it('filters customer photographs by supplied captions and retains all photographs', async () => {
   render(<Gallery customerView images={labelledPhotos} />);
-  expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Photograph sections')).toBeInTheDocument();
   expect(screen.getAllByRole('button', { name: /Show photograph/ })).toHaveLength(4);
+  fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
+  expect(screen.getByRole('button', { name: 'Interior' })).toHaveAttribute('aria-pressed', 'true');
+  await waitFor(() => expect(document.querySelector(`.gallery-photo[src="${labelledPhotos[1].url}"]`)).not.toBeNull());
+  expect(screen.getByText('1 / 1 photographs')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'All photographs' }));
   fireEvent.click(screen.getByRole('button', { name: 'Show photograph 2 of 4' }));
   expect(screen.getByText('2 / 4 photographs')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'View gallery fullscreen' }));
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
-  expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
+  expect(within(screen.getByRole('dialog')).getByLabelText('Photograph sections')).toBeInTheDocument();
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' });
   expect(screen.getByText('3 / 4')).toBeInTheDocument();
 });
@@ -45,7 +59,12 @@ it('retains photograph sections for the staff gallery', () => {
   expect(screen.getByLabelText('Photograph sections')).toBeInTheDocument();
   screen.getByRole('button', { name: 'Show photograph 2 of 4' }).scrollIntoView = vi.fn();
   fireEvent.click(screen.getByRole('button', { name: 'Interior' }));
-  expect(screen.getByText('2 / 4 photographs')).toBeInTheDocument();
+  expect(screen.getByText('1 / 1 photographs')).toBeInTheDocument();
+});
+
+it('does not invent photograph groups for uncaptioned photos', () => {
+  render(<Gallery customerView images={['https://example.com/one.jpg', 'https://example.com/two.jpg']} />);
+  expect(screen.queryByLabelText('Photograph sections')).not.toBeInTheDocument();
 });
 
 it('mounts a compact lazy overview only when requested and opens the chosen photo', async () => {

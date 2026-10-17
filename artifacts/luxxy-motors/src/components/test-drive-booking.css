@@ -1,0 +1,18 @@
+/* Keep the chosen car visible without repeating its introductory card at every step. */
+.booking-page .booking-car-compact { gap: 12px; padding-bottom: 16px; }
+.booking-page .booking-car-compact > img { width: 72px; border-radius: 6px; }
+.booking-page .booking-car-compact .booking-car-name { margin-top: 0; font-size: 15px; }
+.booking-page .booking-car-compact .booking-car-identity > p { font-size: 12px; }
+.booking-page .booking-car-compact .booking-car-identity > .booking-car-name { font-size: 15px; }
+.booking-page .booking-car-compact .booking-car-identity > div { font-size: 13px; }
+.booking-page .booking-car-compact .booking-car-identity button { min-height: 44px; font-size: 12px; }
+.booking-page .booking-time-recovery { column-gap: 20px; }
+.booking-page .booking-time-recovery :is(a, button):focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 4px; border-radius: 4px; }
+.booking-page .booking-time-notice { padding: 14px 16px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--secondary)); font-size: 14px; line-height: 1.6; }
+.booking-page .booking-time-notice button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 4px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.booking-page .booking-time-notice button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; border-radius: 4px; }
+.booking-page .booking-time-checking { color: hsl(var(--muted-foreground)); font-size: 14px; line-height: 1.6; }
+@media (max-width: 639px) {
+  .booking-page .booking-car-compact > img { width: 64px; }
+  .booking-page .booking-car-compact { gap: 12px; }
+}

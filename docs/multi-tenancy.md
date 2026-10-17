@@ -1,6 +1,6 @@
 # Multi-dealership foundation and rollout
 
-Status: implemented and tested locally on `codex/multi-tenant-foundation`; not enabled on Render. No live database migration, domain change or Grok scheduler change has been performed.
+Status: isolated shared Render staging is live on `codex/multi-tenant-foundation` as of 9 October 2026. Its new empty database has migrations through 0021 applied. Existing dealership deployments, their databases, domains and Grok routines remain unchanged. Two real test-domain imports are still pending.
 
 ## Architecture
 
@@ -72,3 +72,16 @@ These changes are local only; no Render deployment, live migration or Grok activ
 - The existing bounded server-error retry policy still applies; Retry-After provisioning for capacity/rate limiting is not implemented here.
 
 Verification: the in-memory PostgreSQL-compatible two-dealer HTTP suite exercises invalid/wrong-dealer keys, host/retailer/marketplace rejection, complete imports, price updates, conflict/replay handling, 48-hour replay, stale new runs, delayed older snapshots, independent vehicle/settings/enquiry/staff access, and preservation of reserved/sold status through imports. Stock-feed regression tests and API TypeScript checks also pass. This is not yet a real Render/Grok connection test.
+
+
+## Isolated Render deployment — 9 October 2026
+
+- Blueprint: `exs-db4jbuaj9qps73cp5f20`, file `render.multi-tenant-staging.yaml`.
+- Web service: `srv-db4jfhk9v7es73a4qhrg`, https://luxxy-shared-staging.onrender.com.
+- Separate PostgreSQL: `dpg-db4jeuk9v7es73a4pds0-a`, public IP allowlist empty.
+- Latest verified live commit: `d467a016511bfd9839083820e458b6c80fbf8f28`, deploy `dep-db4jil9srm7s73fvbh20`.
+- Render estimate: $13.30/month before taxes/additional usage. Web auto-deploy is off.
+- Existing Clerk development keys configured directly in Render; approved Masood account accessed `/platform` successfully. No credentials are recorded here.
+- HTTPS health returned 200; anonymous platform API returned 403; admin host stock returned 421 rather than selecting a fallback dealership. No error/warning logs since the corrected startup deployment.
+- Startup backfill and notification jobs now enumerate active dealerships within scoped contexts. The isolated two-dealer test confirms A's backfill does not process B's pending enquiry.
+- Pending: two operator-owned test domains/subdomains, Render DNS/TLS and ownership verification, test-dealer registration/credentials, and real Grok import/replay/isolation verification. Grok delivery remains disabled; no customer stock imported into this database.

@@ -13,8 +13,8 @@ import { ReserveCar } from '@/components/reserve-car';
 import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { showroomHours } from '@/lib/showroom-hours';
-import { getWhatsAppHref, recordContactIntent } from '@/lib/cta-helpers';
-import { vehicleDisplayTitle, vehicleRegistration } from '@/lib/utils';
+import { getWhatsAppHref, getVehicleContactMessage, recordContactIntent } from '@/lib/cta-helpers';
+import { vehicleDisplayTitle } from '@/lib/utils';
 import type { Car } from '@/lib/stock-context';
 
 export function VehicleWhatsApp({
@@ -48,7 +48,7 @@ export function VehicleWhatsApp({
     const current = showroomHours(settings.hours ?? []);
     setHours(current);
     setMessage(
-      `Hi ${settings.identity.name}, ${walkaround ? 'could you send me a walkaround video of' : 'is this car still available:'} ${label}${vehicleRegistration(car) ? ' (' + vehicleRegistration(car) + ')' : ''}?${current.state === 'closed' ? ' Please reply when you reopen.' : ''}`,
+      `${getVehicleContactMessage(car, walkaround ? 'request a walkaround video of this car' : 'get more information about this vehicle', settings)}${current.state === 'closed' ? '\n\nPlease reply when you reopen.' : ''}`,
     );
     setOpen(true);
   }

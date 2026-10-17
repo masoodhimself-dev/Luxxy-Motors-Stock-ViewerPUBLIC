@@ -128,7 +128,7 @@ function ulezBenefit(car: Car): VehicleBenefit | null {
     id: "ulez",
     label: "ULEZ",
     text: "ULEZ compliant",
-    note: `This car’s ${stated} specification meets ULEZ emissions standards. Check its registration with TfL before driving in the zone.`,
+    note: `This car’s ${stated} specification meets ULEZ emissions standards.`,
     href: ULEZ_CHECK_URL,
   };
 }

@@ -4,19 +4,19 @@ import type { Car } from '@/lib/stock-context';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 import { TestDriveBooking } from './test-drive-booking';
 
-const state = vi.hoisted(() => ({ failed: false, mutate: vi.fn(), reset: vi.fn() }));
+const state = vi.hoisted(() => ({ failed: false, empty: false, fetching: false, mutate: vi.fn(), reset: vi.fn() }));
 vi.mock('@workspace/api-client-react', () => ({
   useCreateEnquiry: () => ({ isPending: false, isSuccess: false, isError: false, mutate: state.mutate, reset: state.reset }),
   getGetEnquiryAvailabilityQueryKey: (params: unknown) => [params],
   useGetEnquiryAvailability: ({ date }: { date: string }) => ({
-    isLoading: false, isFetching: false, isError: state.failed,
-    data: { slots: [{ available: true, label: '10:00 am', startAt: `${date}T09:00:00.000Z` }] },
+    isLoading: false, isFetching: state.fetching, isError: state.failed,
+    data: { slots: state.empty ? [] : [{ available: true, label: '10:00 am', startAt: `${date}T09:00:00.000Z` }] },
     refetch: vi.fn(),
   }),
 }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({
   settings: {
-    identity: { name: 'Test Motors' }, address: {}, contact: {}, hours: [],
+    identity: { name: 'Test Motors' }, address: {}, contact: { phone: '07700900123', whatsapp: '447700900123' }, hours: [],
     testDriveBooking: { ...defaultBookingSettings, daysAhead: 3, weeklyHours: Array.from({ length: 7 }, (_, day) => ({ day, enabled: true, open: '09:00', close: '18:00' })) },
   },
   isLoading: false, isError: false,
@@ -26,6 +26,8 @@ const car = { id: 'booking-car', title: 'Ford Fiesta', make: 'Ford', model: 'Fie
 const booking = () => <TestDriveBooking vehicle={car} stockCars={[car]} />;
 beforeEach(() => {
   state.failed = false;
+  state.empty = false;
+  state.fetching = false;
   state.mutate.mockClear();
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/enquire?type=viewing&vehicleId=booking-car');
@@ -86,4 +88,109 @@ it('keeps customer details and blocks confirmation when a recheck fails on revie
   expect(screen.getByTestId('booking-review')).toHaveTextContent('Fictional Customer');
   fireEvent.click(screen.getByTestId('button-submit-enquiry'));
   expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('stops on the details step when a selected slot disappears and offers a direct way to choose again', () => {
+  const view = render(booking());
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Customer' } });
+  fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700900123' } });
+  fireEvent.change(screen.getByTestId('input-customer-email'), { target: { value: 'fictional@example.test' } });
+  state.empty = true;
+  view.rerender(booking());
+  expect(screen.getByTestId('button-review-booking')).toBeDisabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('That time is no longer available');
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(screen.queryByTestId('booking-review')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Choose another time' }));
+  expect(screen.getByRole('heading', { name: 'When would you like to come?' })).toBeInTheDocument();
+  state.empty = false;
+  view.rerender(booking());
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  expect(screen.getByTestId('input-customer-name')).toHaveValue('Fictional Customer');
+  expect(screen.getByTestId('input-customer-phone')).toHaveValue('07700900123');
+  expect(screen.getByTestId('input-customer-email')).toHaveValue('fictional@example.test');
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('explains a failed availability recheck before review and keeps the customer on their details', () => {
+  const view = render(booking());
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Customer' } });
+  state.failed = true;
+  view.rerender(booking());
+  expect(screen.getByTestId('button-review-booking')).toBeDisabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('We couldn’t recheck this time');
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(screen.queryByTestId('booking-review')).not.toBeInTheDocument();
+  expect(screen.getByTestId('input-customer-name')).toHaveValue('Fictional Customer');
+  fireEvent.click(screen.getByRole('button', { name: 'Check available times' }));
+  expect(screen.getByRole('heading', { name: 'When would you like to come?' })).toBeInTheDocument();
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('explains background rechecks on details and review and resumes once the check finishes', () => {
+  const view = render(booking());
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Customer' } });
+  fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700900123' } });
+  fireEvent.change(screen.getByTestId('input-customer-email'), { target: { value: 'fictional@example.test' } });
+  state.fetching = true;
+  view.rerender(booking());
+  expect(screen.getByRole('status')).toHaveTextContent('Checking your selected time');
+  expect(screen.getByTestId('button-review-booking')).toBeDisabled();
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(screen.queryByTestId('booking-review')).not.toBeInTheDocument();
+  state.fetching = false;
+  view.rerender(booking());
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(screen.getByTestId('booking-review')).toBeInTheDocument();
+  state.fetching = true;
+  view.rerender(booking());
+  expect(screen.getByRole('status')).toHaveTextContent('Checking your selected time');
+  expect(screen.getByTestId('button-submit-enquiry')).toBeDisabled();
+  fireEvent.click(screen.getByTestId('button-submit-enquiry'));
+  expect(state.mutate).not.toHaveBeenCalled();
+  state.fetching = false;
+  view.rerender(booking());
+  expect(screen.queryByText('Checking your selected time…')).not.toBeInTheDocument();
+  expect(screen.getByTestId('button-submit-enquiry')).toBeEnabled();
+});
+
+it('keeps the playful introduction on the first step and a compact car on later steps', () => {
+  render(booking());
+  expect(screen.getByLabelText('A little hello from your Ford Fiesta')).toBeInTheDocument();
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  expect(screen.queryByLabelText('A little hello from your Ford Fiesta')).not.toBeInTheDocument();
+  expect(screen.getByTestId('card-enquiry-vehicle')).toHaveClass('booking-car-compact');
+  expect(screen.getByTestId('card-enquiry-vehicle')).toHaveTextContent('Ford Fiesta');
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }));
+  expect(screen.getByLabelText('A little hello from your Ford Fiesta')).toBeInTheDocument();
+});
+
+it('offers the next permitted date and direct contact when a day has no slots', () => {
+  state.empty = true;
+  render(booking());
+  expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
+  expect(screen.getByRole('link', { name: 'Call us' })).toHaveAttribute('href', 'tel:07700900123');
+  expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', expect.stringContaining('wa.me/447700900123'));
+  fireEvent.click(screen.getByRole('button', { name: 'Check times on Saturday 17 October' }));
+  expect(screen.getByTestId('button-viewing-date-2026-10-17')).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
+  expect(state.mutate).not.toHaveBeenCalled();
+});
+
+it('keeps the night-time message specific to an empty today, not future dates', () => {
+  state.empty = true;
+  vi.setSystemTime(new Date('2026-10-16T21:00:00Z'));
+  render(booking());
+  expect(screen.getByLabelText('Booking at night')).toHaveTextContent('Even car people need sleep');
+  fireEvent.click(screen.getByTestId('button-viewing-date-2026-10-17'));
+  expect(screen.queryByLabelText('Booking at night')).not.toBeInTheDocument();
+  expect(screen.getByTestId('status-availability-empty')).toHaveTextContent('No appointments are available on this date');
 });

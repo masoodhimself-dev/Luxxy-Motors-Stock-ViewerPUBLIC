@@ -26,22 +26,24 @@ it('renders a server preview without writes and marks edits stale until refreshe
 });
 it('saves one template with the revision and keeps unsaved brand edits',async()=>{
  const {writes}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.click(screen.getByText('Branding for all emails'));
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
  fireEvent.change(screen.getByLabelText('Accent colour'),{target:{value:'#24577A'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
  fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Hi {{customer_name}}, your car details are ready.'}});
  fireEvent.change(screen.getByLabelText('Email title'),{target:{value:'Your car awaits'}});
  fireEvent.click(screen.getByRole('button',{name:'Save template'}));
  await screen.findByText('Email template saved. Future emails will use this wording.');
  expect(writes).toHaveLength(1);expect(writes[0].body.body).toContain('your car details');expect(writes[0].body.headline).toBe('Your car awaits');expect(screen.getByLabelText('Email title')).toHaveValue('Your car awaits');expect(screen.getByLabelText('Accent colour')).toHaveValue('#24577A');
- expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));expect(screen.getByText('Unsaved branding')).toBeVisible();
 });
 it('saving branding preserves the draft message and advances its revision',async()=>{
  const {writes}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
- fireEvent.click(screen.getByText('Branding for all emails'));
  fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Unsaved message'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
  fireEvent.click(screen.getByRole('button',{name:'Use Forest green accent'}));
  fireEvent.click(screen.getByRole('button',{name:'Save email branding'}));
  await screen.findByText('Email branding saved for every email template.');
+ fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
  expect(screen.getByLabelText('Your message')).toHaveValue('Unsaved message');
  fireEvent.click(screen.getByRole('button',{name:'Save template'}));
  await waitFor(()=>expect(writes).toHaveLength(2));expect(writes[1].body.expectedRevision).toBe(2);
@@ -51,4 +53,18 @@ it('declining to discard wording keeps the current template selected',async()=>{
  fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'A draft to keep'}});
  fireEvent.change(screen.getByLabelText('Choose a message'),{target:{value:'booking_confirmation'}});
  expect(window.confirm).toHaveBeenCalled();expect(screen.getByLabelText('Choose a message')).toHaveValue('enquiry_acknowledgement');expect(screen.getByLabelText('Your message')).toHaveValue('A draft to keep');
+});
+
+it('switches email tabs without losing drafts, making writes or exposing inactive panels',async()=>{
+ const {writes,previews}=api();render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'A message to keep while choosing colours'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
+ expect(screen.getByRole('tabpanel',{name:'Branding'})).toBeVisible();
+ expect(screen.queryByRole('tabpanel',{name:'Messages'})).not.toBeInTheDocument();
+ fireEvent.change(screen.getByLabelText('Brand heading'),{target:{value:'My dealership'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Messages'}));
+ expect(screen.getByLabelText('Your message')).toHaveValue('A message to keep while choosing colours');
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
+ expect(screen.getByLabelText('Brand heading')).toHaveValue('My dealership');
+ expect(writes).toHaveLength(0);expect(previews).toHaveLength(1);
 });

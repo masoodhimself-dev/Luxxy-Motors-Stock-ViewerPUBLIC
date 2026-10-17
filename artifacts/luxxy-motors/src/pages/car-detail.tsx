@@ -108,7 +108,7 @@ export default function CarDetail() {
         <span className="sr-only">Loading vehicle details…</span>
         <div className="container mx-auto grid gap-12 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_460px] lg:items-start lg:gap-14 lg:px-8">
           <div className="space-y-4 lg:col-start-1 lg:row-start-1">
-            <div className="aspect-video w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
+            <div className="aspect-[4/3] w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
             <div className="h-[4.5rem] w-full motion-safe:animate-pulse bg-muted border border-border" aria-hidden="true" />
           </div>
           <div className="space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 border border-primary bg-background p-8 shadow-none">
@@ -194,6 +194,8 @@ export default function CarDetail() {
   })();
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
+  const canReserve = Boolean(dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) > 0 && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency.toUpperCase() === 'GBP'));
+  const hasSecondaryActions = canReserve || dealerConfig.partExchange?.enabled || dealerConfig.presentation?.comparisonEnabled;
   const content = vehicleContent(car);
   const description = content.description;
   const features = prioritiseVehicleFeatures(content.features);
@@ -230,7 +232,7 @@ export default function CarDetail() {
   );
 
   return (
-    <div className="vehicle-page vehicle-redesigned luxxy-shell min-h-screen">
+    <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="vehicle-browse-tools flex flex-wrap items-center justify-between gap-2 py-4">
           <Link href={browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
@@ -282,7 +284,7 @@ export default function CarDetail() {
               </p>
               <PriceReduction car={car} />
               {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
-
+              {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.label} · recorded insurance history</span><ArrowRight className="h-4 w-4" /></a>}
             </div>
           </header>
           <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
@@ -304,13 +306,12 @@ export default function CarDetail() {
                 </div>
               ))}
             </dl>
-              {damageDisclosure && <div className="mt-3 flex flex-wrap items-center gap-x-3 text-xs leading-5 text-muted-foreground"><p>{damageDisclosure.label} recorded</p><a href="#vehicle-history" className="inline-flex min-h-11 items-center underline underline-offset-4">Insurance history</a></div>}
             <div className="vehicle-detail-actions" data-testid="desktop-purchase-panel">
 
 
-            <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
+            {hasSecondaryActions && <MobileActionDisclosure label="More options" testId="vehicle-secondary-actions" className="vehicle-secondary-actions mt-3 border-t border-border md:mt-0 md:border-0">
               <div className="vehicle-contact-options">
-              <div className="vehicle-secondary-grid"><ReserveCar key={car.id} car={car} className="min-h-12 w-full" />
+              <div className="vehicle-secondary-grid">{canReserve && <ReserveCar key={car.id} car={car} className="min-h-12 w-full" />}
               {dealerConfig.partExchange?.enabled && <a href={`/enquire?type=part_exchange&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-contact-action">Value my car <ArrowRight className="h-4 w-4" /></a>}</div>
               {dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency === 'GBP') && <details className="border-b border-border pb-3 text-xs leading-5"><summary className="min-h-11 cursor-pointer py-3 font-medium">{formatPrice(dealerConfig.onlineReservation.depositPence / 100)} reservation deposit · How it works</summary><p className="mt-2">Review your details and the terms before confirming. We’ll follow up on your reservation; book a test drive separately.</p><p className="mt-2 font-medium">Payment is currently simulated. No money is taken.</p><h3 className="mt-3 font-semibold">Reservation & cancellation terms</h3><p className="mt-2 whitespace-pre-line text-muted-foreground">{dealerConfig.onlineReservation.terms}</p></details>}
               </div>
@@ -320,7 +321,7 @@ export default function CarDetail() {
             </div>}
 
 
-            </MobileActionDisclosure>
+            </MobileActionDisclosure>}
               <div className="vehicle-utility-actions"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
             </div>
           </aside>
@@ -393,7 +394,7 @@ export default function CarDetail() {
               {listingHighlights.length > 0 && <details className="vehicle-source-comparisons"><summary>How this car compares</summary><VehicleListingHighlights car={car} /></details>}
             </div>}
             </div>}
-            {(vehicleHistoryRecordFacts.length > 0 || hasHandoverInformation) && <div className="vehicle-information-row vehicle-records-row">
+            <div className="vehicle-information-row vehicle-records-row">
             <VehicleHistorySummary car={car} />
             {hasHandoverInformation && <section
               className="mt-8 border-t border-border pt-7"
@@ -403,7 +404,7 @@ export default function CarDetail() {
                 {websiteText(dealerConfig, "vehicleInformationHeading")}
               </h2>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Here’s what we can tell you about this car’s history and handover. Ask us if you need anything else.
+                The supplied documents and recorded history for this car.
               </p>
               <dl className="mt-4 divide-y divide-border">
                 {handoverFacts.map((item) => (
@@ -446,7 +447,8 @@ export default function CarDetail() {
               </div>
             )}
             </section>}
-          </div>}
+            <a className="vehicle-service-record-request" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}&question=service`}><VehicleFactIcon label="Service history" /><span>Request service records<span className="vehicle-service-record-note">Ask us to email the available service-book photos and records.</span></span><ArrowRight className="h-4 w-4" /></a>
+          </div>
         </div>
         <div className="vehicle-review-strip"><VehicleReviews /></div>
         <div className="vehicle-enquiry-visit-row">

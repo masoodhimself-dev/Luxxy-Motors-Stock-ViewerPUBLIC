@@ -15,6 +15,7 @@ import { ConversationHistory } from './enquiry-conversation';
 import { callbackTiming } from './enquiry-callback-model';
 import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
 import { EnquiryPhotoPeek } from './enquiry-photo-peek';
+import { CustomerEmailSummary } from './customer-email-summary';
 import './enquiry-record-browser.css';
 
 export type EnquiryRecordActions = {
@@ -42,6 +43,8 @@ function ClaimEnquiry({ entry }: { entry: Enquiry }) {
 function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; actions: EnquiryRecordActions }) {
   const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
   const future = entry.appointmentAt && Date.parse(entry.appointmentAt) > Date.now() && !entry.appointmentCancelledAt;
+  const visitFinished = entry.attendance === 'completed' || entry.attendance === 'no_show';
+  const canBook = !future || visitFinished;
   return <>
     <header className="enquiry-detail-customer">
       <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{entry.reference}</p><h3>{entry.customerName}</h3></div><Chip>{enquiryStatus(entry)}</Chip></div>
@@ -51,7 +54,6 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       <Button size="sm" onClick={() => actions.onConversation(entry)}>Log another conversation</Button>
       <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Request follow-up'}</Button>
-      {actions.onEmail && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Email customer</Button>}
     </div>
     <section className="enquiry-detail-car" aria-label="Enquiry vehicle">
       {car && <EnquiryPhotoPeek car={car} className="enquiry-detail-car-photo" />}
@@ -62,8 +64,9 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       <NextAction entry={entry} />
       {entry.followUpAt && <div className="enquiry-detail-followup"><p className="font-medium text-sm">{entry.followUpCompletedAt ? 'Follow-up completed' : callbackTiming(entry) === 'overdue' ? 'Follow-up overdue' : 'Upcoming follow-up'}</p>{entry.followUpCompletedAt && <p className="text-sm">{appointmentLabel(entry.followUpAt)}</p>}{entry.followUpNote && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{entry.followUpNote}</p>}</div>}
       {entry.appointmentAt && <section className="enquiry-detail-appointment"><p className="text-sm font-medium">Appointment · {appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} /><AttendanceControls entry={entry} /></section>}
-      <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{(!entry.appointmentAt || entry.appointmentCancelledAt) && <Button variant="outline" size="sm" onClick={() => actions.onBook(entry)}>{entry.appointmentCancelledAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
+      <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && !visitFinished && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{canBook && <Button variant="outline" size="sm" onClick={() => actions.onBook(entry)}>{entry.appointmentAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
     </section>
+    {actions.onEmail && <CustomerEmailSummary enquiryId={entry.id} reference={entry.reference} onPrepare={() => actions.onEmail?.(entry)} />}
     <details className="enquiry-desk-more enquiry-detail-more"><summary>More options</summary><div>
       <Button size="sm" variant="outline" onClick={() => actions.onUpdate(entry)}>Update enquiry</Button>
       <Button size="sm" variant="outline" asChild><Link href={`/portal?section=sales&enquiryId=${entry.id}`}>Start sale</Link></Button>

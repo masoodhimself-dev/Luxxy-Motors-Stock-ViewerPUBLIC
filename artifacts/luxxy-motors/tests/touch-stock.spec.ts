@@ -140,7 +140,7 @@ for (const device of touchDevices) {
       await session.detach();
     });
 
-    test('featured cars scroll natively, pause until resumed, and remain tappable', async ({ page, context }) => {
+    test('featured cars scroll natively, stay still afterwards, and remain tappable', async ({ page, context }) => {
       await page.goto('/');
       const carousel = page.locator('.rolling-stock-window');
       const first = carousel.locator('.rolling-stock-group').first().locator('.vehicle-card').first();
@@ -149,7 +149,9 @@ for (const device of touchDevices) {
       const cardWidth = await first.evaluate((element) => element.getBoundingClientRect().width);
       expect(Math.abs(cardWidth - device.width / device.featured)).toBeLessThan(3);
       await expect(carousel.locator('.stock-photo-controls')).toHaveCount(0);
-      // Target a visible photo if autoplay advanced during initial loading.
+      await expect(carousel.locator('.rolling-stock-group')).toHaveCount(1);
+      await expect(carousel.locator('.rolling-stock-copy')).toHaveCount(0);
+      // Target a visible photo without changing the strip's scroll position.
       const cards = carousel.locator('.rolling-stock-group').first().locator('.vehicle-card');
       const initialVisibleIndex = await cards.evaluateAll(elements => elements.findIndex(element => {
         const bounds = element.getBoundingClientRect();
@@ -172,20 +174,15 @@ for (const device of touchDevices) {
       const from = { x: Math.min(box!.x + box!.width * 0.78, photoBox!.x + photoBox!.width * 0.85), y: photoBox!.y + photoBox!.height * 0.5 };
       await touchDrag(session, page, from, { x: Math.max(box!.x + 20, from.x - device.width * 0.42), y: from.y + 4 });
       await expect.poll(() => carousel.evaluate((element) => element.scrollLeft)).toBeGreaterThan(40);
-      await expect(carousel).toHaveAttribute('data-paused', 'true');
-      await expect(page.getByRole('button', { name: 'Resume cars' })).toHaveAttribute('aria-pressed', 'true');
       await expect(photo).toHaveAttribute('src', original!);
       await expect(page).toHaveURL(/\/$/);
-      // Wait for kinetic scrolling to finish, then span an entire autoplay tick.
+      // Wait for kinetic scrolling to finish, then check the strip stays put.
       await page.waitForTimeout(800);
       const pausedAt = await carousel.evaluate((element) => element.scrollLeft);
       await page.waitForTimeout(4200);
       expect(Math.abs(await carousel.evaluate((element) => element.scrollLeft) - pausedAt)).toBeLessThan(2);
       await noPageOverflow(page);
       await capture(page, `${device.name}-featured`);
-      await page.getByRole('button', { name: 'Resume cars' }).tap();
-      await expect(carousel).toHaveAttribute('data-paused', 'false');
-      await expect(page.getByRole('button', { name: 'Pause cars' })).toHaveAttribute('aria-pressed', 'false');
       // Tap the visible portion of a photo after the native drag. A phone may
       // legitimately show portions of two cards without either card fitting fully.
       const link = carousel.locator('.rolling-stock-group').first().locator('[data-stock-link]');
@@ -369,7 +366,6 @@ if (process.env.LUXXY_TOUCH_REAL_PHOTOS === '1') {
         await page.goto('/');
         const carousel = page.locator('.rolling-stock-window');
         await expect(carousel).toBeVisible();
-        await page.getByRole('button', { name: 'Pause cars' }).tap();
         await carousel.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
         await waitForVisiblePhotos();
         await noPageOverflow(page);

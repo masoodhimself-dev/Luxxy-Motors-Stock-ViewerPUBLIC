@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'wouter';
-import { ShieldCheck, FileCheck2 } from 'lucide-react';
+import { Link, useParams } from 'wouter';
+import { ShieldCheck, FileCheck2, RefreshCw } from 'lucide-react';
 import { customFetch } from '@workspace/api-client-react';
+import { Button } from '@/components/ui/button';
 import './invoice-verification.css';
 
 export type InvoiceProof = {
@@ -21,9 +22,15 @@ export default function InvoiceVerification() {
   },[]);
   const query=useQuery({queryKey:['invoice-proof',saleId,documentId,token],queryFn:()=>customFetch<InvoiceProof>(`/api/invoice-verification/${encodeURIComponent(saleId)}/${encodeURIComponent(documentId)}/${encodeURIComponent(token)}`,{cache:'no-store'}),retry:false,gcTime:0,staleTime:0});
   const p=query.data;
+  const status = query.error && typeof query.error === 'object' && 'status' in query.error ? Number(query.error.status) : undefined;
+  const unavailable = status !== undefined && [400, 401, 403, 404, 410].includes(status);
   return <main className="invoice-proof"><article>
     <div className="invoice-proof-icon"><ShieldCheck size={28}/></div>
-    {query.isLoading ? <><h1>Checking your invoice</h1><p role="status">Looking up the dealership’s saved record…</p></> : !p ? <><h1>Invoice not verified</h1><p role="alert">This link is unavailable. Scan the original QR code or contact the dealership.</p></> : <>
+    {query.isLoading ? <><h1>Checking your invoice</h1><p role="status">Looking up the dealership’s saved record…</p></> : !p ? <>
+      <h1>{unavailable ? 'This invoice link is unavailable' : 'We couldn’t check your invoice'}</h1>
+      <p role="alert">{unavailable ? 'Scan the QR code on your original invoice, or ask the dealership for help.' : 'The verification service is temporarily unavailable. This does not mean there is a problem with your invoice. Please try again.'}</p>
+      <div className="invoice-proof-actions">{!unavailable && <Button onClick={() => void query.refetch()} disabled={query.isFetching}><RefreshCw size={16} aria-hidden="true" />{query.isFetching ? 'Checking…' : 'Try again'}</Button>}<Button asChild variant={unavailable ? 'default' : 'outline'}><Link href="/contact">Contact the dealership</Link></Button></div>
+    </> : <>
       <p className="invoice-proof-eyebrow">{p.dealer}</p><h1>Invoice record found</h1>
       <p>Compare these saved details with your invoice. Amounts below are recorded at the time it was issued.</p>
       {p.supersededBy&&<p className="invoice-proof-notice">A newer invoice, {p.supersededBy}, has been issued. This is the original record.</p>}

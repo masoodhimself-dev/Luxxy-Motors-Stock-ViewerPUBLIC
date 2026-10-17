@@ -20,6 +20,7 @@ import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import { clerkAppearance } from '@/lib/clerk-appearance';
 import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
+import { clearPortalPushSubscription } from '@/lib/portal-push';
 import Home from '@/pages/home';
 const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
@@ -119,12 +120,12 @@ function ClerkQueryClientCacheInvalidator() {
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (
+      const identityChanged =
         prevUserIdRef.current !== undefined &&
-        prevUserIdRef.current !== userId
-      ) {
-        cache.clear();
-      }
+        prevUserIdRef.current !== userId;
+      if (identityChanged) cache.clear();
+      // A fresh signed-out tab can still have an old device subscription.
+      if (identityChanged || userId === null) void clearPortalPushSubscription();
       prevUserIdRef.current = userId;
     });
     return unsubscribe;

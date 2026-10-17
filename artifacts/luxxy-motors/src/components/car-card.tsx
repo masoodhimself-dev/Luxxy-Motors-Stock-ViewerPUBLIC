@@ -14,7 +14,7 @@ import { Link } from 'wouter';
 import { Car } from '@/lib/stock-context';
 import {
   cn,
-  formatMileage,
+  formatCompactMileage,
   formatPrice,
   getSafeImageUrl,
   getThumbnailUrl,
@@ -108,7 +108,7 @@ export function CarCard({
   const specs = [
     registrationYear ? { label: 'Year', value: registrationYear } : null,
     car.mileage != null
-      ? { label: 'Mileage', value: formatMileage(car.mileage) }
+      ? { label: 'Mileage', value: formatCompactMileage(car.mileage) }
       : car.mileageText
         ? { label: 'Mileage', value: car.mileageText }
         : null,
@@ -118,7 +118,7 @@ export function CarCard({
   ].filter(Boolean) as { label: string; value: string }[];
 
   const visibleSpecs = specs.slice(0, 4);
-  const hasSellingPoints = vehicleSellingPoints(car).length > 0;
+  const hasSellingPoints = vehicleSellingPoints(car).some(point => point.label !== 'Mileage');
   const category = catalogue ? recordedWriteOffCategory(car.writeOffCategory) : null;
   return (
     <article
@@ -189,10 +189,11 @@ export function CarCard({
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
               {!summaryOnly && <Camera className="h-7 w-7" />}
-              <span className="text-xs">Photographs to follow</span>
+              <span className="text-xs">{imageUrls.length ? 'Photos temporarily unavailable' : 'Photographs to follow'}</span>
             </div>
           )}
         </Link>
+        {imageUrls.length > 0 && !galleryUrls.length && <button type="button" className="relative z-20 mx-auto mb-3 block min-h-11 px-3 text-sm underline underline-offset-4" onClick={() => setFailedImageUrls(new Set())}>Retry photos</button>}
         {canBrowsePhotos && <span id={photoHelpId} className="sr-only">Swipe left or right, or use the arrow keys, to browse photographs. Tap or press Enter to view the car.</span>}
         {photoControls && <span className="sr-only" aria-live="polite" aria-atomic="true">{photoDirection !== 0 && galleryUrls.length > 0 ? `Photograph ${activeIndex + 1} of ${galleryUrls.length}` : ''}</span>}
         {photoControls && galleryUrls.length > 1 && (
@@ -256,7 +257,7 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
-          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? `${Number((car.mileage / 1000).toFixed(1))}k miles` : car.mileageText, car.transmission].filter(Boolean).join(' · ')}</p>}
+          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? formatCompactMileage(car.mileage) : car.mileageText, car.transmission].filter(Boolean).join(' · ')}</p>}
           {!summaryOnly && <PriceReduction car={car} />}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
@@ -267,14 +268,14 @@ export function CarCard({
               {car.inventoryStatus === 'reserved' && <span>Reserved</span>}
               {category && <VehicleTerm label="Insurance history" value={`Category ${category} recorded`}>Category {category} recorded</VehicleTerm>}
             </div>}
-            <VehicleSellingPoints car={car} compact />
+            <VehicleSellingPoints car={car} compact omitMileage />
             <div className="vehicle-specs mb-3 mt-2">
               {visibleSpecs.map((spec) => (
                 <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
               ))}
             </div>
             {(!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
-            <div
+            {!stretchedLink && <div
               className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"
               data-testid={isCompact ? `compact-actions-${car.id}` : undefined}
             >
@@ -287,7 +288,7 @@ export function CarCard({
                 variant="compact"
                 className="min-h-11 px-2 text-xs font-medium text-muted-foreground"
               />
-            </div>
+            </div>}
           </>
         )}
 

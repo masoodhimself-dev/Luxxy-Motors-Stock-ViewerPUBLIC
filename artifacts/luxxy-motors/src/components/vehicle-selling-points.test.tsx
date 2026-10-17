@@ -34,10 +34,10 @@ it("shows all supplied benefits without restoring the removed emissions disclaim
   expect(list.querySelectorAll("svg")).toHaveLength(6);
 });
 
-it("keeps all four requested benefits on compact cards before optional ownership history", () => {
-  render(<VehicleSellingPoints car={car()} compact />);
+it("keeps compact cards to three benefits and avoids repeating the mileage fact", () => {
+  render(<VehicleSellingPoints car={car()} compact omitMileage />);
   const list = screen.getByRole("list", { name: "Vehicle highlights" });
-  expect(within(list).getAllByRole("listitem")).toHaveLength(4);
+  expect(within(list).getAllByRole("listitem")).toHaveLength(3);
   expect(list).toHaveTextContent("Lower insurance group · 11E");
   expect(list).not.toHaveTextContent("previous keepers");
   expect(list).not.toHaveTextContent("below average");

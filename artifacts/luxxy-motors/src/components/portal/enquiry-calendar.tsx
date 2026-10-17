@@ -1,10 +1,16 @@
-import { useState } from "react";
-import type { Enquiry } from "@workspace/api-client-react";
-import { londonDate, nextDate, bookingDateLabel } from "@/lib/test-drive-dates";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useMemo, useState } from 'react';
+import type { Enquiry } from '@workspace/api-client-react';
+import { CalendarDays, CarFront, ChevronLeft, ChevronRight, Clock3, ListFilter, Phone, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
+import { londonDate, nextDate, bookingDateLabel } from '@/lib/test-drive-dates';
+import { calendarBookings, calendarBookingDate, calendarDates, calendarDateLabel, calendarRangeLabel, calendarTime, diaryStatus, diaryStatusLabels, moveCalendarDate, type DiaryView } from '@/lib/staff-calendar';
+import type { Car } from '@/lib/stock-context';
+import { vehicleRegistration } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EnquiryMergeLabel } from './enquiry-merge-label';
-import './enquiry-desk-layout.css';
+import './enquiry-calendar.css';
 
 export function AppointmentExceptionLabels({ booking }: { booking: Enquiry }) {
   if (!booking.appointmentOutsideHours && !booking.appointmentDoubleBooked && !booking.appointmentOverCapacity) return null;
@@ -15,57 +21,106 @@ export function AppointmentExceptionLabels({ booking }: { booking: Enquiry }) {
   </div>;
 }
 
-export function EnquiryCalendar({ entries, allEntries = entries, onOpen, onEdit, onVehicle }: { entries: Enquiry[]; allEntries?: Enquiry[]; onOpen?: (entry: Enquiry) => void; onEdit: (entry: Enquiry) => void; onVehicle: (id: string) => void }) {
-  const [selected, setSelected] = useState(londonDate());
-  const [month, setMonth] = useState(londonDate().slice(0, 7));
+type CalendarProps = {
+  entries: Enquiry[];
+  allEntries?: Enquiry[];
+  cars?: readonly Car[];
+  onOpen?: (entry: Enquiry) => void;
+  onEdit: (entry: Enquiry) => void;
+  onVehicle: (id: string) => void;
+  onAdd?: (date: string) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  ownerScope?: string;
+  onOwnerScopeChange?: (scope: string) => void;
+  canChooseMine?: boolean;
+};
+function defaultView(): DiaryView {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches ? 'day' : 'week';
+}
+function BookingPhoto({ car }: { car?: Car }) {
+  const [failed, setFailed] = useState(false);
+  const image = car?.heroImage || (typeof car?.images?.[0] === 'string' ? car.images[0] : car?.images?.[0]?.url);
+  return <span className="staff-diary-photo" aria-hidden="true">{image && !failed ? <img src={image} alt="" loading="lazy" onError={() => setFailed(true)} /> : <CarFront />}</span>;
+}
+
+export function EnquiryCalendar({ entries, allEntries = entries, cars = [], onOpen, onEdit, onVehicle, onAdd, onRefresh, refreshing = false, ownerScope = 'all', onOwnerScopeChange, canChooseMine = false }: CalendarProps) {
+  const [selected, setSelected] = useState(londonDate);
+  const [view, setView] = useState<DiaryView>(defaultView);
+  const [showFilters, setShowFilters] = useState(false);
   const [cancelled, setCancelled] = useState(false);
-  const bookings = entries.filter(e => e.appointmentAt && Number.isFinite(Date.parse(e.appointmentAt)) && (cancelled || !e.appointmentCancelledAt)).sort((a, b) => a.appointmentAt!.localeCompare(b.appointmentAt!));
-  const first = `${month}-01`;
-  const offset = (new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7;
-  const days = Array.from({ length: 42 }, (_, i) => nextDate(first, i - offset));
-  const onDay = (date: string) => bookings.filter(e => londonDate(new Date(e.appointmentAt!)) === date);
-  function move(step: number) {
-    const date = new Date(`${first}T12:00:00Z`);
-    date.setUTCMonth(date.getUTCMonth() + step);
-    const next = date.toISOString().slice(0, 7);
-    setMonth(next); setSelected(`${next}-01`);
+  const [status, setStatus] = useState('all');
+  const [search, setSearch] = useState('');
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const today = londonDate();
+  const validBookings = useMemo(() => calendarBookings(entries), [entries]);
+  const invalidCount = entries.filter(entry => entry.appointmentAt && !Number.isFinite(Date.parse(entry.appointmentAt))).length;
+  const bookings = useMemo(() => validBookings.filter(entry => {
+    const state = diaryStatus(entry);
+    const query = search.trim().toLocaleLowerCase();
+    return (cancelled || state !== 'cancelled') && (status === 'all' || status === state) && (!query || [entry.customerName, entry.phone, entry.email, entry.vehicleTitle, entry.vehicleRegistration, entry.reference, entry.assignedToName, vehicleRegistration(cars.find(car => car.id === entry.vehicleId) ?? {} as Car)].filter(Boolean).join(' ').toLocaleLowerCase().includes(query));
+  }), [validBookings, cancelled, search, status, cars]);
+  const grouped = useMemo(() => {
+    const dates = new Map<string, Enquiry[]>();
+    bookings.forEach(entry => { const date = calendarBookingDate(entry); dates.set(date, [...(dates.get(date) ?? []), entry]); });
+    return dates;
+  }, [bookings]);
+  const dates = calendarDates(selected, view);
+  const selectedBookings = grouped.get(selected) ?? [];
+  const periodDates = view === 'month' ? dates.filter(date => date.startsWith(selected.slice(0, 7))) : dates;
+  const periodCount = periodDates.reduce((count, date) => count + (grouped.get(date)?.length ?? 0), 0);
+  const pendingCount = periodDates.reduce((count, date) => count + (grouped.get(date)?.filter(entry => diaryStatus(entry) === 'pending').length ?? 0), 0);
+  const filtersActive = Boolean(search.trim() || status !== 'all' || cancelled || ownerScope !== 'all');
+  // Keep the detail tied to refreshed data: never show a stale record after an update/removal.
+  const detail = detailId ? validBookings.find(entry => entry.id === detailId) : undefined;
+  const carFor = (entry: Enquiry) => cars.find(car => car.id === entry.vehicleId);
+  const registrationFor = (entry: Enquiry) => entry.vehicleRegistration || (carFor(entry) ? vehicleRegistration(carFor(entry)!) : '');
+  const openDetail = (entry: Enquiry) => { setDetailId(entry.id); };
+  function resetFilters() { setSearch(''); setStatus('all'); setCancelled(false); onOwnerScopeChange?.('all'); }
+  function bookingCard(entry: Enquiry, compact = false) {
+    const state = diaryStatus(entry);
+    return <button type="button" className={`staff-diary-booking${compact ? ' staff-diary-booking-compact' : ''}`} data-status={state} onClick={() => openDetail(entry)} aria-label={`${calendarTime(entry.appointmentAt!)}, ${entry.customerName}, ${entry.vehicleTitle || 'Vehicle not supplied'}, ${diaryStatusLabels[state]}`}>
+      {(!compact || carFor(entry)?.heroImage || carFor(entry)?.images?.length) && <BookingPhoto key={`${entry.id}:${carFor(entry)?.heroImage ?? ''}`} car={carFor(entry)} />}
+      <span className="staff-diary-booking-body">
+        <span className="staff-diary-booking-top"><span className="staff-diary-time">{calendarTime(entry.appointmentAt!)}</span><span className="staff-diary-duration">{entry.appointmentDurationMinutes ? `${entry.appointmentDurationMinutes} min` : ''}</span></span>
+        <strong className="staff-diary-customer">{entry.customerName}</strong>
+        <span className="staff-diary-vehicle">{entry.vehicleTitle || 'Vehicle not supplied'}</span>
+        {registrationFor(entry) && <span className="staff-diary-registration">{registrationFor(entry)}</span>}
+        <span className="staff-diary-owner"><UserRound aria-hidden="true" />{entry.assignedToName || 'Unassigned'}</span>
+        <span className="staff-diary-booking-bottom"><span className="staff-diary-status" data-status={state}>{diaryStatusLabels[state]}</span>{(entry.appointmentOutsideHours || entry.appointmentDoubleBooked || entry.appointmentOverCapacity) && <span className="staff-diary-exception-indicator">Check exception</span>}</span>
+      </span>
+    </button>;
   }
-  const time = (date: string) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
-  return <section className="enquiry-calendar space-y-5">
-    <div className="enquiry-calendar-toolbar flex flex-wrap items-end gap-3">
-      <label className="grid gap-1 text-sm font-medium">Calendar month<Input type="month" value={month} onChange={e => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { setMonth(e.target.value); setSelected(`${e.target.value}-01`); } }} /></label>
-      <Button variant="outline" aria-label="Previous month" onClick={() => move(-1)}>←</Button>
-      <Button variant="outline" aria-label="Next month" onClick={() => move(1)}>→</Button>
-      <Button variant="outline" onClick={() => { setMonth(londonDate().slice(0, 7)); setSelected(londonDate()); }}>Today</Button>
-      <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={cancelled} onChange={e => setCancelled(e.target.checked)} />Show cancelled</label>
+  return <section className="staff-diary" aria-label="Appointment calendar">
+    <header className="staff-diary-heading"><div><p className="staff-diary-eyebrow">Your showroom diary</p><h2>Appointments</h2><p>Bookings and test drives, together.</p></div>{onAdd && <Button type="button" onClick={() => onAdd(selected)} className="staff-diary-add"><Plus aria-hidden="true" />Add appointment</Button>}</header>
+    <div className="staff-diary-toolbar">
+      <div className="staff-diary-navigation"><Button type="button" variant="outline" onClick={() => setSelected(today)}>Today</Button><div className="staff-diary-arrows"><Button type="button" variant="ghost" size="icon" aria-label={`Previous ${view}`} onClick={() => setSelected(moveCalendarDate(selected, view, -1))}><ChevronLeft aria-hidden="true" /></Button><Button type="button" variant="ghost" size="icon" aria-label={`Next ${view}`} onClick={() => setSelected(moveCalendarDate(selected, view, 1))}><ChevronRight aria-hidden="true" /></Button></div><h3 aria-live="polite">{calendarRangeLabel(selected, view)}</h3></div>
+      <div className="staff-diary-tools"><div className="staff-diary-view-switch" role="group" aria-label="Calendar view">{(['day', 'week', 'month'] as const).map(option => <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)}>{option[0].toUpperCase() + option.slice(1)}</button>)}</div><Button type="button" variant="outline" aria-expanded={showFilters} aria-controls="staff-diary-filters" onClick={() => setShowFilters(!showFilters)}><ListFilter aria-hidden="true" />Filters{filtersActive && <span className="staff-diary-active-dot" aria-label="Active filters" />}</Button>{onRefresh && <Button type="button" variant="ghost" size="icon" aria-label="Refresh appointments" disabled={refreshing} onClick={onRefresh}><RefreshCw className={refreshing ? 'animate-spin' : undefined} aria-hidden="true" /></Button>}</div>
     </div>
-    <p className="enquiry-calendar-description text-sm text-muted-foreground">Website and staff appointments together · All times UK · Select a day to see details. Pending bookings are awaiting approval.</p>
-    <div className="enquiry-calendar-layout grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-      <div className="enquiry-calendar-month overflow-hidden border border-slate-200 bg-white">
-        <div className="enquiry-calendar-weekdays grid grid-cols-7 bg-slate-50 text-center text-xs font-semibold">{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day => <span key={day} className="py-3">{day}</span>)}</div>
-        <div className="enquiry-calendar-dates grid grid-cols-7">{days.map(date => { const items = onDay(date); return <button key={date} type="button" aria-pressed={selected === date} aria-label={`${bookingDateLabel(date)} ${date.slice(0,4)}, ${items.length} appointments`} onClick={() => { setSelected(date); setMonth(date.slice(0,7)); }} data-outside-month={!date.startsWith(month)} className={`enquiry-calendar-day min-h-16 min-w-0 border-t border-r p-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] sm:min-h-24 sm:p-2 ${selected === date ? 'bg-blue-100 ring-2 ring-inset ring-blue-700' : date.startsWith(month) ? 'bg-white hover:bg-slate-50' : 'bg-slate-100 text-slate-500'}`}>
-          <span className={`enquiry-calendar-date text-sm ${date === londonDate() ? 'font-bold underline underline-offset-4' : ''}`}>{Number(date.slice(-2))}</span>
-          {items.length > 0 && <><span className="enquiry-calendar-count mt-1 block text-xs font-semibold sm:hidden">{items.length}{items.some(e => e.appointmentOutsideHours || e.appointmentDoubleBooked || e.appointmentOverCapacity) ? ' ⚠' : ''}</span><span className="enquiry-calendar-previews mt-1 hidden space-y-1 sm:block">{items.slice(0,2).map(e => <span key={e.id} className="enquiry-calendar-preview block truncate text-[11px]">{e.appointmentOutsideHours || e.appointmentDoubleBooked || e.appointmentOverCapacity ? '⚠ ' : ''}{time(e.appointmentAt!)} {e.appointmentCancelledAt ? 'Cancelled' : e.customerName}</span>)}{items.length > 2 && <span className="enquiry-calendar-more block text-xs"><span className="enquiry-calendar-more-label">+{items.length - 2} more</span><span className="enquiry-calendar-more-count hidden" aria-hidden="true">+{items.length - 2}</span></span>}</span></>}
-        </button>; })}</div>
-      </div>
-      <div className="enquiry-calendar-agenda min-w-0 border border-slate-200 bg-white p-4">
-        <h3 className="font-semibold">{bookingDateLabel(selected)} {selected.slice(0,4)}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">{onDay(selected).length} appointments</p>
-        <ul className="enquiry-calendar-appointments mt-4 divide-y">{onDay(selected).map(e => <li key={e.id} className="enquiry-agenda-record space-y-2 py-4 first:pt-0">
-          <p className="font-semibold">{time(e.appointmentAt!)}{e.appointmentDurationMinutes ? ` · ${e.appointmentDurationMinutes} minutes` : ''} — {e.customerName}</p>
-          <AppointmentExceptionLabels booking={e} /><p className="text-xs text-muted-foreground">{e.assignedToName || "Unassigned"} · Attendance: {e.attendance?.replace("_", " ") || "scheduled"}</p>
-          <EnquiryMergeLabel entry={e} entries={allEntries} />
-          <div className="enquiry-agenda-details space-y-2">
-            <p className="enquiry-agenda-vehicle text-sm">{e.vehicleTitle || 'Vehicle not supplied'}</p>
-            {e.vehicleRegistration && <p className="enquiry-agenda-registration text-sm text-muted-foreground">{e.vehicleRegistration}</p>}
-            <p className="enquiry-agenda-phone text-sm text-muted-foreground">{e.phone || 'No phone supplied'}</p>
-            <p className="enquiry-agenda-status text-xs">{e.appointmentCancelledAt ? 'Cancelled' : e.appointmentStatus === 'pending' ? 'Awaiting approval' : 'Confirmed'} · {e.source === 'phone' || e.source === 'phone_ad_hoc' ? 'Staff booking' : e.source === 'website' ? 'Website booking' : 'Booking'} · {e.reference}</p>
-          </div>
-          {e.message && <details className="text-sm"><summary className="cursor-pointer">Appointment notes</summary><p className="mt-2 whitespace-pre-wrap break-words">{e.message}</p></details>}
-          <div className="enquiry-agenda-actions flex flex-wrap gap-2">{onOpen && <Button size="sm" variant="outline" onClick={() => onOpen(e)}>Open enquiry & attendance</Button>}{e.vehicleId && <Button size="sm" variant="outline" onClick={() => onVehicle(e.vehicleId!)}>Vehicle information</Button>}{!e.appointmentCancelledAt && Date.parse(e.appointmentAt!) > Date.now() && <Button size="sm" variant="outline" onClick={() => onEdit(e)}>Change appointment</Button>}</div>
-        </li>)}</ul>
-        {!onDay(selected).length && <p className="py-8 text-sm text-muted-foreground">No appointments on this day.</p>}
-      </div>
-    </div>
+    {showFilters && <div className="staff-diary-filters" id="staff-diary-filters">
+      <label className="staff-diary-search">Find an appointment<span><Search aria-hidden="true" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Customer, car, plate or reference" /></span></label>
+      <label>Booking status<NativeSelect value={status} onChange={event => { setStatus(event.target.value); if (event.target.value === 'cancelled') setCancelled(true); }}><option value="all">All statuses</option>{Object.entries(diaryStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect></label>
+      {onOwnerScopeChange && <label>Staff<NativeSelect value={ownerScope} onChange={event => onOwnerScopeChange(event.target.value)}><option value="all">All staff</option><option value="mine" disabled={!canChooseMine}>Assigned to me</option><option value="unassigned">Unassigned</option></NativeSelect></label>}
+      <label className="staff-diary-cancelled"><input type="checkbox" checked={cancelled} onChange={event => { setCancelled(event.target.checked); if (!event.target.checked && status === 'cancelled') setStatus('all'); }} />Show cancelled</label>{filtersActive && <Button type="button" variant="ghost" onClick={resetFilters}>Clear filters</Button>}
+    </div>}
+    <div className="staff-diary-summary" aria-live="polite"><p>{periodCount} {periodCount === 1 ? 'appointment' : 'appointments'}{pendingCount > 0 && <span> · {pendingCount} awaiting approval</span>}</p><span>UK time · adjusts for BST</span></div>
+    {invalidCount > 0 && <p className="staff-diary-warning" role="alert">{invalidCount} {invalidCount === 1 ? 'appointment has an unreadable date' : 'appointments have unreadable dates'}. Open the customer records to check {invalidCount === 1 ? 'it' : 'them'}.</p>}
+    {view === 'day' && <div className="staff-diary-day-layout">
+      <nav className="staff-diary-day-strip" aria-label="Choose appointment day">{Array.from({ length: 7 }, (_, index) => nextDate(selected, index - 3)).map(date => <button type="button" key={date} aria-pressed={date === selected} aria-label={bookingDateLabel(date)} onClick={() => setSelected(date)}><span>{calendarDateLabel(date, { weekday: 'short' })}</span><strong>{Number(date.slice(-2))}</strong><span className="staff-diary-day-dot" data-has-bookings={Boolean(grouped.get(date)?.length)} /></button>)}</nav>
+      <div className="staff-diary-agenda"><h3>{bookingDateLabel(selected)}</h3>{selectedBookings.length ? <ul>{selectedBookings.map(entry => <li key={entry.id}>{bookingCard(entry)}</li>)}</ul> : <div className="staff-diary-empty"><CalendarDays aria-hidden="true" /><h4>{filtersActive ? 'No matching appointments' : 'A clear diary for this day'}</h4><p>{filtersActive ? 'Try another day or clear your filters.' : 'New bookings will appear here.'}</p>{filtersActive ? <Button type="button" variant="outline" onClick={resetFilters}>Clear filters</Button> : onAdd && <Button type="button" variant="outline" onClick={() => onAdd(selected)}>Add appointment</Button>}</div>}</div>
+    </div>}
+    {view === 'week' && <div className="staff-diary-week" aria-label="Week appointments">{dates.map(date => <section key={date} className="staff-diary-week-day" data-today={date === today}><button type="button" className="staff-diary-column-heading" onClick={() => { setSelected(date); setView('day'); }} aria-label={`View ${bookingDateLabel(date)}`}><span>{calendarDateLabel(date, { weekday: 'short' })}</span><strong>{Number(date.slice(-2))}</strong><small>{(grouped.get(date)?.length ?? 0) > 0 ? `${grouped.get(date)!.length} booked` : 'No bookings'}</small></button><ul>{(grouped.get(date) ?? []).map(entry => <li key={entry.id}>{bookingCard(entry, true)}</li>)}</ul></section>)}</div>}
+    {view === 'month' && <div className="staff-diary-month-layout"><div className="staff-diary-month"><div className="staff-diary-weekday-labels" aria-hidden="true">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => <span key={day}>{day}</span>)}</div><div className="staff-diary-month-dates">{dates.map(date => {
+      const dayBookings = grouped.get(date) ?? [];
+      return <button type="button" key={date} className="staff-diary-month-day" data-selected={date === selected} data-outside={!date.startsWith(selected.slice(0, 7))} data-today={date === today} aria-pressed={date === selected} aria-label={`${bookingDateLabel(date)} ${date.slice(0, 4)}, ${dayBookings.length} appointments`} onClick={() => setSelected(date)}><span className="staff-diary-month-date">{Number(date.slice(-2))}</span>{dayBookings.slice(0, 2).map(entry => <span className="staff-diary-month-preview" data-status={diaryStatus(entry)} key={entry.id}>{calendarTime(entry.appointmentAt!)} {entry.customerName}</span>)}{dayBookings.length > 0 && <span className="staff-diary-month-count">{dayBookings.length} booked</span>}{dayBookings.length > 2 && <span className="staff-diary-month-more">+{dayBookings.length - 2} more</span>}</button>;
+    })}</div></div><div className="staff-diary-agenda"><h3>{bookingDateLabel(selected)}</h3>{selectedBookings.length ? <ul>{selectedBookings.map(entry => <li key={entry.id}>{bookingCard(entry)}</li>)}</ul> : <p className="staff-diary-month-empty">No {filtersActive ? 'matching ' : ''}appointments on this day.</p>}</div></div>}
+    <Sheet open={Boolean(detailId)} onOpenChange={open => { if (!open) setDetailId(null); }}><SheetContent className="staff-diary-detail" aria-describedby="staff-diary-detail-description"><SheetHeader className="staff-diary-detail-heading"><p className="staff-diary-eyebrow">Appointment details</p><SheetTitle>{detail?.customerName || 'Appointment unavailable'}</SheetTitle><SheetDescription id="staff-diary-detail-description">{detail ? `${bookingDateLabel(calendarBookingDate(detail))} at ${calendarTime(detail.appointmentAt!)} · UK time` : 'This record is no longer in the current diary. Refresh appointments to check.'}</SheetDescription></SheetHeader>{detail && <>
+      <span className="staff-diary-status" data-status={diaryStatus(detail)}>{diaryStatusLabels[diaryStatus(detail)]}</span><AppointmentExceptionLabels booking={detail} />
+      <div className="staff-diary-detail-car"><BookingPhoto key={`${detail.id}:${carFor(detail)?.heroImage ?? ''}`} car={carFor(detail)} /><div><h3>{detail.vehicleTitle || 'Vehicle not supplied'}</h3>{registrationFor(detail) && <p className="staff-diary-registration">{registrationFor(detail)}</p>}</div></div>
+      <dl className="staff-diary-detail-facts"><div><dt><Clock3 aria-hidden="true" />Duration</dt><dd>{detail.appointmentDurationMinutes ? `${detail.appointmentDurationMinutes} minutes` : 'Not supplied'}</dd></div><div><dt><UserRound aria-hidden="true" />Assigned staff</dt><dd>{detail.assignedToName || 'Unassigned'}</dd></div><div><dt>Source</dt><dd>{['phone', 'phone_ad_hoc'].includes(detail.source) ? 'Staff booking' : detail.source === 'website' ? 'Website booking' : 'Booking'}</dd></div><div><dt>Reference</dt><dd>{detail.reference}</dd></div></dl>
+      {detail.phone && <a href={`tel:${detail.phone.replace(/[^+\d]/g, '')}`} className="staff-diary-call"><Phone aria-hidden="true" />Call {detail.phone}</a>}{detail.email && <p className="staff-diary-detail-email">{detail.email}</p>}
+      {detail.message && <div className="staff-diary-notes"><h3>Appointment notes</h3><p>{detail.message}</p></div>}{detail.staffNote && <div className="staff-diary-notes"><h3>Staff notes</h3><p>{detail.staffNote}</p></div>}<EnquiryMergeLabel entry={detail} entries={allEntries} />
+      <div className="staff-diary-detail-actions">{onOpen && <Button type="button" onClick={() => { setDetailId(null); onOpen(detail); }}>{detail.appointmentStatus === 'pending' && !detail.appointmentCancelledAt ? 'Review booking & customer' : 'Open customer & attendance'}</Button>}{detail.vehicleId && <Button type="button" variant="outline" onClick={() => { setDetailId(null); onVehicle(detail.vehicleId!); }}>Vehicle information</Button>}{!detail.appointmentCancelledAt && Date.parse(detail.appointmentAt!) > Date.now() && <Button type="button" variant="outline" onClick={() => { setDetailId(null); onEdit(detail); }}>Change or cancel appointment</Button>}</div>
+    </>}</SheetContent></Sheet>
   </section>;
 }

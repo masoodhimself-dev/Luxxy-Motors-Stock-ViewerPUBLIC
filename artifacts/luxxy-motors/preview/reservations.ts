@@ -35,6 +35,12 @@ function staffException(at: Date, policy: BookingPolicy, booked: OccupiedBooking
   if ((pressure.overlapping || pressure.overCapacity) && !options.allowDoubleBooking) throw new ReservationError('This overlaps another appointment or exceeds daily capacity. Review and confirm the staff exception.', 409);
   return { appointmentOutsideHours, appointmentDoubleBooked: pressure.overlapping, appointmentOverCapacity: pressure.overCapacity };
 }
+async function ensurePreviewBookingVehicleAvailable(vehicleId: string | null, state: BookingPreviewState) {
+  const vehicle = previewStock.cars.find(car => car.id === vehicleId);
+  const { readPreviewSaleInventory } = await import('./sales');
+  const inventory = await readPreviewSaleInventory();
+  if (!vehicle || (inventory[vehicle.id] ?? vehicle.inventoryStatus ?? 'available') !== 'available' || state.reservations.some(entry => entry.vehicleId === internalId(vehicle.id) && entry.status === 'reserved')) throw new ReservationError('This car is no longer available for a test drive. Please contact the showroom.', 409);
+}
 export type BookingPreviewState = { reservations: ReservationRecord[]; settings?: typeof previewSettings; enquiries?: PreviewEnquiry[] };
 const filename = fileURLToPath(new URL('../../../.local/online-reservations-preview.json', import.meta.url));
 let queue: Promise<unknown> = Promise.resolve();
@@ -401,6 +407,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if ((booking.appointmentRevision ?? 0) !== parsed.data.expectedRevision || !previewManagement(booking, settings).canChange) throw new ReservationError('The appointment changed. Refresh before trying again.', 409);
     if (parsed.data.action === 'reschedule') {
       if (!parsed.data.appointmentAt) throw new ReservationError('Choose a future appointment time.', 400);
+      await ensurePreviewBookingVehicleAvailable(booking.vehicleId, state);
       const exception = staffException(parsed.data.appointmentAt, policy, occupied(), parsed.data, booking.id);
       booking.appointmentAt = parsed.data.appointmentAt.toISOString();
       booking.attendance = 'scheduled';
@@ -422,7 +429,10 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
     if ((booking.appointmentRevision ?? 0) !== parsed.data.expectedRevision) throw new ReservationError('This test drive has changed. Refresh the booking before deciding.', 409);
     if ((parsed.data.decision === 'confirm' && booking.appointmentStatus === 'confirmed' && !booking.appointmentCancelledAt) || (parsed.data.decision === 'decline' && booking.appointmentCancelledAt)) return { status: 200, data: publicBooking(booking, settings) };
     if (booking.appointmentCancelledAt || booking.appointmentStatus !== 'pending' || !booking.appointmentAt || new Date(booking.appointmentAt).getTime() <= Date.now()) throw new ReservationError('Only future pending requests can be confirmed or declined.', 409);
-    if (parsed.data.decision === 'confirm') booking.appointmentStatus = 'confirmed'; else booking.appointmentCancelledAt = new Date().toISOString();
+    if (parsed.data.decision === 'confirm') {
+      await ensurePreviewBookingVehicleAvailable(booking.vehicleId, state);
+      booking.appointmentStatus = 'confirmed';
+    } else booking.appointmentCancelledAt = new Date().toISOString();
     booking.appointmentRevision = (booking.appointmentRevision ?? 0) + 1;
     booking.updatedAt = new Date().toISOString();
     return { status: 200, data: publicBooking(booking, settings) };
@@ -441,8 +451,7 @@ export async function handlePreviewBooking(req: IncomingMessage, url: URL, state
       const parsed = RescheduleViewingBody.safeParse(await body(req));
       if (!parsed.success) throw new ReservationError('Please choose a new test-drive time.', 400);
       if (!previewManagement(booking, settings).canChange) throw new ReservationError('This booking can no longer be moved.', 400);
-      const currentCar = previewStock.cars.find(car => car.id === booking.vehicleId);
-      if (booking.vehicleId && (!currentCar || currentCar.inventoryStatus && currentCar.inventoryStatus !== 'available' || state.reservations.some(entry => entry.vehicleId === internalId(booking.vehicleId!) && entry.status === 'reserved'))) throw new ReservationError('This car is no longer available for online test-drive changes. Please contact the showroom.', 409);
+      await ensurePreviewBookingVehicleAvailable(booking.vehicleId, state);
       if (!slotIsAvailable(parsed.data.appointmentAt, policy, occupied(), new Date(), booking.id)) throw new ReservationError('That time is no longer available. Please choose another.', 409);
       booking.appointmentRevision = (booking.appointmentRevision ?? 0) + 1;
       booking.attendance = 'scheduled'; booking.appointmentAt = parsed.data.appointmentAt.toISOString(); booking.appointmentStatus = policy.confirmationMode === 'approval' ? 'pending' : 'confirmed'; booking.appointmentDurationMinutes = policy.durationMinutes; booking.appointmentBufferMinutes = policy.bufferMinutes; booking.appointmentOutsideHours = false; booking.appointmentDoubleBooked = false; booking.appointmentOverCapacity = false; booking.updatedAt = new Date().toISOString();

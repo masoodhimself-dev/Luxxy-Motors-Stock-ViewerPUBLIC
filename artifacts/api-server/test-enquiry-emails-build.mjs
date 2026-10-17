@@ -1,11 +1,11 @@
 import { build } from "esbuild";
 import path from "node:path";
 await build({
-  entryPoints: ["src/enquiry-emails.test.ts"],
+  entryPoints: [process.argv[2] || "src/enquiry-emails.test.ts"],
   bundle: true,
   platform: "node",
   format: "esm",
-  outfile: "dist-test/enquiry-emails.test.mjs",
+  outfile: path.join("dist-test", path.basename(process.argv[2] || "src/enquiry-emails.test.ts").replace(/\.ts$/, ".mjs")),
   external: ["@electric-sql/pglite"],
   plugins: [
     {

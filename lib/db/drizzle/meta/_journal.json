@@ -260,6 +260,20 @@
       "when": 1792141131325,
       "tag": "0036_domain_setup_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792141131326,
+      "tag": "0037_email_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792141131327,
+      "tag": "0038_staff_push",
+      "breakpoints": true
     }
   ]
 }

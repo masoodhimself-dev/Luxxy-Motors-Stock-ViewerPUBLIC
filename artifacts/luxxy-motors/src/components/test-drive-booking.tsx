@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import '../pages/customer-workflows.css';
+import './test-drive-booking.css';
 import { Link, useLocation } from "wouter";
 import {
   useCreateEnquiry,
@@ -16,6 +17,8 @@ import {
   CheckCircle2,
   Clock3,
   MapPin,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +51,7 @@ import {
 } from "@/lib/test-drive-dates";
 import { showroomHours } from '@/lib/showroom-hours';
 import { websiteText } from "@/lib/website-content";
+import { getPhoneHref, getVehicleWhatsAppHref } from "@/lib/cta-helpers";
 
 function initialDetails(vehicle?: Car): EnquiryDraft {
   const draft = readEnquiryDraft(enquiryDraftKey(vehicle?.id, "viewing"));
@@ -185,6 +189,7 @@ export function TestDriveBooking({
     },
   );
   const slots = availability.data?.slots.filter((slot) => slot.available) ?? [];
+  const nextBookingDate = dates.find(date => date > selectedDate);
   const selectedTime = slots.find((slot) => slot.startAt === selectedSlot);
   const location = dealershipLocation(settings.address);
   const approval = config.confirmationMode === "approval";
@@ -275,6 +280,7 @@ export function TestDriveBooking({
   }
   function review(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedTime || availability.isFetching || availability.isError || formDisabled) return;
     const phone = details.phone.trim().replace(/[\s().\-/]/g, "");
     if (!/^\+?\d{7,15}$/.test(phone)) {
       setPhoneError(
@@ -353,13 +359,13 @@ export function TestDriveBooking({
 
   const selectedCarCard = currentCar && (
     <div
-      className="booking-car grid items-center gap-3 border-b border-border pb-5 sm:gap-5"
+      className={`booking-car grid items-center gap-3 border-b border-border pb-5 sm:gap-5${step > 1 || mutation.isSuccess ? ' booking-car-compact' : ''}`}
       data-testid="card-enquiry-vehicle"
     >
       <VehiclePhoto car={currentCar} className="w-24 sm:w-32" />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">Your selected car</p>
-        <p className="mt-1 text-base font-semibold leading-snug sm:text-lg">
+      <div className="booking-car-identity min-w-0 flex-1">
+        {step === 1 && !mutation.isSuccess && <p className="text-xs text-muted-foreground">Your selected car</p>}
+        <p className="booking-car-name mt-1 text-base font-semibold leading-snug sm:text-lg">
           {vehicleDisplayTitle(currentCar)}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -388,7 +394,7 @@ export function TestDriveBooking({
           )}
         </div>
       </div>
-      {!mutation.isSuccess && <div className="booking-car-speech" aria-label={`A little hello from your ${vehicleDisplayTitle(currentCar)}`}>
+      {step === 1 && !mutation.isSuccess && <div className="booking-car-speech" aria-label={`A little hello from your ${vehicleDisplayTitle(currentCar)}`}>
         <span className="booking-car-speech-speaker">A little hello from your {vehicleDisplayTitle(currentCar)}</span>
         <p>“Can’t wait to meet you. You bring the licence, I’ll bring the personality.”</p>
       </div>}
@@ -874,12 +880,14 @@ export function TestDriveBooking({
                       day, or ask us to help.
                     </p>
                   )}
-                  <Link
-                    href={timeHelpHref}
-                    className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4"
-                  >
-                    Can’t find a suitable time?
-                  </Link>
+                  {!availability.isLoading && !availability.isFetching && (availability.isError || !slots.length) ? (
+                    <div className="booking-time-recovery mt-4 flex flex-wrap items-center gap-3" aria-label="Help arranging a test drive">
+                      {!availability.isError && nextBookingDate && <Button type="button" variant="outline" className="min-h-11" aria-label={`Check times on ${bookingDateLabel(nextBookingDate)}`} onClick={() => setSelectedDate(nextBookingDate)}>Check next date<ArrowRight size={16} aria-hidden="true" /></Button>}
+                      <Link href={timeHelpHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ask us about a time</Link>
+                      {getPhoneHref(settings) && <a href={getPhoneHref(settings)} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><Phone size={16} aria-hidden="true" />Call us</a>}
+                      {currentCar && getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings) && <a href={getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
+                    </div>
+                  ) : <Link href={timeHelpHref} className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4">Can’t find a suitable time?</Link>}
                   <Button
                     type="button"
                     disabled={
@@ -1060,8 +1068,22 @@ export function TestDriveBooking({
                       Your details are saved temporarily on this device.
                     </p>
                   )}
+                  {!selectedTime ? (
+                    <div role="alert" className="booking-time-notice">
+                      <p>That time is no longer available. Your contact details will be kept.</p>
+                      <button type="button" onClick={changeTime}>Choose another time<ArrowRight size={16} aria-hidden="true" /></button>
+                    </div>
+                  ) : availability.isError ? (
+                    <div role="alert" className="booking-time-notice">
+                      <p>We couldn’t recheck this time. Your contact details will be kept.</p>
+                      <button type="button" onClick={changeTime}>Check available times<ArrowRight size={16} aria-hidden="true" /></button>
+                    </div>
+                  ) : availability.isFetching ? (
+                    <p role="status" className="booking-time-checking">Checking your selected time…</p>
+                  ) : null}
                   <Button
                     type="submit"
+                    disabled={!selectedTime || availability.isFetching || availability.isError || formDisabled}
                     className="min-h-12 w-full"
                     data-testid="button-review-booking"
                   >
@@ -1151,6 +1173,7 @@ export function TestDriveBooking({
                     </p>
                   )}
                   {selectedTime && availability.isError && <p role="alert" className="text-sm text-destructive">We couldn’t recheck this time. Choose “Change time” and try again; your contact details will be kept.</p>}
+                  {selectedTime && !availability.isError && availability.isFetching && <p role="status" className="booking-time-checking">Checking your selected time…</p>}
                   <Button
                     type="button"
                     disabled={

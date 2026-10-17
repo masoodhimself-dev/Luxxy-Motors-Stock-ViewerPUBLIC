@@ -22,7 +22,16 @@ export function serveFrontend(app: Express, directory: string) {
     }catch(error){next(error);}
   };
   app.get('/index.html',sendPage);
-  app.use(express.static(root, { index: false }));
+  app.use(express.static(root, {
+    index: false,
+    setHeaders(res, file) {
+      // Installed portals must pick up notification fixes without a stale worker.
+      if (['portal-push-worker.js', 'portal.webmanifest'].includes(path.basename(file))) {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      }
+    },
+  }));
   app.get('/{*path}', (req, res, next) => {
     // Missing assets must be 404s, not HTML masquerading as JavaScript/images.
     if (path.extname(req.path) || !req.accepts('html')) return next();

@@ -1,0 +1,10 @@
+.settings-tabs { display:flex; flex-wrap:wrap; align-items:stretch; gap:4px; min-width:0; padding:5px; border:1px solid #dde5e8; border-radius:12px; background:#edf2f3; }
+.settings-tabs > [role=tab] { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 15px; border:1px solid transparent; border-radius:8px; color:#50636b; font-family:var(--app-font-sans, sans-serif); font-size:13px; font-weight:550; line-height:1.4; text-align:center; cursor:pointer; touch-action:manipulation; }
+.settings-tabs > [role=tab] svg { flex-shrink:0; }
+.settings-tabs > [role=tab]:hover { color:#163e3c; background:#ffffff8c; }
+.settings-tabs > [role=tab][aria-selected=true] { color:#115e59; background:#fff; border-color:#d5e2e1; box-shadow:0 1px 3px #153c3810; font-weight:650; }
+.settings-tabs > [role=tab]:focus-visible { outline:2px solid #0f766e; outline-offset:2px; }
+@media(max-width:767px) {
+  .settings-tabs { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; scroll-padding-inline:5px; }
+  .settings-tabs > [role=tab] { flex-shrink:0; min-height:48px; padding:11px 13px; font-size:13px; }
+}

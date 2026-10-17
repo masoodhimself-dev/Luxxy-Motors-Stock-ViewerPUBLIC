@@ -61,7 +61,7 @@ const defaultFilters: FilterState = {
   sort: '',
 };
 const benefitChoices = [
-  { key: 'ulez', label: 'ULEZ compliant', note: 'Cars that meet the ULEZ emissions requirements. Check the registration with TfL before driving in the zone.' },
+  { key: 'ulez', label: 'ULEZ compliant', note: 'Cars with supplied specifications that meet ULEZ emissions standards.' },
   { key: 'lowMileage', label: 'Up to 30,000 miles', note: 'Includes cars with a recorded mileage of 30,000 miles or less.' },
   { key: 'lowAnnualTax', label: 'Road tax up to £35/year', note: 'Cars with annual road tax of £35 or less. Tax rates can change; ask us to confirm the current rate before buying.' },
   { key: 'lowInsuranceGroup', label: 'Insurance groups 1–15', note: 'Lower numbered insurance groups. Your personal insurance quote can still vary.' },
@@ -227,7 +227,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       });
     }
 
-    return result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
+    // Explicit sorts stay truthful; only the default stock order groups reserved cars last.
+    return filters.sort ? result : result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
   }, [publicCars, filters, benefitsByCar]);
 
   const changeFilters = (next: FilterState) => {
@@ -282,14 +283,15 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     const preset = nextFilters.transmission
       ? 'automatic'
       : nextFilters.maxPrice
-        ? 'under_5000'
+        ? `under_${nextFilters.maxPrice}`
         : benefitChoices.find(({ key }) => nextFilters[key])?.key || 'low_mileage';
     trackEvent('showroom_filter_applied', {
       source: 'quick_filter',
       preset,
       filter_count: 1,
     });
-    setFilters({ ...defaultFilters, ...nextFilters });
+    setFilters(current => ({ ...current, ...nextFilters, ...(nextFilters.maxPrice && current.minPrice && +current.minPrice > +nextFilters.maxPrice ? { minPrice: '' } : {}) }));
+    setVisibleCount(12);
     revealResults('quick_filter');
   };
 
@@ -345,22 +347,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       </div>
     );
 
-  if (isLoading)
-    return (
-      <div
-        className="container mx-auto px-4 pb-16 pt-32"
-        aria-label="Loading showroom"
-        aria-busy="true"
-      >
-        <div className="h-64 animate-pulse rounded-md bg-muted" />
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-72 animate-pulse bg-muted" />
-          ))}
-        </div>
-      </div>
-    );
-
   const stockViewControls = (
     <div className="flex justify-end gap-1" aria-label="Vehicle display">
       {(['cards', 'compact'] as const).map((view) => {
@@ -400,9 +386,9 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             <p className="home-hero-eyebrow">{(!demoSite && dealerConfig.hero.announcement) || `Used cars${dealerConfig.address?.city ? ` in ${dealerConfig.address.city}` : ''}`}</p>
             <h1 id="home-heading" tabIndex={-1} className="home-hero-heading">{dealerConfig.hero.copy}</h1>
             {dealerConfig.presentation?.showHeroDescription && <p className="home-hero-description">{dealerConfig.hero.subcopy}</p>}
-            <HeroStockSearch buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
+            <HeroStockSearch loading={isLoading} buttonLabel={dealerConfig.hero.primaryCta} cars={publicCars} filters={filters} setFilters={setFilters} count={filteredCars.length} onReset={() => setFilters({ ...defaultFilters })} onSearch={() => revealResults('filter_panel')} />
           </div>
-          {!error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask us <ArrowRight size={16}/></Link></p>}
+          {!isLoading && !error && filteredCars.length < 4 && <p className="home-search-help">Need help choosing? <Link className="text-link" href={'/enquire?type=general&searchRequest='+encodeURIComponent(Object.entries(filters).filter(([k,v])=>k!=='sort' && v).map(([k,v])=>`${k}: ${v}`).join(', ') || 'current stock')}>Ask us <ArrowRight size={16}/></Link></p>}
         </div>
       </section>}
 
@@ -414,7 +400,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         {benefitCounts.lowMileage > 0 && <Link href="/stock?lowMileage=true">Up to 30k miles</Link>}
       </nav>}
 
-      {!browseStock && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))} unavailable={Boolean(error)} />}
+      {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
+      {!browseStock && !isLoading && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))} unavailable={Boolean(error)} />}
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -470,7 +457,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                 data-testid={key === 'lowMileage' ? 'button-quick-low-mileage' : `button-quick-${key}`}
               ><VehicleFactIcon label={label} className="mr-1.5 inline-block h-4 w-4 align-middle" />{label} <span className="tabular-nums">({benefitCounts[key]})</span></button>)}
             </div>
-            {benefitCounts.ulez > 0 && <p className="mt-3 text-xs leading-5 text-muted-foreground">Check your car’s registration with TfL before driving in the zone. <a href="https://tfl.gov.uk/modes/driving/ultra-low-emission-zone/ulez-vrm-checker" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">Check ULEZ by registration</a>.</p>}
+
  </>}
             cars={publicCars}
             filters={filters}
@@ -623,13 +610,13 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
       )}
 
       <CustomerReviews />
-      {dealershipPoints && <section className="home-reassurance section-space container mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="home-reassurance-heading"><h2 id="home-reassurance-heading" className="section-heading mb-6">Why choose us?</h2>{dealershipPoints}</section>}
-      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit />}
+      {(dealershipPoints || (dealerConfig.presentation?.servicesEnabled !== false && [dealerConfig.warranty, dealerConfig.partExchange, dealerConfig.delivery].some(service => service?.enabled))) && <section id="about" className="home-dealer-information section-space container mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="home-reassurance-heading">
+        <h2 id="home-reassurance-heading" tabIndex={-1} className="section-heading mb-6">Why choose us?</h2>
+        {dealershipPoints}
 
-      {dealerConfig.presentation?.servicesEnabled !== false && [dealerConfig.warranty, dealerConfig.partExchange, dealerConfig.delivery].some(service => service?.enabled) && <section className="home-services section-space border-t border-border bg-secondary/40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="luxxy-kicker mb-3">{websiteText(dealerConfig, "servicesEyebrow")}</p>
-          <h2 className="section-heading">{websiteText(dealerConfig, "servicesHeading")}</h2>
+      {dealerConfig.presentation?.servicesEnabled !== false && [dealerConfig.warranty, dealerConfig.partExchange, dealerConfig.delivery].some(service => service?.enabled) && <div className="home-services home-services-integrated">
+        <div>
+          <h3 className="sr-only">{websiteText(dealerConfig, "servicesHeading")}</h3>
           <div className="home-service-grid mt-8 grid gap-8">
             {(
               [
@@ -674,10 +661,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             )}
           </div>
         </div>
+      </div>}
       </section>}
+      {dealerConfig.presentation?.visitEnabled !== false && <DealershipVisit />}
 
       </>}
-      <RecentlyViewed />
+      {browseStock && <RecentlyViewed />}
     </div>
   );
 }

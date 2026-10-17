@@ -17,12 +17,12 @@ describe("supplied ULEZ emissions standards", () => {
     ["Petrol Plug-in Hybrid", "Euro 6"],
     ["Diesel Hybrid", "Euro 6"],
   ])(
-    "compares %s / %s with the relevant fuel threshold and provides a vehicle-check qualifier",
+    "compares %s / %s with the relevant fuel threshold using the supplied standard",
     (fuel, emissionClass) => {
       const result = vehicleBenefits(car({ fuel, emissionClass })).ulez;
       expect(result?.text).toBe("ULEZ compliant");
       expect(result?.note).toContain(emissionClass);
-      expect(result?.note).toContain("Check its registration with TfL");
+      expect(result?.note).not.toContain("Check its registration with TfL");
       expect(result?.href).toBe(ULEZ_CHECK_URL);
     },
   );

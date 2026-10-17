@@ -7,7 +7,6 @@ import {
 } from '@workspace/api-client-react';
 import {
   BookmarkCheck,
-  CalendarClock,
   LoaderCircle,
   Lock,
   FileText,
@@ -16,12 +15,10 @@ import {
   LayoutDashboard,
   History,
   MessageSquare,
-  Mail,
+  Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DealerDashboard, DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
-import { EnquiriesPanel } from '@/components/portal/enquiries-panel';
-import { TestDriveBookingsPanel } from '@/components/portal/test-drive-bookings-panel';
 import { StripeReservationsPanel } from '@/components/portal/stripe-reservations-panel';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 import { RelationshipsPanel } from '@/components/portal/relationships-panel';
@@ -30,19 +27,19 @@ import { ChatUnreadBadge } from '@/components/portal/chat-notifications';
 import { SalesWorkspace } from '@/pages/sales-demo';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 
-import { EmailWorkspace } from '@/components/portal/email-workspace';
+import { NotificationsWorkspace } from '@/components/portal/notifications-workspace';
+import { PortalInstallMetadata } from '@/components/portal/device-notifications';
+import { isNotificationsSection, notificationHref } from '@/lib/notifications-navigation';
 import { StaffInventory } from '@/components/portal/staff-inventory';
 
-type TabKey = 'email' | 'inventory' | 'overview' | 'enquiries' | 'chat' | 'sales' | 'test-drives' | 'reservations' | 'history' | 'settings';
+type TabKey = 'notifications' | 'inventory' | 'overview' | 'chat' | 'sales' | 'reservations' | 'history' | 'settings';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
+  { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
   { key: 'inventory', label: 'Cars', icon: LayoutDashboard },
-  { key: 'enquiries', label: 'Enquiries', icon: CalendarClock },
-  { key: 'email', label: 'Email', icon: Mail },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
   { key: 'sales', label: 'Sales', icon: FileText },
-  { key: 'test-drives', label: 'Test drives', icon: CalendarClock },
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
   { key: 'history', label: 'History', icon: History },
   { key: 'settings', label: 'Settings', icon: Settings2 },
@@ -99,7 +96,7 @@ function AccessDenied({ email }: { email: string | null }) {
 function PortalDesk() {
   const [tab, setTab] = useState<TabKey>(() => {
     const section = new URLSearchParams(window.location.search).get('section');
-    return tabs.some(item => item.key === section) ? section as TabKey : 'overview';
+    return isNotificationsSection(section) ? 'notifications' : tabs.some(item => item.key === section) ? section as TabKey : 'notifications';
   });
   const { user } = useUser();
   const [salesOpened, setSalesOpened] = useState(tab === 'sales');
@@ -116,10 +113,9 @@ function PortalDesk() {
     },
   });
   const access = useStaffAccess(sessionQuery.data?.state === 'allowed');
-  useEffect(() => { const section = new URLSearchParams(search).get('section'); if (tabs.some(item => item.key === section)) { setTab(section as TabKey); if (section === 'sales') setSalesOpened(true); } }, [search]);
+  useEffect(() => { const section = new URLSearchParams(search).get('section'); if (isNotificationsSection(section)) setTab('notifications'); else if (tabs.some(item => item.key === section)) { setTab(section as TabKey); if (section === 'sales') setSalesOpened(true); } }, [search]);
   const canSell = access.data?.permissions.includes('sales.manage') ?? false;
   const visibleTabs = tabs.filter(item => (item.key !== 'chat' || customerFeaturePolicy.websiteChat)
-    && (item.key !== 'email' || access.data?.permissions.includes('sales.manage'))
     && (item.key !== 'settings' || access.data?.permissions.includes('settings.publish')));
 
   useEffect(() => {
@@ -184,6 +180,7 @@ function PortalDesk() {
 
   return (
     <div data-section={tab} className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background px-4 py-5 sm:py-6">
+      <PortalInstallMetadata />
       <div className="portal-workspace-inner mx-auto">
         <header className="portal-workspace-heading mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div>
@@ -238,17 +235,15 @@ function PortalDesk() {
 
             <div className="portal-section-content min-h-[50vh]">
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
+              {tab === 'notifications' && <NotificationsWorkspace canEmail={canSell} />}
               {tab === 'overview' && <DealerDashboard />}
               {tab === 'inventory' && <StaffInventory />}
-              {tab === 'email' && <EmailWorkspace />}
-              {tab === 'enquiries' && <EnquiriesPanel canEmail={canSell} />}
               {tab === 'chat' && <ChatPanel />}
-              {tab === 'test-drives' && <TestDriveBookingsPanel />}
               {tab === 'reservations' && <><ReservationsPanel /><StripeReservationsPanel /></>}
               {tab === 'history' && <RelationshipsPanel />}
               {tab === 'settings' && <DealerSettingsHub />}
               </div>}
-              {salesOpened && <div hidden={tab !== 'sales'} role="region" id="portal-content-sales" aria-labelledby="portal-section-sales"><SalesWorkspace embedded newSaleRequest={newSaleRequest} onExit={() => setTab('enquiries')} /></div>}
+              {salesOpened && <div hidden={tab !== 'sales'} role="region" id="portal-content-sales" aria-labelledby="portal-section-sales"><SalesWorkspace embedded newSaleRequest={newSaleRequest} onExit={() => { setTab('notifications'); navigate(notificationHref('customers')); }} /></div>}
             </div>
           </div>
 

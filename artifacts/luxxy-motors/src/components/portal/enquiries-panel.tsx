@@ -3,7 +3,7 @@ import { EnquiryPhotoPeek } from "./enquiry-photo-peek";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnquiryStockDesk } from "./enquiry-stock-desk";
 import { EnquiryVehicleInformation } from "./enquiry-vehicle-information";
-import { Link, useSearch } from 'wouter';
+import { Link, useSearch, useLocation } from 'wouter';
 import {
   FollowUpEditor,
   FollowUpFields,
@@ -11,7 +11,7 @@ import {
   followUpLocal,
 } from "./enquiry-follow-up";
 import { bookingPressure, validStaffAppointmentDateTime, withinBookingHours } from "../../../../api-server/src/lib/booking-slots";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetEnquiries,
@@ -34,6 +34,8 @@ import {
   Phone,
   RefreshCw,
   CheckCircle2,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,7 @@ import { EnquiryRecordBrowser, type EnquiryRecordActions } from "./enquiry-recor
 import { CallbacksDesk } from "./enquiry-callbacks";
 import { isOutstandingCallback } from "./enquiry-callback-model";
 import "./enquiries-workspace.css";
+import "./staff-appointment-picker.css";
 
 const field = "enquiry-field grid gap-1.5 text-sm font-medium";
 function errorMessage(error: unknown) {
@@ -111,17 +114,19 @@ function contains(value: string, search: string) {
 
 function Slots({
   bookingId,
+  initialDate,
   value,
   onChange,
 }: {
   bookingId?: string;
+  initialDate?: string;
   value: string;
   onChange: (value: string) => void;
 }) {
   const { settings, isLoading, isError } = useDealerSettings();
   const config = settings.testDriveBooking ?? defaultBookingSettings;
   const dates = availableBookingDates(config);
-  const [date, setDate] = useState(dates[0] ?? londonDate());
+  const [date, setDate] = useState(initialDate ?? dates[0] ?? londonDate());
   const publicQuery = useGetEnquiryAvailability(
     { date },
     {
@@ -186,6 +191,7 @@ function Slots({
             onChange("");
           }}
         >
+          {!dates.includes(date) && <option value={date} disabled>{bookingDateLabel(date)} — unavailable</option>}
           {dates.map((day) => (
             <option key={day} value={day}>
               {bookingDateLabel(day)}
@@ -193,6 +199,7 @@ function Slots({
           ))}
         </NativeSelect>
       </label>
+      {!dates.includes(date) && <p className="text-sm text-amber-900">This date is outside the available booking dates. Choose another date, or use the staff-specific time option and review any booking exceptions.</p>}
       <p className="text-xs text-muted-foreground">
         UK time · {config.durationMinutes} minutes
         {config.confirmationMode === "approval"
@@ -252,41 +259,66 @@ function Slots({
   );
 }
 
-function StaffAppointmentPicker({ bookingId, time, onTime, manual, onManual, allowOutsideHours, onOutsideHours, allowDoubleBooking, onDoubleBooking }: {
+export function StaffAppointmentPicker({ bookingId, initialDate, time, onTime, manual, onManual, allowOutsideHours, onOutsideHours, allowDoubleBooking, onDoubleBooking }: {
   bookingId?: string;
+  initialDate?: string;
   time: string; onTime: (value: string) => void;
   manual: boolean; onManual: (value: boolean) => void;
   allowOutsideHours: boolean; onOutsideHours: (value: boolean) => void;
   allowDoubleBooking: boolean; onDoubleBooking: (value: boolean) => void;
 }) {
-  const [local, setLocal] = useState(time ? followUpLocal(time) : "");
+  const savedLocal = time && Number.isFinite(Date.parse(time)) ? followUpLocal(time) : "";
+  const [date, setDate] = useState(savedLocal.split('T')[0] || initialDate || "");
+  const [clock, setClock] = useState(savedLocal.split('T')[1] || "");
+  const [exceptionsOpen, setExceptionsOpen] = useState(false);
+  const hintId = useId();
   const { settings } = useDealerSettings();
   const policy = settings.testDriveBooking ?? defaultBookingSettings;
   const query = useGetEnquiries(undefined, { query: { queryKey: getGetEnquiriesQueryKey(), refetchInterval: 30_000 } });
   const appointment = time ? new Date(time) : null;
+  const valid = Boolean(appointment && validStaffAppointmentDateTime(appointment));
+  const checking = query.data === undefined && !query.isError;
   const occupied = (query.data ?? []).filter(item => item.appointmentAt && !item.appointmentCancelledAt).map(item => ({ id: item.id, appointmentAt: new Date(item.appointmentAt!), appointmentDurationMinutes: item.appointmentDurationMinutes, appointmentBufferMinutes: item.appointmentBufferMinutes }));
-  const outside = appointment && validStaffAppointmentDateTime(appointment) && !withinBookingHours(appointment, policy);
-  const pressure = appointment && validStaffAppointmentDateTime(appointment) ? bookingPressure(appointment, policy, occupied, bookingId) : null;
-  return <div className="enquiry-appointment-picker space-y-3 border-t border-border pt-4">
-    <div className="flex flex-wrap gap-2">
-      <Button type="button" size="sm" variant={!manual ? "default" : "outline"} aria-pressed={!manual} onClick={() => { setLocal(""); onManual(false); onTime(""); onOutsideHours(false); onDoubleBooking(false); }}>Available slots</Button>
-      <Button type="button" size="sm" variant={manual ? "default" : "outline"} aria-pressed={manual} onClick={() => { setLocal(""); onManual(true); onTime(""); }}>Choose a specific UK time</Button>
+  const outside = Boolean(valid && appointment && !withinBookingHours(appointment, policy));
+  const pressure = valid && appointment && !checking && !query.isError ? bookingPressure(appointment, policy, occupied, bookingId) : null;
+  const needsException = outside || Boolean(pressure?.overlapping || pressure?.overCapacity);
+  const showExceptions = valid && (needsException || exceptionsOpen || allowOutsideHours || allowDoubleBooking || query.isError);
+  function clearExceptions() { onOutsideHours(false); onDoubleBooking(false); setExceptionsOpen(false); }
+  function chooseMode(next: boolean) {
+    if (next === manual) return;
+    if (time) setDate(followUpLocal(time).split('T')[0]);
+    setClock(''); onManual(next); onTime(''); clearExceptions();
+  }
+  function chooseTime(nextDate: string, nextClock: string) {
+    setDate(nextDate); setClock(nextClock); clearExceptions();
+    const iso = nextDate && nextClock ? followUpIso(`${nextDate}T${nextClock}`) : null;
+    onTime(iso && validStaffAppointmentDateTime(new Date(iso)) ? iso : '');
+  }
+  return <div className="enquiry-appointment-picker staff-appointment-picker">
+    <div className="staff-appointment-modes" role="group" aria-label="Choose appointment time">
+      <button type="button" aria-pressed={!manual} onClick={() => chooseMode(false)}><CalendarDays size={16} aria-hidden="true" />Available slots</button>
+      <button type="button" aria-pressed={manual} onClick={() => chooseMode(true)}><Clock3 size={16} aria-hidden="true" />Choose date &amp; time</button>
     </div>
     {manual ? <>
-      <label className={field}>Staff appointment date and time (UK)
-        <Input type="datetime-local" step={900} value={local} onChange={event => { setLocal(event.target.value); onTime(followUpIso(event.target.value) ?? ""); }} />
-      </label>
-      {local && !time && <p role="alert" className="text-sm text-destructive">Choose a valid UK date and time in 15-minute steps.</p>}
-      <fieldset className="enquiry-booking-exceptions space-y-2 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-        <legend className="px-1 font-semibold">Staff booking exceptions</legend>
-        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={allowOutsideHours} onChange={event => onOutsideHours(event.target.checked)} />Allow outside normal booking hours or a closed date</label>
-        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={allowDoubleBooking} onChange={event => onDoubleBooking(event.target.checked)} />Allow overlapping appointments or a full day</label>
-        {outside && <p>Selected time is outside normal booking hours. The first exception must be checked.</p>}
-        {pressure?.overlapping && <p>Another appointment overlaps this time. This will be marked as double booked.</p>}
-        {pressure?.overCapacity && <p>Daily capacity has been reached. This will be marked as over capacity.</p>}
-        {query.isError && <p>Other bookings could not be checked here. The server will check again before saving.</p>}
-      </fieldset>
-    </> : <Slots bookingId={bookingId} value={time} onChange={onTime} />}
+      <div className="staff-appointment-date-fields">
+        <label className={field}>Appointment date (UK)<Input type="date" required min={londonDate()} max={londonDate(new Date(Date.now() + 366 * 86400000))} value={date} aria-describedby={hintId} onChange={event => chooseTime(event.target.value, clock)} /></label>
+        <label className={field}>Appointment time (UK)<Input type="time" required step={900} value={clock} aria-describedby={hintId} onChange={event => chooseTime(date, event.target.value)} /></label>
+      </div>
+      <p id={hintId} className="staff-appointment-hint">UK time · choose a time in 15-minute steps.</p>
+      {date && clock && !valid && <p role="alert" className="staff-appointment-error">Choose a valid future UK time in 15-minute steps, within the next year.</p>}
+      {valid && checking && <p role="status" className="staff-appointment-hint">Checking other appointments…</p>}
+      {valid && query.isError && <p role="status" className="staff-appointment-hint">Other bookings could not be checked. Availability will be checked again when you save.</p>}
+      {valid && !needsException && !query.isError && <button className="staff-appointment-exceptions-toggle" type="button" aria-expanded={showExceptions} aria-controls={`${hintId}-exceptions`} onClick={() => setExceptionsOpen(!exceptionsOpen)}>Booking exceptions</button>}
+      {showExceptions && <fieldset id={`${hintId}-exceptions`} className="enquiry-booking-exceptions staff-appointment-exceptions">
+        <legend>Staff booking exceptions</legend>
+        <p className="staff-appointment-exception-intro">Only approve an exception when you intend to make one. You’ll review it before saving.</p>
+        {outside && <p className="staff-appointment-conflict">This time is outside booking hours or on a closed date.</p>}
+        {pressure?.overlapping && <p className="staff-appointment-conflict">Another appointment overlaps this time.</p>}
+        {pressure?.overCapacity && <p className="staff-appointment-conflict">This day has reached its booking capacity.</p>}
+        <label><input type="checkbox" checked={allowOutsideHours} onChange={event => onOutsideHours(event.target.checked)} /><span>Allow outside normal booking hours or a closed date</span></label>
+        <label><input type="checkbox" checked={allowDoubleBooking} onChange={event => onDoubleBooking(event.target.checked)} /><span>Allow overlapping appointments or a full day</span></label>
+      </fieldset>}
+    </> : <Slots bookingId={bookingId} initialDate={date || initialDate} value={time} onChange={value => { clearExceptions(); onTime(value); }} />}
   </div>;
 }
 
@@ -341,12 +373,14 @@ function CarSummary({ car }: { car: Car }) {
 
 function NewCall({
   initial,
+  initialBookingDate,
   selection,
   enquiries, reservations, draftKey, defaultOwnerId, onDiscard,
   onSaved,
 }: {
   enquiries: Enquiry[]; reservations: StaffOnlineReservation[]; draftKey: string | null; defaultOwnerId: string; onDiscard: () => void;
   initial?: Enquiry;
+  initialBookingDate?: string;
   selection?: { id: string; booking: boolean };
   onSaved: (booking: Enquiry) => void;
 }) {
@@ -372,9 +406,9 @@ function NewCall({
   const [phone, setPhone] = useState(initial?.phone ?? restored?.phone ?? "");
   const [email, setEmail] = useState(initial?.email ?? restored?.email ?? "");
   const [message, setMessage] = useState(restored?.message ?? "");
-  const [booking, setBooking] = useState(initial ? true : restored?.booking ?? false);
-  const [time, setTime] = useState(restored?.time ?? "");
-  const [manualTime, setManualTime] = useState(restored?.manualTime ?? false);
+  const [booking, setBooking] = useState(initial || initialBookingDate ? true : restored?.booking ?? false);
+  const [time, setTime] = useState(initialBookingDate ? "" : restored?.time ?? "");
+  const [manualTime, setManualTime] = useState(initialBookingDate ? false : restored?.manualTime ?? false);
   const [allowOutsideHours, setAllowOutsideHours] = useState(false);
   const [allowDoubleBooking, setAllowDoubleBooking] = useState(false);
   const [reviewException, setReviewException] = useState(false);
@@ -718,7 +752,7 @@ function NewCall({
         </fieldset>
         {booking &&
           (car && available(car) ? (
-            <StaffAppointmentPicker time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
+            <StaffAppointmentPicker initialDate={initialBookingDate} time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Choose an available car first.
@@ -856,7 +890,7 @@ function AppointmentEditor({
             remain in the call history.
           </p>
         ) : (
-          <StaffAppointmentPicker bookingId={booking.id} time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
+          <StaffAppointmentPicker bookingId={booking.id} initialDate={booking.appointmentAt ? londonDate(new Date(booking.appointmentAt)) : undefined} time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
         )}
         {!cancelling && time && (
           <p className="text-sm font-medium">
@@ -907,13 +941,14 @@ function AppointmentEditor({
   );
 }
 
-export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}) {
+export function EnquiriesPanel({ canEmail = false, embedded = false, initialView = 'today', onOpenCustomer }: { canEmail?: boolean; embedded?: boolean; initialView?: 'today' | 'history' | 'calendar'; onOpenCustomer?: (id: string) => void } = {}) {
   const routeSearch = useSearch();
+  const [,navigate] = useLocation();
   const requestedEnquiry = new URLSearchParams(routeSearch).get('enquiryId');
   const requestedDeskView = new URLSearchParams(routeSearch).get('deskView');
   const openedEnquiry = useRef<string | null>(null);
-  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar" | "today" | "callbacks">("today");
-  useEffect(() => { if (requestedDeskView === 'calendar') setMode('calendar'); }, [requestedDeskView]);
+  const [mode, setMode] = useState<"new" | "history" | "stock" | "calendar" | "today" | "callbacks">(initialView);
+  useEffect(() => { if (requestedDeskView && ['calendar','history','new','today','callbacks','stock'].includes(requestedDeskView)) setMode(requestedDeskView as typeof mode); }, [requestedDeskView]);
   const [globalSearch, setGlobalSearch] = useState("");
   const [ownerScope, setOwnerScope] = useState("all");
   const [workspaceEntry, setWorkspaceEntry] = useState<Enquiry | null>(null);
@@ -934,6 +969,7 @@ export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}
   const [followUpEntry, setFollowUpEntry] = useState<Enquiry | null>(null);
   const [notice, setNotice] = useState("");
   const [initial, setInitial] = useState<Enquiry>();
+  const [initialBookingDate, setInitialBookingDate] = useState<string>();
   const [selection, setSelection] = useState<{ id: string; booking: boolean }>();
   const [formKey, setFormKey] = useState(0);
   const [editing, setEditing] = useState<Enquiry | null>(null);
@@ -943,18 +979,26 @@ export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}
   });
   const { stock } = useStock();
   useEffect(() => {
+    if (requestedDeskView === 'calendar' || initialView === 'calendar') return;
     if (!requestedEnquiry) { openedEnquiry.current = null; return; }
     if (!query.data || openedEnquiry.current === requestedEnquiry) return;
     const requested = query.data.find(item => item.id === requestedEnquiry);
     const entry = requested ? primaryEnquiry(requested, query.data) : undefined;
-    openedEnquiry.current = requestedEnquiry;
-    setMode('history'); setOwnerScope('all'); setFilter('all'); setGlobalSearch('');
+    if (entry) openedEnquiry.current = requestedEnquiry;
+    setMode(requestedDeskView === 'callbacks' ? 'callbacks' : 'history'); setOwnerScope('all'); setFilter('all'); setGlobalSearch('');
     if (entry) { setSearch(entry.reference); setSelectedEnquiryId(entry.id); setNotice(''); }
-    else { setSearch(''); setNotice('This enquiry could not be found. Refresh or search by customer details.'); }
-  }, [requestedEnquiry, query.data]);
+    else { setSelectedEnquiryId(null); setSearch(''); setNotice('This enquiry could not be found. Refresh or search by customer details.'); }
+  }, [requestedEnquiry, requestedDeskView, initialView, query.data]);
   async function saved(entry: Enquiry) {
+    client.setQueryData<Enquiry[]>(getGetEnquiriesQueryKey(), current => {
+      const entries = current ?? [];
+      return entries.some(item => item.id === entry.id)
+        ? entries.map(item => item.id === entry.id ? entry : item)
+        : [entry, ...entries];
+    });
     setEditing(null);
     setInitial(undefined);
+    setInitialBookingDate(undefined);
     setSelection(undefined);
     setFormKey((key) => key + 1);
     setNotice(
@@ -966,8 +1010,10 @@ export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}
     const primary = primaryEnquiry(entry, query.data ?? []);
     setSearch(primary.reference);
     setSelectedEnquiryId(primary.id);
+    if (embedded) navigate(`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(primary.id)}`);
     setFilter("all");
     await Promise.all([
+      client.invalidateQueries({ queryKey: ['staff-notifications'] }),
       client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }),
       client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }),
       client.invalidateQueries({
@@ -985,6 +1031,7 @@ export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}
       Date.parse(entry.followUpAt) <= Date.now(),
   ).length;
   const allEntries = query.data ?? [];
+  const missingRequested = Boolean(requestedEnquiry && query.data && !query.data.some(entry => entry.id === requestedEnquiry));
   const entries = enquiryRootRecords(allEntries)
     .filter(entry => enquiryGroup(entry, allEntries).some(original => scoped.some(item => item.id === original.id)))
     .filter(entry => contains(enquiryGroupSearchText(entry, allEntries), search) && enquiryGroup(entry, allEntries).some(original =>
@@ -995,48 +1042,62 @@ export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}
     .sort((a, b) => ["due", "followups"].includes(filter)
       ? (enquiryGroup(a, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? "").localeCompare(enquiryGroup(b, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? "")
       : 0);
-  function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); setGlobalSearch(""); setMode("history"); setSearch(primary.reference); setFilter("all"); setSelectedEnquiryId(primary.id); }
+  function clearSelectedRecord() {
+    setSelectedEnquiryId(null);
+    const requested = query.data?.find(entry => entry.id === requestedEnquiry);
+    if (requested && search === primaryEnquiry(requested, allEntries).reference) setSearch('');
+    if (embedded && requestedEnquiry) navigate(`/portal?section=notifications&workView=customers${mode === 'callbacks' ? '&deskView=callbacks' : ''}`);
+  }
+  function selectRecord(id: string) {
+    setSelectedEnquiryId(id);
+    if (embedded) {
+      const params = new URLSearchParams({ section: 'notifications', workView: 'customers', enquiryId: id });
+      if (mode === 'callbacks') params.set('deskView', 'callbacks');
+      navigate(`/portal?${params}`);
+    }
+  }
+  function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); if (onOpenCustomer) { onOpenCustomer(primary.id); return; } setGlobalSearch(""); setMode("history"); setSearch(primary.reference); setFilter("all"); selectRecord(primary.id); }
   const callbackCount = callbackEntries.filter(isOutstandingCallback).length;
   const recordActions: EnquiryRecordActions = {
     onUpdate: setWorkspaceEntry, onConversation: setConversationEntry, onMerge: entry => setMergeEntry(primaryEnquiry(entry, allEntries)), onFollowUp: entry => setFollowUpEntry({ ...entry }),
     onEmail: canEmail ? setEmailEntry : undefined,
     onAppointment: entry => setEditing({ ...entry }), onVehicle: setInformation,
-    onBook: entry => { setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
+    onBook: entry => { setInitialBookingDate(undefined); setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
   };
   return (
     <Panel className="enquiries-premium-workspace">
-      <div className="enquiry-workspace-heading bg-[#213e61] px-5 py-4 text-white">
+      {!embedded && <div className="enquiry-workspace-heading bg-[#213e61] px-5 py-4 text-white">
         <div>
         <h2 className="text-xl font-semibold">Enquiry workspace</h2>
         <p className="mt-1 text-sm text-white/75">Find a customer. Record the conversation. Arrange the next step.</p>
         </div>
         <span className="enquiry-stock-count text-xs">{stock?.cars.length ?? 0} {stock?.cars.length === 1 ? "car" : "cars"} in current stock</span>
-      </div>
-      <Tabs value={mode === "callbacks" ? "today" : mode === "new" || mode === "stock" ? "history" : mode} onValueChange={(value) => { setMode(value as typeof mode); setGlobalSearch(""); }}>
+      </div>}
+      {!embedded && <Tabs value={mode === "callbacks" ? "today" : mode === "new" || mode === "stock" ? "history" : mode} onValueChange={(value) => { setMode(value as typeof mode); setGlobalSearch(""); }}>
         <TabsList aria-label="Enquiry workspace" className="enquiry-workspace-tabs flex h-auto w-full justify-start gap-1 rounded-none border-b bg-[#e8eef5] p-2">
           <TabsTrigger value="today" onClick={() => { setMode("today"); setGlobalSearch(""); }} id="desk-tab-today" aria-controls="desk-panel-today" className="min-h-11 rounded-sm px-5">Today</TabsTrigger>
           <TabsTrigger value="history" onClick={() => { setMode("history"); setGlobalSearch(""); }} id="desk-tab-history" aria-controls="desk-panel-history" className="min-h-11 rounded-sm px-5">Enquiries</TabsTrigger>
           <TabsTrigger value="calendar" onClick={() => { setMode("calendar"); setGlobalSearch(""); }} id="desk-tab-calendar" aria-controls="desk-panel-calendar" className="min-h-11 rounded-sm px-5">Calendar</TabsTrigger>
         </TabsList>
-      </Tabs>
-      <div aria-label="Workspace actions" data-record-mode={mode === "history" || mode === "callbacks" ? "true" : "false"} className="enquiry-workspace-ribbon flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
-        <Button id="desk-tab-new" size="sm" onClick={() => { setMode("new"); setGlobalSearch(""); }}>New enquiry</Button>
+      </Tabs>}
+      {mode !== "calendar" && <div aria-label="Workspace actions" data-record-mode={mode === "history" || mode === "callbacks" ? "true" : "false"} className="enquiry-workspace-ribbon flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
+        {!embedded && <Button id="desk-tab-new" size="sm" onClick={() => { setMode("new"); setGlobalSearch(""); if (embedded) navigate("/portal?section=notifications&workView=customers&deskView=new"); }}>New enquiry</Button>}
         <details className="enquiry-desk-more"><summary>More tools</summary><div><Button variant="ghost" size="sm" onClick={() => { setMode("callbacks"); setGlobalSearch(""); }}>Callbacks ({callbackCount})</Button><Button variant="ghost" size="sm" onClick={() => { setMode("stock"); setGlobalSearch(""); }}>Browse showroom stock</Button></div></details>
         <Button className="enquiry-ribbon-refresh" variant="ghost" size="icon" aria-label="Refresh enquiries and stock" title="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); directory.refetch(); reservations.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className={`h-4 w-4${query.isFetching ? " animate-spin" : ""}`} aria-hidden /></Button>
-        <Button className="enquiry-ribbon-overdue" variant={dueCount ? "outline" : "ghost"} size="sm" onClick={() => { if (mode === "callbacks") { setCallbackFilter("overdue"); setCallbackSearch(""); } else { setMode("history"); setFilter("due"); setSearch(""); } setGlobalSearch(""); setSelectedEnquiryId(null); }}>Overdue now ({dueCount})</Button>
+        <Button className="enquiry-ribbon-overdue" variant={dueCount ? "outline" : "ghost"} size="sm" onClick={() => { if (mode === "callbacks") { setCallbackFilter("overdue"); setCallbackSearch(""); } else { setMode("history"); setFilter("due"); setSearch(""); } setGlobalSearch(""); clearSelectedRecord(); }}>Overdue now ({dueCount})</Button>
         {mode === "history" ? <>
-          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { setSearch(event.target.value); setSelectedEnquiryId(null); }} placeholder="Name, phone, email, reference or car" /></label>
-          <details className="enquiry-desk-more"><summary>More filters{filter !== "all" ? " · active" : ""}</summary><label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); setSelectedEnquiryId(null); }}>
+          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { clearSelectedRecord(); setSearch(event.target.value); }} placeholder="Name, phone, email, reference or car" /></label>
+          <details className="enquiry-desk-more"><summary>More filters{filter !== "all" ? " · active" : ""}</summary><label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); clearSelectedRecord(); }}>
             <option value="all">All enquiries</option><option value="upcoming">Upcoming test drives</option><option value="today">Today’s test drives</option><option value="followups">Follow-ups</option><option value="due">Overdue follow-ups</option>
           </NativeSelect></label></details>
         </> : mode === "callbacks" ? <>
-          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); setSelectedEnquiryId(null); }} placeholder="Customer, contact, registration or reference" /></label>
-          <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show callbacks</span><NativeSelect value={callbackFilter} onChange={event => { setCallbackFilter(event.target.value); setSelectedEnquiryId(null); }}>
+          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); clearSelectedRecord(); }} placeholder="Customer, contact, registration or reference" /></label>
+          <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show callbacks</span><NativeSelect value={callbackFilter} onChange={event => { setCallbackFilter(event.target.value); clearSelectedRecord(); }}>
             <option value="all">All callbacks</option><option value="overdue">Overdue now</option><option value="upcoming">Upcoming</option><option value="unscheduled">Needs a time</option><option value="website">Website requests</option><option value="unassigned">Unassigned</option>
           </NativeSelect></label>
         </> : <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Search the workspace</span><Input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Search customer, phone, registration, car or reference" /></label>}
         {mode !== "new" && <label className="enquiry-ribbon-owner grid gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Enquiry ownership</span><NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">{mode === "history" || mode === "callbacks" ? "All owners" : "All enquiries"}</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>}
-      </div>
+      </div>}
       <div className="enquiry-workspace-canvas space-y-5 bg-slate-100/70 p-3 sm:p-6">
         {notice && (
           <div
@@ -1047,33 +1108,34 @@ export function EnquiriesPanel({ canEmail = false }: { canEmail?: boolean } = {}
             {notice}
           </div>
         )}
+        {missingRequested && <Button variant="outline" onClick={clearSelectedRecord}>Show all enquiries</Button>}
         {globalSearch.trim() && <><Button size="sm" variant="outline" onClick={() => setGlobalSearch("")}>Clear workspace search</Button>{(query.isError || reservations.isError) && <p role="alert" className="text-sm">Some records could not be loaded. Refresh to retry.</p>}<DeskSearchResults search={globalSearch} entries={scoped} allEntries={allEntries} reservations={reservations.data?.reservations ?? []} cars={stock?.cars ?? []} onEntry={openEntry} onCar={setInformation} onContact={setHistoryContact} /></>}
         <div hidden={Boolean(globalSearch.trim())} className="enquiry-workspace-views space-y-5">
-        {mode === "today" && <div role="tabpanel" id="desk-panel-today" aria-labelledby="desk-tab-today">{query.isLoading ? <p role="status">Loading today’s work…</p> : query.isError ? <p role="alert">Today’s work could not be loaded. Refresh to retry.</p> : <><TodayDesk entries={scoped} onOpen={openEntry} /><Button variant="outline" onClick={() => setMode("callbacks")}>View callbacks ({callbackCount})</Button></>}</div>}
-        <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby="desk-tab-new" className="enquiry-ledger-sheet border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <div className="enquiry-form-intro"><h3>New enquiry</h3><p>Record the conversation, choose a vehicle and arrange the next step.</p></div>
-          {directory.isLoading ? <p role="status">Loading your workspace…</p> : <NewCall key={`${formKey}:${directory.data?.currentUserId ?? "unknown"}`} initial={initial} selection={selection} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} draftKey={draftKey} defaultOwnerId={directory.data?.currentUserId ?? ""} onDiscard={() => { setInitial(undefined); setSelection(undefined); setFormKey(key => key + 1); }} onSaved={saved} />}
+        {mode === "today" && <div role="tabpanel" id="desk-panel-today" aria-labelledby={embedded ? undefined : "desk-tab-today"} aria-label={embedded ? "Today’s customer actions" : undefined}>{query.isLoading ? <p role="status">Loading today’s work…</p> : query.isError ? <p role="alert">Today’s work could not be loaded. Refresh to retry.</p> : <><TodayDesk entries={scoped} onOpen={openEntry} /><Button variant="outline" onClick={() => setMode("callbacks")}>View callbacks ({callbackCount})</Button></>}</div>}
+        <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby={embedded ? undefined : "desk-tab-new"} aria-label={embedded ? "New customer enquiry" : undefined} className="enquiry-ledger-sheet border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="enquiry-form-intro"><h3>{initialBookingDate ? "New appointment" : "New enquiry"}</h3><p>{initialBookingDate ? "Choose the car, add the customer and pick an available time." : "Record the conversation, choose a vehicle and arrange the next step."}</p>{initialBookingDate && <Button type="button" variant="outline" size="sm" onClick={() => setMode("calendar")}>Back to calendar</Button>}</div>
+          {directory.isLoading ? <p role="status">Loading your workspace…</p> : <NewCall key={`${formKey}:${directory.data?.currentUserId ?? "unknown"}`} initial={initial} initialBookingDate={initialBookingDate} selection={selection} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} draftKey={draftKey} defaultOwnerId={directory.data?.currentUserId ?? ""} onDiscard={() => { setInitial(undefined); setInitialBookingDate(undefined); setSelection(undefined); setFormKey(key => key + 1); }} onSaved={saved} />}
           {(query.isError || reservations.isError) && <p className="mt-3 text-sm text-amber-900">Some customer history is unavailable. Use Refresh before assuming this is a new customer.</p>}
         </div>
         <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-label="Showroom stock">
           <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { setSelection({ id: car.id, booking }); setMode("new"); }} />
         </div>
-        <div hidden={mode !== "calendar"} role="tabpanel" id="desk-panel-calendar" aria-labelledby="desk-tab-calendar">
-          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <p role="alert">Appointments could not be loaded. Use Refresh to try again.</p> : <EnquiryCalendar entries={scoped} allEntries={allEntries} onOpen={openEntry} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
+        <div hidden={mode !== "calendar"} role="tabpanel" id="desk-panel-calendar" aria-labelledby={embedded ? undefined : "desk-tab-calendar"} aria-label={embedded ? "Test-drive calendar" : undefined}>
+          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <div role="alert"><p>Appointments could not be loaded.</p><Button type="button" variant="outline" disabled={query.isFetching} onClick={() => query.refetch()}>Retry appointments</Button></div> : <EnquiryCalendar entries={scoped} allEntries={allEntries} cars={stock?.cars ?? []} ownerScope={ownerScope} onOwnerScopeChange={setOwnerScope} canChooseMine={Boolean(directory.data)} onAdd={date => { setInitial(undefined); setInitialBookingDate(date); setSelection(undefined); setFormKey(key => key + 1); setMode("new"); setGlobalSearch(""); setNotice(`New appointment for ${bookingDateLabel(date)}. Choose an available time before saving.`); }} onRefresh={() => { query.refetch(); directory.refetch(); }} refreshing={query.isFetching} onOpen={openEntry} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
         </div>
-        {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-label="Callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={setSelectedEnquiryId} onBack={() => setSelectedEnquiryId(null)} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
+        {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-label="Callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : missingRequested ? null : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={selectRecord} onBack={clearSelectedRecord} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
         {mode === "history" && (
-          <div role="tabpanel" id="desk-panel-history" aria-labelledby="desk-tab-history" className="enquiry-ledger-sheet enquiry-record-sheet enquiry-history-sheet border border-slate-200 bg-white">
+          <div role="tabpanel" id="desk-panel-history" aria-labelledby={embedded ? undefined : "desk-tab-history"} aria-label={embedded ? "Customer enquiries" : undefined} className="enquiry-ledger-sheet enquiry-record-sheet enquiry-history-sheet border border-slate-200 bg-white">
 
             {query.isLoading && <p role="status">Loading enquiries…</p>}
             {query.isError && <p role="alert">Enquiries could not be loaded. Use Refresh to try again.</p>}
-            {!query.isLoading && !query.isError && <EnquiryRecordBrowser entries={entries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={setSelectedEnquiryId} onBack={() => setSelectedEnquiryId(null)} actions={recordActions} />}
+            {!query.isLoading && !query.isError && !missingRequested && <EnquiryRecordBrowser entries={entries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={selectRecord} onBack={clearSelectedRecord} actions={recordActions} />}
           </div>
         )}
       </div>
       </div>
       {mergeEntry && <EnquiryMergeDialog entry={mergeEntry} entries={allEntries} onClose={() => setMergeEntry(null)} onRefresh={async () => { const fresh = await query.refetch(); if (fresh.error || !fresh.data) throw fresh.error ?? new Error("Enquiries unavailable"); return fresh.data; }} onSaved={async result => {
-        setMergeEntry(null); setMode("history"); setOwnerScope("all"); setFilter("all"); setGlobalSearch(""); setSearch(""); setSelectedEnquiryId(result.primaryId);
+        setMergeEntry(null); setMode("history"); setOwnerScope("all"); setFilter("all"); setGlobalSearch(""); setSearch(""); selectRecord(result.primaryId);
         setNotice(`${result.recordIds.length} records merged into one case. ${result.cancelledAppointmentIds.length ? `${result.cancelledAppointmentIds.length} appointments cancelled.` : "All active appointments retained."}`);
         await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith("/availability") })]);
       }} />}

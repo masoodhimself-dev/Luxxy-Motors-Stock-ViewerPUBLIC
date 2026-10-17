@@ -1,4 +1,11 @@
 /* Customer vehicle details: photography first, then a readable vehicle dossier. */
+@media (prefers-reduced-motion: no-preference) {
+  .vehicle-page-enter { animation: vehicle-page-enter 160ms ease-out; }
+}
+@keyframes vehicle-page-enter {
+  from { opacity: .75; }
+  to { opacity: 1; }
+}
 .vehicle-page.vehicle-redesigned {
   --vehicle-panel: var(--dealer-panel, #fff);
   --vehicle-ink: var(--dealer-page-ink, #192a36);
@@ -223,6 +230,15 @@
 }
 
 .vehicle-redesigned .vehicle-summary-main-actions { border-top: 0; padding-top: 0; margin-block: 18px; }
+.vehicle-redesigned .vehicle-insurance-disclosure { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 10px; color: var(--vehicle-ink); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-redesigned .vehicle-insurance-disclosure > svg { width: 17px; height: 17px; flex-shrink: 0; }
+.vehicle-redesigned .vehicle-service-record-request { display: flex; align-items: center; gap: 12px; grid-column: 1 / -1; min-height: 64px; padding-block: 14px; border-top: 1px solid hsl(var(--border)); color: var(--vehicle-link); font-size: 14px; font-weight: 600; }
+.vehicle-redesigned .vehicle-service-record-request > svg { width: 20px; height: 20px; flex-shrink: 0; }
+.vehicle-redesigned .vehicle-service-record-request > svg:last-child { margin-left: auto; }
+.vehicle-redesigned .vehicle-service-record-note { display: block; margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 13px; font-weight: 400; }
+.vehicle-redesigned .vehicle-service-record-request:hover > span { text-decoration: underline; text-underline-offset: 4px; }
+.vehicle-redesigned .vehicle-section-nav a { padding-inline: 0; border: 0; border-radius: 0; background: transparent; }
+.vehicle-redesigned .vehicle-section-nav { gap: 8px 24px; }
 @media(min-width: 640px) { .vehicle-redesigned .vehicle-summary-main-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Tablet landscape summaries need full-width actions for readable labels. */

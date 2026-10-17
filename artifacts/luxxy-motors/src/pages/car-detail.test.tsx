@@ -5,6 +5,8 @@ import { vi } from 'vitest';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 import CarDetail from '@/pages/car-detail';
 import { DEFAULT_PAGE_META } from '@/lib/page-meta';
+import { dealerConfig } from '@/config/dealer';
+import { getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 
 const { stockFixture, stockStatus } = vi.hoisted(() => {
   const baseCar = {
@@ -170,6 +172,36 @@ it('offers printing in the vehicle summary', () => {
   const link = screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' });
   expect(link).toHaveAttribute('type', 'button');
   expect(link.closest('.vehicle-summary')).not.toBeNull();
+});
+
+it('requests service records through the contextual enquiry without exposing private uploads', () => {
+  renderVehicle('with-plate');
+  expect(screen.getByRole('link', { name: /Request service records/ })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate&question=service');
+  expect(screen.queryByRole('link', { name: /Download service/ })).not.toBeInTheDocument();
+});
+
+it('omits empty extra options while keeping printing and sharing visible', () => {
+  window.history.pushState({}, '', '/vehicle/with-plate');
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(getGetDealerSettingsQueryKey(), { ...dealerConfig, partExchange: { ...dealerConfig.partExchange, enabled: false }, onlineReservation: { enabled: false, depositPence: 10000, terms: '' }, presentation: { ...dealerConfig.presentation, comparisonEnabled: false } });
+  render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
+  expect(screen.queryByTestId('vehicle-secondary-actions')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Share this vehicle' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Print vehicle details for BMW 3 Series' })).toBeInTheDocument();
+});
+
+it('discloses a supplied insurance category alongside the price without inferring it from prose', () => {
+  const car = stockFixture.cars[1];
+  Object.assign(car, { writeOffCategory: 'S' });
+  try {
+    const view = renderVehicle('with-plate');
+    const disclosure = screen.getByRole('link', { name: /Category S · recorded insurance history/ });
+    expect(disclosure.closest('.vehicle-price-block')).not.toBeNull();
+    expect(disclosure).toHaveAttribute('href', '#vehicle-history');
+    view.unmount();
+  } finally { Object.assign(car, { writeOffCategory: null }); }
+  renderVehicle('with-plate');
+  expect(screen.queryByRole('link', { name: /recorded insurance history/ })).not.toBeInTheDocument();
 });
 
 it('opens a car-specific enquiry page and keeps print/share outside collapsed phone options', async () => {

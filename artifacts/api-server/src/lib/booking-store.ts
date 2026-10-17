@@ -1,9 +1,22 @@
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
-import { db, dealerSettingsTable, enquiriesTable } from "@workspace/db";
+import { db, dealerSettingsTable, enquiriesTable, vehiclesTable } from "@workspace/db";
+import { dealerIntegrationsStore } from "./dealer-integrations-store";
 import { addDays, bookingPolicyFromConfig, bookingPressure, dateStringInTimezone, localDateTimeToUtc, slotIsAvailable, validStaffAppointmentDateTime, withinBookingHours, type BookingPolicy } from "./booking-slots";
 
 export type BookingTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export class BookingConflict extends Error {}
+
+/** Recheck current stock under a row lock before promising a new or moved test drive. */
+export async function ensureBookingVehicleAvailable(tx: BookingTransaction, dealerId: string, vehicleId: string | null) {
+  const unavailable = "This car is no longer available for a test drive. Please contact the showroom.";
+  if (!vehicleId) throw new BookingConflict(unavailable);
+  const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, vehicleId), eq(vehiclesTable.dealerId, dealerId))).for("update");
+  if (!vehicle) throw new BookingConflict(unavailable);
+  const { connection } = await dealerIntegrationsStore.readStockConnection(tx);
+  const configuredThreshold = Number(process.env.STOCK_MISSING_HIDE_THRESHOLD);
+  const missingHideThreshold = Number.isFinite(configuredThreshold) ? configuredThreshold : 2;
+  if (vehicle.inventoryStatus !== "available" || vehicle.archivedAt != null || vehicle.source !== connection.platform || vehicle.missingCount >= missingHideThreshold || (vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null)) throw new BookingConflict(unavailable);
+}
 
 export async function getBookingPolicy(dealerId: string) {
   const [settings] = await db.select({ config: dealerSettingsTable.config }).from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, dealerId));

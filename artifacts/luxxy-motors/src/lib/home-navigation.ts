@@ -5,7 +5,7 @@ let pendingTarget: string | null = null;
 const homeTargetFocusIds: Record<string, string> = {
   top: 'home-heading',
   stock: 'vehicle-results-heading',
-  about: 'visit-heading',
+  about: 'home-reassurance-heading',
   warranty: 'warranty-heading',
   'part-exchange': 'part-exchange-heading',
   delivery: 'delivery-heading',
@@ -43,7 +43,7 @@ export function scrollToHomeTarget(target: string): boolean {
     return true;
   }
 
-  const element = document.getElementById(target);
+  const element = document.getElementById(target) || (target === 'about' ? document.getElementById('visit') : null);
   if (!element) return false;
 
   const spacer = getScrollSpacer();
@@ -90,6 +90,7 @@ export function navigateToHomeTarget(
 
   requestAnimationFrame(() => {
     if (pendingTarget === target && scrollToHomeTarget(target)) {
+      focusHomeTarget(homeTargetFocusIds[target] || target) || (target === 'about' && focusHomeTarget('visit-heading'));
       pendingTarget = null;
     }
   });
@@ -102,7 +103,7 @@ export function flushPendingHomeTarget() {
   if (scrollToHomeTarget(target)) {
     const focusTarget = homeTargetFocusIds[target];
     if (focusTarget) {
-      focusHomeTarget(focusTarget);
+      focusHomeTarget(focusTarget) || (target === 'about' && focusHomeTarget('visit-heading'));
     }
     pendingTarget = null;
   }

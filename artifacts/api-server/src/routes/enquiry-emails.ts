@@ -1,3 +1,4 @@
+import { readEmailDraft } from "../lib/email-drafts";
 import { archiveSaleDocument } from "../lib/sale-document-pdf";
 import { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
@@ -33,7 +34,7 @@ import { sendEmailWithSettings } from "../lib/email-provider";
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { siteOrigin } from "../lib/enquiry-links";
 
-const draftSchema = z
+export const draftSchema = z
   .object({
     to: z.string().trim().toLowerCase().max(254).email(),
     subject: z
@@ -64,6 +65,7 @@ const draftSchema = z
   })
   .strict();
 const sendSchema = draftSchema.extend({
+  savedDraftVersion: z.number().int().positive().optional(),
   requestId: z.string().uuid(),
   previewHash: z.string().regex(/^[a-f0-9]{64}$/),
 });
@@ -160,6 +162,7 @@ export function createEnquiryEmailRouter(
         ),
       );
     if (!row) throw new EmailError("Enquiry not found.", 404);
+    if (row.mergedIntoId) throw new EmailError("This enquiry was merged. Open the current enquiry before preparing a reply.", 409);
     return row;
   }
   async function invoiceAttachments(
@@ -522,6 +525,7 @@ export function createEnquiryEmailRouter(
         }),
       );
       res.json({
+        ...(await readEmailDraft(enquiry.dealerId, enquiry.id)),
         templates,
         invoices,
         email: enquiry.email || "",
@@ -639,6 +643,13 @@ export function createEnquiryEmailRouter(
           profile,
           tx as unknown as typeof db,
         );
+        if (input.savedDraftVersion !== undefined) {
+          const saved = await readEmailDraft(dealer, id, tx as unknown as typeof db);
+          const { savedDraftVersion: _version, requestId: _request, previewHash: _preview, ...copy } = input;
+          const savedContent = draftSchema.safeParse(saved.savedDraft?.content);
+          if (saved.version !== input.savedDraftVersion || saved.savedDraft?.status !== 'draft' || !savedContent.success || JSON.stringify(savedContent.data) !== JSON.stringify(copy))
+            throw new EmailError('The saved draft changed. Reopen it and review before sending.', 409);
+        }
         if (result.previewHash !== input.previewHash)
           throw new EmailError(
             "The details or attachments changed after your preview. Review the email again.",
@@ -677,6 +688,8 @@ export function createEnquiryEmailRouter(
             createdBy: req.staff!.authUserId,
           })
           .returning();
+        if (input.savedDraftVersion !== undefined)
+          await tx.execute(sql`UPDATE enquiry_email_drafts SET status='sending',send_request_id=${input.requestId}::uuid,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion}`);
         return { delivery: delivery!, result };
       });
       if ("existing" in claimed) {
@@ -716,6 +729,8 @@ export function createEnquiryEmailRouter(
             ),
           )
           .returning();
+        if (input.savedDraftVersion !== undefined)
+          await tx.execute(sql`UPDATE enquiry_email_drafts SET status=${status === 'failed' ? 'draft' : status},version=version+1,updated_at=now() WHERE dealer_id=${dealer} AND enquiry_id=${id}::uuid AND version=${input.savedDraftVersion} AND send_request_id=${input.requestId}::uuid`);
         await tx.insert(enquiryEventsTable).values({
           dealerId: dealer,
           enquiryId: id,

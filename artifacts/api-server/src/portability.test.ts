@@ -65,6 +65,8 @@ test('portable frontend serves deep links and assets without swallowing API or a
   const dir = await mkdtemp(path.join(tmpdir(), 'luxxy-static-'));
   await writeFile(path.join(dir, 'index.html'), '<html>Standalone showroom</html>');
   await writeFile(path.join(dir, 'app.js'), 'console.log("test");');
+  await writeFile(path.join(dir, 'portal-push-worker.js'), 'self.addEventListener("push", () => {});');
+  await writeFile(path.join(dir, 'portal.webmanifest'), JSON.stringify({ name: 'Dealership workspace', start_url: '/portal' }));
   const app = express();
   app.get('/api/healthz', (_req,res) => {res.json({status:'ok'});});
   app.use(['/api','/share'], (_req,res) => {res.status(404).json({error:'Not found'});});
@@ -79,6 +81,16 @@ test('portable frontend serves deep links and assets without swallowing API or a
       assert.equal(response.status,200); assert.match(await response.text(), /Standalone showroom/);
     }
     assert.equal((await fetch(base+'/app.js')).status,200);
+    const worker = await fetch(base+'/portal-push-worker.js');
+    assert.equal(worker.status, 200);
+    assert.match(worker.headers.get('content-type') ?? '', /javascript/);
+    assert.equal(worker.headers.get('cache-control'), 'no-cache');
+    assert.equal(worker.headers.get('x-content-type-options'), 'nosniff');
+    assert.match(await worker.text(), /addEventListener/);
+    const manifest = await fetch(base+'/portal.webmanifest');
+    assert.equal(manifest.status, 200);
+    assert.equal(manifest.headers.get('cache-control'), 'no-cache');
+    assert.equal((await manifest.json() as { start_url: string }).start_url, '/portal');
     assert.equal((await fetch(base+'/missing.js')).status,404);
     assert.equal((await fetch(base+'/api/missing')).status,404);
     assert.equal((await fetch(base+'/share/missing')).status,404);

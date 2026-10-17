@@ -42,7 +42,7 @@ export function CustomerChatSettings() {
     } catch (cause) { setError(messageFor(cause)); }
     finally { setBusy(false); }
   }
-  return <section className="integration-settings" aria-label="Customer chat settings">
+  return <section className="integration-settings" aria-label="Customer chat settings" data-settings-dirty={Boolean(changed)}>
     <div className="integration-heading"><div><p className="integration-eyebrow">Customer conversations</p><h2>Website chat</h2><p>A friendly place to ask about a car, speak to your team or leave a message.</p></div></div>
     {error && <p role="alert" className="integration-error">{error}</p>}
     {notice && <p role="status" className="integration-notice">{notice}</p>}

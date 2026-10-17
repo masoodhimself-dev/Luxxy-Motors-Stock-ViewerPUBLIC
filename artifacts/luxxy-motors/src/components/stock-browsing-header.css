@@ -1,0 +1,17 @@
+/* Keep the measured layout space stable; move only the fixed navigation. */
+@media (max-width: 1023px), (hover: none) and (pointer: coarse) and (max-width: 1366px) {
+  .customer-site [data-site-header].stock-browsing-header {
+    transition: transform 180ms ease-out, background-color 180ms ease-out, border-color 180ms ease-out;
+  }
+  .customer-site [data-site-header].stock-browsing-header[data-scroll-hidden='true'] {
+    transform: translateY(-100%);
+    pointer-events: none;
+  }
+  .customer-site [data-site-header].stock-browsing-header:has(:focus-visible) {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .customer-site [data-site-header].stock-browsing-header { transition: none; }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,13 @@ type Delivery = {
   error: string | null;
 };
 type EmailContext = {
+  version?: number;
+  savedDraft?: {
+    version: number;
+    status: string;
+    content: EmailDraft;
+    updatedAt: string;
+  } | null;
   email: string;
   customerName: string;
   vehicleId: string | null;
@@ -138,7 +145,7 @@ export function EnquiryEmailComposer({
   onClose,
 }: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
-  onClose: () => void;
+  onClose: (result?: "sent" | "draft") => void;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const context = useQuery({
@@ -154,7 +161,12 @@ export function EnquiryEmailComposer({
       requestId: string;
       draft: EmailDraft;
       previewHash: string;
+      savedDraftVersion?: number;
     } | null>(null);
+  const cache = useQueryClient();
+  const savedVersion = useRef(0);
+  const [dirty, setDirty] = useState(false),
+    [saveNotice, setSaveNotice] = useState("");
   const [draft, setDraft] = useState<EmailDraft>({
     to: "",
     subject: "",
@@ -174,6 +186,12 @@ export function EnquiryEmailComposer({
     if (!context.data || initialized.current) return;
     const data = context.data;
     initialized.current = true;
+    savedVersion.current = data.version ?? 0;
+    if (data.savedDraft) {
+      setDraft(data.savedDraft.content);
+      setSaveNotice("Saved draft restored · not sent");
+      return;
+    }
     setDraft({
       to: data.email,
       ...data.defaults,
@@ -186,10 +204,50 @@ export function EnquiryEmailComposer({
   }, [context.data]);
   function change(value: Partial<EmailDraft>) {
     setDraft((d) => ({ ...d, ...value }));
+    setDirty(true);
+    setSaveNotice("Unsaved changes");
     setPreview(null);
     setReviewedDraft(null);
     sendingRequest.current = null;
     setError("");
+  }
+  async function persistDraft() {
+    const result = await request<{ version: number }>(`${base}/email-draft`, {
+      expectedVersion: savedVersion.current,
+      content: draft,
+    });
+    savedVersion.current = result.version;
+    setDirty(false);
+    setSaveNotice("Draft saved · not sent");
+    await Promise.all([
+      cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
+      cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
+    ]);
+  }
+  async function saveDraft() {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await persistDraft();
+    } catch (cause) {
+      setError(workspaceError(cause));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+  function close() {
+    if (busyRef.current) return;
+    if (
+      dirty &&
+      !window.confirm(
+        "Close without saving your latest changes? The last saved draft will remain.",
+      )
+    )
+      return;
+    onClose("draft");
   }
   async function review() {
     if (busyRef.current) return;
@@ -197,6 +255,7 @@ export function EnquiryEmailComposer({
     setBusy(true);
     setError("");
     try {
+      await persistDraft();
       const result = await request<EmailPreview>(
         `${base}/email-preview`,
         draft,
@@ -222,15 +281,23 @@ export function EnquiryEmailComposer({
         requestId: requestUuid(),
         draft: reviewedDraft,
         previewHash: preview.previewHash,
+        savedDraftVersion: savedVersion.current,
       };
       const input = sendingRequest.current;
       const result = await request<{ delivery: Delivery }>(`${base}/email`, {
         ...input.draft,
         requestId: input.requestId,
         previewHash: input.previewHash,
+        savedDraftVersion: input.savedDraftVersion,
       });
       setDelivery(result.delivery);
-      await refresh();
+      setDirty(false);
+      await Promise.all([
+        refresh(),
+        cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
+        cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
+        cache.invalidateQueries({ queryKey: ["staff-email"] }),
+      ]);
     } catch (cause) {
       if (
         typeof cause === "object" &&
@@ -253,7 +320,7 @@ export function EnquiryEmailComposer({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !busyRef.current) onClose();
+        if (!open) close();
       }}
     >
       <DialogContent className="portal-action-dialog enquiry-email-dialog">
@@ -263,7 +330,7 @@ export function EnquiryEmailComposer({
               ? stateLabel(delivery.status)
               : preview
                 ? "Review customer email"
-                : "Email customer"}
+                : "Prepare customer email"}
           </DialogTitle>
           <DialogDescription>
             {entry.customerName} · {entry.reference}
@@ -296,7 +363,13 @@ export function EnquiryEmailComposer({
               {delivery.documentCount ?? 0} invoice(s) · recorded in enquiry
               history
             </p>
-            <Button onClick={onClose}>Done</Button>
+            <Button
+              onClick={() =>
+                onClose(delivery.status === "sent" ? "sent" : "draft")
+              }
+            >
+              Done
+            </Button>
           </div>
         ) : (
           data && (
@@ -306,319 +379,377 @@ export function EnquiryEmailComposer({
                   Email is not enabled for this dealership. Ask the owner to
                   complete{" "}
                   <a href="/portal?section=settings">
-                    Settings → API integrations → Resend
+                    Settings → Email & stock → Resend
                   </a>
                   . You can prepare and review the message here.
                 </p>
               )}
-              {preview ? (
-                <section
-                  className="enquiry-email-review"
-                  aria-label="Email preview"
-                >
-                  <dl>
-                    <div>
-                      <dt>To</dt>
-                      <dd>{preview.to}</dd>
-                    </div>
-                    <div>
-                      <dt>Subject</dt>
-                      <dd>{preview.subject}</dd>
-                    </div>
-                  </dl>
-                  <div className="enquiry-email-preview-copy">
-                    {preview.text}
-                  </div>
-                  {preview.attachments.length > 0 && (
-                    <div className="enquiry-email-attachment-list">
-                      <strong>Attachments</strong>
-                      {preview.attachments.map((a) => (
-                        <p key={a.id}>
-                          {a.filename} · {Math.ceil(a.byteSize / 1024)} KB
-                        </p>
-                      ))}
+              {saveNotice && (
+                <p className="enquiry-email-save-state" role="status">
+                  {saveNotice}
+                </p>
+              )}
+              {data.savedDraft &&
+              ["sending", "unknown"].includes(data.savedDraft.status) ? (
+                <div className="enquiry-email-readiness">
+                  <p>
+                    This draft has an unresolved send. Check Email history and
+                    the provider before sending another copy.
+                  </p>
+                  <Button variant="outline" onClick={close}>
+                    Close draft
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {draft.expectedRevision !== data.revision && (
+                    <div className="enquiry-email-readiness">
+                      <p>
+                        The enquiry changed since this draft was saved. Check
+                        the customer, car, appointment and attachments.
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          change({ expectedRevision: data.revision })
+                        }
+                      >
+                        Use latest enquiry details
+                      </Button>
                     </div>
                   )}
-                  <p className="enquiry-email-hint">
-                    Check the recipient and any personal information in the
-                    photos before sending.
-                  </p>
-                  <div className="enquiry-email-actions">
-                    <Button
-                      disabled={busy || !data.ready}
-                      onClick={() => void send()}
+                  {preview ? (
+                    <section
+                      className="enquiry-email-review"
+                      aria-label="Email preview"
                     >
-                      {busy
-                        ? "Sending…"
-                        : sendingRequest.current
-                          ? "Check or retry same email"
-                          : "Send email"}
-                    </Button>
-                    <Button
-                      disabled={busy || Boolean(sendingRequest.current)}
-                      variant="outline"
-                      onClick={() => {
-                        setPreview(null);
-                        setReviewedDraft(null);
-                        sendingRequest.current = null;
-                        setError("");
-                      }}
-                    >
-                      Edit message
-                    </Button>
-                  </div>
-                </section>
-              ) : (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void review();
-                  }}
-                  className="enquiry-email-form"
-                >
-                  <fieldset disabled={busy}>
-                    <label>
-                      Customer email
-                      <Input
-                        autoFocus
-                        type="email"
-                        required
-                        maxLength={254}
-                        value={draft.to}
-                        onChange={(event) => change({ to: event.target.value })}
-                      />
-                    </label>
-                    {data.templates?.length && (
-                      <label>
-                        Use a template
-                        <select
-                          aria-label="Email template"
-                          defaultValue=""
-                          onChange={(event) => {
-                            const selected = data.templates?.find(
-                              (t) => t.id === event.target.value,
-                            );
-                            if (selected) {
-                              const category =
-                                selected.id === "service_history"
-                                  ? "service_book"
-                                  : selected.id === "pre_accident_photos"
-                                    ? "pre_accident"
-                                    : null;
-                              change({
-                                templateId: selected.id,
-                                subject: selected.subject,
-                                message: selected.message,
-                                includeAppointment:
-                                  selected.id === "appointment_details" &&
-                                  data.appointmentAvailable,
-                                documentIds:
-                                  selected.id === "invoice_copy"
-                                    ? data.invoices?.[0]
-                                      ? [data.invoices[0].id]
-                                      : []
-                                    : draft.documentIds,
-                                photoIds: category
-                                  ? data.photos
-                                      .filter(
-                                        (p) =>
-                                          (p.category ?? "service_book") ===
-                                          category,
-                                      )
-                                      .map((p) => p.id)
-                                  : draft.photoIds,
-                              });
-                            }
+                      <dl>
+                        <div>
+                          <dt>To</dt>
+                          <dd>{preview.to}</dd>
+                        </div>
+                        <div>
+                          <dt>Subject</dt>
+                          <dd>{preview.subject}</dd>
+                        </div>
+                      </dl>
+                      <div className="enquiry-email-preview-copy">
+                        {preview.text}
+                      </div>
+                      {preview.attachments.length > 0 && (
+                        <div className="enquiry-email-attachment-list">
+                          <strong>Attachments</strong>
+                          {preview.attachments.map((a) => (
+                            <p key={a.id}>
+                              {a.filename} · {Math.ceil(a.byteSize / 1024)} KB
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      <p className="enquiry-email-hint">
+                        Check the recipient and any personal information in the
+                        photos before sending.
+                      </p>
+                      <div className="enquiry-email-actions">
+                        <Button
+                          disabled={busy || !data.ready}
+                          onClick={() => void send()}
+                        >
+                          {busy
+                            ? "Sending…"
+                            : sendingRequest.current
+                              ? "Check or retry same email"
+                              : "Send email"}
+                        </Button>
+                        <Button
+                          disabled={busy || Boolean(sendingRequest.current)}
+                          variant="outline"
+                          onClick={() => {
+                            setPreview(null);
+                            setReviewedDraft(null);
+                            sendingRequest.current = null;
+                            setError("");
                           }}
                         >
-                          <option value="">Choose a template</option>
-                          {data.templates.map((t) => (
-                            <option
-                              key={t.id}
-                              value={t.id}
-                              disabled={
-                                (t.id === "invoice_copy" &&
-                                  !data.invoices?.length) ||
-                                (t.id === "appointment_details" &&
-                                  !data.appointmentAvailable) ||
-                                (t.id === "service_history" &&
-                                  !data.photos.some(
-                                    (p) =>
-                                      (p.category ?? "service_book") ===
-                                      "service_book",
-                                  )) ||
-                                (t.id === "pre_accident_photos" &&
-                                  !data.photos.some(
-                                    (p) => p.category === "pre_accident",
-                                  ))
-                              }
-                            >
-                              {t.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    <label>
-                      Subject
-                      <Input
-                        required
-                        maxLength={200}
-                        value={draft.subject}
-                        onChange={(event) =>
-                          change({ subject: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Message
-                      <Textarea
-                        required
-                        rows={7}
-                        maxLength={12000}
-                        value={draft.message}
-                        onChange={(event) =>
-                          change({ message: event.target.value })
-                        }
-                      />
-                    </label>
-                    {Boolean(data.invoices?.length) && (
-                      <fieldset className="enquiry-email-service-book">
-                        <legend>Saved invoices · optional</legend>
-                        {data.invoices!.map((invoice) => (
-                          <label key={invoice.id}>
-                            <input
-                              type="checkbox"
-                              checked={draft.documentIds.includes(invoice.id)}
-                              disabled={
-                                !draft.documentIds.includes(invoice.id) &&
-                                draft.documentIds.length >= 3
-                              }
-                              onChange={(event) =>
-                                change({
-                                  documentIds: event.target.checked
-                                    ? [...draft.documentIds, invoice.id]
-                                    : draft.documentIds.filter(
-                                        (id) => id !== invoice.id,
-                                      ),
-                                })
-                              }
-                            />
-                            {invoice.title} · {invoice.number}
-                          </label>
-                        ))}
-                      </fieldset>
-                    )}
-                    {(data.vehicleAvailable || data.appointmentAvailable) && (
-                      <div
-                        className="enquiry-email-inclusions"
-                        aria-label="Include details"
-                      >
-                        {data.vehicleAvailable && (
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={draft.includeVehicle}
-                              onChange={(event) =>
-                                change({ includeVehicle: event.target.checked })
-                              }
-                            />
-                            Vehicle details and current price
-                          </label>
-                        )}
-                        {data.appointmentAvailable && (
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={draft.includeAppointment}
-                              onChange={(event) =>
-                                change({
-                                  includeAppointment: event.target.checked,
-                                })
-                              }
-                            />
-                            Appointment details
-                          </label>
-                        )}
+                          Edit message
+                        </Button>
                       </div>
-                    )}
-                    {data.vehicleId && (
-                      <section
-                        className="enquiry-email-service-book"
-                        aria-label="Private vehicle-photo attachments"
-                      >
-                        <h3>
-                          Vehicle photos <span>Optional</span>
-                        </h3>
-                        {data.photos.length ? (
-                          <>
-                            <p>
-                              Select the pages to attach. Inspect them for
-                              personal information first.
-                            </p>
-                            <div className="enquiry-email-photos">
-                              {data.photos.map((photo, index) => (
-                                <div key={photo.id}>
-                                  <Photo
-                                    carId={data.vehicleId!}
-                                    id={photo.id}
-                                    index={index}
-                                    category={photo.category}
-                                  />
-                                  <label>
-                                    <input
-                                      type="checkbox"
-                                      checked={draft.photoIds.includes(
-                                        photo.id,
-                                      )}
-                                      onChange={(event) =>
-                                        change({
-                                          photoIds: event.target.checked
-                                            ? [...draft.photoIds, photo.id]
-                                            : draft.photoIds.filter(
-                                                (id) => id !== photo.id,
-                                              ),
-                                        })
-                                      }
-                                    />
-                                    {photo.category === "pre_accident"
-                                      ? "Pre-accident"
-                                      : "Service book"}{" "}
-                                    · Photo {index + 1} ·{" "}
-                                    {Math.ceil(photo.byte_size / 1024)} KB
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          <p>
-                            No private vehicle photos uploaded yet.{" "}
-                            <a
-                              href={`/portal?section=inventory&vehicleId=${data.vehicleId}`}
-                            >
-                              Open this car in Cars
-                            </a>{" "}
-                            to upload them.
-                          </p>
-                        )}
-                      </section>
-                    )}
-                  </fieldset>
-                  <div className="enquiry-email-actions">
-                    <Button type="submit" disabled={busy}>
-                      {busy ? "Preparing preview…" : "Review email"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={onClose}
+                    </section>
+                  ) : (
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void review();
+                      }}
+                      className="enquiry-email-form"
                     >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
+                      <fieldset disabled={busy}>
+                        <label>
+                          Customer email
+                          <Input
+                            autoFocus
+                            type="email"
+                            required
+                            maxLength={254}
+                            value={draft.to}
+                            onChange={(event) =>
+                              change({ to: event.target.value })
+                            }
+                          />
+                        </label>
+                        {Boolean(data.templates?.length) && (
+                          <label>
+                            Use a template
+                            <select
+                              aria-label="Email template"
+                              defaultValue=""
+                              onChange={(event) => {
+                                const selected = data.templates?.find(
+                                  (t) => t.id === event.target.value,
+                                );
+                                if (selected) {
+                                  const category =
+                                    selected.id === "service_history"
+                                      ? "service_book"
+                                      : selected.id === "pre_accident_photos"
+                                        ? "pre_accident"
+                                        : null;
+                                  change({
+                                    templateId: selected.id,
+                                    subject: selected.subject,
+                                    message: selected.message,
+                                    includeAppointment:
+                                      selected.id === "appointment_details" &&
+                                      data.appointmentAvailable,
+                                    documentIds:
+                                      selected.id === "invoice_copy"
+                                        ? data.invoices?.[0]
+                                          ? [data.invoices[0].id]
+                                          : []
+                                        : draft.documentIds,
+                                    photoIds: category
+                                      ? data.photos
+                                          .filter(
+                                            (p) =>
+                                              (p.category ?? "service_book") ===
+                                              category,
+                                          )
+                                          .map((p) => p.id)
+                                      : draft.photoIds,
+                                  });
+                                }
+                              }}
+                            >
+                              <option value="">Choose a template</option>
+                              {data.templates?.map((t) => (
+                                <option
+                                  key={t.id}
+                                  value={t.id}
+                                  disabled={
+                                    (t.id === "invoice_copy" &&
+                                      !data.invoices?.length) ||
+                                    (t.id === "appointment_details" &&
+                                      !data.appointmentAvailable) ||
+                                    (t.id === "service_history" &&
+                                      !data.photos.some(
+                                        (p) =>
+                                          (p.category ?? "service_book") ===
+                                          "service_book",
+                                      )) ||
+                                    (t.id === "pre_accident_photos" &&
+                                      !data.photos.some(
+                                        (p) => p.category === "pre_accident",
+                                      ))
+                                  }
+                                >
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        <label>
+                          Subject
+                          <Input
+                            required
+                            maxLength={200}
+                            value={draft.subject}
+                            onChange={(event) =>
+                              change({ subject: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label>
+                          Message
+                          <Textarea
+                            required
+                            rows={7}
+                            maxLength={12000}
+                            value={draft.message}
+                            onChange={(event) =>
+                              change({ message: event.target.value })
+                            }
+                          />
+                        </label>
+                        {Boolean(data.invoices?.length) && (
+                          <fieldset className="enquiry-email-service-book">
+                            <legend>Saved invoices · optional</legend>
+                            {data.invoices!.map((invoice) => (
+                              <label key={invoice.id}>
+                                <input
+                                  type="checkbox"
+                                  checked={draft.documentIds.includes(
+                                    invoice.id,
+                                  )}
+                                  disabled={
+                                    !draft.documentIds.includes(invoice.id) &&
+                                    draft.documentIds.length >= 3
+                                  }
+                                  onChange={(event) =>
+                                    change({
+                                      documentIds: event.target.checked
+                                        ? [...draft.documentIds, invoice.id]
+                                        : draft.documentIds.filter(
+                                            (id) => id !== invoice.id,
+                                          ),
+                                    })
+                                  }
+                                />
+                                {invoice.title} · {invoice.number}
+                              </label>
+                            ))}
+                          </fieldset>
+                        )}
+                        {(data.vehicleAvailable ||
+                          data.appointmentAvailable) && (
+                          <div
+                            className="enquiry-email-inclusions"
+                            aria-label="Include details"
+                          >
+                            {data.vehicleAvailable && (
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={draft.includeVehicle}
+                                  onChange={(event) =>
+                                    change({
+                                      includeVehicle: event.target.checked,
+                                    })
+                                  }
+                                />
+                                Vehicle details and current price
+                              </label>
+                            )}
+                            {data.appointmentAvailable && (
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={draft.includeAppointment}
+                                  onChange={(event) =>
+                                    change({
+                                      includeAppointment: event.target.checked,
+                                    })
+                                  }
+                                />
+                                Appointment details
+                              </label>
+                            )}
+                          </div>
+                        )}
+                        {data.vehicleId && (
+                          <section
+                            className="enquiry-email-service-book"
+                            aria-label="Private vehicle-photo attachments"
+                          >
+                            <h3>
+                              Vehicle photos <span>Optional</span>
+                            </h3>
+                            {data.photos.length ? (
+                              <>
+                                <p>
+                                  Select the pages to attach. Inspect them for
+                                  personal information first.
+                                </p>
+                                <div className="enquiry-email-photos">
+                                  {data.photos.map((photo, index) => (
+                                    <div key={photo.id}>
+                                      <Photo
+                                        carId={data.vehicleId!}
+                                        id={photo.id}
+                                        index={index}
+                                        category={photo.category}
+                                      />
+                                      <label>
+                                        <input
+                                          type="checkbox"
+                                          checked={draft.photoIds.includes(
+                                            photo.id,
+                                          )}
+                                          onChange={(event) =>
+                                            change({
+                                              photoIds: event.target.checked
+                                                ? [...draft.photoIds, photo.id]
+                                                : draft.photoIds.filter(
+                                                    (id) => id !== photo.id,
+                                                  ),
+                                            })
+                                          }
+                                        />
+                                        {photo.category === "pre_accident"
+                                          ? "Pre-accident"
+                                          : "Service book"}{" "}
+                                        · Photo {index + 1} ·{" "}
+                                        {Math.ceil(photo.byte_size / 1024)} KB
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <p>
+                                No private vehicle photos uploaded yet.{" "}
+                                <a
+                                  href={`/portal?section=inventory&vehicleId=${data.vehicleId}`}
+                                >
+                                  Open this car in Cars
+                                </a>{" "}
+                                to upload them.
+                              </p>
+                            )}
+                          </section>
+                        )}
+                      </fieldset>
+                      <div className="enquiry-email-actions">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            busy || draft.expectedRevision !== data.revision
+                          }
+                          onClick={() => void saveDraft()}
+                        >
+                          Save draft
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={
+                            busy || draft.expectedRevision !== data.revision
+                          }
+                        >
+                          {busy ? "Preparing preview…" : "Review email"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={close}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </>
               )}
               {data.deliveries.length > 0 && (
                 <details className="enquiry-email-history">

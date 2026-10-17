@@ -9,8 +9,8 @@ for (const width of [390, 1440]) {
     await expect(hero).toBeVisible();
     await expect(page.getByTestId('input-showroom-search')).toHaveCount(0);
     const strip = page.locator('.rolling-stock-window');
-    await page.getByRole('button', {name: 'Pause cars'}).click();
-    await expect(strip).toHaveAttribute('data-paused', 'true');
+    await expect(strip.locator('.rolling-stock-group')).toHaveCount(1);
+    await expect(strip.locator('.rolling-stock-copy')).toHaveCount(0);
     if (width === 1440) {
       const card = await strip.locator('.rolling-stock-group').first().locator('article').first().boundingBox();
       expect(card!.width).toBeGreaterThan(300);
@@ -23,14 +23,14 @@ for (const width of [390, 1440]) {
     if (width === 390) await hero.getByText('More filters', { exact: true }).click();
     await expect(hero.getByRole('combobox', { name: 'Search model', exact: true })).toBeDisabled();
     await expect(page.getByTestId('showroom-hero-photo').locator('img')).toHaveJSProperty('complete', true);
-    await expect(page.getByRole('button', { name: /^Search \d+ used cars$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Search \d+ cars?$/ })).toBeVisible();
     await expect(hero).not.toContainText(/monthly|finance|new cars/i);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await mkdir('../../docs/screenshots/rolling-stock', { recursive: true });
     await page.screenshot({ path: `../../docs/screenshots/rolling-stock/hero-${width}.png`, animations: 'disabled' });
     await hero.getByRole('combobox', { name: 'Search make', exact: true }).selectOption('MG');
     await hero.getByRole('combobox', { name: 'Search model', exact: true }).selectOption('MG HS');
-    await hero.getByRole('button', { name: 'Search 1 used car', exact: true }).click();
+    await hero.getByRole('button', { name: 'Search 1 car', exact: true }).click();
     await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
     await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeVisible();
     await expect(page.locator('[data-testid^="card-vehicle-"]')).toHaveCount(1);
@@ -53,32 +53,39 @@ for (const width of [390, 1440]) {
     await first.getByRole('button', { name: /^Next photo/ }).click();
     await expect(first).toContainText('2 /');
     await first.getByRole('button', { name: /^Save .* to your saved cars/ }).click();
-    await first.getByRole('link', {name: /View vehicle/}).click();
-    await expect(page).toHaveURL(/\/vehicle\//);
-    await page.getByRole('link', {name: 'Back to Browse Stock'}).click();
+    const vehicleLink = first.locator('h3 a');
+    const vehicleHref = await vehicleLink.getAttribute('href');
+    await vehicleLink.click();
+    await expect(page).toHaveURL(new RegExp(`${vehicleHref!}$`));
+    await page.getByRole('link', {name: 'Back to your results'}).click();
     await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
     await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeAttached();
   });
 }
 
-test('rolling cars move left, pause and respect reduced motion', async ({ page }) => {
+test('featured cars stay still until browsed and respect reduced motion', async ({ page }) => {
   await page.goto('/');
   const viewport = page.locator('.rolling-stock-window');
   await page.mouse.move(0, 0);
-  const step = await viewport.locator('article').first().evaluate(node => node.getBoundingClientRect().width);
+  await expect(viewport.locator('article').first()).toBeVisible();
+  await expect(viewport.locator('.rolling-stock-group')).toHaveCount(1);
+  await expect(viewport.locator('.rolling-stock-copy')).toHaveCount(0);
   const initialScroll = await viewport.evaluate(node => node.scrollLeft);
-  await expect.poll(() => viewport.evaluate(node => node.scrollLeft), {timeout: 6500}).toBeGreaterThan(initialScroll + step - 2);
-  expect(await viewport.evaluate(node => node.scrollLeft)).toBeLessThan(initialScroll + step + 2);
-  await page.getByRole('button', {name: 'Pause cars'}).click();
-  await expect(viewport).toHaveAttribute('data-paused', 'true');
+  await page.waitForTimeout(4200);
+  expect(await viewport.evaluate(node => node.scrollLeft)).toBe(initialScroll);
+  await page.getByRole('button', { name: 'Next featured cars' }).click();
+  await expect.poll(() => viewport.evaluate(node => node.scrollLeft)).toBeGreaterThan(initialScroll + 40);
+  await expect(page).toHaveURL(/\/$/);
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await expect(page.locator('.rolling-stock-copy')).toBeHidden();
+  const beforePrevious = await viewport.evaluate(node => node.scrollLeft);
+  await page.getByRole('button', { name: 'Previous featured cars' }).click();
+  await expect.poll(() => viewport.evaluate(node => node.scrollLeft)).toBeLessThan(beforePrevious);
   await page.goto('/#stock');
   await expect(page).toHaveURL(/\/stock(?:\?.*)?$/);
   await expect(page.getByRole('heading', {name: 'Browse Stock'})).toBeVisible();
 });
 
-test('homepage has one visit section and a clickable featured price panel', async ({ page }) => {
+test('homepage has one visit section and featured title links open the full vehicle', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   const hero = page.getByRole('form', { name: 'Search used cars' });
@@ -86,10 +93,9 @@ test('homepage has one visit section and a clickable featured price panel', asyn
   await expect(page.getByRole('heading', { name: 'Plan your visit' })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Meet the team' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Featured cars' })).toBeVisible();
-  await page.getByRole('button', { name: 'Pause cars' }).click();
   await page.evaluate(() => document.fonts.ready);
   const cards = page.locator('.rolling-stock-group').first().locator('article');
-  // Autoplay may already have advanced while stock and fonts loaded.
+  // Read the visible card so the assertion also works after manual browsing.
   const visibleIndex = await cards.evaluateAll(elements => elements.findIndex(element => {
     const bounds = element.getBoundingClientRect();
     return bounds.left + bounds.width / 2 > 0 && bounds.left + bounds.width / 2 < innerWidth;
@@ -99,7 +105,6 @@ test('homepage has one visit section and a clickable featured price panel', asyn
   await expect(card.getByText('Available', { exact: true })).toHaveCount(0);
   const link = card.locator('h3 a');
   const href = await link.getAttribute('href');
-  const bounds = await card.boundingBox();
-  await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height - 12);
+  await link.click();
   await expect(page).toHaveURL(new RegExp(href! + '$'));
 });

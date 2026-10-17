@@ -18,7 +18,7 @@ export function workspaceError(error: unknown) {
 }
 export function useRefreshDesk() {
   const client = useQueryClient();
-  return () => Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]);
+  return () => Promise.all([client.invalidateQueries({ queryKey: ['staff-notifications'] }), client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]);
 }
 export function OwnerSelect({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const query = useGetStaffDirectory();

@@ -1,10 +1,10 @@
-import { Settings2, Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { SettingsTabs } from '@/components/settings-tabs';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { DealerSettingsPanel } from '@/components/dealer-settings-panel';
@@ -57,7 +57,7 @@ function TeamSettings() {
   const query = useQuery({ queryKey: ['staff-team'], queryFn: () => request<{ members: Member[] }>('/api/staff/team') });
   const [email, setEmail] = useState(''), [role, setRole] = useState<Role>('salesperson'), [busy, setBusy] = useState(false), [error, setError] = useState('');
   async function save(url: string, method: string, body: unknown) { setBusy(true); setError(''); try { await request(url, method, body); setEmail(''); await query.refetch(); } catch (cause) { setError(message(cause)); } finally { setBusy(false); } }
-  return <section className="dealer-admin"><header className="admin-heading"><div><p className="admin-kicker">Staff access</p><h2>Your team</h2><p>Owners manage settings and integrations. Sales staff manage customers and sales. Accounts can export the payment ledger.</p></div></header><Feedback error={query.error} />{error && <p role="alert" className="admin-error">{error}</p>}<div className="admin-card"><form className="admin-inline-form" onSubmit={event => { event.preventDefault(); void save('/api/staff/team', 'POST', { email: email.trim(), role }); }}><label>Email<Input type="email" required value={email} onChange={event => setEmail(event.target.value)} /></label><label>Role<NativeSelect value={role} onChange={event => setRole(event.target.value as Role)}><option value="salesperson">Salesperson</option><option value="accounts">Accounts</option><option value="owner">Owner</option></NativeSelect></label><Button disabled={busy}>Add staff access</Button></form><p className="admin-muted">Staff sign in with their own account. The last active owner cannot be removed.</p></div><div className="admin-team-list">{query.data?.members.map(member => <article className="admin-card admin-team-member" key={member.id}><div><h3>{member.name ?? member.email ?? 'Staff member'}</h3>{member.name && <p>{member.email}</p>}<p className="admin-muted">{member.active ? 'Access enabled' : 'Access disabled'}</p></div><label>Role<NativeSelect aria-label={`Role for ${member.email ?? member.id}`} disabled={busy} value={member.role} onChange={event => void save(`/api/staff/team/${member.id}`, 'PATCH', { role: event.target.value })}><option value="owner">Owner</option><option value="salesperson">Salesperson</option><option value="accounts">Accounts</option></NativeSelect></label><Button disabled={busy} variant="outline" onClick={() => { if (window.confirm(`${member.active ? 'Disable' : 'Enable'} access for ${member.email ?? member.name}?`)) void save(`/api/staff/team/${member.id}`, 'PATCH', { active: !member.active }); }}>{member.active ? 'Disable access' : 'Enable access'}</Button></article>)}</div></section>;
+  return <section className="dealer-admin" data-settings-dirty={Boolean(email.trim())}><header className="admin-heading"><div><p className="admin-kicker">Staff access</p><h2>Your team</h2><p>Owners manage settings and integrations. Sales staff manage customers and sales. Accounts can export the payment ledger.</p></div></header><Feedback error={query.error} />{error && <p role="alert" className="admin-error">{error}</p>}<div className="admin-card"><form className="admin-inline-form" onSubmit={event => { event.preventDefault(); void save('/api/staff/team', 'POST', { email: email.trim(), role }); }}><label>Email<Input type="email" required value={email} onChange={event => setEmail(event.target.value)} /></label><label>Role<NativeSelect value={role} onChange={event => setRole(event.target.value as Role)}><option value="salesperson">Salesperson</option><option value="accounts">Accounts</option><option value="owner">Owner</option></NativeSelect></label><Button disabled={busy}>Add staff access</Button></form><p className="admin-muted">Staff sign in with their own account. The last active owner cannot be removed.</p></div><div className="admin-team-list">{query.data?.members.map(member => <article className="admin-card admin-team-member" key={member.id}><div><h3>{member.name ?? member.email ?? 'Staff member'}</h3>{member.name && <p>{member.email}</p>}<p className="admin-muted">{member.active ? 'Access enabled' : 'Access disabled'}</p></div><label>Role<NativeSelect aria-label={`Role for ${member.email ?? member.id}`} disabled={busy} value={member.role} onChange={event => void save(`/api/staff/team/${member.id}`, 'PATCH', { role: event.target.value })}><option value="owner">Owner</option><option value="salesperson">Salesperson</option><option value="accounts">Accounts</option></NativeSelect></label><Button disabled={busy} variant="outline" onClick={() => { if (window.confirm(`${member.active ? 'Disable' : 'Enable'} access for ${member.email ?? member.name}?`)) void save(`/api/staff/team/${member.id}`, 'PATCH', { active: !member.active }); }}>{member.active ? 'Disable access' : 'Enable access'}</Button></article>)}</div></section>;
 }
 type Version = { revision: number; publishedAt: string; publishedBy: string; action: string; restoredFrom?: number };
 function PublicationHistory() {
@@ -69,39 +69,57 @@ function PublicationHistory() {
 }
 export function DealerSettingsHub() {
   const editorRoot = useRef<HTMLDivElement>(null);
-  const mobile = useIsMobile();
-  const mobileHeading = useRef<HTMLHeadingElement>(null);
-  const access = useStaffAccess(); const search = useSearch(); const [,navigate] = useLocation(); const [section, setSection] = useState(() => new URLSearchParams(search).get('settingsTab') ?? 'website');
-  useEffect(() => { const id = new URLSearchParams(search).get('settingsTab') ?? 'website'; setSection(['website','emails','integrations','paperwork','chat','team','history'].includes(id) ? id : 'website'); }, [search]);
-  useEffect(() => { if (mobile && !new URLSearchParams(search).has('websiteSection')) requestAnimationFrame(() => { mobileHeading.current?.scrollIntoView({ block: 'start' }); mobileHeading.current?.focus({ preventScroll: true }); }); }, [search, mobile]);
+  const access = useStaffAccess();
+  const search = useSearch();
+  const [, navigate] = useLocation();
+  const requested = new URLSearchParams(search).get('settingsTab') ?? 'website';
+  const sections = [
+    { id: 'website', label: 'Website', icon: Globe2, description: 'Showroom details, branding, pages and bookings.' },
+    { id: 'emails', label: 'Email', icon: Mail, description: 'Customer messages and the way your emails look.' },
+    { id: 'paperwork', label: 'Invoices', icon: FileText, description: 'Document design, payment details, references and sale terms.' },
+    { id: 'team', label: 'Team', icon: Users, description: 'Staff accounts and permissions. Access changes apply immediately.' },
+    { id: 'integrations', label: 'Connections', icon: PlugZap, description: 'Private email delivery and your authorised stock connection.' },
+    { id: 'history', label: 'Publish history', icon: History, description: 'Previous website publications. Restoring a version changes website settings only.' },
+    ...(customerFeaturePolicy.websiteChat ? [{ id: 'chat', label: 'Website chat', icon: MessageCircle, description: 'Customer chat availability and welcome messages.' }] : []),
+  ];
+  const selectedSection = sections.some(item => item.id === requested) ? requested : 'website';
+  const advanced = ['integrations', 'history', 'chat'].includes(selectedSection);
+  const primary = advanced ? 'advanced' : selectedSection;
+  const canTeam = access.data?.permissions.includes('team.manage') ?? false;
+  const primaryTabs = [
+    ...sections.filter(item => ['website','emails','paperwork','team'].includes(item.id) && (item.id !== 'team' || canTeam)),
+    { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },
+  ];
+  function chooseSection(id: string) {
+    if (id === selectedSection) return;
+    if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') &&
+      !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return;
+    navigate(`/portal?section=settings&settingsTab=${id}`);
+  }
   if (access.isLoading) return <p role="status">Loading settings access…</p>;
   if (access.isError) return <Feedback error={access.error} />;
   if (!access.data?.permissions.includes('settings.publish')) return <div className="admin-card"><h2>Owner settings</h2><p>Your role does not have permission to publish dealership settings.</p></div>;
-  const sections = [
-    ['website','Website','Branding, showroom details, pages, bookings and customer services. Review the website draft before publishing.'],
-    ['emails','Email templates','Customise messages and email branding. Save templates separately; previews send no email.'],
-    ['integrations','Email & stock','Private email delivery and the dealership’s stock connection.'],
-    ['paperwork','Sales documents','Invoice design, reference sequences and approved sale/deposit wording. Existing issued copies stay unchanged.'],
-    ['chat','Website chat','Customer chat availability, automatic answers and welcome messages.'],
-    ['team','Team','Manage individual staff access and roles. Keep at least one active owner.'],
-    ['history','Publish history','Review and restore website publications. Private connections, email templates and sales terms are saved separately.'],
-  ].filter(([id]) => id !== 'chat' || customerFeaturePolicy.websiteChat);
-  const selectedSection = sections.some(([id]) => id === section) ? section : 'website';
-  const categoryIcons: Record<string, typeof Globe2> = { website: Globe2, emails: Mail, integrations: PlugZap, paperwork: FileText, chat: MessageCircle, team: Users, history: History };
-  const chooseSection = (id: string) => { if (id === selectedSection && (!mobile || new URLSearchParams(search).has('settingsTab'))) return; if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') && !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return; setSection(id); navigate(`/portal?section=settings&settingsTab=${id}`); };
-  const mobileHome = mobile && !new URLSearchParams(search).has('settingsTab');
-  const backToSettings = () => {
-    if (editorRoot.current?.querySelector('[data-settings-dirty="true"]') && !window.confirm('This settings area has unsaved changes. Leave it and discard those changes?')) return;
-    navigate('/portal?section=settings');
-  };
-  const shortDescriptions: Record<string,string> = { website:'Showroom, hours, bookings and your website', emails:'Customer messages and email branding', paperwork:'Invoices, receipts and sale terms', chat:'Customer chat and welcome messages', integrations:'Email API and stock feed connections', team:'Staff accounts and permissions', history:'Previous website publications' };
-  const mobileRows = (ids: string[]) => <div className="settings-app-list">{sections.filter(([id]) => ids.includes(id)).map(([id,label]) => { const Icon = categoryIcons[id]; return <button type="button" key={id} className="settings-app-row" aria-label={label} onClick={() => chooseSection(id)}><span className="settings-app-icon"><Icon size={21} aria-hidden="true" /></span><span><strong>{label}</strong><small>{shortDescriptions[id]}</small></span><ChevronRight size={18} aria-hidden="true" /></button>; })}</div>;
-  return <div className={`dealer-settings-hub settings-hub-redesign${mobile ? ' settings-app' : ''}`}>
-    {mobile ? <header className="settings-app-header">{!mobileHome && <button type="button" className="settings-app-back" onClick={backToSettings}><ChevronLeft size={20} aria-hidden="true" />Settings</button>}<h2 ref={mobileHeading} tabIndex={-1}>{mobileHome ? 'Settings' : sections.find(([id]) => id === selectedSection)?.[1]}</h2>{mobileHome && <p>Make a quick change, then get back to your day.</p>}</header> : <header className="settings-hub-heading"><div className="settings-hub-mark"><Settings2 size={24} aria-hidden="true" /></div><div><p>Dealership workspace</p><h2>Dealership settings</h2><span>Your website, customer messages and business tools, in one place.</span></div></header>}
-    {mobileHome ? <div className="settings-app-home"><h3>Everyday settings</h3>{mobileRows(['website','emails','paperwork','chat'])}<details className="settings-app-advanced"><summary><span><strong>Advanced settings</strong><small>Connections, staff access and publish history</small></span><ChevronRight size={18} aria-hidden="true" /></summary>{mobileRows(['integrations','team','history'])}</details><p className="settings-app-help">Website changes stay in a draft until you review and publish. Other areas have their own save button.</p></div> : <>
-    <div className="settings-hub-layout">
-      <nav className="admin-settings-tabs" aria-label="Dealership settings">{sections.map(([id,label]) => { const Icon = categoryIcons[id]; return <button type="button" key={id} aria-current={selectedSection === id ? 'page' : undefined} onClick={() => chooseSection(id)}><Icon size={19} aria-hidden="true"/><span>{label}</span></button>; })}<p className="settings-nav-help">Each area has its own save controls. Website changes are reviewed before publishing.</p></nav>
-      <div ref={editorRoot} className="settings-hub-content"><p className="settings-category-description" role="status">{sections.find(([id]) => id === selectedSection)?.[2]}</p><div key={selectedSection}>{selectedSection === 'website' && <DealerSettingsPanel />}{selectedSection === 'emails' && <EmailTemplatesSettings />}{selectedSection === 'integrations' && <DealerIntegrationsSettings />}{selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}{selectedSection === 'chat' && <CustomerChatSettings />}{selectedSection === 'team' && <TeamSettings />}{selectedSection === 'history' && <PublicationHistory />}</div></div>
-    </div></>}
-  </div>;
+  return <section className="dealer-settings-hub settings-hub-redesign settings-tabs-workspace" aria-label="Dealership settings">
+    <header className="settings-tabs-heading"><div><h2>Settings</h2><p>Your website, customer messages and business preferences.</p></div><span><ShieldCheck size={15} aria-hidden="true" />Owner access</span></header>
+    <div className="settings-primary-navigation"><SettingsTabs idPrefix="dealer-settings" label="Settings categories" value={primary} items={primaryTabs} onValueChange={id => { if (id !== primary) chooseSection(id === 'advanced' ? 'integrations' : id); }} /></div>
+    <div ref={editorRoot}>
+      {primaryTabs.map(item => <div key={item.id} id={`dealer-settings-panel-${item.id}`} role="tabpanel" aria-labelledby={`dealer-settings-tab-${item.id}`} hidden={primary !== item.id} className="settings-hub-content">
+        {primary === item.id && <>
+          {item.id === 'advanced' && <div className="settings-advanced-navigation"><div><h3>Advanced settings</h3><p>Connections and website publishing. Change these only when needed.</p></div><SettingsTabs idPrefix="advanced-settings" label="Advanced settings" value={selectedSection} items={sections.filter(section => ['integrations','history','chat'].includes(section.id))} onValueChange={chooseSection} /></div>}
+          {['team','history'].includes(selectedSection) && <p className="settings-area-description">{sections.find(section => section.id === selectedSection)?.description}</p>}
+          <div key={selectedSection} {...(advanced ? { role: 'tabpanel', id: `advanced-settings-panel-${selectedSection}`, 'aria-labelledby': `advanced-settings-tab-${selectedSection}` } : {})}>
+            {selectedSection === 'website' && <DealerSettingsPanel />}
+            {selectedSection === 'emails' && <EmailTemplatesSettings />}
+            {selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}
+            {selectedSection === 'team' && canTeam && <TeamSettings />}
+            {selectedSection === 'integrations' && <DealerIntegrationsSettings />}
+            {selectedSection === 'history' && <PublicationHistory />}
+            {selectedSection === 'chat' && <CustomerChatSettings />}
+          </div>
+        </>}
+      </div>)}
+      {selectedSection === 'team' && !canTeam && <div className="settings-access-note" role="status"><h3>Team access is managed by an authorised owner</h3><p>Your account cannot change staff access. Choose another settings tab to continue.</p></div>}
+    </div>
+    <p className="settings-save-help">Each area has its own save controls. Website edits stay in a draft until you review and publish.</p>
+  </section>;
 }

@@ -1,5 +1,5 @@
 export const vehicleQuestions: Record<string, { label: string; message: string }> = {
-  service: { label: 'Service history', message: 'Could you confirm the service history and available records for this car?' },
+  service: { label: 'Service history', message: 'Could you email me the available service-book photos and service records for this car?' },
   mot: { label: 'MOT expiry', message: 'Could you confirm the MOT expiry date and any advisories for this car?' },
   keys: { label: 'Keys', message: 'How many keys are supplied with this car?' },
   history: { label: 'Insurance history', message: 'Could you confirm the recorded insurance history and available inspection records for this car?' },

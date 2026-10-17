@@ -10,7 +10,9 @@ export function RouteScrollReset() {
     if (location === "/stock" && previous.current.startsWith("/vehicle/")) requestBrowseRestore();
     previous.current = location;
     window.history.scrollRestoration = 'manual';
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    // `auto` inherits html's smooth anchor scrolling and would sweep through
+    // the previous page's position when opening a vehicle from deep in stock.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location]);
 
   return null;
