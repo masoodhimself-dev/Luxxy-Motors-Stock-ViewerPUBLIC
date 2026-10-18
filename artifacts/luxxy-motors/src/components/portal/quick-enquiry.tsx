@@ -8,7 +8,6 @@ import {
 } from "@workspace/api-client-react";
 import { LoaderCircle, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -21,6 +20,8 @@ import {
 import { useStock } from "@/lib/stock-context";
 import { vehicleDisplayTitle, vehicleRegistrationLabel } from "@/lib/utils";
 import { useStaffAccess } from "./dealer-administration";
+import { useEnquirySummaries } from "@/lib/enquiry-summary-query";
+import { RecentCustomerFields } from "./recent-customer-fields";
 import "./quick-enquiry.css";
 
 export type QuickEnquiryResult = { id: string; reference: string };
@@ -55,6 +56,9 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
   const cache = useQueryClient();
   const access = useStaffAccess(open);
   const allowed = Boolean(access.data?.permissions.includes("sales.manage"));
+  const recentCustomers = useEnquirySummaries(undefined, {
+    query: { queryKey: getGetEnquiriesQueryKey(), enabled: open && allowed, retry: false },
+  });
   const directory = useGetStaffDirectory({
     query: {
       queryKey: getGetStaffDirectoryQueryKey(),
@@ -211,42 +215,15 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
           <form className="quick-enquiry-form" onSubmit={submit} noValidate>
             <div className="quick-enquiry-body">
               <fieldset disabled={pending}>
-                <label>
-                  Customer name
-                  <Input
-                    autoComplete="off"
-                    value={form.name}
-                    onChange={(event) => update("name", event.target.value)}
-                    required
-                    minLength={2}
-                    maxLength={120}
-                  />
-                </label>
-                <div className="quick-enquiry-contact">
-                  <label>
-                    Phone number
-                    <Input
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="off"
-                      value={form.phone}
-                      onChange={(event) => update("phone", event.target.value)}
-                      required
-                      maxLength={40}
-                    />
-                  </label>
-                  <label>
-                    Email (optional)
-                    <Input
-                      type="email"
-                      inputMode="email"
-                      autoComplete="off"
-                      value={form.email}
-                      onChange={(event) => update("email", event.target.value)}
-                      maxLength={320}
-                    />
-                  </label>
-                </div>
+                <RecentCustomerFields
+                  value={{ customerName: form.name, phone: form.phone, email: form.email }}
+                  onChange={contact => setForm(current => ({ ...current, name: contact.customerName, phone: contact.phone ?? "", email: contact.email ?? "" }))}
+                  customers={(recentCustomers.data ?? []).map(entry => ({ id: entry.id, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: `${entry.reference} · ${entry.vehicleTitle || "General enquiry"}` }))}
+                  nameRequired
+                  phoneRequired
+                  disabled={pending}
+                />
+                {recentCustomers.isError && <p className="quick-enquiry-hint">Recent customers could not load. You can still enter their details.</p>}
                 <label>
                   Car (optional)
                   <NativeSelect

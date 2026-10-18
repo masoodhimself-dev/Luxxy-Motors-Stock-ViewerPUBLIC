@@ -26,6 +26,11 @@ export async function declarationQa(
     res.end(JSON.stringify(data));
     return true;
   };
+  if (url.pathname === "/api/enquiries" && req.method === "GET")
+    return send([
+      { id: enquiryId, reference: "QA-DRIVE-001", customerName: "Alex Taylor — fictional", phone: "07700 900123", email: "alex@example.test", type: "viewing", status: "new", vehicleId: "22222222-2222-4222-8222-222222222222", vehicleTitle: "2022 Ford Fiesta", message: "Fictional customer for browser testing.", createdAt: "2026-10-18T10:00:00Z", updatedAt: "2026-10-18T10:00:00Z", events: [] },
+      { id: "33333333-3333-4333-8333-333333333333", reference: "QA-CALL-002", customerName: "Alex Morgan — fictional", phone: "07700 900124", email: "morgan@example.test", type: "general", status: "new", vehicleId: null, vehicleTitle: null, message: "Separate fictional customer.", createdAt: "2026-10-17T10:00:00Z", updatedAt: "2026-10-17T10:00:00Z", events: [] },
+    ]);
   if (url.pathname === "/api/test-drive-bookings" && req.method === "GET")
     return send([
       {

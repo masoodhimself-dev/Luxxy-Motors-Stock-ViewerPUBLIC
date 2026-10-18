@@ -49,10 +49,12 @@
   font-size: 13px;
   font-weight: 600;
 }
-.quick-enquiry-contact {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+.quick-enquiry-dialog .recent-customer-popup {
+  position: static;
+  margin-top: 6px;
+}
+.quick-enquiry-dialog .recent-customer-popup > ul {
+  max-height: min(16rem, 35dvh);
 }
 .quick-enquiry-dialog :is(input, select, textarea) {
   width: 100%;
@@ -129,10 +131,6 @@
   }
   .quick-enquiry-body {
     padding: 20px;
-  }
-  .quick-enquiry-contact {
-    grid-template-columns: 1fr;
-    gap: 17px;
   }
   .quick-enquiry-dialog :is(input, select, textarea) {
     font-size: 16px;

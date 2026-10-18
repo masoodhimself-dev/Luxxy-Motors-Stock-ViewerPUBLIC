@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { Enquiry, StaffOnlineReservation } from "@workspace/api-client-react";
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
@@ -10,6 +11,10 @@ import {
 } from "@workspace/vehicle-meta";
 const state = vi.hoisted(() => ({
   sales: [] as SaleWorkspaceRecord[],
+  enquiries: [] as Enquiry[],
+  reservations: [] as StaffOnlineReservation[],
+  search: "",
+  enquiriesError: false,
   fetch: vi.fn(),
   pdf: vi.fn(),
   stock: {
@@ -47,15 +52,15 @@ vi.mock("@/lib/dealer-settings-context", () => ({
 }));
 vi.mock("wouter", () => ({
   useLocation: () => ["", vi.fn()],
-  useSearch: () => "",
+  useSearch: () => state.search,
 }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
   HttpApiError: class extends Error {},
   getGetStockQueryKey: () => ["stock"],
   getGetEnquiriesQueryKey: () => ["/api/enquiries"],
-  useGetEnquiries: () => ({ data: [] }),
-  useListReservations: () => ({ data: { reservations: [] } }),
+  useGetEnquiries: () => ({ data: state.enquiries, isError: state.enquiriesError }),
+  useListReservations: () => ({ data: { reservations: state.reservations } }),
 }));
 vi.mock("@/components/sales-demo/sales-document", () => ({
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
@@ -76,6 +81,10 @@ const context = (): SaleWorkspaceContext => ({
 });
 beforeEach(() => {
   state.sales = [];
+  state.enquiries = [];
+  state.reservations = [];
+  state.search = "";
+  state.enquiriesError = false;
   state.pdf.mockReset();
   serial = 0;
   state.fetch
@@ -345,4 +354,123 @@ it("calculates a fee, discount and part exchange exactly before issuing the full
   await issue("full");
   expect(state.sales[0].documents[0].snapshot.totals.totalDue).toBe(890250);
   expect(state.sales[0].documents[0].balanceAtIssue).toBe(0);
+});
+
+
+function recentEnquiry(overrides: Partial<Enquiry> = {}): Enquiry {
+  return {
+    id: "enquiry-recent",
+    reference: "ENQ-RECENT",
+    customerName: "Jamie Taylor",
+    phone: "07700900123",
+    email: "jamie@example.com",
+    vehicleId: "car-test",
+    vehicleTitle: "Ford Focus",
+    createdAt: "2026-10-17T09:00:00Z",
+    updatedAt: "2026-10-18T09:00:00Z",
+    ...overrides,
+  } as Enquiry;
+}
+async function openCustomerStep() {
+  fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), {
+    target: { value: "car-test" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+}
+async function selectRecentCustomer(query = "Jamie") {
+  const name = screen.getByRole("combobox", { name: "Customer’s full name" });
+  fireEvent.focus(name);
+  fireEvent.change(name, { target: { value: query } });
+  fireEvent.click(await screen.findByRole("option", { name: /Jamie Taylor/ }));
+}
+
+it("autofills a recent enquiry contact as staff type and links only the selected same-car enquiry", async () => {
+  state.enquiries = [recentEnquiry()];
+  mount();
+  await openCustomerStep();
+  expect(screen.queryByLabelText("Use recent customer")).not.toBeInTheDocument();
+  await selectRecentCustomer();
+  expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
+  expect(screen.getByLabelText("Telephone")).toHaveValue("07700900123");
+  expect(screen.getByLabelText("Email for the invoice")).toHaveValue("jamie@example.com");
+  expect(state.fetch.mock.calls.filter(([, options]) => options)).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await waitFor(() => expect(state.sales).toHaveLength(1));
+  expect(state.sales[0].draft.sourceEnquiryId).toBe("enquiry-recent");
+  expect(state.sales[0].draft.sourceReservationId).toBe("");
+});
+
+it("reuses a returning customer's contact without linking another car's enquiry or retaining a previous address", async () => {
+  state.enquiries = [recentEnquiry({ vehicleId: "another-car", vehicleTitle: "Toyota Yaris" })];
+  mount();
+  await openCustomerStep();
+  fireEvent.change(screen.getByLabelText("Customer address"), { target: { value: "Previous customer's address" } });
+  await selectRecentCustomer();
+  expect(screen.getByLabelText("Customer address")).toHaveValue("");
+  expect(screen.getByText(/Confirm and enter the customer’s current address/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await waitFor(() => expect(state.sales).toHaveLength(1));
+  expect(state.sales[0].draft.customer).toBe("Jamie Taylor");
+  expect(state.sales[0].draft.sourceEnquiryId).toBe("");
+  expect(state.sales[0].draft.sourceReservationId).toBe("");
+});
+
+it("includes customers from prior sales without copying their address, payment ledger or source linkage", async () => {
+  const historic = createSaleWorkspace({ draft: {
+    id: "prior-draft", customer: "Jamie Taylor", email: "jamie@example.com", phone: "07700900123", address: "Old address",
+    vehicleId: "previous-car", vehicle: "Toyota Yaris", registration: "AB12CDE", price: "5000",
+    partExchange: false, pxRegistration: "", pxDescription: "", pxValue: "", deposit: "", paymentMethod: "Bank transfer", notes: "", collection: "", preparation: false, documents: false, handover: false,
+    sourceEnquiryId: "old-enquiry",
+  }, requestId: "prior-sale-request" }, context(), "SALE-PRIOR").sale;
+  state.sales = [historic];
+  mount();
+  await openCustomerStep();
+  await selectRecentCustomer();
+  expect(screen.getByLabelText("Telephone")).toHaveValue("07700900123");
+  expect(screen.getByLabelText("Customer address")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await waitFor(() => expect(state.sales).toHaveLength(2));
+  const current = state.sales.find(sale => sale.id !== historic.id)!;
+  expect(current.draft.sourceEnquiryId).toBe("");
+  expect(current.draft.vehicleId).toBe("car-test");
+  expect(current.payments).toEqual([]);
+  expect(historic.draft.address).toBe("Old address");
+});
+
+it("keeps explicitly linked enquiry prefilling from its URL", async () => {
+  state.enquiries = [recentEnquiry()];
+  state.search = "?enquiryId=enquiry-recent";
+  mount();
+  await screen.findByRole("heading", { name: "Which car are you selling?" });
+  expect(screen.getByRole("combobox", { name: "Vehicle" })).toHaveValue("car-test");
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await waitFor(() => expect(state.sales).toHaveLength(1));
+  expect(state.sales[0].draft.sourceEnquiryId).toBe("enquiry-recent");
+});
+
+it("keeps paid-sale contact corrections editable while preventing another recent customer being substituted", async () => {
+  state.enquiries = [recentEnquiry()];
+  mount();
+  await details("deposit");
+  await pay("500", "deposit", "Cash");
+  fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+  const name = screen.getByLabelText("Customer’s full name");
+  expect(name).toBeEnabled();
+  fireEvent.change(name, { target: { value: "Jamie" } });
+  expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Telephone"), { target: { value: "07700900124" } });
+  expect(screen.getByLabelText("Telephone")).toHaveValue("07700900124");
+});
+
+it("keeps manual customer entry available when recent enquiries cannot load", async () => {
+  state.enquiriesError = true;
+  mount();
+  await openCustomerStep();
+  expect(screen.getByText(/Some recent customer details could not be loaded/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "New Customer" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "What has the customer paid?" })).toBeInTheDocument();
 });

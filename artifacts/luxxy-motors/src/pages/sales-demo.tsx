@@ -35,6 +35,7 @@ import {
   ReversePaymentDialog,
 } from "@/components/sales-demo/sales-controls";
 import { openSaleDocumentPdf } from "@/components/sales-demo/sales-document";
+import { RecentCustomerFields, type RecentCustomer } from "@/components/portal/recent-customer-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,6 +96,7 @@ export function SalesWorkspace({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
   const [message, setMessage] = useState("");
+  const [contactAutofillNotice, setContactAutofillNotice] = useState("");
   const [filter, setFilter] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const [issued, setIssued] = useState<SaleWorkspaceDocument | null>(null);
@@ -126,24 +128,64 @@ export function SalesWorkspace({
   const vehicle = stock?.cars.find((car) => car.id === draft?.vehicleId);
   const customerOptions = [
     ...(enquiries.data ?? []).map((item) => ({
+      id: `enquiry-${item.id}`,
       key: `Enquiry ${item.reference}`,
-      name: item.customerName,
+      customerName: item.customerName,
       email: item.email ?? "",
       phone: item.phone ?? "",
+      lastUsedAt: item.updatedAt || item.createdAt,
+      detail: `Enquiry ${item.reference}${item.vehicleTitle ? ` · ${item.vehicleTitle}` : ""}`,
       vehicleId: item.vehicleId ?? "",
       sourceEnquiryId: item.id,
       sourceReservationId: "",
     })),
     ...(reservations.data?.reservations ?? []).map((item) => ({
+      id: `reservation-${item.id}`,
       key: `Reservation ${item.reference}`,
-      name: item.customerName,
+      customerName: item.customerName,
       email: item.email,
       phone: item.phone,
+      lastUsedAt: item.createdAt,
+      detail: `Reservation ${item.reference} · ${item.vehicleTitle}`,
       vehicleId: item.vehicleId,
       sourceEnquiryId: "",
       sourceReservationId: item.id,
     })),
+    ...(sales.data?.sales ?? [])
+      .filter((sale) => sale.id !== record?.id)
+      .map((sale) => ({
+        id: `sale-${sale.id}`,
+        key: `Sale ${sale.reference}`,
+        customerName: sale.draft.customer,
+        email: sale.draft.email,
+        phone: sale.draft.phone,
+        lastUsedAt: sale.updatedAt || sale.createdAt,
+        detail: `Sale ${sale.reference}${sale.draft.vehicle ? ` · ${sale.draft.vehicle}` : ""}`,
+        vehicleId: sale.draft.vehicleId,
+        sourceEnquiryId: "",
+        sourceReservationId: "",
+      })),
   ];
+  function autofillCustomer(customer: RecentCustomer) {
+    if (record?.completedAt || rows.length) return;
+    const source = customerOptions.find((item) => item.id === customer.id);
+    const sameVehicle = source && (!source.vehicleId || source.vehicleId === draft?.vehicleId);
+    const hasSavedSource = Boolean(record?.draft.sourceEnquiryId || record?.draft.sourceReservationId);
+    setDraft((current) => current ? {
+      ...current,
+      address: "",
+      // Saved sale links are immutable audit evidence. A returning customer's
+      // unrelated enquiry must never be attached to this vehicle's new sale.
+      sourceEnquiryId: hasSavedSource ? record!.draft.sourceEnquiryId : sameVehicle ? source.sourceEnquiryId : "",
+      sourceReservationId: hasSavedSource ? record!.draft.sourceReservationId : sameVehicle ? source.sourceReservationId : "",
+      customerSource: hasSavedSource
+        ? record!.draft.customerSource
+        : sameVehicle ? source.key : "Recent customer autofill",
+    } : current);
+    setContactAutofillNotice("Contact details filled. Confirm and enter the customer’s current address for this sale.");
+    setReviewed(false);
+    setProblem("");
+  }
   function open(saved?: SaleWorkspaceRecord, initial?: SaleDraft) {
     if (lock.current) return;
     if (dirty && !window.confirm("Leave your unsaved invoice details?")) return;
@@ -161,6 +203,7 @@ export function SalesWorkspace({
     });
     setProblem("");
     setMessage("");
+    setContactAutofillNotice("");
     setIssued(null);
     setReviewed(false);
     setSoldChoice(false);
@@ -208,7 +251,7 @@ export function SalesWorkspace({
       const car = stock?.cars.find((c) => c.id === source.vehicleId);
       open(undefined, {
         ...emptyDraft(),
-        customer: source.name,
+        customer: source.customerName,
         email: source.email,
         phone: source.phone,
         vehicleId: source.vehicleId,
@@ -843,50 +886,38 @@ export function SalesWorkspace({
                   )}
                   {step === 1 && (
                     <>
-                      <details className="invoice-import">
-                        <summary>Use a recent enquiry or reservation</summary>
-                        <select
-                          aria-label="Use recent customer"
-                          defaultValue=""
-                          disabled={Boolean(record?.completedAt || rows.length)}
-                          onChange={(event) => {
-                            const source = customerOptions.find(
-                              (item) =>
-                                item.key === event.target.value &&
-                                (!item.vehicleId ||
-                                  item.vehicleId === draft.vehicleId),
-                            );
-                            if (!source) return;
-                            setDraft({
-                              ...draft,
-                              customer: source.name,
-                              email: source.email,
-                              phone: source.phone,
-                              customerSource: source.key,
-                              sourceEnquiryId: source.sourceEnquiryId,
-                              sourceReservationId: source.sourceReservationId,
-                            });
-                          }}
-                        >
-                          <option value="">Choose a recent customer</option>
-                          {customerOptions
-                            .filter(
-                              (source) =>
-                                !source.vehicleId ||
-                                source.vehicleId === draft.vehicleId,
-                            )
-                            .map((source) => (
-                              <option key={source.key} value={source.key}>
-                                {source.name} · {source.key}
-                              </option>
-                            ))}
-                        </select>
-                      </details>
                       <h2>Customer details</h2>
+                      <RecentCustomerFields
+                        value={{ customerName: draft.customer, phone: draft.phone, email: draft.email }}
+                        customers={customerOptions}
+                        disabled={Boolean(record?.completedAt)}
+                        suggestionsDisabled={Boolean(rows.length)}
+                        nameLabel="Customer’s full name"
+                        phoneLabel="Telephone"
+                        emailLabel="Email for the invoice"
+                        nameRequired
+                        nameMaxLength={200}
+                        onChange={(contact) => {
+                          setDraft((current) => current ? {
+                            ...current,
+                            customer: contact.customerName,
+                            phone: contact.phone ?? "",
+                            email: contact.email ?? "",
+                          } : current);
+                          setReviewed(false);
+                          setProblem("");
+                          setContactAutofillNotice("");
+                        }}
+                        onSelect={autofillCustomer}
+                      />
+                      {(enquiries.isError || reservations.isError || sales.isError) && (
+                        <p className="text-sm text-muted-foreground">Some recent customer details could not be loaded. You can still enter the customer’s details.</p>
+                      )}
+                      {(enquiries.isLoading || reservations.isLoading || sales.isLoading) && (
+                        <p className="text-sm text-muted-foreground" role="status">Loading recent customers…</p>
+                      )}
+                      {contactAutofillNotice && <p className="text-sm text-muted-foreground" role="status">{contactAutofillNotice}</p>}
                       <div className="invoice-field-grid">
-                        {field("customer", "Customer’s full name")}
-                        {field("phone", "Telephone", "tel")}
-                        {field("email", "Email for the invoice", "email")}
                         <label className="invoice-field-wide">
                           Customer address
                           <Textarea
@@ -898,6 +929,7 @@ export function SalesWorkspace({
                             }
                           />
                         </label>
+                        {!record?.completedAt && !rows.length && <small className="invoice-field-wide">Choosing a recent customer clears this address. Confirm their current address for this sale.</small>}
                       </div>
                     </>
                   )}

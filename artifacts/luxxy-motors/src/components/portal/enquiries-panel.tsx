@@ -63,6 +63,7 @@ import { Panel, PanelHeader } from "./portal-ui";
 
 import { callOutcomes, readCallDraft, saveCallDraft, removeCallDraft, type CallOutcome, type CallDraft } from "@/lib/enquiry-desk-model";
 import { OwnerSelect, WorkspaceEditor, TodayDesk, CustomerHistory, type Contact } from "./enquiry-workspace-tools";
+import { RecentCustomerFields } from "./recent-customer-fields";
 import { VehicleDeskContext, DeskSearchResults } from "./enquiry-desk-context";
 import { ConversationEditor } from "./enquiry-conversation";
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
@@ -537,38 +538,16 @@ function NewCall({
     <form onSubmit={submit} className="enquiry-new-call grid gap-6">
       <fieldset disabled={mutation.isPending} className="enquiry-form-section enquiry-caller-section min-w-0 space-y-4">
         <legend className="mb-4 font-semibold">1. Customer</legend>
-        <label className={field}>
-          Customer name
-          <Input
-            required
-            minLength={2}
-            maxLength={120}
-            autoComplete="off"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <div className="enquiry-contact-fields grid gap-4 sm:grid-cols-2">
-          <label className={field}>
-            Phone number
-            <Input
-              required
-              type="tel"
-              autoComplete="off"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </label>
-          <label className={field}>
-            Email (optional)
-            <Input
-              type="email"
-              autoComplete="off"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-        </div>
+        <RecentCustomerFields
+          value={{ customerName: name, phone, email }}
+          onChange={contact => { setName(contact.customerName); setPhone(contact.phone ?? ""); setEmail(contact.email ?? ""); }}
+          nameRequired
+          phoneRequired
+          customers={[
+            ...enquiries.map(entry => ({ id: `enquiry-${entry.id}`, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: `${entry.reference} · ${entry.vehicleTitle || "General enquiry"}` })),
+            ...reservations.map(entry => ({ id: `reservation-${entry.id}`, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.createdAt, detail: `${entry.reference} · ${entry.vehicleTitle}` })),
+          ]}
+        />
         <label className={field}>
           Call notes (optional)
           <Textarea

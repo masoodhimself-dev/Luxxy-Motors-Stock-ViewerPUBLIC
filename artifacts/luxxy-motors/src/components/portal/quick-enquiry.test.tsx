@@ -5,6 +5,9 @@ const state = vi.hoisted(() => ({
   create: vi.fn(),
   options: vi.fn(),
   directoryOptions: vi.fn(),
+  recentOptions: vi.fn(),
+  recentCustomers: [] as Array<Record<string, unknown>>,
+  recentError: false,
   accessRetry: vi.fn(),
   directoryRetry: vi.fn(),
   allowed: true,
@@ -14,6 +17,12 @@ const state = vi.hoisted(() => ({
   directoryError: false,
   stockLoading: false,
   stockError: null as string | null,
+}));
+vi.mock("@/lib/enquiry-summary-query", () => ({
+  useEnquirySummaries: (_params: unknown, options: unknown) => {
+    state.recentOptions(options);
+    return { data: state.recentCustomers, isError: state.recentError };
+  },
 }));
 vi.mock("@workspace/api-client-react", () => ({
   getGetEnquiriesQueryKey: () => ["/api/enquiries"],
@@ -69,6 +78,9 @@ beforeEach(() => {
     .mockResolvedValue({ id: "enquiry-new", reference: "ENQ-123" });
   state.options.mockClear();
   state.directoryOptions.mockClear();
+  state.recentOptions.mockClear();
+  state.recentCustomers = [];
+  state.recentError = false;
   state.accessRetry.mockClear();
   state.directoryRetry.mockClear();
   state.allowed = true;
@@ -99,13 +111,49 @@ function mount(open = true, initialVehicleId?: string) {
   return { ...view, invalidate, onOpenChange, onCreated };
 }
 function fill() {
-  fireEvent.change(screen.getByRole("textbox", { name: "Customer name" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "Customer name" }), {
     target: { value: "  Alex Smith  " },
   });
-  fireEvent.change(screen.getByRole("textbox", { name: "Phone number" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "Phone number" }), {
     target: { value: " 07700 900123 " },
   });
 }
+it("autofills a recent customer while keeping the chosen car and notes for this enquiry", () => {
+  const recent = { id: "old-enquiry", reference: "ENQ-OLD", customerName: "Amelia Taylor", phone: "07700900124", email: "amelia@example.test", vehicleId: "old-car", vehicleTitle: "Previous car", createdAt: "2026-10-01T10:00:00Z" };
+  state.recentCustomers = [recent];
+  const before = JSON.stringify(recent);
+  mount(true, "car-one");
+  const name = screen.getByRole("combobox", { name: "Customer name" });
+  fireEvent.focus(name);
+  fireEvent.change(name, { target: { value: "Amel" } });
+  fireEvent.click(screen.getByRole("option", { name: /Amelia Taylor/ }));
+  expect(name).toHaveValue(recent.customerName);
+  expect(screen.getByRole("combobox", { name: "Phone number" })).toHaveValue(recent.phone);
+  expect(screen.getByRole("combobox", { name: "Email (optional)" })).toHaveValue(recent.email);
+  expect(screen.getByRole("combobox", { name: "Car (optional)" })).toHaveValue("car-one");
+  expect(screen.getByRole("textbox", { name: "Notes (optional)" })).toHaveValue("");
+  expect(state.create).not.toHaveBeenCalled();
+  expect(JSON.stringify(recent)).toBe(before);
+});
+
+it("keeps manual capture available if recent contacts fail to load", () => {
+  state.recentError = true;
+  mount();
+  expect(screen.getByText("Recent customers could not load. You can still enter their details.")).toBeVisible();
+  fill();
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue("  Alex Smith  ");
+  expect(state.create).not.toHaveBeenCalled();
+});
+
+it("only loads recent customer suggestions while the dialog is open with staff access", () => {
+  const view = mount(false);
+  expect(state.recentOptions).toHaveBeenLastCalledWith(expect.objectContaining({ query: expect.objectContaining({ enabled: false }) }));
+  view.unmount();
+  state.allowed = false;
+  mount(true);
+  expect(state.recentOptions).toHaveBeenLastCalledWith(expect.objectContaining({ query: expect.objectContaining({ enabled: false }) }));
+});
+
 it("starts a car enquiry with the chosen stock car and keeps capture in place", async () => {
   const view = mount(true, "car-one");
   expect(screen.getByRole("combobox", { name: "Car (optional)" })).toHaveValue("car-one");
@@ -125,7 +173,7 @@ it("lets staff cancel a preselected car enquiry without a discard warning until 
 it("captures a general enquiry in place using the no-email mode and the current staff owner", async () => {
   const view = mount();
   fill();
-  fireEvent.change(screen.getByRole("textbox", { name: "Email (optional)" }), {
+  fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), {
     target: { value: " alex@example.test " },
   });
   fireEvent.change(screen.getByRole("combobox", { name: "Car (optional)" }), {
@@ -167,7 +215,7 @@ it("captures a general enquiry in place using the no-email mode and the current 
     ["inventory-customers"],
   ])
     expect(view.invalidate).toHaveBeenCalledWith({ queryKey: key });
-  expect(screen.getByRole("textbox", { name: "Customer name" })).toHaveValue(
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue(
     "",
   );
   expect(
@@ -202,7 +250,7 @@ it.each([
 ])("validates %s before making any request", async (field, value, message) => {
   mount();
   fill();
-  fireEvent.change(screen.getByRole("textbox", { name: field }), {
+  fireEvent.change(screen.getByLabelText(field), {
     target: { value },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
@@ -222,7 +270,7 @@ it("keeps all details and the server explanation when saving fails", async () =>
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "This car has changed. Please choose it again.",
   );
-  expect(screen.getByRole("textbox", { name: "Customer name" })).toHaveValue(
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue(
     "  Alex Smith  ",
   );
   expect(screen.getByRole("textbox", { name: "Notes (optional)" })).toHaveValue(
@@ -272,13 +320,13 @@ it("confirms discarding a dirty enquiry and preserves it when staff choose to ke
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(confirm).toHaveBeenCalledTimes(1);
   expect(view.onOpenChange).not.toHaveBeenCalled();
-  expect(screen.getByRole("textbox", { name: "Customer name" })).toHaveValue(
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue(
     "  Alex Smith  ",
   );
   confirm.mockReturnValue(true);
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(view.onOpenChange).toHaveBeenCalledWith(false);
-  expect(screen.getByRole("textbox", { name: "Customer name" })).toHaveValue(
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue(
     "",
   );
   expect(state.create).not.toHaveBeenCalled();
@@ -301,7 +349,7 @@ it("shows access loading and does not expose a form to staff without permission"
     screen.getByText("Your staff role does not allow creating enquiries."),
   ).toBeVisible();
   expect(
-    screen.queryByRole("textbox", { name: "Customer name" }),
+    screen.queryByRole("combobox", { name: "Customer name" }),
   ).not.toBeInTheDocument();
   expect(state.create).not.toHaveBeenCalled();
 });
@@ -312,7 +360,7 @@ it("retains typed details while staff details are loading or need retrying", () 
   expect(screen.getByRole("button", { name: "Save enquiry" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Retry staff details" }));
   expect(state.directoryRetry).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole("textbox", { name: "Customer name" })).toHaveValue(
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue(
     "  Alex Smith  ",
   );
   expect(state.create).not.toHaveBeenCalled();

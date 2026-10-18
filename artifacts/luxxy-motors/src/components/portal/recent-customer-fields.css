@@ -1,0 +1,34 @@
+.recent-customer-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
+.recent-customer-fields-hint { grid-column: 1 / -1; margin: 0; color: var(--portal-muted, #617180); font-size: .8125rem; line-height: 1.5; }
+.recent-customer-field { position: relative; min-width: 0; }
+.recent-customer-fields .recent-customer-field > label { display: block; margin-bottom: .4rem; font-size: .875rem; line-height: 1.5; font-weight: 600; }
+.recent-customer-input-wrap { position: relative; }
+.recent-customer-input-wrap > svg { position: absolute; z-index: 1; top: 50%; left: .85rem; transform: translateY(-50%); color: #738391; pointer-events: none; }
+/* Keep room for the icon even when portal/dialog input rules load after this component. */
+.recent-customer-fields .recent-customer-field .recent-customer-input-wrap > input.luxxy-control[role="combobox"] { min-height: 46px; padding-left: 2.4rem; }
+.recent-customer-popup { position: absolute; top: calc(100% + .35rem); left: 0; right: 0; z-index: 40; width: 100%; min-width: 0; border: 1px solid #c6d5df; border-radius: .75rem; background: #fff; color: #1d303e; box-shadow: 0 12px 32px #203b5026; overflow: hidden; }
+.recent-customer-popup-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem .75rem; margin: 0; padding: .65rem .85rem; background: #f1f6f9; border-bottom: 1px solid #e0e9ef; color: #385469; font-size: .75rem; font-weight: 700; }
+.recent-customer-popup-title span { color: #60798a; font-weight: 400; }
+.recent-customer-popup > ul { max-height: min(21rem, 45vh); margin: 0; padding: .25rem; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.recent-customer-option { display: flex; flex-direction: column; align-items: stretch; gap: .2rem; width: 100%; min-height: 66px; padding: .7rem .65rem; border: 0; border-radius: .45rem; background: transparent; color: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.recent-customer-option[aria-selected="true"], .recent-customer-option:focus-visible { background: #eaf4fb; outline: 2px solid #96c7e3; outline-offset: -2px; }
+.recent-customer-option strong { font-size: .875rem; font-weight: 650; line-height: 1.35; }
+.recent-customer-option-contact { color: #405a6b; font-size: .8125rem; line-height: 1.45; }
+.recent-customer-option-meta { display: flex; align-items: flex-start; gap: .3rem; color: #627786; font-size: .6875rem; line-height: 1.5; }
+.recent-customer-option-meta > svg { flex: 0 0 13px; margin-top: .1rem; }
+.recent-customer-review { grid-column: 1 / -1; min-width: 0; padding: 1rem; border: 1px solid #e8cd92; border-radius: .75rem; background: #fff9ed; color: #614921; font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+.recent-customer-review > strong { font-size: .875rem; }
+.recent-customer-review > p { margin: .35rem 0; }
+.recent-customer-review-columns { display: grid; gap: .6rem; margin: .75rem 0; }
+.recent-customer-review-columns > div { min-width: 0; border: 1px solid #e9d9b8; border-radius: .5rem; padding: .65rem; background: #fffdf8; }
+.recent-customer-review-columns span { display: block; margin-bottom: .3rem; color: #80632d; font-size: .6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.recent-customer-review-columns p { margin: .15rem 0; }
+.recent-customer-review-note { font-size: .75rem; }
+.recent-customer-review-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.recent-customer-review-actions > button { min-height: 44px; }
+.recent-customer-confirmation { grid-column: 1 / -1; display: flex; align-items: center; gap: .45rem; min-width: 0; color: #25664c; font-size: .75rem; line-height: 1.5; }
+.recent-customer-confirmation > svg { flex: 0 0 16px; }
+.recent-customer-confirmation > span { flex: 1; overflow-wrap: anywhere; }
+.recent-customer-confirmation > button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; min-height: 44px; border: 0; border-radius: .4rem; background: transparent; color: inherit; cursor: pointer; }
+.recent-customer-confirmation > button:hover { background: #eaf5ee; }
+@media (min-width: 640px) { .recent-customer-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .recent-customer-field-customerName { grid-column: 1 / -1; } .recent-customer-review-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

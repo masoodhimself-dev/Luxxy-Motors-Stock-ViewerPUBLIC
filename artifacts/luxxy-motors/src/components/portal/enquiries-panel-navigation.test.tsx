@@ -77,8 +77,8 @@ it('shows a newly saved customer before the invalidated enquiry list finishes re
   // Hold the refresh so this verifies that the create response populates the cache itself.
   state.fetchEnquiries.mockImplementation(() => new Promise(() => {}));
   const { client, location } = mount('section=notifications&workView=customers&deskView=new');
-  fireEvent.change(await screen.findByRole('textbox', { name: 'Customer name' }), { target: { value: fresh.customerName } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Phone number' }), { target: { value: fresh.phone } });
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Customer name' }), { target: { value: fresh.customerName } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Phone number' }), { target: { value: fresh.phone } });
   fireEvent.change(screen.getByRole('combobox', { name: 'Vehicle source' }), { target: { value: 'none' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save phone enquiry' }));
   await waitFor(() => expect(screen.getByTestId('selected-enquiry')).toHaveTextContent(fresh.id));
@@ -88,6 +88,30 @@ it('shows a newly saved customer before the invalidated enquiry list finishes re
   const query = new URL(location.history!.at(-1)!, 'https://dealer.example').searchParams;
   expect(query.get('enquiryId')).toBe(fresh.id);
   expect(query.has('deskView')).toBe(false);
+});
+
+it('autofills a recent contact into a new enquiry without reusing their old car, notes or record', async () => {
+  const existing = { ...alex, phone: '07700900124', email: 'alex@example.test', vehicleId: 'previous-car', vehicleTitle: 'Previous car', message: 'Original question stays on its own record.' } as Enquiry;
+  const original = JSON.stringify(existing);
+  state.create.mockResolvedValue(enquiry('fresh-call', 'Alex Customer'));
+  mount('section=notifications&workView=customers&deskView=new', [existing]);
+  const name = await screen.findByRole('combobox', { name: 'Customer name' });
+  fireEvent.focus(name);
+  fireEvent.change(name, { target: { value: 'Alex' } });
+  expect(screen.getByRole('option', { name: /Alex Customer/ })).toBeVisible();
+  expect(state.create).not.toHaveBeenCalled();
+  fireEvent.keyDown(name, { key: 'ArrowDown' });
+  fireEvent.keyDown(name, { key: 'Enter' });
+  expect(name).toHaveValue('Alex Customer');
+  expect(screen.getByRole('combobox', { name: 'Phone number' })).toHaveValue(existing.phone);
+  expect(screen.getByRole('combobox', { name: 'Email (optional)' })).toHaveValue(existing.email);
+  expect(screen.getByLabelText('Call notes (optional)')).toHaveValue('');
+  expect(state.create).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Vehicle source' }), { target: { value: 'none' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save phone enquiry' }));
+  await waitFor(() => expect(state.create).toHaveBeenCalledOnce());
+  expect(state.create.mock.calls[0][0].data).toMatchObject({ customerName: existing.customerName, phone: existing.phone, email: existing.email, vehicleId: null, appointmentAt: null });
+  expect(JSON.stringify(existing)).toBe(original);
 });
 
 it('opens a requested record when it becomes available after a query refresh', async () => {
@@ -145,7 +169,7 @@ it('pauses new test-drive intent while keeping phone enquiry fields usable', asy
   mount('section=notifications&workView=customers&deskView=new');
   expect(await screen.findByRole('radio', { name: 'Book a test drive' })).toBeDisabled();
   expect(screen.getByRole('radio', { name: 'Log call / enquiry only' })).toBeEnabled();
-  expect(screen.getByRole('textbox', { name: 'Customer name' })).toBeEnabled();
+  expect(screen.getByRole('combobox', { name: 'Customer name' })).toBeEnabled();
   expect(screen.getByText(/New test drives and rescheduling are paused by the platform/)).toBeVisible();
   expect(state.create).not.toHaveBeenCalled();
 });
