@@ -76,6 +76,7 @@ test('local review renders exact shared HTML, protects facts and never sends ema
   assert.match(result.data.text, /11:30 \(UK time\)/);
   assert.match(result.data.text, /Awaiting showroom approval/);
   assert.match(result.data.text, /showroom@example\.test/);
+  assert.doesNotMatch(result.data.subject + result.data.text + result.data.html, /PREVIEW-EMAIL-TEST|Enquiry reference:/);
   assert.match(result.data.previewHash, /^[a-f0-9]{64}$/);
   assert.equal((await call(`${path}/email-preview`, 'POST', content)).data.previewHash, result.data.previewHash);
   assert.equal((await call(`${path}/email-preview`, 'POST', { ...content, expectedRevision: 1 })).status, 409);

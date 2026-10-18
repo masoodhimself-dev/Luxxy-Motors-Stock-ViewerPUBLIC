@@ -132,7 +132,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
             {result ? (result.status === 'cancelled' ? 'Reservation cancelled' : 'Your car is reserved') : step === 'details' ? 'Reserve this car' : 'Review your reservation'}
           </DialogTitle>
           <DialogDescription>
-            {result ? (result.status === 'cancelled' ? 'This reservation has been cancelled. No money was received and this reservation no longer holds the car.' : 'Keep your reference below. We’ll follow up with you about the car.') : step === 'details' ? 'Leave your contact details, then review the deposit and reservation terms.' : 'Check your details and the terms before confirming.'}
+            {result ? (result.status === 'cancelled' ? 'This reservation has been cancelled. No money was received and this reservation no longer holds the car.' : 'We’ll follow up with you about the car using your contact details.') : step === 'details' ? 'Leave your contact details, then review the deposit and reservation terms.' : 'Check your details and the terms before confirming.'}
           </DialogDescription>
         </div>
         {!result && <ol className="vehicle-dialog-steps" aria-label="Reservation progress">
@@ -145,7 +145,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
         {result ? <div className="vehicle-dialog-result" data-status={result.status} data-testid="reservation-success">
           <div className="vehicle-dialog-confirmation" role="status">
             {result.status === 'cancelled' ? <CircleAlert className="h-5 w-5 shrink-0" aria-hidden="true" /> : <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />}
-            <div><p className="vehicle-dialog-eyebrow">Reservation reference</p><p className="vehicle-dialog-reference">{result.reference}</p></div>
+            <p>{result.status === 'cancelled' ? 'Reservation cancelled' : 'Reservation saved'}</p>
           </div>
           <dl className="vehicle-dialog-review-summary">
             <div><dt>Reservation deposit</dt><dd>{pounds(result.depositPence)}</dd></div>
@@ -153,7 +153,7 @@ export function ReserveCar({ car, className, customer, partExchange }: {
             <div><dt>Payment status</dt><dd>Simulated</dd></div>
           </dl>
           <p className="vehicle-dialog-notice">Your full vehicle balance is still outstanding. This is a reservation record, not a payment receipt.</p>
-          <p className="vehicle-dialog-muted">{result.status === 'cancelled' ? 'Contact us or refresh the car’s page to check its current availability.' : 'Contact us with this reference if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
+          <p className="vehicle-dialog-muted">{result.status === 'cancelled' ? 'Contact us or refresh the car’s page to check its current availability.' : 'Contact us with your name and car details if you need to change or cancel your reservation. A test drive must be booked separately.'}</p>
           <div className="vehicle-dialog-actions"><DialogClose asChild><Button type="button" className="vehicle-dialog-primary">Done</Button></DialogClose></div>
         </div> : <>
           <div className="vehicle-dialog-deposit">

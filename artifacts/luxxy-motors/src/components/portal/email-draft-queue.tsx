@@ -117,7 +117,7 @@ export function EmailDraftQueue({
               {row.vehicleTitle || "General enquiry"}
             </p>
             <small>
-              {row.reference} · Saved{" "}
+              Saved{" "}
               {new Date(row.updatedAt).toLocaleString("en-GB", {
                 timeZone: "Europe/London",
                 dateStyle: "medium",

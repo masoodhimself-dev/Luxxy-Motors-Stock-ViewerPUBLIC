@@ -327,7 +327,6 @@ export async function communicationsPreview(
           if (car?.mileage != null) facts.push({ label: 'Mileage', value: `${car.mileage.toLocaleString('en-GB')} miles` });
         }
         if (parsed.data.includeAppointment) facts.push({ label: 'Appointment', value: appointmentTime }, { label: 'Appointment status', value: appointmentStatus }, { label: 'Showroom', value: address });
-        facts.push({ label: 'Enquiry reference', value: entry.reference });
         const rendered = renderEmailTemplate({ subject: '{{document_type}}', body: '{{message}}', headline: templateSettings.templates.find(template => template.id === (parsed.data.templateId ?? 'enquiry_message'))?.headline }, { ...variables, customer_email: parsed.data.to, document_type: parsed.data.subject, message: parsed.data.message }, facts, appearance, { templateId: parsed.data.templateId ?? 'enquiry_message' });
         send(200, {
           to: parsed.data.to,

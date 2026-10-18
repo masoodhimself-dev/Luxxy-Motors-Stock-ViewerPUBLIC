@@ -131,24 +131,24 @@ export function SalesWorkspace({
   const customerOptions = [
     ...(enquiries.data ?? []).map((item) => ({
       id: `enquiry-${item.id}`,
-      key: `Enquiry ${item.reference}`,
+      key: 'Enquiry',
       customerName: item.customerName,
       email: item.email ?? "",
       phone: item.phone ?? "",
       lastUsedAt: item.updatedAt || item.createdAt,
-      detail: `Enquiry ${item.reference}${item.vehicleTitle ? ` · ${item.vehicleTitle}` : ""}`,
+      detail: `Enquiry${item.vehicleTitle ? ` · ${item.vehicleTitle}` : ""}`,
       vehicleId: item.vehicleId ?? "",
       sourceEnquiryId: item.id,
       sourceReservationId: "",
     })),
     ...(reservations.data?.reservations ?? []).map((item) => ({
       id: `reservation-${item.id}`,
-      key: `Reservation ${item.reference}`,
+      key: 'Reservation',
       customerName: item.customerName,
       email: item.email,
       phone: item.phone,
       lastUsedAt: item.createdAt,
-      detail: `Reservation ${item.reference} · ${item.vehicleTitle}`,
+      detail: `Reservation · ${item.vehicleTitle}`,
       vehicleId: item.vehicleId,
       sourceEnquiryId: "",
       sourceReservationId: item.id,
@@ -157,12 +157,12 @@ export function SalesWorkspace({
       .filter((sale) => sale.id !== record?.id)
       .map((sale) => ({
         id: `sale-${sale.id}`,
-        key: `Sale ${sale.reference}`,
+        key: 'Sale',
         customerName: sale.draft.customer,
         email: sale.draft.email,
         phone: sale.draft.phone,
         lastUsedAt: sale.updatedAt || sale.createdAt,
-        detail: `Sale ${sale.reference}${sale.draft.vehicle ? ` · ${sale.draft.vehicle}` : ""}`,
+        detail: `Sale${sale.draft.vehicle ? ` · ${sale.draft.vehicle}` : ""}`,
         vehicleId: sale.draft.vehicleId,
         sourceEnquiryId: "",
         sourceReservationId: "",
@@ -620,7 +620,7 @@ export function SalesWorkspace({
           </div>
           <Input
             aria-label="Search sales"
-            placeholder="Search customer, car, registration or reference"
+            placeholder="Search customer, car or registration"
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
@@ -661,8 +661,7 @@ export function SalesWorkspace({
                         ? "Sold"
                         : sale.lifecycle?.status === "reserved"
                           ? "Reserved"
-                          : "In progress"}{" "}
-                      · {sale.reference}
+                          : "In progress"}
                     </small>
                   </span>
                   <ArrowRight size={18} />
@@ -705,7 +704,7 @@ export function SalesWorkspace({
           <main ref={scrollPane} className="invoice-builder-scroll">
             <div className={`invoice-question-sheet${showSummary ? " invoice-resume-sheet" : ""}`}>
               <p className="invoice-builder-kicker">
-                {showSummary && record ? record.reference : issued ? "Invoice saved" : `Step ${step + 1} of 5`}
+                {showSummary && record ? "Saved sale" : issued ? "Invoice saved" : `Step ${step + 1} of 5`}
               </p>
               <h1 ref={heading} tabIndex={-1}>
                 {showSummary ? "Sale summary" : issued ? "Your invoice is ready." : questions[step]}

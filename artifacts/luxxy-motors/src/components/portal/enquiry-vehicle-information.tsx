@@ -105,7 +105,6 @@ export function EnquiryVehicleInformation({
     ["Owners", car.owners],
     ["Emission class", car.emissionClass],
     ["Drivetrain", car.drivetrain],
-    ["Advert reference", car.advertId],
   ];
   const extra = car.sourceExtras ?? {};
   const runningCosts = vehicleRunningCosts(car);

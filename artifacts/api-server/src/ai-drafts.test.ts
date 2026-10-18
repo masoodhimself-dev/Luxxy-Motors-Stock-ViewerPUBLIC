@@ -75,6 +75,7 @@ test("AI provider fixes the economical model, bounds, no-store, no-tools, standa
     const request = JSON.parse(String(init?.body));
     assert.equal(request.model, "gpt-6-luna");
     assert.equal(request.store, false);
+    assert.match(request.instructions, /Never include internal enquiry, booking, reservation, sale or customer reference numbers or record IDs/);
     assert.equal(request.service_tier, "default");
     assert.deepEqual(request.reasoning, { effort: "none" });
     assert.deepEqual(request.tools, []);

@@ -527,8 +527,9 @@ describe("portal shell access and navigation", () => {
     expect(location.history).toEqual(initialHistory);
     expectCurrent("sales");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Enquiry Q-123 saved.",
+      "Enquiry saved.",
     );
+    expect(screen.getByRole("status")).not.toHaveTextContent("Q-123");
     expect(screen.getByRole("link", { name: "Open enquiry" })).toHaveAttribute(
       "href",
       "/portal?section=notifications&workView=customers&enquiryId=quick-id",
@@ -554,7 +555,7 @@ describe("portal shell access and navigation", () => {
     expect(location.history).toEqual(initialHistory);
     expectCurrent("inventory");
     const confirmation = screen.getByRole("status");
-    expect(confirmation).toHaveTextContent("Test drive Q-123 booked");
+    expect(confirmation).toHaveTextContent("Test drive booked");
     expect(confirmation).toHaveTextContent(/19 October 2026.*15:00/);
     expect(screen.queryByText("Booking saved. Confirmation email needs attention.")).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "Open booking" });
@@ -574,10 +575,10 @@ describe("portal shell access and navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save fixture pending booking" }));
     expect(location.history).toEqual(initialHistory);
     const confirmation = screen.getByRole("status");
-    expect(confirmation).toHaveTextContent("Test-drive request Q-123 saved");
+    expect(confirmation).toHaveTextContent("Test-drive request saved");
     expect(confirmation).toHaveTextContent(/19 October 2026.*15:00/);
     expect(confirmation).toHaveTextContent("Awaiting approval");
-    expect(confirmation).not.toHaveTextContent("Test drive Q-123 booked");
+    expect(confirmation).not.toHaveTextContent("Test drive booked");
     expect(screen.getByRole("link", { name: "Open booking" })).toHaveAttribute("href", "/portal?section=notifications&workView=test-drives&enquiryId=quick-id");
     expect(screen.queryByText("Booking saved. Confirmation email needs attention.")).not.toBeInTheDocument();
   });
@@ -588,7 +589,7 @@ describe("portal shell access and navigation", () => {
     await chooseQuickAction("Quick enquiry");
     fireEvent.click(screen.getByRole("button", { name: `Save fixture ${outcome} booking` }));
     expect(location.history).toEqual(initialHistory);
-    expect(screen.getByRole("status")).toHaveTextContent("Test drive Q-123 booked");
+    expect(screen.getByRole("status")).toHaveTextContent("Test drive booked");
     expect(screen.getByText("Booking saved. Confirmation email needs attention.")).toBeVisible();
     expect(screen.getByRole("link", { name: "Open booking" })).toHaveAttribute("href", "/portal?section=notifications&workView=test-drives&enquiryId=quick-id");
     expect(screen.queryByRole("link", { name: "Open enquiry" })).not.toBeInTheDocument();

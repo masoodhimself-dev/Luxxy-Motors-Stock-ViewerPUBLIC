@@ -47,7 +47,7 @@ it('separates the expected deposit from money received without linking to the re
   const row = await screen.findByTestId('staff-reservation-reservation-1');
   expect(within(row).getByText('Payment simulated · £0 received')).toBeInTheDocument();
   expect(within(row).getByText('£100')).toBeInTheDocument();
-  expect(within(row).getByText('LM-RES-0001')).toBeInTheDocument();
+  expect(within(row).queryByText('LM-RES-0001')).not.toBeInTheDocument();
   expect(within(row).getByText('AB21 CDE')).toBeInTheDocument();
   expect(within(row).queryByRole('button', { name: 'Open lead' })).not.toBeInTheDocument();
 });

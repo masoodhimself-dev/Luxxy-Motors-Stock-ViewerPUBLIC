@@ -28,10 +28,62 @@ test("every template renders a complete responsive HTML email and a useful text 
     assert.match(preview.html, /Example Motors/);
     assert.ok(preview.text.length > 40);
     assert.ok(!preview.html.includes("{{"));
+    assert.ok(!preview.subject.includes("SAMPLE-001"));
+    assert.ok(!preview.text.includes("SAMPLE-001"));
+    assert.ok(!preview.html.includes("SAMPLE-001"));
     assert.equal(preview.sent, false);
     assert.equal(preview.sample, true);
     assert.ok(Buffer.byteLength(preview.html) < 102_000);
   }
+});
+test("legacy internal references stay hidden while document numbers, bank references and secure links survive", () => {
+  const reference = "K4QM-9TXR";
+  const url = `https://example.test/viewing/private-token?reference=${reference}`;
+  const rendered = renderEmailTemplate(
+    {
+      subject: "Your test drive — {{reference}}",
+      body: "Hi {{customer_name}},\n\nEnquiry reference: {{reference}}\nBooking reference: ACDE-3467\n\nYour appointment is confirmed for {{appointment_time}}.\n{{message}}\nInvoice: {{document_number}}\nManage: {{manage_url}}",
+      headline: "Your test drive — K4QM-9TXR",
+    },
+    {
+      ...sampleEmailVariables,
+      reference,
+      manage_url: url,
+      document_number: "INV-2026-0042",
+      message: "Sale reference: SALE-2026-0008\nPayment reference: BANK-042\nWe look forward to seeing you.",
+    },
+    [
+      { label: "Reference", value: reference },
+      { label: "Enquiry reference", value: reference },
+      { label: "Sale", value: reference },
+      { label: "Vehicle", value: sampleEmailVariables.vehicle_title },
+      { label: "Payment reference", value: "BANK-042" },
+      { label: "Document", value: "INV-2026-0042" },
+    ],
+    { ...defaultEmailAppearance, footer: "Booking reference: {{reference}}\nReply if you need help." },
+    { templateId: "booking_confirmation", attachments: ["INV-2026-0042.pdf"] },
+  );
+  assert.equal(rendered.subject, "Your test drive");
+  for (const raw of [rendered.bodyText, rendered.text, rendered.html]) {
+    const body = raw.replaceAll("&#8203;", "").replaceAll(url, "");
+    assert.doesNotMatch(body, /K4QM-9TXR|ACDE-3467|SALE-2026-0008/);
+    assert.doesNotMatch(body, /Enquiry reference:|Booking reference:|Sale reference:/);
+    assert.match(body, /INV-2026-0042/);
+    assert.match(body, /BANK-042/);
+  }
+  assert.ok(rendered.html.includes(`href="${url}"`), "The original private URL remains intact");
+  assert.ok(rendered.text.includes(url));
+  assert.match(rendered.text, /Monday 19 October 2026 at 10:30/);
+  assert.match(rendered.text, /2022 Volkswagen Golf/);
+  const referenceOnly = renderEmailTemplate({ subject: "{{reference}}", body: "Please reply with any questions." }, { reference }, [], defaultEmailAppearance, { templateId: "booking_confirmation" });
+  assert.equal(referenceOnly.subject, "Test drive confirmed");
+  const prefixed = renderEmailTemplate({
+    subject: "{{reference}} — Your appointment",
+    body: "Your booking reference is {{reference}}.\n\nYour appointment is confirmed.\nYour payment reference is BANK-042.",
+  }, { reference }, [], defaultEmailAppearance, { templateId: "booking_confirmation" });
+  assert.equal(prefixed.subject, "Your appointment");
+  assert.equal(prefixed.bodyText, "Your appointment is confirmed.\nYour payment reference is BANK-042.");
+  assert.doesNotMatch(prefixed.text, /Your booking reference is|K4QM-9TXR/);
 });
 test("facts omit missing values but retain meaningful zeros and custom wording", () => {
   const facts: EmailFacts = [

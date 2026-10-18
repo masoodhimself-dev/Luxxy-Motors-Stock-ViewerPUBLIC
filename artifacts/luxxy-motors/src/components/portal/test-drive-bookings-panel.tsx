@@ -76,7 +76,7 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
           <p className="mt-1 text-sm font-medium">{booking.appointmentAt ? formatDateTime(booking.appointmentAt) : 'Time to be arranged'} <span className="font-normal text-muted-foreground">(UK time)</span></p>
           <AppointmentExceptionLabels booking={booking} />
           <div className="mt-2"><AttendanceControls entry={booking} /></div>
-          <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes · {booking.reference}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{booking.appointmentDurationMinutes ?? 30} minutes</p>
         </div>
         <div className="min-w-0 text-sm">
           <p className="font-medium text-primary">{booking.customerName}</p>

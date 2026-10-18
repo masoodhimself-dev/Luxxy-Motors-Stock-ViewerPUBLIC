@@ -235,11 +235,6 @@ export function EnquiryForm({
         <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-primary/70">
           {`Thank you, ${customerName.trim()}. We’ve received your enquiry and will be in touch.`}
         </p>
-        <div className="mx-auto mt-6 max-w-sm border border-primary/20 bg-primary/5 px-5 py-4 text-left">
-          <p className="luxxy-label text-accent">Your reference</p>
-          <p className="mt-2 font-mono text-xl font-bold tracking-normal text-primary" data-testid="text-enquiry-reference">{mutation.data.reference}</p>
-          <p className="mt-2 text-xs leading-5 text-primary/70">Keep this reference handy if you call us.</p>
-        </div>
         {selectedVehicle && (
           <p className="mx-auto mt-5 inline-block border border-border bg-secondary/40 px-4 py-2.5 text-sm font-bold text-primary" data-testid="text-confirmed-vehicle">
             {vehicleLabel}
@@ -254,7 +249,7 @@ export function EnquiryForm({
               </p>
               <p className="mt-1 text-xs leading-5 text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent'
-                  ? `We sent your reference and enquiry details to ${email.trim()}.`
+                  ? `We sent your enquiry details to ${email.trim()}.`
                   : `Your enquiry is saved. We’ll reply using your chosen contact details. You do not need to send it again.`}
               </p>
               {(!embedded || preferredContact === 'email') && email.trim() && mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
@@ -441,7 +436,7 @@ export function EnquiryForm({
         <div className="flex items-start gap-3 border-t border-border px-0 py-3 font-medium text-[13px] tracking-normal leading-relaxed text-primary/70">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
            <span>
-             {`We’ll use your details to answer your enquiry. You’ll see your reference once we’ve received it.`}
+             {`We’ll use your details to answer your enquiry.`}
            </span>
         </div>
       </div>

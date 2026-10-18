@@ -106,7 +106,7 @@ export function planEnquiryMerge(input: EnquiryMergeInput, records: readonly Mer
       ...(cancelledAppointmentIds.includes(entry.id) ? { appointmentCancelledAt: now, appointmentRevision: (entry.appointmentRevision ?? 0) + 1, reminderStatus: 'not_scheduled', reminderError: null } : {}),
     } })),
     events: entries.map(entry => ({ enquiryId: entry.id,
-      summary: entry.id === input.primaryId ? `${entries.length} records combined into this case by ${staff.name}` : `Record combined into case ${input.primaryId} by ${staff.name}`,
+      summary: entry.id === input.primaryId ? `${entries.length} records combined into this case by ${staff.name}` : `Record combined into the main case by ${staff.name}`,
       detail: { note: input.reason, staffId: staff.id, staffName: staff.name, primaryId: input.primaryId, recordIds: [...input.recordIds], keepAppointmentIds: [...input.keepAppointmentIds], cancelledAppointmentIds: [...cancelledAppointmentIds], previousMergedIntoId: entry.mergedIntoId ?? null, confirmDifferentCustomers: input.confirmDifferentCustomers, contactReview, allowOverlappingAppointments: input.allowOverlappingAppointments }, occurredAt: now,
     })),
   };

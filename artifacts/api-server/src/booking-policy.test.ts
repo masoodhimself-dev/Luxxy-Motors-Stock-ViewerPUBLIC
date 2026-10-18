@@ -78,6 +78,11 @@ test("pending requests have no calendar while confirmed invitations use snapshot
     assert.match(calendar, /DTEND:20261002T094500Z/);
     assert.match(calendar, /STATUS:CONFIRMED/);
     assert.match(calendar, /SEQUENCE:3/);
+    assert.doesNotMatch(calendar, /Reference:|DESCRIPTION:.*TEST/);
+    assert.match(calendar, /UID:viewing-test@test-dealer/);
+    assert.match(calendar, /SUMMARY:Test drive: Example car at Example/);
+    assert.match(calendar.replace(/\r\n[ \t]/g, ""), /Change or cancel: https:\/\/dealer.example\/viewing\//);
+    assert.match(calendar.replace(/\r\n[ \t]/g, ""), /URL:https:\/\/dealer.example\/viewing\//);
     assert.match(viewingCalendarIcs({ enquiry: { ...enquiry, appointmentCancelledAt: new Date() }, dealerName: "Example" })!, /METHOD:CANCEL/);
   } finally {
     if (oldSecret === undefined) delete process.env.SESSION_SECRET; else process.env.SESSION_SECRET = oldSecret;

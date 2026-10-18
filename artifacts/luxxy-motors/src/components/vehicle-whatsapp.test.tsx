@@ -10,13 +10,14 @@ vi.mock('@/lib/dealer-settings-context', async () => {
 
 const car = { id: 'context-car', title: 'Ford Fiesta', make: 'Ford', model: 'Fiesta', year: 2018, price: 7995, currency: 'GBP', plate: 'AB18 CDE', images: [] } as unknown as Car;
 
-it('prepares a customer-editable message with the car year, price and reference', () => {
+it('prepares a customer-editable message with the car year, price and registration without an internal reference', () => {
   render(<VehicleWhatsApp car={car} />);
   fireEvent.click(screen.getByRole('button', { name: 'WhatsApp about Ford Fiesta' }));
   const message = screen.getByRole('textbox', { name: 'Your message' }) as HTMLTextAreaElement;
   expect(message.value).toContain('2018 Ford Fiesta · £7,995');
   expect(message.value).toContain('Registration: AB18 CDE');
-  expect(message.value).toContain('Vehicle reference: context-car');
+  expect(message.value).not.toContain('Vehicle reference');
+  expect(message.value).not.toContain('context-car');
   const href = screen.getByRole('link', { name: 'Continue to WhatsApp' }).getAttribute('href');
   expect(decodeURIComponent(href!)).toContain('2018 Ford Fiesta · £7,995');
   fireEvent.change(message, { target: { value: 'Can I visit tomorrow?' } });

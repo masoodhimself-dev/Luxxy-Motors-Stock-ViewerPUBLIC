@@ -230,7 +230,7 @@ export function NotificationsHome({
                           </h4>
                           <p>
                             {item.vehicle || "General enquiry"}
-                            <span> · {item.reference}</span>
+
                           </p>
                           <time dateTime={item.at}>
                             {new Date(item.at).toLocaleString("en-GB", {

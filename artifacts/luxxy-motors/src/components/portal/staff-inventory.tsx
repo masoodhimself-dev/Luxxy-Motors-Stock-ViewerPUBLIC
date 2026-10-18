@@ -999,7 +999,7 @@ export function StaffInventory({
                     <option value="">Choose customer / enquiry</option>
                     {(customers.data?.customers ?? []).map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.customerName} · {c.reference}
+                        {c.customerName}
                       </option>
                     ))}
                   </NativeSelect>

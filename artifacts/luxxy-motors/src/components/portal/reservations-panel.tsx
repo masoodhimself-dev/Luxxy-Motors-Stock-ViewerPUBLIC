@@ -67,7 +67,7 @@ function ReservationRow({ reservation, selected = false }: {
       <div className="min-w-0">
         <p className="font-semibold text-primary">{reservation.vehicleTitle}</p>
         {reservation.vehicleRegistration && <p className="mt-1 text-sm text-muted-foreground">{reservation.vehicleRegistration}</p>}
-        <p className="mt-1 font-mono text-xs text-muted-foreground">{reservation.reference}</p>
+
         <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(reservation.createdAt)}</p>
       </div>
       <div className="min-w-0 text-sm">

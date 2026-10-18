@@ -6,7 +6,6 @@ export const emailTemplateVariables = [
   "dealer_address",
   "customer_name",
   "customer_email",
-  "reference",
   "vehicle_title",
   "vehicle_registration",
   "appointment_time",
@@ -96,7 +95,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "appointment_details",
     label: "Appointment details",
     category: "Enquiries",
-    subject: "Your appointment details — {{reference}}",
+    subject: "Your appointment details — {{vehicle_title}}",
     body:
       greeting +
       "Here are your appointment details. Check the date, time and confirmation status below. If you need to change anything, reply or give us a call." +
@@ -113,7 +112,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "enquiry_acknowledgement",
     label: "Enquiry acknowledgement",
     category: "Enquiries",
-    subject: "Your {{dealer_name}} enquiry — {{reference}}",
+    subject: "Your {{dealer_name}} enquiry — {{vehicle_title}}",
     body:
       greeting +
       "Thanks for getting in touch about {{vehicle_title}}. We’ve received your enquiry and will be in touch. If there’s anything else you’d like to ask, reply to this email." +
@@ -123,14 +122,14 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "dealer_notification",
     label: "New enquiry for the team",
     category: "Enquiries",
-    subject: "New enquiry — {{reference}}",
+    subject: "New enquiry — {{customer_name}} · {{vehicle_title}}",
     body: "A customer has contacted {{dealer_name}} about {{vehicle_title}}.\n\nCustomer: {{customer_name}}\nEmail: {{customer_email}}\nPreferred contact: {{preferred_contact}}\nMessage: {{message}}",
   },
   {
     id: "callback",
     label: "Callback request",
     category: "Enquiries",
-    subject: "Your callback request — {{reference}}",
+    subject: "Your callback request — {{vehicle_title}}",
     body:
       greeting +
       "Thanks for requesting a call about {{vehicle_title}}. We’ve received your request and will call you as soon as we can." +
@@ -140,7 +139,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "booking_request",
     label: "Booking request received",
     category: "Bookings",
-    subject: "Test drive requested — {{reference}}",
+    subject: "Test drive requested — {{vehicle_title}}",
     body:
       greeting +
       "Thanks for requesting a test drive of {{vehicle_title}} at {{appointment_time}}. We’ll check the time and contact you to confirm.\n\nYour appointment is not confirmed yet." +
@@ -150,7 +149,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "booking_confirmation",
     label: "Booking confirmed",
     category: "Bookings",
-    subject: "Your {{dealer_name}} test drive — {{reference}}",
+    subject: "Your {{dealer_name}} test drive — {{vehicle_title}}",
     body:
       greeting +
       "You’re booked in to test drive {{vehicle_title}}. Check your visit details below — we look forward to meeting you.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
@@ -160,7 +159,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "booking_change",
     label: "Booking changed",
     category: "Bookings",
-    subject: "Your test drive has changed — {{reference}}",
+    subject: "Your test drive has changed — {{vehicle_title}}",
     body:
       greeting +
       "We’ve updated your test drive of {{vehicle_title}}. Please check the new date, time and status below before setting off.\n\n{{visit_instructions}}\n{{parking_instructions}}" +
@@ -170,7 +169,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "booking_cancellation",
     label: "Booking cancelled",
     category: "Bookings",
-    subject: "Test drive cancelled — {{reference}}",
+    subject: "Test drive cancelled — {{vehicle_title}}",
     body:
       greeting +
       "Your test drive of {{vehicle_title}} has been cancelled. If you’d like to arrange another time, reply or call us — we’ll be happy to help." +
@@ -190,7 +189,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "reservation_confirmation",
     label: "Reservation confirmation",
     category: "Reservations",
-    subject: "Your reservation — {{reference}}",
+    subject: "Your reservation — {{vehicle_title}}",
     body:
       greeting +
       "Thanks for your reservation request for {{vehicle_title}}. Your current reservation and payment status are shown below. We’ll be in touch about the next steps." +
@@ -200,7 +199,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "reservation_payment",
     label: "Reservation payment confirmed",
     category: "Reservations",
-    subject: "Your reservation deposit — {{reference}}",
+    subject: "Your reservation deposit — {{vehicle_title}}",
     body:
       greeting +
       "We’ve confirmed your reservation deposit for {{vehicle_title}}. Check the payment details below and keep this email for your records." +
@@ -210,7 +209,7 @@ export const defaultEmailTemplates: readonly EmailTemplate[] = [
     id: "reservation_refund",
     label: "Reservation refund",
     category: "Reservations",
-    subject: "Reservation refund — {{reference}}",
+    subject: "Reservation refund — {{vehicle_title}}",
     body:
       greeting +
       "We’ve recorded a refund against your reservation of {{vehicle_title}}. The details are below. Your bank may take a little time to show the funds." +
@@ -320,7 +319,9 @@ export function validateEmailTemplate(
     const remainder = copy.replace(
       /\{\{\s*([a-z_]+)\s*\}\}/g,
       (_token, variable: string) => {
-        if (!(emailTemplateVariables as readonly string[]).includes(variable))
+        // Accept legacy saved templates, but the renderer never exposes this
+        // retired variable. It is deliberately absent from the editor choices.
+        if (variable !== "reference" && !(emailTemplateVariables as readonly string[]).includes(variable))
           throw new EmailTemplateError(`Unknown variable: ${variable}.`);
         return "";
       },
@@ -533,6 +534,29 @@ function linkedEmailText(value: string): string {
   }
   return result + breakEmailText(value.slice(start));
 }
+const internalReferenceLabel = /^(?:(?:internal|enquiry|booking|reservation|sale|customer|chat)\s+)?(?:reference|ref\.?|record\s+(?:number|no\.?))$/i;
+/** Hide retired record labels in legacy copy without altering secure URLs or
+ * customer-supplied bank/payment references. Stored records remain unchanged. */
+function withoutInternalEmailReferences(value: string, reference: string) {
+  const marker = "INTERNAL_RECORD_REFERENCE_REMOVED";
+  const escaped = reference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const generated = "(?:[ACDEFGHJKLMNPQRTUVWXY34679]{4}-[ACDEFGHJKLMNPQRTUVWXY34679]{4}|(?:ENQ|RSV|SALE|CHAT)-[A-Z0-9-]+)";
+  return value.split(/(https:\/\/[^\s<>]+)/g).map((part, index) => {
+    if (index % 2) return part;
+    let cleaned = part.replace(/\{\{\s*reference\s*\}\}/g, marker);
+    if (escaped) cleaned = cleaned.replace(new RegExp(`(?<![A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, "g"), marker);
+    // Only generated-looking values on explicitly internal reference lines are
+    // removed when an old saved template contains another record's literal ID.
+    cleaned = cleaned.replace(new RegExp(`(^|\\n)[\\t ]*(?:(?:internal|enquiry|booking|reservation|sale|customer|chat)[\\t ]+)?(?:reference|ref\\.?)[\\t ]*:[\\t ]*${generated}[\\t ]*[.!]?(?=\\n|$)`, "gi"), "$1");
+    cleaned = cleaned.replace(new RegExp(`(^|\\n)[\\t ]*(?:your[\\t ]+)?(?:(?:internal|enquiry|booking|reservation|sale|customer|chat)[\\t ]+)?(?:reference|ref\\.?|number|no\\.?)[\\t ]*(?::|is)?[\\t ]*${marker}[\\t ]*[.!]?(?=\\n|$)`, "gi"), "$1");
+    return cleaned.replace(new RegExp(`[\\t ]*[—–|·-][\\t ]*${marker}`, "g"), "")
+      .replace(new RegExp(`${marker}[\\t ]*[—–|·-][\\t ]*`, "g"), "")
+      .replaceAll(marker, "")
+      .replace(/[\t ]+([,.!?])/g, "$1")
+      .replace(/[\t ]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n");
+  }).join("");
+}
 /** One restrained, email-safe layout shared by messages, bookings and documents. */
 export function renderEmailTemplate(
   template: Pick<EmailTemplate, "subject" | "body" | "headline">,
@@ -543,11 +567,18 @@ export function renderEmailTemplate(
 ) {
   const copy = validateEmailTemplate(template),
     branding = validateEmailAppearance(appearance);
+  const reference = String(variables.reference ?? "").trim();
+  const presentation = emailPresentation[options.templateId ?? ""] ?? {
+    title: "A message for you",
+    kicker: "Your dealership",
+  };
   const interpolate = (value: string) =>
-    value.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_token, key: string) =>
-      String(variables[key] ?? ""),
+    withoutInternalEmailReferences(value, reference).replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_token, key: string) =>
+      key === "reference" ? "" : ["document_number", "manage_url", "portal_url"].includes(key)
+        ? String(variables[key] ?? "")
+        : withoutInternalEmailReferences(String(variables[key] ?? ""), reference),
     );
-  const subject = interpolate(copy.subject)
+  const subject = (interpolate(copy.subject) || presentation.title)
     .replace(/[\r\n\u0000-\u001f\u007f]/g, " ")
     .slice(0, 200)
     .trim();
@@ -559,14 +590,12 @@ export function renderEmailTemplate(
     footer = interpolate(branding.footer);
   const details = facts.filter(
     (fact) =>
+      !internalReferenceLabel.test(fact.label.trim()) &&
+      !(reference && String(fact.value).trim() === reference && /^(?:sale|enquiry|booking|reservation|customer|chat)$/i.test(fact.label.trim())) &&
       fact.value !== null &&
       fact.value !== undefined &&
       String(fact.value).trim() !== "",
   );
-  const presentation = emailPresentation[options.templateId ?? ""] ?? {
-    title: "A message for you",
-    kicker: "Your dealership",
-  };
   const title = emailHeaderText(
     copy.headline ? interpolate(copy.headline) : presentation.title,
   );

@@ -57,6 +57,15 @@ function mount() { return render(<Viewing />); }
 function openReschedule() { fireEvent.click(screen.getByTestId('button-viewing-reschedule')); }
 function chooseTime() { fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button', { name: '10:00 am' })); }
 
+it('shows useful booking details without exposing its internal reference', () => {
+  mount();
+  expect(screen.getByText('Hello, Fictional Customer.')).toBeInTheDocument();
+  expect(screen.getByText('Ford Fiesta')).toBeInTheDocument();
+  expect(screen.getByText(/20 October/)).toBeInTheDocument();
+  expect(screen.queryByText(/TD-FICTIONAL/)).not.toBeInTheDocument();
+  expect(screen.getByTestId('link-viewing-calendar')).toHaveAttribute('download', 'test-drive.ics');
+});
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-17T08:00:00.000Z'));

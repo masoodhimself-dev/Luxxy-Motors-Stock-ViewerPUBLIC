@@ -5,7 +5,7 @@ export function previewEmailTemplate(id: string, raw: unknown, savedAppearance?:
   const template = defaultEmailTemplates.find(item => item.id === id);
   if (!template) throw new EmailTemplateError('Email template not found.', 404);
   const copy = validateEmailTemplate(raw), variables = { ...sampleEmailVariables };
-  const facts: EmailFacts = [{ label: 'Reference', value: 'SAMPLE-001' }, { label: 'Vehicle', value: variables.vehicle_title! }, { label: 'Registration', value: variables.vehicle_registration! }];
+  const facts: EmailFacts = [{ label: 'Vehicle', value: variables.vehicle_title! }, { label: 'Registration', value: variables.vehicle_registration! }];
   const booking = template.category === 'Bookings' || id === 'appointment_details';
   if (booking) {
     variables.appointment_status = id === 'booking_request' ? 'requested — awaiting confirmation' : id === 'booking_cancellation' ? 'cancelled' : 'confirmed';

@@ -187,7 +187,7 @@ function AppointmentConflicts({ time, bookingId }: { time: string; bookingId?: s
   const at = new Date(time);
   if (!validStaffAppointmentDateTime(at)) return null;
   const clashes = (query.data?.appointments ?? []).filter(entry => bookingPressure(at, settings.testDriveBooking ?? defaultBookingSettings, [{ ...entry, appointmentAt: new Date(entry.appointmentAt) }], bookingId).overlapping);
-  return <div className="text-sm">{query.data === undefined && !query.isError ? <p>Checking the diary…</p> : query.isError ? <p role="alert">The diary could not be loaded. Refresh before overriding a booking.</p> : clashes.length ? <><p className="font-semibold">Appointments already at this time</p><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{clashes.map(entry => <li key={entry.id} className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-950"><p className="font-semibold">{entry.vehicleTitle} · {entry.reference}</p><p>{appointmentLabel(entry.appointmentAt)} · {entry.appointmentDurationMinutes ?? 30} minutes</p><p>Staff: {entry.assignedToName || 'Unassigned'} · {entry.customerName}</p></li>)}</ul></> : <p>No overlapping appointments currently shown. Capacity is checked again when saving.</p>}</div>;
+  return <div className="text-sm">{query.data === undefined && !query.isError ? <p>Checking the diary…</p> : query.isError ? <p role="alert">The diary could not be loaded. Refresh before overriding a booking.</p> : clashes.length ? <><p className="font-semibold">Appointments already at this time</p><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{clashes.map(entry => <li key={entry.id} className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-950"><p className="font-semibold">{entry.vehicleTitle}</p><p>{appointmentLabel(entry.appointmentAt)} · {entry.appointmentDurationMinutes ?? 30} minutes</p><p>Staff: {entry.assignedToName || 'Unassigned'} · {entry.customerName}</p></li>)}</ul></> : <p>No overlapping appointments currently shown. Capacity is checked again when saving.</p>}</div>;
 }
 
 function StaffExceptionReview({ time, bookingId, outside, double, onConfirm, onClose }: { time: string; bookingId?: string; outside: boolean; double: boolean; onConfirm: () => void; onClose: () => void }) {
@@ -394,8 +394,8 @@ function NewCall({
           nameRequired
           phoneRequired
           customers={[
-            ...enquiries.map(entry => ({ id: `enquiry-${entry.id}`, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: `${entry.reference} · ${entry.vehicleTitle || "General enquiry"}` })),
-            ...reservations.map(entry => ({ id: `reservation-${entry.id}`, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.createdAt, detail: `${entry.reference} · ${entry.vehicleTitle}` })),
+            ...enquiries.map(entry => ({ id: `enquiry-${entry.id}`, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: entry.vehicleTitle || "General enquiry" })),
+            ...reservations.map(entry => ({ id: `reservation-${entry.id}`, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.createdAt, detail: entry.vehicleTitle })),
           ]}
         />
         <label className={field}>
@@ -484,7 +484,7 @@ function NewCall({
                   className="pl-9"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Make, model, registration or advert reference"
+                  placeholder="Make, model or registration"
                 />
               </div>
             </label>
@@ -543,7 +543,7 @@ function NewCall({
               ))}
               {!isLoading && !error && !matches.length && (
                 <p className="p-4 text-sm">
-                  No matching cars. Try a model or advert reference.
+                  No matching cars. Try a model or registration.
                 </p>
               )}
             </div>
@@ -715,7 +715,7 @@ function AppointmentEditor({
             {cancelling ? "Cancel this appointment?" : "Change appointment"}
           </DialogTitle>
           <DialogDescription>
-            {booking.customerName} · {booking.reference}
+            {booking.customerName}
           </DialogDescription>
         </DialogHeader>
         <div className="enquiry-appointment-summary border-y border-border py-3 text-sm">
@@ -840,7 +840,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
     const entry = requested ? primaryEnquiry(requested, query.data) : undefined;
     if (entry) openedEnquiry.current = requestedEnquiry;
     setMode(requestedDeskView === 'callbacks' ? 'callbacks' : 'history'); setOwnerScope('all'); setFilter('all'); setGlobalSearch('');
-    if (entry) { setSearch(entry.reference); setSelectedEnquiryId(entry.id); setNotice(''); }
+    if (entry) { setSearch(entry.customerName); setSelectedEnquiryId(entry.id); setNotice(''); }
     else { setSelectedEnquiryId(null); setSearch(''); setNotice('This enquiry could not be found. Refresh or search by customer details.'); }
   }, [requestedEnquiry, requestedDeskView, initialView, query.data]);
   async function saved(entry: Enquiry) {
@@ -856,13 +856,13 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
     setSelection(undefined);
     setFormKey((key) => key + 1);
     setNotice(
-      `${entry.reference} saved — ${entry.appointmentCancelledAt ? "appointment cancelled" : entry.appointmentAt ? `${status(entry)}: ${appointmentLabel(entry.appointmentAt)}` : "phone enquiry recorded"}.${entry.customerNotificationStatus === "failed" ? " Customer email failed; confirm by phone." : ""}`,
+      `${entry.customerName}: ${entry.appointmentCancelledAt ? "appointment cancelled" : entry.appointmentAt ? `${status(entry)}: ${appointmentLabel(entry.appointmentAt)}` : "phone enquiry recorded"}.${entry.customerNotificationStatus === "failed" ? " Customer email failed; confirm by phone." : ""}`,
     );
     setMode("history");
     setGlobalSearch("");
     setOwnerScope("all");
     const primary = primaryEnquiry(entry, query.data ?? []);
-    setSearch(primary.reference);
+    setSearch(primary.customerName);
     setSelectedEnquiryId(primary.id);
     if (embedded) navigate(`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(primary.id)}`);
     setFilter("all");
@@ -899,7 +899,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   function clearSelectedRecord() {
     setSelectedEnquiryId(null);
     const requested = query.data?.find(entry => entry.id === requestedEnquiry);
-    if (requested && search === primaryEnquiry(requested, allEntries).reference) setSearch('');
+    if (requested && search === primaryEnquiry(requested, allEntries).customerName) setSearch('');
     if (embedded && requestedEnquiry) navigate(`/portal?section=notifications&workView=customers${mode === 'callbacks' ? '&deskView=callbacks' : ''}`);
   }
   function selectRecord(id: string) {
@@ -910,7 +910,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
       navigate(`/portal?${params}`);
     }
   }
-  function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); if (onOpenCustomer) { onOpenCustomer(primary.id); return; } setGlobalSearch(""); setMode("history"); setSearch(primary.reference); setFilter("all"); selectRecord(primary.id); }
+  function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); if (onOpenCustomer) { onOpenCustomer(primary.id); return; } setGlobalSearch(""); setMode("history"); setSearch(primary.customerName); setFilter("all"); selectRecord(primary.id); }
   const callbackCount = callbackEntries.filter(isOutstandingCallback).length;
   const recordActions: EnquiryRecordActions = {
     canBook: bookingAccess.enabled,
@@ -941,16 +941,16 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         <Button className="enquiry-ribbon-refresh" variant="ghost" size="icon" aria-label="Refresh enquiries and stock" title="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); directory.refetch(); reservations.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className={`h-4 w-4${query.isFetching ? " animate-spin" : ""}`} aria-hidden /></Button>
         <Button className="enquiry-ribbon-overdue" variant={dueCount ? "outline" : "ghost"} size="sm" onClick={() => { if (mode === "callbacks") { setCallbackFilter("overdue"); setCallbackSearch(""); } else { setMode("history"); setFilter("due"); setSearch(""); } setGlobalSearch(""); clearSelectedRecord(); }}>Overdue now ({dueCount})</Button>
         {mode === "history" ? <>
-          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { clearSelectedRecord(); setSearch(event.target.value); }} placeholder="Name, phone, email, reference or car" /></label>
+          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { clearSelectedRecord(); setSearch(event.target.value); }} placeholder="Name, phone, email or car" /></label>
           <details className="enquiry-desk-more"><summary>More filters{filter !== "all" ? " · active" : ""}</summary><label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); clearSelectedRecord(); }}>
             <option value="all">All enquiries</option><option value="upcoming">Upcoming test drives</option><option value="today">Today’s test drives</option><option value="followups">Follow-ups</option><option value="due">Overdue follow-ups</option>
           </NativeSelect></label></details>
         </> : mode === "callbacks" ? <>
-          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); clearSelectedRecord(); }} placeholder="Customer, contact, registration or reference" /></label>
+          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); clearSelectedRecord(); }} placeholder="Customer, contact or registration" /></label>
           <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show callbacks</span><NativeSelect value={callbackFilter} onChange={event => { setCallbackFilter(event.target.value); clearSelectedRecord(); }}>
             <option value="all">All callbacks</option><option value="overdue">Overdue now</option><option value="upcoming">Upcoming</option><option value="unscheduled">Needs a time</option><option value="website">Website requests</option><option value="unassigned">Unassigned</option>
           </NativeSelect></label>
-        </> : <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Search the workspace</span><Input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Search customer, phone, registration, car or reference" /></label>}
+        </> : <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Search the workspace</span><Input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Search customer, phone, registration or car" /></label>}
         {mode !== "new" && <label className="enquiry-ribbon-owner grid gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Enquiry ownership</span><NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">{mode === "history" || mode === "callbacks" ? "All owners" : "All enquiries"}</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>}
       </div>}
       <div className="enquiry-workspace-canvas space-y-5 bg-slate-100/70 p-3 sm:p-6">
@@ -995,7 +995,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         setNotice(`${result.recordIds.length} records merged into one case. ${result.cancelledAppointmentIds.length ? `${result.cancelledAppointmentIds.length} appointments cancelled.` : "All active appointments retained."}`);
         await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith("/availability") })]);
       }} />}
-      {conversationEntry && <ConversationEditor entry={conversationEntry} onClose={() => setConversationEntry(null)} onSaved={async entry => { client.setQueryData(enquirySummaryKey(), (current: Enquiry[] | undefined) => current?.map(item => item.id === entry.id ? entry : item)); setConversationEntry(null); setSelectedEnquiryId(mode === "callbacks" ? entry.id : primaryEnquiry(entry, allEntries).id); setNotice(`${entry.reference}: conversation saved.`); await Promise.all([query.refetch(), client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]); }} />}
+      {conversationEntry && <ConversationEditor entry={conversationEntry} onClose={() => setConversationEntry(null)} onSaved={async entry => { client.setQueryData(enquirySummaryKey(), (current: Enquiry[] | undefined) => current?.map(item => item.id === entry.id ? entry : item)); setConversationEntry(null); setSelectedEnquiryId(mode === "callbacks" ? entry.id : primaryEnquiry(entry, allEntries).id); setNotice(`${entry.customerName}: conversation saved.`); await Promise.all([query.refetch(), client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]); }} />}
       {emailEntry && <EnquiryEmailComposer entry={emailEntry} onClose={() => setEmailEntry(null)} />}
       {workspaceEntry && <WorkspaceEditor entry={workspaceEntry} onClose={() => setWorkspaceEntry(null)} />}
       {historyContact && <Dialog open onOpenChange={open => { if (!open) setHistoryContact(null); }}><DialogContent className="portal-action-dialog portal-action-dialog-wide enquiry-action-dialog max-w-2xl"><DialogHeader><DialogTitle>{historyContact.customerName} — customer history</DialogTitle><DialogDescription>Enquiries, appointments and reservations matched by contact details.</DialogDescription></DialogHeader><CustomerHistory contact={historyContact} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} />{(query.isError || reservations.isError) && <p role="alert">Some records could not be loaded. Refresh to retry.</p>}</DialogContent></Dialog>}
@@ -1012,7 +1012,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
           onSaved={async (entry) => {
             setFollowUpEntry(null);
             setNotice(
-              `${entry.reference}: ${entry.followUpCompletedAt ? "follow-up completed" : entry.followUpAt ? "follow-up scheduled" : "follow-up removed"}.`,
+              `${entry.customerName}: ${entry.followUpCompletedAt ? "follow-up completed" : entry.followUpAt ? "follow-up scheduled" : "follow-up removed"}.`,
             );
             await query.refetch();
           }}

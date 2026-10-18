@@ -26,6 +26,8 @@ test('merge links originals without mutating contact, vehicle, message, follow-u
     for (const field of ['phone', 'email', 'customerName', 'message', 'vehicleId', 'followUpAt', 'followUpRevision', 'manageTokenHash', 'status']) assert.equal(field in change.update, false);
   }
   assert.equal(plan.events.length, 2); assert.equal(plan.events[0].detail.note, 'Same customer discussing several vehicles'); assert.equal(plan.events[1].detail.staffId, staff.id); assert.equal(plan.events[1].occurredAt, now);
+  assert.equal(plan.events[1].summary, 'Record combined into the main case by Synthetic Sales');
+  assert.ok(plan.events.every(event => !event.summary.includes(ids[0])));
 });
 test('appointments remain on originals; explicit omissions cancel only chosen slots and invalidate their revisions', () => {
   const entries = [row(ids[0], { appointmentAt: '2026-10-08T10:00:00Z' }), row(ids[1], { appointmentAt: '2026-10-08T14:00:00Z', appointmentRevision: 4 }), row(ids[2], { appointmentAt: '2026-10-09T10:00:00Z', appointmentCancelledAt: '2026-10-01T00:00:00Z' })];

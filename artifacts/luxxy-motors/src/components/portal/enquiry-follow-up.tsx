@@ -135,7 +135,7 @@ export function FollowUpEditor({
             {outstanding ? "Manage follow-up" : "Request a follow-up"}
           </DialogTitle>
           <DialogDescription>
-            {entry.customerName} · {entry.reference}
+            {entry.customerName}
           </DialogDescription>
         </DialogHeader>
         <p className="text-sm">

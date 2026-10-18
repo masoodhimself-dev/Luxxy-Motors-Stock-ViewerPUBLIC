@@ -126,7 +126,6 @@ export default function Viewing() {
 
   return shell(<>
     <div className="p-6 sm:p-10">
-      <p className="mb-3 break-all text-xs font-medium tracking-wide text-muted-foreground">Reference {booking.reference}</p>
       <h1 className="font-display text-2xl font-semibold tracking-tight text-primary sm:text-3xl">{isCancelled ? 'Test drive cancelled' : isPending ? 'Your test-drive request' : 'Your test drive'}</h1>
       <p className="mt-3 text-sm text-muted-foreground" data-testid="text-viewing-customer">Hello, {booking.customerName}.</p>
       {isPending && !isCancelled && <p className="mt-4 rounded-lg bg-secondary p-4 text-sm leading-6 text-primary" data-testid="status-viewing-pending">We’ve received your request. We’ll email you when your requested time is confirmed.</p>}

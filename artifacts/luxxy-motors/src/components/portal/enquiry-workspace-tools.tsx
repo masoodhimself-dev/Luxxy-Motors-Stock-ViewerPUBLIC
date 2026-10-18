@@ -41,7 +41,7 @@ export function WorkspaceEditor({ entry, onClose }: { entry: Enquiry; onClose: (
   async function save() {
     try { await mutation.mutateAsync({ id: entry.id, data: { expectedRevision: entry.workspaceRevision ?? 0, assignedToId: owner || null, callOutcome: (outcome || null) as CallOutcome | null, staffNote: note || null } }); await refresh(); onClose(); } catch {}
   }
-  return <Dialog open onOpenChange={open => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className="portal-action-dialog enquiry-action-dialog"><DialogHeader><DialogTitle>Update enquiry</DialogTitle><DialogDescription>{entry.customerName} · {entry.reference}</DialogDescription></DialogHeader>
+  return <Dialog open onOpenChange={open => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className="portal-action-dialog enquiry-action-dialog"><DialogHeader><DialogTitle>Update enquiry</DialogTitle><DialogDescription>{entry.customerName}</DialogDescription></DialogHeader>
     <OwnerSelect value={owner} onChange={setOwner} />
     <label className="grid gap-1.5 text-sm font-medium">Call outcome<NativeSelect value={outcome} onChange={e => setOutcome(e.target.value)}><option value="">Not recorded</option>{Object.entries(callOutcomes).map(([value, label]) => <option key={value} value={value} disabled={value === 'test_drive_booked' ? !entry.appointmentAt || Boolean(entry.appointmentCancelledAt) : value === 'callback_requested' ? !entry.followUpAt || Boolean(entry.followUpCompletedAt) : false}>{label}</option>)}</NativeSelect></label>
     <label className="grid gap-1.5 text-sm font-medium">Internal note<Textarea value={note} onChange={e => setNote(e.target.value)} maxLength={2000} rows={4} /></label>
@@ -74,10 +74,10 @@ export function CustomerHistory({ contact, enquiries, reservations, onReuse, com
   const reservationMatches = reservations.map(entry => ({ entry, match: assessCustomerContact(contact, entry) })).filter(item => item.match.matchedBy.length);
   const timeline = [
     ...enquiryMatches.map(({ entry, match }) => ({ id: `e-${entry.id}`, recordType: 'enquiry' as const, recordId: entry.id, at: entry.createdAt || entry.updatedAt || '', name: entry.customerName, phone: entry.phone, email: entry.email, match,
-      title: `${entry.reference} · ${entry.vehicleTitle || 'General enquiry'}`,
+      title: entry.vehicleTitle || 'General enquiry',
       body: [entry.appointmentAt ? `${entry.appointmentCancelledAt ? 'Cancelled appointment' : 'Appointment'}: ${appointmentLabel(entry.appointmentAt)}` : 'Enquiry', entry.callOutcome ? callOutcomes[entry.callOutcome as CallOutcome] : null, entry.message, entry.staffNote, entry.assignedToName ? `Owner: ${entry.assignedToName}` : null].filter(Boolean).join(' · ') })),
     ...reservationMatches.map(({ entry, match }) => ({ id: `r-${entry.id}`, recordType: 'reservation' as const, recordId: entry.id, at: entry.createdAt || '', name: entry.customerName, phone: entry.phone, email: entry.email, match,
-      title: `${entry.reference} · ${entry.vehicleTitle}`, body: `Online reservation · ${entry.status}` })),
+      title: entry.vehicleTitle, body: `Online reservation · ${entry.status}` })),
   ].sort((a, b) => b.at.localeCompare(a.at));
   if (!timeline.length) return null;
   const history = <section className="enquiry-customer-history rounded border border-blue-200 bg-blue-50/40 p-3">
@@ -137,10 +137,10 @@ export function TodayDesk({ entries, onOpen }: { entries: Enquiry[]; onOpen: (en
         <header className="enquiry-today-group-heading"><h4>{group.title}</h4><span className="enquiry-today-total">{group.rows.length}</span></header>
         {group.id === 'followups' && <p className="enquiry-today-group-note">{overdue} overdue now · {due.length - overdue} later today</p>}
         <ul className="enquiry-today-records">{visible.map(entry => <li key={entry.id}>
-          <button type="button" className="enquiry-today-open" onClick={() => onOpen(entry)} aria-label={`Open enquiry for ${entry.customerName}, ${entry.reference}`}>
+          <button type="button" className="enquiry-today-open" onClick={() => onOpen(entry)} aria-label={`Open enquiry for ${entry.customerName}, ${entry.vehicleTitle || "general enquiry"}`}>
             <span className="enquiry-today-record-heading"><strong>{entry.customerName}</strong>{group.id === 'appointments' && <time dateTime={entry.appointmentAt!}>{new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' }).format(new Date(entry.appointmentAt!))}</time>}</span>
             <span className="enquiry-today-record-vehicle">{entry.vehicleTitle || 'General enquiry'}</span>
-            <span className="enquiry-today-record-meta">{entry.assignedToName || 'Unassigned'} · {entry.reference}</span>
+            <span className="enquiry-today-record-meta">{entry.assignedToName || 'Unassigned'}</span>
             {group.id === 'followups' && <span className="enquiry-today-followup-time" data-overdue={Date.parse(entry.followUpAt!) <= Date.now()}>{Date.parse(entry.followUpAt!) <= Date.now() ? 'Overdue · ' : 'Due · '}{appointmentLabel(entry.followUpAt!)}</span>}
             {group.id === 'appointments' && entry.appointmentStatus === 'pending' && <span className="enquiry-today-followup-time">Awaiting approval</span>}
           </button>

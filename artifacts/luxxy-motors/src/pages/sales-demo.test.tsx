@@ -400,6 +400,7 @@ it("autofills a recent enquiry contact as staff type and links only the selected
   await waitFor(() => expect(state.sales).toHaveLength(1));
   expect(state.sales[0].draft.sourceEnquiryId).toBe("enquiry-recent");
   expect(state.sales[0].draft.sourceReservationId).toBe("");
+  expect(document.body).not.toHaveTextContent('ENQ-RECENT');
 });
 
 it("reuses a returning customer's contact without linking another car's enquiry or retaining a previous address", async () => {
@@ -506,6 +507,7 @@ it("opens a saved sale at its useful summary and resumes payments without repeat
   const summary = screen.getByRole("region", { name: "Saved sale summary" });
   expect(summary).toHaveTextContent("Ford Focus");
   expect(summary).toHaveTextContent("Jamie Taylor");
+  expect(document.body).not.toHaveTextContent('SALE-SAVED');
   expect(summary).toHaveTextContent("Reserved");
   expect(summary).toHaveTextContent("£10,000.00");
   expect(summary).toHaveTextContent("£500.00");

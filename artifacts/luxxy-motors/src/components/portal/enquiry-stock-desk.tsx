@@ -21,7 +21,7 @@ export function EnquiryStockDesk({ onDetails, onChoose }: { onDetails: (car: Car
   ).sort((a, b) => sort === "name" ? vehicleDisplayTitle(a).localeCompare(vehicleDisplayTitle(b)) : sort === "price" ? (a.price ?? Infinity) - (b.price ?? Infinity) : (a.mileage ?? Infinity) - (b.mileage ?? Infinity));
   return <section className="enquiry-stock-desk space-y-4">
     <div className="enquiry-stock-filters grid gap-3 rounded-sm border border-slate-200 bg-white p-4 md:grid-cols-[2fr_1fr_1fr]">
-      <label className="grid gap-1.5 text-sm font-medium">Search all cars<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Make, model, registration or advert reference" /></label>
+      <label className="grid gap-1.5 text-sm font-medium">Search all cars<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Make, model or registration" /></label>
       <label className="grid gap-1.5 text-sm font-medium">Availability<NativeSelect aria-label="Stock availability" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All statuses</option><option value="available">Available</option><option value="reserved">Reserved</option><option value="unconfirmed">Unconfirmed / other</option></NativeSelect></label>
       <label className="grid gap-1.5 text-sm font-medium">Sort cars<NativeSelect aria-label="Sort cars" value={sort} onChange={e => setSort(e.target.value)}><option value="name">Make and model</option><option value="price">Lowest price</option><option value="mileage">Lowest mileage</option></NativeSelect></label>
     </div>

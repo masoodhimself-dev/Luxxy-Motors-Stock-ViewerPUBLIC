@@ -111,7 +111,7 @@ function ConversationThread({ view, directory, back, refresh, applyView, draft, 
   return <article className="staff-chat-thread" aria-label="Selected chat conversation">
     <header className="staff-chat-thread-heading">
       <Button type="button" variant="ghost" className="staff-chat-back" onClick={back}><ArrowLeft aria-hidden="true" />Back to chats</Button>
-      <div><p className="staff-chat-reference">{conversation.reference}</p><h2>{conversation.customerName || 'Website visitor'}</h2><div className="staff-chat-thread-meta"><Chip tone={isResolved ? 'muted' : conversation.status === 'waiting_staff' ? 'accent' : 'neutral'}>{statuses[conversation.status]}</Chip><span>{conversation.assignedToName ? `Assigned to ${conversation.assignedToName}` : 'Unassigned'}</span></div></div>
+      <div><h2>{conversation.customerName || 'Website visitor'}</h2><div className="staff-chat-thread-meta"><Chip tone={isResolved ? 'muted' : conversation.status === 'waiting_staff' ? 'accent' : 'neutral'}>{statuses[conversation.status]}</Chip><span>{conversation.assignedToName ? `Assigned to ${conversation.assignedToName}` : 'Unassigned'}</span></div></div>
     </header>
     <CustomerContext conversation={conversation} />
     <section className="staff-chat-controls" aria-label="Staff conversation controls">

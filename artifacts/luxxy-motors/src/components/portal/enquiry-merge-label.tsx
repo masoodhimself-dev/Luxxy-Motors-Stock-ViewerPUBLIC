@@ -9,7 +9,7 @@ export function EnquiryMergeLabel({ entry, entries }: { entry: Enquiry; entries:
   if (group.length < 2) return null;
   return <p className="text-xs text-muted-foreground">
     Part of merged case{' '}
-    <Link className="inline-flex min-h-8 items-center font-medium text-primary underline underline-offset-2" href={`/portal?section=enquiries&enquiryId=${encodeURIComponent(primary.id)}`}>{primary.reference}</Link>
+    <Link className="inline-flex min-h-8 items-center font-medium text-primary underline underline-offset-2" href={`/portal?section=enquiries&enquiryId=${encodeURIComponent(primary.id)}`}>{primary.customerName}</Link>
     {' '}· {group.length} original records
   </p>;
 }

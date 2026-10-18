@@ -59,7 +59,7 @@ beforeEach(() => {
 it('keeps the first edited search value when clearing a selected customer and its route context', async () => {
   const { location } = mount('section=notifications&workView=customers&enquiryId=alex');
   const search = screen.getByRole('textbox', { name: 'Find a customer or car' });
-  await waitFor(() => expect(search).toHaveValue('ENQ-alex'));
+  await waitFor(() => expect(search).toHaveValue('Alex Customer'));
   expect(screen.getByTestId('selected-enquiry')).toHaveTextContent('alex');
   fireEvent.change(search, { target: { value: 'Jordan' } });
   expect(search).toHaveValue('Jordan');
@@ -122,7 +122,7 @@ it('opens a requested record when it becomes available after a query refresh', a
   expect(screen.getByRole('button', { name: 'Show all enquiries' })).toBeVisible();
   await act(async () => { client.setQueryData(['enquiries', 'timeline-omitted'], [fresh, alex, jordan]); });
   await waitFor(() => expect(screen.getByTestId('selected-enquiry')).toHaveTextContent(fresh.id));
-  expect(screen.getByRole('textbox', { name: 'Find a customer or car' })).toHaveValue(fresh.reference);
+  expect(screen.getByRole('textbox', { name: 'Find a customer or car' })).toHaveValue(fresh.customerName);
   expect(screen.queryByText(/This enquiry could not be found/)).not.toBeInTheDocument();
 });
 

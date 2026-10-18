@@ -23,6 +23,8 @@ describe('private purchase summary', () => {
     expect(await screen.findByText('Paid in full')).toBeInTheDocument();
     expect(screen.queryByText('Outstanding balance')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Collection' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your purchase, Alex Buyer' })).toBeInTheDocument();
+    expect(screen.queryByText(/SALE-1/)).not.toBeInTheDocument();
   });
   it('chooses the newest invoice by issue date and offers a direct download', async () => {
     fetchSale.mockResolvedValueOnce({ sale: { ...sale, documents: [
@@ -33,6 +35,8 @@ describe('private purchase summary', () => {
     renderSale();
     const latest = await screen.findByRole('region', { name: 'Latest invoice' });
     expect(within(latest).getByRole('heading', { name: 'Full invoice' })).toBeInTheDocument();
+    expect(screen.getAllByText(/INV-2/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/SALE-1/)).not.toBeInTheDocument();
     fireEvent.click(within(latest).getByRole('button', { name: 'Download invoice' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('The saved PDF could not be downloaded');
     expect(fetchSale).toHaveBeenLastCalledWith('/api/customer-sale/purchase-token/documents/new/pdf', { responseType: 'blob' });

@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import "./relationships-panel.css";
+import { historyDescription } from "./history-display";
 
 type Vehicle = DealerRelationships["vehicles"][number];
 type Customer = DealerRelationships["customers"][number];
@@ -316,14 +317,8 @@ function Timeline({
                   </div>
                   <p className="relationship-record-reference">
                     {recordLabels[activity.recordType]}
-                    {activity.reference && (
-                      <>
-                        {" "}
-                        · <span>{activity.reference}</span>
-                      </>
-                    )}
                   </p>
-                  <ActivityDescription description={activity.description} />
+                  <ActivityDescription description={historyDescription(activity, activities)} />
                   {activity.url && (
                     <Link
                       href={activity.url}
@@ -538,8 +533,8 @@ export function RelationshipsPanel() {
                 </h3>
                 <p>
                   {view === "vehicles"
-                    ? "Search by vehicle, registration or reference."
-                    : "Search by name, email, phone or reference."}
+                    ? "Search by vehicle or registration."
+                    : "Search by name, email or phone."}
                 </p>
               </div>
               <label className="relationship-search">
@@ -584,7 +579,7 @@ export function RelationshipsPanel() {
                 </h3>
                 <p>
                   {term.trim()
-                    ? "Try another name, registration, contact detail or reference."
+                    ? "Try another name, registration or contact detail."
                     : "History appears as enquiries, reservations and sales are recorded."}
                 </p>
                 {term.trim() && (

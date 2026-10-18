@@ -453,7 +453,7 @@ function EnquiryEmailEditor({
                 : "Prepare customer email"}
           </DialogTitle>
           <DialogDescription>
-            {entry.customerName} · {entry.reference}
+            {entry.customerName}
           </DialogDescription>
         </DialogHeader>
         {!initialized.current && !context.isError && (

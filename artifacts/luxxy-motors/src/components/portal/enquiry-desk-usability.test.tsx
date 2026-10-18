@@ -41,8 +41,10 @@ it('keeps every waiting customer reachable while limiting the initial Today list
   expect(within(group).queryByText('Customer 7')).not.toBeInTheDocument();
   fireEvent.click(within(group).getByRole('button', { name: 'Show all 8' }));
   expect(within(group).getAllByRole('listitem')).toHaveLength(8);
-  fireEvent.click(within(group).getByRole('button', { name: 'Open enquiry for Customer 7, CALL-7' }));
+  fireEvent.click(within(group).getByRole('button', { name: 'Open enquiry for Customer 7, Ford Focus' }));
   expect(open).toHaveBeenCalledWith(entries[7]);
+  expect(group).not.toHaveTextContent('CALL-7');
+  expect(within(group).getByRole('button', { name: 'Open enquiry for Customer 7, Ford Focus' })).not.toHaveAttribute('aria-label', expect.stringContaining('CALL-'));
   fireEvent.click(within(group).getByRole('button', { name: 'Show fewer' }));
   expect(within(group).getAllByRole('listitem')).toHaveLength(5);
 });
@@ -53,6 +55,7 @@ it('passes the selected original record to the email action and keeps occasional
   const actions: EnquiryRecordActions = { onEmail: email, onUpdate: update, onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
   show(<EnquiryRecordBrowser entries={[first, selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
   const detail = screen.getByRole('region', { name: 'Selected enquiry: Customer selected' });
+  expect(detail).not.toHaveTextContent('CALL-selected');
   fireEvent.click(within(detail).getByRole('button', { name: 'Prepare reply' }));
   expect(email).toHaveBeenCalledWith(selected);
   const more = detail.querySelector('details')!;

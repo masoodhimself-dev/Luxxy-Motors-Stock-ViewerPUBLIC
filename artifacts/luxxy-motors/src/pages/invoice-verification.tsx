@@ -34,7 +34,7 @@ export default function InvoiceVerification() {
       <p className="invoice-proof-eyebrow">{p.dealer}</p><h1>Invoice record found</h1>
       <p>Compare these saved details with your invoice. Amounts below are recorded at the time it was issued.</p>
       {p.supersededBy&&<p className="invoice-proof-notice">A newer invoice, {p.supersededBy}, has been issued. This is the original record.</p>}
-      <dl>{[['Document',p.title],['Reference',p.number],['Issued',new Date(p.issuedAt).toLocaleDateString('en-GB',{timeZone:'Europe/London',day:'numeric',month:'long',year:'numeric'})],['Vehicle',p.vehicle],...(p.registration?[['Registration',p.registration]]:[]),['Sale total',money(p.saleTotalPence)],['Payments received',money(p.paymentsReceivedPence)],['Balance at issue',money(p.balanceAtIssuePence)],['Confirmed payments',String(p.paymentCount)]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+      <dl>{[['Document',p.title],['Document no.',p.number],['Issued',new Date(p.issuedAt).toLocaleDateString('en-GB',{timeZone:'Europe/London',day:'numeric',month:'long',year:'numeric'})],['Vehicle',p.vehicle],...(p.registration?[['Registration',p.registration]]:[]),['Sale total',money(p.saleTotalPence)],['Payments received',money(p.paymentsReceivedPence)],['Balance at issue',money(p.balanceAtIssuePence)],['Confirmed payments',String(p.paymentCount)]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <p className="invoice-proof-privacy"><FileCheck2 size={17}/>Customer contact details and private payment references are not shown.</p>
     </>}
   </article></main>;

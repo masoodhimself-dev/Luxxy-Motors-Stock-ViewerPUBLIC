@@ -420,6 +420,24 @@ it('issued documents render saved design instructions without the hidden logo', 
   expect(screen.getByText('Saved thank-you wording')).toBeVisible();
   expect(screen.getByText('Saved payment instructions')).toBeVisible();
   expect(screen.getByText('£11,500.00')).toBeVisible();
+  expect(container).not.toHaveTextContent('SALE-000001');
+  expect(container).not.toHaveTextContent('Sale reference');
+});
+
+it.each(['invoice', 'receipt', 'statement', 'terms', 'reservation', 'vehicle-details'] as const)('keeps the official %s document number without printing the internal sale reference', type => {
+  const issued = document({ type, number: 'DOC-2026-000042' });
+  const { container } = render(<SalesDocument issuedDocument={issued} />);
+  expect(container).toHaveTextContent('DOC-2026-000042');
+  expect(container).not.toHaveTextContent('SALE-000001');
+  expect(container).not.toHaveTextContent('Sale reference');
+  expect(container).toHaveTextContent('Alex Buyer');
+});
+
+it('keeps an invoice draft free of internal sale references', () => {
+  const draft = { ...emptyDraft(), id: 'SALE-INTERNAL-ONLY', customer: 'Alex Buyer', vehicle: 'Nissan Qashqai', price: '12000' };
+  const { container } = render(<SalesDocument draft={draft} dealer={dealerConfig} documentType="Sales invoice" />);
+  expect(container).toHaveTextContent('Alex Buyer');
+  expect(container).not.toHaveTextContent('SALE-INTERNAL-ONLY');
 });
 
 it('classic receipt uses the saved payment and reference; blank stationery omits customer data', async () => {
@@ -427,6 +445,7 @@ it('classic receipt uses the saved payment and reference; blank stationery omits
   const issued = document();
   const view = render(<ClassicReceipt document={issued} branding={issued.snapshot.branding} />);
   expect(screen.getByText('RCP-000001')).toBeVisible();
+  expect(view.container).not.toHaveTextContent('SALE-000001');
   expect(screen.getByText('Alex Buyer')).toBeVisible();
   expect(screen.getByText('£500.00')).toBeVisible();
   expect(screen.getByText('£11,500.00')).toBeVisible();

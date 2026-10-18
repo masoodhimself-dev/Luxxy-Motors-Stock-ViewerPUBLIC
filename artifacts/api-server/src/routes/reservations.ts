@@ -127,7 +127,7 @@ function transactionAdapter(tx: Tx, id: string): ReservationTransaction {
         vehiclePrice: record.expectedPricePence / 100,
         stage: "reserved", source: "website_form", customerName: record.customerName,
         email: record.email, phone: record.phone, preferredContact: "phone",
-        summary: `Online reservation ${record.reference}. Payment simulated; no money received.`,
+        summary: `Online reservation. Payment simulated; no money received.`,
         nextAction: "Contact the customer about their online reservation. Payment is simulated; no deposit has been received.",
         nextActionDueAt: createdAt, depositPence: 0,
         createdAt, updatedAt: createdAt,
@@ -140,7 +140,7 @@ function transactionAdapter(tx: Tx, id: string): ReservationTransaction {
         },
         {
           leadId: record.id, type: "note_added", actorType: "system",
-          body: `Reservation ${record.reference}: £${(record.depositPence / 100).toFixed(2)} payment simulated; £0 received.${record.partExchange ? ` Part exchange: ${record.partExchange.registration}, ${record.partExchange.mileage.toLocaleString("en-GB")} miles.` : ""}`,
+          body: `Reservation: £${(record.depositPence / 100).toFixed(2)} payment simulated; £0 received.${record.partExchange ? ` Part exchange: ${record.partExchange.registration}, ${record.partExchange.mileage.toLocaleString("en-GB")} miles.` : ""}`,
           payload: { kind: reservationKind, reservation: record },
         },
       ]);
@@ -260,7 +260,7 @@ router.post("/reservations/:id/cancel", requireStaff, requirePermission("sales.m
       await tx.insert(leadEventsTable).values([
         {
           leadId: lead.id, type: "note_added", actorType: "staff", actor: staffLabel(req),
-          body: `Online reservation ${latest.record.reference} cancelled. Car released; no payment or refund was recorded.`,
+          body: `Online reservation cancelled. Car released; no payment or refund was recorded.`,
           payload: { kind: cancellationKind, reservationId: lead.id, reference: latest.record.reference, amountReceivedPence: 0 },
         },
         {

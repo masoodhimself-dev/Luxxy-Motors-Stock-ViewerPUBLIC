@@ -10,7 +10,7 @@ export default function RetiredSalesPage() {
 
   return <div className="luxxy-shell flex min-h-[60vh] items-center px-4 py-12 sm:px-6 lg:px-8">
     <section className="mx-auto w-full max-w-xl rounded-sm border border-border bg-card p-6 sm:p-10">
-      <PageHeading eyebrow="Your purchase" title="This link is no longer available" description="Please get in touch if you need help with your purchase or paperwork. Keep your sales reference handy so we can find your records." />
+      <PageHeading eyebrow="Your purchase" title="This link is no longer available" description="Please get in touch with your name and car details if you need help with your purchase or paperwork." />
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Button asChild><Link href="/contact">Contact us</Link></Button>
         <Button asChild variant="outline"><Link href="/stock">Browse stock</Link></Button>

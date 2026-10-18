@@ -78,9 +78,12 @@ it('expands price reductions and missing adverts with recorded backend timing', 
  render(<Platform />); await screen.findAllByText('Example Dealer');
  fireEvent.click(screen.getByRole('button',{name:'Import activity'}));
  expect(screen.getByText('2.00 s')).toBeInTheDocument();
+ expect(screen.queryByText('sample-run')).not.toBeInTheDocument();
  fireEvent.click(screen.getByRole('button',{name:'View vehicle changes'}));
  expect(await screen.findByText('Price reduced: £10,000 → £9,500')).toBeInTheDocument();
  expect(screen.getByText('Absent from source; not marked sold.')).toBeInTheDocument();
+ expect(screen.queryByText('Advert advert')).not.toBeInTheDocument();
+ expect(screen.queryByText('Advert missing')).not.toBeInTheDocument();
 });
 
 it('explains unavailable retained snapshot comparisons without claiming no cars disappeared', async () => {

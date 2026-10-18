@@ -21,17 +21,21 @@ function show(entries = [a, b], entry = a, refreshed = entries) {
   render(<QueryClientProvider client={client}><EnquiryMergeDialog entry={entry} entries={entries} onRefresh={onRefresh} onClose={vi.fn()} onSaved={onSaved} /></QueryClientProvider>);
   return { onSaved, onRefresh };
 }
-function chooseB() { fireEvent.click(screen.getByRole('checkbox', { name: 'Include REF-b, Alex Customer' })); }
+const includeLabel = (id: string, customer = 'Alex Customer') => `Include ${customer}, Car ${id}, ${appointmentLabel(a.createdAt!)}`;
+const keepLabel = (entry: Enquiry) => `Keep appointment for ${entry.customerName}, ${appointmentLabel(entry.appointmentAt!)}`;
+function chooseB() { fireEvent.click(screen.getByRole('checkbox', { name: includeLabel('b') })); }
 function addReason() { fireEvent.change(screen.getByRole('textbox', { name: 'Reason for merging' }), { target: { value: 'Same showroom visit' } }); }
 function review() { fireEvent.click(screen.getByRole('button', { name: 'Review merge' })); }
 function submit() { fireEvent.click(screen.getByRole('button', { name: 'Merge records' })); }
 
 it('keeps every active appointment by default and submits all original revision checks only after review', async () => {
   const { onSaved } = show(); chooseB(); addReason();
-  expect(screen.getByRole('checkbox', { name: 'Keep appointment REF-a' })).toBeChecked();
-  expect(screen.getByRole('checkbox', { name: 'Keep appointment REF-b' })).toBeChecked();
+  expect(screen.getByRole('dialog')).not.toHaveTextContent('REF-a');
+  expect(screen.getByRole('dialog')).not.toHaveTextContent('REF-b');
+  expect(screen.getByRole('checkbox', { name: keepLabel(a) })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: keepLabel(b) })).toBeChecked();
   expect(post).not.toHaveBeenCalled(); review();
-  expect(screen.getByText('2 original records → REF-a. 2 appointments kept; 0 cancelled. Follow-up tasks and all conversation history are retained.')).toBeVisible();
+  expect(screen.getByText('2 original records linked to Alex Customer. 2 appointments kept; 0 cancelled. Follow-up tasks and all conversation history are retained.')).toBeVisible();
   submit();
   await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
   const [url, options] = post.mock.calls[0];
@@ -40,9 +44,9 @@ it('keeps every active appointment by default and submits all original revision 
 });
 
 it('requires explicit confirmation and lists the exact appointment before cancelling it', async () => {
-  show(); chooseB(); addReason(); fireEvent.click(screen.getByRole('checkbox', { name: 'Keep appointment REF-b' }));
+  show(); chooseB(); addReason(); fireEvent.click(screen.getByRole('checkbox', { name: keepLabel(b) }));
   expect(screen.getByRole('button', { name: 'Review merge' })).toBeDisabled();
-  expect(screen.getByText(/Cancel 1 appointment: REF-b/)).toHaveTextContent(appointmentLabel(b.appointmentAt!));
+  expect(screen.getByText(/Cancel 1 appointment: Alex Customer/)).toHaveTextContent(appointmentLabel(b.appointmentAt!));
   fireEvent.click(screen.getByRole('checkbox', { name: 'I confirm cancellation of the appointments listed above.' })); review(); submit();
   await waitFor(() => expect(post).toHaveBeenCalledOnce());
   expect(JSON.parse(post.mock.calls[0][1]!.body as string).keepAppointmentIds).toEqual(['a']);
@@ -50,7 +54,7 @@ it('requires explicit confirmation and lists the exact appointment before cancel
 
 it('requires review of different customer contacts and overlapping kept appointments', async () => {
   show([a, record('b', { customerName: 'Another Customer', email: 'another@example.test', phone: '07700900999' })]);
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Include REF-b, Another Customer' })); addReason();
+  fireEvent.click(screen.getByRole('checkbox', { name: includeLabel('b', 'Another Customer') })); addReason();
   expect(screen.getByRole('button', { name: 'Review merge' })).toBeDisabled();
   fireEvent.click(screen.getByRole('checkbox', { name: 'I have checked the different customer contacts and want one case.' }));
   expect(screen.getByRole('button', { name: 'Review merge' })).toBeDisabled();
@@ -63,8 +67,8 @@ it('ranks exact contact suggestions first without selecting or linking any candi
   const unrelated = record('unrelated', { email: 'elsewhere@example.test', phone: '07700900888' });
   const conflict = record('conflict', { phone: '07700900999' });
   show([a, unrelated, conflict, b]);
-  const selections = screen.getAllByRole('checkbox', { name: /^Include REF-/ });
-  expect(selections.map(input => input.getAttribute('aria-label'))).toEqual(['Include REF-b, Alex Customer', 'Include REF-conflict, Alex Customer', 'Include REF-unrelated, Alex Customer']);
+  const selections = screen.getAllByRole('checkbox', { name: /^Include / });
+  expect(selections.map(input => input.getAttribute('aria-label'))).toEqual([includeLabel('b'), includeLabel('conflict'), includeLabel('unrelated')]);
   for (const checkbox of selections) expect(checkbox).not.toBeChecked();
   expect(screen.getByText('Same email and phone')).toBeVisible();
   expect(screen.getByText('Same email · Review needed')).toBeVisible();
@@ -108,7 +112,7 @@ it('finds a case by an original child and includes that entire case when selecte
 it('blocks selecting a case when its automatically included originals would exceed twenty', () => {
   const children = Array.from({ length: 19 }, (_, index) => record(`child-${index}`, { mergedIntoId: 'b', appointmentAt: null }));
   show([a,b,...children]);
-  expect(screen.getByRole('checkbox', { name: 'Include REF-b, Alex Customer' })).toBeDisabled();
+  expect(screen.getByRole('checkbox', { name: includeLabel('b') })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Review merge' })).toBeDisabled();
   expect(post).not.toHaveBeenCalled();
 });
@@ -117,13 +121,13 @@ it('retains choices on a 409, refreshes revisions explicitly, and requires a new
   post.mockRejectedValueOnce({ status: 409, data: { error: 'Record changed' } });
   const fresh = [record('a', { workspaceRevision: 5 }), record('b', { appointmentRevision: 8, appointmentAt: '2030-10-05T11:00:00.000Z' })];
   const { onRefresh } = show([a,b], a, fresh); chooseB(); addReason();
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Keep appointment REF-b' })); fireEvent.click(screen.getByRole('checkbox', { name: 'I confirm cancellation of the appointments listed above.' })); review(); submit();
+  fireEvent.click(screen.getByRole('checkbox', { name: keepLabel(b) })); fireEvent.click(screen.getByRole('checkbox', { name: 'I confirm cancellation of the appointments listed above.' })); review(); submit();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh records' })).toBeVisible());
   expect(post).toHaveBeenCalledTimes(1); expect(onRefresh).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Refresh records' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Review merge' })).toBeVisible());
-  expect(screen.getByRole('checkbox', { name: 'Include REF-b, Alex Customer' })).toBeChecked();
-  expect(screen.getByRole('checkbox', { name: 'Keep appointment REF-b' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: includeLabel('b') })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: keepLabel(fresh[1]) })).not.toBeChecked();
   expect(screen.getByRole('textbox', { name: 'Reason for merging' })).toHaveValue('Same showroom visit');
   expect(screen.getByRole('button', { name: 'Review merge' })).toBeDisabled();
   fireEvent.click(screen.getByRole('checkbox', { name: 'I confirm cancellation of the appointments listed above.' })); review(); submit();

@@ -10,8 +10,8 @@ export function notificationVersion(enquiry: Pick<Enquiry, "appointmentCancelled
 const referenceAlphabet = "ACDEFGHJKLMNPQRTUVWXY34679";
 
 /**
- * Customer-facing reference, e.g. "K4QM-9TXR". Ambiguous characters are left
- * out so it can be read back over the phone without confusion.
+ * Internal reference, e.g. "K4QM-9TXR". Retained for existing record lookups;
+ * customer-facing messages identify the vehicle and appointment instead.
  */
 export function generateEnquiryReference() {
   const pick = () =>
@@ -138,7 +138,6 @@ export function viewingCalendarIcs({
     : `Test drive at ${dealerName}`;
   const description = [
     vehicle ? `Vehicle: ${vehicle}` : null,
-    `Reference: ${enquiry.reference}`,
     `Change or cancel: ${viewingManageUrl(enquiry.id)}`,
   ]
     .filter(Boolean)

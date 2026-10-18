@@ -9,12 +9,30 @@ const featureState = vi.hoisted(() => ({ allowed: true, isLoading: false, isErro
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ ...featureState, enabled: () => featureState.allowed }) }));
 const mutation = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isSuccess: false, isError: false, data: undefined }));
 vi.mock('@workspace/api-client-react', () => ({ useCreateEnquiry: () => mutation }));
-vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: dealerConfig }) }));
+vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { ...dealerConfig, contact: { ...dealerConfig.contact, whatsapp: '447700900123' } } }) }));
 vi.mock('@/lib/visitor', () => ({ getVisitorId: () => 'test-visitor' }));
 const car = { id: 'stock-1', title: 'Ford Focus', make: 'Ford', model: 'Focus', price: 7490, year: 2019, images: [] } as unknown as Car;
 beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); mutation.isSuccess = false; featureState.allowed = true; featureState.isError = false; featureState.isLoading = false; });
 
 describe('short part exchange journey', () => {
+  it('matches follow-up photos with customer and vehicle details instead of an internal reference', () => {
+    const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    fireEvent.change(screen.getByTestId('input-part-exchange-registration'), { target: { value: 'AB12 CDE' } });
+    fireEvent.change(screen.getByTestId('input-part-exchange-mileage'), { target: { value: '45000' } });
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+    fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Alex Buyer' } });
+    fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700 900123' } });
+    mutation.isSuccess = true;
+    view.rerender(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    const message = new URL(screen.getByTestId('link-part-exchange-photos').getAttribute('href')!).searchParams.get('text');
+    expect(message).toContain('My car: AB12 CDE');
+    expect(message).toContain('Name: Alex Buyer');
+    expect(message).toContain('Phone: 07700 900123');
+    expect(message).not.toContain('reference');
+    expect(screen.getByTestId('status-part-exchange-success')).not.toHaveTextContent('reference');
+    expect(mutation.mutate).not.toHaveBeenCalled();
+  });
   it('hides the form when disabled and offers retry after a policy lookup error', () => {
     featureState.allowed = false;
     const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);

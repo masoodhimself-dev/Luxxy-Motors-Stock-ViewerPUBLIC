@@ -18,6 +18,9 @@ describe('invoice proof recovery', () => {
     expect(screen.queryByText('Invoice not verified')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('heading', { name: 'Invoice record found' })).toBeInTheDocument();
+    expect(screen.getByText('Document no.')).toBeInTheDocument();
+    expect(screen.getByText('INV-1')).toBeInTheDocument();
+    expect(screen.queryByText('Reference')).not.toBeInTheDocument();
     expect(fetchProof).toHaveBeenCalledTimes(2);
   });
   it('explains an unavailable link without offering a pointless retry', async () => {

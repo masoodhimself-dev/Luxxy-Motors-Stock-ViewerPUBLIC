@@ -522,12 +522,6 @@ export function TestDriveBooking({
                   config.durationMinutes}{" "}
                 minutes · London time
               </p>
-              <p className="mt-4 text-sm">
-                Booking reference{" "}
-                <strong data-testid="text-enquiry-reference">
-                  {mutation.data.reference}
-                </strong>
-              </p>
               <div className="mt-5 border-y border-border py-5 text-sm leading-6">
                 <p className="font-semibold">
                   {mutation.data.customerNotificationStatus === "sent"
@@ -539,7 +533,7 @@ export function TestDriveBooking({
                 <p className="mt-1 text-muted-foreground">
                   {mutation.data.customerNotificationStatus === "sent"
                     ? `We sent the details to ${details.email.trim()}.`
-                    : "We haven’t sent your email yet. Keep your reference and the booking link below, or contact us for help."}
+                    : "We haven’t sent your email yet. Save the booking link below, or contact us for help."}
                 </p>
               </div>
               <div className="my-5 flex flex-wrap gap-3">
@@ -549,7 +543,7 @@ export function TestDriveBooking({
                       <a
                         data-testid="link-download-calendar"
                         href={`data:text/calendar;charset=utf-8,${encodeURIComponent(mutation.data.calendarIcs)}`}
-                        download={`test-drive-${mutation.data.reference}.ics`}
+                        download="test-drive.ics"
                       >
                         <CalendarPlus size={17} />
                         Add to calendar

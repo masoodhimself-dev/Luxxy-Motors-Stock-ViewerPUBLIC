@@ -267,7 +267,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
                 <RecentCustomerFields
                   value={{ customerName: form.name, phone: form.phone, email: form.email }}
                   onChange={contact => setForm(current => ({ ...current, name: contact.customerName, phone: contact.phone ?? "", email: contact.email ?? "" }))}
-                  customers={(recentCustomers.data ?? []).map(entry => ({ id: entry.id, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: `${entry.reference} · ${entry.vehicleTitle || "General enquiry"}` }))}
+                  customers={(recentCustomers.data ?? []).map(entry => ({ id: entry.id, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: entry.vehicleTitle || "General enquiry" }))}
                   nameRequired
                   phoneRequired
                   disabled={pending}

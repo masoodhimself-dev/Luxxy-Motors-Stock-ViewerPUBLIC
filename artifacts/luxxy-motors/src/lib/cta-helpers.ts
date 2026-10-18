@@ -75,7 +75,7 @@ export function getVehicleContactMessage(car: Car, request: string, config: Deal
   return [
     `Hi ${config.identity.name}, I’m interested in this car:`,
     '', summary, registrationLine, '', opening, '',
-    isLocal ? `Vehicle reference: ${car.id}` : getVehicleShareUrl(car),
+    ...(isLocal ? [] : [getVehicleShareUrl(car)]),
   ].filter(line => line !== null).join('\n');
 }
 

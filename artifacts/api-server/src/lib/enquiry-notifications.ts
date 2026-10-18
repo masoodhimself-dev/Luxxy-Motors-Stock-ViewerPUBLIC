@@ -320,7 +320,6 @@ async function enquiryEmail(
           ? "callback"
           : "enquiry_acknowledgement";
   const facts = [
-    { label: "Reference", value: enquiry.reference },
     { label: "Vehicle", value: vehicleLabel(enquiry, dealer.identity.name) },
     ...(isViewing
       ? [

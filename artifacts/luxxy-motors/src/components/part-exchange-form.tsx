@@ -123,14 +123,13 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   };
 
   if (mutation.isSuccess) {
-    const photoHref = getWhatsAppHref(`Hello ${settings.identity.name}, here are the photos for my part-exchange enquiry ${mutation.data.reference}. My car: ${details.registration.trim().toUpperCase()} ${details.makeModel.trim() ? `(${details.makeModel.trim()})` : ''}. Name: ${details.name.trim()}.`, settings);
+    const photoHref = getWhatsAppHref(`Hello ${settings.identity.name}, here are the photos for my part-exchange enquiry. My car: ${details.registration.trim().toUpperCase()} ${details.makeModel.trim() ? `(${details.makeModel.trim()})` : ''}. Name: ${details.name.trim()}. Phone: ${details.phone.trim()}.`, settings);
     return <div className="space-y-5" data-testid="status-part-exchange-success">
       <p className="luxxy-kicker">Details received</p>
       <h2 ref={heading} tabIndex={-1} id="enquiry-form-heading" className="font-display text-2xl font-semibold outline-none">Now add your car photos.</h2>
-      <p className="text-sm leading-6 text-muted-foreground">We’ve received your part-exchange details. Keep this reference so we can match your photos to your enquiry.</p>
-      <p className="border-y border-border py-4 font-mono text-xl font-semibold" data-testid="part-exchange-reference">{mutation.data.reference}</p>
+      <p className="text-sm leading-6 text-muted-foreground">We’ve received your part-exchange details. Your name, phone number and car registration will help us match your photos to your enquiry.</p>
       {photoHref ? <Button asChild><a href={photoHref} target="_blank" rel="noopener noreferrer" data-testid="link-part-exchange-photos">Send photos through WhatsApp<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button> : <p>WhatsApp is unavailable. Please call us to arrange how to share your photos.</p>}
-      <p className="text-sm leading-6 text-muted-foreground">Send the prefilled reference message, then use WhatsApp’s attachment button to add the front, rear, both sides, interior, mileage and any damage. Photos are not attached automatically.</p>
+      <p className="text-sm leading-6 text-muted-foreground">Send the prefilled message, then use WhatsApp’s attachment button to add the front, rear, both sides, interior, mileage and any damage. Photos are not attached automatically.</p>
       {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call us</a>}
     </div>;
   }
@@ -193,7 +192,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     {step === 2 && <div className="space-y-5">
       <fieldset className="space-y-3"><legend className="mb-3 font-semibold">How would you like to send your details?</legend>
         {([
-          ['website', 'Send details here, photos on WhatsApp', 'Send us your details here first. Then send your photos on WhatsApp with your enquiry reference.'],
+          ['website', 'Send details here, photos on WhatsApp', 'Send us your details here first. Then send your photos on WhatsApp with your name and car registration.'],
           ['whatsapp', 'Send everything on WhatsApp', 'Open a prefilled message, send it in the chat, then attach your photos. No enquiry is saved on this website.'],
         ] as const).map(([value, title, description]) => <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-sm border p-4 ${delivery === value ? 'border-accent bg-accent/5' : 'border-border'}`}>
           <input type="radio" name="partExchangeDelivery" value={value} checked={delivery === value} onChange={() => { setDelivery(value); setReviewed(false); setOpened(false); setLaunchError(''); mutation.reset(); }} className="mt-1 h-5 w-5 shrink-0 accent-primary" />

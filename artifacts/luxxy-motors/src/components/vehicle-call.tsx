@@ -171,7 +171,7 @@ export function VehicleCall({
             <div className="vehicle-call-result">
             <div role="status" className="vehicle-action-feedback vehicle-action-feedback-success">
               <CheckCircle2 size={21} aria-hidden="true" />
-              <div><p className="vehicle-action-feedback-title">We’ve received your callback request</p><p>{receivedCallbackTime && hours.state === 'closed' ? `We’ll aim to call you ${receivedCallbackTime}.` : 'We’ll aim to call you during opening hours.'}</p>{callback.data?.reference && <p className="vehicle-call-reference">Your reference: {callback.data.reference}</p>}</div>
+              <div><p className="vehicle-action-feedback-title">We’ve received your callback request</p><p>{receivedCallbackTime && hours.state === 'closed' ? `We’ll aim to call you ${receivedCallbackTime}.` : 'We’ll aim to call you during opening hours.'}</p></div>
             </div>
             <Button type="button" className="vehicle-action-primary" onClick={() => setOpen(false)}>Done</Button>
             </div>

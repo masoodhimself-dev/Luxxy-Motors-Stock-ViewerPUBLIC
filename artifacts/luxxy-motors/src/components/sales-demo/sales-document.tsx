@@ -545,10 +545,6 @@ function DraftSalesDocument({
           <h2>{documentType}</h2>
           <dl className="invoice-reference">
             <div>
-              <dt>Reference</dt>
-              <dd>{draft.id}</dd>
-            </div>
-            <div>
               <dt>Prepared</dt>
               <dd>{preparedDate}</dd>
             </div>
@@ -829,7 +825,7 @@ function DraftSalesDocument({
         </p>
         <div className="invoice-footer-reference">
           <span>{name}</span>
-          <span>{draft.id} · Draft</span>
+          <span>Draft</span>
         </div>
       </footer>
     </article>
@@ -1220,7 +1216,7 @@ function IssuedDocumentFooter({
       <div className="invoice-footer-reference">
         <span>{name}</span>
         <span>
-          {document.number} · {document.snapshot.draft.id}
+          {document.number}
         </span>
       </div>
     </footer>
@@ -1245,7 +1241,7 @@ function IssuedSalesDocument({
           <div>
             <h2>{branding.identity.name}</h2>
             <p>
-              {document.number} · {draft.id}
+              {document.number}
             </p>
           </div>
           <div>
@@ -1336,10 +1332,6 @@ function IssuedSalesDocument({
             <div>
               <dt>Document no.</dt>
               <dd>{document.number}</dd>
-            </div>
-            <div>
-              <dt>Sale reference</dt>
-              <dd>{draft.id}</dd>
             </div>
             <div>
               <dt>Issued</dt>

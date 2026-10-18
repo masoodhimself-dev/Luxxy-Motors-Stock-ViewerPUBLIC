@@ -141,6 +141,7 @@ it("links sent messages to their customer, enquiry and car without resending", a
   expect(
     await screen.findByText("The saved customer email."),
   ).toBeInTheDocument();
+  expect(document.body).not.toHaveTextContent("ENQ-001");
   expect(screen.getByRole("link", { name: "Open enquiry" })).toHaveAttribute(
     "href",
     "/portal?section=notifications&workView=customers&enquiryId=enquiry-1",

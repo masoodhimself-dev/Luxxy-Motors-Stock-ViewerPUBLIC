@@ -58,8 +58,8 @@ export default function ReservationPaymentReturn() {
     : record && record.paymentStatus.includes('refund') ? 'Your refund update'
     : query.isError ? 'We couldn’t check your payment'
     : record ? 'Payment confirmation pending' : 'Checking your reservation';
-  const description = incompleteLink ? 'This payment link is incomplete. Contact us with your reservation reference.'
-    : query.isError ? `Please contact us with reference ${reference}. Please don’t pay again until we’ve checked the status.`
+  const description = incompleteLink ? 'This payment link is incomplete. Contact us with your name and car details.'
+    : query.isError ? 'Please contact us with your name and car details. Please don’t pay again until we’ve checked the status.'
     : !record ? 'Checking the confirmed payment status…'
     : paid ? `Your ${(record.amountReceivedPence / 100).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' })} deposit has been confirmed. We’ll be in touch about your next steps.`
     : test ? 'No real money has been received. This test payment does not create a paid receipt.'
@@ -68,7 +68,7 @@ export default function ReservationPaymentReturn() {
     : record.paymentStatus === 'refunded' ? 'Your payment has been refunded. Contact us for help.'
     : record.paymentStatus === 'partially_refunded' ? 'Part of your payment has been refunded. Contact us for the remaining balance.'
     : record.paymentStatus === 'refund_pending' ? 'Your refund is being processed. We’ll confirm when the payment provider has completed it.'
-    : record.paymentStatus === 'refund_failed' ? 'The refund needs review. Contact us with your reference.'
+    : record.paymentStatus === 'refund_failed' ? 'The refund needs review. Contact us with your name and car details.'
     : 'We are waiting for the payment provider to confirm the payment. This page checks automatically. Please do not pay again.';
 
   return <div className="luxxy-shell min-h-[60vh] px-4 py-12 sm:px-6 lg:px-8">
@@ -76,7 +76,6 @@ export default function ReservationPaymentReturn() {
       <PageHeading eyebrow="Online reservation" title={title} />
       {record && <dl className="mb-6 space-y-3 rounded-sm border border-border bg-secondary/40 p-4 text-sm">
         <div><dt className="text-xs font-medium text-muted-foreground">Vehicle</dt><dd className="mt-1 break-words font-semibold text-primary">{record.vehicleTitle}{record.vehicleRegistration && ` · ${record.vehicleRegistration}`}</dd></div>
-        <div><dt className="text-xs font-medium text-muted-foreground">Reservation reference</dt><dd className="mt-1 break-all font-semibold text-primary">{record.reference}</dd></div>
       </dl>}
       <p className="break-words text-base leading-7 text-muted-foreground" role={incompleteLink || query.isError ? 'alert' : 'status'}>{description}</p>
       {record?.needsReview && <p className="mt-4 border-l-2 border-accent pl-4 text-sm leading-6">We need to review the payment status before confirming your reservation.</p>}

@@ -42,7 +42,7 @@ export function ConversationEditor({ entry, onClose, onSaved }: { entry: Enquiry
   }
   return <Dialog open onOpenChange={open => { if (!open && !busy.current) onClose(); }}>
     <DialogContent className="portal-action-dialog enquiry-action-dialog enquiry-conversation-dialog">
-      <DialogHeader><DialogTitle>Log another conversation</DialogTitle><DialogDescription>{entry.customerName} · {entry.reference}</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Log another conversation</DialogTitle><DialogDescription>{entry.customerName}</DialogDescription></DialogHeader>
       <p className="text-sm">{entry.vehicleTitle || 'General showroom enquiry'}{entry.vehicleRegistration ? ` · ${entry.vehicleRegistration}` : ''}</p>
       <form onSubmit={event => void save(event)} className="grid gap-4">
         <fieldset disabled={mutation.isPending} className="grid min-w-0 gap-4">

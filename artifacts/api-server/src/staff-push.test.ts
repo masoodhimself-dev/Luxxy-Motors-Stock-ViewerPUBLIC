@@ -34,6 +34,14 @@ test('Web Push secure configuration, allowed vendor hosts and generic lock-scree
   const message=pushMessage(randomUUID(),'bookings','event:fictional',randomUUID());assert.equal(message.title,'Dealership update');assert.ok(message.url.startsWith('/portal?'));assert.ok(!JSON.stringify(message).includes('customer@example'));
 });
 
+test('visible push copy omits internal identifiers while routing and deduplication keep them',()=>{
+  for(const category of ['enquiries','bookings','reminders','followups','emailFailures','test'] as const) {
+    const message=pushMessage('event-internal-id',category,'private-window-key','enquiry-internal-id');
+    assert.doesNotMatch(message.title+' '+message.body,/event-internal-id|private-window-key|enquiry-internal-id|reference/i);
+    assert.equal(message.eventId,'event-internal-id');assert.equal(message.tag,'private-window-key');assert.ok(message.url.includes('enquiryId=enquiry-internal-id'));
+  }
+});
+
 test('real sender encrypts content, signs VAPID, bounds the request and refuses redirects without visiting their target',async()=>{
   configure();let requests=0,status=201;const headers:Record<string,string>[]=[];let encrypted:Buffer|undefined;
   const transport=((url:URL,options:any,callback:(response:any)=>void)=>{

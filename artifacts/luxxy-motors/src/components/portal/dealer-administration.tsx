@@ -119,7 +119,7 @@ export function DealerDashboard({
                   href={`/portal?section=sales&saleId=${encodeURIComponent(item.id)}`}
                 >
                   <strong>
-                    {item.reference} · {item.customer}
+                    {item.customer}
                   </strong>
                   <span>{money(item.balancePence)} outstanding</span>
                 </Link>

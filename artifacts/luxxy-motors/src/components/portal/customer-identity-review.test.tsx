@@ -13,13 +13,14 @@ it('shows household contact matches as review candidates and never reuses their 
   expect(screen.getByText('Same phone · Review needed')).toBeVisible();
   expect(screen.getByText('Email addresses differ.')).toBeVisible();
   expect(screen.getByText(/Names differ; this contact may be shared/)).toBeVisible();
-  expect(screen.getByText(/ENQ-ORIGINAL · Original Ford Fiesta/)).toBeVisible();
+  expect(screen.getByText('Original Ford Fiesta')).toBeVisible();
+  expect(document.body).not.toHaveTextContent('ENQ-ORIGINAL');
   expect(screen.getByText(/Keep this original question/)).toHaveTextContent('Appointment:');
   fireEvent.click(screen.getByRole('button', { name: 'Review Jamie Customer’s details' }));
   expect(onReuse).not.toHaveBeenCalled();
   const review = within(screen.getByRole('group', { name: 'Review contact details for Jamie Customer' }));
   expect(review.getByText(/On this form: Alex Customer/)).toHaveTextContent('alex@example.test');
-  expect(review.getByText(/From ENQ-ORIGINAL/)).toHaveTextContent('jamie@example.test');
+  expect(review.getByText(/From Original Ford Fiesta/)).toHaveTextContent('jamie@example.test');
   fireEvent.click(review.getByRole('button', { name: 'Keep current details' }));
   expect(onReuse).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Review Jamie Customer’s details' }));

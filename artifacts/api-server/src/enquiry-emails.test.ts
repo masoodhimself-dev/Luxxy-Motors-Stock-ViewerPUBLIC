@@ -85,6 +85,7 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     });
     await db.insert(enquiriesTable).values({
       id: enquiries[index],
+      reference: index === 0 ? "K4QM-9TXR" : "ACDE-3467",
       dealerId: dealer,
       vehicleId: cars[index],
       vehicleTitle: `Car ${dealer}`,
@@ -442,6 +443,8 @@ test("enquiry emails: scoped previews, private photo attachments, exact concurre
     );
     assert.equal(sends[0].attachments.length, 1);
     assert.ok(sends[0].attachments[0].filename.includes("service-book"));
+    assert.equal(sends[0].attachments[0].filename, "vehicle-service-book-1.jpg");
+    assert.doesNotMatch(sends[0].subject + sends[0].text + sends[0].html + sends[0].attachments[0].filename, /K4QM-9TXR|Enquiry reference:/);
     assert.equal(
       Buffer.from(sends[0].attachments[0].content, "base64").toString("hex"),
       "ffd8ffd9",

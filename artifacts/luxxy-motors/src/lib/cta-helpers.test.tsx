@@ -8,7 +8,9 @@ describe('vehicle contact message', () => {
     const message = getVehicleContactMessage(car, 'ask about this car');
     expect(message).toContain('Registration: NV24 LNZ');
     expect(message).not.toContain('Registration: 2024');
-    expect(message).toContain('Vehicle reference: car-1');
+    expect(message).toContain('BMW 3 Series');
+    expect(message).not.toContain('Vehicle reference');
+    expect(message).not.toContain('car-1');
   });
   it('accepts the VRM field and labels a year-only fallback honestly', () => {
     expect(getVehicleContactMessage({ ...car, plate: null, vrm: 'NV24 LNZ' }, 'ask')).toContain('Registration: NV24 LNZ');
@@ -26,4 +28,5 @@ it('uses natural enquiry copy, pounds and line breaks without sending a localhos
   expect(message).toContain('\n\n');
   expect(message).not.toContain('127.0.0.1');
   expect(message).not.toContain('localhost');
+  expect(message).not.toContain('preview-2');
 });

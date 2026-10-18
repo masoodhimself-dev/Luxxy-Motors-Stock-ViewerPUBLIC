@@ -212,7 +212,7 @@ it("combines the business summary with actions and keeps detailed reporting clos
     screen.getByRole("heading", { name: "Customer conversion" }),
   ).toBeVisible();
   expect(
-    screen.getByRole("link", { name: /SALE-001.*Pat Example/ }),
+    screen.getByRole("link", { name: /Pat Example/ }),
   ).toHaveAttribute("href", "/portal?section=sales&saleId=sale-one");
 });
 it("keeps customer actions usable while the independent business summary is loading or fails", async () => {

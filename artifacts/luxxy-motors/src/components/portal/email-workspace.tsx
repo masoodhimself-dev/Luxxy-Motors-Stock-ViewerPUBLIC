@@ -409,7 +409,7 @@ export function EmailWorkspace({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${selected.reference.replace(/[^A-Za-z0-9_-]/g, "_")}.pdf`;
+      link.download = 'sales-document.pdf';
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
@@ -491,8 +491,7 @@ export function EmailWorkspace({
           <div>
             <strong>{scopedEnquiry.customerName}</strong>
             <span>
-              {scopedEnquiry.vehicleTitle || "General enquiry"} ·{" "}
-              {scopedEnquiry.reference}
+              {scopedEnquiry.vehicleTitle || "General enquiry"}
             </span>
           </div>
           <Link
@@ -545,7 +544,7 @@ export function EmailWorkspace({
           </p>
           <Input
             aria-label="Find customer enquiry"
-            placeholder="Customer, car or reference"
+            placeholder="Customer or car"
             value={customerSearch}
             onChange={(e) => setCustomerSearch(e.target.value)}
           />
@@ -557,7 +556,7 @@ export function EmailWorkspace({
             <option value="">Choose customer / enquiry</option>
             {customers.map((e) => (
               <option key={e.id} value={e.id}>
-                {e.customerName} · {e.reference} ·{" "}
+                {e.customerName} ·{" "}
                 {e.vehicleTitle ?? "General enquiry"}
               </option>
             ))}
@@ -598,7 +597,7 @@ export function EmailWorkspace({
               Search email
               <Input
                 value={search}
-                placeholder="Customer, email address, car, subject or reference"
+                placeholder="Customer, email address, car or subject"
                 onChange={(e) => setSearch(e.target.value)}
               />
             </label>
@@ -672,7 +671,7 @@ export function EmailWorkspace({
                       <small>{date(item.updatedAt)}</small>
                     </span>
                     <p className="email-conversation-car">
-                      {item.vehicle || "General enquiry"} · {item.reference}
+                      {item.vehicle || "General enquiry"}
                     </p>
                     <b>{item.latest?.subject || "No email sent yet"}</b>
                     <span className="email-row-meta">
@@ -775,8 +774,7 @@ export function EmailWorkspace({
                         </div>
                       </div>
                       <p className="email-thread-car">
-                        {conversation.vehicle || "General enquiry"} ·{" "}
-                        {conversation.reference}
+                        {conversation.vehicle || "General enquiry"}
                       </p>
                       <div className="email-record-links">
                         {conversation.enquiryId && (
@@ -1029,10 +1027,6 @@ export function EmailWorkspace({
                                       <div>
                                         <dt>To</dt>
                                         <dd>{message.recipient}</dd>
-                                      </div>
-                                      <div>
-                                        <dt>Reference</dt>
-                                        <dd>{message.reference}</dd>
                                       </div>
                                     </dl>
                                     <Button

@@ -367,7 +367,7 @@ async function preview(
         const row = rows.find((r) => r.id === id)!;
         attachments.push({
           id,
-          filename: `${enquiry.reference.replace(/[^A-Za-z0-9_-]/g, "") || "enquiry"}-${row.category === "pre_accident" ? "pre-accident" : "service-book"}-${index + 1}.jpg`,
+          filename: `vehicle-${row.category === "pre_accident" ? "pre-accident" : "service-book"}-${index + 1}.jpg`,
           content: Buffer.from(String(row.bytes), "hex").toString("base64"),
         });
       }
@@ -398,7 +398,6 @@ async function preview(
       throw new EmailError(
         "The selected attachments are too large. Send fewer documents.",
       );
-    facts.push({ label: "Enquiry reference", value: enquiry.reference });
     // Submitted copy is literal text; braces/HTML entered by staff never become templates or markup.
     const rendered = renderEmailTemplate(
       {
@@ -874,8 +873,8 @@ export function createEnquiryEmailRouter(
               requestHash,
               status: "sending",
               recipient: input.to,
-              subject: input.subject,
-              message: input.message,
+              subject: result.rendered.subject,
+              message: result.rendered.bodyText,
               renderedText: result.rendered.text,
               attachmentManifest: result.attachments.map((a) => ({
                 id: a.id,
@@ -995,7 +994,7 @@ export function createEnquiryEmailRouter(
             channel: "email",
             staffId: req.staff!.authUserId,
             staffName: staffLabel(req),
-            note: `To: ${input.to}\nSubject: ${input.subject}\n${input.message}\n${input.photoIds.length} vehicle photo(s) and ${input.documentIds.length} invoice(s) attached.${finished.error ? "\n" + finished.error : ""}`,
+            note: `To: ${input.to}\nSubject: ${result!.rendered.subject}\n${result!.rendered.bodyText}\n${input.photoIds.length} vehicle photo(s) and ${input.documentIds.length} invoice(s) attached.${finished.error ? "\n" + finished.error : ""}`,
           },
         });
         res.status(201).json({
