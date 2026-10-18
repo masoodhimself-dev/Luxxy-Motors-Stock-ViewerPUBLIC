@@ -191,8 +191,8 @@
 .vehicle-photo-zoomed:active { cursor: grabbing; }
 .vehicle-photo-zoomed .vehicle-photo-zoom-stage { width: 200%; height: 200%; }
 .customer-vehicle-lightbox.is-gallery-zoomed > .vehicle-photo-sections { display: none; }
-.customer-vehicle-lightbox .vehicle-lightbox-navigation { position: absolute; z-index: 7; inset: calc(50% - 22px) 16px auto; transform: none; pointer-events: none; }
-.customer-vehicle-lightbox .vehicle-lightbox-navigation > button { display: grid; pointer-events: auto; }
+.customer-vehicle-lightbox.vehicle-lightbox .vehicle-lightbox-navigation { position: absolute; z-index: 7; inset: calc(50% - 22px) 16px auto; transform: none; pointer-events: none; justify-content: space-between; }
+.customer-vehicle-lightbox.vehicle-lightbox .vehicle-lightbox-navigation > button { display: grid; pointer-events: auto; }
 .customer-vehicle-lightbox .vehicle-lightbox-navigation > p { position: fixed; right: 16px; bottom: 15px; left: auto; max-width: 240px; margin: 0; transform: none; padding: 5px 8px; border-radius: 6px; background: rgb(13 20 25 / .7); color: #fff; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .customer-vehicle-lightbox .vehicle-lightbox-contact { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 16px; z-index: 7; width: min(360px, calc(100% - 120px)); padding: 0; gap: 8px; }
 .customer-vehicle-lightbox .vehicle-lightbox-contact-button { min-height: 44px; width: auto; flex: 1; padding: 8px 12px; gap: 7px; font-size: 14px; }
@@ -207,5 +207,5 @@
   .customer-vehicle-lightbox .vehicle-lightbox-navigation > p { right: 12px; max-width: 78px; }
   .customer-vehicle-lightbox .vehicle-lightbox-navigation > p > span { display: none; }
   .vehicle-gallery-interest-active .gallery-browse-arrow { top: auto; bottom: 7px; transform: none; }
-  .customer-vehicle-lightbox.has-gallery-interest .vehicle-lightbox-navigation { top: auto; bottom: 62px; transform: none; }
+  .customer-vehicle-lightbox.vehicle-lightbox.has-gallery-interest .vehicle-lightbox-navigation { top: auto; bottom: 62px; transform: none; }
 }
