@@ -11,3 +11,8 @@ it('skips closed Sundays and does not invent hours for appointment-only schedule
  expect(showroomHours(hours,new Date('2026-09-27T12:00:00Z'))).toMatchObject({state:'closed',next:'tomorrow at 09:00 (UK time)'});
  expect(showroomHours([{days:'Monday',times:'By appointment'}],new Date('2026-09-28T12:00:00Z')).state).toBe('unknown');
 });
+it('distinguishes closing soon, already closed and an explicitly closed day',()=>{
+ expect(showroomHours(hours,new Date('2026-09-28T16:30:00Z'))).toMatchObject({statusLabel:'Closing soon',todayText:'Closes at 18:00 today'});
+ expect(showroomHours(hours,new Date('2026-09-28T17:00:00Z'))).toMatchObject({statusLabel:'Closed now',todayText:'Closed at 18:00 today'});
+ expect(showroomHours(hours,new Date('2026-09-27T12:00:00Z'))).toMatchObject({statusLabel:'Closed today',todayText:null});
+});

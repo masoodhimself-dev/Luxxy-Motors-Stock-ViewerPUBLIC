@@ -4,14 +4,14 @@ import { useCreateEnquiry } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState, useRef, type MouseEvent } from 'react';
-import { CheckCircle2, CircleAlert, Clock3, Copy, Phone } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Clock3, Copy, Phone, MapPin, ArrowUpRight } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { ReserveCar } from '@/components/reserve-car';
+import { dealershipLocation } from '@/lib/dealership-location';
 import { VehicleDialogVehicle, useVehicleDialogTheme } from '@/components/vehicle-dialog-vehicle';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { getPhoneHref, recordContactIntent } from '@/lib/cta-helpers';
@@ -30,38 +30,41 @@ export function VehicleCall({
   buttonLabel?: string;
   className?: string;
 }) {
-  const { settings } = useDealerSettings();
+  const { settings, isLoading: settingsLoading, isError: settingsError } = useDealerSettings();
   const features = useDealerFeatures();
   const dialogTheme = useVehicleDialogTheme();
   const trigger = useRef<HTMLAnchorElement>(null);
   const dialogTitle = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState(false);
-  const [mobile, setMobile] = useState(false);
   const [callbackForm, setCallbackForm] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const callback = useCreateEnquiry();
   const [customer, setCustomer] = useState({ name: '', phone: '', email: '' });
+  useEffect(() => {
+    setOpen(false); setCallbackForm(false); setCopyStatus(''); setPhoneError('');
+    setCustomer({ name: '', phone: '', email: '' });
+    callback.reset?.();
+  }, [car.id]);
   const [hours, setHours] = useState(() => showroomHours(settings.hours ?? []));
   useEffect(() => {
     if (!open) return;
     setHours(showroomHours(settings.hours ?? []));
-    const timer = window.setInterval(() => setHours(showroomHours(settings.hours ?? [])), 60_000);
-    return () => window.clearInterval(timer);
+    const refresh = () => setHours(showroomHours(settings.hours ?? []));
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
   }, [open, settings.hours]);
   const privacyUrl = settings.legal?.privacyUrl?.trim();
   const href = getPhoneHref(settings);
   if (!href) return null;
-  const options = settings.onlineReservation;
-  const canReserve =
-    options?.enabled &&
-    options.terms?.trim() &&
-    (!car.inventoryStatus || car.inventoryStatus === 'available') &&
-    (car.price ?? 0) * 100 >= options.depositPence &&
-    (car.price ?? 0) > 0 &&
-    (!car.currency || car.currency.toUpperCase() === 'GBP');
+  const location = dealershipLocation(settings.address);
+  const detailsReady = !settingsLoading && !settingsError;
+  const directions = detailsReady && !location.isSample && location.lines.length
+    ? location.directions || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.lines.join(', '))}` : null;
   const label = vehicleDisplayTitle(car);
-  const showCallback = (callbackForm || hours.state === 'closed') && (features.enabled('publicEnquiries') || callback.isSuccess);
+  const showCallback = callbackForm && (features.enabled('publicEnquiries') || callback.isSuccess);
   const receivedCallbackTime = callback.data?.followUpAt ? showroomOpeningLabel(callback.data.followUpAt) : null;
 
   async function copyNumber() {
@@ -90,15 +93,11 @@ export function VehicleCall({
   }
 
   function call(event: MouseEvent<HTMLAnchorElement>) {
-    const isPhone =
-      /iPhone|Android.*Mobile|Windows Phone/i.test(navigator.userAgent) ||
-      window.matchMedia('(max-width: 767px) and (pointer: coarse)').matches;
+    event.preventDefault();
     const currentHours = showroomHours(settings.hours ?? []);
     setHours(currentHours);
-    setCallbackForm(currentHours.state === 'closed');
+    setCallbackForm(false);
     setCopyStatus('');
-    if (!isPhone || currentHours.state === 'closed') event.preventDefault();
-    setMobile(isPhone);
     setOpen(true);
     recordContactIntent({
       channel: 'call',
@@ -120,10 +119,13 @@ export function VehicleCall({
         <Phone className="h-4 w-4" aria-hidden="true" />
         {!compact && (buttonLabel || 'Call us')}
       </a>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={next => { if (!callback.isPending) setOpen(next); }}>
         <DialogContent
           style={dialogTheme}
           className="vehicle-action-dialog vehicle-call-dialog"
+          data-callback={showCallback}
+          onEscapeKeyDown={event => { if (callback.isPending) event.preventDefault(); }}
+          onInteractOutside={event => { if (callback.isPending) event.preventDefault(); }}
           onOpenAutoFocus={event => {
             event.preventDefault();
             dialogTitle.current?.focus({ preventScroll: true });
@@ -136,35 +138,40 @@ export function VehicleCall({
           <div className="vehicle-action-heading">
             <p className="vehicle-action-eyebrow"><Phone size={15} aria-hidden="true" />Speak to us</p>
             <DialogTitle ref={dialogTitle} tabIndex={-1}>
-              {hours.state === 'closed' ? 'We’re currently closed' : showCallback ? 'Request a callback' : mobile ? 'Did you get through?' : 'Call us'}
+              {showCallback ? 'Request a callback' : 'Let’s talk about this car'}
             </DialogTitle>
             <DialogDescription>
-              {hours.state === 'closed'
-                ? features.enabled('publicEnquiries') ? 'Leave your details for a callback when we reopen.' : 'Please call us during our opening hours.'
-                : showCallback
-                  ? 'Leave your name and number so we can call you back.'
-                : mobile
-                  ? 'If you couldn’t reach us, you can continue online.'
-                  : 'Call us with your questions about this car.'}
+              {showCallback ? 'Just your name and number. We’ll get back to you during opening hours.' : features.enabled('publicEnquiries') ? 'Call the showroom, or ask us to call you back.' : 'Call us to ask about this car or arrange a visit.'}
             </DialogDescription>
           </div>
 
-          {hours.state === 'closed' && <div className="vehicle-call-availability vehicle-call-next-opening" data-status="closed">
-            <Clock3 size={16} aria-hidden="true" />
-            <p>{hours.next ? `We next open ${hours.next}.` : 'We’ll arrange your callback during opening hours.'}</p>
-          </div>}
-
+          <div className="vehicle-call-content">
           <VehicleDialogVehicle car={car} />
 
-          {!showCallback && <div className="vehicle-phone-panel vehicle-call-telephone">
-            <p className="vehicle-action-label">Our phone number</p>
-            <a href={href} className="vehicle-phone-number"><span className="vehicle-call-phone-icon"><Phone size={20} aria-hidden="true" /></span><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
-            <div className="vehicle-call-availability" data-status={hours.state}>
-              <span className="vehicle-call-availability-dot" aria-hidden="true" />
-              <p>{hours.state === 'open' ? hours.closingTime ? `Open until ${hours.closingTime} (UK time)` : 'We’re open' : hours.state === 'closed' ? 'We’re currently closed' : 'Please call to confirm availability.'}</p>
+          <section className="vehicle-call-showroom" aria-label="Showroom information">
+            <div className="vehicle-call-hours" data-status={detailsReady ? hours.state : 'unknown'} role="status" aria-live="polite">
+              <span className="vehicle-call-status"><Clock3 size={16} aria-hidden="true" />{settingsLoading ? 'Checking opening hours…' : settingsError ? 'Hours unavailable' : hours.statusLabel}</span>
+              {detailsReady && hours.todayText && <strong>{hours.todayText}</strong>}
+              {detailsReady && hours.state === 'closed' && hours.next && <p>Opens {hours.next}</p>}
+              {detailsReady && hours.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
+              {detailsReady && hours.state === 'closed' && !hours.next && <p>Contact us to arrange your next visit.</p>}
+              {settingsError && <p>Please confirm our hours before travelling.</p>}
+              <small>UK time · Regular showroom hours</small>
             </div>
-            {!mobile && <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>}
-            {(features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
+            <div className="vehicle-call-location">
+              <h3><MapPin size={16} aria-hidden="true" />Our showroom</h3>
+              {detailsReady && location.lines.length > 0 && !location.isSample ? <address>{location.lines.join(', ')}</address> : <p>{settingsLoading ? 'Loading showroom address…' : 'Contact us to confirm our showroom address.'}</p>}
+              {directions && <a href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} aria-hidden="true" /></a>}
+            </div>
+          </section>
+
+          {!showCallback && <div className="vehicle-call-contact" data-closed={detailsReady && hours.state === 'closed'}>
+            <div className="vehicle-call-contact-actions">
+              <a href={href} className="vehicle-call-dial"><Phone size={19} aria-hidden="true" /><span><small>Call the showroom</small><strong>{formatPhoneDisplay(settings.contact.phone)}</strong></span></a>
+              {(features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
+            </div>
+            <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>
+            {detailsReady && hours.state === 'closed' && <p className="vehicle-call-closed-note">{features.enabled('publicEnquiries') ? 'We’re away from the showroom. Request a callback for when we’re back.' : 'Please call during our opening hours.'}</p>}
           </div>}
 
           {showCallback && (callback.isSuccess ? (
@@ -178,7 +185,7 @@ export function VehicleCall({
           ) : (
             <form className="vehicle-action-form vehicle-callback-form" aria-label="Request a callback" onSubmit={event => {
               event.preventDefault();
-              if (!features.enabled('publicEnquiries')) return;
+              if (callback.isPending || !features.enabled('publicEnquiries')) return;
               const normalizedPhone = customer.phone.trim().replace(/[\s().\-/]/g, '');
               if (!/^\+?\d{7,15}$/.test(normalizedPhone)) {
                 setPhoneError('Enter a valid phone number so we can call you.');
@@ -198,10 +205,10 @@ export function VehicleCall({
               } });
             }}>
               <div className="vehicle-action-form-grid">
-                <label className="vehicle-action-field">Your name<Input required minLength={2} maxLength={120} autoComplete="name" value={customer.name} onChange={event => setCustomer({ ...customer, name: event.target.value })} /></label>
-                <label className="vehicle-action-field">Telephone<Input required type="tel" inputMode="tel" minLength={7} maxLength={40} autoComplete="tel" aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'callback-phone-error' : undefined} value={customer.phone} onChange={event => { setCustomer({ ...customer, phone: event.target.value }); setPhoneError(''); }} /></label>
+                <label className="vehicle-action-field">Your name<Input disabled={callback.isPending} required minLength={2} maxLength={120} autoComplete="name" value={customer.name} onChange={event => setCustomer({ ...customer, name: event.target.value })} /></label>
+                <label className="vehicle-action-field">Telephone<Input disabled={callback.isPending} required type="tel" inputMode="tel" minLength={7} maxLength={40} autoComplete="tel" aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'callback-phone-error' : undefined} value={customer.phone} onChange={event => { setCustomer({ ...customer, phone: event.target.value }); setPhoneError(''); }} /></label>
               </div>
-              <details className="vehicle-call-optional-email"><summary>Add an email for confirmation (optional)</summary><label className="vehicle-action-field">Email<Input type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label></details>
+              <details className="vehicle-call-optional-email"><summary>Add an email for confirmation (optional)</summary><label className="vehicle-action-field">Email<Input disabled={callback.isPending} type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} /></label></details>
               {phoneError && <p id="callback-phone-error" role="alert" className="vehicle-action-feedback vehicle-action-feedback-error">{phoneError}</p>}
               {callback.isError && <p role="alert" className="vehicle-action-feedback vehicle-action-feedback-error"><CircleAlert size={18} aria-hidden="true" /><span>We couldn’t send your request. Please try again.</span></p>}
               <p className="vehicle-action-privacy">We’ll use these details to respond to your request.{privacyUrl && <> <a className="underline underline-offset-4" href={privacyUrl}>Privacy policy</a></>}</p>
@@ -213,14 +220,9 @@ export function VehicleCall({
             <p className="vehicle-action-label">Our phone number</p>
             <a href={href} className="vehicle-phone-number"><Phone size={18} aria-hidden="true" /><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
           </div>}
-          {showCallback && hours.state !== 'closed' && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(false)}>Back to the phone number</button>}
+          {showCallback && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(false)}>Back to contact details</button>}
 
-          {mobile && !showCallback && (canReserve || features.enabled('publicEnquiries')) && <div className="vehicle-action-alternative">
-            <p>{canReserve ? 'You can also reserve this car online.' : 'You can also ask questions online.'}</p>
-            {canReserve
-              ? <ReserveCar car={car} className="vehicle-action-secondary" />
-              : <a className="vehicle-action-secondary" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>Ask about this car</a>}
-          </div>}
+          </div>
         </DialogContent>
       </Dialog>
     </>

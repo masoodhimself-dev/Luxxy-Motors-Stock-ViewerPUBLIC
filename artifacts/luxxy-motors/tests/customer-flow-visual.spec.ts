@@ -57,9 +57,11 @@ for (const width of [320, 390, 820, 1440]) {
     await page.goto(`/vehicle/${car.id}`);
     await page.locator('[data-vehicle-contact="call"]').first().click();
     const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Closed now', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Request a callback', exact: true }).click();
     await expect(dialog.getByLabel('Your name')).toBeVisible();
     await fits(dialog, width);
-    for (const selector of ['.vehicle-dialog-muted', '.vehicle-action-field', '.vehicle-action-privacy', '.vehicle-call-next-opening']) {
+    for (const selector of ['.vehicle-dialog-muted', '.vehicle-action-field', '.vehicle-action-privacy', '.vehicle-call-hours']) {
       expect(await dialog.locator(selector).first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(13);
     }
     await expect(dialog.getByLabel('Your name')).toHaveCSS('font-size', '16px');

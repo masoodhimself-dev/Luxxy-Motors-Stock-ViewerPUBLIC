@@ -83,7 +83,7 @@ it('confirms the callback with the selected car and opening-hours guidance witho
   fireEvent.click(screen.getByRole('link', { name: 'Call about Ford Fiesta' }));
   fireEvent.click(screen.getByRole('button', { name: 'View callback request' }));
   const dialog = screen.getByRole('dialog');
-  expect(within(dialog).getByRole('status')).toHaveTextContent('We’ve received your callback request');
+  expect(within(dialog).getByText('We’ve received your callback request')).toBeVisible();
   expect(dialog).toHaveTextContent('during opening hours');
   expect(dialog).toHaveTextContent('Ford Fiesta');
   expect(dialog).not.toHaveTextContent('INTERNAL-ENQUIRY');

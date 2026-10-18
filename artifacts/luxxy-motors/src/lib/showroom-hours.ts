@@ -23,7 +23,15 @@ export function showroomHours(hours: DealerHour[], now = new Date()) {
   const closingTime = available.closesAt
     ? new Intl.DateTimeFormat('en-GB', { timeZone: showroomTimezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(available.closesAt)
     : null;
+  const closingSoon = available.state === 'open' && available.closesAt !== null && available.closesAt.getTime() - now.getTime() <= 60 * 60_000;
+  const statusLabel = available.state === 'open' ? closingSoon ? 'Closing soon' : 'Open now'
+    : available.state === 'closed' ? available.closesAt ? 'Closed now' : 'Closed today' : 'Hours to confirm';
+  const todayText = available.state === 'open' && closingTime ? `Closes at ${closingTime} today`
+    : available.state === 'closed' && available.closesAt && available.closesAt <= now ? `Closed at ${closingTime} today` : null;
   return {
+    statusLabel,
+    todayText,
+    closingSoon,
     state: available.state,
     next: available.nextOpeningAt ? showroomOpeningLabel(available.nextOpeningAt, now) : null,
     closingTime,
