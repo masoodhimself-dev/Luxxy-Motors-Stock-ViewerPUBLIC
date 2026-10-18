@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { vehicleDisplayTitle } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,9 @@ import "./bulk-plate-entry.css";
 export type PlateEntryCar = {
   id: string;
   title: string;
+  display_title?: string;
+  make?: string | null;
+  model?: string | null;
   plate?: string | null;
   vrm?: string | null;
   year?: number | null;
@@ -75,6 +79,7 @@ export function BulkPlateEntry({
     refetchOnWindowFocus: false,
   });
   const car = details.data?.car;
+  const title = car ? vehicleDisplayTitle({ ...car, title: car.display_title ?? car.title }) : vehicleDisplayTitle(current);
   const original =
     baseline?.carId === current?.id ? (baseline?.plate ?? "") : "";
   const photos = plateEntryPhotos(
@@ -275,7 +280,7 @@ export function BulkPlateEntry({
           >
             <div className="plate-entry-body">
               <div className="plate-entry-car">
-                <h3>{car?.title || current.title}</h3>
+              <h3>{title}</h3>
                 <span>{car?.year ?? current.year}</span>
               </div>
               {details.isLoading ? (
@@ -298,7 +303,7 @@ export function BulkPlateEntry({
                       {photo && !photoFailed ? (
                         <img
                           src={photo.url}
-                          alt={`${car?.title || current.title} — ${photo.caption || "stock photo"}`}
+                    alt={`${title} — ${photo.caption || "stock photo"}`}
                           onError={() => setPhotoFailed(true)}
                         />
                       ) : (

@@ -41,6 +41,14 @@ const reads = () => state.fetch.mock.calls.filter(([, options]) => options?.meth
 async function loaded() { await screen.findByRole("textbox", { name: "Number plate from photo" }); }
 function enter(value = "ab12 cde") { fireEvent.change(input(), { target: { value } }); }
 
+it("keeps the queue title consistent when source titles repeat the make and year", async () => {
+  state.details["car-one"].car = { ...cars[0], title: "2025 MG MG HS", display_title: "2025 MG MG HS", make: "MG", year: 2025 };
+  mount([cars[0]]);
+  expect(await screen.findByRole("heading", { name: "MG HS" })).toBeVisible();
+  expect(screen.getByRole("img", { name: "MG HS — Front" })).toBeVisible();
+  expect(writes()).toHaveLength(0);
+});
+
 it("shows the front photo first, saves only the current car with its optimistic plate and advances", async () => {
   const view = mount();
   await loaded();
