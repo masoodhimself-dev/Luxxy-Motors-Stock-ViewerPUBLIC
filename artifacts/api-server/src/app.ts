@@ -2,7 +2,7 @@ import demoOnboardingRouter from './routes/demo-onboarding';
 import platformDealersRouter from "./routes/platform-dealers";
 import { resolveTenant } from "./middlewares/tenant";
 import { serveFrontend } from "./lib/serve-frontend";
-import { privateRequestLogUrl, protectPrivateCapabilityPages } from './middlewares/private-capability';
+import { isPrivateTestDriveDeclarationPath, privateRequestLogUrl, protectPrivateCapabilityPages } from './middlewares/private-capability';
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -66,7 +66,8 @@ app.use(["/api", "/share"], (_req, res) => { res.status(404).json({ error: "Not 
 if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_DIR);
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
+  if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
+  else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
   else if(req.path === '/api/service-book-upload' || req.path.startsWith('/api/staff/inventory')) req.log.warn('Private inventory request failed');
   else req.log.error({ err: error }, "Unhandled API error");
   if (res.headersSent) return;

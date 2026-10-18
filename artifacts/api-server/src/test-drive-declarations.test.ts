@@ -8,7 +8,7 @@ import express from 'express';
 import { engine, pool } from './test/tenant-test-db';
 import { runWithTenant } from './lib/tenant-context';
 import { PostgresTestDriveDeclarations, TestDriveDeclarationError, testDriveStatement, testDriveStatementHash, testDriveStatementVersion } from './lib/test-drive-declarations';
-import { privateRequestLogUrl } from './middlewares/private-capability';
+import { isPrivateTestDriveDeclarationPath, privateRequestLogUrl } from './middlewares/private-capability';
 
 process.env.MULTI_TENANT_ENABLED = 'true';
 const dealer = (id = 'declaration-a') => ({ dealerId: id, canonicalOrigin: `https://${id}.example.test`, platform: 'autotrader' as const, retailerId: id, sourceUrl: 'https://www.autotrader.co.uk/fictional', kind: 'website' as const });
@@ -20,6 +20,8 @@ let expectedAppointmentRevision = 0;
 const issue = (token = 'a'.repeat(64)) => ({ requestId: randomUUID(), token, expectedAppointmentRevision, expectedVehicleId: vehicleId, expiresHours: 48 });
 
 test('declarations preserve exact signed text, tenant boundaries, stale-booking checks and safe retries', async () => {
+  for (const path of ['/api/test-drive-declarations', '/api/test-drive-declarations/private-token', '/API/TEST-DRIVE-DECLARATIONS/private-token/', `/api/staff/enquiries/${enquiryId}/test-drive-declarations`, `/api/staff/enquiries/${enquiryId}/test-drive-declarations/declaration-id/revoke`, `/api/staff/enquiries/${enquiryId}/test-drive-declarations/declaration-id/checks`]) assert.equal(isPrivateTestDriveDeclarationPath(path), true, path);
+  for (const path of ['/api/test-drive-declarations-export/private-token', '/api/staff/enquiries/id/test-drive-declarations-export', '/api/staff/enquiries/id/workspace', '/api/stock/imports/dealer/grok', '/test-drive-declaration/private-token']) assert.equal(isPrivateTestDriveDeclarationPath(path), false, path);
   for (const file of (await readdir('../../lib/db/drizzle')).filter(value => /^\d+.*\.sql$/.test(value)).sort()) await engine.exec(await readFile(join('../../lib/db/drizzle', file), 'utf8'));
   for (const tenant of [a, b]) {
     await engine.query("INSERT INTO dealerships(id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES($1,$1,'active',$2,'autotrader',$1,$3)", [tenant.dealerId, tenant.canonicalOrigin, tenant.sourceUrl]);

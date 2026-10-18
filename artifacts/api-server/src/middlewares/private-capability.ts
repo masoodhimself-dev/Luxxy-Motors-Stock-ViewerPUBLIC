@@ -11,6 +11,13 @@ export function protectPrivateCapabilityPages(app: Express) {
   app.use(privateCapabilityPaths, privateCapabilityHeaders);
 }
 
+/** Body-parser errors may contain the original JSON body, including tokens and typed names. */
+export function isPrivateTestDriveDeclarationPath(path: string): boolean {
+  const pathname = path.split('?')[0];
+  return /^\/api\/test-drive-declarations(?:\/|$)/i.test(pathname)
+    || /^\/api\/staff\/enquiries\/[^/]+\/test-drive-declarations(?:\/|$)/i.test(pathname);
+}
+
 /** Never record URL-borne customer access credentials in request logs. */
 export function privateRequestLogUrl(url: string | undefined) {
   return url?.split('?')[0]
