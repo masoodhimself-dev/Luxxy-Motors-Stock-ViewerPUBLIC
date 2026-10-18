@@ -11,7 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { CalendarDays, LoaderCircle, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
+import { QuickEnquiryCars } from "./quick-enquiry-cars";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -21,7 +21,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useStock } from "@/lib/stock-context";
-import { vehicleDisplayTitle, vehicleRegistrationLabel } from "@/lib/utils";
 import { useStaffAccess } from "./dealer-administration";
 import { useEnquirySummaries } from "@/lib/enquiry-summary-query";
 import { RecentCustomerFields } from "./recent-customer-fields";
@@ -101,7 +100,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
   // policy. The silent quick-capture header remains enquiry-only.
   const bookingMutation = useCreateStaffEnquiry({ mutation: { retry: false } });
   const pending = saving || mutation.isPending || bookingMutation.isPending;
-  const dirty = booking || [form.name, form.phone, form.email, form.notes].some((value) => value.trim()) || form.vehicleId !== (initialVehicleId || "");
+  const dirty = booking || [form.name, form.phone, form.email, form.notes].some((value) => value.trim());
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   function dismiss(next: boolean) {
@@ -239,7 +238,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
             Quick enquiry
           </DialogTitle>
           <DialogDescription>
-            {booking ? "Save the enquiry and test drive together." : "Save the details now, or add a test drive below."}
+            {booking ? "Save the enquiry and test drive together." : "Find the car while you’re on the call, then save the customer’s details."}
           </DialogDescription>
         </DialogHeader>
         {access.isLoading && !access.data ? (
@@ -264,43 +263,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
           <form className="quick-enquiry-form" onSubmit={submit} noValidate>
             <div className="quick-enquiry-body">
               <fieldset disabled={pending}>
-                <RecentCustomerFields
-                  value={{ customerName: form.name, phone: form.phone, email: form.email }}
-                  onChange={contact => setForm(current => ({ ...current, name: contact.customerName, phone: contact.phone ?? "", email: contact.email ?? "" }))}
-                  customers={(recentCustomers.data ?? []).map(entry => ({ id: entry.id, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: entry.vehicleTitle || "General enquiry" }))}
-                  nameRequired
-                  phoneRequired
-                  disabled={pending}
-                />
-                {recentCustomers.isError && <p className="quick-enquiry-hint">Recent customers could not load. You can still enter their details.</p>}
-                <label>
-                  {booking ? "Car for the test drive" : "Car (optional)"}
-                  <NativeSelect
-                    value={form.vehicleId}
-                    onChange={(event) => { update("vehicleId", event.target.value); setAppointmentTime(""); setSlotValid(false); setError(""); }}
-                  >
-                    <option value="">No specific car</option>
-                    {(stock?.cars ?? []).filter(car => !booking || car.inventoryStatus === "available" || car.id === form.vehicleId).map((car) => (
-                      <option key={car.id} value={car.id} disabled={booking && car.inventoryStatus !== "available"}>
-                        {[
-                          vehicleDisplayTitle(car),
-                          car.year,
-                          vehicleRegistrationLabel(car),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                        {booking && car.inventoryStatus !== "available" ? " · Unavailable for a test drive" : ""}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </label>
-                {(stockLoading || stockError) && (
-                  <p className="quick-enquiry-hint">
-                    {stockLoading
-                      ? "Stock is loading. You can save without choosing a car."
-                      : "Stock could not load. You can still save without choosing a car."}
-                  </p>
-                )}
+                <QuickEnquiryCars cars={stock?.cars ?? []} value={form.vehicleId} disabled={pending} loading={stockLoading} failed={Boolean(stockError)} onChange={id => { update("vehicleId", id); setAppointmentTime(""); setSlotValid(false); setError(""); }} />
                 <section className="quick-enquiry-booking" aria-label="Optional test-drive booking">
                   <label className="quick-booking-toggle">
                     <input type="checkbox" aria-label="Book a test drive" checked={booking} disabled={pending || (!booking && !bookingEnabled)} onChange={event => { setBooking(event.target.checked); setAppointmentTime(""); setSlotValid(false); setError(""); }} />
@@ -314,6 +277,15 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
                     {policy.confirmationMode === "approval" && <p className="quick-booking-note">This creates a request awaiting staff approval.</p>}
                   </div> : <p className="quick-booking-note">Choose an available car above to see test-drive times.</p>)}
                 </section>
+                <RecentCustomerFields
+                  value={{ customerName: form.name, phone: form.phone, email: form.email }}
+                  onChange={contact => setForm(current => ({ ...current, name: contact.customerName, phone: contact.phone ?? "", email: contact.email ?? "" }))}
+                  customers={(recentCustomers.data ?? []).map(entry => ({ id: entry.id, customerName: entry.customerName, phone: entry.phone, email: entry.email, lastUsedAt: entry.updatedAt || entry.createdAt, detail: entry.vehicleTitle || "General enquiry" }))}
+                  nameRequired
+                  phoneRequired
+                  disabled={pending}
+                />
+                {recentCustomers.isError && <p className="quick-enquiry-hint">Recent customers could not load. You can still enter their details.</p>}
                 <label>
                   Notes (optional)
                   <Textarea

@@ -249,3 +249,33 @@
     line-height: 1.4;
   }
 }
+
+.portal-action-dialog.quick-enquiry-dialog { max-width: 760px; }
+.quick-car-search { display: grid; gap: 10px; min-width: 0; }
+.quick-car-search label > span, .quick-car-count { font-size: 12px; color: #596977; font-weight: 400; }
+.quick-car-search-input { position: relative; }
+.quick-car-search-input > svg { position: absolute; top: 14px; left: 12px; color: #245e80; }
+.quick-car-search-input input { border: 1px solid #a9bbc7; border-radius: 10px; padding: 11px 12px 11px 40px; background: white; }
+.quick-car-results { max-height: 260px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #d8e0e5; border-radius: 10px; }
+.quick-car-results > button { width: 100%; display: flex; gap: 12px; align-items: center; padding: 10px; text-align: left; border-bottom: 1px solid #e4eaee; background: white; }
+.quick-car-results > button:is(:hover,:focus-visible), .quick-car-results > button[aria-pressed=true] { background: #eaf3f8; }
+.quick-car-results img { width: 92px; height: 66px; object-fit: cover; border-radius: 6px; }
+.quick-car-results button > span { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.quick-car-results small { color: #596977; font-size: 12px; }
+.quick-car-results > p { padding: 16px; }
+.quick-car-selected { display: flex; gap: 16px; padding: 14px; background: #f1f7fa; border: 1px solid #c7dce8; border-radius: 12px; }
+.quick-car-selected > img { width: 42%; max-height: 185px; object-fit: contain; align-self: start; border-radius: 8px; }
+.quick-car-selected > div { min-width: 0; display: grid; gap: 5px; font-size: 13px; }
+.quick-car-selected h3 { font-size: 17px; font-weight: 700; }
+.quick-car-selected small { color: #245e80; }
+.quick-car-selected p:last-child { text-transform: capitalize; }
+.quick-car-general { justify-self: start; color: #245e80; text-decoration: underline; font-size: 12px; }
+@media(max-width: 639px) {
+ .portal-action-dialog.quick-enquiry-dialog { max-width: none; }
+ .quick-car-selected { flex-direction: column; }
+ .quick-car-selected > img { width: 100%; max-height: 180px; }
+ .quick-car-results img { width: 72px; height: 58px; }
+}
+.quick-enquiry-dialog .quick-car-search-input input { padding-left: 40px; }
+.quick-enquiry-dialog #quick-car-search { padding-left: 40px; border-radius: 10px; }
+@media(max-width:639px) { .quick-enquiry-dialog #quick-car-search { font-size: 16px; } }

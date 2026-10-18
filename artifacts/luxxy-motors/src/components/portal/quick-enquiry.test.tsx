@@ -212,7 +212,7 @@ it("autofills a recent customer while keeping the chosen car and notes for this 
   expect(name).toHaveValue(recent.customerName);
   expect(screen.getByRole("combobox", { name: "Phone number" })).toHaveValue(recent.phone);
   expect(screen.getByRole("combobox", { name: "Email (optional)" })).toHaveValue(recent.email);
-  expect(screen.getByRole("combobox", { name: "Car (optional)" })).toHaveValue("car-one");
+  expect(screen.getByRole("article", { name: "Selected car" })).toHaveTextContent("Ford Focus");
   expect(screen.getByRole("textbox", { name: "Notes (optional)" })).toHaveValue("");
   expect(state.create).not.toHaveBeenCalled();
   expect(JSON.stringify(recent)).toBe(before);
@@ -238,7 +238,7 @@ it("only loads recent customer suggestions while the dialog is open with staff a
 
 it("starts a car enquiry with the chosen stock car and keeps capture in place", async () => {
   const view = mount(true, "car-one");
-  expect(screen.getByRole("combobox", { name: "Car (optional)" })).toHaveValue("car-one");
+  expect(screen.getByRole("article", { name: "Selected car" })).toHaveTextContent("Ford Focus");
   fill();
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
   await waitFor(() => expect(view.onCreated).toHaveBeenCalled());
@@ -258,9 +258,8 @@ it("captures a general enquiry in place using the no-email mode and the current 
   fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), {
     target: { value: " alex@example.test " },
   });
-  fireEvent.change(screen.getByRole("combobox", { name: "Car (optional)" }), {
-    target: { value: "car-one" },
-  });
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Ford" } });
+  fireEvent.click(screen.getByRole("button", { name: /Ford Focus/ }));
   fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), {
     target: { value: "  Please call about the service history.  " },
   });
@@ -454,7 +453,7 @@ it("allows a general enquiry when stock is unavailable and keeps closed dialogs 
   fill();
   expect(
     screen.getByText(
-      "Stock could not load. You can still save without choosing a car.",
+      "Stock could not load. You can still take a general enquiry.",
     ),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
@@ -532,7 +531,8 @@ it("requires a current available car and a selected time before booking", async 
   fireEvent.submit(bookingButton().closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent(/available.*car|car.*available|choose.*car/i);
   expect(state.createBooking).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByRole("combobox", { name: /Car/ }), { target: { value: "car-one" } });
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Ford" } });
+  fireEvent.click(screen.getByRole("button", { name: /Ford Focus/ }));
   fireEvent.submit(bookingButton().closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent(/time/i);
   expect(state.create).not.toHaveBeenCalled();
@@ -557,7 +557,8 @@ it("clears the chosen time when the car changes", async () => {
   fill();
   await chooseTestDrive();
   expect(screen.getByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "true");
-  fireEvent.change(screen.getByRole("combobox", { name: /Car/ }), { target: { value: "car-two" } });
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Toyota" } });
+  fireEvent.click(screen.getByRole("button", { name: /Toyota Yaris/ }));
   expect(await screen.findByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "false");
   fireEvent.submit(bookingButton().closest("form")!);
   expect(await screen.findByRole("alert")).toHaveTextContent(/time/i);
