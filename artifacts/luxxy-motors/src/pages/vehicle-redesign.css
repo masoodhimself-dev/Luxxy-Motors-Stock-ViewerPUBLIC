@@ -259,3 +259,20 @@
  .vehicle-redesigned .vehicle-phone-identity .vehicle-price-block { margin-top:8px; }
  .vehicle-redesigned .vehicle-detail-grid { row-gap:14px; }
 }
+
+/* The four buying/contact actions share one button rhythm on every screen. */
+.vehicle-redesigned .vehicle-direct-contact { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: -6px; }
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-summary-main-actions > a,
+.vehicle-page.vehicle-redesigned .vehicle-summary .vehicle-direct-contact .vehicle-contact-action {
+ display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+ width: 100%; min-width: 0; min-height: 64px; height: 64px; padding: 10px 14px;
+ border: 1px solid hsl(var(--border)); border-radius: 6px;
+ font-size: 14px; font-weight: 600; line-height: 1.4; text-align: center; white-space: normal;
+ text-decoration: none; box-shadow: none;
+}
+.vehicle-redesigned .vehicle-direct-contact .vehicle-contact-action { background: transparent; color: var(--vehicle-ink); }
+.vehicle-redesigned .vehicle-direct-contact .vehicle-contact-action:hover { border-color: var(--vehicle-link); background: hsl(var(--secondary) / .5); text-decoration: none; }
+.vehicle-redesigned .vehicle-summary-main-actions > a > svg,
+.vehicle-redesigned .vehicle-direct-contact .vehicle-contact-action > svg { width: 18px; height: 18px; flex-shrink: 0; }
+@media (min-width: 640px) { .vehicle-redesigned .vehicle-direct-contact { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) and (max-width: 1279px) { .vehicle-redesigned .vehicle-direct-contact { grid-template-columns: minmax(0, 1fr); } }
