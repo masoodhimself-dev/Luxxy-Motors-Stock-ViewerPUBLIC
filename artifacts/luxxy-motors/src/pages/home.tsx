@@ -396,13 +396,22 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </div>
       </section>}
 
-      {!browseStock && !error && publicCars.length > 0 && <nav className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Shop by preference">
-        <span>Find your kind of car</span>
-        {publicCars.some(car => /automatic/i.test(car.transmission || '')) && <Link href="/stock?transmission=Automatic">Automatic</Link>}
-        {publicCars.some(car => car.price != null && car.price <= 10000) && <Link href="/stock?maxPrice=10000">Under £10k</Link>}
-        {benefitCounts.ulez > 0 && <Link href="/stock?ulez=true">ULEZ compliant</Link>}
-        {benefitCounts.lowMileage > 0 && <Link href="/stock?lowMileage=true">Up to 30k miles</Link>}
+      {!browseStock && !isLoading && !error && publicCars.length > 0 && <nav className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Shop by preference">
+        <div className="home-shortcut-intro"><span>Find your kind of car</span><p>A few good places to start.</p></div>
+        <div className="home-shortcut-grid">
+          {[
+            { label: 'Automatic', icon: 'Transmission', href: '/stock?transmission=Automatic', count: publicCars.filter(car => /automatic/i.test(car.transmission || '')).length },
+            { label: 'Under £10k', icon: 'Price', href: '/stock?maxPrice=10000', count: publicCars.filter(car => car.price != null && car.price <= 10000).length },
+            { label: 'ULEZ compliant', icon: 'Emissions', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
+            { label: 'Up to 30k miles', icon: 'Mileage', href: '/stock?lowMileage=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.lowMileage).length },
+          ].filter(choice => choice.count > 0).map(choice => <Link key={choice.href} href={choice.href} className="home-shortcut-card">
+            <VehicleFactIcon label={choice.icon} className="home-shortcut-icon" />
+            <span className="home-shortcut-copy"><strong>{choice.label}</strong><small>{choice.count} {choice.count === 1 ? 'car' : 'cars'}</small></span>
+            <ArrowUpRight size={17} className="home-shortcut-arrow" aria-hidden="true" />
+          </Link>)}
+        </div>
       </nav>}
+
 
       {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
       {!browseStock && !isLoading && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))} unavailable={Boolean(error)} />}
