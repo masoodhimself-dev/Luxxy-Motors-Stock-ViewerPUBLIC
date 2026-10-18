@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
-import { ArrowRight, Check, ChevronDown, MessageCircle, Send, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, MessageCircle, Send, X } from '@/components/icons';
 import { customerFeaturePolicy, formatVehicleName, type ChatConversationView, type ChatPublicConfig, type ChatSession } from '@workspace/vehicle-meta';
 import { useStock } from '@/lib/stock-context';
 import './customer-chat.css';

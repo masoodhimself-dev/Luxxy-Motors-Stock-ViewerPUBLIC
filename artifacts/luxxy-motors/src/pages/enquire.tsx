@@ -2,7 +2,7 @@ import { websiteText } from "@/lib/website-content";
 import './customer-workflows.css';
 import { questionMessage } from "@/lib/vehicle-questions";
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { ArrowLeft, ArrowRight, Camera, CircleAlert } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, CircleAlert } from '@/components/icons';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
 import { TestDriveBooking } from '@/components/test-drive-booking';

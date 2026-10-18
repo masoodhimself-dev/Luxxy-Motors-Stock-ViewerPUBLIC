@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { canonicalCustomerEmail, canonicalCustomerName, canonicalCustomerPhone } from '@workspace/vehicle-meta';
-import { Check, Clock3, Mail, Phone, UserRound, X } from 'lucide-react';
+import { Check, Clock3, Mail, Phone, UserRound, X } from '@/components/icons';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import './recent-customer-fields.css';

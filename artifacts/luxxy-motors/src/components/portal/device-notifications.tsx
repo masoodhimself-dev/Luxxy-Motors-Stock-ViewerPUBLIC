@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '@workspace/api-client-react';
-import { Bell, BellRing, Check, ChevronDown, Smartphone, X } from 'lucide-react';
+import { Bell, BellRing, Check, ChevronDown, Smartphone, X } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import {
   clearPushOwner, decodePushKey, defaultDeviceLabel, onPortalPush, portalPushRegistration,

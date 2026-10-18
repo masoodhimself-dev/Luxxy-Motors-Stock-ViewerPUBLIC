@@ -44,12 +44,12 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  FileText,
+  Invoice,
   Plus,
   Printer,
   Download,
   Mail,
-} from "lucide-react";
+} from "@/components/icons";
 import "@/sales-workspace.css";
 import "./invoice-builder.css";
 
@@ -670,7 +670,7 @@ export function SalesWorkspace({
           </div>
           {!sales.isLoading && !sales.isError && !sales.data?.sales.length && (
             <div className="invoice-empty">
-              <FileText size={32} />
+              <Invoice size={32} />
               <h2>Your invoices start here</h2>
               <p>
                 Choose a customer and car, record the payments, then create the
@@ -755,7 +755,7 @@ export function SalesWorkspace({
               ) : issued ? (
                 <>
                   <div className="invoice-ready-card">
-                    <FileText size={32} />
+                    <Invoice size={32} />
                     <div>
                       <h2>{issued.title}</h2>
                       <p>
@@ -1416,7 +1416,7 @@ export function SalesWorkspace({
                             setReviewed(false);
                           }}
                         >
-                          <FileText size={24} />
+                          <Invoice size={24} />
                           <strong>
                             {type === "deposit"
                               ? "Deposit invoice"
@@ -1553,7 +1553,7 @@ export function SalesWorkspace({
                   </Button>
                 ) : (
                   <Button disabled={busy || !reviewed} onClick={generate}>
-                    <FileText size={16} />
+                    <Invoice size={16} />
                     {busy
                       ? "Creating…"
                       : kind === "deposit"

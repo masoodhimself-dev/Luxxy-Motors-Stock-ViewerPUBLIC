@@ -2,7 +2,7 @@ import { websiteText } from "@/lib/website-content";
 import { DealerWordmark } from "@/components/brand/wordmark";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
-import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from 'lucide-react';
+import { Menu, X, Phone, MessageCircle, ArrowRight, Heart, CalendarDays } from '@/components/icons';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
 import { getEnquiryHref } from '@/lib/cta-helpers';
 import { Button } from '@/components/ui/button';

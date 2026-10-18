@@ -22,7 +22,7 @@ import {
   vehicleRegistration,
 } from '@/lib/utils';
 import { CompareCarButton, SaveCarButton } from '@/components/saved-car-controls';
-import { ArrowRight, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Camera, ChevronLeft, ChevronRight } from '@/components/icons';
 import { trackEvent } from '@/lib/analytics';
 
 

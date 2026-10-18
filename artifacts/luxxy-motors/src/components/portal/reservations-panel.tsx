@@ -12,7 +12,7 @@ import {
   useListReservations,
   type StaffOnlineReservation,
 } from '@workspace/api-client-react';
-import { BookmarkCheck, LoaderCircle, RefreshCw } from 'lucide-react';
+import { BookmarkCheck, LoaderCircle, RefreshCw } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import {

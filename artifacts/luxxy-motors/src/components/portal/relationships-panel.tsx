@@ -21,7 +21,7 @@ import {
   Search,
   UserRound,
   Users,
-} from "lucide-react";
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import "./relationships-panel.css";

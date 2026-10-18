@@ -12,7 +12,7 @@ import {
   LoaderCircle,
   PoundSterling,
   Sun,
-} from 'lucide-react';
+} from '@/components/icons';
 import { LeadCard } from './lead-card';
 import {
   Chip,

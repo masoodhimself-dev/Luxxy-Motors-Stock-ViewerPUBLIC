@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
-import { Mail, Save, RotateCcw, Eye, Smartphone, Monitor, FileText } from 'lucide-react';
+import { Mail, Save, RotateCcw, Eye, Smartphone, Monitor, FileText } from '@/components/icons';
 import { type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

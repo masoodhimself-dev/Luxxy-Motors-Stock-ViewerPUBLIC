@@ -7,7 +7,7 @@ import { PdfSalesDocument } from '@/components/sales-demo/sales-document';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
 import { formatPhoneDisplay } from '@/lib/utils';
-import { CarFront, WalletCards, CalendarDays, Truck, FileText, ArrowLeft, Download, LockKeyhole } from 'lucide-react';
+import { CarFront, WalletCards, CalendarDays, Truck, FileText, ArrowLeft, Download, LockKeyhole } from '@/components/icons';
 import './customer-sale.css';
 
 const money = (value: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value / 100);

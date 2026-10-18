@@ -8,7 +8,7 @@ import {
   type LeadInput,
   type LeadInputSource,
 } from '@workspace/api-client-react';
-import { LoaderCircle, UserPlus } from 'lucide-react';
+import { LoaderCircle, UserPlus } from '@/components/icons';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

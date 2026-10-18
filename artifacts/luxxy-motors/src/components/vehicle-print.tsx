@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer } from 'lucide-react';
+import { Printer } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import type { DealerConfig } from '@/config/dealer';
 import { formatPhoneDisplay, vehicleDisplayTitle } from '@/lib/utils';

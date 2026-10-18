@@ -1,7 +1,7 @@
 import type { SaleWorkspaceRecord, SaleWorkspaceDocument } from '@workspace/vehicle-meta';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Link2, Mail, Download, ShieldCheck, CarFront } from 'lucide-react';
+import { Link2, Mail, Download, ShieldCheck, CarFront } from '@/components/icons';
 import { HistoryLinks } from '@/components/portal/history-links';
 
 export function SalesConnections({ record, busy, customerUrl, onLink, onRevoke, onEmailLink, onLifecycle }: {

@@ -1,5 +1,5 @@
 import type { Lead } from '@workspace/api-client-react';
-import { CalendarClock, Car, Mail, Phone, PoundSterling } from 'lucide-react';
+import { CalendarClock, Car, Mail, Phone, PoundSterling } from '@/components/icons';
 import {
   Chip,
   SourceChip,

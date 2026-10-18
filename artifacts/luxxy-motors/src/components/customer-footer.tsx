@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowUpRight, Facebook, Instagram, Mail, MapPin, Phone, Twitter } from 'lucide-react';
+import { ArrowUpRight, Facebook, Instagram, Mail, MapPin, Phone, Twitter } from '@/components/icons';
 import type { DealerConfig } from '@/config/dealer';
 import { DealerWordmark } from '@/components/brand/wordmark';
 import { formatPhoneDisplay } from '@/lib/utils';

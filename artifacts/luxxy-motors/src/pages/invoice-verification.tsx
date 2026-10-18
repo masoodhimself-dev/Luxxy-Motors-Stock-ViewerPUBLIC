@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'wouter';
-import { ShieldCheck, FileCheck2, RefreshCw } from 'lucide-react';
+import { ShieldCheck, FileCheck2, RefreshCw } from '@/components/icons';
 import { customFetch } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import './invoice-verification.css';

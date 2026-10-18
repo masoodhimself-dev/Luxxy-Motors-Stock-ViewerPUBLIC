@@ -5,7 +5,7 @@ import {
   useGetLeads,
   type GetLeadsParams,
 } from '@workspace/api-client-react';
-import { LoaderCircle, Search, SlidersHorizontal, Users, X } from 'lucide-react';
+import { LoaderCircle, Search, SlidersHorizontal, Users, X } from '@/components/icons';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { LeadCard } from './lead-card';

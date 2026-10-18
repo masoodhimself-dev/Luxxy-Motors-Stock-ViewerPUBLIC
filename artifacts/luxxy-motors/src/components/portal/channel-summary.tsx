@@ -1,5 +1,5 @@
 import { useGetLeadChannelSummary } from '@workspace/api-client-react';
-import { LoaderCircle, TrendingUp } from 'lucide-react';
+import { LoaderCircle, TrendingUp } from '@/components/icons';
 import { EmptyState, Panel, SourceIcon, sourceLabels } from './portal-ui';
 import { Button } from '@/components/ui/button';
 

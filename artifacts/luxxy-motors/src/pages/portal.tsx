@@ -9,7 +9,7 @@ import {
   BookmarkCheck,
   LoaderCircle,
   Lock,
-  FileText,
+  Sale,
   Plus,
   Settings2,
   House,
@@ -23,7 +23,7 @@ import {
   ChevronDown,
   CheckCircle2,
   X,
-} from 'lucide-react';
+} from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { DealerWordmark } from '@/components/brand/wordmark';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
@@ -50,7 +50,7 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof Settings2 }> = [
   { key: 'notifications', label: 'Home', icon: House },
   { key: 'inventory', label: 'Cars', icon: CarFront },
   { key: 'chat', label: 'Chat', icon: MessageSquare },
-  { key: 'sales', label: 'Sales', icon: FileText },
+  { key: 'sales', label: 'Sales', icon: Sale },
   { key: 'reservations', label: 'Reservations', icon: BookmarkCheck },
   { key: 'history', label: 'History', icon: History },
   { key: 'settings', label: 'Settings', icon: Settings2 },
@@ -241,7 +241,7 @@ function PortalDesk() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button type="button" className="portal-quick-trigger" aria-label="Quick actions"><Plus size={16} aria-hidden="true" /><span className="portal-quick-full-label">Quick add</span><span className="portal-quick-short-label">Add</span><ChevronDown size={14} aria-hidden="true" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="portal-quick-menu">
-            {canSell && <><DropdownMenuItem data-action="enquiry" onSelect={() => quickEnquiry()}><UserRoundPlus aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem data-action="sale" onSelect={newSale}><FileText aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
+            {canSell && <><DropdownMenuItem data-action="enquiry" onSelect={() => quickEnquiry()}><UserRoundPlus aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem data-action="sale" onSelect={newSale}><Sale aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
             <DropdownMenuItem data-action="calendar" onSelect={() => navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays aria-hidden="true" />Calendar</DropdownMenuItem>
             {canSell && <DropdownMenuItem data-action="drafts" onSelect={() => navigate('/portal?section=notifications&workView=email&view=drafts')}><Mail aria-hidden="true" />Saved email drafts</DropdownMenuItem>}
           </DropdownMenuContent>

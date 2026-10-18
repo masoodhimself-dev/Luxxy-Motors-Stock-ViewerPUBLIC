@@ -3,13 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Copy,
-  FileCheck2,
+  FileText,
   LoaderCircle,
   Mail,
   QrCode,
   RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
+  SignedDeclaration,
+} from "@/components/icons";
 import { type Enquiry } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -220,7 +220,7 @@ export function TestDriveDeclarations({
           </DialogDescription>
         </DialogHeader>
         <p className="declaration-staff-note">
-          <ShieldCheck size={18} aria-hidden="true" />A signature records the
+          <SignedDeclaration size={18} aria-hidden="true" />A signature records the
           customer’s declaration. Staff must still check their licence and the
           insurance cover for this drive.
         </p>
@@ -376,7 +376,7 @@ export function TestDriveDeclarations({
                 {query.data.declarations.map((record) => (
                   <article key={record.id}>
                     <div className="declaration-record-heading">
-                      <FileCheck2 size={19} aria-hidden="true" />
+                      {record.status === "signed" ? <SignedDeclaration size={19} aria-hidden="true" /> : <FileText size={19} aria-hidden="true" />}
                       <strong>{record.snapshot.vehicle.title}</strong>
                       <Chip
                         tone={

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, type StaffDirectory } from '@workspace/api-client-react';
 import type { ChatConversation, ChatConversationView, ChatInbox, ChatSettings } from '@workspace/vehicle-meta';
 import { Link, useLocation, useSearch } from 'wouter';
-import { ArrowLeft, ArrowUpRight, CarFront, CheckCheck, Circle, LoaderCircle, Mail, MessageSquare, Phone, RefreshCw, Search, Send, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, CarFront, CheckCheck, Circle, LoaderCircle, Mail, MessageSquare, Phone, RefreshCw, Search, Send, UserRound } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

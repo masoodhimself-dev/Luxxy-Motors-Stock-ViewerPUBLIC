@@ -3,7 +3,7 @@ import { useDealerFeatures } from '@/lib/dealer-features';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { getVisitorId } from '@/lib/visitor';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MessageSquare } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';

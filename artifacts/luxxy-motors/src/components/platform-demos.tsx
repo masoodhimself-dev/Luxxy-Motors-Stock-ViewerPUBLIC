@@ -3,7 +3,7 @@ import { customFetch } from '@workspace/api-client-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { NativeSelect } from './ui/native-select';
-import { ArrowRight, CheckCircle2, Circle, RefreshCw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Circle, Demo as DemoIcon, RefreshCw } from '@/components/icons';
 import './platform-demo-conversion.css';
 const api=<T,>(path:string,body?:unknown)=>customFetch<T>('/api/platform'+path,{method:body?'POST':'GET',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
 type Provision={domain:string;emailDomain:string;recipients:string[];configured:boolean;emailReady:boolean;note:string};
@@ -109,7 +109,7 @@ export function PlatformDemos({dealerId,onCreated}:{dealerId?:string;onCreated:(
    <label className="platform-field"><span>Authorised demo stock source URL</span><Input type="url" value={form.sourceUrl} onChange={e=>setForm({...form,sourceUrl:e.target.value})}/></label>
    <label className="platform-field"><span>Approved test email recipient</span><NativeSelect value={form.recipient} onChange={e=>setForm({...form,recipient:e.target.value})}><option value="">Choose an approved recipient</option>{provision.recipients?.map(r=><option key={r}>{r}</option>)}</NativeSelect><small>Set the operator allowlist with DEMO_EMAIL_RECIPIENTS. Customer addresses are never used for delivery.</small></label>
    <label className="platform-field"><span>Expires after</span><NativeSelect value={form.days} onChange={e=>setForm({...form,days:Number(e.target.value)})}>{[7,14,30,60,90].map(days=><option key={days} value={days}>{days} days</option>)}</NativeSelect></label>
-   </div><p className="platform-help">Your account owns this demo. Stock import uses a new dedicated credential. Grok collection and scheduling remain separate; nothing is started automatically.</p><Button disabled={busy||!provision.configured||!form.name||!form.slug||!form.sourceUrl||!form.retailerId||!form.recipient} onClick={()=>void create()}>{busy?'Preparing demo…':'Create demo dealership'}</Button>
+   </div><p className="platform-help">Your account owns this demo. Stock import uses a new dedicated credential. Grok collection and scheduling remain separate; nothing is started automatically.</p><Button disabled={busy||!provision.configured||!form.name||!form.slug||!form.sourceUrl||!form.retailerId||!form.recipient} onClick={()=>void create()}><DemoIcon size={16} aria-hidden="true"/>{busy?'Preparing demo…':'Create demo dealership'}</Button>
   </>}
  </section>;
 }

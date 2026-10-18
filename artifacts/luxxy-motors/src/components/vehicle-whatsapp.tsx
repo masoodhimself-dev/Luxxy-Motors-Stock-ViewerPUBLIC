@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { Clock3 } from 'lucide-react';
-import { SiWhatsapp } from 'react-icons/si';
+import { Clock3 } from '@/components/icons';
+import { SiWhatsapp } from '@/components/icons';
 import {
   Dialog,
   DialogContent,

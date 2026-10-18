@@ -11,7 +11,7 @@ import {
   MailWarning,
   MessageSquare,
   RefreshCw,
-} from "lucide-react";
+} from "@/components/icons";
 import { notificationsLink } from "@/lib/notifications-navigation";
 import { Button } from "@/components/ui/button";
 import "./notifications-home.css";

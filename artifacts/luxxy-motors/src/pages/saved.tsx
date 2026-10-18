@@ -11,7 +11,7 @@ import { useSearch } from "wouter";
 import { parseShortlist, shortlistUrl } from "@/lib/customer-convenience";
 import { PageHeading, PageEmptyState } from "@/components/page-ui";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "@/components/icons";
 import { useStock, type Car } from "@/lib/stock-context";
 import { useSavedCars } from "@/lib/saved-cars-context";
 import { CarCard } from "@/components/car-card";

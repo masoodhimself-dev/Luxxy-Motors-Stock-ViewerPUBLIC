@@ -4,7 +4,7 @@ import { useCreateEnquiry } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState, useRef, type MouseEvent } from 'react';
-import { CheckCircle2, CircleAlert, Clock3, Copy, Phone, MapPin, ArrowUpRight } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Clock3, Copy, Phone, MapPin, ArrowUpRight } from '@/components/icons';
 import {
   Dialog,
   DialogContent,

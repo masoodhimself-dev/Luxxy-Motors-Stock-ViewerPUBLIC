@@ -29,7 +29,7 @@ import {
   MessageCircle,
   Share2,
   Check,
-} from 'lucide-react';
+} from '@/components/icons';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
 import { SaveCarButton, CompareCarButton, CompareSelectionLink } from '@/components/saved-car-controls';

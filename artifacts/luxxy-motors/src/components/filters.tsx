@@ -7,7 +7,7 @@ import {
   Search,
   SlidersHorizontal,
   X,
-} from 'lucide-react';
+} from '@/components/icons';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Car as CarType } from '@/lib/stock-context';

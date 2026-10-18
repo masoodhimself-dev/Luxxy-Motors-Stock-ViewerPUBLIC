@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
-import { FilePenLine, ArrowUpRight } from "lucide-react";
+import { FilePenLine, ArrowUpRight } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 type SavedReply = {
   enquiryId: string;

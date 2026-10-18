@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Monitor, Smartphone } from "lucide-react";
+import { Monitor, Smartphone } from "@/components/icons";
 import "./customer-email-preview.css";
 
 /** Keep the server-rendered email design, while making the preview non-interactive. */

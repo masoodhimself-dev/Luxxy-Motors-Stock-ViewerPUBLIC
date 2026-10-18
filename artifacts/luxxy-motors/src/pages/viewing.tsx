@@ -13,7 +13,7 @@ import {
   useGetViewingBooking,
   useRescheduleViewing,
 } from '@workspace/api-client-react';
-import { ArrowLeft, CalendarDays, CalendarPlus, Check, CircleAlert, Clock3, LoaderCircle, MapPin, Phone, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarDays, CalendarPlus, Check, CircleAlert, Clock3, LoaderCircle, MapPin, Phone, XCircle } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
 import { usePageMeta } from '@/hooks/use-page-meta';

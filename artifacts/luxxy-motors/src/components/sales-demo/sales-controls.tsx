@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { FileText, WalletCards, Truck, CheckCircle2 } from "lucide-react";
+import { Receipt, WalletCards, Truck, CheckCircle2 } from "@/components/icons";
 import { pence, saleStaffLabel, totals, type SaleDraft } from "./model";
 import type {
   SaleWorkspacePayment,
@@ -605,7 +605,7 @@ export function PaymentLedger({
                       variant="outline"
                       onClick={() => onDocument(doc.id)}
                     >
-                      <FileText size={15} />
+                      <Receipt size={15} />
                       View receipt
                     </Button>
                   )}

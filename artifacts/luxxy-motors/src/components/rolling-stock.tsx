@@ -1,7 +1,7 @@
 import { websiteText } from "@/lib/website-content";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from '@/components/icons';
 import type { PointerEvent, TouchEvent } from 'react';
 import { Link } from 'wouter';
 import { CarCard } from '@/components/car-card';

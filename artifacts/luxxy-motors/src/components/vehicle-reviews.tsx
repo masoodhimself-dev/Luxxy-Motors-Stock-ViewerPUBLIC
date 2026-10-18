@@ -1,6 +1,6 @@
 import { websiteText } from "@/lib/website-content";
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, BadgeCheck, Star } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BadgeCheck, Star } from '@/components/icons';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { TermHelp } from '@/components/customer-help';
 

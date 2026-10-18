@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { customFetch, type Enquiry } from '@workspace/api-client-react';
-import { GitMerge, Search } from 'lucide-react';
+import { GitMerge, Search } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

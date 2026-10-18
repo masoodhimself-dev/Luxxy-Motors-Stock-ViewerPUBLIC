@@ -12,7 +12,7 @@ import { PartExchangeForm } from '@/components/part-exchange-form';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Redirect, useLocation } from 'wouter';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
-import { ArrowRight, CheckCircle2, CircleAlert, Mail, MessageSquare, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, Mail, MessageSquare, ShieldCheck } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';

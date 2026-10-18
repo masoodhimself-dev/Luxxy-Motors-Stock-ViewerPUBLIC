@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Calendar } from 'lucide-react';
+import { ArrowRight, Calendar } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { buyerInformation } from '@/lib/buyer-information';

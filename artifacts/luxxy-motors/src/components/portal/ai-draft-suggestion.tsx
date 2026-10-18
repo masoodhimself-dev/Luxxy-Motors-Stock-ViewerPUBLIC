@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
-import { FilePenLine, LoaderCircle } from "lucide-react";
+import { FilePenLine, LoaderCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { requestUuid } from "@/lib/request-uuid";
 import "./ai-draft-suggestion.css";

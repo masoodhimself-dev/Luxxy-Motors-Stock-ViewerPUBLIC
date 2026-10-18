@@ -1,0 +1,14 @@
+{
+  "brand": "WhatsApp",
+  "source": "https://www.meta.com/brand/resources/whatsapp/whatsapp-brand/",
+  "download": "WhatsApp-Brand-Resource-Center.zip",
+  "source_file": "Brand Resource Center Page Downloads/01_Glyph/01_Digital RGB/03_SVG/Digital_Glyph_Black_RGB_2026.svg",
+  "sha256": "dea0d50de5d2e53320246d7172a2b8e84a999caa7798cd91681e63831cba6ed9",
+  "retrieved": "2026-10-18",
+  "normalisation": "Unchanged official path data. Uniform scale into a 20 x 20 optical area, translated 2 units into a 24 x 24 viewBox. Source class paint replaced by currentColor.",
+  "approved_source_colours": {
+    "black": "#111b21",
+    "white": "#ffffff",
+    "green": "#25d366"
+  }
+}

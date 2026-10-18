@@ -4,7 +4,7 @@ import type { Lead, LeadActivityKind, LeadSource, LeadStage } from '@workspace/a
 import {
   CalendarClock,
   Handshake,
-  MessageCircle,
+  SiWhatsapp,
   Mail,
   NotebookPen,
   Phone,
@@ -13,7 +13,7 @@ import {
   Users,
   CircleDashed,
   DoorOpen,
-} from 'lucide-react';
+} from '@/components/icons';
 
 export const sourceLabels: Record<LeadSource, string> = {
   website_form: 'Website',
@@ -49,7 +49,7 @@ export const activityLabels: Record<LeadActivityKind, string> = {
 const sourceIcons: Record<LeadSource, typeof Globe> = {
   website_form: Globe,
   phone: Phone,
-  whatsapp: MessageCircle,
+  whatsapp: SiWhatsapp,
   walk_in: DoorOpen,
   marketplace: Megaphone,
   social: Users,
@@ -57,7 +57,7 @@ const sourceIcons: Record<LeadSource, typeof Globe> = {
 
 export const activityIcons: Record<LeadActivityKind, typeof Phone> = {
   call: Phone,
-  whatsapp: MessageCircle,
+  whatsapp: SiWhatsapp,
   email: Mail,
   note: NotebookPen,
   visit: Handshake,

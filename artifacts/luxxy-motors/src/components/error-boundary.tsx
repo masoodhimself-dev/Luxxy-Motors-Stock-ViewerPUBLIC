@@ -1,5 +1,5 @@
 import React, { Component, ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 interface Props {

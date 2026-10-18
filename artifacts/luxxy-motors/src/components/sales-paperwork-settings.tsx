@@ -3,7 +3,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsTabs } from "@/components/settings-tabs";
-import { FileCheck2, Palette, CreditCard, FileText } from "lucide-react";
+import { FileCheck2, Palette, CreditCard, FileText } from "@/components/icons";
 import { defaultInvoiceSettings, invoiceTextLimits, invoiceBranding, saleWorkspaceBranding, saleWorkspaceNumber, type InvoiceSettings } from '@workspace/vehicle-meta';
 import { PdfSalesDocument } from './sales-demo/sales-document';
 import { emptyDraft } from './sales-demo/model';

@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight } from '@/components/icons';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { useDealerSettings } from '@/lib/dealer-settings-context';

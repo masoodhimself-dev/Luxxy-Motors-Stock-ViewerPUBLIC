@@ -1,7 +1,7 @@
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, ChevronDown, ChevronUp, Scale, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Scale, X } from '@/components/icons';
 import { useStock } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { getSafeImageUrl, getThumbnailUrl, vehicleRegistration } from '@/lib/utils';

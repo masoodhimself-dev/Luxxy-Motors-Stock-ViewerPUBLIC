@@ -36,7 +36,7 @@ import {
   Store,
   Trash2,
   Truck,
-} from 'lucide-react';
+} from '@/components/icons';
 import { Link, useLocation, useSearch } from 'wouter';
 import { SettingsTabs } from '@/components/settings-tabs';
 import { Button } from '@/components/ui/button';

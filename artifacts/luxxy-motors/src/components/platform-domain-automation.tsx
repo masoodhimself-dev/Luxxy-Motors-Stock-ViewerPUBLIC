@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
-import { AlertCircle, CheckCircle2, Globe2, LoaderCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Globe2, LoaderCircle, RefreshCw } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import './platform-domain-automation.css';

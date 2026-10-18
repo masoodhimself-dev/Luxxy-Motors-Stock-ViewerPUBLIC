@@ -1,5 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/components/icons';
 import './settings-tabs.css';
 
 export type SettingsTab = { id: string; label: string; icon?: LucideIcon };

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowLeft, CalendarDays, Phone } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Phone } from '@/components/icons';
 import { useGetStaffDirectory, useUpdateEnquiryWorkspace, type Enquiry } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { callOutcomes, nextAction, type CallOutcome } from '@/lib/enquiry-desk-model';

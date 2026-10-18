@@ -11,7 +11,7 @@ import {
   type LeadActivityInputStage,
   type LeadStage,
 } from '@workspace/api-client-react';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

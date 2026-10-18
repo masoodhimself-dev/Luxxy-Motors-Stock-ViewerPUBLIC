@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Link } from 'wouter';
-import { Search, ChevronDown, RotateCcw, ArrowRight } from 'lucide-react';
+import { Search, ChevronDown, RotateCcw, ArrowRight } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import type { FilterState } from '@/components/filters';
 import { formatPrice } from '@/lib/utils';

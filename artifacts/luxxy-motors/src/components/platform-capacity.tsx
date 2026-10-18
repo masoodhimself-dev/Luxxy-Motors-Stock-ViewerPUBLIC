@@ -1,6 +1,6 @@
 import { dealerHealthLabel } from "@/lib/dealer-health-label";
 import { useEffect, useState } from 'react';
-import { Activity, AlertCircle, ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Activity, AlertCircle, ArrowRight, CheckCircle2, RefreshCw } from '@/components/icons';
 import { customFetch } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import './platform-capacity.css';

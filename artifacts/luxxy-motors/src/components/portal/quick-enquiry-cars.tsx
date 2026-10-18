@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Car } from "@/lib/stock-context";
 import { formatPrice, formatMileage, getSafeImageUrl, vehicleDisplayTitle, vehicleRegistrationLabel } from "@/lib/utils";
-import { Search, CarFront, Check } from "lucide-react";
+import { Search, CarFront, Check } from "@/components/icons";
 
 const words = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
 const alias = (word: string) => ({ auto: "automatic", grey: "gray", gasoline: "petrol" }[word] || word);

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { customFetch } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { ChevronDown, Mail } from 'lucide-react';
+import { ChevronDown, Mail } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 type CustomerEmail = {

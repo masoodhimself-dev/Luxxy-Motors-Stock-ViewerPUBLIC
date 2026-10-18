@@ -1,7 +1,7 @@
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
 import { customerDefaultCopy, websiteText } from "@/lib/website-content";
 import { Link } from "wouter";
-import { ArrowRight, MapPin, Phone } from "lucide-react";
+import { ArrowRight, MapPin, Phone } from "@/components/icons";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { formatPhoneDisplay } from "@/lib/utils";
 import { Button } from "./ui/button";

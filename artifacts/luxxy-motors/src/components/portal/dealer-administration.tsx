@@ -1,4 +1,4 @@
-import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck, CarFront, Wallet } from 'lucide-react';
+import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck, CarFront, Wallet } from '@/components/icons';
 import { useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, getGetDealerSettingsQueryKey } from '@workspace/api-client-react';

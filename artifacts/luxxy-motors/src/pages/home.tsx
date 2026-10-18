@@ -38,7 +38,7 @@ import {
 } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Grid2X2, List, ArrowUpRight, ChevronDown, Heart, Link2, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Grid2X2, List, ArrowUpRight, ChevronDown, Heart, Link2, SlidersHorizontal } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
 import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';

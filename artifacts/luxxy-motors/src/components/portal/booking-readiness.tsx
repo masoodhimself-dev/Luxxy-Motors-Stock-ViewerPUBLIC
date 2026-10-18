@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Enquiry } from "@workspace/api-client-react";
-import { Check, Circle } from "lucide-react";
+import { Circle, DrivingLicenceCheck, InsuranceCheck, SignedDeclaration } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { declarationRequest, type TestDriveDeclaration } from "@/lib/test-drive-declarations";
 import { useStaffAccess } from "./dealer-administration";
@@ -62,10 +62,10 @@ export function BookingReadiness({ booking, autoLoad = false }: { booking: Enqui
       : !query.data ? <><ul aria-label="Recorded checks not loaded">{["Declaration", "Licence", "Insurance"].map(label => <li key={label}><Circle aria-hidden="true"/>{label} · status not loaded</li>)}</ul><div className="booking-readiness-state">{enabled ? <span role="status">Checking preparation…</span> : <><span>Signature and staff checks not loaded.</span><Button type="button" size="sm" variant="ghost" onClick={() => setRequested(true)}>Check preparation</Button></>}</div></>
       : <>
         <ul aria-label="Recorded checks">{([
-          [signed, signed ? "Declaration signed" : record ? "Awaiting signature" : "Declaration needed"],
-          [licence, licence ? "Licence checked" : "Licence check needed"],
-          [insurance, insurance ? "Insurance checked" : "Insurance check needed"],
-        ] as const).map(([done, label]) => <li key={label} data-complete={done}>{done ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}{label}</li>)}</ul>
+          [signed, signed ? "Declaration signed" : record ? "Awaiting signature" : "Declaration needed", SignedDeclaration],
+          [licence, licence ? "Licence checked" : "Licence check needed", DrivingLicenceCheck],
+          [insurance, insurance ? "Insurance checked" : "Insurance check needed", InsuranceCheck],
+        ] as const).map(([done, label, Icon]) => <li key={label} data-complete={done}>{done ? <Icon aria-hidden="true" /> : <Circle aria-hidden="true" />}{label}</li>)}</ul>
         {checked && <p>Recorded checks only. Confirm the car is ready before handing over the keys.</p>}
       </>}
   </section>;

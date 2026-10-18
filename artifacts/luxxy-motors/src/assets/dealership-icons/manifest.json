@@ -1,0 +1,793 @@
+{
+  "name": "Dealership Icons",
+  "version": "1.0.0",
+  "viewBox": "0 0 24 24",
+  "strokeWidth": 1.8,
+  "count": 98,
+  "icons": [
+    {
+      "name": "car",
+      "label": "Car",
+      "category": "Vehicle details",
+      "star": true,
+      "brand": false,
+      "path": "icons/car.svg"
+    },
+    {
+      "name": "mileage",
+      "label": "Mileage / speedometer",
+      "category": "Vehicle details",
+      "star": true,
+      "brand": false,
+      "path": "icons/mileage.svg"
+    },
+    {
+      "name": "transmission",
+      "label": "Transmission / gearbox",
+      "category": "Vehicle details",
+      "star": true,
+      "brand": false,
+      "path": "icons/transmission.svg"
+    },
+    {
+      "name": "registration-plate",
+      "label": "Registration plate",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/registration-plate.svg"
+    },
+    {
+      "name": "fuel",
+      "label": "Fuel / petrol pump",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/fuel.svg"
+    },
+    {
+      "name": "electric-charging",
+      "label": "Electric charging",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/electric-charging.svg"
+    },
+    {
+      "name": "hybrid",
+      "label": "Hybrid",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/hybrid.svg"
+    },
+    {
+      "name": "engine",
+      "label": "Engine",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/engine.svg"
+    },
+    {
+      "name": "body-type",
+      "label": "Body type",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/body-type.svg"
+    },
+    {
+      "name": "doors",
+      "label": "Doors",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/doors.svg"
+    },
+    {
+      "name": "seats",
+      "label": "Seats",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/seats.svg"
+    },
+    {
+      "name": "colour",
+      "label": "Colour",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/colour.svg"
+    },
+    {
+      "name": "ulez-emissions",
+      "label": "ULEZ / emissions",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/ulez-emissions.svg"
+    },
+    {
+      "name": "road-tax",
+      "label": "Road tax",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/road-tax.svg"
+    },
+    {
+      "name": "insurance",
+      "label": "Insurance",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/insurance.svg"
+    },
+    {
+      "name": "previous-keepers",
+      "label": "Previous keepers",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/previous-keepers.svg"
+    },
+    {
+      "name": "service-book",
+      "label": "Service book",
+      "category": "Vehicle details",
+      "star": true,
+      "brand": false,
+      "path": "icons/service-book.svg"
+    },
+    {
+      "name": "vehicle-history",
+      "label": "Vehicle history",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/vehicle-history.svg"
+    },
+    {
+      "name": "vehicle-preparation",
+      "label": "Vehicle preparation / tools",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/vehicle-preparation.svg"
+    },
+    {
+      "name": "phone",
+      "label": "Phone",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/phone.svg"
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/email.svg"
+    },
+    {
+      "name": "reply",
+      "label": "Reply",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/reply.svg"
+    },
+    {
+      "name": "conversation",
+      "label": "Conversation",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/conversation.svg"
+    },
+    {
+      "name": "whatsapp",
+      "label": "WhatsApp",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": true,
+      "path": "icons/whatsapp.svg"
+    },
+    {
+      "name": "customer",
+      "label": "Customer",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/customer.svg"
+    },
+    {
+      "name": "staff-team",
+      "label": "Staff / team",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/staff-team.svg"
+    },
+    {
+      "name": "merge-customers",
+      "label": "Merge customer records",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/merge-customers.svg"
+    },
+    {
+      "name": "location",
+      "label": "Location pin",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/location.svg"
+    },
+    {
+      "name": "directions",
+      "label": "Directions",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/directions.svg"
+    },
+    {
+      "name": "clock",
+      "label": "Clock",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/clock.svg"
+    },
+    {
+      "name": "calendar-test-drive",
+      "label": "Calendar / test drive",
+      "category": "Bookings",
+      "star": true,
+      "brand": false,
+      "path": "icons/calendar-test-drive.svg"
+    },
+    {
+      "name": "signed-declaration",
+      "label": "Signed declaration",
+      "category": "Bookings",
+      "star": false,
+      "brand": false,
+      "path": "icons/signed-declaration.svg"
+    },
+    {
+      "name": "driving-licence-check",
+      "label": "Driving licence check",
+      "category": "Bookings",
+      "star": false,
+      "brand": false,
+      "path": "icons/driving-licence-check.svg"
+    },
+    {
+      "name": "insurance-check",
+      "label": "Insurance check",
+      "category": "Bookings",
+      "star": false,
+      "brand": false,
+      "path": "icons/insurance-check.svg"
+    },
+    {
+      "name": "sale",
+      "label": "Sale",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/sale.svg"
+    },
+    {
+      "name": "invoice",
+      "label": "Invoice",
+      "category": "Sales and stock",
+      "star": true,
+      "brand": false,
+      "path": "icons/invoice.svg"
+    },
+    {
+      "name": "receipt",
+      "label": "Receipt",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/receipt.svg"
+    },
+    {
+      "name": "payment",
+      "label": "Payment",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/payment.svg"
+    },
+    {
+      "name": "bank-transfer",
+      "label": "Bank transfer",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/bank-transfer.svg"
+    },
+    {
+      "name": "cash",
+      "label": "Cash",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/cash.svg"
+    },
+    {
+      "name": "card-payment",
+      "label": "Card payment",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/card-payment.svg"
+    },
+    {
+      "name": "refund",
+      "label": "Refund",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/refund.svg"
+    },
+    {
+      "name": "vehicle-available",
+      "label": "Available vehicle",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/vehicle-available.svg"
+    },
+    {
+      "name": "vehicle-reserved",
+      "label": "Reserved vehicle",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/vehicle-reserved.svg"
+    },
+    {
+      "name": "vehicle-sold",
+      "label": "Sold vehicle",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/vehicle-sold.svg"
+    },
+    {
+      "name": "checklist",
+      "label": "Checklist",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/checklist.svg"
+    },
+    {
+      "name": "archive",
+      "label": "Archive",
+      "category": "Sales and stock",
+      "star": false,
+      "brand": false,
+      "path": "icons/archive.svg"
+    },
+    {
+      "name": "camera",
+      "label": "Camera",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/camera.svg"
+    },
+    {
+      "name": "photo-gallery",
+      "label": "Photo gallery",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/photo-gallery.svg"
+    },
+    {
+      "name": "attachment",
+      "label": "Attachment",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/attachment.svg"
+    },
+    {
+      "name": "document",
+      "label": "Document",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/document.svg"
+    },
+    {
+      "name": "qr-code",
+      "label": "QR code",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/qr-code.svg"
+    },
+    {
+      "name": "zoom-in",
+      "label": "Zoom in",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/zoom-in.svg"
+    },
+    {
+      "name": "zoom-out",
+      "label": "Zoom out",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/zoom-out.svg"
+    },
+    {
+      "name": "full-screen",
+      "label": "Full screen",
+      "category": "Photos and documents",
+      "star": false,
+      "brand": false,
+      "path": "icons/full-screen.svg"
+    },
+    {
+      "name": "home",
+      "label": "Home",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/home.svg"
+    },
+    {
+      "name": "dashboard",
+      "label": "Dashboard",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/dashboard.svg"
+    },
+    {
+      "name": "menu",
+      "label": "Menu",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/menu.svg"
+    },
+    {
+      "name": "close",
+      "label": "Close",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/close.svg"
+    },
+    {
+      "name": "arrow-back",
+      "label": "Back arrow",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/arrow-back.svg"
+    },
+    {
+      "name": "arrow-forward",
+      "label": "Forward arrow",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/arrow-forward.svg"
+    },
+    {
+      "name": "chevron",
+      "label": "Chevron",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/chevron.svg"
+    },
+    {
+      "name": "external-link",
+      "label": "External link",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/external-link.svg"
+    },
+    {
+      "name": "more-options",
+      "label": "More options",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/more-options.svg"
+    },
+    {
+      "name": "search",
+      "label": "Search",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/search.svg"
+    },
+    {
+      "name": "filters",
+      "label": "Filters",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/filters.svg"
+    },
+    {
+      "name": "sort",
+      "label": "Sort",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/sort.svg"
+    },
+    {
+      "name": "add",
+      "label": "Add",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/add.svg"
+    },
+    {
+      "name": "edit",
+      "label": "Edit",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/edit.svg"
+    },
+    {
+      "name": "save",
+      "label": "Save",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/save.svg"
+    },
+    {
+      "name": "copy",
+      "label": "Copy",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/copy.svg"
+    },
+    {
+      "name": "delete",
+      "label": "Delete",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/delete.svg"
+    },
+    {
+      "name": "undo-reset",
+      "label": "Undo / reset",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/undo-reset.svg"
+    },
+    {
+      "name": "refresh-sync",
+      "label": "Refresh / sync",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/refresh-sync.svg"
+    },
+    {
+      "name": "download",
+      "label": "Download",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/download.svg"
+    },
+    {
+      "name": "upload",
+      "label": "Upload",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/upload.svg"
+    },
+    {
+      "name": "print",
+      "label": "Print",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/print.svg"
+    },
+    {
+      "name": "share",
+      "label": "Share",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/share.svg"
+    },
+    {
+      "name": "favourite",
+      "label": "Favourite / saved car",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/favourite.svg"
+    },
+    {
+      "name": "compare-cars",
+      "label": "Compare cars",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/compare-cars.svg"
+    },
+    {
+      "name": "show",
+      "label": "Show",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/show.svg"
+    },
+    {
+      "name": "hide",
+      "label": "Hide",
+      "category": "Navigation and actions",
+      "star": false,
+      "brand": false,
+      "path": "icons/hide.svg"
+    },
+    {
+      "name": "notifications",
+      "label": "Notifications",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/notifications.svg"
+    },
+    {
+      "name": "settings",
+      "label": "Settings",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/settings.svg"
+    },
+    {
+      "name": "security-lock",
+      "label": "Security / lock",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/security-lock.svg"
+    },
+    {
+      "name": "domain-website",
+      "label": "Domain / website",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/domain-website.svg"
+    },
+    {
+      "name": "integration",
+      "label": "Integration",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/integration.svg"
+    },
+    {
+      "name": "stock-import",
+      "label": "Stock import",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/stock-import.svg"
+    },
+    {
+      "name": "demo",
+      "label": "Demo",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/demo.svg"
+    },
+    {
+      "name": "activity-history",
+      "label": "Activity history",
+      "category": "Settings and platform",
+      "star": false,
+      "brand": false,
+      "path": "icons/activity-history.svg"
+    },
+    {
+      "name": "success",
+      "label": "Success",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/success.svg"
+    },
+    {
+      "name": "warning",
+      "label": "Warning",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/warning.svg"
+    },
+    {
+      "name": "error",
+      "label": "Error",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/error.svg"
+    },
+    {
+      "name": "information",
+      "label": "Information",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/information.svg"
+    },
+    {
+      "name": "help",
+      "label": "Help",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/help.svg"
+    },
+    {
+      "name": "pending",
+      "label": "Pending",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/pending.svg"
+    },
+    {
+      "name": "delivered",
+      "label": "Delivered",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/delivered.svg"
+    },
+    {
+      "name": "failed",
+      "label": "Failed",
+      "category": "Status and feedback",
+      "star": false,
+      "brand": false,
+      "path": "icons/failed.svg"
+    }
+  ]
+}

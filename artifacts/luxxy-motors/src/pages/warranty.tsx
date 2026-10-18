@@ -2,7 +2,7 @@ import { websiteText } from "@/lib/website-content";
 import './warranty.css';
 import { useEffect, useState } from 'react';
 import { Link, useSearch } from 'wouter';
-import { ArrowLeft, ArrowRight, MessageCircle, Phone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
 import { NativeSelect } from '@/components/ui/native-select';

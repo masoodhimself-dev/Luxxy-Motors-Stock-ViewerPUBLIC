@@ -1,5 +1,5 @@
 import { SignIn, SignUp } from '@clerk/react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from '@/components/icons';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 

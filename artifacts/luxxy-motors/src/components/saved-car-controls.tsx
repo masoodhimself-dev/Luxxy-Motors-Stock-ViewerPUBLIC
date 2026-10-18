@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
-import { Check, Heart, Scale } from 'lucide-react';
+import { Check, Heart, Scale } from '@/components/icons';
 import { Car } from '@/lib/stock-context';
 import { MAX_COMPARE, useSavedCars } from '@/lib/saved-cars-context';
 import { useToast } from '@/hooks/use-toast';

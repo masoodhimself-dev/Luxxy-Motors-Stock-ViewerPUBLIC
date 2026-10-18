@@ -10,7 +10,7 @@ import {
   ScanLine,
   ZoomIn,
   ZoomOut,
-} from "lucide-react";
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { vehicleDisplayTitle } from "@/lib/utils";

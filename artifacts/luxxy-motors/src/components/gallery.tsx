@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup, type PhotoGroup } from "@/lib/vehicle-photography";
 import { useState, useMemo, useRef, useEffect, useId, type ReactNode } from 'react';
-import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw, Calendar, ArrowRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw, Calendar, ArrowRight, ZoomIn, ZoomOut } from '@/components/icons';
 import { recordBookingIntent } from '@/lib/cta-helpers';
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type Car, type CarImage } from '@/lib/stock-context';

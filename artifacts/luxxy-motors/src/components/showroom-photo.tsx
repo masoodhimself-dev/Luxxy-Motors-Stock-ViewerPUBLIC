@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera } from "lucide-react";
+import { Camera } from "@/components/icons";
 import { cn } from "@/lib/utils";
 export function ShowroomPhoto({
   src,

@@ -2,7 +2,7 @@ import { websiteText } from "@/lib/website-content";
 import './customer-workflows.css';
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { DealershipPhotograph } from '@/components/dealership-photograph';
 import { dealershipPhotography } from '@/lib/dealership-photography';

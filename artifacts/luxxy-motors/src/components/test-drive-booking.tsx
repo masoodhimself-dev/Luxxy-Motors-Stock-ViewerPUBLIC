@@ -19,7 +19,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
-} from "lucide-react";
+} from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";

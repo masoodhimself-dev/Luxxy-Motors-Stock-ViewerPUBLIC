@@ -2,7 +2,7 @@ import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { StockConnectionSettings } from "./stock-connection-settings";
 import { useEffect, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
-import { KeyRound, Mail, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
+import { KeyRound, Mail, CreditCard, RefreshCw, ShieldCheck } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
