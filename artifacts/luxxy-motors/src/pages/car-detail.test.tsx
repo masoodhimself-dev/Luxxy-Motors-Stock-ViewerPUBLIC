@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
@@ -7,6 +7,18 @@ import CarDetail from '@/pages/car-detail';
 import { DEFAULT_PAGE_META } from '@/lib/page-meta';
 import { dealerConfig } from '@/config/dealer';
 import { getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
+import { defaultBookingSettings } from '@/lib/test-drive-dates';
+
+const featureState = vi.hoisted(() => ({
+  data: { features: { testDriveBookings: false, testDriveDeclarations: false, staffAiDrafts: false, customerEmails: false, publicEnquiries: false, partExchange: false } as Record<string, boolean> },
+}));
+vi.mock('@/lib/dealer-features', () => ({
+  useDealerFeatures: () => ({
+    data: featureState.data, isLoading: false, isError: false, isSuccess: true,
+    enabled: (feature: string) => featureState.data.features[feature] === true,
+    refetch: vi.fn(),
+  }),
+}));
 
 const { stockFixture, stockStatus } = vi.hoisted(() => {
   const baseCar = {
@@ -97,9 +109,10 @@ vi.mock('@/components/car-card', () => ({
 }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => stockStatus.isPhone }));
 
-function renderVehicle(id: string) {
+function renderVehicle(id: string, settings?: typeof dealerConfig & { testDriveBooking?: typeof defaultBookingSettings }) {
   window.history.pushState({}, '', `/vehicle/${id}`);
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, ...(settings ? { staleTime: Infinity } : {}) } } });
+  if (settings) queryClient.setQueryData(getGetDealerSettingsQueryKey(), settings);
   return render(
     <QueryClientProvider client={queryClient}>
       <SavedCarsProvider><CarDetail /></SavedCarsProvider>
@@ -107,7 +120,10 @@ function renderVehicle(id: string) {
   );
 }
 
-beforeEach(() => { stockStatus.error = null; stockStatus.isPhone = false; });
+beforeEach(() => {
+  stockStatus.error = null; stockStatus.isPhone = false;
+  for (const key of Object.keys(featureState.data.features)) featureState.data.features[key] = false;
+});
 afterEach(() => vi.unstubAllGlobals());
 
 it('reports a temporary stock error instead of calling the vehicle missing', () => {
@@ -234,4 +250,69 @@ it('opens a car-specific enquiry page and keeps print/share outside collapsed ph
   expect(enquiry).toHaveAttribute('href','/enquire?type=general&vehicleId=with-plate');
   expect(screen.getByRole('button',{name:'Share this vehicle'}).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();
   expect(screen.queryByText(/Check this car’s registration before driving/)).not.toBeInTheDocument();
+});
+
+describe('vehicle gallery contact policy', () => {
+  const galleryImages = Array.from({ length: 7 }, (_, i) => `https://example.com/contact-policy-${i + 1}.jpg`);
+  const originalCar = { ...stockFixture.cars[1] };
+  const settings = (phone = '07388831790', bookingEnabled = true) => ({
+    ...dealerConfig,
+    contact: { ...dealerConfig.contact, phone, whatsapp: '' },
+    testDriveBooking: { ...defaultBookingSettings, enabled: bookingEnabled },
+  });
+  const selectSixthPhoto = () => fireEvent.click(screen.getByRole('button', { name: 'Show photograph 6 of 7' }));
+  const prompt = () => within(screen.getByRole('region', { name: 'Like what you see?' }));
+
+  beforeEach(() => {
+    Object.assign(stockFixture.cars[1], { images: galleryImages, heroImage: galleryImages[0], imageCount: 7, inventoryStatus: 'available' });
+  });
+  afterEach(() => {
+    Object.assign(stockFixture.cars[1], originalCar);
+    Reflect.deleteProperty(stockFixture.cars[1], 'inventoryStatus');
+  });
+
+  it('offers test-drive, enquiry and configured phone actions for an available car', () => {
+    featureState.data.features.testDriveBookings = true;
+    featureState.data.features.publicEnquiries = true;
+    renderVehicle('with-plate', settings());
+    selectSixthPhoto();
+    expect(prompt().getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
+    expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate');
+    expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toHaveAttribute('href', 'tel:07388831790');
+  });
+
+  it('keeps enquiry and phone options for reserved cars without offering a test drive', () => {
+    featureState.data.features.testDriveBookings = true;
+    featureState.data.features.publicEnquiries = true;
+    Object.assign(stockFixture.cars[1], { inventoryStatus: 'reserved' });
+    renderVehicle('with-plate', settings());
+    selectSixthPhoto();
+    expect(prompt().queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
+    expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate');
+    expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toBeInTheDocument();
+  });
+
+  it('does not interrupt browsing when both online features are disabled and no phone is configured', () => {
+    renderVehicle('with-plate', settings(''));
+    selectSixthPhoto();
+    expect(screen.getByText('6 / 7 photographs')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
+  });
+
+  it('offers only the configured phone when platform online features are disabled', () => {
+    renderVehicle('with-plate', settings());
+    selectSixthPhoto();
+    expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toHaveAttribute('href', 'tel:07388831790');
+    expect(prompt().queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
+    expect(prompt().queryByRole('link', { name: 'Ask a question' })).not.toBeInTheDocument();
+  });
+
+  it('honours the dealer booking switch even when the platform permits test-drive bookings', () => {
+    featureState.data.features.testDriveBookings = true;
+    renderVehicle('with-plate', settings('07388831790', false));
+    selectSixthPhoto();
+    expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toBeInTheDocument();
+    expect(prompt().queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
+    expect(prompt().queryByRole('link', { name: 'Ask a question' })).not.toBeInTheDocument();
+  });
 });

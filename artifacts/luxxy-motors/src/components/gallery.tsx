@@ -2,8 +2,9 @@ import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup, type PhotoGroup } from "@/lib/vehicle-photography";
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect, useId, type ReactNode } from 'react';
+import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw, Calendar, ArrowRight } from 'lucide-react';
+import { recordBookingIntent } from '@/lib/cta-helpers';
 import { getSafeImageUrl, cn } from '@/lib/utils';
 import { type Car, type CarImage } from '@/lib/stock-context';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -16,15 +17,23 @@ interface GalleryProps {
   heroImage?: string | null;
   vehicleLabel?: string;
   customerView?: boolean;
+  customerActions?: { bookingHref?: string; enquiryHref?: string; call?: ReactNode };
 }
 function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
 }
 
-export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false }: GalleryProps) {
+export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', customerView = false, customerActions }: GalleryProps) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [overview, setOverview] = useState(false);
+  const [interestOpen, setInterestOpen] = useState(false);
+  const interestShown = useRef(false);
+  const interestHeading = useRef<HTMLHeadingElement>(null);
+  const inlinePhoto = useRef<HTMLDivElement>(null);
+  const fullscreenPhoto = useRef<HTMLDivElement>(null);
+  const interestHeadingId = useId();
+  const hasCustomerActions = Boolean(customerActions?.bookingHref || customerActions?.enquiryHref || customerActions?.call);
   const [overviewFocusIndex, setOverviewFocusIndex] = useState(0);
   const messageRequested = useRef(false);
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -44,6 +53,34 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const index = Math.min(activeIndex, Math.max(0, allImages.length - 1));
   const [loadedUrl, setLoadedUrl] = useState('');
   const activeUrl = getSafeImageUrl(allImages[index]);
+  // Only an explicit photo selection can open this. Filtering and failed-image
+  // recovery must never interrupt browsing, and it appears once per vehicle visit.
+  const selectPhoto = (target: number) => {
+    if (interestOpen) return true;
+    setActiveIndex(target);
+    if (customerView && car && hasCustomerActions && !interestShown.current && allImages.length > 5 && target >= 5) {
+      interestShown.current = true;
+      setInterestOpen(true);
+      return true;
+    }
+    return false;
+  };
+  const keepViewing = () => {
+    swiped.current = false;
+    touchStart.current = null;
+    setInterestOpen(false);
+    requestAnimationFrame(() => (open ? fullscreenPhoto : inlinePhoto).current?.focus({ preventScroll: true }));
+  };
+  const contactFromPrompt = () => {
+    messageRequested.current = true;
+    swiped.current = false;
+    setInterestOpen(false);
+    setOverview(false);
+    setOpen(false);
+  };
+  useEffect(() => {
+    if (interestOpen && !overview) interestHeading.current?.focus({ preventScroll: true });
+  }, [interestOpen, open, overview]);
   const retryPhotos = () => {
     failedUrls.current.clear();
     setFailedImages(new Set());
@@ -58,6 +95,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     }
   }, [selectedGroup, allImages.length, availableImages.length]);
   const showOverview = () => {
+    setInterestOpen(false);
     setOverviewFocusIndex(index);
     setOverview(true);
     requestAnimationFrame(() => {
@@ -66,9 +104,9 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     });
   };
   const showViewer = (imageIndex = index) => {
-    setActiveIndex(imageIndex);
+    const prompted = selectPhoto(imageIndex);
     setOverview(false);
-    requestAnimationFrame(() => overviewToggleRef.current?.focus({ preventScroll: true }));
+    if (!prompted) requestAnimationFrame(() => overviewToggleRef.current?.focus({ preventScroll: true }));
   };
   useEffect(() => {
     // Only warm neighbours after the main photograph has finished loading.
@@ -93,10 +131,11 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     if (left < row.scrollLeft) row.scrollLeft = left;
     else if (left + button.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + button.offsetWidth - row.clientWidth;
   }, [index]);
-  const previous = () => setActiveIndex((index + allImages.length - 1) % allImages.length);
-  const next = () => setActiveIndex((index + 1) % allImages.length);
+  const previous = () => selectPhoto((index + allImages.length - 1) % allImages.length);
+  const next = () => selectPhoto((index + 1) % allImages.length);
   const touchHandlers = {
     onTouchStart: (event: React.TouchEvent) => {
+      if (interestOpen) { touchStart.current = null; return; }
       if (event.touches.length !== 1) { touchStart.current = null; return; }
       touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       swiped.current = false;
@@ -121,6 +160,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     <div className="vehicle-photo-sections mt-3 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border" aria-label="Photograph sections">
       {(['All', ...groups] as const).map(group => <button type="button" key={group} aria-label={group === 'All' ? 'All photographs' : group === "Other" ? "More photos" : group} aria-pressed={selectedGroup === group}
         onClick={() => {
+          setInterestOpen(false);
           setSelectedGroup(group);
           setActiveIndex(0);
           setOverviewFocusIndex(0);
@@ -167,6 +207,31 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   };
   const arrowClass =
     'photo-glass-control grid shrink-0 place-items-center';
+  const interestPrompt = () => (
+    <section className="vehicle-gallery-interest" aria-labelledby={interestHeadingId}
+      onTouchStart={event => event.stopPropagation()} onTouchEnd={event => event.stopPropagation()}
+      onKeyDown={event => {
+        // A call dialog is portaled outside this panel. Let it handle its own keys.
+        if (!event.currentTarget.contains(event.target as Node)) return;
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); keepViewing(); }
+      }}>
+      <div className="vehicle-gallery-interest-content">
+        <h2 id={interestHeadingId} ref={interestHeading} tabIndex={-1}>Like what you see?</h2>
+        <p>See it in person, or ask us a question.</p>
+        <div className="vehicle-gallery-interest-actions">
+          {customerActions?.bookingHref && <Link href={customerActions.bookingHref} className="vehicle-gallery-interest-action vehicle-gallery-interest-primary" onClick={() => {
+            recordBookingIntent({ source: 'vehicle_gallery', vehicleContext: true });
+            contactFromPrompt();
+          }}><Calendar aria-hidden="true" />Book a test drive<ArrowRight aria-hidden="true" /></Link>}
+          <div className="vehicle-gallery-interest-secondary">
+            {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={contactFromPrompt}><Mail aria-hidden="true" />Ask a question</Link>}
+            {customerActions?.call}
+          </div>
+        </div>
+        <button type="button" className="vehicle-gallery-interest-continue" onClick={keepViewing}>Keep viewing photos<ChevronRight aria-hidden="true" /></button>
+      </div>
+    </section>
+  );
   if (!allImages.length)
     return (
       <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">
@@ -177,12 +242,13 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   return (
     <Dialog open={open} onOpenChange={value => {
       setOpen(value);
-      if (!value) { setOverview(false); swiped.current = false; touchStart.current = null; }
+      if (!value) { setInterestOpen(false); setOverview(false); swiped.current = false; touchStart.current = null; }
     }}>
       <div className="min-w-0">
         <div className="vehicle-gallery-frame">
         <div
-          className="relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom"
+          ref={inlinePhoto} tabIndex={-1}
+          className={cn('relative aspect-[4/3] overflow-hidden rounded-sm bg-muted touch-pan-y touch-pinch-zoom', interestOpen && !open && 'vehicle-gallery-interest-active')}
           {...touchHandlers}
         >
           {renderImage(
@@ -191,7 +257,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             true,
           )}
           {loadedUrl !== activeUrl && <span className="pointer-events-none absolute left-3 top-3 rounded bg-black/60 px-3 py-2 text-xs text-white" role="status">Loading photo…</span>}
-          <DialogTrigger asChild>
+          {!(interestOpen && !open) && <DialogTrigger asChild>
             <button
               type="button"
               aria-label="View gallery fullscreen"
@@ -203,8 +269,8 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
                 View all {allImages.length} photos
               </span>
             </button>
-          </DialogTrigger>
-          {allImages.length > 1 && (
+          </DialogTrigger>}
+          {allImages.length > 1 && !(interestOpen && !open) && (
             <>
               <button
                 type="button"
@@ -224,6 +290,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
               </button>
             </>
           )}
+          {interestOpen && !open && interestPrompt()}
         </div>
         </div>
         <div
@@ -258,13 +325,13 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
                     : event.key === 'Home' ? 0 : event.key === 'End' ? allImages.length - 1 : null;
                   if (target === null) return;
                   event.preventDefault();
-                  setActiveIndex(target);
+                  if (selectPhoto(target)) return;
                   requestAnimationFrame(() => {
                     thumbnailRefs.current[target]?.focus({ preventScroll: true });
                     thumbnailRefs.current[target]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
                   });
                 }}
-                onClick={() => setActiveIndex(i)}
+                onClick={() => selectPhoto(i)}
                 className={cn(
                   'aspect-[4/3] bg-muted overflow-hidden rounded-sm border-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   i === index ? 'border-accent' : 'border-transparent opacity-70 hover:opacity-100',
@@ -284,8 +351,12 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           messageRequested.current = false;
         }}
         aria-describedby={undefined}
+        onEscapeKeyDown={event => {
+          if (interestOpen) { event.preventDefault(); keepViewing(); }
+        }}
         onKeyDown={(event) => {
-          if (overview) return;
+          if (event.target instanceof Element && event.target.closest('[role="dialog"]') !== event.currentTarget) return;
+          if (overview || interestOpen) return;
           if (event.key === 'ArrowRight') {
             event.preventDefault();
             next();
@@ -296,7 +367,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           }
           if (event.key === 'Home' || event.key === 'End') {
             event.preventDefault();
-            setActiveIndex(event.key === 'Home' ? 0 : allImages.length - 1);
+            selectPhoto(event.key === 'Home' ? 0 : allImages.length - 1);
           }
         }}
       >
@@ -337,12 +408,14 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             </button>)}
           </div>
         </div> : <>
-        <div className="vehicle-lightbox-photo flex min-w-0 items-center justify-center touch-pan-y touch-pinch-zoom" {...touchHandlers}>
+        <div ref={fullscreenPhoto} tabIndex={-1} className={cn('vehicle-lightbox-photo flex min-w-0 items-center justify-center touch-pan-y touch-pinch-zoom', interestOpen && 'vehicle-gallery-interest-active')} {...touchHandlers}>
           {renderImage(index, 'h-full max-h-full w-full object-contain', true)}
+          {interestOpen && open && interestPrompt()}
         </div>
         <div className="vehicle-lightbox-navigation flex items-center justify-between gap-3">
           <button
             type="button"
+            disabled={interestOpen}
             onClick={previous}
             aria-label="Previous photograph"
             className={arrowClass}
@@ -355,12 +428,12 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
               {imageCaption(allImages[index])}
             </span>
           </p>
-          <button type="button" onClick={next} aria-label="Next photograph" className={arrowClass}>
+          <button type="button" disabled={interestOpen} onClick={next} aria-label="Next photograph" className={arrowClass}>
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
         </>}
-        {car && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
+        {car && !interestOpen && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
           <VehicleCall car={car} buttonLabel="Show phone number" className="vehicle-lightbox-contact-button" />
           <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={() => { messageRequested.current = true; swiped.current = false; setOverview(false); setOpen(false); }}>
             <Mail className="h-5 w-5" /> Message

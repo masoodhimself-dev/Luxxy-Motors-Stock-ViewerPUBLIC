@@ -44,11 +44,13 @@ import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-ui';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getVehicleBookingHref,
+  getPhoneHref,
   getVehicleShareUrl,
   recordBookingIntent,
 } from '@/lib/cta-helpers';
@@ -76,6 +78,7 @@ export default function CarDetail() {
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
   const { settings: dealerConfig } = useDealerSettings();
+  const customerFeatures = useDealerFeatures();
   const car = stock?.cars?.find((candidate) => candidate.id === params?.id);
 
   useEffect(() => { if (car?.id) rememberVehicle(car.id); }, [car?.id]);
@@ -287,7 +290,11 @@ export default function CarDetail() {
         <div className="vehicle-detail-grid min-w-0">
           {isPhone && vehicleIdentity}
           <div className="vehicle-detail-gallery min-w-0">
-            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView />
+            <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView customerActions={{
+              bookingHref: dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? bookingHref : undefined,
+              enquiryHref: customerFeatures.enabled('publicEnquiries') ? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}` : undefined,
+              call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
+            }} />
             <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
