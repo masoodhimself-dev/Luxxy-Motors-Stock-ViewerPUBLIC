@@ -5,14 +5,26 @@ import type { Car } from '@/lib/stock-context';
 import { partExchangeDraftKey } from '@/lib/part-exchange-draft';
 import { PartExchangeForm } from './part-exchange-form';
 
+const featureState = vi.hoisted(() => ({ allowed: true, isLoading: false, isError: false, refetch: vi.fn() }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ ...featureState, enabled: () => featureState.allowed }) }));
 const mutation = vi.hoisted(() => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isSuccess: false, isError: false, data: undefined }));
 vi.mock('@workspace/api-client-react', () => ({ useCreateEnquiry: () => mutation }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: dealerConfig }) }));
 vi.mock('@/lib/visitor', () => ({ getVisitorId: () => 'test-visitor' }));
 const car = { id: 'stock-1', title: 'Ford Focus', make: 'Ford', model: 'Focus', price: 7490, year: 2019, images: [] } as unknown as Car;
-beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); mutation.isSuccess = false; });
+beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); mutation.isSuccess = false; featureState.allowed = true; featureState.isError = false; featureState.isLoading = false; });
 
 describe('short part exchange journey', () => {
+  it('hides the form when disabled and offers retry after a policy lookup error', () => {
+    featureState.allowed = false;
+    const view = render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    expect(screen.getByRole('heading', { name: 'Online part-exchange requests are currently unavailable' })).toBeInTheDocument();
+    expect(screen.queryByTestId('input-part-exchange-registration')).not.toBeInTheDocument();
+    expect(mutation.mutate).not.toHaveBeenCalled();
+    featureState.isError = true; view.rerender(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(featureState.refetch).toHaveBeenCalledTimes(1);
+  });
   it('accepts a minimal car brief without inventing condition or requiring extra paperwork', () => {
     render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
     fireEvent.change(screen.getByTestId('input-part-exchange-registration'), { target: { value: 'AB12 CDE' } });

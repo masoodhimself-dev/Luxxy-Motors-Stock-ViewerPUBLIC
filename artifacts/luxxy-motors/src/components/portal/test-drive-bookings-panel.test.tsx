@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-const state = vi.hoisted(() => ({ mutation: null as any, bookings: [] as any[], enquiries: [] as any[] | undefined, enquiriesError: false }));
+const state = vi.hoisted(() => ({ mutation: null as any, bookings: [] as any[], enquiries: [] as any[] | undefined, enquiriesError: false, bookingEnabled: true }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: {}, enabled: () => state.bookingEnabled }) }));
 vi.mock('@workspace/api-client-react', () => ({
   getGetTestDriveBookingsQueryKey: () => ['test-drive-bookings'],
   getGetEnquiriesQueryKey: () => ['enquiries'],
@@ -22,6 +23,7 @@ beforeEach(() => {
   ];
   state.enquiries = state.bookings.map(row => ({ ...row, createdAt: '2026-10-16T10:00:00Z' }));
   state.enquiriesError = false;
+  state.bookingEnabled = true;
 });
 function mount(props: { canEmail?: boolean; enquiryId?: string } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -39,6 +41,14 @@ it('keeps email actions hidden without permission', () => {
   mount({ enquiryId: 'enquiry-one' });
   expect(screen.queryByRole('link', { name: 'Prepare email' })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Open customer' })).toBeVisible();
+});
+it('prevents confirmations when platform booking controls are off while leaving decline and records available', () => {
+  state.bookingEnabled = false;
+  mount({ enquiryId: 'enquiry-one' });
+  expect(screen.getByRole('button',{name:'Confirm appointment'})).toBeDisabled();
+  expect(screen.getByRole('button',{name:'Decline'})).toBeEnabled();
+  expect(screen.getByRole('button',{name:'Declaration & QR'})).toBeEnabled();
+  expect(screen.getByText(/New test-drive bookings and confirmations are paused/)).toBeVisible();
 });
 it('never falls back to another customer when a contextual appointment is missing', () => {
   mount({ enquiryId: 'missing' });

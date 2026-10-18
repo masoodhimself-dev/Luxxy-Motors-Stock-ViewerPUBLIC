@@ -302,6 +302,20 @@
       "when": 1792141131331,
       "tag": "0042_inventory_history_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792141131332,
+      "tag": "0043_test_drive_declarations",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792141131333,
+      "tag": "0044_feature_controls",
+      "breakpoints": true
     }
   ]
 }

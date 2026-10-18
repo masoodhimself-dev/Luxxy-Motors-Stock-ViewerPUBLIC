@@ -148,3 +148,26 @@ it('loads each merged original conversation only when that original is expanded'
   expect(vi.mocked(customFetch).mock.calls[1][0]).toBe('/api/staff/enquiries/original/conversations');
   expect(within(originals).getByText('Customer original')).toBeVisible();
 });
+
+
+it('visibly disables booking while keeping conversation and appointment management accessible', () => {
+  const selected = entry('paused');
+  const onBook = vi.fn(), onConversation = vi.fn();
+  const actions: EnquiryRecordActions = { canBook: false, onUpdate: vi.fn(), onConversation, onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook, onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  expect(screen.getByRole('button', { name: 'Book test drive' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Book test drive' }));
+  expect(onBook).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Log another conversation' }));
+  expect(onConversation).toHaveBeenCalledWith(selected);
+});
+
+it('keeps an existing appointment accessible for cancellation while new bookings are paused', () => {
+  const selected = entry('paused-booking', { appointmentAt: '2099-11-02T11:00:00Z', appointmentStatus: 'confirmed', attendance: 'scheduled' });
+  const onAppointment = vi.fn();
+  const actions: EnquiryRecordActions = { canBook: false, onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment, onBook: vi.fn(), onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  expect(screen.getByRole('button', { name: 'Change appointment' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Change appointment' }));
+  expect(onAppointment).toHaveBeenCalledWith(selected);
+});

@@ -1,3 +1,4 @@
+import platformFeaturesRouter from './platform-features';
 import platformConversionRouter from './platform-conversion';
 import platformDomainAutomationRouter from './platform-domain-automation';
 import platformOnboardingKeysRouter from './platform-onboarding-keys';
@@ -26,6 +27,7 @@ router.use((req, res, next) => {
   if (!multiTenantEnabled() || normaliseTenantHost(req.get('host') ?? '') !== normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '') || !isPlatformAdmin(getAuth(req).userId ?? undefined)) { res.status(403).json({ error: 'Platform administrator access required.' }); return; }
   if (req.get('origin') && req.get('origin') !== `https://${process.env.PLATFORM_ADMIN_HOST}`) { res.status(403).json({ error: 'Open platform administration on its approved domain.' }); return; } next();
 });
+router.use(platformFeaturesRouter);
 router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
 router.use(platformConversionRouter);

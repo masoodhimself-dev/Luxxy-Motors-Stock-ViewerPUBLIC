@@ -1,3 +1,4 @@
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { useEnquirySummaries as useGetEnquiries, enquirySummaryKey } from "@/lib/enquiry-summary-query";
 import { AppointmentExceptionLabels, EnquiryCalendar } from "./enquiry-calendar";
 import { EnquiryPhotoPeek } from "./enquiry-photo-peek";
@@ -75,6 +76,12 @@ import "./enquiries-workspace.css";
 import "./staff-appointment-picker.css";
 
 const field = "enquiry-field grid gap-1.5 text-sm font-medium";
+type BookingAccess = { enabled: boolean; message: string; retry?: () => void };
+function BookingAccessNotice({ access }: { access: BookingAccess }) {
+  if (access.enabled) return null;
+  return <div role="status" className="space-y-2 rounded border border-border bg-muted/50 p-3 text-sm"><p>{access.message}</p>{access.retry && <Button type="button" variant="outline" size="sm" onClick={access.retry}>Retry booking availability</Button>}</div>;
+}
+
 function errorMessage(error: unknown) {
   if (
     error &&
@@ -377,8 +384,9 @@ function NewCall({
   initialBookingDate,
   selection,
   enquiries, reservations, draftKey, defaultOwnerId, onDiscard,
-  onSaved,
+  onSaved, bookingAccess,
 }: {
+  bookingAccess: BookingAccess;
   enquiries: Enquiry[]; reservations: StaffOnlineReservation[]; draftKey: string | null; defaultOwnerId: string; onDiscard: () => void;
   initial?: Enquiry;
   initialBookingDate?: string;
@@ -454,6 +462,7 @@ function NewCall({
   async function submit(event?: FormEvent, confirmed = false) {
     event?.preventDefault();
     if (submitting.current) return;
+    if (booking && !bookingAccess.enabled) { setLocalError(bookingAccess.message); return; }
     setLocalError("");
     if (!/^\+?[0-9]{7,15}$/.test(phone.replace(/[\s().\-/]/g, ""))) {
       setLocalError("Enter a valid contact number.");
@@ -738,7 +747,7 @@ function NewCall({
               type="radio"
               name="call-action"
               checked={booking}
-              disabled={vehicleMode !== "stock"}
+              disabled={vehicleMode !== "stock" || !bookingAccess.enabled}
               onChange={() => setBooking(true)}
               className="h-5 w-5 accent-primary"
             />
@@ -751,7 +760,8 @@ function NewCall({
             </p>
           )}
         </fieldset>
-        {booking &&
+        <BookingAccessNotice access={bookingAccess} />
+        {booking && bookingAccess.enabled &&
           (car && available(car) ? (
             <StaffAppointmentPicker initialDate={initialBookingDate} time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
           ) : (
@@ -802,7 +812,7 @@ function NewCall({
           className="enquiry-save-action w-full"
           disabled={
             mutation.isPending ||
-            (booking && (isLoading || Boolean(error))) ||
+            (booking && (!bookingAccess.enabled || isLoading || Boolean(error))) ||
             (booking && (!car || !available(car) || !time))
           }
         >
@@ -819,7 +829,7 @@ function NewCall({
           onClose={() => setInformation(null)}
         />
       )}
-      {reviewException && time && <StaffExceptionReview time={time} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void submit(undefined, true); }} />}
+      {reviewException && time && bookingAccess.enabled && <StaffExceptionReview time={time} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void submit(undefined, true); }} />}
     </form>
   );
 }
@@ -827,8 +837,9 @@ function NewCall({
 function AppointmentEditor({
   booking,
   onClose,
-  onSaved,
+  onSaved, bookingAccess,
 }: {
+  bookingAccess: BookingAccess;
   booking: Enquiry;
   onClose: () => void;
   onSaved: (entry: Enquiry) => void;
@@ -843,7 +854,7 @@ function AppointmentEditor({
   const { settings } = useDealerSettings();
   async function save(confirmed = false) {
     if (mutation.isPending) return;
-    if (!cancelling && !time) return;
+    if (!cancelling && (!bookingAccess.enabled || !time)) return;
     if (!cancelling && (allowOutsideHours || allowDoubleBooking) && !confirmed) { setReviewException(true); return; }
     try {
       onSaved(
@@ -890,7 +901,7 @@ function AppointmentEditor({
             This will release the appointment time. The customer’s enquiry will
             remain in the call history.
           </p>
-        ) : (
+        ) : !bookingAccess.enabled ? <BookingAccessNotice access={bookingAccess} /> : (
           <StaffAppointmentPicker bookingId={booking.id} initialDate={booking.appointmentAt ? londonDate(new Date(booking.appointmentAt)) : undefined} time={time} onTime={setTime} manual={manualTime} onManual={setManualTime} allowOutsideHours={allowOutsideHours} onOutsideHours={setAllowOutsideHours} allowDoubleBooking={allowDoubleBooking} onDoubleBooking={setAllowDoubleBooking} />
         )}
         {!cancelling && time && (
@@ -909,7 +920,7 @@ function AppointmentEditor({
         )}
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={mutation.isPending || (!cancelling && !time)}
+            disabled={mutation.isPending || (!cancelling && (!bookingAccess.enabled || !time))}
             variant={cancelling ? "destructive" : "default"}
             onClick={() => void save()}
           >
@@ -936,13 +947,19 @@ function AppointmentEditor({
             Cancel appointment instead
           </Button>
         )}
-        {reviewException && time && <StaffExceptionReview time={time} bookingId={booking.id} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void save(true); }} />}
+        {reviewException && time && bookingAccess.enabled && <StaffExceptionReview time={time} bookingId={booking.id} outside={allowOutsideHours} double={allowDoubleBooking} onClose={() => setReviewException(false)} onConfirm={() => { setReviewException(false); void save(true); }} />}
       </DialogContent>
     </Dialog>
   );
 }
 
 export function EnquiriesPanel({ canEmail = false, embedded = false, initialView = 'today', onOpenCustomer }: { canEmail?: boolean; embedded?: boolean; initialView?: 'today' | 'history' | 'calendar'; onOpenCustomer?: (id: string) => void } = {}) {
+  const features = useDealerFeatures();
+  const bookingAccess: BookingAccess = {
+    enabled: features.enabled('testDriveBookings'),
+    message: features.isLoading ? 'Checking test-drive availability…' : features.isError ? 'Booking availability could not be checked. New test drives and rescheduling are paused until this is checked. Existing appointments can still be viewed or cancelled.' : 'New test drives and rescheduling are paused by the platform. Existing appointments can still be viewed or cancelled, and phone enquiries can still be recorded.',
+    ...(features.isError ? { retry: () => { void features.refetch(); } } : {}),
+  };
   const routeSearch = useSearch();
   const [,navigate] = useLocation();
   const requestedEnquiry = new URLSearchParams(routeSearch).get('enquiryId');
@@ -1067,10 +1084,11 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   function openEntry(entry: Enquiry) { const primary = primaryEnquiry(entry, allEntries); if (onOpenCustomer) { onOpenCustomer(primary.id); return; } setGlobalSearch(""); setMode("history"); setSearch(primary.reference); setFilter("all"); selectRecord(primary.id); }
   const callbackCount = callbackEntries.filter(isOutstandingCallback).length;
   const recordActions: EnquiryRecordActions = {
+    canBook: bookingAccess.enabled,
     onUpdate: setWorkspaceEntry, onConversation: setConversationEntry, onMerge: entry => setMergeEntry(primaryEnquiry(entry, allEntries)), onFollowUp: entry => setFollowUpEntry({ ...entry }),
     onEmail: canEmail ? setEmailEntry : undefined,
     onAppointment: entry => setEditing({ ...entry }), onVehicle: setInformation,
-    onBook: entry => { setInitialBookingDate(undefined); setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
+    onBook: entry => { if (!bookingAccess.enabled) return; setInitialBookingDate(undefined); setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
   };
   return (
     <Panel className="enquiries-premium-workspace">
@@ -1107,6 +1125,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         {mode !== "new" && <label className="enquiry-ribbon-owner grid gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Enquiry ownership</span><NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">{mode === "history" || mode === "callbacks" ? "All owners" : "All enquiries"}</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>}
       </div>}
       <div className="enquiry-workspace-canvas space-y-5 bg-slate-100/70 p-3 sm:p-6">
+        {mode !== "new" && !editing && <BookingAccessNotice access={bookingAccess} />}
         {notice && (
           <div
             role="status"
@@ -1122,14 +1141,14 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         {mode === "today" && <div role="tabpanel" id="desk-panel-today" aria-labelledby={embedded ? undefined : "desk-tab-today"} aria-label={embedded ? "Today’s customer actions" : undefined}>{query.isLoading ? <p role="status">Loading today’s work…</p> : query.isError ? <p role="alert">Today’s work could not be loaded. Refresh to retry.</p> : <><TodayDesk entries={scoped} onOpen={openEntry} /><Button variant="outline" onClick={() => setMode("callbacks")}>View callbacks ({callbackCount})</Button></>}</div>}
         <div hidden={mode !== "new"} role="tabpanel" id="desk-panel-new" aria-labelledby={embedded ? undefined : "desk-tab-new"} aria-label={embedded ? "New customer enquiry" : undefined} className="enquiry-ledger-sheet border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="enquiry-form-intro"><h3>{initialBookingDate ? "New appointment" : "New enquiry"}</h3><p>{initialBookingDate ? "Choose the car, add the customer and pick an available time." : "Record the conversation, choose a vehicle and arrange the next step."}</p>{initialBookingDate && <Button type="button" variant="outline" size="sm" onClick={() => setMode("calendar")}>Back to calendar</Button>}</div>
-          {directory.isLoading ? <p role="status">Loading your workspace…</p> : <NewCall key={`${formKey}:${directory.data?.currentUserId ?? "unknown"}`} initial={initial} initialBookingDate={initialBookingDate} selection={selection} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} draftKey={draftKey} defaultOwnerId={directory.data?.currentUserId ?? ""} onDiscard={() => { setInitial(undefined); setInitialBookingDate(undefined); setSelection(undefined); setFormKey(key => key + 1); }} onSaved={saved} />}
+          {directory.isLoading ? <p role="status">Loading your workspace…</p> : <NewCall bookingAccess={bookingAccess} key={`${formKey}:${directory.data?.currentUserId ?? "unknown"}`} initial={initial} initialBookingDate={initialBookingDate} selection={selection} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} draftKey={draftKey} defaultOwnerId={directory.data?.currentUserId ?? ""} onDiscard={() => { setInitial(undefined); setInitialBookingDate(undefined); setSelection(undefined); setFormKey(key => key + 1); }} onSaved={saved} />}
           {(query.isError || reservations.isError) && <p className="mt-3 text-sm text-amber-900">Some customer history is unavailable. Use Refresh before assuming this is a new customer.</p>}
         </div>
         <div hidden={mode !== "stock"} role="tabpanel" id="desk-panel-stock" aria-label="Showroom stock">
-          <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { setSelection({ id: car.id, booking }); setMode("new"); }} />
+          <EnquiryStockDesk onDetails={setInformation} onChoose={(car, booking) => { if (booking && !bookingAccess.enabled) return; setSelection({ id: car.id, booking }); setMode("new"); }} />
         </div>
         <div hidden={mode !== "calendar"} role="tabpanel" id="desk-panel-calendar" aria-labelledby={embedded ? undefined : "desk-tab-calendar"} aria-label={embedded ? "Test-drive calendar" : undefined}>
-          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <div role="alert"><p>Appointments could not be loaded.</p><Button type="button" variant="outline" disabled={query.isFetching} onClick={() => query.refetch()}>Retry appointments</Button></div> : <EnquiryCalendar entries={scoped} allEntries={allEntries} cars={stock?.cars ?? []} ownerScope={ownerScope} onOwnerScopeChange={setOwnerScope} canChooseMine={Boolean(directory.data)} onAdd={date => { setInitial(undefined); setInitialBookingDate(date); setSelection(undefined); setFormKey(key => key + 1); setMode("new"); setGlobalSearch(""); setNotice(`New appointment for ${bookingDateLabel(date)}. Choose an available time before saving.`); }} onRefresh={() => { query.refetch(); directory.refetch(); }} refreshing={query.isFetching} onOpen={openEntry} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
+          {query.isLoading ? <p role="status">Loading appointments…</p> : query.isError ? <div role="alert"><p>Appointments could not be loaded.</p><Button type="button" variant="outline" disabled={query.isFetching} onClick={() => query.refetch()}>Retry appointments</Button></div> : <EnquiryCalendar entries={scoped} allEntries={allEntries} cars={stock?.cars ?? []} ownerScope={ownerScope} onOwnerScopeChange={setOwnerScope} canChooseMine={Boolean(directory.data)} onAdd={bookingAccess.enabled ? date => { setInitial(undefined); setInitialBookingDate(date); setSelection(undefined); setFormKey(key => key + 1); setMode("new"); setGlobalSearch(""); setNotice(`New appointment for ${bookingDateLabel(date)}. Choose an available time before saving.`); } : undefined} onRefresh={() => { query.refetch(); directory.refetch(); }} refreshing={query.isFetching} onOpen={openEntry} onEdit={setEditing} onVehicle={id => { const car = stock?.cars.find(car => car.id === id); if (car) setInformation(car); else setNotice("This car is no longer in current stock. Its appointment details are retained in the calendar."); }} />}
         </div>
         {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-label="Callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : missingRequested ? null : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={selectRecord} onBack={clearSelectedRecord} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
         {mode === "history" && (
@@ -1173,6 +1192,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
       {editing && (
         <AppointmentEditor
           booking={editing}
+          bookingAccess={bookingAccess}
           onClose={() => setEditing(null)}
           onSaved={saved}
         />

@@ -1,3 +1,5 @@
+import { assessCustomerContact } from './customer-contact.ts';
+
 /** A merge links original enquiries into one staff case; it never copies customer data. */
 export type EnquiryMergeRevision = { id: string; workspaceRevision: number; appointmentRevision: number; followUpRevision: number };
 export type EnquiryMergeInput = {
@@ -51,22 +53,9 @@ export function parseEnquiryMergeInput(value: unknown, primaryId: string): Enqui
   if (new Set(expectedRevisions.map(item => item.id)).size !== input.recordIds.length) throw new EnquiryMergeError('Include each selected record revision exactly once.', 400);
   return { primaryId, recordIds: [...input.recordIds], expectedRevisions, keepAppointmentIds: [...input.keepAppointmentIds], reason: input.reason.trim(), confirmDifferentCustomers: input.confirmDifferentCustomers, allowOverlappingAppointments: input.allowOverlappingAppointments };
 }
-function canonicalPhone(value?: string | null) {
-  let phone = (value ?? '').replace(/[\s().\-/]/g, '');
-  if (!/^\+?\d{7,15}$/.test(phone)) return '';
-  if (phone.startsWith('0044')) phone = `0${phone.slice(4)}`;
-  else if (phone.startsWith('+44')) phone = `0${phone.slice(3)}`;
-  else if (/^44\d{10}$/.test(phone)) phone = `0${phone.slice(2)}`;
-  return phone;
-}
-function canonicalEmail(value?: string | null) { return (value ?? '').trim().toLowerCase(); }
-function canonicalName(value: string) { return value.trim().toLowerCase().replace(/\s+/g, ' '); }
 /** Same names alone do not establish customer identity. */
 export function mergeCustomersNeedConfirmation(records: readonly MergeableEnquiry[]) {
-  return records.some((record, index) => records.slice(index + 1).some(other => {
-    const phone = canonicalPhone(record.phone), email = canonicalEmail(record.email);
-    return canonicalName(record.customerName) !== canonicalName(other.customerName) || !((phone && phone === canonicalPhone(other.phone)) || (email && email === canonicalEmail(other.email)));
-  }));
+  return records.some((record, index) => records.slice(index + 1).some(other => assessCustomerContact(record, other).status !== 'exact'));
 }
 export function activeMergeAppointment(record: MergeableEnquiry) { return Boolean(record.appointmentAt && !record.appointmentCancelledAt); }
 export function mergeAppointmentsOverlap(records: readonly MergeableEnquiry[]) {
@@ -105,6 +94,10 @@ export function planEnquiryMerge(input: EnquiryMergeInput, records: readonly Mer
   const kept = active.filter(record => input.keepAppointmentIds.includes(record.id));
   if (mergeAppointmentsOverlap(kept) && !input.allowOverlappingAppointments) throw new EnquiryMergeError('The appointments you are keeping overlap. Review and explicitly confirm the overlap.', 409);
   const cancelledAppointmentIds = active.filter(record => !input.keepAppointmentIds.includes(record.id)).map(record => record.id);
+  const contactReview = entries.flatMap((entry, index) => entries.slice(index + 1).map(other => {
+    const match = assessCustomerContact(entry, other);
+    return { recordIds: [entry.id, other.id], matchedBy: match.matchedBy, status: match.status, issues: match.issues };
+  }));
   return {
     primaryId: input.primaryId, recordIds: [...input.recordIds], cancelledAppointmentIds,
     updates: entries.map(entry => ({ id: entry.id, update: {
@@ -114,7 +107,7 @@ export function planEnquiryMerge(input: EnquiryMergeInput, records: readonly Mer
     } })),
     events: entries.map(entry => ({ enquiryId: entry.id,
       summary: entry.id === input.primaryId ? `${entries.length} records combined into this case by ${staff.name}` : `Record combined into case ${input.primaryId} by ${staff.name}`,
-      detail: { note: input.reason, staffId: staff.id, staffName: staff.name, primaryId: input.primaryId, recordIds: [...input.recordIds], keepAppointmentIds: [...input.keepAppointmentIds], cancelledAppointmentIds: [...cancelledAppointmentIds], previousMergedIntoId: entry.mergedIntoId ?? null, confirmDifferentCustomers: input.confirmDifferentCustomers, allowOverlappingAppointments: input.allowOverlappingAppointments }, occurredAt: now,
+      detail: { note: input.reason, staffId: staff.id, staffName: staff.name, primaryId: input.primaryId, recordIds: [...input.recordIds], keepAppointmentIds: [...input.keepAppointmentIds], cancelledAppointmentIds: [...cancelledAppointmentIds], previousMergedIntoId: entry.mergedIntoId ?? null, confirmDifferentCustomers: input.confirmDifferentCustomers, contactReview, allowOverlappingAppointments: input.allowOverlappingAppointments }, occurredAt: now,
     })),
   };
 }

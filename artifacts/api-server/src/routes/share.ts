@@ -1,4 +1,5 @@
-import { Router, type IRouter, type Request } from "express";
+import { Router, type IRouter } from "express";
+import { shareRequestOrigin } from '../lib/share-origin';
 import {
   buildMissingVehicleSharePreview,
   buildVehicleSharePreview,
@@ -8,25 +9,6 @@ import { getDealerIdentity } from "./dealer-settings";
 import { findPublicVehicle } from "./stock";
 
 const router: IRouter = Router();
-
-function firstHeader(req: Request, name: string): string {
-  const value = req.headers[name];
-  const raw = Array.isArray(value) ? value[0] : value;
-  return typeof raw === "string" ? raw.split(",")[0].trim() : "";
-}
-
-/**
- * The public origin this request arrived on. Derived from the request rather
- * than configuration so dev, preview and the published domain all produce
- * previews that point back at themselves.
- */
-function requestOrigin(req: Request): string {
-  const host = firstHeader(req, "x-forwarded-host") || req.get("host") || "";
-  const proto =
-    firstHeader(req, "x-forwarded-proto") ||
-    (/^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(host) ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 /**
  * Crawler-facing preview for a shared vehicle link. The showroom itself is a
@@ -39,7 +21,9 @@ function requestOrigin(req: Request): string {
  */
 router.get("/vehicle/:id", async (req, res): Promise<void> => {
   const vehicleId = req.params.id;
-  const origin = requestOrigin(req);
+  let origin: string;
+  try { origin = shareRequestOrigin(req); }
+  catch { res.status(400).set('Cache-Control', 'no-store').send('Invalid showroom address.'); return; }
 
   try {
     const [vehicle, dealer] = await Promise.all([

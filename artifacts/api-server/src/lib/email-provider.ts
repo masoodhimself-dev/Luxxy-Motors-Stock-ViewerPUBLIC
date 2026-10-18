@@ -1,3 +1,5 @@
+import { dealerFeatureEnabled } from './dealer-features';
+import { multiTenantEnabled } from './tenant-context';
 import { demoEmailEnvelope } from "./demo-policy";
 import {
   defaultEmailTemplates,
@@ -207,6 +209,16 @@ export function sendPreparedEmail(
 ): Promise<string> {
   return serviceLifecycle.track(() =>
     pacedProvider(emailAccountHash(config), async () => {
+      // Recheck at the final provider boundary, including durable outbox retries.
+      // Missing tenant context also fails closed in the shared installation.
+      if (multiTenantEnabled()) {
+        try {
+          if (!(await dealerFeatureEnabled('customerEmails'))) throw new EmailProviderError(503, 60, 'feature_disabled', false);
+        } catch (error) {
+          if (error instanceof EmailProviderError) throw error;
+          throw new EmailProviderError(503, 60, 'feature_policy_unavailable', false);
+        }
+      }
       let response: Response;
       try {
         response = await transport("https://api.resend.com/emails", {

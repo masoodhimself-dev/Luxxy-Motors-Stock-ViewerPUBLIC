@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { customFetch, type Enquiry } from '@workspace/api-client-react';
 import { EnquiryMergeDialog } from './enquiry-merge';
-import { differingMergeContacts, mergeGroup, mergeRoot, overlappingMergeAppointments } from './enquiry-merge-model';
+import { differingMergeContacts, mergeContactSuggestion, mergeGroup, mergeRoot, overlappingMergeAppointments } from './enquiry-merge-model';
 import { appointmentLabel } from '@/lib/test-drive-dates';
 
 vi.mock('@workspace/api-client-react', async importOriginal => ({ ...await importOriginal<object>(), customFetch: vi.fn() }));
@@ -57,6 +57,35 @@ it('requires review of different customer contacts and overlapping kept appointm
   fireEvent.click(screen.getByRole('checkbox', { name: 'Keep these overlapping appointments.' })); review(); submit();
   await waitFor(() => expect(post).toHaveBeenCalledOnce());
   expect(JSON.parse(post.mock.calls[0][1]!.body as string)).toMatchObject({ confirmDifferentCustomers: true, allowOverlappingAppointments: true });
+});
+
+it('ranks exact contact suggestions first without selecting or linking any candidate automatically', () => {
+  const unrelated = record('unrelated', { email: 'elsewhere@example.test', phone: '07700900888' });
+  const conflict = record('conflict', { phone: '07700900999' });
+  show([a, unrelated, conflict, b]);
+  const selections = screen.getAllByRole('checkbox', { name: /^Include REF-/ });
+  expect(selections.map(input => input.getAttribute('aria-label'))).toEqual(['Include REF-b, Alex Customer', 'Include REF-conflict, Alex Customer', 'Include REF-unrelated, Alex Customer']);
+  for (const checkbox of selections) expect(checkbox).not.toBeChecked();
+  expect(screen.getByText('Same email and phone')).toBeVisible();
+  expect(screen.getByText('Same email · Review needed')).toBeVisible();
+  expect(screen.getByText('Phone numbers differ.')).toBeVisible();
+  expect(post).not.toHaveBeenCalled();
+});
+
+it('requires explicit contact conflict confirmation even when the same email and name match', async () => {
+  show([a, { ...b, phone: '07700900999' }]); chooseB(); addReason();
+  expect(screen.getByRole('button', { name: 'Review merge' })).toBeDisabled();
+  expect(screen.getAllByText('Phone numbers differ.').length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'I have checked the different customer contacts and want one case.' }));
+  review(); expect(post).not.toHaveBeenCalled(); submit();
+  await waitFor(() => expect(post).toHaveBeenCalledOnce());
+  expect(JSON.parse(post.mock.calls[0][1]!.body as string)).toMatchObject({ confirmDifferentCustomers: true, keepAppointmentIds: ['a', 'b'] });
+});
+
+it('a matching original surfaces a case but conflicting children still require review', () => {
+  const child = record('child', { mergedIntoId: 'b', email: 'someone-else@example.test', phone: '07700900999' });
+  expect(mergeContactSuggestion([a], [b, child])).toMatchObject({ status: 'review', matchedBy: ['email', 'phone'], issues: ['Some linked originals do not share these contact details.'] });
+  expect(mergeContactSuggestion([a], [{ ...b, email: 'alex+car@example.test', phone: null }])).toMatchObject({ status: 'none', matchedBy: [] });
 });
 
 it('includes existing groups automatically and resolves a merged child to its main record', async () => {

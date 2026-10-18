@@ -1,0 +1,231 @@
+.declaration-page {
+  min-height: 100dvh;
+  background: #f4f7fa;
+  color: #1d2e3a;
+  padding: 24px 20px 48px;
+  font-family: var(--app-font-sans, system-ui, sans-serif);
+}
+.declaration-shell {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.declaration-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  margin-bottom: 18px;
+  color: #245ca5;
+  font-weight: 650;
+}
+.declaration-header > span:first-of-type {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.declaration-private {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 5px;
+  color: #5a6b79;
+  font-size: 12px;
+  font-weight: 450;
+}
+.declaration-card {
+  padding: 34px;
+  background: #fff;
+  border: 1px solid #d9e1e7;
+  border-radius: 14px;
+  box-shadow: 0 8px 30px #162c4306;
+}
+.declaration-eyebrow {
+  color: #245ca5;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.declaration-card h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  margin: 10px 0 26px;
+  font-weight: 650;
+}
+.declaration-card h1:focus {
+  outline: 0;
+}
+.declaration-card h2 {
+  font-size: 17px;
+  margin: 26px 0 12px;
+  font-weight: 650;
+}
+.declaration-visit {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid #c9d9ef;
+  background: #f3f7fe;
+  border-radius: 9px;
+}
+.declaration-visit > div {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.declaration-visit svg {
+  flex-shrink: 0;
+  color: #245ca5;
+  width: 20px;
+  height: 20px;
+}
+.declaration-visit strong,
+.declaration-visit span {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.declaration-visit span {
+  color: #586976;
+  font-size: 13px;
+  margin-top: 3px;
+}
+.declaration-statement {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.declaration-version,
+.declaration-help,
+.declaration-note {
+  color: #586976;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.declaration-version {
+  margin: 12px 0 24px;
+}
+.declaration-name {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.declaration-name input {
+  min-height: 48px;
+  font-size: 16px;
+}
+.declaration-accept {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.declaration-accept input {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: #245ca5;
+}
+.declaration-card form > button {
+  width: 100%;
+  min-height: 48px;
+  background: #245ca5;
+  color: white;
+}
+.declaration-card :is(button, input):focus-visible {
+  outline: 2px solid #245ca5;
+  outline-offset: 3px;
+}
+.declaration-card button svg {
+  width: 18px;
+  height: 18px;
+}
+.declaration-help {
+  margin-top: 14px;
+}
+.declaration-note {
+  border-top: 1px solid #d9e1e7;
+  margin-top: 28px;
+  padding-top: 18px;
+}
+.declaration-error {
+  background: #fff0f1;
+  color: #a5303e;
+  border: 1px solid #edc5cb;
+  padding: 14px;
+  border-radius: 8px;
+  margin-top: 18px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.declaration-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #586976;
+}
+.declaration-success {
+  display: flex;
+  gap: 12px;
+  padding: 18px;
+  margin-top: 20px;
+  border: 1px solid #bfdfcf;
+  border-radius: 9px;
+  background: #edf8f2;
+  color: #14634a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.declaration-success > svg {
+  flex-shrink: 0;
+  width: 20px;
+  margin-top: 2px;
+}
+.declaration-success p {
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .declaration-page {
+    padding: 12px 14px 28px;
+  }
+  .declaration-card {
+    padding: 22px 18px;
+    border-radius: 10px;
+  }
+  .declaration-card h1 {
+    font-size: 27px;
+  }
+  .declaration-private {
+    font-size: 11px;
+  }
+  .declaration-visit {
+    padding: 16px;
+  }
+}
+@media print {
+  .declaration-page {
+    padding: 0;
+    background: #fff;
+  }
+  .declaration-card {
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .declaration-print,
+  .declaration-private {
+    display: none;
+  }
+  .declaration-shell {
+    max-width: 100%;
+  }
+}

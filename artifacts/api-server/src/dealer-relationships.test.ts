@@ -62,6 +62,43 @@ test('contradictory emails and shared family contact details never bridge unrela
   assert.match(result.customers.find(c => c.recordKeys.includes('enquiry:d'))!.matchingNote, /Shared email/);
 });
 
+test('a shared email with contradictory phones stays separate even when the names match and a contact is missing on a bridge record', () => {
+  const entries = [enquiry('a'), enquiry('b', { phone: '+44 7700 900456' }), enquiry('bridge', { phone: null })];
+  for (const order of [entries, [...entries].reverse()]) {
+    const result = buildDealerRelationships(sources({ enquiries: order }));
+    assert.equal(result.customers.length, 3);
+    assert.ok(result.customers.every(customer => customer.recordKeys.length === 1));
+    assert.ok(result.customers.every(customer => /Shared email/.test(customer.matchingNote)));
+  }
+});
+
+test('separate email and phone buckets cannot create a transitive customer group with conflicting details', () => {
+  const result = buildDealerRelationships(sources({ enquiries: [
+    enquiry('a', { email: 'one@example.test', phone: '+33 6 12 34 56 78' }),
+    enquiry('bridge', { email: 'one@example.test', phone: null }),
+    enquiry('b', { email: 'two@example.test', phone: '+33 6 12 34 56 78' }),
+    enquiry('international-a', { customerName: 'Another Customer', email: null, phone: '+49 151 12345678' }),
+    enquiry('international-b', { customerName: 'Another Customer', email: null, phone: '0049 151 12345678' }),
+  ] }));
+  assert.equal(result.customers.length, 3);
+  assert.deepEqual(result.customers.find(customer => customer.recordKeys.includes('enquiry:a'))?.recordKeys, ['enquiry:a', 'enquiry:bridge']);
+  assert.deepEqual(result.customers.find(customer => customer.recordKeys.includes('enquiry:b'))?.recordKeys, ['enquiry:b']);
+  assert.deepEqual(result.customers.find(customer => customer.recordKeys.includes('enquiry:international-a'))?.recordKeys, ['enquiry:international-a', 'enquiry:international-b']);
+});
+
+test('identical customer contacts remain isolated in separate dealer history reads', async () => {
+  const reader = { async query(sql: string, parameters: string[]) {
+    assert.match(sql, /dealer_id\s*=\s*\$1/);
+    if (sql === relationshipQueries.enquiries) return { rows: [enquiry(`${parameters[0]}-enquiry`, { vehicleId: `${parameters[0]}-car` })] };
+    return { rows: [] };
+  } };
+  const a = await readDealerRelationships('dealer-a', reader), b = await readDealerRelationships('dealer-b', reader);
+  assert.deepEqual(a.customers[0].recordKeys, ['enquiry:dealer-a-enquiry']);
+  assert.deepEqual(b.customers[0].recordKeys, ['enquiry:dealer-b-enquiry']);
+  assert.equal(JSON.stringify(a).includes('dealer-b'), false);
+  assert.equal(JSON.stringify(b).includes('dealer-a'), false);
+});
+
 test('explicit staff merges show one case while preserving source cars, contacts, discussions, bookings and sale links', () => {
   const main = enquiry('main', { phone: '07700900123', message: 'Original main enquiry.' });
   const original = enquiry('original', { mergedIntoId: 'main', customerName: 'Amelia Smith', email: 'changed@example.com', phone: '07700900999',

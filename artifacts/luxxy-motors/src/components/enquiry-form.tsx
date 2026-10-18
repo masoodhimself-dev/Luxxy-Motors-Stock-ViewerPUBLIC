@@ -1,3 +1,5 @@
+import { FeatureUnavailable } from './feature-unavailable';
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { showroomHours } from '@/lib/showroom-hours';
 import './enquiry-form.css';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
@@ -72,6 +74,7 @@ export function EnquiryForm({
   onChangeCar?: () => void;
 }) {
   const { settings: dealerConfig } = useDealerSettings();
+  const features = useDealerFeatures();
   const [, navigate] = useLocation();
   const testDrivePath = `/enquire?type=viewing${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`;
   const [type, setType] = useState<EnquiryType>(initialType);
@@ -166,6 +169,7 @@ export function EnquiryForm({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!features.enabled('publicEnquiries')) return;
     if (message.trim().length > messageLimit) return;
     const contactPhone = embedded && preferredContact === 'email' ? '' : phone;
     const normalizedPhone = normalisePhone(contactPhone);
@@ -278,6 +282,8 @@ export function EnquiryForm({
       </div>
     );
   }
+
+  if (!features.enabled('publicEnquiries')) return <FeatureUnavailable title="Online enquiries are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
 
   if (embedded) return <form onSubmit={submit} className="space-y-5" data-testid="form-enquiry">
     <label className="block"><span className={labelClass}>What would you like to know?</span><Textarea required rows={3} maxLength={messageLimit} value={message} onChange={event => { messageTouched.current = true; setMessage(event.target.value); }} placeholder="Ask your question about this car" data-testid="textarea-enquiry-message" /></label>

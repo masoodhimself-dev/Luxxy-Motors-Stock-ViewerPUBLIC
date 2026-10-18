@@ -1,15 +1,12 @@
+import { assessCustomerContact, canonicalCustomerPhone, type CustomerContact } from '@workspace/vehicle-meta';
 import type { Enquiry } from '@workspace/api-client-react';
 export { callOutcomes } from '../../../api-server/src/lib/enquiry-workspace';
 export type { CallOutcome } from '../../../api-server/src/lib/enquiry-workspace';
 
-export const contactPhone = (value?: string | null) => {
-  const digits = (value ?? '').replace(/\D/g, '');
-  return digits.startsWith('0044') ? `0${digits.slice(4)}` : digits.startsWith('44') ? `0${digits.slice(2)}` : digits;
-};
-export function sameCustomer(a: { phone?: string | null; email?: string | null }, b: { phone?: string | null; email?: string | null }) {
-  const phone = contactPhone(a.phone);
-  const email = a.email?.trim().toLowerCase();
-  return Boolean((phone.length >= 7 && phone === contactPhone(b.phone)) || (email && email.includes('@') && email === b.email?.trim().toLowerCase()));
+export const contactPhone = canonicalCustomerPhone;
+/** True means a contact candidate, not confirmed identity; inspect assessCustomerContact before reuse. */
+export function sameCustomer(a: CustomerContact, b: CustomerContact) {
+  return assessCustomerContact(a, b).matchedBy.length > 0;
 }
 export function deskMatches(query: string, values: unknown[]) {
   const normal = (value: string) => value.toLowerCase().replace(/[\s()+.\-]/g, '');

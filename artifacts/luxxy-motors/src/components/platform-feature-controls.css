@@ -1,0 +1,22 @@
+.platform-feature-controls { min-width: 0; }
+.platform-feature-controls .platform-section-heading { align-items: flex-start; gap: 16px; }
+.platform-feature-updated { color: #64748b; font-size: 12px; margin: 16px 0; }
+.platform-feature-list { border: 1px solid #d9e0e8; border-radius: 6px; overflow: hidden; }
+.platform-feature-row { display: grid; grid-template-columns: minmax(190px, .8fr) minmax(0, 1.5fr); gap: 28px; padding: 24px; background: white; }
+.platform-feature-row + .platform-feature-row { border-top: 1px solid #d9e0e8; }
+.platform-feature-description h3 { margin: 0 0 6px; font-weight: 650; font-size: 16px; }
+.platform-feature-description p { color: #526173; font-size: 13px; line-height: 1.6; margin: 0 0 10px; }
+.platform-feature-description small { display: block; margin-top: 8px; color: #526173; }
+.platform-feature-status { display: inline-block; background: #edf0f4; color: #48566a; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; }
+.platform-feature-status.is-enabled { background: #e6f3ee; color: #245d46; }
+.platform-feature-fields { min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content: start; }
+.platform-feature-fields label { display: grid; min-width: 0; gap: 7px; font-size: 12px; font-weight: 600; }
+.platform-feature-fields input,.platform-feature-fields select { min-width: 0; width: 100%; }
+.platform-feature-reason { grid-column: 1 / -1; }
+.platform-feature-fields button { justify-self: start; grid-column: 1 / -1; }
+.platform-feature-audit { margin-top: 24px; border-top: 1px solid #d9e0e8; padding-top: 16px; }
+.platform-feature-audit summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.platform-feature-audit li { padding: 14px 0; border-bottom: 1px solid #e4e8ee; }
+.platform-feature-audit p,.platform-feature-audit small { overflow-wrap: anywhere; color: #526173; }
+@media (max-width: 950px) { .platform-feature-row { grid-template-columns: 1fr; gap: 20px; } }
+@media (max-width: 540px) { .platform-feature-row { padding: 18px; } .platform-feature-fields { grid-template-columns: 1fr; } .platform-feature-fields button { width: 100%; } }

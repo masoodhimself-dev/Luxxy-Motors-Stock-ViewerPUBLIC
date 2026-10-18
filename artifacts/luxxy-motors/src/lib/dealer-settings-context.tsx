@@ -1,3 +1,4 @@
+import { useDealerFeatures } from './dealer-features';
 import { getGetDealerSettingsQueryKey, useGetDealerSettings } from '@workspace/api-client-react';
 import { useMemo } from 'react';
 import { dealerConfig } from '@/config/dealer';
@@ -18,18 +19,23 @@ const sharedFallback = {
 const fallbackSettings = (import.meta.env.VITE_MULTI_TENANT_ENABLED === 'true' ? sharedFallback : dealerConfig) as DealerConfig & DealerSettings;
 
 export function useDealerSettings() {
+  const features = useDealerFeatures();
   const query = useGetDealerSettings({
     query: { queryKey: getGetDealerSettingsQueryKey() },
   });
 
   const settings = useMemo(() => {
-    const source = applyCustomerFeaturePolicy(query.data ?? fallbackSettings);
+    const saved = applyCustomerFeaturePolicy(query.data ?? fallbackSettings);
+    const source = { ...saved,
+      testDriveBooking: saved.testDriveBooking ? { ...saved.testDriveBooking, enabled: !!saved.testDriveBooking.enabled && features.enabled('testDriveBookings') } : undefined,
+      partExchange: saved.partExchange ? { ...saved.partExchange, enabled: !!saved.partExchange.enabled && features.enabled('partExchange') } : undefined,
+    };
     const wording = (text: string) => text.replace(/book a viewing/gi, 'Book a test drive').replace(/arrange a viewing/gi, 'book a test drive');
     return {...source, bookViewing: {...source.bookViewing, title: wording(source.bookViewing.title), description: wording(source.bookViewing.description), ctaLabel: wording(source.bookViewing.ctaLabel)}, hero: {...source.hero, subcopy: wording(source.hero.subcopy)}};
-  }, [query.data]);
+  }, [query.data, features.data, features.isError]);
   return {
     settings,
-    isLoading: query.isLoading,
-    isError: query.isError,
+    isLoading: query.isLoading || features.isLoading,
+    isError: query.isError || features.isError,
   };
 }

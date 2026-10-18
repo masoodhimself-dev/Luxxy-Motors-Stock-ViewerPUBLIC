@@ -1,4 +1,5 @@
 import { isUKNumberPlate } from './registration.ts';
+import { assessCustomerContact, canonicalCustomerEmail as emailKey, canonicalCustomerName as nameKey, canonicalCustomerPhone as phoneKey } from './customer-contact.ts';
 
 /** Read-only staff history. Inputs may contain private fields; output is built from an explicit whitelist. */
 export type RelationshipCounts = { enquiries: number; appointments: number; reservations: number; sales: number };
@@ -71,17 +72,6 @@ export type RelationshipChatSource = VehicleSnapshot & {
 };
 
 const clean = (value: unknown) => typeof value === 'string' ? value.trim() : '';
-const emailKey = (value: unknown) => {
-  const email = clean(value).toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
-};
-const nameKey = (value: unknown) => clean(value).replace(/\s+/g, ' ').toLowerCase();
-const phoneKey = (value: unknown) => {
-  let phone = clean(value).replace(/[\s().\-/]/g, '');
-  if (phone.startsWith('0044')) phone = `+44${phone.slice(4)}`;
-  if (/^0\d{10}$/.test(phone)) phone = `+44${phone.slice(1)}`;
-  return /^\+?\d{7,15}$/.test(phone) ? phone.replace(/^\+/, '') : '';
-};
 const money = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
 const pounds = (value: unknown) => {
   const text = clean(value).replace(/[£,\s]/g, '');
@@ -110,6 +100,8 @@ function customersFor(records: ContactRecord[]) {
   const parent = records.map((_, index) => index);
   const groupMembers = records.map((_, index) => [index]);
   const groupEmails = records.map(record => new Set([emailKey(record.email)].filter(Boolean)));
+  const groupPhones = records.map(record => new Set([phoneKey(record.phone)].filter(Boolean)));
+  const groupNames = records.map(record => new Set([nameKey(record.name)].filter(Boolean)));
   const reasons = records.map(() => new Set<string>());
   const warnings = records.map(() => new Set<string>());
   const byKey = new Map(records.map((record, index) => [record.key, index]));
@@ -119,15 +111,19 @@ function customersFor(records: ContactRecord[]) {
     let left = root(a), right = root(b);
     if (left === right) return;
     const emails = unique([...groupEmails[left], ...groupEmails[right]]);
-    if (emails.length > 1 && reason !== 'explicit source links' && reason !== 'staff merge') {
-      for (const i of [...members(left), ...members(right)]) warnings[i].add('Conflicting emails; records kept separate for staff review.');
+    const phones = unique([...groupPhones[left], ...groupPhones[right]]);
+    const names = unique([...groupNames[left], ...groupNames[right]]);
+    if ((emails.length > 1 || phones.length > 1 || names.length > 1) && reason !== 'explicit source links' && reason !== 'staff merge') {
+      for (const i of [...members(left), ...members(right)]) warnings[i].add('Conflicting contact details; records kept separate for staff review.');
       return;
     }
-    if (emails.length > 1) for (const i of [...members(left), ...members(right)]) warnings[i].add(reason === 'staff merge' ? 'Staff merged records with different contact details; original details remain in the history.' : 'Explicit source link has changed email details; review the customer contact details.');
+    if (emails.length > 1 || phones.length > 1 || names.length > 1) for (const i of [...members(left), ...members(right)]) warnings[i].add(reason === 'staff merge' ? 'Staff merged records with different contact details; original details remain in the history.' : emails.length > 1 ? 'Explicit source link has changed email details; review the customer contact details.' : 'Explicit source link has changed contact details; review the customer contact details.');
     if (groupMembers[left].length < groupMembers[right].length) [left, right] = [right, left];
     parent[right] = left;
     groupMembers[left].push(...groupMembers[right]); groupMembers[right] = [];
     groupEmails[left] = new Set(emails); groupEmails[right] = new Set();
+    groupPhones[left] = new Set(phones); groupPhones[right] = new Set();
+    groupNames[left] = new Set(names); groupNames[right] = new Set();
     reasons[a].add(reason); reasons[b].add(reason);
   };
   for (let i = 0; i < records.length; i++) {
@@ -139,14 +135,21 @@ function customersFor(records: ContactRecord[]) {
     if (linked !== undefined) join(i, linked, 'explicit source links');
   }
   const byEmail = new Map<string, number[]>();
+  const bucketNeedsReview = (indices: number[]) => {
+    // Use all supplied fields, including fields missing on the first record. A partial
+    // contact must not bridge two conflicting contacts. This stays linear for large histories.
+    const contacts = indices.map(i => records[i]);
+    const reference = { name: contacts.find(record => nameKey(record.name))?.name, email: contacts.find(record => emailKey(record.email))?.email, phone: contacts.find(record => phoneKey(record.phone))?.phone };
+    return contacts.some(record => assessCustomerContact(reference, record).status === 'review');
+  };
   for (let i = 0; i < records.length; i++) {
     const email = emailKey(records[i].email);
     if (!email) continue;
     byEmail.set(email, [...(byEmail.get(email) ?? []), i]);
   }
   for (const indices of byEmail.values()) {
-    if (unique(indices.map(i => nameKey(records[i].name)).filter(Boolean)).length > 1) {
-      if (unique(indices.map(root)).length > 1) for (const i of indices) warnings[i].add('Shared email with different customer names; records kept separate for staff review.');
+    if (bucketNeedsReview(indices)) {
+      if (unique(indices.map(root)).length > 1) for (const i of indices) warnings[i].add('Shared email with different or unconfirmed customer details; records kept separate for staff review.');
       continue;
     }
     for (const i of indices.slice(1)) join(indices[0], i, 'exact email');
@@ -154,9 +157,7 @@ function customersFor(records: ContactRecord[]) {
   const byPhone = new Map<string, number[]>();
   records.forEach((record, i) => { const phone = phoneKey(record.phone); if (phone) byPhone.set(phone, [...(byPhone.get(phone) ?? []), i]); });
   for (const indices of byPhone.values()) {
-    const emails = unique(indices.map(i => emailKey(records[i].email)).filter(Boolean));
-    const names = unique(indices.map(i => nameKey(records[i].name)).filter(Boolean));
-    if (emails.length > 1 || names.length > 1) {
+    if (bucketNeedsReview(indices)) {
       if (unique(indices.map(root)).length > 1) for (const i of indices) warnings[i].add('Shared phone with different contact details; records kept separate for staff review.');
       continue;
     }

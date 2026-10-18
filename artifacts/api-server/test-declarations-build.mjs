@@ -1,0 +1,3 @@
+import { build } from 'esbuild';
+import path from 'node:path';
+await build({ entryPoints: ['src/test-drive-declarations.test.ts'], bundle: true, platform: 'node', format: 'esm', outfile: 'dist-test/test-drive-declarations.test.mjs', external: ['@electric-sql/pglite'], plugins: [{ name: 'isolated-declaration-adapters', setup(builder) { builder.onResolve({ filter: /^@workspace\/db$/ }, () => ({ path: path.resolve('src/test/tenant-test-db.ts') })); builder.onResolve({ filter: /^@clerk\/express$/ }, () => ({ path: path.resolve('src/test/platform-clerk.ts') })); } }], banner: { js: "import {createRequire as testRequire} from 'node:module'; const require=testRequire(import.meta.url);" } });

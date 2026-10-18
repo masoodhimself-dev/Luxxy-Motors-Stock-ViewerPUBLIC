@@ -27,6 +27,7 @@ const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-
 const CustomerSale = lazy(() => import("@/pages/customer-sale"));
 const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
+const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
 import './index.css';
 
 // This entry point is selected only by vite.preview.config.ts during development.
@@ -34,7 +35,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -65,6 +66,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/my-purchase/:token" component={CustomerSale} />
                   <Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/>
                   <Route path="/viewing/:token" component={Viewing} />
+                  <Route path="/test-drive-declaration/:token" component={TestDriveDeclaration}/>
                   <Route path="/sign/:token" component={RetiredSalesPage} />
                   <Route path="/customer-details/:token" component={RetiredSalesPage} />
                   <Route component={NotFound} />

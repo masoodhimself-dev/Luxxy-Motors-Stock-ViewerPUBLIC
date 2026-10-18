@@ -1,3 +1,6 @@
+import testDriveDeclarationsRouter from './test-drive-declarations';
+import dealerFeaturesRouter from './dealer-features';
+import { enforceDealerFeatures } from '../middlewares/dealer-features';
 import retiredSalesRouter from "./retired-sales";
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
@@ -29,6 +32,9 @@ import staffAiDraftsRouter from './staff-ai-drafts';
 const router: IRouter = Router();
 router.use(requireStaffOperationAccess);
 router.use(enforceCustomerFeaturePolicy);
+router.use(enforceDealerFeatures);
+router.use(dealerFeaturesRouter);
+router.use(testDriveDeclarationsRouter);
 router.use(staffInventoryRouter);
 router.use(enquiryEmailsRouter);
 router.use(staffNotificationsRouter);

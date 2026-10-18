@@ -69,6 +69,7 @@ beforeEach(() => {
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
+      if (url === '/api/features') return { features: { customerEmails: true, staffAiDrafts: true }, evaluatedAt: '2026-10-18T10:00:00Z' };
       if (url.endsWith("/email-draft")) return { version: 1 };
       if (url.startsWith("/api/staff/email-drafts"))
         return { drafts: [], hasMore: false };

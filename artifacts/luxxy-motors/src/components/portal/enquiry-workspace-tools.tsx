@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { assessCustomerContact, type CustomerContactMatch } from '@workspace/vehicle-meta';
 import { Link } from 'wouter';
 import { customerHistoryHref } from './history-links';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { appointmentLabel, londonDate } from '@/lib/test-drive-dates';
-import { callOutcomes, sameCustomer, nextAction, type CallOutcome } from '@/lib/enquiry-desk-model';
+import { callOutcomes, nextAction, type CallOutcome } from '@/lib/enquiry-desk-model';
 import { attendanceError } from '../../../../api-server/src/lib/enquiry-workspace';
 import { AppointmentExceptionLabels } from './enquiry-calendar';
 
@@ -68,12 +69,51 @@ export function NextAction({ entry }: { entry: Enquiry }) {
 
 export type Contact = { customerName: string; phone?: string | null; email?: string | null };
 export function CustomerHistory({ contact, enquiries, reservations, onReuse, compact = false }: { contact: Contact; enquiries: Enquiry[]; reservations: StaffOnlineReservation[]; onReuse?: (contact: Contact) => void; compact?: boolean }) {
-  const matched = enquiries.filter(entry => sameCustomer(contact, entry));
-  const holds = reservations.filter(entry => sameCustomer(contact, entry));
-  const timeline = [...matched.map(entry => ({ id: `e-${entry.id}`, recordType: 'enquiry' as const, recordId: entry.id, at: entry.createdAt || entry.updatedAt || "", name: entry.customerName, phone: entry.phone, email: entry.email, title: `${entry.reference} · ${entry.vehicleTitle || 'General enquiry'}`, body: [entry.appointmentAt ? `${entry.appointmentCancelledAt ? 'Cancelled appointment' : 'Appointment'}: ${appointmentLabel(entry.appointmentAt)}` : 'Enquiry', entry.callOutcome ? callOutcomes[entry.callOutcome as CallOutcome] : null, entry.message, entry.staffNote, entry.assignedToName ? `Owner: ${entry.assignedToName}` : null].filter(Boolean).join(' · ') })), ...holds.map(entry => ({ id: `r-${entry.id}`, recordType: 'reservation' as const, recordId: entry.id, at: entry.createdAt || "", name: entry.customerName, phone: entry.phone, email: entry.email, title: `${entry.reference} · ${entry.vehicleTitle}`, body: `Online reservation · ${entry.status}` }))].sort((a,b) => b.at.localeCompare(a.at));
+  const [reviewKey, setReviewKey] = useState('');
+  const enquiryMatches = enquiries.map(entry => ({ entry, match: assessCustomerContact(contact, entry) })).filter(item => item.match.matchedBy.length);
+  const reservationMatches = reservations.map(entry => ({ entry, match: assessCustomerContact(contact, entry) })).filter(item => item.match.matchedBy.length);
+  const timeline = [
+    ...enquiryMatches.map(({ entry, match }) => ({ id: `e-${entry.id}`, recordType: 'enquiry' as const, recordId: entry.id, at: entry.createdAt || entry.updatedAt || '', name: entry.customerName, phone: entry.phone, email: entry.email, match,
+      title: `${entry.reference} · ${entry.vehicleTitle || 'General enquiry'}`,
+      body: [entry.appointmentAt ? `${entry.appointmentCancelledAt ? 'Cancelled appointment' : 'Appointment'}: ${appointmentLabel(entry.appointmentAt)}` : 'Enquiry', entry.callOutcome ? callOutcomes[entry.callOutcome as CallOutcome] : null, entry.message, entry.staffNote, entry.assignedToName ? `Owner: ${entry.assignedToName}` : null].filter(Boolean).join(' · ') })),
+    ...reservationMatches.map(({ entry, match }) => ({ id: `r-${entry.id}`, recordType: 'reservation' as const, recordId: entry.id, at: entry.createdAt || '', name: entry.customerName, phone: entry.phone, email: entry.email, match,
+      title: `${entry.reference} · ${entry.vehicleTitle}`, body: `Online reservation · ${entry.status}` })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
   if (!timeline.length) return null;
-  const history = <section className="enquiry-customer-history rounded border border-blue-200 bg-blue-50/40 p-3"><h3 className="font-semibold">Customer history · {timeline.length} records</h3><p className="mt-1 text-xs text-muted-foreground">Matched by phone or email. Check the name before reusing details; a household may share contact details.</p><div className="mt-3 max-h-80 space-y-3 overflow-y-auto">{(compact ? timeline.slice(0, 3) : timeline).map(item => <article key={item.id} className="border-t border-blue-100 pt-2 text-sm"><p className="font-semibold">{item.name}</p><p>{item.title}</p><p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.body}</p><p className="mt-1 text-xs">{item.at ? new Date(item.at).toLocaleDateString('en-GB') : 'Date not supplied'}</p><Link className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary underline underline-offset-4" href={customerHistoryHref(item.recordType, item.recordId)}>Open full customer history</Link>{onReuse && <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => onReuse({ customerName: item.name, phone: item.phone, email: item.email })}>Use {item.name}’s details</Button>}</article>)}</div>{compact && timeline.length > 3 && <details className="mt-2 text-sm"><summary className="cursor-pointer py-2">View all {timeline.length} records</summary><CustomerHistory contact={contact} enquiries={enquiries} reservations={reservations} onReuse={onReuse} /></details>}</section>;
-  return compact ? <details className="enquiry-linked-history"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Customer history · {timeline.length} records</summary>{history}</details> : history;
+  const history = <section className="enquiry-customer-history rounded border border-blue-200 bg-blue-50/40 p-3">
+    <h3 className="font-semibold">Customer history · {timeline.length} {timeline.length === 1 ? 'record' : 'records'}</h3>
+    <p className="mt-1 text-xs text-muted-foreground">Possible matches by exact phone or email. A shared contact does not confirm identity. Original records, cars and appointments stay separate.</p>
+    <div className="mt-3 max-h-80 space-y-3 overflow-y-auto">{(compact ? timeline.slice(0, 3) : timeline).map(item => {
+      const nextContact = { customerName: item.name, phone: item.phone, email: item.email };
+      const key = JSON.stringify([item.id, contact, nextContact]);
+      const needsReview = item.match.status === 'review';
+      return <article key={item.id} className="border-t border-blue-100 pt-2 text-sm">
+        <p className="font-semibold">{item.name}</p><p>{item.title}</p>
+        <ContactMatchNote match={item.match} />
+        <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.body}</p>
+        <p className="mt-1 text-xs">{item.at ? new Date(item.at).toLocaleDateString('en-GB') : 'Date not supplied'}</p>
+        <Link className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary underline underline-offset-4" href={customerHistoryHref(item.recordType, item.recordId)}>Open full customer history</Link>
+        {onReuse && (needsReview ? <div className="mt-2">
+          {reviewKey !== key ? <Button type="button" size="sm" variant="outline" onClick={() => setReviewKey(key)}>Review {item.name}’s details</Button> : <div className="space-y-2 rounded border border-amber-300 bg-amber-50 p-3" role="group" aria-label={`Review contact details for ${item.name}`}>
+            <p className="font-semibold">Confirm with the customer before replacing the form details.</p>
+            <p>On this form: {contact.customerName || 'Name not entered'} · {contact.phone || 'No phone'} · {contact.email || 'No email'}</p>
+            <p>From {item.title}: {item.name} · {item.phone || 'No phone'} · {item.email || 'No email'}</p>
+            <p className="text-xs">This updates the form only. It does not merge or change the original records.</p>
+            <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => { onReuse(nextContact); setReviewKey(''); }}>Use reviewed details</Button><Button type="button" size="sm" variant="outline" onClick={() => setReviewKey('')}>Keep current details</Button></div>
+          </div>}
+        </div> : <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => onReuse(nextContact)}>Use {item.name}’s details</Button>)}
+      </article>;
+    })}</div>
+    {compact && timeline.length > 3 && <details className="mt-2 text-sm"><summary className="cursor-pointer py-2">View all {timeline.length} records</summary><CustomerHistory contact={contact} enquiries={enquiries} reservations={reservations} onReuse={onReuse} /></details>}
+  </section>;
+  return compact ? <details className="enquiry-linked-history"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Customer history · {timeline.length} {timeline.length === 1 ? 'record' : 'records'}</summary>{history}</details> : history;
+}
+
+function ContactMatchNote({ match }: { match: CustomerContactMatch }) {
+  return <div className={`mt-2 rounded p-2 text-xs ${match.status === 'review' ? 'border border-amber-200 bg-amber-50 text-amber-950' : 'bg-white/70 text-slate-700'}`}>
+    <p className="font-semibold">{match.label}{match.status === 'review' ? ' · Review needed' : ''}</p>
+    {match.issues.map(issue => <p className="mt-1" key={issue}>{issue}</p>)}
+  </div>;
 }
 
 export function TodayDesk({ entries, onOpen }: { entries: Enquiry[]; onOpen: (entry: Enquiry) => void }) {

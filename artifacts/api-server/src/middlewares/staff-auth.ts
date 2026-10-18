@@ -5,6 +5,7 @@ import { getAuth, clerkClient } from "@clerk/express";
 import { and, eq, sql } from "drizzle-orm";
 import { db, portalUsersTable, type PortalUser } from "@workspace/db";
 import { isStaffRole, operationPermission, permissionsForRole, roleHasPermission, type StaffPermission, type StaffRole } from '../lib/staff-permissions';
+import { enforceStaffWriteOrigin } from './staff-write-origin';
 export type { StaffPermission, StaffRole } from '../lib/staff-permissions';
 
 /**
@@ -175,6 +176,7 @@ export const requireStaff: RequestHandler<any> = (
   res: Response,
   next: NextFunction,
 ) => {
+  if (!enforceStaffWriteOrigin(req, res)) return;
   if (req.staff) { next(); return; }
   void portalAccess(req)
     .then((access) => {

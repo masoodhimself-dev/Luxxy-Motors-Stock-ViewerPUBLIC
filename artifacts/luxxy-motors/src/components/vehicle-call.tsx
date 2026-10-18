@@ -1,3 +1,4 @@
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { showroomHours, showroomOpeningLabel } from '@/lib/showroom-hours';
 import { useCreateEnquiry } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ export function VehicleCall({
   className?: string;
 }) {
   const { settings } = useDealerSettings();
+  const features = useDealerFeatures();
   const dialogTheme = useVehicleDialogTheme();
   const trigger = useRef<HTMLAnchorElement>(null);
   const dialogTitle = useRef<HTMLHeadingElement>(null);
@@ -59,7 +61,7 @@ export function VehicleCall({
     (car.price ?? 0) > 0 &&
     (!car.currency || car.currency.toUpperCase() === 'GBP');
   const label = vehicleDisplayTitle(car);
-  const showCallback = callbackForm || hours.state === 'closed';
+  const showCallback = (callbackForm || hours.state === 'closed') && (features.enabled('publicEnquiries') || callback.isSuccess);
   const receivedCallbackTime = callback.data?.followUpAt ? showroomOpeningLabel(callback.data.followUpAt) : null;
 
   async function copyNumber() {
@@ -138,7 +140,7 @@ export function VehicleCall({
             </DialogTitle>
             <DialogDescription>
               {hours.state === 'closed'
-                ? 'Leave your details for a callback when we reopen.'
+                ? features.enabled('publicEnquiries') ? 'Leave your details for a callback when we reopen.' : 'Please call us during our opening hours.'
                 : showCallback
                   ? 'Leave your name and number so we can call you back.'
                 : mobile
@@ -159,10 +161,10 @@ export function VehicleCall({
             <a href={href} className="vehicle-phone-number"><span className="vehicle-call-phone-icon"><Phone size={20} aria-hidden="true" /></span><span>{formatPhoneDisplay(settings.contact.phone)}</span></a>
             <div className="vehicle-call-availability" data-status={hours.state}>
               <span className="vehicle-call-availability-dot" aria-hidden="true" />
-              <p>{hours.state === 'open' ? hours.closingTime ? `Open until ${hours.closingTime} (UK time)` : 'We’re open' : 'Please call to confirm availability.'}</p>
+              <p>{hours.state === 'open' ? hours.closingTime ? `Open until ${hours.closingTime} (UK time)` : 'We’re open' : hours.state === 'closed' ? 'We’re currently closed' : 'Please call to confirm availability.'}</p>
             </div>
             {!mobile && <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>}
-            <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>
+            {(features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
           </div>}
 
           {showCallback && (callback.isSuccess ? (
@@ -176,6 +178,7 @@ export function VehicleCall({
           ) : (
             <form className="vehicle-action-form vehicle-callback-form" aria-label="Request a callback" onSubmit={event => {
               event.preventDefault();
+              if (!features.enabled('publicEnquiries')) return;
               const normalizedPhone = customer.phone.trim().replace(/[\s().\-/]/g, '');
               if (!/^\+?\d{7,15}$/.test(normalizedPhone)) {
                 setPhoneError('Enter a valid phone number so we can call you.');
@@ -212,7 +215,7 @@ export function VehicleCall({
           </div>}
           {showCallback && hours.state !== 'closed' && !callback.isSuccess && <button type="button" className="vehicle-call-callback-link" onClick={() => setCallbackForm(false)}>Back to the phone number</button>}
 
-          {mobile && !showCallback && <div className="vehicle-action-alternative">
+          {mobile && !showCallback && (canReserve || features.enabled('publicEnquiries')) && <div className="vehicle-action-alternative">
             <p>{canReserve ? 'You can also reserve this car online.' : 'You can also ask questions online.'}</p>
             {canReserve
               ? <ReserveCar car={car} className="vehicle-action-secondary" />

@@ -35,6 +35,7 @@ const ReservationPaymentReturn = lazy(() => import("@/pages/reservation-payment-
 const CustomerSale = lazy(() => import("@/pages/customer-sale"));
 const InvoiceVerification = lazy(() => import('@/pages/invoice-verification'));
 const Viewing = lazy(() => import("@/pages/viewing"));
+const TestDriveDeclaration = lazy(() => import('@/pages/test-drive-declaration'));
 import NotFound from '@/pages/not-found';
 const StaffSignIn = lazy(() =>
   import('@/pages/staff-access').then((module) => ({
@@ -141,6 +142,9 @@ function DealerProviders({ children }: { children: ReactNode }) {
 
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
+  const [location] = useLocation();
+
+  if (location.startsWith('/test-drive-declaration/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><TestDriveDeclaration/></Suspense></RoutedErrorBoundary>;
 
   return (
     <ClerkProvider

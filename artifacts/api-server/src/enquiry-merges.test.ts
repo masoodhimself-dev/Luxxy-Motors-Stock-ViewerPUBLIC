@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, mergeCustomersNeedConfirmation, mergeAppointmentsOverlap, type MergeableEnquiry } from '@workspace/vehicle-meta';
+import { EnquiryMergeError, parseEnquiryMergeInput, planEnquiryMerge, mergeCustomersNeedConfirmation, mergeAppointmentsOverlap, assessCustomerContact, canonicalCustomerEmail, canonicalCustomerPhone, type MergeableEnquiry } from '@workspace/vehicle-meta';
 import { PostgresChatStore } from './lib/dealer-chat-store';
 import { emptyChatState } from './lib/dealer-chat';
 
@@ -65,6 +65,33 @@ test('contact and name differences require explicit staff confirmation; names al
     rejects(() => planEnquiryMerge(input(entries), entries, staff, now), 409, /different customers/);
     assert.equal(planEnquiryMerge(input(entries, { confirmDifferentCustomers: true }), entries, staff, now).updates.length, 2);
   }
+});
+test('contact canonicalisation supports explicit international numbers without guessing aliases or local suffixes', () => {
+  for (const value of ['07700 900123', '+44 (7700) 900123', '0044 7700 900123', '447700900123', '+44 (0)7700 900123']) assert.equal(canonicalCustomerPhone(value), '+447700900123');
+  assert.equal(canonicalCustomerPhone('+33 6 12 34 56 78'), '+33612345678');
+  assert.equal(canonicalCustomerPhone('0033 (6) 12-34-56-78'), '+33612345678');
+  for (const value of ['07700', '7700900123', 'call 07700900123', '07700900123 ext 4', '+4407700900123', '+000123456789', '+1234567890123456']) assert.equal(canonicalCustomerPhone(value), '', value);
+  assert.equal(canonicalCustomerEmail(' Alex@Example.TEST '), 'alex@example.test');
+  assert.notEqual(canonicalCustomerEmail('alex+car@example.test'), canonicalCustomerEmail('alex@example.test'));
+  assert.notEqual(canonicalCustomerEmail('a.lex@example.test'), canonicalCustomerEmail('alex@example.test'));
+  for (const value of ['', 'not-an-email', 'alex@', 'alex @example.test', 'alex\n@example.test']) assert.equal(canonicalCustomerEmail(value), '');
+});
+test('same contact with conflicting secondary details or household names is a review candidate, never an automatic identity match', () => {
+  const original = row(ids[0]);
+  for (const candidate of [row(ids[1], { phone: '07700900999' }), row(ids[1], { email: 'someone-else@example.test' }), row(ids[1], { customerName: 'Another Household Member' }), row(ids[1], { phone: '07700900123 ext 4' })]) {
+    const match = assessCustomerContact(original, candidate);
+    assert.equal(match.status, 'review'); assert.ok(match.matchedBy.length); assert.ok(match.issues.length);
+    const entries = [original, candidate], before = JSON.stringify(entries);
+    rejects(() => planEnquiryMerge(input(entries), entries, staff, now), 409, /different customers/);
+    const plan = planEnquiryMerge(input(entries, { confirmDifferentCustomers: true }), entries, staff, now);
+    assert.deepEqual(plan.events[0].detail.contactReview, [{ recordIds: [original.id, candidate.id], matchedBy: match.matchedBy, status: match.status, issues: match.issues }]);
+    assert.equal(JSON.stringify(entries), before);
+    assert.deepEqual(plan.cancelledAppointmentIds, []);
+  }
+  assert.equal(assessCustomerContact(original, row(ids[1], { email: null, phone: null })).status, 'none', 'name alone cannot suggest a match');
+  assert.equal(assessCustomerContact(original, row(ids[1], { dealerId: 'another-dealer' })).status, 'none', 'identical contacts across dealers cannot match');
+  const foreign = [original, row(ids[1], { dealerId: 'another-dealer' })];
+  rejects(() => planEnquiryMerge(input(foreign, { confirmDifferentCustomers: true }), foreign, staff, now), 404);
 });
 test('overlap includes buffers, allows touching endpoints and requires explicit override', () => {
   const entries = [row(ids[0], { appointmentAt: '2026-10-08T10:00:00Z', appointmentDurationMinutes: 30, appointmentBufferMinutes: 15 }), row(ids[1], { appointmentAt: '2026-10-08T10:30:00Z' })];

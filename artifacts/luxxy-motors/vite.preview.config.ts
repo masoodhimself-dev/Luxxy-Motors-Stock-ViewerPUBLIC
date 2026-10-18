@@ -1,6 +1,7 @@
 import { communicationsPreview } from "./preview/communications";
+import { declarationQa } from './preview/declaration-qa';
 import { platformPreview } from "./preview/platform";
-import { deferredCustomerFeatureResponse } from '@workspace/vehicle-meta';
+import { deferredCustomerFeatureResponse, resolveDealerFeatures } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
 import { reservationPreview, readPreviewSettings, readPreviewEnquiries, writePreviewSettings } from './preview/reservations';
 import { operationsPreview } from './preview/operations';
@@ -46,6 +47,7 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (await declarationQa(req, res, url)) return;
             const deferred = deferredCustomerFeatureResponse(url.pathname, req.method ?? 'GET');
             if (deferred) { res.statusCode = deferred.status; res.end(JSON.stringify(deferred.body)); return; }
             if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {
@@ -80,6 +82,7 @@ export default mergeConfig(
             }
             const responses: Record<string, unknown> = {
               '/api/stock': previewStock,
+              '/api/features': { features: Object.fromEntries(resolveDealerFeatures({}, {}).map(feature => [feature.key, feature.enabled])), evaluatedAt: new Date().toISOString() },
               '/api/dealer-settings': previewSettings,
               '/api/recent-handovers': { schemaVersion: 1, handovers: [] },
             };

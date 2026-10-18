@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRefreshDesk, workspaceError } from "./enquiry-workspace-tools";
 import { requestUuid } from "@/lib/request-uuid";
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { AiDraftSuggestion } from "./ai-draft-suggestion";
 import { CustomerEmailPreview } from "./customer-email-preview";
 import "./enquiry-email-composer.css";
@@ -80,6 +81,7 @@ type EmailPreview = {
   previewHash: string;
   attachments: { id: string; filename: string; byteSize: number }[];
 };
+export type InitialEmailContent = { subject: string; message: string; appendText: string; link: string };
 const request = <T,>(path: string, body?: unknown) =>
   customFetch<T>(
     path,
@@ -152,11 +154,16 @@ function Photo({
 function EnquiryEmailEditor({
   entry,
   onClose,
+  initialContent,
+  sendBlockedReason,
 }: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
+  initialContent?: InitialEmailContent;
+  sendBlockedReason?: string;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
+  const features = useDealerFeatures();
   const contextKey = ["enquiry-email-context", entry.id] as const;
   const context = useQuery({
     queryKey: contextKey,
@@ -197,6 +204,7 @@ function EnquiryEmailEditor({
   const busy = busyAction !== null;
   const [error, setError] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  useEffect(() => { if (!features.enabled('staffAiDrafts')) setAiBusy(false); }, [features.data]);
   const [aiGenerationId, setAiGenerationId] = useState<string>();
   useEffect(() => {
     setAiGenerationId(undefined);
@@ -224,7 +232,7 @@ function EnquiryEmailEditor({
     }
     setDraft({
       to: data.email,
-      ...data.defaults,
+      ...(initialContent ? { subject: initialContent.subject, message: initialContent.message } : data.defaults),
       includeVehicle: data.vehicleAvailable,
       includeAppointment: data.appointmentAvailable,
       photoIds: [],
@@ -236,6 +244,7 @@ function EnquiryEmailEditor({
     context.isFetchedAfterMount,
     context.isFetching,
     context.isError,
+    initialContent,
   ]);
   function change(value: Partial<EmailDraft>) {
     if ("templateId" in value || "expectedRevision" in value)
@@ -347,7 +356,7 @@ function EnquiryEmailEditor({
     }
   }
   async function send() {
-    if (!preview || !reviewedDraft || busyRef.current) return;
+    if (!preview || !reviewedDraft || busyRef.current || !features.enabled('customerEmails') || sendBlockedReason) return;
     busyRef.current = true;
     setBusyAction("send");
     setError("");
@@ -495,6 +504,8 @@ function EnquiryEmailEditor({
         ) : (
           data && (
             <>
+              {!features.enabled('customerEmails') && <p className="enquiry-email-readiness" role="status">{features.isLoading ? 'Checking email availability…' : features.isError ? 'Email availability could not be checked. Sending is paused; your draft is safe.' : 'Email sending is switched off by platform administration. You can still prepare and save drafts.'}</p>}
+              {sendBlockedReason && <p className="enquiry-email-readiness" role="status">{sendBlockedReason} Your text is kept here and can be saved as a draft.</p>}
               {!data.ready && (
                 <p role="status" className="enquiry-email-readiness">
                   Email is not enabled for this dealership. Ask the owner to
@@ -574,7 +585,7 @@ function EnquiryEmailEditor({
                       </p>
                       <div className="enquiry-email-actions">
                         <Button
-                          disabled={busy || !data.ready}
+                          disabled={busy || !data.ready || !features.enabled('customerEmails') || !!sendBlockedReason}
                           onClick={() => void send()}
                         >
                           {busyAction === "send"
@@ -605,6 +616,7 @@ function EnquiryEmailEditor({
                       }}
                       className="enquiry-email-form"
                     >
+                      {initialContent && !draft.message.includes(initialContent.link) && <div className="enquiry-email-readiness"><p>Your saved message has been kept. Add the private declaration link when you are ready.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ message: `${draft.message.trim()}\n\n${initialContent.appendText}`.trim() })}>Add declaration link</Button></div>}
                       <fieldset disabled={busy || aiBusy}>
                         <label>
                           Customer email
@@ -694,7 +706,7 @@ function EnquiryEmailEditor({
                             </select>
                           </label>
                         )}
-                        <AiDraftSuggestion
+                        {features.enabled('staffAiDrafts') && <AiDraftSuggestion
                           key={`${entry.id}:${data.revision}:${savedVersion.current}`}
                           enquiryId={entry.id}
                           expectedRevision={draft.expectedRevision}
@@ -715,7 +727,7 @@ function EnquiryEmailEditor({
                               "AI suggestion added · unsaved · review before sending",
                             );
                           }}
-                        />
+                        />}
                         <label>
                           Subject
                           <Input
@@ -950,6 +962,8 @@ function EnquiryEmailEditor({
 export function EnquiryEmailComposer(props: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
+  initialContent?: InitialEmailContent;
+  sendBlockedReason?: string;
 }) {
   return <EnquiryEmailEditor key={props.entry.id} {...props} />;
 }

@@ -3,6 +3,7 @@
 # compiled output
 dist
 dist-test
+dist-feature-tests
 dist-capacity
 /output/pdf/
 tmp

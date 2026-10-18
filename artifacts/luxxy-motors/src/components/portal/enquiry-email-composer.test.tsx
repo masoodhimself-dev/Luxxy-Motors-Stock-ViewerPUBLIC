@@ -11,7 +11,9 @@ const state = vi.hoisted(() => ({
   fetch: vi.fn(),
   close: vi.fn(),
   generationError: false,
+  features: { customerEmails: true, staffAiDrafts: true },
 }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: { features: state.features }, enabled: (key: 'customerEmails' | 'staffAiDrafts') => state.features[key], isLoading: false, isError: false }) }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
 }));
@@ -21,6 +23,8 @@ vi.mock("./enquiry-workspace-tools", () => ({
     cause.data?.error || "Could not save this draft.",
 }));
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
+
+const declarationContent = { subject: 'Your test-drive declaration', message: 'Please read and sign: https://example.test/test-drive-declaration/private-token', appendText: 'Declaration: https://example.test/test-drive-declaration/private-token', link: 'https://example.test/test-drive-declaration/private-token' };
 
 const entry = { id: "enquiry-one", customerName: "Alex", reference: "ENQ-001" };
 const config = {
@@ -104,6 +108,7 @@ async function generate() {
 beforeEach(() => {
   state.close.mockReset();
   state.generationError = false;
+  state.features = { customerEmails: true, staffAiDrafts: true };
   state.fetch.mockReset().mockImplementation(async (url: string) => {
     if (url.endsWith("/email-context"))
       return context(url.includes("enquiry-two"));
@@ -144,6 +149,88 @@ it("links an unconfigured sender directly to Advanced connection settings", asyn
     }),
   ).toHaveAttribute("href", "/portal?section=settings&settingsTab=integrations");
   expect(calls("/email")).toHaveLength(0);
+});
+
+it('prepares a declaration message without saving or sending it automatically', async () => {
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} initialContent={declarationContent} onClose={state.close}/></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue(declarationContent.message);
+  expect(screen.getByRole('textbox', { name: 'Subject' })).toHaveValue(declarationContent.subject);
+  expect(screen.getByRole('textbox', { name: 'Customer email' })).toHaveValue('alex@example.test');
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/email-draft')).toHaveLength(0);
+  expect(screen.queryByRole('button', { name: 'Add declaration link' })).not.toBeInTheDocument();
+});
+
+it('preserves an existing draft and adds the declaration link only when staff request it', async () => {
+  const original = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, options: unknown) => {
+    const result = await original(url, options);
+    return url.endsWith('/email-context') ? { ...result, savedDraft: { version: 4, status: 'draft', source: 'staff', content: { to: 'chosen@example.test', subject: 'Keep my subject', message: 'Keep my staff message', photoIds: [], documentIds: [], includeVehicle: true, includeAppointment: true, expectedRevision: 2 } } } : result;
+  });
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} initialContent={declarationContent} onClose={state.close}/></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('Keep my staff message');
+  fireEvent.click(screen.getByRole('button', { name: 'Add declaration link' }));
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(`Keep my staff message\n\n${declarationContent.appendText}`);
+  expect(screen.getByRole('textbox', { name: 'Subject' })).toHaveValue('Keep my subject');
+  expect(screen.getByRole('textbox', { name: 'Customer email' })).toHaveValue('chosen@example.test');
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/email-draft')).toHaveLength(0);
+});
+
+it('keeps unsaved declaration email edits and allows draft saving when its link becomes unusable', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const content = (sendBlockedReason?: string) => <QueryClientProvider client={client}><EnquiryEmailComposer entry={entry} initialContent={declarationContent} sendBlockedReason={sendBlockedReason} onClose={state.close}/></QueryClientProvider>;
+  const view = render(content());
+  await screen.findByRole('textbox', { name: 'Message' });
+  const text = `My unsaved explanation.\n\n${declarationContent.message}`;
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: text } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Subject' }), { target: { value: 'Keep this private visit subject' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Customer email' }), { target: { value: 'chosen@example.test' } });
+  view.rerender(content('This declaration link was revoked.'));
+  expect(screen.getByText(/This declaration link was revoked/)).toHaveTextContent('Your text is kept here and can be saved as a draft.');
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(text);
+  expect(screen.getByRole('textbox', { name: 'Subject' })).toHaveValue('Keep this private visit subject');
+  expect(screen.getByRole('textbox', { name: 'Customer email' })).toHaveValue('chosen@example.test');
+  expect(calls('/email-draft')).toHaveLength(0);
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText('Draft saved · not sent');
+  expect(JSON.parse(calls('/email-draft')[0][1].body).content).toMatchObject({ message: text, subject: 'Keep this private visit subject', to: 'chosen@example.test' });
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  expect(await screen.findByRole('button', { name: 'Send email' })).toBeDisabled();
+  expect(calls('/email')).toHaveLength(0);
+  expect(state.close).not.toHaveBeenCalled();
+});
+
+it('disables a reviewed send when declaration status changes without losing the prepared message', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const content = (sendBlockedReason?: string) => <QueryClientProvider client={client}><EnquiryEmailComposer entry={entry} initialContent={declarationContent} sendBlockedReason={sendBlockedReason} onClose={state.close}/></QueryClientProvider>;
+  const view = render(content());
+  await screen.findByRole('textbox', { name: 'Message' });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'An edited message ready for review.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send email' })).toBeEnabled());
+  view.rerender(content('The customer has already signed. Check the record before sending.'));
+  expect(screen.getByRole('button', { name: 'Send email' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Send email' }));
+  expect(calls('/email')).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Edit message' }));
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('An edited message ready for review.');
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+  expect(state.close).not.toHaveBeenCalled();
+});
+
+it('preserves drafting and preview while platform controls disable AI and customer delivery', async () => {
+  state.features = { customerEmails: false, staffAiDrafts: false };
+  mount();
+  await screen.findByRole('textbox', { name: 'Message' });
+  expect(screen.queryByRole('button', { name: 'Draft with AI' })).not.toBeInTheDocument();
+  expect(screen.getByText(/Email sending is switched off by platform/)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  expect(await screen.findByRole('button', { name: 'Send email' })).toBeDisabled();
+  expect(calls('/email')).toHaveLength(0);
+  expect(calls('/ai-draft')).toHaveLength(0);
 });
 
 it("keeps AI separate until accepted, then preserves the recipient and attachments when explicitly saved", async () => {

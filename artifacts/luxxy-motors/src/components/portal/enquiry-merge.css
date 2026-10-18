@@ -27,3 +27,8 @@
 .enquiry-merge-footer { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 14px; border-top: 1px solid #c7d2dc; }
 .enquiry-merge-footer button { min-height: 44px; }
 @media (max-width: 599px) { .portal-action-dialog.enquiry-merge-dialog { width: calc(100% - 1rem); padding: 16px; max-height: 94dvh; } .enquiry-merge-originals { grid-template-columns: minmax(0,1fr); } .enquiry-merge-footer button { flex: 1 1 auto; } .enquiry-merge-choice { padding: 11px; } }
+
+.enquiry-merge-match { margin-bottom: .65rem; padding: .5rem .65rem; border-left: 3px solid #64748b; background: #f1f5f9; font-size: .8125rem; line-height: 1.5; }
+.enquiry-merge-match p { margin: .25rem 0 0; }
+.enquiry-merge-match[data-match-status="review"] { border-color: #a16207; background: #fffbeb; color: #713f12; }
+.enquiry-merge-match[data-match-status="none"] { border-color: #cbd5e1; color: #475569; }

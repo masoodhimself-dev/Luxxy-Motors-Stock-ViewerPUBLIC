@@ -24,6 +24,7 @@ export type EnquiryRecordActions = {
   onFollowUp: (entry: Enquiry) => void;
   onAppointment: (entry: Enquiry) => void;
   onBook: (entry: Enquiry) => void;
+  canBook?: boolean;
   onVehicle: (car: Car) => void;
   onMerge?: (entry: Enquiry) => void;
   onEmail?: (entry: Enquiry) => void;
@@ -64,7 +65,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       <NextAction entry={entry} />
       {entry.followUpAt && <div className="enquiry-detail-followup"><p className="font-medium text-sm">{entry.followUpCompletedAt ? 'Follow-up completed' : callbackTiming(entry) === 'overdue' ? 'Follow-up overdue' : 'Upcoming follow-up'}</p>{entry.followUpCompletedAt && <p className="text-sm">{appointmentLabel(entry.followUpAt)}</p>}{entry.followUpNote && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{entry.followUpNote}</p>}</div>}
       {entry.appointmentAt && <section className="enquiry-detail-appointment"><p className="text-sm font-medium">Appointment · {appointmentLabel(entry.appointmentAt)}</p><AppointmentExceptionLabels booking={entry} /><AttendanceControls entry={entry} /></section>}
-      <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && !visitFinished && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{canBook && <Button variant="outline" size="sm" onClick={() => actions.onBook(entry)}>{entry.appointmentAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
+      <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && !visitFinished && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{canBook && <Button variant="outline" size="sm" disabled={actions.canBook === false} onClick={() => actions.onBook(entry)}>{entry.appointmentAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
     </section>
     {actions.onEmail && <CustomerEmailSummary enquiryId={entry.id} reference={entry.reference} onPrepare={() => actions.onEmail?.(entry)} />}
     <details className="enquiry-desk-more enquiry-detail-more"><summary>More options</summary><div>

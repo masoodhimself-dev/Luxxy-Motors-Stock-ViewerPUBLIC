@@ -5,7 +5,9 @@ import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
 import type { Enquiry } from '@workspace/api-client-react';
 
-const state = vi.hoisted(() => ({ fetchEnquiries: vi.fn(), create: vi.fn() }));
+const featureState = vi.hoisted(() => ({ allowed: true, isLoading: false, isError: false, refetch: vi.fn() }));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ ...featureState, enabled: () => featureState.allowed }) }));
+const state = vi.hoisted(() => ({ fetchEnquiries: vi.fn(), create: vi.fn(), change: vi.fn() }));
 vi.mock('@workspace/api-client-react', async importOriginal => {
   const { useQuery } = await import('@tanstack/react-query');
   return {
@@ -17,12 +19,13 @@ vi.mock('@workspace/api-client-react', async importOriginal => {
     useGetStaffDirectory: () => ({ data: { currentUserId: 'staff-one', members: [] }, isLoading: false, isError: false, refetch: vi.fn() }),
     useListReservations: () => ({ data: { reservations: [] }, isError: false, refetch: vi.fn() }),
     useCreateStaffEnquiry: () => ({ mutateAsync: state.create, isPending: false, isError: false }),
+    useChangeStaffAppointment: () => ({ mutateAsync: state.change, isPending: false, isError: false }),
   };
 });
 vi.mock('@/lib/stock-context', () => ({ useStock: () => ({ stock: { cars: [] }, isLoading: false, error: null }) }));
 vi.mock('@/lib/dealer-settings-context', () => ({ useDealerSettings: () => ({ settings: { identity: { name: 'Fictional Motors' }, testDriveBooking: { enabled: false } }, isLoading: false, isError: false }) }));
 vi.mock('@/lib/enquiry-desk-model', async importOriginal => ({ ...await importOriginal<object>(), readCallDraft: () => null, saveCallDraft: () => true, removeCallDraft: () => {} }));
-vi.mock('./enquiry-calendar', () => ({ EnquiryCalendar: ({ onAdd }: { onAdd?: (date: string) => void }) => <button type="button" onClick={() => onAdd?.('2026-11-02')}>Add calendar appointment</button>, AppointmentExceptionLabels: () => null }));
+vi.mock('./enquiry-calendar', () => ({ EnquiryCalendar: ({ onAdd }: { onAdd?: (date: string) => void }) => <button type="button" disabled={!onAdd} onClick={() => onAdd?.('2026-11-02')}>Add calendar appointment</button>, AppointmentExceptionLabels: () => null }));
 vi.mock('./enquiry-stock-desk', () => ({ EnquiryStockDesk: () => null }));
 vi.mock('./enquiry-workspace-tools', () => ({ OwnerSelect: () => null, WorkspaceEditor: () => null, TodayDesk: () => null, CustomerHistory: () => null }));
 vi.mock('./enquiry-record-browser', () => ({
@@ -46,11 +49,11 @@ function mount(search: string, entries: Enquiry[] = [alex, jordan]) {
   client.setQueryData(['enquiries', 'timeline-omitted'], entries);
   const location = memoryLocation({ path: `/portal?${search}`, record: true });
   const rendered = render(<QueryClientProvider client={client}><Router hook={location.hook}><EnquiriesPanel embedded initialView="history" /></Router></QueryClientProvider>);
-  return { client, location, ...rendered };
+  return { client, location, ...rendered, refresh: () => rendered.rerender(<QueryClientProvider client={client}><Router hook={location.hook}><EnquiriesPanel embedded initialView="history" /></Router></QueryClientProvider>) };
 }
 beforeEach(() => {
   state.fetchEnquiries.mockReset().mockResolvedValue([alex, jordan]);
-  state.create.mockReset();
+  state.create.mockReset(); state.change.mockReset(); featureState.allowed = true; featureState.isError = false; featureState.isLoading = false; featureState.refetch.mockReset();
 });
 
 it('keeps the first edited search value when clearing a selected customer and its route context', async () => {
@@ -134,4 +137,34 @@ it('starts rescheduling on the existing UK day while requiring a new time', asyn
   expect(screen.getByLabelText('Appointment time (UK)')).toHaveValue('');
   expect(screen.getByRole('button', { name: 'Save new appointment' })).toBeDisabled();
   expect(state.create).not.toHaveBeenCalled();
+});
+
+
+it('pauses new test-drive intent while keeping phone enquiry fields usable', async () => {
+  featureState.allowed = false;
+  mount('section=notifications&workView=customers&deskView=new');
+  expect(await screen.findByRole('radio', { name: 'Book a test drive' })).toBeDisabled();
+  expect(screen.getByRole('radio', { name: 'Log call / enquiry only' })).toBeEnabled();
+  expect(screen.getByRole('textbox', { name: 'Customer name' })).toBeEnabled();
+  expect(screen.getByText(/New test drives and rescheduling are paused by the platform/)).toBeVisible();
+  expect(state.create).not.toHaveBeenCalled();
+});
+
+it('locks an open reschedule form after a policy failure while keeping cancellation available', async () => {
+  const booked = { ...alex, appointmentAt: '2026-11-02T11:00:00Z', appointmentStatus: 'confirmed', appointmentRevision: 2 } as Enquiry;
+  state.change.mockResolvedValue({ ...booked, appointmentCancelledAt: '2026-10-18T12:00:00Z' });
+  const view = mount('section=notifications&workView=customers&enquiryId=alex', [booked]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Change appointment for Alex Customer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choose date & time' }));
+  expect(screen.getByLabelText('Appointment date (UK)')).toBeVisible();
+  featureState.allowed = false; featureState.isError = true; view.refresh();
+  expect(screen.queryByLabelText('Appointment date (UK)')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Save new appointment' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry booking availability' }));
+  expect(featureState.refetch).toHaveBeenCalledTimes(1);
+  expect(state.change).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel appointment instead' }));
+  expect(screen.getByRole('button', { name: 'Confirm cancellation' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }));
+  await waitFor(() => expect(state.change).toHaveBeenCalledWith({ id: 'alex', data: { action: 'cancel', appointmentAt: null, expectedRevision: 2 } }));
 });

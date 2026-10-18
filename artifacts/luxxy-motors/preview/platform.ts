@@ -1,3 +1,4 @@
+import { resolveDealerFeatures } from '@workspace/vehicle-meta';
 // Loopback-only dashboard preview. Not imported by the production backend.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
@@ -40,7 +41,12 @@ export async function platformPreview(req: IncomingMessage, res: ServerResponse,
   const host=new URL(`http://${req.headers.host}`).hostname, remote=(req.socket.remoteAddress??'').replace(/^::ffff:/,'');
   if(!['127.0.0.1','localhost','[::1]'].includes(host)||!['127.0.0.1','::1'].includes(remote)|| (req.headers.origin && req.headers.origin!==`http://${req.headers.host}`)) {send(res,403,{error:'Platform preview is available only on this computer.'});return true;}
   try {
-    if(req.method==='GET'&&url.pathname==='/api/platform/capacity') send(res,200,previewCapacitySnapshot());
+    if(req.method==='GET'&&/^\/api\/platform\/(?:dealers\/[^/]+\/)?features$/.test(url.pathname)) {
+      const dealerId = url.pathname.includes('/dealers/') ? decodeURIComponent(url.pathname.split('/')[4]) : null;
+      if (dealerId && !(await dealers()).some(dealer => dealer.id === dealerId)) send(res,404,{error:'Example dealer not found.'});
+      else send(res,200,{scope:dealerId?'dealer':'platform',dealerId,readOnly:true,evaluatedAt:new Date().toISOString(),features:resolveDealerFeatures({},{}),audit:[]});
+    }
+    else if(req.method==='GET'&&url.pathname==='/api/platform/capacity') send(res,200,previewCapacitySnapshot());
     else if(req.method==='GET'&&url.pathname==='/api/platform/overview') send(res,200,{dealers:(await dealers()).map(d=>({...d,sourceUrl:d.stockPlatform==='cazoo'?'https://www.cazoo.co.uk/fictional':'https://www.autotrader.co.uk/fictional',domains:[],activeKeyCount:0,latestImport:null,lastSuccessfulImport:null})),activity:[]});
     else if(req.method==='GET'&&/^\/api\/platform\/dealers\/[^/]+\/workspace$/.test(url.pathname)) {
       const dealer=(await dealers()).find(d=>d.id===decodeURIComponent(url.pathname.split('/')[4]));

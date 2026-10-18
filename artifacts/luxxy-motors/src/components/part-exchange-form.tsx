@@ -1,3 +1,5 @@
+import { FeatureUnavailable } from './feature-unavailable';
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { getVisitorId } from '@/lib/visitor';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -24,6 +26,7 @@ const emptyDetails: PartExchangeDetails = {
 
 export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockCars: Car[] }) {
   const { settings } = useDealerSettings();
+  const features = useDealerFeatures();
   const mutation = useCreateEnquiry();
   const [delivery, setDelivery] = useState<'website' | 'whatsapp'>('website');
   const [details, setDetails] = useState(emptyDetails);
@@ -82,6 +85,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!features.enabled('partExchange')) return;
     if (step === 1 && !selectedVehicle) return;
     if (step < 2) {
       setStep(step + 1);
@@ -130,6 +134,8 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call us</a>}
     </div>;
   }
+
+  if (!features.enabled('partExchange')) return <FeatureUnavailable title="Online part-exchange requests are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
 
   return <form onSubmit={submit} className="space-y-6" data-testid="form-part-exchange">
     {draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-sm text-muted-foreground" role="status"><p>Your unfinished part-exchange enquiry was restored.</p><button type="button" className="min-h-11 text-link" onClick={discardDraft}>Discard draft</button></div>}

@@ -218,8 +218,10 @@ export * from './dealer-chat.ts';
 export * from './customer-feature-policy.ts';
 export * from './showroom-hours.ts';
 export * from './enquiry-merge.ts';
+export * from './customer-contact.ts';
 
 export * from "./stock-feed.ts";
 export { invoicePalette } from './invoice-palette.ts';
 
 export * from './dealer-onboarding.ts';
+export * from './feature-controls.ts';
