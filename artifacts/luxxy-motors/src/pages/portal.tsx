@@ -29,7 +29,8 @@ import { DealerWordmark } from '@/components/brand/wordmark';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { DealerSettingsHub, useStaffAccess } from '@/components/portal/dealer-administration';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { QuickEnquiryDialog } from '@/components/portal/quick-enquiry';
+import { QuickEnquiryDialog, type QuickEnquiryResult } from '@/components/portal/quick-enquiry';
+import { appointmentLabel } from '@/lib/test-drive-dates';
 import { StripeReservationsPanel } from '@/components/portal/stripe-reservations-panel';
 import { ReservationsPanel } from '@/components/portal/reservations-panel';
 import { RelationshipsPanel } from '@/components/portal/relationships-panel';
@@ -139,7 +140,7 @@ function PortalDesk() {
   const [newSaleRequest, setNewSaleRequest] = useState(0);
   const [quickEnquiryOpen, setQuickEnquiryOpen] = useState(false);
   const [quickEnquiryVehicleId, setQuickEnquiryVehicleId] = useState<string | null>(null);
-  const [quickCreated, setQuickCreated] = useState<{ id: string; reference: string } | null>(null);
+  const [quickCreated, setQuickCreated] = useState<QuickEnquiryResult | null>(null);
   const sectionNav = useRef<HTMLElement>(null);
   const search = useSearch();
   const [, navigate] = useLocation();
@@ -279,7 +280,7 @@ function PortalDesk() {
               })}
             </nav>
 
-            {quickCreated && <div className="portal-quick-confirmation" role="status"><CheckCircle2 size={18} aria-hidden="true" /><span>Enquiry {quickCreated.reference} saved.</span><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(quickCreated.id)}`}>Open enquiry</Link><button type="button" aria-label="Dismiss confirmation" onClick={() => setQuickCreated(null)}><X size={16} aria-hidden="true" /></button></div>}
+            {quickCreated && <div className="portal-quick-confirmation" role="status"><CheckCircle2 size={18} aria-hidden="true" /><span>{quickCreated.appointmentAt ? <>{quickCreated.appointmentStatus === 'pending' ? `Test-drive request ${quickCreated.reference} saved` : `Test drive ${quickCreated.reference} booked`} · {appointmentLabel(quickCreated.appointmentAt)}{quickCreated.appointmentStatus === 'pending' ? ' · Awaiting approval.' : '.'}{['failed', 'unknown'].includes(quickCreated.customerNotificationStatus || '') && <small className="portal-quick-email-warning">Booking saved. Confirmation email needs attention.</small>}</> : <>Enquiry {quickCreated.reference} saved.</>}</span><Link href={`/portal?section=notifications&workView=${quickCreated.appointmentAt ? 'test-drives' : 'customers'}&enquiryId=${encodeURIComponent(quickCreated.id)}`}>{quickCreated.appointmentAt ? 'Open booking' : 'Open enquiry'}</Link><button type="button" aria-label="Dismiss confirmation" onClick={() => setQuickCreated(null)}><X size={16} aria-hidden="true" /></button></div>}
 
             <div className="portal-section-content min-h-[50vh]">
               {tab !== 'sales' && <div role="region" id={`portal-content-${tab}`} aria-labelledby={`portal-section-${tab}`}>
@@ -296,7 +297,7 @@ function PortalDesk() {
 
 
       </div>
-      {canSell && <QuickEnquiryDialog open={quickEnquiryOpen} initialVehicleId={quickEnquiryVehicleId} onOpenChange={setQuickEnquiryOpen} onCreated={enquiry => { setQuickEnquiryOpen(false); setQuickCreated({ id: enquiry.id, reference: enquiry.reference }); }} />}
+      {canSell && <QuickEnquiryDialog open={quickEnquiryOpen} initialVehicleId={quickEnquiryVehicleId} onOpenChange={setQuickEnquiryOpen} onCreated={enquiry => { setQuickEnquiryOpen(false); setQuickCreated(enquiry); }} />}
     </div>
   );
 }

@@ -1,8 +1,24 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const state = vi.hoisted(() => ({
   create: vi.fn(),
+  createBooking: vi.fn(),
+  availabilityOptions: vi.fn(),
+  availabilityRetry: vi.fn(),
+  featureRetry: vi.fn(),
+  availabilityLoading: false,
+  availabilityError: false,
+  hasAvailableTime: true,
+  bookingEnabled: true,
+  settingsLoading: false,
+  settingsError: false,
+  featureEnabled: true,
+  featureLoading: false,
+  featureFetching: false,
+  featureError: false,
+  inventoryStatus: "available",
+
   options: vi.fn(),
   directoryOptions: vi.fn(),
   recentOptions: vi.fn(),
@@ -26,11 +42,26 @@ vi.mock("@/lib/enquiry-summary-query", () => ({
 }));
 vi.mock("@workspace/api-client-react", () => ({
   getGetEnquiriesQueryKey: () => ["/api/enquiries"],
+  getGetStockQueryKey: () => ["/api/stock"],
   getGetStaffDirectoryQueryKey: () => ["/api/staff/directory"],
-  useCreateStaffEnquiry: (options: unknown) => {
+  getGetDealerSettingsQueryKey: () => ["/api/dealer-settings"],
+  useCreateStaffEnquiry: (options: { request?: { headers?: Record<string, string> } } = {}) => {
     state.options(options);
-    return { mutateAsync: state.create, isPending: false };
+    return { mutateAsync: options.request?.headers?.["X-Enquiry-Capture"] === "quick" ? state.create : state.createBooking, isPending: false };
   },
+  getGetTestDriveBookingsQueryKey: () => ["/api/test-drive-bookings"],
+  getGetEnquiryAvailabilityQueryKey: (params?: { date: string }) => params ? ["/api/enquiries/availability", params] : ["/api/enquiries/availability"],
+  getGetStaffAppointmentAvailabilityQueryKey: (id: string, { date }: { date: string }) => ["/api/staff/appointments", id, { date }],
+  useGetEnquiryAvailability: ({ date }: { date: string }, options: unknown) => {
+    state.availabilityOptions(options);
+    return {
+      data: state.availabilityLoading || state.availabilityError ? undefined : { date, slots: [{ startAt: `${date}T14:00:00.000Z`, label: "15:00", available: state.hasAvailableTime }] },
+      isLoading: state.availabilityLoading,
+      isError: state.availabilityError,
+      refetch: state.availabilityRetry,
+    };
+  },
+  useGetStaffAppointmentAvailability: () => ({ data: { slots: [] }, isLoading: false, isError: false, refetch: state.availabilityRetry }),
   useGetStaffDirectory: (options: unknown) => {
     state.directoryOptions(options);
     return {
@@ -43,6 +74,37 @@ vi.mock("@workspace/api-client-react", () => ({
       refetch: state.directoryRetry,
     };
   },
+}));
+vi.mock("@/lib/dealer-features", () => ({
+  useDealerFeatures: () => ({
+    data: state.featureLoading ? undefined : { features: { testDriveBookings: state.featureEnabled } },
+    isLoading: state.featureLoading,
+    isFetching: state.featureFetching,
+    isError: state.featureError,
+    isSuccess: !state.featureError && !state.featureLoading,
+    enabled: () => state.featureEnabled,
+    refetch: state.featureRetry,
+  }),
+}));
+vi.mock("@/lib/dealer-settings-context", () => ({
+  useDealerSettings: () => ({
+    settings: {
+      testDriveBooking: {
+        enabled: state.bookingEnabled,
+        durationMinutes: 30,
+        bufferMinutes: 0,
+        minimumNoticeHours: 0,
+        dailyCapacity: 16,
+        daysAhead: 7,
+        blockedDates: [],
+        instructions: "",
+        confirmationMode: "instant",
+        weeklyHours: Array.from({ length: 7 }, (_, day) => ({ day, enabled: true, open: "08:00", close: "18:00" })),
+      },
+    },
+    isLoading: state.settingsLoading,
+    isError: state.settingsError,
+  }),
 }));
 vi.mock("./dealer-administration", () => ({
   useStaffAccess: () => ({
@@ -64,7 +126,9 @@ vi.mock("@/lib/stock-context", () => ({
           year: 2019,
           plate: "AB69CDE",
           registration: "2019",
+          inventoryStatus: state.inventoryStatus,
         },
+        { id: "car-two", title: "Toyota Yaris", year: 2020, inventoryStatus: "available" },
       ],
     },
     isLoading: state.stockLoading,
@@ -73,6 +137,23 @@ vi.mock("@/lib/stock-context", () => ({
 }));
 import { QuickEnquiryDialog } from "./quick-enquiry";
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-19T09:00:00Z"));
+  state.createBooking.mockReset().mockResolvedValue({ id: "booking-new", reference: "ENQ-BOOK", appointmentAt: "2026-10-19T14:00:00.000Z" });
+  state.availabilityOptions.mockClear();
+  state.availabilityRetry.mockClear();
+  state.featureRetry.mockClear();
+  state.availabilityLoading = false;
+  state.availabilityError = false;
+  state.hasAvailableTime = true;
+  state.bookingEnabled = true;
+  state.settingsLoading = false;
+  state.settingsError = false;
+  state.featureEnabled = true;
+  state.featureLoading = false;
+  state.featureFetching = false;
+  state.featureError = false;
+  state.inventoryStatus = "available";
   state.create
     .mockReset()
     .mockResolvedValue({ id: "enquiry-new", reference: "ENQ-123" });
@@ -91,6 +172,7 @@ beforeEach(() => {
   state.stockLoading = false;
   state.stockError = null;
 });
+afterEach(() => vi.useRealTimers());
 function mount(open = true, initialVehicleId?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -219,7 +301,7 @@ it("captures a general enquiry in place using the no-email mode and the current 
     "",
   );
   expect(
-    screen.getByText("Save the details now. No email is sent."),
+    screen.getByText("Enquiry only: no email is sent."),
   ).toBeVisible();
 });
 it("allows no email, car or notes and never creates an appointment or callback", async () => {
@@ -259,6 +341,7 @@ it.each([
 });
 it("keeps all details and the server explanation when saving fails", async () => {
   state.create.mockRejectedValue({
+    status: 409,
     data: { error: "This car has changed. Please choose it again." },
   });
   const view = mount();
@@ -286,7 +369,7 @@ it("does not automatically retry an uncertain save", async () => {
   fill();
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Check Enquiries before retrying",
+    "Check Enquiries or Test drives before retrying",
   );
   expect(state.create).toHaveBeenCalledTimes(1);
 });
@@ -382,4 +465,240 @@ it("allows a general enquiry when stock is unavailable and keeps closed dialogs 
   expect(state.directoryOptions).toHaveBeenLastCalledWith({
     query: { queryKey: ["/api/staff/directory"], enabled: false, retry: false },
   });
+});
+
+function turnOnTestDrive() {
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+}
+async function chooseTestDrive() {
+  turnOnTestDrive();
+  fireEvent.click(await screen.findByRole("button", { name: "15:00" }));
+}
+const bookingButton = () => screen.getByRole("button", { name: "Save enquiry & book test drive" });
+
+it("books one test drive atomically through normal staff creation without the quick no-email header", async () => {
+  const view = mount(true, "car-one");
+  fill();
+  fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), { target: { value: " alex@example.test " } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), { target: { value: "  Would like a test drive.  " } });
+  expect(screen.getByRole("checkbox", { name: /^Book a test drive/ })).not.toBeChecked();
+  await chooseTestDrive();
+  expect(screen.getAllByText(/UK time/).length).toBeGreaterThan(0);
+  fireEvent.click(bookingButton());
+  await waitFor(() => expect(view.onCreated).toHaveBeenCalledTimes(1));
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).toHaveBeenCalledExactlyOnceWith({ data: {
+    assignedToId: "staff-current",
+    type: "viewing",
+    customerName: "Alex Smith",
+    phone: "07700 900123",
+    email: "alex@example.test",
+    preferredContact: "phone",
+    vehicleId: "car-one",
+    message: "Would like a test drive.",
+    appointmentAt: "2026-10-19T14:00:00.000Z",
+    callOutcome: "test_drive_booked",
+    allowOutsideHours: false,
+    allowDoubleBooking: false,
+  } });
+  expect(state.options).toHaveBeenCalledWith({ mutation: { retry: false } });
+  expect(view.onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "booking-new", reference: "ENQ-BOOK", appointmentAt: "2026-10-19T14:00:00.000Z" }));
+  expect(view.invalidate).toHaveBeenCalledWith({ queryKey: ["/api/test-drive-bookings"] });
+});
+
+it.each([
+  ["platform disabled", { featureEnabled: false }],
+  ["feature check loading", { featureLoading: true }],
+  ["feature check failed despite a cached enabled flag", { featureError: true }],
+  ["booking settings loading", { settingsLoading: true }],
+  ["booking settings failed despite enabled settings", { settingsError: true }],
+  ["dealer scheduling disabled", { bookingEnabled: false }],
+])("blocks only the optional booking when %s", async (_label, patch) => {
+  Object.assign(state, patch);
+  mount();
+  fill();
+  expect(screen.getByRole("checkbox", { name: /^Book a test drive/ })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Save enquiry" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  await waitFor(() => expect(state.create).toHaveBeenCalledTimes(1));
+  expect(state.createBooking).not.toHaveBeenCalled();
+  expect(state.create.mock.calls[0][0].data.appointmentAt).toBeNull();
+});
+
+it("requires a current available car and a selected time before booking", async () => {
+  mount();
+  fill();
+  turnOnTestDrive();
+  fireEvent.submit(bookingButton().closest("form")!);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/available.*car|car.*available|choose.*car/i);
+  expect(state.createBooking).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole("combobox", { name: /Car/ }), { target: { value: "car-one" } });
+  fireEvent.submit(bookingButton().closest("form")!);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/time/i);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it.each(["sold", "reserved", "hidden", "archived"])("does not book a preselected %s car", async status => {
+  state.inventoryStatus = status;
+  mount(true, "car-one");
+  fill();
+  turnOnTestDrive();
+  const time = screen.queryByRole("button", { name: "15:00" });
+  if (time) fireEvent.click(time);
+  fireEvent.submit(bookingButton().closest("form")!);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/available.*car|car.*available|choose.*car/i);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it("clears the chosen time when the car changes", async () => {
+  mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  expect(screen.getByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.change(screen.getByRole("combobox", { name: /Car/ }), { target: { value: "car-two" } });
+  expect(await screen.findByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "false");
+  fireEvent.submit(bookingButton().closest("form")!);
+  expect(await screen.findByRole("alert")).toHaveTextContent(/time/i);
+  expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it("clears the chosen time when booking is turned off and saves a normal no-email enquiry", async () => {
+  mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  expect(screen.queryByRole("button", { name: "15:00" })).not.toBeInTheDocument();
+  turnOnTestDrive();
+  expect(await screen.findByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  await waitFor(() => expect(state.create).toHaveBeenCalledTimes(1));
+  expect(state.createBooking).not.toHaveBeenCalled();
+  expect(state.create.mock.calls[0][0].data).toMatchObject({ type: "general", appointmentAt: null });
+  expect(state.create.mock.calls[0][0].data).not.toHaveProperty("callOutcome");
+});
+
+it("allows booking without email and explains that staff should confirm by phone", async () => {
+  mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  expect(screen.getByText(/confirm.*phone/i)).toBeVisible();
+  fireEvent.click(bookingButton());
+  await waitFor(() => expect(state.createBooking).toHaveBeenCalledTimes(1));
+  expect(state.createBooking.mock.calls[0][0].data.email).toBeNull();
+  expect(state.create).not.toHaveBeenCalled();
+});
+
+it("retains customer details, notes and chosen time on an uncertain booking save without retrying", async () => {
+  state.createBooking.mockRejectedValue(new Error("Network disconnected"));
+  const view = mount(true, "car-one");
+  fill();
+  fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), { target: { value: "Keep these notes" } });
+  await chooseTestDrive();
+  fireEvent.click(bookingButton());
+  expect(await screen.findByRole("alert")).toHaveTextContent(/Check Enquiries or Test drives before retrying/);
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue("  Alex Smith  ");
+  expect(screen.getByRole("textbox", { name: "Notes (optional)" })).toHaveValue("Keep these notes");
+  expect(screen.getByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "true");
+  expect(state.createBooking).toHaveBeenCalledTimes(1);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(view.onCreated).not.toHaveBeenCalled();
+  expect(view.onOpenChange).not.toHaveBeenCalled();
+});
+
+it("clears a conflicting time, refreshes availability and keeps the contact details after a 409", async () => {
+  state.createBooking.mockRejectedValue({ status: 409, data: { error: "That time has just been taken. Choose another." } });
+  const view = mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  fireEvent.click(bookingButton());
+  expect(await screen.findByRole("alert")).toHaveTextContent("That time has just been taken.");
+  expect(screen.getByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue("  Alex Smith  ");
+  const refresh = view.invalidate.mock.calls.find(([options]) => options?.predicate);
+  expect(refresh).toBeDefined();
+  expect(refresh![0]!.predicate!({ queryKey: ["/api/enquiries/availability", { date: "2026-10-19" }] } as never)).toBe(true);
+  expect(refresh![0]!.predicate!({ queryKey: ["/api/enquiries"] } as never)).toBe(false);
+  expect(view.invalidate).toHaveBeenCalledWith({ queryKey: ["/api/stock"] });
+  expect(state.createBooking).toHaveBeenCalledTimes(1);
+  expect(state.create).not.toHaveBeenCalled();
+});
+
+it("prevents a second booking POST and keeps the popup open while its single atomic save is pending", async () => {
+  let resolve!: (value: unknown) => void;
+  state.createBooking.mockImplementation(() => new Promise(done => { resolve = done; }));
+  const view = mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  const form = bookingButton().closest("form")!;
+  fireEvent.submit(form);
+  fireEvent.submit(form);
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  expect(state.createBooking).toHaveBeenCalledTimes(1);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  expect(view.onOpenChange).not.toHaveBeenCalled();
+  resolve({ id: "booking-new", reference: "ENQ-BOOK", appointmentAt: "2026-10-19T14:00:00.000Z" });
+  await waitFor(() => expect(view.onCreated).toHaveBeenCalledTimes(1));
+});
+
+it("blocks a previously chosen booking if the feature check later fails while general capture remains usable", async () => {
+  mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  state.featureError = true;
+  fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), { target: { value: "Still keep customer notes" } });
+  fireEvent.submit(bookingButton().closest("form")!);
+  expect(state.createBooking).not.toHaveBeenCalled();
+  expect(state.create).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  await waitFor(() => expect(state.create).toHaveBeenCalledTimes(1));
+});
+
+it.each([
+  ["no available times", { hasAvailableTime: false }],
+  ["availability loading", { availabilityLoading: true }],
+  ["availability error", { availabilityError: true }],
+])("does not submit a booking with %s", async (_label, patch) => {
+  Object.assign(state, patch);
+  mount(true, "car-one");
+  fill();
+  turnOnTestDrive();
+  expect(screen.queryByRole("button", { name: "15:00" })).not.toBeInTheDocument();
+  fireEvent.submit(bookingButton().closest("form")!);
+  expect(state.createBooking).not.toHaveBeenCalled();
+  expect(state.create).not.toHaveBeenCalled();
+});
+
+
+it("treats a booking HTTP500 as uncertain even when its API text suggests retrying", async () => {
+  state.createBooking.mockRejectedValue({ status: 500, data: { error: "Temporary server error. Please try again." } });
+  const view = mount(true, "car-one");
+  fill();
+  await chooseTestDrive();
+  fireEvent.click(bookingButton());
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent(/could not confirm/i);
+  expect(alert).toHaveTextContent(/Check Enquiries/i);
+  expect(alert).not.toHaveTextContent("Please try again.");
+  expect(screen.getByRole("combobox", { name: "Customer name" })).toHaveValue("  Alex Smith  ");
+  expect(state.createBooking).toHaveBeenCalledTimes(1);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(view.onCreated).not.toHaveBeenCalled();
+});
+
+it("treats a general enquiry HTTP500 as uncertain rather than echoing an unsafe retry instruction", async () => {
+  state.create.mockRejectedValue({ status: 500, data: { error: "Temporary server error. Please try again." } });
+  mount();
+  fill();
+  fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent(/could not confirm/i);
+  expect(alert).toHaveTextContent(/Check Enquiries/i);
+  expect(alert).not.toHaveTextContent("Please try again.");
+  expect(state.create).toHaveBeenCalledTimes(1);
+  expect(state.createBooking).not.toHaveBeenCalled();
 });

@@ -87,6 +87,101 @@
   margin-top: 16px;
   font-size: 13px;
 }
+.quick-enquiry-booking {
+  min-width: 0;
+  border: 1px solid var(--portal-border, #d8e0e5);
+  border-radius: 12px;
+  background: #f6f9fb;
+  overflow: hidden;
+}
+.quick-enquiry-dialog .quick-booking-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px;
+  cursor: pointer;
+}
+.quick-enquiry-dialog .quick-booking-toggle input {
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  min-height: 19px;
+  margin: 0;
+  accent-color: var(--portal-accent, #245e80);
+}
+.quick-booking-toggle > span {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.quick-booking-toggle strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.quick-booking-toggle small,
+.quick-booking-unavailable,
+.quick-booking-note,
+.quick-enquiry-delivery-note {
+  color: var(--portal-muted, #596977);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.quick-booking-toggle > svg {
+  flex-shrink: 0;
+  color: var(--portal-accent, #245e80);
+}
+.quick-booking-toggle:has(input:checked) {
+  background: #eaf3f8;
+}
+.quick-booking-toggle:has(input:disabled) {
+  cursor: default;
+}
+.quick-booking-unavailable {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+.quick-booking-picker {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--portal-border, #d8e0e5);
+  padding: 14px;
+  background: #fff;
+}
+.quick-booking-picker [aria-label="Available appointment times"] {
+  max-height: 184px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+  scrollbar-gutter: stable;
+}
+.quick-booking-picker [aria-label="Available appointment times"] button {
+  min-width: 54px;
+  font-variant-numeric: tabular-nums;
+}
+.quick-booking-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #215b43;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.quick-booking-summary > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.quick-enquiry-booking > .quick-booking-note {
+  padding: 0 14px 14px;
+}
+.quick-enquiry-delivery-note {
+  margin-top: 16px;
+}
 .quick-enquiry-footer {
   display: flex;
   justify-content: flex-end;
@@ -141,5 +236,16 @@
   }
   .quick-enquiry-footer button {
     flex: 1;
+  }
+  .quick-enquiry-dialog[data-booking="true"] .quick-enquiry-footer {
+    display: grid;
+    grid-template-columns: minmax(70px, 0.6fr) minmax(0, 1.8fr);
+  }
+  .quick-enquiry-dialog[data-booking="true"] .quick-enquiry-footer button {
+    min-width: 0;
+    height: auto;
+    padding: 11px 12px;
+    white-space: normal;
+    line-height: 1.4;
   }
 }

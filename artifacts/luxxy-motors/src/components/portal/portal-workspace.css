@@ -166,6 +166,8 @@
 .portal-quick-confirmation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; padding: 8px 12px; border: 1px solid #c8ded6; border-radius: 8px; background: #eff8f3; color: #285545; font-size: 13px; }
 .portal-quick-confirmation > a { min-height: 44px; display: inline-flex; align-items: center; padding: 6px 8px; text-decoration: underline; font-weight: 600; }
 .portal-quick-confirmation > button { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin-left: auto; }
+.portal-quick-confirmation > span { min-width: 0; overflow-wrap: anywhere; }
+.portal-quick-email-warning { display: block; margin-top: 4px; color: var(--portal-warning, #86571c); font-size: 12px; line-height: 1.5; }
 .portal-showroom-link { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border-radius: 6px; color: var(--portal-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
 .portal-showroom-link:hover { color: var(--portal-accent); background: var(--portal-canvas); }
 .portal-account-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--portal-muted); font-size: 13px; }

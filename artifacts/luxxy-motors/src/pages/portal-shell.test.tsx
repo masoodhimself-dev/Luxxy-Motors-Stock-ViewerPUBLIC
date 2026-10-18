@@ -114,7 +114,7 @@ vi.mock("@/components/portal/quick-enquiry", () => ({
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onCreated: (enquiry: { id: string; reference?: string }) => void;
+    onCreated: (enquiry: { id: string; reference: string; appointmentAt?: string | null; appointmentStatus?: string | null; customerNotificationStatus?: string | null }) => void;
     initialVehicleId?: string | null;
   }) =>
     open ? (
@@ -128,6 +128,12 @@ vi.mock("@/components/portal/quick-enquiry", () => ({
         >
           Save fixture enquiry
         </button>
+        {[
+          { label: "confirmed", appointmentStatus: "confirmed", customerNotificationStatus: "sent" },
+          { label: "pending", appointmentStatus: "pending", customerNotificationStatus: "sent" },
+          { label: "failed-email", appointmentStatus: "confirmed", customerNotificationStatus: "failed" },
+          { label: "unknown-email", appointmentStatus: "confirmed", customerNotificationStatus: "unknown" },
+        ].map(result => <button key={result.label} type="button" onClick={() => onCreated({ id: "quick-id", reference: "Q-123", appointmentAt: "2026-10-19T14:00:00.000Z", appointmentStatus: result.appointmentStatus, customerNotificationStatus: result.customerNotificationStatus })}>Save fixture {result.label} booking</button>)}
       </section>
     ) : null,
 }));
@@ -531,11 +537,64 @@ describe("portal shell access and navigation", () => {
       screen.getByRole("textbox", { name: "Retained sale worksheet" }),
     ).toHaveValue("Keep this invoice");
     expect(state.salesMounts).toBe(1);
+    expect(screen.queryByText("Booking saved. Confirmation email needs attention.")).not.toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", { name: "Dismiss confirmation" }),
     );
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(location.history).toEqual(initialHistory);
+  });
+
+  it("confirms a quick test drive in place, with its UK appointment time and a direct booking link", async () => {
+    const { location } = mount("section=inventory&vehicleId=stock-car-one");
+    const initialHistory = [...location.history];
+    await chooseQuickAction("Quick enquiry");
+    fireEvent.click(screen.getByRole("button", { name: "Save fixture confirmed booking" }));
+    expect(screen.queryByRole("dialog", { name: "Quick enquiry" })).not.toBeInTheDocument();
+    expect(location.history).toEqual(initialHistory);
+    expectCurrent("inventory");
+    const confirmation = screen.getByRole("status");
+    expect(confirmation).toHaveTextContent("Test drive Q-123 booked");
+    expect(confirmation).toHaveTextContent(/19 October 2026.*15:00/);
+    expect(screen.queryByText("Booking saved. Confirmation email needs attention.")).not.toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Open booking" });
+    expect(link).toHaveAttribute("href", "/portal?section=notifications&workView=test-drives&enquiryId=quick-id");
+    fireEvent.click(link);
+    expectCurrent("notifications");
+    const params = query(location);
+    expect(params.get("workView")).toBe("test-drives");
+    expect(params.get("enquiryId")).toBe("quick-id");
+    expect(params.has("vehicleId")).toBe(false);
+  });
+
+  it("labels an approval-required quick test drive as a request rather than a confirmed booking", async () => {
+    const { location } = mount("section=notifications&workView=customers");
+    const initialHistory = [...location.history];
+    await chooseQuickAction("Quick enquiry");
+    fireEvent.click(screen.getByRole("button", { name: "Save fixture pending booking" }));
+    expect(location.history).toEqual(initialHistory);
+    const confirmation = screen.getByRole("status");
+    expect(confirmation).toHaveTextContent("Test-drive request Q-123 saved");
+    expect(confirmation).toHaveTextContent(/19 October 2026.*15:00/);
+    expect(confirmation).toHaveTextContent("Awaiting approval");
+    expect(confirmation).not.toHaveTextContent("Test drive Q-123 booked");
+    expect(screen.getByRole("link", { name: "Open booking" })).toHaveAttribute("href", "/portal?section=notifications&workView=test-drives&enquiryId=quick-id");
+    expect(screen.queryByText("Booking saved. Confirmation email needs attention.")).not.toBeInTheDocument();
+  });
+
+  it.each(["failed-email", "unknown-email"])("keeps the booking confirmation but flags the %s delivery outcome", async outcome => {
+    const { location } = mount("section=inventory");
+    const initialHistory = [...location.history];
+    await chooseQuickAction("Quick enquiry");
+    fireEvent.click(screen.getByRole("button", { name: `Save fixture ${outcome} booking` }));
+    expect(location.history).toEqual(initialHistory);
+    expect(screen.getByRole("status")).toHaveTextContent("Test drive Q-123 booked");
+    expect(screen.getByText("Booking saved. Confirmation email needs attention.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open booking" })).toHaveAttribute("href", "/portal?section=notifications&workView=test-drives&enquiryId=quick-id");
+    expect(screen.queryByRole("link", { name: "Open enquiry" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss confirmation" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Booking saved. Confirmation email needs attention.")).not.toBeInTheDocument();
   });
 
   it("opens the same Quick enquiry dialog from the combined customer workspace", () => {

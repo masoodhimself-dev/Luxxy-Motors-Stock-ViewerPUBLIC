@@ -22,12 +22,8 @@ import {
   type StaffOnlineReservation,
   useCreateStaffEnquiry,
   useChangeStaffAppointment,
-  useGetEnquiryAvailability,
-  useGetStaffAppointmentAvailability,
-  getGetStaffAppointmentAvailabilityQueryKey,
   getGetEnquiriesQueryKey,
   getGetTestDriveBookingsQueryKey,
-  getGetEnquiryAvailabilityQueryKey,
   type Enquiry,
 } from "@workspace/api-client-react";
 import {
@@ -52,7 +48,6 @@ import {
 import { useStock, type Car } from "@/lib/stock-context";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import {
-  availableBookingDates,
   bookingDateLabel,
   appointmentLabel,
   defaultBookingSettings,
@@ -75,6 +70,7 @@ import { isOutstandingCallback } from "./enquiry-callback-model";
 import { useStaffAppointmentDiary } from "@/lib/staff-appointment-diary";
 import "./enquiries-workspace.css";
 import "./staff-appointment-picker.css";
+import { AppointmentSlots as Slots } from "./appointment-slots";
 
 const field = "enquiry-field grid gap-1.5 text-sm font-medium";
 type BookingAccess = { enabled: boolean; message: string; retry?: () => void };
@@ -121,152 +117,6 @@ function contains(value: string, search: string) {
   return normal(value).includes(normal(search));
 }
 
-function Slots({
-  bookingId,
-  initialDate,
-  value,
-  onChange,
-}: {
-  bookingId?: string;
-  initialDate?: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const { settings, isLoading, isError } = useDealerSettings();
-  const config = settings.testDriveBooking ?? defaultBookingSettings;
-  const dates = availableBookingDates(config);
-  const [date, setDate] = useState(initialDate ?? dates[0] ?? londonDate());
-  const publicQuery = useGetEnquiryAvailability(
-    { date },
-    {
-      query: {
-        queryKey: getGetEnquiryAvailabilityQueryKey({ date }),
-        enabled:
-          !bookingId &&
-          !isLoading &&
-          !isError &&
-          config.enabled &&
-          dates.includes(date),
-        refetchInterval: 30_000,
-        staleTime: 0,
-      },
-    },
-  );
-  const staffQuery = useGetStaffAppointmentAvailability(
-    bookingId ?? "",
-    { date },
-    {
-      query: {
-        queryKey: getGetStaffAppointmentAvailabilityQueryKey(bookingId ?? "", {
-          date,
-        }),
-        enabled:
-          Boolean(bookingId) &&
-          !isLoading &&
-          !isError &&
-          config.enabled &&
-          dates.includes(date),
-        refetchInterval: 30_000,
-        staleTime: 0,
-      },
-    },
-  );
-  const query = bookingId ? staffQuery : publicQuery;
-  useEffect(() => {
-    if (
-      value &&
-      query.data &&
-      !query.data.slots.some((slot) => slot.available && slot.startAt === value)
-    )
-      onChange("");
-  }, [query.data, value, onChange]);
-  if (isLoading) return <p role="status">Loading booking hours…</p>;
-  if (isError)
-    return (
-      <p role="alert">
-        Booking settings could not be loaded. Refresh before booking.
-      </p>
-    );
-  if (!config.enabled)
-    return <p>Test-drive scheduling is switched off in Settings.</p>;
-  return (
-    <div className="enquiry-slots space-y-3">
-      <label className={field}>
-        Appointment date
-        <NativeSelect
-          value={date}
-          onChange={(event) => {
-            setDate(event.target.value);
-            onChange("");
-          }}
-        >
-          {!dates.includes(date) && <option value={date} disabled>{bookingDateLabel(date)} — unavailable</option>}
-          {dates.map((day) => (
-            <option key={day} value={day}>
-              {bookingDateLabel(day)}
-            </option>
-          ))}
-        </NativeSelect>
-      </label>
-      {!dates.includes(date) && <p className="text-sm text-amber-900">This date is outside the available booking dates. Choose another date, or use the staff-specific time option and review any booking exceptions.</p>}
-      <p className="text-xs text-muted-foreground">
-        UK time · {config.durationMinutes} minutes
-        {config.confirmationMode === "approval"
-          ? " · Staff approval required after saving"
-          : ""}
-      </p>
-      {query.isError ? (
-        <div role="alert">
-          Could not load times.{" "}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => query.refetch()}
-          >
-            Retry times
-          </Button>
-        </div>
-      ) : query.isLoading ? (
-        <p role="status">Checking available times…</p>
-      ) : (
-        <div
-          className="flex flex-wrap gap-2"
-          aria-label="Available appointment times"
-        >
-          {query.data?.slots
-            .filter((slot) => slot.available)
-            .map((slot) => (
-              <Button
-                key={slot.startAt}
-                type="button"
-                size="sm"
-                variant={value === slot.startAt ? "default" : "outline"}
-                aria-pressed={value === slot.startAt}
-                onClick={() => onChange(slot.startAt)}
-              >
-                {slot.label}
-              </Button>
-            ))}
-          {!query.data?.slots.some((slot) => slot.available) && (
-            <p className="text-sm text-muted-foreground">
-              No times available. Choose another date.
-            </p>
-          )}
-        </div>
-      )}
-      {value &&
-        query.data &&
-        !query.data.slots.some(
-          (slot) => slot.available && slot.startAt === value,
-        ) && (
-          <p role="alert" className="text-sm text-destructive">
-            That time is no longer available. Choose another.
-          </p>
-        )}
-    </div>
-  );
-}
 
 export function StaffAppointmentPicker({ bookingId, initialDate, time, onTime, manual, onManual, allowOutsideHours, onOutsideHours, allowDoubleBooking, onDoubleBooking }: {
   bookingId?: string;
