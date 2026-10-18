@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 const auth = vi.hoisted(() => ({ signedIn: true }));
 vi.mock('@clerk/react', () => ({ useAuth: () => ({ isSignedIn: auth.signedIn }), SignInButton: ({ children, mode, forceRedirectUrl, signUpForceRedirectUrl }: { children: React.ReactNode; mode: string; forceRedirectUrl: string; signUpForceRedirectUrl: string }) => <div data-testid="platform-sign-in" data-mode={mode} data-return={forceRedirectUrl} data-sign-up-return={signUpForceRedirectUrl}>{children}</div> }));
@@ -39,7 +39,11 @@ it('searches dealer names and never invents an import success', async () => {
   fireEvent.click(screen.getByRole('button',{name:'Dealerships'}));
   expect(screen.getByText('Last successful import: Not yet')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Search dealerships'),{target:{value:'another'}});
-  expect(screen.getByText('No matching dealerships')).toBeInTheDocument();
+  expect(screen.getByText('No dealerships match these filters')).toBeInTheDocument();
+  expect(screen.getByText('Try another search or status.')).toBeInTheDocument();
+  expect(screen.queryByText('Your first dealership starts here')).not.toBeInTheDocument();
+  const section = screen.getByLabelText('Search dealerships').closest('section')!;
+  expect(within(section).queryByRole('button', { name: 'Add dealership' })).not.toBeInTheDocument();
 });
 it('keeps administrator authentication on the platform dashboard', () => {
   auth.signedIn = false; render(<Platform />);
@@ -114,4 +118,40 @@ it('saves per-dealer onboarding evidence and requires a reason for skipped check
   expect(button).toBeEnabled(); fireEvent.click(button);
   await screen.findByText('Changes saved.');
   expect(screen.getByText(/0 complete · 25 pending · 1 not applicable/)).toBeInTheDocument();
+});
+
+
+it('shows an up-to-date attention state when registered dealerships have successful imports', async () => {
+  const run = { runId: 'completed-run', status: 'completed', receivedAt: '2026-10-18T10:00:00Z', scrapedAt: '2026-10-18T09:59:00Z', receivedCount: 8 };
+  const active = { ...dealer, status: 'active', latestImport: run, lastSuccessfulImport: run };
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ dealers: [active], activity: [] })));
+  render(<Platform />);
+  expect(await screen.findByRole('heading', { name: 'Dealership setup is up to date' })).toBeInTheDocument();
+  const section = screen.getByRole('heading', { name: 'Needs attention' }).closest('section')!;
+  expect(within(section).getByText('No setup tasks need attention.')).toBeInTheDocument();
+  expect(within(section).queryByRole('button', { name: 'Add dealership' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Your first dealership starts here')).not.toBeInTheDocument();
+});
+
+it('retains the first-dealership prompt when the platform has no dealerships', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ dealers: [], activity: [] })));
+  render(<Platform />);
+  expect(await screen.findByRole('heading', { name: 'Your first dealership starts here' })).toBeInTheDocument();
+  const section = screen.getByRole('heading', { name: 'Needs attention' }).closest('section')!;
+  expect(within(section).getByRole('button', { name: 'Add dealership' })).toBeEnabled();
+  expect(screen.queryByText('Dealership setup is up to date')).not.toBeInTheDocument();
+});
+
+
+it('keeps an empty status filter separate from an empty platform', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ dealers: [dealer], activity: [] })));
+  render(<Platform />);
+  await screen.findAllByText('Example Dealer');
+  fireEvent.click(screen.getByRole('button', { name: 'Dealerships' }));
+  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'active' } });
+  expect(screen.getByText('No dealerships match these filters')).toBeInTheDocument();
+  expect(screen.getByText('Try another search or status.')).toBeInTheDocument();
+  expect(screen.queryByText('Your first dealership starts here')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'all' } });
+  expect(screen.getByRole('button', { name: /Example Dealer/ })).toBeInTheDocument();
 });

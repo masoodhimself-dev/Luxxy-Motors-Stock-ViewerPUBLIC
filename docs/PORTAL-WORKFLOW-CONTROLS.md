@@ -35,6 +35,8 @@ On the approved platform administration host, use **Feature defaults** for inher
 
 Choose **Use platform default**, **Enabled** or **Disabled** for a dealer. An explicit dealer override takes precedence over the platform default: changing a default does not override an explicit dealer setting. An optional future switch-off date is enforced against server time without leaving the dashboard open. The date input uses the administrator browser's displayed timezone.
 
+Enabling a feature still requires the dealership’s own settings and integrations. These controls do not create provider accounts, install API keys or expand the server’s AI dealer allow-list.
+
 Existing records, cancellation, declaration revocation and applicable staff checks remain accessible. Saved email drafts/history remain available; paused deliveries do not contact the provider or spend a send attempt. Availability lookup failures block new actions until the policy can be checked. Conflicting edits require a reload.
 
 Website chat, online card reservations, vehicle comparison and recent handovers remain release-restricted. Platform/dealer settings cannot re-enable them. These platform policies apply to the shared multi-dealer installation; standalone deployments preserve their existing release policy. Dealer settings editors retain the saved values rather than writing temporary platform restrictions back into the settings.
