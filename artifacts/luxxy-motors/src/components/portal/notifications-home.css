@@ -45,13 +45,13 @@
 }
 .notifications-metrics button:hover,
 .notifications-metrics button[aria-pressed="true"] {
-  background: #edf5f8;
-  border-color: #688a9f;
+  background: var(--notice-soft);
+  border-color: var(--notice-border);
 }
 .notifications-metrics svg {
   width: 17px;
   height: 17px;
-  color: #4c7184;
+  color: var(--notice-ink);
 }
 .notifications-metrics strong {
   font-size: 21px;
@@ -106,14 +106,10 @@
   flex-shrink: 0;
   width: 35px;
   height: 35px;
-  background: #eff4f7;
-  color: #31586f;
+  background: var(--notice-soft);
+  color: var(--notice-ink);
+  border: 1px solid var(--notice-border);
   border-radius: 8px;
-}
-.notifications-icon-email,
-.notifications-icon-followups {
-  color: #8b561d;
-  background: #fff4e3;
 }
 .notifications-record {
   flex: 1;
@@ -176,8 +172,9 @@
 }
 .notifications-error {
   padding: 12px;
-  background: #fff3e5;
-  border: 1px solid #ebcba5;
+  background: var(--portal-warning-soft, #fff6e5);
+  color: var(--portal-warning, #87510b);
+  border: 1px solid var(--portal-warning-border, #ead2a5);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -241,4 +238,69 @@
   .notifications-record h4 a {
     min-height: 44px;
   }
+}
+
+/* Accent current work, while empty categories remain visually quiet. */
+.notifications-metrics button,
+.notifications-feed li {
+  --notice-ink: var(--portal-neutral, #536374);
+  --notice-soft: var(--portal-neutral-soft, #f0f3f6);
+  --notice-border: var(--portal-neutral-border, #d5dde4);
+}
+.notifications-metrics button[data-tone="info"],
+.notifications-feed li[data-tone="info"] {
+  --notice-ink: var(--portal-info, #245ca5);
+  --notice-soft: var(--portal-info-soft, #edf4ff);
+  --notice-border: var(--portal-info-border, #c9d9ef);
+}
+.notifications-metrics button[data-tone="success"],
+.notifications-feed li[data-tone="success"] {
+  --notice-ink: var(--portal-success, #14634a);
+  --notice-soft: var(--portal-success-soft, #edf8f2);
+  --notice-border: var(--portal-success-border, #bfdfcf);
+}
+.notifications-metrics button[data-tone="warning"],
+.notifications-feed li[data-tone="warning"] {
+  --notice-ink: var(--portal-warning, #87510b);
+  --notice-soft: var(--portal-warning-soft, #fff6e5);
+  --notice-border: var(--portal-warning-border, #ead2a5);
+}
+.notifications-metrics button[data-tone="danger"],
+.notifications-feed li[data-tone="danger"] {
+  --notice-ink: var(--portal-danger, #a5303e);
+  --notice-soft: var(--portal-danger-soft, #fff0f1);
+  --notice-border: var(--portal-danger-border, #edc5cb);
+}
+.notifications-metrics button[data-tone="violet"],
+.notifications-feed li[data-tone="violet"] {
+  --notice-ink: var(--portal-violet, #6754a3);
+  --notice-soft: var(--portal-violet-soft, #f3f0ff);
+  --notice-border: var(--portal-violet-border, #d9d0f0);
+}
+.notifications-metrics button[data-tone="teal"],
+.notifications-feed li[data-tone="teal"] {
+  --notice-ink: var(--portal-teal, #116773);
+  --notice-soft: var(--portal-teal-soft, #eaf7f7);
+  --notice-border: var(--portal-teal-border, #b8dddd);
+}
+.notifications-metrics button[data-tone="neutral"],
+.notifications-feed li[data-tone="neutral"] {
+  --notice-ink: var(--portal-neutral, #536374);
+  --notice-soft: var(--portal-neutral-soft, #f0f3f6);
+  --notice-border: var(--portal-neutral-border, #d5dde4);
+}
+.notifications-metrics button {
+  border-top-width: 3px;
+  border-top-color: var(--notice-border);
+}
+.notifications-metrics button:not([data-tone="neutral"]) strong {
+  color: var(--notice-ink);
+}
+.notifications-metrics button[aria-pressed="true"] {
+  box-shadow: inset 0 -2px var(--notice-ink);
+}
+.notifications-type,
+.notifications-record time,
+.notifications-metrics span {
+  color: var(--portal-neutral, #536374);
 }

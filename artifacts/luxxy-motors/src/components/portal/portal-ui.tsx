@@ -128,7 +128,7 @@ export function vehicleLine(lead: Pick<Lead, 'vehicleTitle' | 'vehicleRegistrati
   return [lead.vehicleTitle, lead.vehicleRegistration].filter(Boolean).join(' · ');
 }
 
-type Tone = 'neutral' | 'accent' | 'primary' | 'urgent' | 'muted';
+type Tone = 'neutral' | 'accent' | 'primary' | 'urgent' | 'muted' | 'info' | 'success' | 'warning' | 'danger' | 'teal' | 'violet';
 
 const toneClasses: Record<Tone, string> = {
   neutral: 'border-primary/15 bg-background text-primary',
@@ -136,6 +136,7 @@ const toneClasses: Record<Tone, string> = {
   primary: "border-primary/15 bg-secondary text-primary",
   urgent: 'border-destructive/30 bg-destructive/10 text-destructive',
   muted: 'border-primary/15 bg-primary/5 text-muted-foreground',
+  info: '', success: '', warning: '', danger: '', teal: '', violet: '',
 };
 
 export function Chip({
@@ -158,14 +159,14 @@ export function Chip({
 }
 
 const stageTones: Record<LeadStage, Tone> = {
-  new: 'accent',
-  qualifying: 'neutral',
-  viewing_booked: 'primary',
-  offer: 'primary',
-  reserved: 'primary',
-  sale_agreed: 'primary',
-  collected: 'neutral',
-  won: 'muted',
+  new: 'info',
+  qualifying: 'info',
+  viewing_booked: 'teal',
+  offer: 'warning',
+  reserved: 'warning',
+  sale_agreed: 'success',
+  collected: 'success',
+  won: 'success',
   lost: 'muted',
 };
 

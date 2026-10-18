@@ -159,7 +159,7 @@ export function DealerDashboard({
     <div className="admin-columns">
       <article className="admin-card">
         <h3>Stock connection</h3>
-        <p className="admin-status">
+        <p className="admin-status" data-state={data.stock.stale ? 'warning' : 'success'}>
           {data.stock.stale
             ? 'Stock feed needs attention'
             : 'Stock feed is current'}
@@ -250,12 +250,12 @@ export function DealerDashboard({
               role="group"
               aria-label="Dealership figures"
             >
-              <Link href="/portal?section=inventory">
+              <Link href="/portal?section=inventory" data-tone="teal">
                 <CarFront aria-hidden size={19} />
                 <span>Cars in stock</span>
                 <strong>{data.stockCount}</strong>
               </Link>
-              <Link href="/portal?section=sales">
+              <Link href="/portal?section=sales" data-tone={data.outstandingBalancePence > 0 ? 'warning' : 'success'}>
                 <Wallet aria-hidden size={19} />
                 <span>Outstanding balance</span>
                 <strong>{money(data.outstandingBalancePence)}</strong>

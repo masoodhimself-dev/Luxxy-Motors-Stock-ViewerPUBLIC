@@ -147,6 +147,15 @@ const labels: Record<string, string> = {
 };
 export const emailStatusLabel = (value: string) =>
   labels[value] ?? "Status unavailable";
+export function emailStatusTone(value: string) {
+  if (["delivered", "opened", "clicked"].includes(value)) return "success";
+  if (["failed", "bounced", "complained", "suppressed"].includes(value))
+    return "danger";
+  if (["unknown", "delivery_delayed"].includes(value)) return "warning";
+  if (value === "prepared") return "violet";
+  if (["sent", "sending", "scheduled", "queued"].includes(value)) return "info";
+  return "neutral";
+}
 const dayKey = (value: string) =>
   new Date(value).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 const date = (value: string) =>
@@ -429,6 +438,7 @@ export function EmailWorkspace({
           <Button
             variant={view === "sent" ? "default" : "outline"}
             aria-pressed={view === "sent"}
+            data-tone="info"
             onClick={() => setView("sent")}
           >
             Conversations
@@ -436,6 +446,7 @@ export function EmailWorkspace({
           <Button
             variant={view === "drafts" ? "default" : "outline"}
             aria-pressed={view === "drafts"}
+            data-tone="violet"
             onClick={() => setView("drafts")}
           >
             Drafts to review
@@ -665,7 +676,15 @@ export function EmailWorkspace({
                     </p>
                     <b>{item.latest?.subject || "No email sent yet"}</b>
                     <span className="email-row-meta">
-                      <em>
+                      <em
+                        data-tone={
+                          item.latest
+                            ? emailStatusTone(
+                                item.latest.last_event ?? item.latest.status,
+                              )
+                            : "neutral"
+                        }
+                      >
                         {item.latest
                           ? emailStatusLabel(
                               item.latest.last_event ?? item.latest.status,
@@ -914,6 +933,7 @@ export function EmailWorkspace({
                               )}
                               <article
                                 className={`email-bubble email-bubble-outgoing${active ? " is-active" : ""}`}
+                                data-tone={emailStatusTone(status)}
                                 aria-label={`${message.subject}, email from your dealership`}
                               >
                                 <header>
@@ -960,6 +980,7 @@ export function EmailWorkspace({
                                   </time>
                                   <span
                                     className={`email-delivery-status is-${status}`}
+                                    data-tone={emailStatusTone(status)}
                                   >
                                     {[
                                       "failed",

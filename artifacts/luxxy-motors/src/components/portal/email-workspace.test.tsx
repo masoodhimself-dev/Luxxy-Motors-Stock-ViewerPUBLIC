@@ -40,6 +40,7 @@ vi.mock("./enquiry-workspace-tools", () => ({
 import {
   EmailWorkspace,
   emailStatusLabel,
+  emailStatusTone,
   groupEmailConversations,
 } from "./email-workspace";
 const message = {
@@ -520,6 +521,7 @@ it("distinguishes a staff enquiry record and failed email attempt from an incomi
       name: "Your Ford Focus, email from your dealership",
     });
     expect(bubble).toHaveTextContent("Failed");
+    expect(bubble).toHaveAttribute("data-tone", "danger");
     expect(within(bubble).queryByText("Delivered")).not.toBeInTheDocument();
     expect(within(bubble).queryByText("Sent")).not.toBeInTheDocument();
   } finally {
@@ -752,4 +754,17 @@ it("sorts PostgreSQL timestamps, ISO UTC and offset timestamps by their actual i
     expect.stringContaining("Your deposit receipt."),
     expect.stringContaining("The final update."),
   ]);
+});
+
+it("keeps normal delivery progress distinct from uncertain or failed delivery", () => {
+  expect(emailStatusTone("sent")).toBe("info");
+  expect(emailStatusTone("sending")).toBe("info");
+  expect(emailStatusTone("delivered")).toBe("success");
+  expect(emailStatusTone("unknown")).toBe("warning");
+  expect(emailStatusTone("delivery_delayed")).toBe("warning");
+  expect(emailStatusTone("failed")).toBe("danger");
+  expect(emailStatusTone("bounced")).toBe("danger");
+  expect(emailStatusTone("prepared")).toBe("violet");
+  expect(emailStatusTone("canceled")).toBe("neutral");
+  expect(emailStatusTone("not-a-known-event")).toBe("neutral");
 });

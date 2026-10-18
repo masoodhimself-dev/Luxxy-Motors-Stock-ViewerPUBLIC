@@ -79,7 +79,7 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail }: { booking: 
           {booking.email && <a href={`mailto:${booking.email}`} className="mt-1 block break-all text-muted-foreground underline underline-offset-4">{booking.email}</a>}
         </div>
         <div>
-          <Chip tone={status === 'confirmed' ? 'primary' : 'muted'}>{status === 'pending' && timePassed ? 'Time passed' : statusLabels[status]}</Chip>
+          <Chip tone={status === 'confirmed' ? 'info' : status === 'pending' && !timePassed ? 'warning' : 'muted'}>{status === 'pending' && timePassed ? 'Time passed' : statusLabels[status]}</Chip>
           {status === 'pending' && upcoming && <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" size="sm" disabled={mutation.isPending} onClick={() => openDecision('confirm')}>Confirm appointment</Button>
             <Button type="button" size="sm" variant="outline" disabled={mutation.isPending} onClick={() => openDecision('decline')}>Decline</Button>

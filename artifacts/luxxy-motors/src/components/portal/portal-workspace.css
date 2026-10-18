@@ -1,11 +1,32 @@
 /* Shared staff workspace foundation. Customer routes keep their own tokens. */
-:is(.premium-portal, .portal-premium-workspace, .sales-premium-workspace, .portal-action-dialog) {
+:is(.premium-portal, .portal-premium-workspace, .sales-premium-workspace, .portal-action-dialog, .portal-quick-menu, .staff-diary-detail) {
   --portal-ink: #192a36;
   --portal-accent: #215a7e;
   --portal-muted: #586976;
   --portal-canvas: #f5f7f9;
   --portal-panel: #fff;
   --portal-border: #dce3e8;
+  --portal-info: #245ca5;
+  --portal-info-soft: #edf4ff;
+  --portal-info-border: #c9d9ef;
+  --portal-success: #14634a;
+  --portal-success-soft: #edf8f2;
+  --portal-success-border: #bfdfcf;
+  --portal-warning: #87510b;
+  --portal-warning-soft: #fff6e5;
+  --portal-warning-border: #ead2a5;
+  --portal-danger: #a5303e;
+  --portal-danger-soft: #fff0f1;
+  --portal-danger-border: #edc5cb;
+  --portal-violet: #6754a3;
+  --portal-violet-soft: #f3f0ff;
+  --portal-violet-border: #d9d0f0;
+  --portal-teal: #116773;
+  --portal-teal-soft: #eaf7f7;
+  --portal-teal-border: #b8dddd;
+  --portal-neutral: #536374;
+  --portal-neutral-soft: #f0f3f6;
+  --portal-neutral-border: #d5dde4;
   --app-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: var(--app-font-sans);
   font-family: var(--app-font-sans);
@@ -26,6 +47,8 @@
   --card-foreground: 204 37% 15%;
   --secondary: 210 25% 95%;
   --secondary-foreground: 204 37% 15%;
+  --destructive: 353 55% 42%;
+  --destructive-foreground: 0 0% 100%;
   color: var(--portal-ink);
   font-size: 14px;
   line-height: 1.65;
@@ -72,11 +95,14 @@
 :is(.portal-premium-workspace,.portal-action-dialog) textarea { min-height: 108px; }
 :is(.portal-premium-workspace,.portal-action-dialog) input[type="checkbox"] { accent-color: var(--portal-accent); }
 :is(.portal-premium-workspace,.portal-action-dialog) :is(button,a,input,textarea,select,[tabindex]):focus-visible { outline: 2px solid var(--portal-accent); outline-offset: 3px; }
-.portal-premium-workspace .portal-status-chip { padding: 3px 8px; font-size: 11px; font-weight: 500; border-radius: 4px; line-height: 1.6; }
-.portal-premium-workspace .portal-status-chip[data-tone="accent"] { color: var(--portal-accent); background: #edf3f7; border-color: #c6d7e3; }
-.portal-premium-workspace .portal-status-chip[data-tone="primary"] { color: #245c48; background: #f0f7f3; border-color: #c8dcd1; }
-.portal-premium-workspace .portal-status-chip[data-tone="neutral"] { color: var(--portal-ink); background: var(--portal-panel); border-color: var(--portal-border); }
-.portal-premium-workspace .portal-status-chip[data-tone="muted"] { color: var(--portal-muted); background: var(--portal-canvas); border-color: var(--portal-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip { padding: 3px 8px; font-size: 11px; font-weight: 500; border-radius: 4px; line-height: 1.6; }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip:is([data-tone="accent"],[data-tone="info"]) { color: var(--portal-info); background: var(--portal-info-soft); border-color: var(--portal-info-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip:is([data-tone="primary"],[data-tone="success"]) { color: var(--portal-success); background: var(--portal-success-soft); border-color: var(--portal-success-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip[data-tone="warning"] { color: var(--portal-warning); background: var(--portal-warning-soft); border-color: var(--portal-warning-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip:is([data-tone="urgent"],[data-tone="danger"]) { color: var(--portal-danger); background: var(--portal-danger-soft); border-color: var(--portal-danger-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip[data-tone="teal"] { color: var(--portal-teal); background: var(--portal-teal-soft); border-color: var(--portal-teal-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip[data-tone="violet"] { color: var(--portal-violet); background: var(--portal-violet-soft); border-color: var(--portal-violet-border); }
+:is(.portal-premium-workspace,.portal-action-dialog) .portal-status-chip:is([data-tone="neutral"],[data-tone="muted"]) { color: var(--portal-neutral); background: var(--portal-neutral-soft); border-color: var(--portal-neutral-border); }
 .portal-empty-state { min-height: 160px; padding: 32px 24px; border: 0; border-radius: 4px; background: var(--portal-canvas); }
 .portal-empty-state > svg { color: #879ca9; }
 .portal-empty-state > p:first-of-type { color: var(--portal-ink); font-size: 16px; font-weight: 500; }
@@ -169,3 +195,123 @@
   .portal-workspace-brand > span { max-width: 92px; font-size: 13px; }
   .portal-toolbar-actions .portal-new-sale { padding-inline: 8px; }
 }
+
+/* Colour is a signpost; every state keeps its name, icon and existing controls. */
+.portal-workspace .portal-section-nav > button {
+  --nav-ink: var(--portal-info);
+  --nav-soft: var(--portal-info-soft);
+  --nav-line: var(--portal-info-border);
+  border-radius: 8px 8px 0 0;
+  padding-inline: 12px;
+}
+.portal-section-nav #portal-section-inventory {
+  --nav-ink: var(--portal-teal);
+  --nav-soft: var(--portal-teal-soft);
+  --nav-line: var(--portal-teal-border);
+}
+.portal-section-nav #portal-section-reservations {
+  --nav-ink: var(--portal-warning);
+  --nav-soft: var(--portal-warning-soft);
+  --nav-line: var(--portal-warning-border);
+}
+.portal-section-nav #portal-section-history {
+  --nav-ink: var(--portal-neutral);
+  --nav-soft: var(--portal-neutral-soft);
+  --nav-line: var(--portal-neutral-border);
+}
+.portal-section-nav #portal-section-settings {
+  --nav-ink: var(--portal-violet);
+  --nav-soft: var(--portal-violet-soft);
+  --nav-line: var(--portal-violet-border);
+}
+.portal-workspace .portal-section-nav > button > svg { color: var(--nav-ink); }
+.portal-workspace .portal-section-nav > button[aria-current="page"] {
+  color: var(--nav-ink);
+  background: var(--nav-soft);
+  border-bottom-color: var(--nav-ink);
+}
+.portal-workspace .portal-section-nav > button:hover {
+  color: var(--nav-ink);
+  background: var(--nav-soft);
+}
+.portal-premium-workspace .admin-daily-summary > a[data-tone="teal"] > svg {
+  color: var(--portal-teal);
+  background: var(--portal-teal-soft);
+}
+.portal-premium-workspace .admin-daily-summary > a[data-tone="warning"] > svg {
+  color: var(--portal-warning);
+  background: var(--portal-warning-soft);
+}
+.portal-premium-workspace .admin-daily-summary > a[data-tone="success"] > svg {
+  color: var(--portal-success);
+  background: var(--portal-success-soft);
+}
+.portal-premium-workspace .admin-daily-summary > a > svg {
+  box-sizing: content-box;
+  padding: 8px;
+  border-radius: 9px;
+}
+@media (max-width: 600px) {
+  .portal-premium-workspace .admin-daily-summary > a {
+    grid-template-columns: 33px minmax(0, 1fr);
+  }
+}
+.portal-premium-workspace .admin-status[data-state="warning"] { color: var(--portal-warning) !important; }
+.portal-premium-workspace .admin-status[data-state="success"] { color: var(--portal-success) !important; }
+.portal-premium-workspace :is(.admin-warning,.admin-attention-link) {
+  border: 1px solid var(--portal-warning-border);
+  background: var(--portal-warning-soft);
+  color: var(--portal-warning);
+}
+.portal-premium-workspace :is(.admin-error,.relationship-error),
+.portal-action-dialog .quick-enquiry-error {
+  border-color: var(--portal-danger-border);
+  background: var(--portal-danger-soft);
+  color: var(--portal-danger);
+}
+.portal-quick-confirmation {
+  background: var(--portal-success-soft);
+  border-color: var(--portal-success-border);
+  color: var(--portal-success);
+}
+.portal-quick-menu [data-action="enquiry"] { --quick-ink: var(--portal-info); --quick-soft: var(--portal-info-soft); }
+.portal-quick-menu [data-action="sale"] { --quick-ink: var(--portal-teal); --quick-soft: var(--portal-teal-soft); }
+.portal-quick-menu [data-action="calendar"] { --quick-ink: var(--portal-teal); --quick-soft: var(--portal-teal-soft); }
+.portal-quick-menu [data-action="drafts"] { --quick-ink: var(--portal-violet); --quick-soft: var(--portal-violet-soft); }
+.portal-quick-menu [data-action] > svg { color: var(--quick-ink); }
+.portal-quick-menu [data-action]:focus { color: var(--quick-ink); background: var(--quick-soft); }
+.portal-action-dialog .quick-enquiry-heading h2 > svg { color: var(--portal-info); }
+.portal-premium-workspace .relationship-views > button[aria-current] {
+  color: var(--portal-info);
+  background: var(--portal-info-soft);
+  border-color: var(--portal-info-border) !important;
+}
+.portal-premium-workspace .relationship-views > button[aria-current] > span {
+  background: var(--portal-info-border);
+  color: var(--portal-info);
+}
+.portal-premium-workspace .enquiry-record-select[aria-pressed="true"] {
+  border-left-color: var(--portal-info);
+  background: var(--portal-info-soft);
+}
+.portal-premium-workspace .enquiries-premium-workspace .enquiry-next-action {
+  background: var(--portal-info-soft);
+  border-color: var(--portal-info-border);
+}
+.portal-premium-workspace .enquiry-next-action[data-tone="warning"] {
+  background: var(--portal-warning-soft);
+  border-color: var(--portal-warning-border);
+}
+.portal-premium-workspace .enquiry-next-action[data-tone="warning"] p { color: var(--portal-warning); }
+.portal-premium-workspace .enquiry-callback-overdue,
+.portal-premium-workspace .enquiry-callback-unscheduled {
+  background: var(--portal-warning-soft);
+  color: var(--portal-warning);
+}
+.portal-premium-workspace .enquiry-callback-upcoming {
+  background: var(--portal-info-soft);
+  color: var(--portal-info);
+}
+.portal-premium-workspace .enquiry-attendance[data-attendance="arrived"] > p { color: var(--portal-teal); }
+.portal-premium-workspace .enquiry-attendance[data-attendance="completed"] > p { color: var(--portal-success); }
+.portal-premium-workspace .enquiry-attendance[data-attendance="no_show"] > p { color: var(--portal-danger); }

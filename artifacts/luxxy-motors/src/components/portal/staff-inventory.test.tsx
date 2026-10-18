@@ -345,6 +345,38 @@ it("keeps the stock list compact, identifies cars clearly and filters preparatio
       name: "Ford Focus preparation checks cleared",
     }),
   ).toHaveAttribute("aria-valuenow", "2");
+  expect(
+    screen
+      .getByRole("progressbar", {
+        name: "Ford Focus preparation checks cleared",
+      })
+      .closest(".inventory-prep-summary"),
+  ).toHaveAttribute("data-preparation", "in-progress");
+  expect(
+    screen
+      .getByRole("progressbar", {
+        name: "BMW 1 Series preparation checks cleared",
+      })
+      .closest(".inventory-prep-summary"),
+  ).toHaveAttribute("data-preparation", "complete");
+  expect(
+    screen
+      .getByRole("progressbar", {
+        name: "Toyota Yaris preparation checks cleared",
+      })
+      .closest(".inventory-prep-summary"),
+  ).toHaveAttribute("data-preparation", "empty");
+  expect(screen.getByText("2/3 service photos")).toHaveAttribute(
+    "data-has-photos",
+    "true",
+  );
+  const bmw = screen
+    .getByRole("heading", { name: "BMW 1 Series" })
+    .closest("article")!;
+  expect(within(bmw).getByText("0/3 service photos")).toHaveAttribute(
+    "data-has-photos",
+    "false",
+  );
   expect(screen.getByText("Registration not supplied")).toBeVisible();
   expect(screen.getByText("Price not supplied")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Available" }));
@@ -711,13 +743,13 @@ it("finds missing plates, service-book photos and overdue work without mistaking
   const checks = await screen.findByRole("group", { name: "Cars to check" });
   expect(
     within(checks).getByRole("button", { name: "Missing number plate 1" }),
-  ).toBeVisible();
+  ).toHaveAttribute("data-tone", "warning");
   expect(
     within(checks).getByRole("button", { name: "No service-book photos 2" }),
-  ).toBeVisible();
+  ).toHaveAttribute("data-tone", "info");
   expect(
     within(checks).getByRole("button", { name: "Overdue preparation 1" }),
-  ).toBeVisible();
+  ).toHaveAttribute("data-tone", "warning");
   fireEvent.click(
     within(checks).getByRole("button", { name: "Missing number plate 1" }),
   );
@@ -742,6 +774,13 @@ it("finds missing plates, service-book photos and overdue work without mistaking
   });
   expect(screen.getAllByRole("article")).toHaveLength(1);
   expect(screen.getByText("Sam")).toBeVisible();
+  fireEvent.change(screen.getByRole("combobox", { name: "Preparation" }), {
+    target: { value: "cleared" },
+  });
+  for (const button of within(checks).getAllByRole("button")) {
+    expect(button).toHaveAttribute("data-tone", "neutral");
+    expect(button).toHaveTextContent(/0$/);
+  }
   expect(
     state.fetch.mock.calls.every(
       ([, options]) => !options?.method || options.method === "GET",

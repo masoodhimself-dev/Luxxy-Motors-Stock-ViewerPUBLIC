@@ -18,11 +18,15 @@ import "./notifications-home.css";
 import { DealerDashboard } from "./dealer-administration";
 
 const groups = {
-  enquiries: { label: "Awaiting a reply", icon: MessageSquare },
-  followups: { label: "Follow-ups due", icon: Clock3 },
-  appointments: { label: "Bookings & today", icon: CalendarClock },
-  drafts: { label: "Saved drafts", icon: FilePenLine },
-  email: { label: "Email needs attention", icon: MailWarning },
+  enquiries: { label: "Awaiting a reply", icon: MessageSquare, tone: "info" },
+  followups: { label: "Follow-ups due", icon: Clock3, tone: "warning" },
+  appointments: {
+    label: "Bookings & today",
+    icon: CalendarClock,
+    tone: "teal",
+  },
+  drafts: { label: "Saved drafts", icon: FilePenLine, tone: "violet" },
+  email: { label: "Email needs attention", icon: MailWarning, tone: "danger" },
 };
 type Category = keyof typeof groups;
 export type Notifications = {
@@ -118,6 +122,9 @@ export function NotificationsHome({
                   <button
                     type="button"
                     key={key}
+                    data-tone={
+                      data.counts[key] > 0 ? groups[key].tone : "neutral"
+                    }
                     aria-pressed={filter === key}
                     onClick={() => setFilter(filter === key ? "all" : key)}
                   >
@@ -173,7 +180,10 @@ export function NotificationsHome({
                   {rows.map((item) => {
                     const Icon = groups[item.category].icon;
                     return (
-                      <li key={`${item.category}:${item.id}`}>
+                      <li
+                        key={`${item.category}:${item.id}`}
+                        data-tone={groups[item.category].tone}
+                      >
                         <span
                           className={`notifications-icon notifications-icon-${item.category}`}
                         >

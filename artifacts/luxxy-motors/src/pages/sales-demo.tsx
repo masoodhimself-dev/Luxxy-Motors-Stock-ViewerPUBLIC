@@ -540,7 +540,7 @@ export function SalesWorkspace({
                   .includes(filter.toLowerCase()),
               )
               .map((sale) => (
-                <button key={sale.id} onClick={() => open(sale)}>
+                <button key={sale.id} data-sale-status={sale.completedAt ? 'sold' : sale.lifecycle?.status === 'reserved' ? 'reserved' : 'in-progress'} onClick={() => open(sale)}>
                   <span>
                     <strong>{sale.draft.customer || "Customer to add"}</strong>
                     <small>
@@ -593,6 +593,7 @@ export function SalesWorkspace({
                 <span
                   key={label}
                   aria-current={index === step ? "step" : undefined}
+                  data-complete={index < step}
                 >
                   <b>{index < step ? <Check size={14} /> : index + 1}</b>
                   {label}
@@ -681,7 +682,7 @@ export function SalesWorkspace({
                         </p>
                         {total!.balance > 0 && (
                           <>
-                            <p className="invoice-message">
+                            <p className="invoice-message" data-tone="warning">
                               {saleMoney(total!.balance)} is still due. Removing
                               the car does not settle this balance.
                             </p>
@@ -1122,11 +1123,11 @@ export function SalesWorkspace({
                           <span>Agreed total</span>
                           <strong>{saleMoney(total!.totalDue)}</strong>
                         </div>
-                        <div>
+                        <div data-kind="received">
                           <span>Received</span>
                           <strong>{saleMoney(total!.confirmedPaid)}</strong>
                         </div>
-                        <div>
+                        <div data-kind="balance" data-balance={total!.balance === 0 ? 'settled' : total!.balance < 0 ? 'credit' : 'outstanding'}>
                           <span>Balance due</span>
                           <strong>{saleMoney(total!.balance)}</strong>
                         </div>
@@ -1134,7 +1135,7 @@ export function SalesWorkspace({
                       {rows.length > 0 && (
                         <div className="invoice-payment-list">
                           {rows.map((row) => (
-                            <div key={row.id}>
+                            <div key={row.id} data-status={row.status}>
                               <span>
                                 <strong>
                                   {saleMoney(row.signedAmountPence)}
@@ -1288,7 +1289,7 @@ export function SalesWorkspace({
                         </form>
                       )}
                       {total!.balance === 0 && (
-                        <p className="invoice-message">
+                        <p className="invoice-message" data-tone="success">
                           The agreed balance is settled.
                         </p>
                       )}
@@ -1360,7 +1361,7 @@ export function SalesWorkspace({
                           <dt>Agreed total</dt>
                           <dd>{saleMoney(total!.totalDue)}</dd>
                         </div>
-                        <div>
+                        <div data-kind="received">
                           <dt>Payments received</dt>
                           <dd>
                             {saleMoney(total!.confirmedPaid)}
@@ -1373,7 +1374,7 @@ export function SalesWorkspace({
                             </small>
                           </dd>
                         </div>
-                        <div>
+                        <div data-kind="balance" data-balance={total!.balance === 0 ? 'settled' : total!.balance < 0 ? 'credit' : 'outstanding'}>
                           <dt>Balance remaining</dt>
                           <dd>{saleMoney(total!.balance)}</dd>
                         </div>

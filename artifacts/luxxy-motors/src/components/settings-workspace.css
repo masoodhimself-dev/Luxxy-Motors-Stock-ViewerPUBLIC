@@ -149,3 +149,67 @@
 @media (max-height: 600px) {
   .portal-settings-premium .settings-save-bar { position: static; }
 }
+
+/* Draft, published and validation states use the same signals as the workspace. */
+.portal-premium-workspace .settings-tabs-workspace,
+.portal-premium-workspace .settings-studio.portal-settings-premium {
+  --portal-accent: var(--portal-info, #245ca5);
+  --settings-accent: var(--portal-info, #245ca5);
+}
+.portal-premium-workspace .portal-settings-premium .settings-profile-status {
+  background: var(--portal-info-soft, #edf4ff);
+  border-color: var(--portal-info-border, #c9d9ef);
+}
+.portal-premium-workspace .portal-settings-premium .settings-profile-status span {
+  color: var(--portal-info, #245ca5);
+}
+.portal-premium-workspace .portal-settings-premium .settings-draft-notice {
+  background: var(--portal-warning-soft, #fff6e5);
+  border-color: var(--portal-warning-border, #ead2a5);
+  border-left-color: var(--portal-warning, #87510b);
+}
+.portal-premium-workspace .portal-settings-premium .settings-draft-notice p:first-child {
+  color: var(--portal-warning, #87510b);
+}
+.portal-premium-workspace .portal-settings-premium .settings-section-icon {
+  color: var(--portal-info, #245ca5);
+  background: var(--portal-info-soft, #edf4ff);
+}
+.portal-premium-workspace .portal-settings-premium #settings-identity .settings-section-icon {
+  color: var(--portal-violet, #6754a3);
+  background: var(--portal-violet-soft, #f3f0ff);
+}
+.portal-premium-workspace .portal-settings-premium #settings-contact .settings-section-icon {
+  color: var(--portal-teal, #116773);
+  background: var(--portal-teal-soft, #eaf7f7);
+}
+.portal-premium-workspace .portal-settings-premium #settings-proof .settings-section-icon {
+  color: var(--portal-success, #14634a);
+  background: var(--portal-success-soft, #edf8f2);
+}
+.portal-premium-workspace .portal-settings-premium #settings-review .settings-section-icon {
+  color: var(--portal-warning, #87510b);
+  background: var(--portal-warning-soft, #fff6e5);
+}
+.portal-premium-workspace .portal-settings-premium .settings-service-card[data-enabled=true] {
+  border-color: var(--portal-success-border, #bfdfcf);
+}
+.portal-premium-workspace .portal-settings-premium .settings-service-card[data-enabled=true] .settings-service-icon {
+  color: var(--portal-success, #14634a);
+}
+.portal-premium-workspace .portal-settings-premium .settings-toggle input:checked + span {
+  background: var(--portal-success, #14634a);
+}
+.portal-premium-workspace .portal-settings-premium :is(.settings-field-error, [data-testid="status-settings-error"], [data-testid="status-settings-validation"]) {
+  color: var(--portal-danger, #a5303e);
+}
+.portal-premium-workspace .portal-settings-premium [data-testid="status-settings-success"] {
+  color: var(--portal-success, #14634a);
+}
+.portal-premium-workspace .portal-settings-premium .settings-readiness-list .text-amber-800 {
+  color: var(--portal-warning, #87510b);
+}
+.portal-premium-workspace .portal-settings-premium button.bg-primary:hover {
+  background: var(--portal-info, #245ca5);
+  filter: brightness(.94);
+}

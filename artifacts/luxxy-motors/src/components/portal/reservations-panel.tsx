@@ -76,7 +76,7 @@ function ReservationRow({ reservation, selected = false }: {
         <a href={`mailto:${reservation.email}`} className="mt-1 block break-all text-muted-foreground underline underline-offset-4">{reservation.email}</a>
       </div>
       <div className="min-w-0 text-sm">
-        <Chip tone={reservation.status === 'reserved' ? 'primary' : 'muted'}>
+        <Chip tone={reservation.status === 'reserved' ? 'warning' : 'muted'}>
           {reservation.status === 'reserved' ? 'Reserved' : 'Cancelled'}
         </Chip>
         <p className="mt-2">Deposit amount: <strong>{money(reservation.depositPence)}</strong></p>

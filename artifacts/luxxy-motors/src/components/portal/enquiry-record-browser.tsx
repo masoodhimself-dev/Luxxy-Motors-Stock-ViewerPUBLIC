@@ -47,7 +47,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
   const canBook = !future || visitFinished;
   return <>
     <header className="enquiry-detail-customer">
-      <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{entry.reference}</p><h3>{entry.customerName}</h3></div><Chip>{enquiryStatus(entry)}</Chip></div>
+      <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{entry.reference}</p><h3>{entry.customerName}</h3></div><Chip tone={entry.appointmentCancelledAt ? 'muted' : entry.appointmentAt && entry.appointmentStatus === 'pending' ? 'warning' : 'info'}>{enquiryStatus(entry)}</Chip></div>
       <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}</div>
       <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
     </header>

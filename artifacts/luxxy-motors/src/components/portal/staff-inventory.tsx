@@ -1128,6 +1128,7 @@ export function StaffInventory({
                     <button
                       key={status}
                       type="button"
+                      data-status={status}
                       aria-pressed={filter === status}
                       onClick={() => setFilter(status)}
                     >
@@ -1161,28 +1162,33 @@ export function StaffInventory({
                   ["missing-service", Camera],
                   ["overdue", Clock3],
                 ] as const
-              ).map(([value, Icon]) => (
-                <button
-                  type="button"
-                  key={value}
-                  aria-pressed={attentionFilter === value}
-                  onClick={() =>
-                    setAttentionFilter(
-                      attentionFilter === value ? "all" : value,
-                    )
-                  }
-                >
-                  <Icon aria-hidden size={14} />
-                  {attentionLabels[value]}{" "}
-                  <span>
-                    {
-                      currentCars.filter((vehicle) =>
-                        needsAttention(vehicle, value),
-                      ).length
+              ).map(([value, Icon]) => {
+                const count = currentCars.filter((vehicle) =>
+                  needsAttention(vehicle, value),
+                ).length;
+                return (
+                  <button
+                    type="button"
+                    key={value}
+                    data-tone={
+                      count === 0
+                        ? "neutral"
+                        : value === "missing-service"
+                          ? "info"
+                          : "warning"
                     }
-                  </span>
-                </button>
-              ))}
+                    aria-pressed={attentionFilter === value}
+                    onClick={() =>
+                      setAttentionFilter(
+                        attentionFilter === value ? "all" : value,
+                      )
+                    }
+                  >
+                    <Icon aria-hidden size={14} />
+                    {attentionLabels[value]} <span>{count}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
           {scope === "current" &&
@@ -1254,7 +1260,16 @@ export function StaffInventory({
                     </div>
                   </div>
                   <div className="inventory-row-work">
-                    <span className="inventory-prep-summary">
+                    <span
+                      className="inventory-prep-summary"
+                      data-preparation={
+                        clearedTasks(c.tasks) === 4
+                          ? "complete"
+                          : clearedTasks(c.tasks) > 0
+                            ? "in-progress"
+                            : "empty"
+                      }
+                    >
                       <ClipboardCheck aria-hidden size={14} />
                       <span>
                         {c.tasks
@@ -1274,7 +1289,11 @@ export function StaffInventory({
                         />
                       </span>
                     </span>
-                    <span title="Private service-book photos">
+                    <span
+                      className="inventory-service-photos"
+                      data-has-photos={(c.service_photo_count ?? 0) > 0}
+                      title="Private service-book photos"
+                    >
                       <Camera aria-hidden size={14} />
                       {c.service_photo_count ?? 0}/3 service photos
                     </span>

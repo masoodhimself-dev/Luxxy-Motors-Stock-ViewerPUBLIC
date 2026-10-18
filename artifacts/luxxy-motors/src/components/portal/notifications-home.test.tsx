@@ -375,3 +375,52 @@ it("keeps uncertain sends out of discard actions and opens only the selected dra
   ).not.toBeInTheDocument();
   expect(state.fetch).toHaveBeenCalledTimes(1);
 });
+
+it("keeps empty notification categories neutral instead of suggesting problems", async () => {
+  backend({
+    notifications: {
+      ...data,
+      counts: {
+        enquiries: 0,
+        followups: 0,
+        appointments: 0,
+        drafts: 0,
+        email: 0,
+      },
+      items: [],
+    },
+  });
+  show(<NotificationsHome />);
+  const categories = await screen.findByLabelText("Notification categories");
+  expect(
+    within(categories)
+      .getAllByRole("button")
+      .every((button) => button.dataset.tone === "neutral"),
+  ).toBe(true);
+  expect(
+    screen.getByRole("heading", { name: "You’re up to date" }),
+  ).toBeInTheDocument();
+});
+
+it("distinguishes actual email issues, due follow-ups and saved drafts while keeping their labels", async () => {
+  backend({
+    notifications: {
+      ...data,
+      counts: { ...data.counts, followups: 2, email: 1 },
+    },
+  });
+  show(<NotificationsHome />);
+  expect(
+    await screen.findByRole("button", { name: /Email needs attention/ }),
+  ).toHaveAttribute("data-tone", "danger");
+  expect(
+    screen.getByRole("button", { name: /Follow-ups due/ }),
+  ).toHaveAttribute("data-tone", "warning");
+  expect(screen.getByRole("button", { name: /Saved drafts/ })).toHaveAttribute(
+    "data-tone",
+    "violet",
+  );
+  expect(
+    screen.getByRole("button", { name: /Bookings & today/ }),
+  ).toHaveAttribute("data-tone", "neutral");
+});

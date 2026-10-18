@@ -2302,3 +2302,114 @@
     top: 0;
   }
 }
+
+/* Staff controls only: the generated invoice and its branding stay unchanged. */
+@media screen {
+  .portal-premium-workspace .invoice-builder .invoice-steps > span {
+    color: var(--portal-neutral, #536374);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-steps b {
+    color: var(--portal-neutral, #536374);
+    border-color: var(--portal-neutral-border, #d5dde4);
+    background: #fff;
+  }
+  .portal-premium-workspace .invoice-builder .invoice-steps [data-complete=true] {
+    color: var(--portal-success, #14634a);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-steps [data-complete=true] b {
+    color: var(--portal-success, #14634a);
+    border-color: var(--portal-success-border, #bfdfcf);
+    background: var(--portal-success-soft, #edf8f2);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-steps [aria-current=step] {
+    color: var(--portal-info, #245ca5);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-steps [aria-current=step] b {
+    color: #fff;
+    border-color: var(--portal-info, #245ca5);
+    background: var(--portal-info, #245ca5);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-type-choices button[aria-pressed=true] {
+    color: var(--portal-violet, #6754a3);
+    border-color: var(--portal-violet, #6754a3);
+    background: var(--portal-violet-soft, #f3f0ff);
+    box-shadow: 0 0 0 1px var(--portal-violet, #6754a3);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-type-choices button[aria-pressed=true] small {
+    color: var(--portal-violet, #6754a3);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-money-summary {
+    background: var(--portal-neutral-soft, #f0f3f6);
+  }
+  .portal-premium-workspace .invoice-builder :is(.invoice-money-summary, .invoice-review) [data-kind=received] strong,
+  .portal-premium-workspace .invoice-builder .invoice-review [data-kind=received] dd {
+    color: var(--portal-success, #14634a);
+  }
+  .portal-premium-workspace .invoice-builder [data-balance=outstanding] :is(strong, dd) {
+    color: var(--portal-warning, #87510b);
+  }
+  .portal-premium-workspace .invoice-builder [data-balance=settled] :is(strong, dd) {
+    color: var(--portal-success, #14634a);
+  }
+  .portal-premium-workspace .invoice-builder [data-balance=credit] :is(strong, dd) {
+    color: var(--portal-violet, #6754a3);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-payment-list > div[data-status=confirmed] {
+    border-bottom-color: var(--portal-success-border, #bfdfcf);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-payment-list > div[data-status=pending] {
+    border-bottom-color: var(--portal-warning-border, #ead2a5);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-payment-list > div[data-status=pending] small {
+    color: var(--portal-warning, #87510b);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-payment-list > div[data-status=cancelled] {
+    color: var(--portal-neutral, #536374);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-ready-card {
+    border-color: var(--portal-success-border, #bfdfcf);
+    background: var(--portal-success-soft, #edf8f2);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-ready-card > svg {
+    color: var(--portal-success, #14634a);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-message {
+    color: var(--portal-info, #245ca5);
+    background: var(--portal-info-soft, #edf4ff);
+    border-color: var(--portal-info-border, #c9d9ef);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-message[data-tone=success] {
+    color: var(--portal-success, #14634a);
+    background: var(--portal-success-soft, #edf8f2);
+    border-color: var(--portal-success-border, #bfdfcf);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-message[data-tone=warning] {
+    color: var(--portal-warning, #87510b);
+    background: var(--portal-warning-soft, #fff6e5);
+    border-color: var(--portal-warning-border, #ead2a5);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-error {
+    color: var(--portal-danger, #a5303e);
+    background: var(--portal-danger-soft, #fff0f1);
+    border-color: var(--portal-danger-border, #edc5cb);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-sold-question {
+    border-color: var(--portal-info-border, #c9d9ef);
+    background: var(--portal-info-soft, #edf4ff);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=sold] > span:nth-child(2) small {
+    color: var(--portal-success, #14634a);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=reserved] > span:nth-child(2) small {
+    color: var(--portal-warning, #87510b);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-sale-list > button[data-sale-status=in-progress] > span:nth-child(2) small {
+    color: var(--portal-info, #245ca5);
+  }
+  .portal-premium-workspace .invoice-builder .invoice-check input {
+    accent-color: var(--portal-info, #245ca5);
+  }
+  .portal-premium-workspace .invoice-builder select:focus-visible {
+    outline-color: var(--portal-info, #245ca5);
+  }
+}

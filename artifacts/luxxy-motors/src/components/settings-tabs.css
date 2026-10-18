@@ -8,3 +8,67 @@
   .settings-tabs { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; scroll-padding-inline:5px; }
   .settings-tabs > [role=tab] { flex-shrink:0; min-height:48px; padding:11px 13px; font-size:13px; }
 }
+
+/* Colour marks the selected settings area; inactive choices stay quiet. */
+.portal-premium-workspace .settings-tabs {
+  --settings-tab-ink: var(--portal-info, #245ca5);
+  --settings-tab-soft: var(--portal-info-soft, #edf4ff);
+  --settings-tab-border: var(--portal-info-border, #c9d9ef);
+  background: var(--portal-neutral-soft, #f0f3f6);
+  border-color: var(--portal-neutral-border, #d5dde4);
+}
+.portal-premium-workspace .settings-tabs > [role=tab] {
+  color: var(--portal-neutral, #536374);
+}
+.portal-premium-workspace .settings-tabs > [role=tab]:hover {
+  background: #fff;
+  color: var(--settings-tab-ink);
+}
+.portal-premium-workspace .settings-tabs > [role=tab][aria-selected=true] {
+  background: var(--settings-tab-soft);
+  border-color: var(--settings-tab-border);
+  color: var(--settings-tab-ink);
+  box-shadow: inset 0 -2px 0 var(--settings-tab-ink);
+}
+.portal-premium-workspace .settings-tabs > [role=tab]:focus-visible {
+  outline-color: var(--portal-info, #245ca5);
+}
+.portal-premium-workspace :is(#dealer-settings-tab-paperwork, #invoice-settings-tab-design, #website-settings-tab-identity) {
+  --settings-tab-ink: var(--portal-violet, #6754a3);
+  --settings-tab-soft: var(--portal-violet-soft, #f3f0ff);
+  --settings-tab-border: var(--portal-violet-border, #d9d0f0);
+}
+.portal-premium-workspace :is(#dealer-settings-tab-website, #website-settings-tab-contact, #invoice-settings-tab-payment) {
+  --settings-tab-ink: var(--portal-teal, #116773);
+  --settings-tab-soft: var(--portal-teal-soft, #eaf7f7);
+  --settings-tab-border: var(--portal-teal-border, #b8dddd);
+}
+.portal-premium-workspace #dealer-settings-tab-advanced,
+.portal-premium-workspace .settings-advanced-navigation .settings-tabs {
+  --settings-tab-ink: var(--portal-neutral, #536374);
+  --settings-tab-soft: var(--portal-neutral-soft, #f0f3f6);
+  --settings-tab-border: var(--portal-neutral-border, #d5dde4);
+}
+.portal-premium-workspace .settings-tabs-heading > span {
+  background: var(--portal-violet-soft, #f3f0ff);
+  border-color: var(--portal-violet-border, #d9d0f0);
+  color: var(--portal-violet, #6754a3);
+}
+.portal-premium-workspace .settings-advanced-navigation {
+  border-color: var(--portal-neutral-border, #d5dde4);
+  border-left: 3px solid var(--portal-neutral-border, #d5dde4);
+}
+.portal-premium-workspace .settings-advanced-navigation h3 {
+  color: var(--portal-neutral, #536374);
+}
+.portal-premium-workspace .settings-tabs-workspace :is(.integration-actions, .admin-inline-form) > button.bg-primary {
+  background: var(--portal-info, #245ca5);
+  border-color: var(--portal-info, #245ca5);
+  color: #fff;
+}
+.portal-premium-workspace .settings-tabs-workspace :is(input, select, textarea):focus-visible {
+  outline-color: var(--portal-info, #245ca5);
+}
+.portal-premium-workspace .settings-tabs-workspace :is(input[type=checkbox], input[type=radio]) {
+  accent-color: var(--portal-info, #245ca5);
+}
