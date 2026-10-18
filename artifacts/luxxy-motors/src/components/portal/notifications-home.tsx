@@ -9,7 +9,7 @@ import {
   Clock3,
   FilePenLine,
   MailWarning,
-  MessageSquare,
+  CustomerEnquiry,
   RefreshCw,
 } from "@/components/icons";
 import { notificationsLink } from "@/lib/notifications-navigation";
@@ -18,7 +18,7 @@ import "./notifications-home.css";
 import { DealerDashboard } from "./dealer-administration";
 
 const groups = {
-  enquiries: { label: "Awaiting a reply", icon: MessageSquare, tone: "info" },
+  enquiries: { label: "Awaiting a reply", icon: CustomerEnquiry, tone: "info" },
   followups: { label: "Follow-ups due", icon: Clock3, tone: "warning" },
   appointments: {
     label: "Bookings & today",

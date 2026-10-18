@@ -11,7 +11,7 @@ type GlyphName = keyof typeof glyphs;
 function drawNode([tag, props, children]: SvgNode, index: number): ReactElement { return createElement(tag, { ...props, key: index }, ...children.map(drawNode)); }
 function makeIcon(name: GlyphName, rotation = 0) {
  const definition = glyphs[name];
- const Icon = forwardRef<SVGSVGElement, DealerIconProps>(({size = 24, strokeWidth = 1.8, absoluteStrokeWidth = false, children, className, style, ...props}, ref) => {
+ const Icon = forwardRef<SVGSVGElement, DealerIconProps>(({size = 24, strokeWidth = 1.85, absoluteStrokeWidth = false, children, className, style, ...props}, ref) => {
   const stroke = absoluteStrokeWidth && typeof size === 'number' && size > 0 ? Number(strokeWidth) * 24 / size : strokeWidth;
   const artwork = (definition.nodes as SvgNode[]).map(drawNode);
   return <svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={definition.fill} stroke={definition.stroke} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" data-dealer-icon={name} className={className} style={name === 'whatsapp' ? {color: 'var(--dealer-whatsapp-icon, #25d366)', ...style} : style} {...props}>
@@ -23,7 +23,7 @@ function makeIcon(name: GlyphName, rotation = 0) {
 }
 // Standard geometric/technical symbols absent from the supplied kit retain their precise meaning.
 function technicalIcon(Original: typeof ReviewStar) {
- const Icon = forwardRef<SVGSVGElement, DealerIconProps>(({strokeWidth = 1.8, ...props},ref) => <Original ref={ref} strokeWidth={strokeWidth} aria-hidden="true" focusable="false" {...props} />);
+ const Icon = forwardRef<SVGSVGElement, DealerIconProps>(({strokeWidth = 1.85, ...props},ref) => <Original ref={ref} strokeWidth={strokeWidth} aria-hidden="true" focusable="false" {...props} />);
  Icon.displayName = 'DealerTechnicalIcon'; return Icon;
 }
 export const Star = technicalIcon(ReviewStar);
@@ -56,10 +56,10 @@ export const BellRing = /* @__PURE__ */ makeIcon("notifications");
 export const BookOpen = /* @__PURE__ */ makeIcon("service-book");
 export const BookmarkCheck = /* @__PURE__ */ makeIcon("vehicle-reserved");
 export const Building2 = /* @__PURE__ */ makeIcon("domain-website");
-export const Calendar = /* @__PURE__ */ makeIcon("calendar-test-drive");
-export const CalendarClock = /* @__PURE__ */ makeIcon("calendar-test-drive");
-export const CalendarDays = /* @__PURE__ */ makeIcon("calendar-test-drive");
-export const CalendarPlus = /* @__PURE__ */ makeIcon("calendar-test-drive");
+export const Calendar = /* @__PURE__ */ makeIcon("test-drive-booking");
+export const CalendarClock = /* @__PURE__ */ makeIcon("test-drive-booking");
+export const CalendarDays = /* @__PURE__ */ makeIcon("test-drive-booking");
+export const CalendarPlus = /* @__PURE__ */ makeIcon("test-drive-booking");
 export const Camera = /* @__PURE__ */ makeIcon("camera");
 export const Car = /* @__PURE__ */ makeIcon("car");
 export const CarFront = /* @__PURE__ */ makeIcon("car");
@@ -80,7 +80,7 @@ export const CircleDashed = /* @__PURE__ */ makeIcon("circle-dashed");
 export const CircleGauge = /* @__PURE__ */ makeIcon("mileage");
 export const ClipboardCheck = /* @__PURE__ */ makeIcon("checklist");
 export const Clock3 = /* @__PURE__ */ makeIcon("clock");
-export const Cog = /* @__PURE__ */ makeIcon("transmission");
+export const Cog = /* @__PURE__ */ makeIcon("engine");
 export const Copy = /* @__PURE__ */ makeIcon("copy");
 export const CreditCard = /* @__PURE__ */ makeIcon("card-payment");
 export const DoorOpen = /* @__PURE__ */ makeIcon("doors");
@@ -118,7 +118,7 @@ export const Megaphone = /* @__PURE__ */ makeIcon("notifications");
 export const Menu = /* @__PURE__ */ makeIcon("menu");
 export const MessageCircle = /* @__PURE__ */ makeIcon("conversation");
 export const MessageSquare = /* @__PURE__ */ makeIcon("conversation");
-export const MessageSquarePlus = /* @__PURE__ */ makeIcon("conversation");
+export const MessageSquarePlus = /* @__PURE__ */ makeIcon("customer-enquiry");
 export const MessageSquareQuote = /* @__PURE__ */ makeIcon("conversation");
 export const MoreHorizontal = /* @__PURE__ */ makeIcon("more-options");
 export const NotebookPen = /* @__PURE__ */ makeIcon("service-book");
@@ -160,7 +160,9 @@ export const ZoomIn = /* @__PURE__ */ makeIcon("zoom-in");
 export const ZoomOut = /* @__PURE__ */ makeIcon("zoom-out");
 export const SiWhatsapp = /* @__PURE__ */ makeIcon("whatsapp");
 export const Engine = /* @__PURE__ */ makeIcon("engine");
-export const Transmission = /* @__PURE__ */ makeIcon("transmission");
+export const ManualTransmission = /* @__PURE__ */ makeIcon("transmission-manual");
+export const AutomaticTransmission = /* @__PURE__ */ makeIcon("transmission-automatic");
+export const CustomerEnquiry = /* @__PURE__ */ makeIcon("customer-enquiry");
 export const BodyType = /* @__PURE__ */ makeIcon("body-type");
 export const VehicleHistory = /* @__PURE__ */ makeIcon("vehicle-history");
 export const RegistrationPlate = /* @__PURE__ */ makeIcon("registration-plate");

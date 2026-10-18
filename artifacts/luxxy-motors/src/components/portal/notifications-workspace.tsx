@@ -4,10 +4,9 @@ import {
   CalendarDays,
   Inbox,
   Mail,
-  MessageSquare,
+  CustomerEnquiry,
   Plus,
   FileText,
-  UserRoundPlus,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +33,7 @@ const views = [
     id: "customers",
     label: "Customers & enquiries",
     description: "Conversations and follow-ups",
-    icon: MessageSquare,
+    icon: CustomerEnquiry,
     tone: "info",
   },
   {
@@ -122,7 +121,7 @@ export function NotificationsWorkspace({
             <div className="customer-quick-actions" aria-label="Home shortcuts">
               {canEmail && (
                 <Button variant="outline" data-tone="info" onClick={newEnquiry}>
-                  <UserRoundPlus size={17} aria-hidden="true" />
+                  <CustomerEnquiry size={17} aria-hidden="true" />
                   Quick enquiry
                 </Button>
               )}

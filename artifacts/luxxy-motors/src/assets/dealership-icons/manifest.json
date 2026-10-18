@@ -1,9 +1,9 @@
 {
   "name": "Dealership Icons",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "count": 100,
   "viewBox": "0 0 24 24",
-  "strokeWidth": 1.8,
-  "count": 98,
+  "strokeWidth": 1.85,
   "icons": [
     {
       "name": "car",
@@ -11,7 +11,8 @@
       "category": "Vehicle details",
       "star": true,
       "brand": false,
-      "path": "icons/car.svg"
+      "path": "icons/car.svg",
+      "previous_name": "car"
     },
     {
       "name": "mileage",
@@ -19,15 +20,26 @@
       "category": "Vehicle details",
       "star": true,
       "brand": false,
-      "path": "icons/mileage.svg"
+      "path": "icons/mileage.svg",
+      "previous_name": "mileage"
     },
     {
-      "name": "transmission",
-      "label": "Transmission / gearbox",
+      "name": "transmission-manual",
+      "label": "Manual transmission",
       "category": "Vehicle details",
       "star": true,
       "brand": false,
-      "path": "icons/transmission.svg"
+      "path": "icons/transmission-manual.svg",
+      "previous_name": "transmission"
+    },
+    {
+      "name": "transmission-automatic",
+      "label": "Automatic transmission",
+      "category": "Vehicle details",
+      "star": false,
+      "brand": false,
+      "path": "icons/transmission-automatic.svg",
+      "previous_name": null
     },
     {
       "name": "registration-plate",
@@ -35,7 +47,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/registration-plate.svg"
+      "path": "icons/registration-plate.svg",
+      "previous_name": "registration-plate"
     },
     {
       "name": "fuel",
@@ -43,7 +56,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/fuel.svg"
+      "path": "icons/fuel.svg",
+      "previous_name": "fuel"
     },
     {
       "name": "electric-charging",
@@ -51,7 +65,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/electric-charging.svg"
+      "path": "icons/electric-charging.svg",
+      "previous_name": "electric-charging"
     },
     {
       "name": "hybrid",
@@ -59,7 +74,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/hybrid.svg"
+      "path": "icons/hybrid.svg",
+      "previous_name": "hybrid"
     },
     {
       "name": "engine",
@@ -67,7 +83,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/engine.svg"
+      "path": "icons/engine.svg",
+      "previous_name": "engine"
     },
     {
       "name": "body-type",
@@ -75,7 +92,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/body-type.svg"
+      "path": "icons/body-type.svg",
+      "previous_name": "body-type"
     },
     {
       "name": "doors",
@@ -83,7 +101,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/doors.svg"
+      "path": "icons/doors.svg",
+      "previous_name": "doors"
     },
     {
       "name": "seats",
@@ -91,7 +110,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/seats.svg"
+      "path": "icons/seats.svg",
+      "previous_name": "seats"
     },
     {
       "name": "colour",
@@ -99,7 +119,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/colour.svg"
+      "path": "icons/colour.svg",
+      "previous_name": "colour"
     },
     {
       "name": "ulez-emissions",
@@ -107,7 +128,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/ulez-emissions.svg"
+      "path": "icons/ulez-emissions.svg",
+      "previous_name": "ulez-emissions"
     },
     {
       "name": "road-tax",
@@ -115,7 +137,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/road-tax.svg"
+      "path": "icons/road-tax.svg",
+      "previous_name": "road-tax"
     },
     {
       "name": "insurance",
@@ -123,7 +146,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/insurance.svg"
+      "path": "icons/insurance.svg",
+      "previous_name": "insurance"
     },
     {
       "name": "previous-keepers",
@@ -131,7 +155,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/previous-keepers.svg"
+      "path": "icons/previous-keepers.svg",
+      "previous_name": "previous-keepers"
     },
     {
       "name": "service-book",
@@ -139,7 +164,8 @@
       "category": "Vehicle details",
       "star": true,
       "brand": false,
-      "path": "icons/service-book.svg"
+      "path": "icons/service-book.svg",
+      "previous_name": "service-book"
     },
     {
       "name": "vehicle-history",
@@ -147,7 +173,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/vehicle-history.svg"
+      "path": "icons/vehicle-history.svg",
+      "previous_name": "vehicle-history"
     },
     {
       "name": "vehicle-preparation",
@@ -155,7 +182,8 @@
       "category": "Vehicle details",
       "star": false,
       "brand": false,
-      "path": "icons/vehicle-preparation.svg"
+      "path": "icons/vehicle-preparation.svg",
+      "previous_name": "vehicle-preparation"
     },
     {
       "name": "phone",
@@ -163,7 +191,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/phone.svg"
+      "path": "icons/phone.svg",
+      "previous_name": "phone"
     },
     {
       "name": "email",
@@ -171,7 +200,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/email.svg"
+      "path": "icons/email.svg",
+      "previous_name": "email"
     },
     {
       "name": "reply",
@@ -179,7 +209,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/reply.svg"
+      "path": "icons/reply.svg",
+      "previous_name": "reply"
     },
     {
       "name": "conversation",
@@ -187,7 +218,17 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/conversation.svg"
+      "path": "icons/conversation.svg",
+      "previous_name": "conversation"
+    },
+    {
+      "name": "customer-enquiry",
+      "label": "Customer enquiry",
+      "category": "Contact and customers",
+      "star": false,
+      "brand": false,
+      "path": "icons/customer-enquiry.svg",
+      "previous_name": null
     },
     {
       "name": "whatsapp",
@@ -195,7 +236,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": true,
-      "path": "icons/whatsapp.svg"
+      "path": "icons/whatsapp.svg",
+      "previous_name": "whatsapp"
     },
     {
       "name": "customer",
@@ -203,7 +245,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/customer.svg"
+      "path": "icons/customer.svg",
+      "previous_name": "customer"
     },
     {
       "name": "staff-team",
@@ -211,7 +254,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/staff-team.svg"
+      "path": "icons/staff-team.svg",
+      "previous_name": "staff-team"
     },
     {
       "name": "merge-customers",
@@ -219,7 +263,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/merge-customers.svg"
+      "path": "icons/merge-customers.svg",
+      "previous_name": "merge-customers"
     },
     {
       "name": "location",
@@ -227,7 +272,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/location.svg"
+      "path": "icons/location.svg",
+      "previous_name": "location"
     },
     {
       "name": "directions",
@@ -235,7 +281,8 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/directions.svg"
+      "path": "icons/directions.svg",
+      "previous_name": "directions"
     },
     {
       "name": "clock",
@@ -243,15 +290,17 @@
       "category": "Contact and customers",
       "star": false,
       "brand": false,
-      "path": "icons/clock.svg"
+      "path": "icons/clock.svg",
+      "previous_name": "clock"
     },
     {
-      "name": "calendar-test-drive",
-      "label": "Calendar / test drive",
+      "name": "test-drive-booking",
+      "label": "Test-drive booking",
       "category": "Bookings",
       "star": true,
       "brand": false,
-      "path": "icons/calendar-test-drive.svg"
+      "path": "icons/test-drive-booking.svg",
+      "previous_name": "calendar-test-drive"
     },
     {
       "name": "signed-declaration",
@@ -259,7 +308,8 @@
       "category": "Bookings",
       "star": false,
       "brand": false,
-      "path": "icons/signed-declaration.svg"
+      "path": "icons/signed-declaration.svg",
+      "previous_name": "signed-declaration"
     },
     {
       "name": "driving-licence-check",
@@ -267,7 +317,8 @@
       "category": "Bookings",
       "star": false,
       "brand": false,
-      "path": "icons/driving-licence-check.svg"
+      "path": "icons/driving-licence-check.svg",
+      "previous_name": "driving-licence-check"
     },
     {
       "name": "insurance-check",
@@ -275,7 +326,8 @@
       "category": "Bookings",
       "star": false,
       "brand": false,
-      "path": "icons/insurance-check.svg"
+      "path": "icons/insurance-check.svg",
+      "previous_name": "insurance-check"
     },
     {
       "name": "sale",
@@ -283,7 +335,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/sale.svg"
+      "path": "icons/sale.svg",
+      "previous_name": "sale"
     },
     {
       "name": "invoice",
@@ -291,7 +344,8 @@
       "category": "Sales and stock",
       "star": true,
       "brand": false,
-      "path": "icons/invoice.svg"
+      "path": "icons/invoice.svg",
+      "previous_name": "invoice"
     },
     {
       "name": "receipt",
@@ -299,7 +353,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/receipt.svg"
+      "path": "icons/receipt.svg",
+      "previous_name": "receipt"
     },
     {
       "name": "payment",
@@ -307,7 +362,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/payment.svg"
+      "path": "icons/payment.svg",
+      "previous_name": "payment"
     },
     {
       "name": "bank-transfer",
@@ -315,7 +371,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/bank-transfer.svg"
+      "path": "icons/bank-transfer.svg",
+      "previous_name": "bank-transfer"
     },
     {
       "name": "cash",
@@ -323,7 +380,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/cash.svg"
+      "path": "icons/cash.svg",
+      "previous_name": "cash"
     },
     {
       "name": "card-payment",
@@ -331,7 +389,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/card-payment.svg"
+      "path": "icons/card-payment.svg",
+      "previous_name": "card-payment"
     },
     {
       "name": "refund",
@@ -339,7 +398,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/refund.svg"
+      "path": "icons/refund.svg",
+      "previous_name": "refund"
     },
     {
       "name": "vehicle-available",
@@ -347,7 +407,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/vehicle-available.svg"
+      "path": "icons/vehicle-available.svg",
+      "previous_name": "vehicle-available"
     },
     {
       "name": "vehicle-reserved",
@@ -355,7 +416,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/vehicle-reserved.svg"
+      "path": "icons/vehicle-reserved.svg",
+      "previous_name": "vehicle-reserved"
     },
     {
       "name": "vehicle-sold",
@@ -363,7 +425,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/vehicle-sold.svg"
+      "path": "icons/vehicle-sold.svg",
+      "previous_name": "vehicle-sold"
     },
     {
       "name": "checklist",
@@ -371,7 +434,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/checklist.svg"
+      "path": "icons/checklist.svg",
+      "previous_name": "checklist"
     },
     {
       "name": "archive",
@@ -379,7 +443,8 @@
       "category": "Sales and stock",
       "star": false,
       "brand": false,
-      "path": "icons/archive.svg"
+      "path": "icons/archive.svg",
+      "previous_name": "archive"
     },
     {
       "name": "camera",
@@ -387,7 +452,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/camera.svg"
+      "path": "icons/camera.svg",
+      "previous_name": "camera"
     },
     {
       "name": "photo-gallery",
@@ -395,7 +461,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/photo-gallery.svg"
+      "path": "icons/photo-gallery.svg",
+      "previous_name": "photo-gallery"
     },
     {
       "name": "attachment",
@@ -403,7 +470,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/attachment.svg"
+      "path": "icons/attachment.svg",
+      "previous_name": "attachment"
     },
     {
       "name": "document",
@@ -411,7 +479,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/document.svg"
+      "path": "icons/document.svg",
+      "previous_name": "document"
     },
     {
       "name": "qr-code",
@@ -419,7 +488,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/qr-code.svg"
+      "path": "icons/qr-code.svg",
+      "previous_name": "qr-code"
     },
     {
       "name": "zoom-in",
@@ -427,7 +497,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/zoom-in.svg"
+      "path": "icons/zoom-in.svg",
+      "previous_name": "zoom-in"
     },
     {
       "name": "zoom-out",
@@ -435,7 +506,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/zoom-out.svg"
+      "path": "icons/zoom-out.svg",
+      "previous_name": "zoom-out"
     },
     {
       "name": "full-screen",
@@ -443,7 +515,8 @@
       "category": "Photos and documents",
       "star": false,
       "brand": false,
-      "path": "icons/full-screen.svg"
+      "path": "icons/full-screen.svg",
+      "previous_name": "full-screen"
     },
     {
       "name": "home",
@@ -451,7 +524,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/home.svg"
+      "path": "icons/home.svg",
+      "previous_name": "home"
     },
     {
       "name": "dashboard",
@@ -459,7 +533,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/dashboard.svg"
+      "path": "icons/dashboard.svg",
+      "previous_name": "dashboard"
     },
     {
       "name": "menu",
@@ -467,7 +542,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/menu.svg"
+      "path": "icons/menu.svg",
+      "previous_name": "menu"
     },
     {
       "name": "close",
@@ -475,7 +551,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/close.svg"
+      "path": "icons/close.svg",
+      "previous_name": "close"
     },
     {
       "name": "arrow-back",
@@ -483,7 +560,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/arrow-back.svg"
+      "path": "icons/arrow-back.svg",
+      "previous_name": "arrow-back"
     },
     {
       "name": "arrow-forward",
@@ -491,7 +569,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/arrow-forward.svg"
+      "path": "icons/arrow-forward.svg",
+      "previous_name": "arrow-forward"
     },
     {
       "name": "chevron",
@@ -499,7 +578,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/chevron.svg"
+      "path": "icons/chevron.svg",
+      "previous_name": "chevron"
     },
     {
       "name": "external-link",
@@ -507,7 +587,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/external-link.svg"
+      "path": "icons/external-link.svg",
+      "previous_name": "external-link"
     },
     {
       "name": "more-options",
@@ -515,7 +596,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/more-options.svg"
+      "path": "icons/more-options.svg",
+      "previous_name": "more-options"
     },
     {
       "name": "search",
@@ -523,7 +605,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/search.svg"
+      "path": "icons/search.svg",
+      "previous_name": "search"
     },
     {
       "name": "filters",
@@ -531,7 +614,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/filters.svg"
+      "path": "icons/filters.svg",
+      "previous_name": "filters"
     },
     {
       "name": "sort",
@@ -539,7 +623,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/sort.svg"
+      "path": "icons/sort.svg",
+      "previous_name": "sort"
     },
     {
       "name": "add",
@@ -547,7 +632,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/add.svg"
+      "path": "icons/add.svg",
+      "previous_name": "add"
     },
     {
       "name": "edit",
@@ -555,7 +641,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/edit.svg"
+      "path": "icons/edit.svg",
+      "previous_name": "edit"
     },
     {
       "name": "save",
@@ -563,7 +650,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/save.svg"
+      "path": "icons/save.svg",
+      "previous_name": "save"
     },
     {
       "name": "copy",
@@ -571,7 +659,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/copy.svg"
+      "path": "icons/copy.svg",
+      "previous_name": "copy"
     },
     {
       "name": "delete",
@@ -579,7 +668,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/delete.svg"
+      "path": "icons/delete.svg",
+      "previous_name": "delete"
     },
     {
       "name": "undo-reset",
@@ -587,7 +677,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/undo-reset.svg"
+      "path": "icons/undo-reset.svg",
+      "previous_name": "undo-reset"
     },
     {
       "name": "refresh-sync",
@@ -595,7 +686,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/refresh-sync.svg"
+      "path": "icons/refresh-sync.svg",
+      "previous_name": "refresh-sync"
     },
     {
       "name": "download",
@@ -603,7 +695,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/download.svg"
+      "path": "icons/download.svg",
+      "previous_name": "download"
     },
     {
       "name": "upload",
@@ -611,7 +704,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/upload.svg"
+      "path": "icons/upload.svg",
+      "previous_name": "upload"
     },
     {
       "name": "print",
@@ -619,7 +713,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/print.svg"
+      "path": "icons/print.svg",
+      "previous_name": "print"
     },
     {
       "name": "share",
@@ -627,7 +722,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/share.svg"
+      "path": "icons/share.svg",
+      "previous_name": "share"
     },
     {
       "name": "favourite",
@@ -635,7 +731,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/favourite.svg"
+      "path": "icons/favourite.svg",
+      "previous_name": "favourite"
     },
     {
       "name": "compare-cars",
@@ -643,7 +740,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/compare-cars.svg"
+      "path": "icons/compare-cars.svg",
+      "previous_name": "compare-cars"
     },
     {
       "name": "show",
@@ -651,7 +749,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/show.svg"
+      "path": "icons/show.svg",
+      "previous_name": "show"
     },
     {
       "name": "hide",
@@ -659,7 +758,8 @@
       "category": "Navigation and actions",
       "star": false,
       "brand": false,
-      "path": "icons/hide.svg"
+      "path": "icons/hide.svg",
+      "previous_name": "hide"
     },
     {
       "name": "notifications",
@@ -667,7 +767,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/notifications.svg"
+      "path": "icons/notifications.svg",
+      "previous_name": "notifications"
     },
     {
       "name": "settings",
@@ -675,7 +776,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/settings.svg"
+      "path": "icons/settings.svg",
+      "previous_name": "settings"
     },
     {
       "name": "security-lock",
@@ -683,7 +785,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/security-lock.svg"
+      "path": "icons/security-lock.svg",
+      "previous_name": "security-lock"
     },
     {
       "name": "domain-website",
@@ -691,7 +794,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/domain-website.svg"
+      "path": "icons/domain-website.svg",
+      "previous_name": "domain-website"
     },
     {
       "name": "integration",
@@ -699,7 +803,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/integration.svg"
+      "path": "icons/integration.svg",
+      "previous_name": "integration"
     },
     {
       "name": "stock-import",
@@ -707,7 +812,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/stock-import.svg"
+      "path": "icons/stock-import.svg",
+      "previous_name": "stock-import"
     },
     {
       "name": "demo",
@@ -715,7 +821,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/demo.svg"
+      "path": "icons/demo.svg",
+      "previous_name": "demo"
     },
     {
       "name": "activity-history",
@@ -723,7 +830,8 @@
       "category": "Settings and platform",
       "star": false,
       "brand": false,
-      "path": "icons/activity-history.svg"
+      "path": "icons/activity-history.svg",
+      "previous_name": "activity-history"
     },
     {
       "name": "success",
@@ -731,7 +839,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/success.svg"
+      "path": "icons/success.svg",
+      "previous_name": "success"
     },
     {
       "name": "warning",
@@ -739,7 +848,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/warning.svg"
+      "path": "icons/warning.svg",
+      "previous_name": "warning"
     },
     {
       "name": "error",
@@ -747,7 +857,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/error.svg"
+      "path": "icons/error.svg",
+      "previous_name": "error"
     },
     {
       "name": "information",
@@ -755,7 +866,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/information.svg"
+      "path": "icons/information.svg",
+      "previous_name": "information"
     },
     {
       "name": "help",
@@ -763,7 +875,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/help.svg"
+      "path": "icons/help.svg",
+      "previous_name": "help"
     },
     {
       "name": "pending",
@@ -771,7 +884,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/pending.svg"
+      "path": "icons/pending.svg",
+      "previous_name": "pending"
     },
     {
       "name": "delivered",
@@ -779,7 +893,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/delivered.svg"
+      "path": "icons/delivered.svg",
+      "previous_name": "delivered"
     },
     {
       "name": "failed",
@@ -787,7 +902,8 @@
       "category": "Status and feedback",
       "star": false,
       "brand": false,
-      "path": "icons/failed.svg"
+      "path": "icons/failed.svg",
+      "previous_name": "failed"
     }
   ]
 }

@@ -405,7 +405,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             { label: 'ULEZ compliant', icon: 'Emissions', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
             { label: 'Up to 30k miles', icon: 'Mileage', href: '/stock?lowMileage=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.lowMileage).length },
           ].filter(choice => choice.count > 0).map(choice => <Link key={choice.href} href={choice.href} className="home-shortcut-card">
-            <VehicleFactIcon label={choice.icon} className="home-shortcut-icon" />
+            <VehicleFactIcon label={choice.icon} value={choice.label} className="home-shortcut-icon" />
             <span className="home-shortcut-copy"><strong>{choice.label}</strong><small>{choice.count} {choice.count === 1 ? 'car' : 'cars'}</small></span>
             <ArrowUpRight size={17} className="home-shortcut-arrow" aria-hidden="true" />
           </Link>)}

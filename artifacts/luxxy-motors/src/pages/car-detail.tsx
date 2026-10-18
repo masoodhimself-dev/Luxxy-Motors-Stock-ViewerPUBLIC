@@ -26,7 +26,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Calendar,
-  MessageCircle,
+  CustomerEnquiry,
   Share2,
   Check,
 } from '@/components/icons';
@@ -63,7 +63,7 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
   return (
     <div className="flex justify-between items-baseline gap-4 py-3 border-b border-border">
       <dt className="flex items-center gap-2 font-display text-[13px] font-normal tracking-normal text-muted-foreground">
-        <VehicleTerm label={label} value={value}><VehicleFactIcon label={label} />{label}</VehicleTerm>
+        <VehicleTerm label={label} value={value}><VehicleFactIcon label={label} value={value} />{label}</VehicleTerm>
       </dt>
       <dd className="font-medium text-[14px] text-primary text-right" data-testid={testId}>
         {value}
@@ -175,7 +175,7 @@ export default function CarDetail() {
       label: 'Fuel',
       value: car.fuel || 'Ask us',
     },
-    { label: 'Transmission', value: car.transmission || '-' },
+    { label: 'Transmission', value: car.transmission?.trim() || 'Not specified' },
     { label: 'Engine', value: car.engineSize || (car.engineCC ? String(car.engineCC) + ' cc' : 'Ask us') },
     { label: 'Body', value: car.bodyType || 'Ask us' },
   ].filter(fact => !['-', 'Ask us', 'Unknown', ''].includes(fact.value));
@@ -233,7 +233,7 @@ export default function CarDetail() {
   ) : null;
   const enquiryAction = (
     <a key="enquiry" className="vehicle-enquiry-action" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
-      <MessageCircle className="h-4 w-4" aria-hidden="true" /> Enquire about this car
+      <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Enquire about this car
     </a>
   );
 
@@ -317,7 +317,7 @@ export default function CarDetail() {
               {keyFacts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} />{fact.label}</VehicleTerm>
+                    <VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm>
                   </dt>
                   <dd className="mt-1 text-sm font-medium" data-testid={fact.testId}>
                     {fact.value}
@@ -431,7 +431,7 @@ export default function CarDetail() {
                     key={item.label}
                     className="grid grid-cols-[.8fr_1.2fr] gap-5 py-3 text-sm"
                   >
-                    <dt className="flex items-start gap-2 text-muted-foreground"><VehicleTerm label={item.label} value={item.value ?? undefined}><VehicleFactIcon label={item.label} />{item.label}</VehicleTerm></dt>
+                    <dt className="flex items-start gap-2 text-muted-foreground"><VehicleTerm label={item.label} value={item.value ?? undefined}><VehicleFactIcon label={item.label} value={item.value} />{item.label}</VehicleTerm></dt>
                     <dd
                       className={
                         item.value

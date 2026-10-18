@@ -12,7 +12,7 @@ export function VehicleRunningCosts({ car, comparisonCars = [] }: { car: Car; co
     <h2 id="vehicle-running-costs-heading" className="section-heading">Running costs</h2>
     <p className="mt-2 text-sm text-muted-foreground">Supplied figures. Comparisons appear where enough compatible figures are available; your actual costs may vary.</p>
     <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden border border-border bg-border sm:grid-cols-3">
-      {costs.map((fact) => <div key={fact.label} className="min-w-0 bg-card p-3 sm:p-4"><dt className="flex items-center gap-2 text-xs leading-5 text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} />{fact.label}</VehicleTerm></dt><dd className="mt-1 break-words text-base font-semibold text-primary">{fact.value}<RunningCostBar label={fact.label} value={fact.value} cars={comparisonCars} car={car} /></dd></div>)}
+      {costs.map((fact) => <div key={fact.label} className="min-w-0 bg-card p-3 sm:p-4"><dt className="flex items-center gap-2 text-xs leading-5 text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm></dt><dd className="mt-1 break-words text-base font-semibold text-primary">{fact.value}<RunningCostBar label={fact.label} value={fact.value} cars={comparisonCars} car={car} /></dd></div>)}
     </dl>
   </section>;
 }
@@ -22,7 +22,7 @@ export function VehicleHistorySummary({ car }: { car: Car }) {
   if (!facts.length) return null;
   return <section aria-labelledby="vehicle-records-heading" className="mt-8 border-t border-border pt-7">
     <h2 id="vehicle-records-heading" className="section-heading">Ownership & service records</h2>
-    <dl className="mt-4 grid gap-3 sm:grid-cols-3">{facts.map(fact => <div key={fact.label} className="border border-border bg-card p-4"><dt className="flex items-center gap-2 text-xs text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} />{fact.label}</VehicleTerm></dt><dd className="mt-1 font-semibold">{fact.value}</dd></div>)}</dl>
+    <dl className="mt-4 grid gap-3 sm:grid-cols-3">{facts.map(fact => <div key={fact.label} className="border border-border bg-card p-4"><dt className="flex items-center gap-2 text-xs text-muted-foreground"><VehicleTerm label={fact.label} value={fact.value}><VehicleFactIcon label={fact.label} value={fact.value} />{fact.label}</VehicleTerm></dt><dd className="mt-1 font-semibold">{fact.value}</dd></div>)}</dl>
   </section>;
 }
 

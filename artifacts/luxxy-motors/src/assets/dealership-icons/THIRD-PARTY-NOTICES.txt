@@ -1,0 +1,12 @@
+THIRD-PARTY MATERIAL AND PROVENANCE · v2.0
+
+The 99 custom line icons are AI-generated vector geometry created for this brief and extended from the approved sample direction. No third-party icon library, stock vector, traced font glyph, photograph or raster asset was imported. Familiar pictogram conventions are used; exclusivity is not claimed.
+
+WhatsApp is the only third-party visual asset. Its individual SVG is byte-for-byte unchanged from the previous delivery. The glyph originated in Meta’s official Digital_Glyph_Black_RGB_2026.svg, retrieved on 18 October 2026. Its earlier normalisation to 24 × 24 and currentColor has not been modified. The source metadata is retained in brand-source.json.
+
+Owner: Meta / WhatsApp. Source and terms:
+https://www.meta.com/brand/resources/whatsapp/whatsapp-brand/
+
+Preserve the geometry. Use the provided brand black #111b21, white #ffffff or green #25d366, with appropriate contrast and clear space. Commercial-use notes for the custom icons do not grant rights to the WhatsApp trademark or change Meta’s terms.
+
+Preview typography uses system fonts through CSS; no font file is embedded, bundled or fetched. The vector master contains no fonts. The optional static interface proof converts its lettering to vector outlines. UI prices, registration and customer/dealership details are illustrative.

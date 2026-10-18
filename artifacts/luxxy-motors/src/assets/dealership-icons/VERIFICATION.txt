@@ -1,0 +1,19 @@
+VERIFICATION — COMPLETE FAMILY v2.0
+
+100 standalone SVGs: 99 custom line icons and the unchanged official WhatsApp glyph.
+Every icon uses a 24 × 24 viewBox and currentColor.
+All custom line icons use 1.85-unit strokes with round caps and joins.
+All 12 approved sample drawings are preserved exactly; transmission is explicitly named manual.
+WhatsApp matches the previous delivered file byte-for-byte.
+WhatsApp SHA-256: 68a1b3b3ab8fbfe087f72560c8a811165f53a1ebdacf46c723c765923d38f842
+
+All 100 icons were rendered and visually inspected at 16, 20 and 24 px on light and dark backgrounds.
+Padded render checks found no stroke clipping outside the 24 × 24 grid.
+Sprite symbol geometry matches the standalone SVGs.
+The catalogue includes all 100 icons and both themes at all three native sizes.
+The realistic automatic vehicle row uses the automatic selector.
+All 98 original concepts are represented, with explicit filename migration notes.
+
+The package contains no raster files, embedded fonts, scripts or external asset dependencies.
+The standalone SVGs contain no text, images, filters, stylesheets or external references.
+HTML uses local system font fallbacks only. The interface proof outlines its lettering.

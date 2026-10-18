@@ -1,0 +1,14 @@
+{
+  "from": "1.0.0",
+  "to": "2.0.0",
+  "renamed": {
+    "transmission.svg": "transmission-manual.svg",
+    "calendar-test-drive.svg": "test-drive-booking.svg"
+  },
+  "added": [
+    "transmission-automatic.svg",
+    "customer-enquiry.svg"
+  ],
+  "transmission_rule": "Use the H-pattern only for known manual cars. Use the automatic selector for automatic cars. For unknown transmission, omit the icon and show the text Not specified. Do not default an unknown car to manual.",
+  "unchanged_brand_file": "whatsapp.svg"
+}

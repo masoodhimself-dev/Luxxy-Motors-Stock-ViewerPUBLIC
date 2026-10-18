@@ -1,13 +1,13 @@
 # Dealership icon family
 
-Installed from the supplied `dealership-icons.zip` on 18 October 2026.
+Updated to the supplied `dealership-icons (1).zip` v2.0 on 19 October 2026.
 
-- Original 98 SVGs, manifest and supplied provenance: `artifacts/luxxy-motors/src/assets/dealership-icons/`.
+- All 100 SVGs, manifest and supplied provenance: `artifacts/luxxy-motors/src/assets/dealership-icons/`.
 - Shared React components: `artifacts/luxxy-motors/src/components/icons/index.tsx`.
 - SVG geometry is stored locally in `glyphs.json`; no icon CDN, remote sprite or external SVG references are loaded.
-- Import icons from `@/components/icons`. Existing component names are compatibility aliases; use semantic exports such as `Invoice`, `Receipt`, `Engine`, `Transmission`, `BodyType`, `SignedDeclaration`, `StockImport` and `Demo` for new interfaces.
+- Import icons from `@/components/icons`. Existing component names are compatibility aliases; use semantic exports such as `Invoice`, `Receipt`, `Engine`, `ManualTransmission`, `AutomaticTransmission`, `CustomerEnquiry`, `BodyType`, `SignedDeclaration`, `StockImport` and `Demo` for new interfaces.
 
-The supplied family uses a 24-unit viewBox, round caps/joins and a default 1.8 stroke. Use 16px for compact rows, 18–20px for controls and 24px for prominent navigation. Keep button hit areas independent of icon dimensions.
+The supplied family uses a 24-unit viewBox, round caps/joins and a default 1.85 stroke. Use 16px for compact rows, 18–20px for controls and 24px for prominent navigation. Keep button hit areas independent of icon dimensions.
 
 All components forward refs, CSS classes, size, stroke, fill, aria and data attributes. Chevron rotations occur inside the SVG so animation transforms still work. Icons beside text are decorative; icon-only controls require a label on the control.
 
@@ -17,4 +17,6 @@ Dealer logos, actual generated verification QR codes, favicons and notification 
 
 The source/provenance statements in the supplied pack are retained as supplied, rather than independently certified. WhatsApp remains subject to its brand terms.
 
-Verification covers all 98 supplied glyphs, safe local artwork, viewBox, sizing/ref/accessibility, saved-state fills, directionality and key website/portal/platform aliases. Responsive review includes 390px phone, 820px tablet and 1280px desktop widths.
+Verification covers all 100 supplied glyphs, safe local artwork, viewBox, sizing/ref/accessibility, saved-state fills, directionality and key website/portal/platform aliases. Responsive review includes 390px phone, 820px tablet and 1280px desktop widths.
+
+Transmission icons use each vehicle’s recorded value. Known manual cars use the H-pattern; known automatic/DSG/DCT/CVT values use the selector. Missing, ambiguous or unsupported values do not receive either icon. Shared comparison headings for mixed cars omit a gearbox icon. The Automatic shopping shortcut uses the automatic selector.

@@ -19,7 +19,7 @@ import {
   MessageSquare,
   CalendarDays,
   Mail,
-  UserRoundPlus,
+  CustomerEnquiry,
   ChevronDown,
   CheckCircle2,
   X,
@@ -241,7 +241,7 @@ function PortalDesk() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button type="button" className="portal-quick-trigger" aria-label="Quick actions"><Plus size={16} aria-hidden="true" /><span className="portal-quick-full-label">Quick add</span><span className="portal-quick-short-label">Add</span><ChevronDown size={14} aria-hidden="true" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="portal-quick-menu">
-            {canSell && <><DropdownMenuItem data-action="enquiry" onSelect={() => quickEnquiry()}><UserRoundPlus aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem data-action="sale" onSelect={newSale}><Sale aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
+            {canSell && <><DropdownMenuItem data-action="enquiry" onSelect={() => quickEnquiry()}><CustomerEnquiry aria-hidden="true" />Quick enquiry</DropdownMenuItem><DropdownMenuItem data-action="sale" onSelect={newSale}><Sale aria-hidden="true" />New sale</DropdownMenuItem><DropdownMenuSeparator /></>}
             <DropdownMenuItem data-action="calendar" onSelect={() => navigate('/portal?section=notifications&workView=test-drives&deskView=calendar')}><CalendarDays aria-hidden="true" />Calendar</DropdownMenuItem>
             {canSell && <DropdownMenuItem data-action="drafts" onSelect={() => navigate('/portal?section=notifications&workView=email&view=drafts')}><Mail aria-hidden="true" />Saved email drafts</DropdownMenuItem>}
           </DropdownMenuContent>
