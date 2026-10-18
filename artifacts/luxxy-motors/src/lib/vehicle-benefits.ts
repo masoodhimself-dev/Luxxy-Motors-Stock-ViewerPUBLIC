@@ -166,7 +166,7 @@ export function vehicleBenefits(car: Car): VehicleBenefits {
         ? {
             id: "low-insurance",
             label: "Insurance group",
-            text: `Lower insurance group · ${insurance.display}`,
+            text: "Affordable Insurance",
             note: "Groups 1–15 are at the lower end of the 1–50 insurance scale. Your premium depends on your circumstances and insurer; get a quote for this car.",
           }
         : null,

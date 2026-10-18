@@ -152,11 +152,11 @@ describe("supplied insurance groups", () => {
     ["11 e / 50", "11E"],
     ["Group 8A", "8A"],
     ["9 of 50", "9"],
-  ])("preserves the stated valid group %s", (value, display) => {
+  ])("preserves the stated valid group %s", (value, _display) => {
     const point = vehicleBenefits(
       costs([{ key: "Insurance", label: "Insurance group", value }]),
     ).lowInsuranceGroup;
-    expect(point?.text).toBe(`Lower insurance group · ${display}`);
+    expect(point?.text).toBe("Affordable Insurance");
     expect(point?.note).toContain("1–15");
     expect(point?.note).toContain("premium depends");
   });
@@ -184,11 +184,11 @@ describe("supplied insurance groups", () => {
     expect(
       vehicleBenefits(car({ sourceExtras: { insuranceGroup: "11E" } }))
         .lowInsuranceGroup?.text,
-    ).toBe("Lower insurance group · 11E");
+    ).toBe("Affordable Insurance");
     expect(
       vehicleBenefits(car({ specifications: { insuranceGroup: 8 } }))
         .lowInsuranceGroup?.text,
-    ).toBe("Lower insurance group · 8");
+    ).toBe("Affordable Insurance");
     expect(
       vehicleBenefits(
         car({
