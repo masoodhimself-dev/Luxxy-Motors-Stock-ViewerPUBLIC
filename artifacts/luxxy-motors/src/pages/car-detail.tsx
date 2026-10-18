@@ -45,6 +45,7 @@ import { PageHeading } from '@/components/page-ui';
 import NotFound from '@/pages/not-found';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { vehiclePageMeta } from '@/lib/page-meta';
 import {
   getVehicleBookingHref,
@@ -70,6 +71,7 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 
 export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
+  const isPhone = useIsMobile();
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
@@ -231,6 +233,37 @@ export default function CarDetail() {
     </a>
   );
 
+  const registrationDetails = registration && (
+    <dl className="vehicle-registration">
+      <dt>Registration</dt>
+      <dd data-testid={`plate-vehicle-${car.id}`}>{registration}</dd>
+    </dl>
+  );
+  const vehicleIdentity = (
+    <header className={`min-w-0${isPhone ? ' vehicle-phone-identity' : ''}`} data-testid="vehicle-identity">
+      <p className="vehicle-availability luxxy-kicker mb-3">
+        {vehicleAvailability(car.inventoryStatus)} · {dealerConfig.address?.city || dealerConfig.identity.name}
+      </p>
+      <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">{vehicleLabel}</h1>
+      {isPhone ? (
+        <p className="vehicle-phone-facts">{[
+          registrationYear !== 'Unknown' ? registrationYear : null,
+          car.mileage != null ? formatMileage(car.mileage) : car.mileageText,
+          car.transmission,
+        ].filter(Boolean).join(' · ')}</p>
+      ) : <>
+        {(car.variant || car.trim) && <p className="vehicle-variant mt-3 text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
+        {registrationDetails}
+      </>}
+      <div className="vehicle-price-block mt-3 border-b border-border pb-3 lg:mt-5 lg:pb-5">
+        <p className="luxxy-price text-[2rem]">{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
+        <PriceReduction car={car} />
+        {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
+        {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.label} · recorded insurance history</span><ArrowRight className="h-4 w-4" /></a>}
+      </div>
+    </header>
+  );
+
   return (
     <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -252,41 +285,18 @@ export default function CarDetail() {
           </div>
         </div>
         <div className="vehicle-detail-grid min-w-0">
+          {isPhone && vehicleIdentity}
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView />
             <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
-          <header className="min-w-0">
-            <p className="vehicle-availability luxxy-kicker mb-3">
-              {vehicleAvailability(car.inventoryStatus)} · {dealerConfig.address?.city || dealerConfig.identity.name}
-            </p>
-            <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">
-              {vehicleLabel}
-            </h1>
-            {(car.variant || car.trim) && (
-              <p className="vehicle-variant mt-3 text-sm leading-relaxed text-muted-foreground">
-                {car.variant || car.trim}
-              </p>
-            )}
-            {registration && (
-              <dl className="vehicle-registration">
-                <dt>Registration</dt>
-                <dd data-testid={`plate-vehicle-${car.id}`}>{registration}</dd>
-              </dl>
-            )}
-            <div className="vehicle-price-block mt-3 border-b border-border pb-3 lg:mt-5 lg:pb-5">
-              <p className="luxxy-price text-[2rem]">
-                {car.price
-                  ? formatPrice(car.price, car.currency)
-                  : 'Price on application'}
-              </p>
-              <PriceReduction car={car} />
-              {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
-              {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.label} · recorded insurance history</span><ArrowRight className="h-4 w-4" /></a>}
-            </div>
-          </header>
+          {!isPhone && vehicleIdentity}
+          {isPhone && <div className="vehicle-phone-detail">
+            {(car.variant || car.trim) && <p className="vehicle-variant text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
+            {registrationDetails}
+          </div>}
           <div className="vehicle-primary-actions vehicle-summary-main-actions">{bookingAction}{enquiryAction}</div>
             <div className="vehicle-direct-contact" aria-label="Talk to us about this car">
               <VehicleCall car={car} />

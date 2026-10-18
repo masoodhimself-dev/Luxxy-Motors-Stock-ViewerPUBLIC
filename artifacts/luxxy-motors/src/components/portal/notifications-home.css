@@ -30,17 +30,17 @@
   gap: 8px;
 }
 .notifications-metrics button {
-  min-height: 66px;
+  min-height: 44px;
   display: grid;
-  grid-template-columns: 17px minmax(0, 1fr);
+  grid-template-columns: 16px auto minmax(0, 1fr);
   align-content: center;
   align-items: center;
-  gap: 5px 9px;
+  gap: 6px;
   text-align: left;
   background: #fff;
   border: 1px solid #dbe4e9;
   border-radius: 8px;
-  padding: 11px 12px;
+  padding: 7px 10px;
   transition: background 0.15s;
 }
 .notifications-metrics button:hover,
@@ -54,13 +54,12 @@
   color: var(--notice-ink);
 }
 .notifications-metrics strong {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 650;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .notifications-metrics span {
-  grid-column: 1/-1;
   font-size: 11px;
   color: #5d7280;
 }
@@ -85,6 +84,11 @@
   font-size: 15px;
   font-weight: 650;
 }
+.notifications-feed-intro {
+  margin-top: 2px;
+  color: var(--portal-neutral, #536374);
+  font-size: 12px;
+}
 .notifications-feed ul {
   list-style: none;
   margin: 0;
@@ -93,7 +97,7 @@
 .notifications-feed li {
   display: flex;
   gap: 12px;
-  padding: 15px 16px;
+  padding: 11px 16px;
   align-items: center;
   border-bottom: 1px solid #edf1f3;
 }
@@ -120,6 +124,32 @@
   color: #617786;
   font-size: 11px;
 }
+.notifications-record-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 9px;
+}
+.notifications-timing {
+  color: var(--portal-neutral, #536374);
+  font-size: 11px;
+  font-weight: 650;
+}
+.notifications-timing[data-urgent="true"] {
+  color: var(--portal-warning, #87510b);
+}
+.notifications-expand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+  border-top: 1px solid #e6ecef;
+  padding: 5px 16px;
+  font-size: 12px;
+  color: var(--portal-neutral, #536374);
+}
+.notifications-expand button { min-height: 44px; }
 .notifications-record h4 {
   font-weight: 650;
   margin: 1px 0;
@@ -189,20 +219,13 @@
 }
 @media (max-width: 760px) {
   .notifications-metrics {
-    display: flex;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
-    overflow-x: auto;
     min-width: 0;
     max-width: 100%;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-  .notifications-metrics::-webkit-scrollbar {
-    display: none;
   }
   .notifications-metrics button {
-    flex: 1 0 115px;
-    padding: 10px;
+    padding: 7px 9px;
   }
 }
 @media (max-width: 560px) {

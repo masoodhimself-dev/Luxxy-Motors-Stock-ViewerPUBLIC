@@ -34,6 +34,7 @@ test('platform onboarding and operational views preserve access checks and omit 
   for(const [runId,status,time] of [['run-good','completed','2026-10-10T08:00:00Z'],['run-held','quarantined','2026-10-10T20:00:00Z']] as const) await db.insert(stockImportRunsTable).values({runId,status,receivedAt:new Date(time),scrapedAt:new Date(time),dealerId:'test-dealer',source:'grok',retailerId:'fictional',schemaVersion:'1',expectedCount:1,receivedCount:1,rawSnapshot:{secret:'never-return-this-snapshot'}});
   const overview=await request('/api/platform/overview');assert.equal(overview.status,200);const text=await overview.text();assert.ok(!text.includes('never-return'));const data=JSON.parse(text);const dealer=data.dealers.find((d:{id:string})=>d.id==='test-dealer');assert.equal(dealer.latestImport.runId,'run-held');assert.equal(dealer.lastSuccessfulImport.runId,'run-good');assert.equal(dealer.activeKeyCount,1);
   const workspace=await request('/api/platform/dealers/test-dealer/workspace');assert.equal(workspace.status,200);const details=await workspace.text();assert.ok(!details.includes('never-return'));assert.equal(JSON.parse(details).imports.length,2);
+  assert.equal(dealer.isDemo,false); assert.equal(dealer.demoExpiresAt,null);
   assert.equal((await request('/api/platform/dealers/unknown/workspace')).status,404);
   const checklistPath = '/api/platform/dealers/test-dealer/checklist';
   const item = { itemId: 'https', status: 'done', note: 'Certificate checked' };
@@ -58,6 +59,9 @@ test('platform onboarding and operational views preserve access checks and omit 
   assert.equal((await request('/api/platform/demos','POST',demoInput,'user_other')).status,403);
   const created=await request('/api/platform/demos','POST',demoInput);assert.equal(created.status,201,await created.clone().text());
   assert.equal(((await created.json()) as {dealerId:string}).dealerId,'demo-fictional-motors');
+  const demoOverview = await (await request('/api/platform/overview')).json() as { dealers: { id: string; isDemo: boolean; demoExpiresAt: string | null }[] };
+  const demoMetadata = demoOverview.dealers.find(d => d.id === 'demo-fictional-motors')!;
+  assert.equal(demoMetadata.isDemo,true); assert.ok(Date.parse(demoMetadata.demoExpiresAt!) > Date.now());
   assert.equal((await request('/api/platform/demos','POST',demoInput)).status,409);
   assert.equal((await engine.query("SELECT * FROM sale_workspace WHERE dealer_id='demo-fictional-motors'")).rows.length,2);
   const demoPath='/api/platform/dealers/demo-fictional-motors/demo';

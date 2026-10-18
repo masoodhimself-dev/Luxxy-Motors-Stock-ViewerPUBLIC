@@ -1,5 +1,6 @@
 import { communicationsPreview } from "./preview/communications";
 import { declarationQa } from './preview/declaration-qa';
+import { plateEntryQa } from './preview/plate-entry-qa';
 import { platformPreview } from "./preview/platform";
 import { deferredCustomerFeatureResponse, resolveDealerFeatures } from '@workspace/vehicle-meta';
 import { brochureDealer } from '../api-server/src/lib/vehicle-brochure';
@@ -48,6 +49,7 @@ export default mergeConfig(
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
             if (await declarationQa(req, res, url)) return;
+            if (await plateEntryQa(req, res, url)) return;
             const deferred = deferredCustomerFeatureResponse(url.pathname, req.method ?? 'GET');
             if (deferred) { res.statusCode = deferred.status; res.end(JSON.stringify(deferred.body)); return; }
             if (/^\/api\/(sales|signing|customer-intake-sessions)(\/|$)/.test(url.pathname)) {

@@ -3,6 +3,7 @@ import { DemoOnboardingAccess } from '@/components/demo-onboarding-access';
 import { PlatformDemos } from '@/components/platform-demos';
 import { PlatformDomainAutomation } from '@/components/platform-domain-automation';
 import { PlatformCapacity } from '@/components/platform-capacity';
+import { importCapacitySummary } from '../../../api-server/src/lib/platform-capacity';
 import { useEffect, useState } from 'react';
 import { SignInButton, useAuth } from '@clerk/react';
 import { customFetch } from '@workspace/api-client-react';
@@ -15,7 +16,7 @@ import { onboardingGroups, onboardingItems, type ChecklistEntry } from '@workspa
 type Run = { dealerId?: string; runId: string; status: string; receivedAt: string; scrapedAt: string; receivedCount: number; addedCount?: number; changedCount?: number; missingCount?: number; updatedAt?: string; expectedCount?: number; source?: string; retailerId?: string; errors?: { code?: string; message?: string }[] };
 type ImportDetails = { duration_ms: number | null; change_count: number; previous_run_id: string | null; changes: { id: string; advert_id: string; title: string; added: boolean; fields: string[]; old_price: string | null; new_price: string | null }[]; newly_missing: { advert_id: string; title: string }[] | null; snapshot_details_available?: boolean };
 type Domain = { hostname: string; verified: boolean; verificationToken?: string };
-type Dealer = { onboardingChecklist?: Record<string, ChecklistEntry>; id: string; name: string; status: string; canonicalOrigin: string; stockPlatform: string; retailerId: string; sourceUrl: string; domains: Domain[]; activeKeyCount: number; latestImport: Run | null; lastSuccessfulImport: Run | null };
+type Dealer = { isDemo?: boolean; demoExpiresAt?: string | null; onboardingChecklist?: Record<string, ChecklistEntry>; id: string; name: string; status: string; canonicalOrigin: string; stockPlatform: string; retailerId: string; sourceUrl: string; domains: Domain[]; activeKeyCount: number; latestImport: Run | null; lastSuccessfulImport: Run | null };
 type Workspace = { dealer: Dealer; domains: Domain[]; members: { id: string; name: string | null; email: string | null; role: string; disabledAt: string | null }[]; imports: Run[]; keys: { id: string; createdAt: string; disabledAt: string | null }[] };
 const call = <T,>(path: string, method = 'GET', body?: unknown) => customFetch<T>('/api/platform' + path, { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
 const date = (v?: string | null) => v ? new Date(v).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/London' }) : 'Not yet';
@@ -64,9 +65,12 @@ export default function Platform() {
   const [issuedKey, setIssuedKey] = useState<{ secret: string; endpointPath: string } | null>(null);
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [allowed, setAllowed] = useState(false);
   const [search, setSearch] = useState(''), [status, setStatus] = useState('all');
+  const [dealerKind, setDealerKind] = useState<'all' | 'live' | 'demos' | 'expired'>('all');
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const [step, setStep] = useState(0), [form, setForm] = useState(emptyForm), [alias, setAlias] = useState('');
   async function load() {
-    setLoading(true);
+    setLoading(true); setNow(Date.now());
     try { setData(await call('/overview')); setAllowed(true); setError(''); }
     catch { setAllowed(false); setError('Platform administrator access is required on the approved administration domain. Refresh to try again.'); }
     finally { setLoading(false); }
@@ -122,8 +126,41 @@ export default function Platform() {
     catch(cause) { setError(cause instanceof Error ? cause.message : 'Could not create dealership.'); }
     finally { setBusy(false); }
   }
-  const attention = data.dealers.filter(d => d.status !== 'active' || !d.lastSuccessfulImport || ['failed','quarantined'].includes(d.latestImport?.status ?? ''));
-  const filtered = data.dealers.filter(d => (status === 'all' || d.status === status) && `${d.name} ${d.id} ${d.canonicalOrigin} ${d.retailerId}`.toLowerCase().includes(search.toLowerCase()));
+  const isExpiredDemo = (dealer: Dealer) => Boolean(dealer.isDemo && dealer.demoExpiresAt && Date.parse(dealer.demoExpiresAt) <= now);
+  const liveDealers = data.dealers.filter(dealer => !dealer.isDemo);
+  const liveWebsites = liveDealers.filter(dealer => dealer.status === 'active');
+  const liveSetup = liveDealers.filter(dealer => dealer.status === 'draft');
+  const demos = data.dealers.filter(dealer => dealer.isDemo && !isExpiredDemo(dealer));
+  const activeDemos = demos.filter(dealer => dealer.status === 'active' && dealer.demoExpiresAt && Date.parse(dealer.demoExpiresAt) > now);
+  const expiredDemos = data.dealers.filter(isExpiredDemo);
+  const liveHealth = importCapacitySummary(liveWebsites.map(dealer => ({
+    id: dealer.id, name: dealer.name, active_key_count: dealer.activeKeyCount,
+    last_success_received_at: dealer.lastSuccessfulImport?.receivedAt ?? null,
+    last_success_scraped_at: dealer.lastSuccessfulImport?.scrapedAt ?? null,
+    last_attempt_at: dealer.latestImport?.receivedAt ?? null,
+    last_attempt_status: dealer.latestImport?.status ?? null,
+  })), now);
+  const healthById = new Map(liveHealth.dealers.map(dealer => [dealer.dealerId, dealer]));
+  const liveAttention = liveWebsites.filter(dealer => healthById.get(dealer.id)?.needsAttention);
+  const setupAttention = liveDealers.filter(dealer => dealer.status === 'draft' || dealer.status === 'suspended');
+  function attentionReason(dealer: Dealer) {
+    if (dealer.isDemo) return '';
+    if (dealer.status === 'draft') return 'Setup in progress · awaiting activation';
+    if (dealer.status === 'suspended') return 'Suspended · review before reactivating';
+    const health = healthById.get(dealer.id);
+    if (!health?.needsAttention) return '';
+    return [
+      !health.connectionConfigured && 'Import credential missing',
+      health.freshness === 'missing' && 'No successful stock collection',
+      health.freshness === 'warning' && 'Stock update due soon · 13+ hours',
+      health.freshness === 'critical' && 'Stock update overdue · 14+ hours',
+      ['failed', 'quarantined'].includes(health.lastAttemptStatus ?? '') && `Latest import ${health.lastAttemptStatus}`,
+    ].filter(Boolean).join(' · ');
+  }
+  const filtered = data.dealers.filter(dealer =>
+    (dealerKind === 'all' || (dealerKind === 'live' && !dealer.isDemo) || (dealerKind === 'demos' && dealer.isDemo && !isExpiredDemo(dealer)) || (dealerKind === 'expired' && isExpiredDemo(dealer))) &&
+    (status === 'all' || dealer.status === status) &&
+    `${dealer.name} ${dealer.id} ${dealer.canonicalOrigin} ${dealer.retailerId}`.toLowerCase().includes(search.trim().toLowerCase()));
   function runs(items: Run[]) {
     const money = (v: string | null) => v != null && v !== 'null' && Number.isFinite(Number(v)) ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(Number(v)) : 'Not supplied';
     return items.length ? <div className="platform-runs">{items.map(r => {
@@ -137,15 +174,45 @@ export default function Platform() {
       </article>;
     })}</div> : <div className="platform-empty"><Radio /><h3>No imports yet</h3><p>Successful and held stock submissions will appear here when a worker connects.</p></div>;
   }
-  function dealerList(items: Dealer[]) { return items.length ? <div className="platform-dealers">{items.map(d => <button className="platform-dealer" key={d.id} disabled={busy} onClick={() => void openDealer(d.id)}><span className="platform-dealer-avatar">{d.name.slice(0,2).toUpperCase()}</span><span><strong>{d.name}</strong><small>{new URL(d.canonicalOrigin).hostname}</small><small>Onboarding: {onboardingItems.filter(i => d.onboardingChecklist?.[i.id]?.status === 'done').length} / {onboardingItems.length} complete</small></span><span className="platform-dealer-source">{platform(d.stockPlatform)}<small>Last successful import: {date(d.lastSuccessfulImport?.receivedAt)}</small></span><Badge value={d.status} /><ArrowRight size={18}/></button>)}</div> : <div className="platform-empty"><Building2 /><h3>{data.dealers.length > 0 ? 'No dealerships match these filters' : 'Your first dealership starts here'}</h3><p>{data.dealers.length > 0 ? 'Try another search or status.' : 'Create a draft, connect its domain and stock source, then activate it when it is ready.'}</p>{data.dealers.length === 0 && <Button onClick={() => navigate('new')}>Add dealership</Button>}</div>; }
+  function dealerList(items: Dealer[], showAttention = false) {
+    return items.length ? <div className="platform-dealers">{items.map(dealer => <button className="platform-dealer" key={dealer.id} disabled={busy} onClick={() => void openDealer(dealer.id)}>
+      <span className="platform-dealer-avatar">{dealer.name.slice(0, 2).toUpperCase()}</span>
+      <span className="platform-dealer-identity"><strong>{dealer.name}</strong><small>{new URL(dealer.canonicalOrigin).hostname}</small>
+        {dealer.isDemo ? <small className="platform-demo-expiry">{dealer.demoExpiresAt ? `${isExpiredDemo(dealer) ? 'Expired' : 'Expires'} ${date(dealer.demoExpiresAt)} (UK)` : 'Demo expiry not set'}</small> : <small>Onboarding: {onboardingItems.filter(item => dealer.onboardingChecklist?.[item.id]?.status === 'done').length} / {onboardingItems.length} complete</small>}
+        {showAttention && attentionReason(dealer) && <small className="platform-dealer-attention">{attentionReason(dealer)}</small>}
+      </span>
+      <span className="platform-dealer-source">{platform(dealer.stockPlatform)}<small>Last successful import: {date(dealer.lastSuccessfulImport?.receivedAt)}</small></span>
+      <span className="platform-dealer-badges">{dealer.isDemo && <span className={`platform-badge platform-badge--${isExpiredDemo(dealer) ? 'expired' : 'demo'}`}>{isExpiredDemo(dealer) ? 'Expired demo' : 'Demo'}</span>}<Badge value={dealer.status} /></span><ArrowRight size={18} aria-hidden="true"/>
+    </button>)}</div> : <div className="platform-empty"><Building2 /><h3>{data.dealers.length > 0 ? 'No dealerships match these filters' : 'Your first dealership starts here'}</h3><p>{data.dealers.length > 0 ? 'Try another search, type or status.' : 'Create a draft, connect its domain and stock source, then activate it when it is ready.'}</p>{data.dealers.length === 0 && <Button onClick={() => navigate('new')}>Add dealership</Button>}</div>;
+  }
   return <div className="platform-shell">
     <aside className="platform-sidebar"><a href="/platform" className="platform-brand"><span><Building2 size={22}/></span><div>Dealer Platform<small>Management console</small></div></a><nav aria-label="Platform navigation">{([{ key:'overview', label:'Overview', icon:LayoutDashboard }, { key:'dealers', label:'Dealerships', icon:Building2 }, { key:'new', label:'Add dealership', icon:Plus }, { key:'activity', label:'Import activity', icon:Activity }, { key:'demos', label:'Demo dealerships', icon:Globe2 }, { key:'features', label:'Feature defaults', icon:ShieldCheck }] as const).map(n => <button key={n.key} className={view === n.key || (n.key === 'dealers' && view === 'workspace') ? 'is-active' : ''} disabled={!allowed || busy} onClick={() => navigate(n.key)}><n.icon size={18}/>{n.label}</button>)}</nav><div className="platform-sidebar-note"><ShieldCheck size={19}/><p>Platform administration<small>Dealer websites and staff portals stay separate.</small></p></div></aside>
     <main className="platform-main"><header className="platform-header"><div><p>Platform administration</p><h1>{view === 'workspace' ? workspace?.dealer.name : view === 'features' ? 'Feature defaults' : view === 'demos' ? 'Demo dealerships' : view === 'new' ? 'Add a dealership' : view === 'activity' ? 'Import activity' : view === 'dealers' ? 'Dealerships' : 'Your dealership network'}</h1></div>{allowed && <div className="platform-header-actions"><Button variant="outline" disabled={loading || busy} onClick={() => void load()}><RefreshCw size={16}/>Refresh</Button>{view !== 'new' && <Button disabled={busy} onClick={() => navigate('new')}><Plus size={16}/>Add dealership</Button>}</div>}</header>
       {!isSignedIn ? <section className="platform-panel platform-login"><ShieldCheck size={36}/><h2>Manage your dealerships</h2><p>Sign in with your authorised platform administrator account.</p><SignInButton mode="modal" forceRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/platform`} signUpForceRedirectUrl={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/platform`}><Button>Sign in as platform administrator</Button></SignInButton></section> : <>
         {error && <p role="alert" className="platform-alert">{error}</p>}{notice && <p role="status" className="platform-notice">{notice}</p>}
         {loading && !allowed && <p role="status">Loading your dealerships…</p>}
-        {allowed && view === 'overview' && <><section className="platform-stats">{[['Dealerships',data.dealers.length],['Active websites',data.dealers.filter(d => d.status === 'active').length],['In setup',data.dealers.filter(d => d.status === 'draft').length],['Needs attention',attention.length]].map(([label,value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}</section><PlatformCapacity onOpenDealer={id => void openDealer(id)}/><section className="platform-panel"><div className="platform-section-heading"><div><h2>Needs attention</h2><p>Drafts, suspended dealers and stock connections awaiting a successful import.</p></div></div>{attention.length === 0 && data.dealers.length > 0 ? <div className="platform-empty"><Check aria-hidden="true" /><h3>Dealership setup is up to date</h3><p>No setup tasks need attention.</p></div> : dealerList(attention)}</section><section className="platform-panel"><div className="platform-section-heading"><h2>Recent stock activity</h2><Button variant="ghost" onClick={() => navigate('activity')}>View all <ArrowRight size={16}/></Button></div>{runs(data.activity.slice(0,5))}</section></>}
-        {allowed && view === 'dealers' && <section className="platform-panel"><div className="platform-toolbar"><Field label="Search dealerships"><div className="platform-search"><Search size={17}/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, domain or retailer reference" /></div></Field><Field label="Status"><NativeSelect value={status} onChange={e => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="draft">Draft</option><option value="suspended">Suspended</option></NativeSelect></Field></div>{dealerList(filtered)}</section>}
+        {allowed && view === 'overview' && <>
+          <section className="platform-stats" aria-label="Dealership totals">{[
+            { label: 'Live websites', count: liveWebsites.length, note: 'Active customer websites', tone: 'live' },
+            { label: 'Live in setup', count: liveSetup.length, note: 'Drafts awaiting launch', tone: 'setup' },
+            { label: 'Active demos', count: activeDemos.length, note: 'Active with time remaining', tone: 'demo' },
+            { label: 'Expired demos', count: expiredDemos.length, note: 'Demo period has ended', tone: 'expired' },
+          ].map(stat => <article key={stat.label} className={`platform-stat--${stat.tone}`} aria-label={stat.label}><span>{stat.label}</span><strong>{stat.count}</strong><small>{stat.note}</small></article>)}</section>
+          <PlatformCapacity onOpenDealer={id => void openDealer(id)}/>
+          <section className="platform-panel" aria-label="Dealership attention"><div className="platform-section-heading"><div><h2>Needs attention</h2><p>Live website stock health and launch tasks are tracked separately. Demos are excluded.</p></div></div>
+            {data.dealers.length === 0 ? dealerList([]) : <>
+              <div className="platform-attention-group"><h3>Live website health <span>{liveAttention.length}</span></h3><p>Stock collection warning after 13 hours; overdue after 14 hours. Missing credentials and failed latest imports also need attention.</p>{liveAttention.length ? dealerList(liveAttention, true) : <p className="platform-attention-clear"><Check size={17} aria-hidden="true"/>{liveWebsites.length ? 'Live stock connections are up to date.' : 'No active live websites yet.'}</p>}</div>
+              <div className="platform-attention-group"><h3>Setup and suspended dealerships <span>{setupAttention.length}</span></h3>{setupAttention.length ? dealerList(setupAttention, true) : <p className="platform-attention-clear"><Check size={17} aria-hidden="true"/>No setup or suspension tasks need attention.</p>}</div>
+            </>}
+          </section>
+          <section className="platform-panel"><div className="platform-section-heading"><h2>Recent stock activity</h2><Button variant="ghost" onClick={() => navigate('activity')}>View all <ArrowRight size={16}/></Button></div>{runs(data.activity.slice(0,5))}</section>
+        </>}
+        {allowed && view === 'dealers' && <section className="platform-panel">
+          <div className="platform-dealer-kinds" role="group" aria-label="Dealership type">{([
+            ['all', 'All', data.dealers.length], ['live', 'Live', liveDealers.length], ['demos', 'Demos', demos.length], ['expired', 'Expired', expiredDemos.length],
+          ] as const).map(([kind, label, count]) => <button key={kind} type="button" aria-pressed={dealerKind === kind} onClick={() => setDealerKind(kind)}>{label}{' '}<span>{count}</span></button>)}</div>
+          <div className="platform-toolbar"><Field label="Search dealerships"><div className="platform-search"><Search size={17}/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, domain or retailer reference" /></div></Field><Field label="Status"><NativeSelect value={status} onChange={e => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="draft">Draft</option><option value="suspended">Suspended</option></NativeSelect></Field></div>{dealerList(filtered)}
+        </section>}
         {allowed && view === 'features' && <section className="platform-panel"><PlatformFeatureControls/></section>}
         {allowed && view === 'demos' && <><section className="platform-panel"><PlatformDemos onCreated={id=>void openDealer(id).then(()=>setTab('Demo'))}/></section><DemoOnboardingAccess/></>}
         {allowed && view === 'activity' && <section className="platform-panel"><div className="platform-section-heading"><div><h2>Latest 30 submissions</h2><p>Actual import records, shown in London time. A held import is not a successful update.</p></div></div>{runs(data.activity)}</section>}

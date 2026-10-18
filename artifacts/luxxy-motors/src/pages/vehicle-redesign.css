@@ -50,6 +50,14 @@
 .vehicle-redesigned .vehicle-save-control:hover { background: hsl(var(--secondary)); }
 .vehicle-redesigned .vehicle-save-control[aria-pressed="true"] { color: var(--vehicle-link); }
 .vehicle-page.vehicle-redesigned .vehicle-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 28px; }
+.vehicle-redesigned .vehicle-phone-identity { padding-bottom: 0; }
+.vehicle-redesigned .vehicle-phone-identity .vehicle-availability { margin-bottom: 7px; color: var(--vehicle-link); font-size: 12px; line-height: 1.5; }
+.vehicle-redesigned .vehicle-phone-identity h1 { color: var(--vehicle-ink); font-size: 26px; line-height: 1.2; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.vehicle-redesigned .vehicle-phone-facts { margin-top: 8px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.6; }
+.vehicle-redesigned .vehicle-phone-identity .vehicle-price-block { margin-top: 12px; padding-bottom: 0; border-bottom: 0; }
+.vehicle-redesigned .vehicle-phone-identity .luxxy-price { color: var(--vehicle-ink); font-size: 30px; line-height: 1.2; letter-spacing: -.035em; }
+.vehicle-redesigned .vehicle-phone-detail:empty { display: none; }
+.vehicle-redesigned .vehicle-phone-detail .vehicle-variant { margin-top: 0; }
 .vehicle-redesigned .vehicle-detail-gallery,
 .vehicle-redesigned .vehicle-summary-column { order: initial; grid-column: auto; grid-row: auto; }
 .vehicle-redesigned .vehicle-gallery-frame { padding: 0; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 6px; background: var(--vehicle-panel); box-shadow: none; }

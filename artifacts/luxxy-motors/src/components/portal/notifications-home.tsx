@@ -49,6 +49,32 @@ export type Notifications = {
     automaticSending: boolean;
   };
 };
+type NotificationItem = Notifications["items"][number];
+const visibleActionLimit = 6;
+const londonDay = (value: string) => new Date(value).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+function actionPriority(item: NotificationItem, generatedAt: string) {
+  if (item.category === "followups") return 0;
+  if (item.category === "email" || /unconfirmed|check before resending/i.test(item.detail)) return 1;
+  if (item.category === "appointments") {
+    const due = Date.parse(item.at) - Date.parse(generatedAt);
+    return londonDay(item.at) === londonDay(generatedAt) && due <= 2 * 60 * 60 * 1000 ? 2 : 3;
+  }
+  return item.category === "enquiries" ? 4 : 5;
+}
+function actionTiming(item: NotificationItem, generatedAt: string) {
+  const elapsed = Date.parse(generatedAt) - Date.parse(item.at);
+  if (!Number.isFinite(elapsed)) return null;
+  if (item.category === "followups") {
+    const hours = Math.floor(elapsed / 3_600_000);
+    return hours >= 24 ? `${Math.floor(hours / 24)}d overdue` : hours >= 1 ? `${hours}h overdue` : "Due now";
+  }
+  if (item.category === "appointments" && londonDay(item.at) === londonDay(generatedAt)) {
+    if (item.detail === "Booking needs approval") return elapsed > 0 ? "Time passed — review request" : "Awaiting approval";
+    return elapsed > 0 ? "Check attendance" : `Today ${new Date(item.at).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}`;
+  }
+  if (item.category === "enquiries" && elapsed >= 24 * 3_600_000) return `Waiting ${Math.floor(elapsed / (24 * 3_600_000))}d`;
+  return null;
+}
 export function useWorkspaceNotifications() {
   return useQuery({
     queryKey: ["staff-notifications"],
@@ -65,6 +91,7 @@ export function NotificationsHome({
   const query = useWorkspaceNotifications(),
     data = query.data;
   const [filter, setFilter] = useState<Category | "all">("all");
+  const [expanded, setExpanded] = useState(false);
   const categories = (Object.keys(groups) as Category[]).filter(
     (key) => data?.emailAccess || !["drafts", "email"].includes(key),
   );
@@ -72,7 +99,9 @@ export function NotificationsHome({
     (item) =>
       categories.includes(item.category) &&
       (filter === "all" || filter === item.category),
-  );
+  ).sort((a, b) => actionPriority(a, data!.generatedAt) - actionPriority(b, data!.generatedAt) || Date.parse(a.at) - Date.parse(b.at) || a.id.localeCompare(b.id));
+  const visibleRows = expanded ? rows : rows.slice(0, visibleActionLimit);
+  const chooseFilter = (next: Category | "all") => { setFilter(next); setExpanded(false); };
   const count = data
     ? categories.reduce((total, key) => total + data.counts[key], 0)
     : 0;
@@ -126,7 +155,7 @@ export function NotificationsHome({
                       data.counts[key] > 0 ? groups[key].tone : "neutral"
                     }
                     aria-pressed={filter === key}
-                    onClick={() => setFilter(filter === key ? "all" : key)}
+                    onClick={() => chooseFilter(filter === key ? "all" : key)}
                   >
                     <Icon size={19} aria-hidden="true" />
                     <strong>{data.counts[key]}</strong>
@@ -147,13 +176,14 @@ export function NotificationsHome({
                         ? "Your next actions"
                         : groups[filter].label}
                     </h3>
+                    <p className="notifications-feed-intro">{filter === "all" ? "Due work first, then visits and replies." : `${data.counts[filter]} ${data.counts[filter] === 1 ? "action" : "actions"} in this category`}</p>
                   </div>
                   <div className="notifications-feed-controls">
                     {filter !== "all" && (
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setFilter("all")}
+                        onClick={() => chooseFilter("all")}
                       >
                         Show all
                       </Button>
@@ -176,9 +206,10 @@ export function NotificationsHome({
                     </p>
                   </div>
                 )}
-                <ul>
-                  {rows.map((item) => {
+                <ul id="notifications-action-list">
+                  {visibleRows.map((item) => {
                     const Icon = groups[item.category].icon;
+                    const timing = actionTiming(item, data.generatedAt);
                     return (
                       <li
                         key={`${item.category}:${item.id}`}
@@ -190,9 +221,7 @@ export function NotificationsHome({
                           <Icon size={20} aria-hidden="true" />
                         </span>
                         <div className="notifications-record">
-                          <span className="notifications-type">
-                            {item.detail}
-                          </span>
+                          <div className="notifications-record-heading"><span className="notifications-type">{item.detail}</span>{timing && <span className="notifications-timing" data-urgent={item.category === "followups"}>{timing}</span>}</div>
                           <h4>
                             <Link href={notificationsLink(item.href)}>
                               {item.customer}
@@ -223,14 +252,15 @@ export function NotificationsHome({
                     );
                   })}
                 </ul>
+                {rows.length > visibleActionLimit && <div className="notifications-expand"><span>Showing {visibleRows.length} of {rows.length} loaded actions</span><Button type="button" variant="ghost" size="sm" aria-expanded={expanded} aria-controls="notifications-action-list" onClick={() => setExpanded(!expanded)}>{expanded ? "Show fewer" : `Show all ${rows.length} actions`}</Button></div>}
                 {categories.some(
                   (key) =>
                     (filter === "all" || key === filter) &&
                     data.counts[key] > 8,
                 ) && (
                   <p className="notifications-footnote">
-                    Showing the first eight actions in each category. Open
-                    Enquiries or Email for the full list.
+                    Each category loads up to eight actions. Open
+                    Customers & enquiries or Email for the full list.
                   </p>
                 )}
               </section>

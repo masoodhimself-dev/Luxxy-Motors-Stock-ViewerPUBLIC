@@ -237,6 +237,7 @@ export function DealerDashboard({
             </Button>
           </div>
         )}
+        {children}
         {!data ? (
           query.isLoading && (
             <p role="status" className="admin-muted">
@@ -264,7 +265,6 @@ export function DealerDashboard({
             {stockAttention}
           </>
         )}
-        {children}
         {data && (
           <details className="admin-overview-details admin-daily-details">
             <summary>

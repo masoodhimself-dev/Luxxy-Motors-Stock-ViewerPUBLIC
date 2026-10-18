@@ -35,6 +35,8 @@ import { useStaffAccess } from "./dealer-administration";
 import "./staff-inventory.css";
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
 import { workspaceError } from "./enquiry-workspace-tools";
+import { BulkPlateEntry, type PlateEntryCar } from "./bulk-plate-entry";
+import { vehicleDisplayTitle } from "@/lib/utils";
 type Tasks = Record<
   "cleaning" | "inspection" | "mot" | "servicing",
   "pending" | "done" | "not_required"
@@ -42,6 +44,8 @@ type Tasks = Record<
 type Car = {
   id: string;
   title: string;
+  make?: string | null;
+  model?: string | null;
   display_title?: string;
   price: number | null;
   plate: string | null;
@@ -124,6 +128,7 @@ const hasNumberPlate = (car: Car) => {
   if (car.plate?.trim() || car.vrm?.trim()) return true;
   const registration = car.registration?.replace(/\s/g, "").toUpperCase() ?? "";
   return (
+    !/^\d{2,4}REG$/.test(registration) &&
     /^[A-Z0-9]{2,8}$/.test(registration) &&
     /[A-Z]/.test(registration) &&
     /\d/.test(registration)
@@ -283,6 +288,7 @@ export function StaffInventory({
   const [customerLink, setCustomerLink] = useState("");
   const [sort, setSort] = useState("latest");
   const [searchTerm, setSearchTerm] = useState("");
+  const [plateQueue, setPlateQueue] = useState<PlateEntryCar[] | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => setSearchTerm(term.trim()), 250);
     return () => clearTimeout(timer);
@@ -333,7 +339,7 @@ export function StaffInventory({
     list.data?.pages[0].previewReadOnly || details.data?.previewReadOnly,
   );
   const writable =
-    access.data?.permissions.includes("sales.manage") && !previewReadOnly;
+    access.data?.permissions.includes("sales.manage") && !access.isError && !previewReadOnly;
   useEffect(() => {
     setPlateDraft(null);
     setEmailCustomer(null);
@@ -460,7 +466,7 @@ export function StaffInventory({
       </DropdownMenu>
     );
   }
-  const loadedCars = list.data?.pages.flatMap((page) => page.cars) ?? [];
+  const loadedCars = (list.data?.pages.flatMap((page) => page.cars) ?? []).map(vehicle => ({ ...vehicle, title: vehicleDisplayTitle(vehicle) }));
   const counts = list.data?.pages[0].counts;
   const today = londonDate();
   const isOverdue = (vehicle: Car) =>
@@ -511,7 +517,8 @@ export function StaffInventory({
                 ? a.price - b.price
                 : b.price - a.price,
     );
-  const car = details.data?.car;
+  const rawCar = details.data?.car;
+  const car = rawCar ? { ...rawCar, display_title: vehicleDisplayTitle({ ...rawCar, title: rawCar.display_title ?? rawCar.title }) } : undefined;
   const selectedPhotos = (details.data?.photos ?? []).filter(
     (p) => (p.category ?? "service_book") === photoCategory,
   );
@@ -565,6 +572,8 @@ export function StaffInventory({
             </div>
           )}
         </div>
+        <div className="inventory-heading-actions">
+        {!selected && scope === "current" && writable && <Button type="button" variant="outline" disabled={list.isLoading || list.isError || !cars.some(vehicle => !hasNumberPlate(vehicle))} onClick={() => setPlateQueue(cars.filter(vehicle => !hasNumberPlate(vehicle)))}><ScanLine size={17} aria-hidden />Add number plates</Button>}
         <Button
           variant="ghost"
           className="inventory-refresh"
@@ -584,7 +593,9 @@ export function StaffInventory({
           />
           <span>Refresh</span>
         </Button>
+        </div>
       </header>
+      {plateQueue && writable && <BulkPlateEntry cars={plateQueue} onClose={() => setPlateQueue(null)} />}
       {previewReadOnly && (
         <p className="inventory-preview-note">
           Read-only preview · Changes, uploads and emails are disabled.

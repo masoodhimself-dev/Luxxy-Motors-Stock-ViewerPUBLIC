@@ -942,3 +942,19 @@ it("checks unsaved preparation before opening customer activity from car actions
   );
   confirm.mockRestore();
 });
+
+it.each(['68 reg', '2019 (68 reg)', '2019'])('offers quick plate entry for an age identifier %s', async registration => {
+  state.selected = false;
+  state.fetch.mockResolvedValue({cars: [{...car, plate: null, vrm: null, registration}], counts: {current: 1, archived: 0}});
+  mount();
+  expect(await screen.findByRole('button', {name: 'Missing number plate 1'})).toBeVisible();
+  expect(screen.getByRole('button', {name: 'Add number plates'})).toBeEnabled();
+});
+
+it('uses the shared title formatting for staff car rows without changing source records', async () => {
+  state.selected = false;
+  state.fetch.mockResolvedValue({cars: [{...car, title: '2025 MG MG HS', make: 'MG', year: 2025}], counts: {current: 1, archived: 0}});
+  mount();
+  expect(await screen.findByRole('heading', {name: 'MG HS'})).toBeVisible();
+  expect(screen.queryByRole('heading', {name: '2025 MG MG HS'})).not.toBeInTheDocument();
+});

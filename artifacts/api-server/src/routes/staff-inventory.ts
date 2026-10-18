@@ -36,7 +36,7 @@ router.use("/staff/inventory", requireStaff, (req, res, next) => {
 });
 const vehicle = (id: string) =>
   db.execute(
-    sql`SELECT id,title,coalesce(website_title_override,title) AS display_title,coalesce(website_price_override,source_price) AS price,plate,vrm,registration,year,mileage,fuel,transmission,inventory_status,source_status,missing_count,archived_at,coalesce(website_hero_image_override,source_hero_image) AS photo FROM vehicles WHERE id=${id}::uuid AND dealer_id=${currentDealerId()}`,
+    sql`SELECT id,title,make,model,coalesce(website_title_override,title) AS display_title,coalesce(website_price_override,source_price) AS price,plate,vrm,registration,year,mileage,fuel,transmission,inventory_status,source_status,missing_count,archived_at,coalesce(website_hero_image_override,source_hero_image) AS photo FROM vehicles WHERE id=${id}::uuid AND dealer_id=${currentDealerId()}`,
   );
 router.get("/staff/inventory", async (req, res) => {
   const input = z.object({ scope: z.enum(["current", "archived"]).default("current"), q: z.string().trim().max(200).default(""), cursor: z.string().max(250).optional() }).safeParse(req.query);
@@ -65,8 +65,12 @@ router.get("/staff/inventory/:id", async (req, res) => {
   const photos = await db.execute(
     sql`SELECT id,category,byte_size,width,height,created_at FROM vehicle_service_photos WHERE vehicle_id=${req.params.id}::uuid AND dealer_id=${currentDealerId()} ORDER BY created_at,id`,
   );
+  const vehiclePhotos = await db.execute(
+    sql`SELECT i.source_url AS url,i.caption FROM vehicle_images i JOIN vehicles v ON v.id=i.vehicle_id WHERE v.id=${req.params.id}::uuid AND v.dealer_id=${currentDealerId()} AND i.is_active=true ORDER BY i.is_hero DESC,i.sort_order,i.id LIMIT 100`,
+  );
   res.json({
     car,
+    vehiclePhotos: vehiclePhotos.rows,
     preparation: prep.rows[0] ?? {
       revision: 0,
       tasks: {

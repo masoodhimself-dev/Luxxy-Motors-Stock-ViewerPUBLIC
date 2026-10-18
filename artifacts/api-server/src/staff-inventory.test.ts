@@ -11,6 +11,7 @@ import {
   dealershipsTable,
   dealerDomainsTable,
   vehiclesTable,
+  vehicleImagesTable,
   portalUsersTable,
 } from "./test/tenant-test-db";
 import { resolveTenant } from "./middlewares/tenant";
@@ -65,6 +66,11 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
   await db
     .insert(portalUsersTable)
     .values({ dealerId: "a", authUserId: "user_accounts", role: "accounts" });
+  await db.insert(vehicleImagesTable).values([
+    { vehicleId: carA, sourceUrl: "https://images.example.test/front.jpg", caption: "Front", sortOrder: 1 },
+    { vehicleId: carA, sourceUrl: "https://images.example.test/old.jpg", caption: "Front", isActive: false },
+    { vehicleId: carB, sourceUrl: "https://images.example.test/other-dealer.jpg", caption: "Front" },
+  ]);
   const app = express();
   app.use(express.json({ limit: "2200kb" }));
   app.use((req, _res, next) => {
@@ -132,6 +138,7 @@ test("private inventory: two-dealer permissions, limited QR upload, exact retrie
     const identifyingFacts = (car: Record<string, unknown>) => ({ year: car.year, mileage: car.mileage, fuel: car.fuel, transmission: car.transmission });
     assert.deepEqual(identifyingFacts(listed.cars[0]), { year: 2019, mileage: 52000, fuel: "Petrol", transmission: "Manual" });
     const ownDetail = (await call(`/api/staff/inventory/${carA}`)).data;
+    assert.deepEqual(ownDetail.vehiclePhotos, [{ url: "https://images.example.test/front.jpg", caption: "Front" }]);
     assert.deepEqual(identifyingFacts(ownDetail.car), identifyingFacts(listed.cars[0]));
     assert.ok(!JSON.stringify({ listed, ownDetail }).includes("PRIVATE-SOURCE-BULK"));
     assert.equal((await call(`/api/staff/inventory/${carB}`)).status, 404);

@@ -29,3 +29,36 @@
 @media (max-width: 1100px) { .platform-launch-item { grid-template-columns: minmax(0, 1fr) 155px; } .platform-launch-note { min-width: 0; } }
 @media (max-width: 600px) { .platform-launch-item { grid-template-columns: minmax(0, 1fr); } .platform-launch-group summary small { float: none; display: block; margin-top: 4px; } }
 .platform-demo{max-width:1100px}.platform-demo header{max-width:760px;margin-bottom:28px}.platform-demo header h2{font-size:clamp(22px,3vw,30px);line-height:1.2;margin:8px 0 12px}.platform-demo p{color:#596773;line-height:1.6}.platform-demo-fields,.platform-demo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin:24px 0}.platform-demo-actions article{border:1px solid #dce3e8;border-radius:12px;padding:22px;background:#fff}.platform-demo-actions h3{margin:0;font-size:17px}.platform-demo-actions article p{min-height:50px}.platform-demo .platform-field{min-width:0}.platform-demo .platform-field input{width:100%}@media(max-width:650px){.platform-demo-fields,.platform-demo-actions{grid-template-columns:1fr}.platform-demo-actions article p{min-height:0}.platform-demo button{min-height:44px}}
+
+/* Keep live operations distinct from temporary demonstrations. */
+.platform-stats article { position: relative; overflow: hidden; }
+.platform-stats article::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: #ccd5df; }
+.platform-stats article.platform-stat--live::before { background: #367b59; }
+.platform-stats article.platform-stat--setup::before { background: #4671a8; }
+.platform-stats article.platform-stat--demo::before { background: #7564a4; }
+.platform-stats article.platform-stat--expired::before { background: #8a6b50; }
+.platform-stats article small { display: block; color: #66758b; font-size: 12px; line-height: 1.5; }
+.platform-dealer-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.platform-dealer-kinds button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 10px 16px; border: 1px solid #dce3ed; border-radius: 8px; background: #fff; color: #4c5d73; font-size: 14px; font-weight: 600; }
+.platform-dealer-kinds button span { min-width: 22px; padding: 1px 5px; border-radius: 5px; background: #f0f3f7; color: #56647a; font-size: 12px; font-variant-numeric: tabular-nums; }
+.platform-dealer-kinds button[aria-pressed="true"] { border-color: #233b5a; background: #233b5a; color: #fff; }
+.platform-dealer-kinds button[aria-pressed="true"] span { background: #3c526e; color: #fff; }
+.platform-dealer-kinds button:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+.platform-dealer-identity { min-width: 0; }
+.platform-dealer-identity strong, .platform-dealer-identity small { overflow-wrap: anywhere; }
+.platform-dealer-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.platform-badge--demo { background: #eeeaf7; color: #66518c; }
+.platform-badge--expired { background: #f3ece5; color: #7c5532; }
+.platform-dealer .platform-demo-expiry { color: #66518c; }
+.platform-dealer .platform-dealer-attention { color: #94551d; line-height: 1.5; margin-top: 6px; }
+.platform-attention-group + .platform-attention-group { margin-top: 26px; padding-top: 24px; border-top: 1px solid #e4e9f0; }
+.platform-attention-group h3 { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; color: #233b5a; font-size: 15px; font-weight: 650; }
+.platform-attention-group h3 span { display: inline-flex; align-items: center; justify-content: center; min-width: 23px; min-height: 23px; border-radius: 6px; background: #edf1f6; color: #52637a; font-size: 12px; font-variant-numeric: tabular-nums; }
+.platform-attention-group > p { margin: 0 0 14px; color: #66758b; font-size: 13px; line-height: 1.65; }
+.platform-attention-group .platform-attention-clear { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; color: #436653; }
+.platform-attention-clear svg { flex-shrink: 0; }
+@media (max-width: 650px) {
+  .platform-dealer-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-dealer-kinds button { padding-inline: 12px; }
+  .platform-dealer-badges { margin-left: 60px; }
+}

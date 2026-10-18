@@ -627,7 +627,7 @@ describe('supplied vehicle benefit searches', () => {
     fireEvent.click(screen.getByTestId('button-quick-lowAnnualTax'));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Audi A3']);
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    expect(screen.getByTestId('button-quick-lowInsuranceGroup')).toHaveTextContent('Insurance groups 1–15 (3)');
+    expect(screen.getByTestId('button-quick-lowInsuranceGroup')).toHaveTextContent('Insurance groups 1–15 (2)');
     fireEvent.click(screen.getByTestId('button-quick-lowInsuranceGroup'));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
     expect(window.location.search).toBe('?lowAnnualTax=true&lowInsuranceGroup=true');
@@ -641,10 +641,23 @@ describe('supplied vehicle benefit searches', () => {
     fireEvent.change(screen.getByLabelText('Quick filter by make'), { target: { value: 'BMW' } });
     fireEvent.change(screen.getByLabelText('Quick filter by maximum price'), { target: { value: '5000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (1)');
     fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
     expect(resultTitles()).toEqual(['BMW 1 Series']);
     expect(window.location.search).toBe('?make=BMW&maxPrice=5000&lowMileage=true');
     expect(screen.getByRole('button', { name: 'Advanced search' })).toHaveTextContent('(3)');
+  });
+
+  it('updates benefit counts for free-text search and restores them after reset', () => {
+    renderHome();
+    fireEvent.change(screen.getByTestId('input-showroom-search'), { target: { value: '  3 Series  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (1)');
+    fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
+    expect(resultTitles()).toEqual(['BMW 3 Series']);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (3)');
   });
 
   it('omits unavailable benefit choices and excludes sold vehicles from their counts', () => {
@@ -663,6 +676,10 @@ describe('supplied vehicle benefit searches', () => {
     window.history.replaceState({}, '', '/stock?make=Ford&lowMileage=true&ulez=true');
     renderHome();
     expect(screen.getByRole('heading', { name: 'No matches' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (0)');
+    expect(screen.getByTestId('button-quick-ulez')).toHaveTextContent('ULEZ compliant (0)');
+    fireEvent.click(screen.getByRole('button', { name: /^Close$/ }));
     expect(screen.getByRole('button', { name: 'Remove ULEZ compliant filter' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove ULEZ compliant filter' }));
     expect(window.location.search).toBe('?make=Ford&lowMileage=true');

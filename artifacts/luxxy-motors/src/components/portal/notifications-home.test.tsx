@@ -182,6 +182,7 @@ it("combines the business summary with actions and keeps detailed reporting clos
     ),
   ).toHaveAttribute("href", "/portal?section=sales");
   expect(await screen.findByRole("link", { name: /Alex/ })).toBeVisible();
+  expect(screen.getByRole("link", { name: /Alex/ }).compareDocumentPosition(screen.getByRole("group", { name: "Dealership figures" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const details = screen
     .getByText("More dealership details")
     .closest("details")!;
@@ -423,4 +424,45 @@ it("distinguishes actual email issues, due follow-ups and saved drafts while kee
   expect(
     screen.getByRole("button", { name: /Bookings & today/ }),
   ).toHaveAttribute("data-tone", "neutral");
+});
+
+it("puts due work ahead of replies and saved drafts, with honest timing based on the last refresh", async () => {
+  backend({ notifications: { ...data, counts: { enquiries: 1, followups: 1, appointments: 1, drafts: 1, email: 1 }, items: [
+    data.items[1], data.items[0],
+    { ...data.items[0], id: "visit", category: "appointments", customer: "Next visit", at: "2026-10-16T11:00:00Z", detail: "Appointment today" },
+    { ...data.items[0], id: "email", category: "email", customer: "Failed email", detail: "Email bounced" },
+    { ...data.items[0], id: "due", category: "followups", customer: "Due customer", at: "2026-10-16T07:00:00Z", detail: "Follow-up due" },
+  ] } });
+  show(<NotificationsHome />);
+  await screen.findByRole("link", { name: /Due customer/ });
+  const feed = screen.getByRole("region", { name: "Actions needing attention" });
+  const rows = within(feed).getAllByRole("listitem");
+  expect(rows.map(row => within(row).getByRole("heading").textContent)).toEqual(["Due customer", "Failed email", "Next visit", "Alex", "Sam"]);
+  expect(within(rows[0]).getByText("3h overdue")).toBeVisible();
+  expect(within(rows[2]).getByText("Today 12:00")).toBeVisible();
+});
+
+it("keeps Home to six actions with an explicit expand control and resets that limit when filtering", async () => {
+  backend({ notifications: { ...data, counts: { ...data.counts, enquiries: 8 }, items: [
+    ...Array.from({ length: 8 }, (_, i) => ({ ...data.items[0], id: `enquiry-${i}`, customer: `Customer ${i}` })),
+    data.items[1],
+  ] } });
+  show(<NotificationsHome />);
+  await screen.findByRole("link", { name: /Customer 0/ });
+  const feed = screen.getByRole("region", { name: "Actions needing attention" });
+  expect(within(feed).getAllByRole("listitem")).toHaveLength(6);
+  fireEvent.click(screen.getByRole("button", { name: "Show all 9 actions" }));
+  expect(within(feed).getAllByRole("listitem")).toHaveLength(9);
+  expect(screen.getByRole("button", { name: "Show fewer" })).toHaveAttribute("aria-expanded", "true");
+  fireEvent.click(screen.getByRole("button", { name: /Awaiting a reply/ }));
+  expect(within(feed).getAllByRole("listitem")).toHaveLength(6);
+  expect(screen.getByRole("button", { name: "Show all 8 actions" })).toHaveAttribute("aria-expanded", "false");
+});
+it("does not ask staff to record attendance for a pending request whose time has passed", async () => {
+  backend({ notifications: { ...data, counts: { ...data.counts, appointments: 1 }, items: [
+    { ...data.items[0], id: "pending", category: "appointments", customer: "Pending customer", at: "2026-10-16T09:00:00Z", detail: "Booking needs approval" },
+  ] } });
+  show(<NotificationsHome />);
+  expect(await screen.findByText("Time passed — review request")).toBeVisible();
+  expect(screen.queryByText("Check attendance")).not.toBeInTheDocument();
 });

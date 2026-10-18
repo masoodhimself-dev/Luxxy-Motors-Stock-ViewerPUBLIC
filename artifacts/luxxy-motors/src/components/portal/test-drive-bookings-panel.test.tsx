@@ -1,9 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-const state = vi.hoisted(() => ({ mutation: null as any, bookings: [] as any[], enquiries: [] as any[] | undefined, enquiriesError: false, bookingEnabled: true }));
+const state = vi.hoisted(() => ({ mutation: null as any, bookings: [] as any[], enquiries: [] as any[] | undefined, enquiriesError: false, bookingEnabled: true, fetch: vi.fn(), permissions: ['sales.manage'] }));
+vi.mock('./dealer-administration', () => ({ useStaffAccess: () => ({ data: { permissions: state.permissions }, isError: false, isLoading: false }) }));
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: {}, enabled: () => state.bookingEnabled }) }));
 vi.mock('@workspace/api-client-react', () => ({
+  customFetch: (...args: unknown[]) => state.fetch(...args),
   getGetTestDriveBookingsQueryKey: () => ['test-drive-bookings'],
   getGetEnquiriesQueryKey: () => ['enquiries'],
   useDecideTestDriveBooking: (options: any) => { state.mutation = options.mutation; return { isPending: false, isError: false, mutate: vi.fn(), reset: vi.fn() }; },
@@ -17,6 +19,9 @@ vi.mock('./history-links', () => ({ HistoryLinks: () => null }));
 vi.mock('./enquiry-merge', () => ({ EnquiryMergeDialog: () => null }));
 import { TestDriveBookingsPanel } from './test-drive-bookings-panel';
 beforeEach(() => {
+  state.permissions = ['sales.manage'];
+  state.fetch.mockReset();
+  state.fetch.mockResolvedValue({ declarations: [], currentAppointmentRevision: 0 });
   state.bookings = [
     { id: 'enquiry-one', customerName: 'Alex', reference: 'ENQ-001', appointmentAt: '2099-10-17T10:00:00Z', appointmentStatus: 'pending', vehicleTitle: 'Ford Focus' },
     { id: 'enquiry-other', customerName: 'Jordan', reference: 'ENQ-002', appointmentAt: '2099-10-18T10:00:00Z', appointmentStatus: 'confirmed', vehicleTitle: 'Vauxhall Corsa' },
@@ -91,4 +96,28 @@ it('refreshes the notifications, enquiry and booking views after a decision', as
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['test-drive-bookings'] });
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['enquiries'] });
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['staff-notifications'] });
+});
+it('checks only the next eight visible preparations and loads later bookings on request', async () => {
+  state.bookings = Array.from({ length: 12 }, (_, index) => ({
+    ...state.bookings[1], id: `booking-${index}`, customerName: `Customer ${index}`, vehicleId: 'car-one',
+    appointmentAt: new Date(Date.UTC(2099, 9, 18, index)).toISOString(),
+  }));
+  mount();
+  await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(8));
+  expect(state.fetch.mock.calls.map(([url]) => url)).toEqual(Array.from({ length: 8 }, (_, index) => `/api/staff/enquiries/booking-${index}/test-drive-declarations`));
+  const later = screen.getByTestId('staff-test-drive-booking-10');
+  fireEvent.click(within(later).getByRole('button', { name: 'Check preparation' }));
+  expect(await within(later).findByText('Declaration needed')).toBeVisible();
+  expect(state.fetch).toHaveBeenCalledTimes(9);
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+});
+it('keeps booking records readable for accounts without declaration controls or denied declaration requests', () => {
+  state.permissions = ['sales.view', 'finance.export'];
+  state.bookings = [{ ...state.bookings[1], vehicleId: 'car-one' }];
+  mount();
+  expect(screen.getByText('Jordan')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Open customer' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Declaration & QR' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Check preparation' })).not.toBeInTheDocument();
+  expect(state.fetch).not.toHaveBeenCalled();
 });

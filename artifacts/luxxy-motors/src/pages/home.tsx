@@ -127,7 +127,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
   });
 
   const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
-  const benefitCounts = useMemo(() => Object.fromEntries(benefitChoices.map(({ key }) => [key, publicCars.filter(car => Boolean(benefitsByCar.get(car.id)?.[key])).length])) as Record<typeof benefitChoices[number]['key'], number>, [publicCars, benefitsByCar]);
 
   useEffect(() => {
     if (!browseStock) return;
@@ -230,6 +229,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     // Explicit sorts stay truthful; only the default stock order groups reserved cars last.
     return filters.sort ? result : result.sort((a,b) => Number(a.inventoryStatus === "reserved") - Number(b.inventoryStatus === "reserved"));
   }, [publicCars, filters, benefitsByCar]);
+
+  // A benefit refines the current search, so its count must describe that subset.
+  // Homepage shortcuts still introduce the complete stock collection.
+  const benefitCountCars = browseStock ? filteredCars : publicCars;
+  const benefitCounts = useMemo(() => Object.fromEntries(benefitChoices.map(({ key }) => [key, benefitCountCars.filter(car => Boolean(benefitsByCar.get(car.id)?.[key])).length])) as Record<typeof benefitChoices[number]['key'], number>, [benefitCountCars, benefitsByCar]);
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);

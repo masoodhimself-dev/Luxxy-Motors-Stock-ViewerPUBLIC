@@ -53,7 +53,7 @@ const { stockFixture, stockStatus } = vi.hoisted(() => {
   const car = (overrides: Record<string, unknown>) => ({ ...baseCar, ...overrides });
 
   return {
-    stockStatus: { error: null as string | null },
+    stockStatus: { error: null as string | null, isPhone: false },
     stockFixture: {
       schemaVersion: 1,
       dealerName: 'Test Motors',
@@ -95,6 +95,7 @@ vi.mock('@/lib/stock-context', () => ({
 vi.mock('@/components/car-card', () => ({
   CarCard: () => null,
 }));
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => stockStatus.isPhone }));
 
 function renderVehicle(id: string) {
   window.history.pushState({}, '', `/vehicle/${id}`);
@@ -106,7 +107,7 @@ function renderVehicle(id: string) {
   );
 }
 
-beforeEach(() => { stockStatus.error = null; });
+beforeEach(() => { stockStatus.error = null; stockStatus.isPhone = false; });
 afterEach(() => vi.unstubAllGlobals());
 
 it('reports a temporary stock error instead of calling the vehicle missing', () => {
@@ -144,6 +145,27 @@ describe('vehicle detail registration', () => {
     expect(plate.closest('.vehicle-summary header')).not.toBeNull();
     expect(screen.getByTestId('text-registration-year')).toHaveTextContent('2024 (24 reg)');
   });
+});
+
+it('puts one concise identity and price above the gallery on phones', () => {
+  stockStatus.isPhone = true;
+  renderVehicle('with-plate');
+  const identity = screen.getByTestId('vehicle-identity');
+  const gallery = document.querySelector('.vehicle-detail-gallery')!;
+  expect(identity.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
+  expect(identity).toHaveTextContent('BMW 3 Series');
+  expect(identity).toHaveTextContent('2024 (24 reg) · 90,000 miles · Manual');
+  expect(identity).toHaveTextContent('£4,995');
+  expect(identity.closest('.vehicle-summary')).toBeNull();
+  expect(screen.getByTestId('plate-vehicle-with-plate').closest('.vehicle-summary')).not.toBeNull();
+});
+
+it('keeps the single identity and price in the normal summary on larger screens', () => {
+  renderVehicle('with-plate');
+  expect(screen.getByTestId('vehicle-identity').closest('.vehicle-summary')).not.toBeNull();
+  expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
+  expect(document.querySelector('.vehicle-phone-identity')).toBeNull();
 });
 
 describe('vehicle detail link preview', () => {

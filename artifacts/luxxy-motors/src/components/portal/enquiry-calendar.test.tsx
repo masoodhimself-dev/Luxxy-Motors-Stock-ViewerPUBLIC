@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Enquiry } from '@workspace/api-client-react';
 import type { Car } from '@/lib/stock-context';
 import { EnquiryCalendar } from './enquiry-calendar';
+const state = vi.hoisted(() => ({ fetch: vi.fn(), permissions: ['sales.manage'] }));
+vi.mock('@workspace/api-client-react', () => ({ customFetch: (...args: unknown[]) => state.fetch(...args) }));
+vi.mock('./dealer-administration', () => ({ useStaffAccess: () => ({ data: { permissions: state.permissions }, isError: false, isLoading: false }) }));
 
 function appointment(id: string, overrides: Partial<Enquiry> = {}): Enquiry {
   return { id, dealerId: 'fictional-dealer', reference: `ENQ-${id}`, customerName: `${id} Customer`, appointmentAt: '2026-10-17T12:00:00Z', appointmentStatus: 'confirmed', appointmentCancelledAt: null, appointmentDurationMinutes: 30, attendance: 'scheduled', vehicleId: 'car-one', vehicleTitle: 'Ford Focus', vehicleRegistration: 'AB12 CDE', assignedToName: 'Sam Staff', phone: '07700 900123', email: 'customer@example.test', source: 'website', message: 'Please have the service history ready.', ...overrides } as Enquiry;
@@ -17,9 +21,13 @@ let onEdit = vi.fn();
 let onVehicle = vi.fn();
 let onAdd = vi.fn();
 function mount(entries = [current, pending], extra: Partial<Parameters<typeof EnquiryCalendar>[0]> = {}) {
-  return render(<EnquiryCalendar entries={entries} cars={[car]} onOpen={onOpen} onEdit={onEdit} onVehicle={onVehicle} onAdd={onAdd} {...extra} />);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<EnquiryCalendar entries={entries} cars={[car]} onOpen={onOpen} onEdit={onEdit} onVehicle={onVehicle} onAdd={onAdd} {...extra} />, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> });
 }
 beforeEach(() => {
+  state.permissions = ['sales.manage'];
+  state.fetch.mockReset();
+  state.fetch.mockResolvedValue({ declarations: [], currentAppointmentRevision: 0 });
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-17T08:00:00Z'));
   mobile = false;
@@ -143,4 +151,22 @@ it('closes the appointment detail with Escape without editing or opening a custo
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(onEdit).not.toHaveBeenCalled(); expect(onOpen).not.toHaveBeenCalled();
+});
+it('loads preparation only for the opened appointment and links its exact declaration workspace', async () => {
+  mount();
+  expect(state.fetch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: /Alex Customer/ }));
+  expect(await screen.findByText('Declaration needed')).toBeVisible();
+  expect(state.fetch).toHaveBeenCalledTimes(1);
+  expect(state.fetch).toHaveBeenCalledWith('/api/staff/enquiries/Alex/test-drive-declarations', {});
+  expect(screen.getByRole('link', { name: 'Review declaration & checks' })).toHaveAttribute('href', '/portal?section=notifications&workView=test-drives&enquiryId=Alex');
+  expect(onEdit).not.toHaveBeenCalled();
+});
+it('keeps account staff appointment details accessible without declaration links or requests', () => {
+  state.permissions = ['sales.view', 'finance.export'];
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: /Alex Customer/ }));
+  expect(screen.getByRole('heading', { name: 'Alex Customer' })).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Review declaration & checks' })).not.toBeInTheDocument();
+  expect(state.fetch).not.toHaveBeenCalled();
 });

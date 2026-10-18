@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'wouter';
 import type { Enquiry } from '@workspace/api-client-react';
 import { CalendarDays, CarFront, ChevronLeft, ChevronRight, Clock3, ListFilter, Phone, Plus, RefreshCw, Search, UserRound } from 'lucide-react';
 import { londonDate, nextDate, bookingDateLabel } from '@/lib/test-drive-dates';
@@ -10,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EnquiryMergeLabel } from './enquiry-merge-label';
+import { BookingReadiness, bookingNeedsPreparation } from './booking-readiness';
+import { useStaffAccess } from './dealer-administration';
 import './enquiry-calendar.css';
 
 export function AppointmentExceptionLabels({ booking }: { booking: Enquiry }) {
@@ -45,6 +48,8 @@ function BookingPhoto({ car }: { car?: Car }) {
 }
 
 export function EnquiryCalendar({ entries, allEntries = entries, cars = [], onOpen, onEdit, onVehicle, onAdd, onRefresh, refreshing = false, ownerScope = 'all', onOwnerScopeChange, canChooseMine = false }: CalendarProps) {
+  const access = useStaffAccess();
+  const canDeclare = !access.isError && !access.isLoading && access.data?.permissions.includes('sales.manage') === true;
   const [selected, setSelected] = useState(londonDate);
   const [view, setView] = useState<DiaryView>(defaultView);
   const [showFilters, setShowFilters] = useState(false);
@@ -118,6 +123,8 @@ export function EnquiryCalendar({ entries, allEntries = entries, cars = [], onOp
       <span className="staff-diary-status" data-status={diaryStatus(detail)}>{diaryStatusLabels[diaryStatus(detail)]}</span><AppointmentExceptionLabels booking={detail} />
       <div className="staff-diary-detail-car"><BookingPhoto key={`${detail.id}:${carFor(detail)?.heroImage ?? ''}`} car={carFor(detail)} /><div><h3>{detail.vehicleTitle || 'Vehicle not supplied'}</h3>{registrationFor(detail) && <p className="staff-diary-registration">{registrationFor(detail)}</p>}</div></div>
       <dl className="staff-diary-detail-facts"><div><dt><Clock3 aria-hidden="true" />Duration</dt><dd>{detail.appointmentDurationMinutes ? `${detail.appointmentDurationMinutes} minutes` : 'Not supplied'}</dd></div><div><dt><UserRound aria-hidden="true" />Assigned staff</dt><dd>{detail.assignedToName || 'Unassigned'}</dd></div><div><dt>Source</dt><dd>{['phone', 'phone_ad_hoc'].includes(detail.source) ? 'Staff booking' : detail.source === 'website' ? 'Website booking' : 'Booking'}</dd></div><div><dt>Reference</dt><dd>{detail.reference}</dd></div></dl>
+      <BookingReadiness key={detail.id} booking={detail} autoLoad />
+      {canDeclare && bookingNeedsPreparation(detail) && <Button type="button" variant="outline" asChild><Link href={`/portal?section=notifications&workView=test-drives&enquiryId=${encodeURIComponent(detail.id)}`}>Review declaration & checks</Link></Button>}
       {detail.phone && <a href={`tel:${detail.phone.replace(/[^+\d]/g, '')}`} className="staff-diary-call"><Phone aria-hidden="true" />Call {detail.phone}</a>}{detail.email && <p className="staff-diary-detail-email">{detail.email}</p>}
       {detail.message && <div className="staff-diary-notes"><h3>Appointment notes</h3><p>{detail.message}</p></div>}{detail.staffNote && <div className="staff-diary-notes"><h3>Staff notes</h3><p>{detail.staffNote}</p></div>}<EnquiryMergeLabel entry={detail} entries={allEntries} />
       <div className="staff-diary-detail-actions">{onOpen && <Button type="button" onClick={() => { setDetailId(null); onOpen(detail); }}>{detail.appointmentStatus === 'pending' && !detail.appointmentCancelledAt ? 'Review booking & customer' : 'Open customer & attendance'}</Button>}{detail.vehicleId && <Button type="button" variant="outline" onClick={() => { setDetailId(null); onVehicle(detail.vehicleId!); }}>Vehicle information</Button>}{!detail.appointmentCancelledAt && Date.parse(detail.appointmentAt!) > Date.now() && <Button type="button" variant="outline" onClick={() => { setDetailId(null); onEdit(detail); }}>Change or cancel appointment</Button>}</div>

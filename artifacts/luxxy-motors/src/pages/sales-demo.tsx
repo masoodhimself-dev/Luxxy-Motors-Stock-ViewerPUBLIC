@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import {
   saleWorkspaceTotals,
+  saleWorkspaceFingerprint,
   type SaleWorkspaceRecord,
   type SaleWorkspaceMutation,
   type SaleWorkspaceDocument,
@@ -93,6 +94,7 @@ export function SalesWorkspace({
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [kind, setKind] = useState<"deposit" | "full">("full");
   const [step, setStep] = useState(0);
+  const [showSummary, setShowSummary] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
   const [message, setMessage] = useState("");
@@ -192,6 +194,7 @@ export function SalesWorkspace({
     setRecord(saved ?? null);
     setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
     setStep(0);
+    setShowSummary(Boolean(saved));
     setKind(saved?.documents.at(-1)?.invoiceKind ?? "full");
     setPayment({
       amount: "",
@@ -279,7 +282,7 @@ export function SalesWorkspace({
       if (scrollPane.current) scrollPane.current.scrollTop = 0;
       heading.current?.focus({ preventScroll: true });
     }
-  }, [step, Boolean(draft), Boolean(issued)]);
+  }, [step, Boolean(draft), Boolean(issued), showSummary]);
   function update<K extends keyof SaleDraft>(key: K, value: SaleDraft[K]) {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
     setReviewed(false);
@@ -495,11 +498,65 @@ export function SalesWorkspace({
       return;
     setDraft(null);
     setRecord(null);
+    setShowSummary(false);
     setIssued(null);
     setProblem("");
     if (onExit) onExit();
     else if (!embedded) navigate("/portal?section=sales");
   }
+  const latestInvoice = record?.documents.filter(document => document.type === "invoice").at(-1) ?? null;
+  const invoiceIsCurrent = Boolean(latestInvoice && draft &&
+    saleWorkspaceFingerprint({ draft: latestInvoice.snapshot.draft, payments: latestInvoice.snapshot.payments }) ===
+      saleWorkspaceFingerprint({ draft, payments: rows }));
+  const latestPayment = rows.filter(row => row.status === "confirmed").at(-1);
+  const saleStatus = record?.completedAt ? "Sold" : record?.lifecycle?.status === "reserved" ? "Reserved" : record?.lifecycle?.status === "released" ? "Released" : "In progress";
+  function resumeAt(nextStep: number) {
+    if (busy || !draft) return;
+    if (nextStep >= 3 && payment.amount.trim()) {
+      setShowSummary(false);
+      setIssued(null);
+      setStep(2);
+      setReviewed(false);
+      setProblem("Save this payment first, or clear its amount to continue without recording it.");
+      return;
+    }
+    const issues = nextStep >= 2 ? errors({ ...draft, payments: rows }, record?.draft) : [];
+    setShowSummary(false);
+    setIssued(null);
+    setReviewed(false);
+    setProblem(issues.join(" "));
+    setMessage("");
+    setStep(issues.length ? !draft.vehicleId || !(pence(draft.price) > 0) ? 0 : !draft.customer.trim() ? 1 : 2 : nextStep);
+    if (nextStep === 3) setKind("full");
+  }
+  function reviewSavedInvoice() {
+    if (payment.amount.trim() || !latestInvoice || !invoiceIsCurrent || latestInvoice.invoiceKind !== "full") {
+      resumeAt(3);
+      return;
+    }
+    setShowSummary(false);
+    setIssued(latestInvoice);
+    setStep(4);
+    setReviewed(false);
+    setSoldChoice(false);
+    setOutstandingAccepted(false);
+    setProblem("");
+    setMessage("");
+  }
+  const resumeAction = !draft || !total ? null
+    : !draft.vehicleId || !(pence(draft.price) > 0)
+      ? { label: "Add vehicle details", note: "Choose the car and confirm the agreed price.", run: () => resumeAt(0) }
+    : !draft.customer.trim()
+      ? { label: "Add customer details", note: "Add the buyer’s details before payments or paperwork.", run: () => resumeAt(1) }
+    : total.balance < 0 || total.pending > 0
+      ? { label: "Review payments", note: total.balance < 0 ? "Review the customer’s credit before continuing." : "Pending payments are not included in the amount received.", run: () => resumeAt(2) }
+    : record?.completedAt && total.balance === 0 && latestInvoice && invoiceIsCurrent
+      ? { label: "Open latest invoice", note: "The sale is complete and the balance is settled.", run: () => documentAction(latestInvoice, "print") }
+    : latestInvoice?.invoiceKind === "full" && invoiceIsCurrent && !record?.completedAt
+      ? { label: "Review sale completion", note: "The full invoice is saved. Review it and choose whether to mark the car sold.", run: reviewSavedInvoice }
+    : total.balance > 0
+      ? { label: "Record a payment", note: "Continue with the next payment, or prepare the invoice when you need it.", run: () => resumeAt(2) }
+    : { label: latestInvoice ? "Create updated invoice" : "Create invoice", note: latestInvoice ? "The details or payments have changed since the saved invoice." : "The balance is settled. Prepare the customer’s invoice.", run: () => resumeAt(3) };
   function field(
     key: "customer" | "phone" | "email" | "registration" | "price",
     label: string,
@@ -529,7 +586,8 @@ export function SalesWorkspace({
           <strong>Sales & invoices</strong>
         </div>
         <div>
-          {draft && (
+          {record && !showSummary && !issued && <Button variant="ghost" disabled={busy} onClick={() => { setShowSummary(true); setProblem(""); }}>Sale summary</Button>}
+          {draft && (!showSummary || detailsDirty) && (
             <Button variant="outline" disabled={busy} onClick={save}>
               Save details
             </Button>
@@ -624,7 +682,7 @@ export function SalesWorkspace({
         </main>
       ) : (
         <>
-          {!issued && (
+          {!issued && !showSummary && (
             <nav className="invoice-steps" aria-label="Invoice steps">
               {[
                 "Car",
@@ -645,12 +703,12 @@ export function SalesWorkspace({
             </nav>
           )}
           <main ref={scrollPane} className="invoice-builder-scroll">
-            <div className="invoice-question-sheet">
+            <div className={`invoice-question-sheet${showSummary ? " invoice-resume-sheet" : ""}`}>
               <p className="invoice-builder-kicker">
-                {issued ? "Invoice saved" : `Step ${step + 1} of 5`}
+                {showSummary && record ? record.reference : issued ? "Invoice saved" : `Step ${step + 1} of 5`}
               </p>
               <h1 ref={heading} tabIndex={-1}>
-                {issued ? "Your invoice is ready." : questions[step]}
+                {showSummary ? "Sale summary" : issued ? "Your invoice is ready." : questions[step]}
               </h1>
               {problem && (
                 <p role="alert" className="invoice-error">
@@ -678,7 +736,23 @@ export function SalesWorkspace({
                   {message}
                 </p>
               )}
-              {issued ? (
+              {showSummary && record && total ? (
+                <section className="invoice-resume" aria-label="Saved sale summary">
+                  <div className="invoice-resume-identity">
+                    <div className="invoice-resume-car">{vehicle && <SaleVehiclePhoto car={vehicle} />}<div><strong>{draft.vehicle || "Vehicle to add"}</strong><p>{[draft.registration, draft.customer || "Customer to add"].filter(Boolean).join(" · ")}</p>{(draft.phone || draft.email) && <small>{[draft.phone, draft.email].filter(Boolean).join(" · ")}</small>}</div></div>
+                    <span className="invoice-resume-status" data-status={saleStatus.toLowerCase().replaceAll(" ", "-")}>{saleStatus}</span>
+                  </div>
+                  {dirty && <p className="invoice-resume-unsaved" role="status">Your unsaved entries are still here. Save details or return to the payment form to record them.</p>}
+                  <dl className="invoice-resume-totals" aria-label="Sale amounts"><div><dt>Agreed total</dt><dd>{saleMoney(total.totalDue)}</dd></div><div><dt>Received</dt><dd>{saleMoney(total.confirmedPaid)}</dd></div><div data-balance={total.balance === 0 ? "settled" : "due"}><dt>{total.balance < 0 ? "Customer credit" : "Still to pay"}</dt><dd>{saleMoney(Math.abs(total.balance))}</dd></div></dl>
+                  {resumeAction && <div className="invoice-resume-next"><div><strong>Pick up where you left off</strong><p>{resumeAction.note}</p></div><Button disabled={busy} onClick={resumeAction.run}>{resumeAction.label}<ArrowRight size={16} aria-hidden="true" /></Button></div>}
+                  <div className="invoice-resume-records">
+                    <section aria-labelledby="resume-payments-heading"><h2 id="resume-payments-heading">Payments</h2><p>{rows.length ? `${rows.length} ${rows.length === 1 ? "entry" : "entries"} recorded` : "No payments recorded yet."}</p>{latestPayment && <small>Latest: {saleMoney(latestPayment.signedAmountPence)} · {paymentDate(latestPayment.date)} · {latestPayment.method}</small>}{total.pending > 0 && <small>{saleMoney(total.pending)} pending — not yet received.</small>}<Button variant="outline" disabled={busy} onClick={() => resumeAt(2)}>Manage payments</Button></section>
+                    <section aria-labelledby="resume-invoice-heading"><h2 id="resume-invoice-heading">Invoice</h2>{latestInvoice ? <><p>{latestInvoice.title} · {latestInvoice.number}</p><small>Issued {new Date(latestInvoice.issuedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{!invoiceIsCurrent ? " · Changes since issue" : ""}</small><Button variant="outline" disabled={busy} onClick={() => documentAction(latestInvoice, "print")}>View saved invoice</Button></> : <p>No invoice created yet.</p>}<Button variant="ghost" disabled={busy} onClick={() => resumeAt(3)}>{latestInvoice ? "Create another invoice" : "Prepare invoice"}</Button></section>
+                  </div>
+                  <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
+                  {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
+                </section>
+              ) : issued ? (
                 <>
                   <div className="invoice-ready-card">
                     <FileText size={32} />
@@ -1432,7 +1506,7 @@ export function SalesWorkspace({
                   )}
                 </fieldset>
               )}
-              {record?.documents.length ? (
+              {!showSummary && record?.documents.length ? (
                 <details className="invoice-saved-documents">
                   <summary>Saved paperwork ({record.documents.length})</summary>
                   {[...record.documents].reverse().map((doc) => (
@@ -1454,7 +1528,7 @@ export function SalesWorkspace({
               ) : null}
             </div>
           </main>
-          {!issued && (
+          {!issued && !showSummary && (
             <footer className="invoice-builder-footer">
               <span>
                 {total && Number.isSafeInteger(total.totalDue)

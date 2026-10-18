@@ -64,15 +64,18 @@ router.get('/dealers/:id/imports/:runId', async (req, res) => {
 });
 // Whitelist operational metadata: never return raw stock snapshots, private settings or key hashes.
 router.get('/overview', async (_req, res) => {
-  const [dealers, domains, keys, latest, successful, runs] = await Promise.all([
+  const [dealers, domains, keys, latest, successful, runs, demos] = await Promise.all([
     db.select().from(dealershipsTable),
     db.select({ dealerId: dealerDomainsTable.dealerId, hostname: dealerDomainsTable.hostname, verified: dealerDomainsTable.verified }).from(dealerDomainsTable),
     db.select({ dealerId: dealerImportKeysTable.dealerId, activeCount: sql<number>`count(*)::int` }).from(dealerImportKeysTable).where(isNull(dealerImportKeysTable.disabledAt)).groupBy(dealerImportKeysTable.dealerId),
     db.selectDistinctOn([stockImportRunsTable.dealerId], { dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).orderBy(stockImportRunsTable.dealerId, desc(stockImportRunsTable.receivedAt)),
     db.selectDistinctOn([stockImportRunsTable.dealerId], { dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).where(eq(stockImportRunsTable.status, 'completed')).orderBy(stockImportRunsTable.dealerId, desc(stockImportRunsTable.receivedAt)),
     db.select({ dealerId: stockImportRunsTable.dealerId, runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).orderBy(desc(stockImportRunsTable.receivedAt)).limit(30),
+    pool.query('SELECT dealer_id,expires_at FROM dealer_demos WHERE converted_at IS NULL'),
   ]);
   res.json({ dealers: dealers.map(dealer => ({ ...dealer,
+    isDemo: demos.rows.some(demo => demo.dealer_id === dealer.id),
+    demoExpiresAt: demos.rows.find(demo => demo.dealer_id === dealer.id)?.expires_at ?? null,
     domains: domains.filter(d => d.dealerId === dealer.id),
     activeKeyCount: keys.find(k => k.dealerId === dealer.id)?.activeCount ?? 0,
     latestImport: latest.find(r => r.dealerId === dealer.id) ?? null,

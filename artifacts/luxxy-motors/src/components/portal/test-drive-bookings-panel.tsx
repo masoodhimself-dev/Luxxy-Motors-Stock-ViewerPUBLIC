@@ -30,6 +30,8 @@ import { HistoryLinks } from './history-links';
 import { EnquiryMergeDialog } from './enquiry-merge';
 import { TestDriveDeclarations } from './test-drive-declarations';
 import { useDealerFeatures } from '@/lib/dealer-features';
+import { BookingReadiness, bookingNeedsPreparation } from './booking-readiness';
+import { useStaffAccess } from './dealer-administration';
 
 type Decision = 'confirm' | 'decline';
 const bookingStatus = (booking: Enquiry) => booking.appointmentCancelledAt ? 'cancelled' : booking.appointmentStatus === 'pending' ? 'pending' : 'confirmed';
@@ -44,7 +46,7 @@ function decisionError(error: unknown) {
   return 'The appointment could not be updated. Please try again.';
 }
 
-function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook }: { booking: Enquiry; now: number; onDecision: (message: string) => void; onMerge: (entry: Enquiry) => void; canEmail: boolean; canBook: boolean }) {
+function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, checkPreparation, canDeclare }: { booking: Enquiry; now: number; onDecision: (message: string) => void; onMerge: (entry: Enquiry) => void; canEmail: boolean; canBook: boolean; checkPreparation: boolean; canDeclare: boolean }) {
   const [review, setReview] = useState<{ decision: Decision; booking: Enquiry } | null>(null);
   const [declarationOpen, setDeclarationOpen] = useState(false);
   const decision = review?.decision ?? null;
@@ -89,10 +91,11 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook }: { 
           </div>}
         </div>
       </div>
+      <BookingReadiness booking={booking} autoLoad={checkPreparation} />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(booking.id)}`}>Open customer</Link></Button>
         {canEmail && <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`}>Prepare email</Link></Button>}
-        <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration & QR</Button>
+        {canDeclare && <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration & QR</Button>}
         <Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} />
       </div>
       {(booking.message || booking.partExchangeRegistration) && <details className="mt-4 border-t border-border pt-2 text-sm">
@@ -122,13 +125,15 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook }: { 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {declarationOpen && <TestDriveDeclarations key={booking.id} booking={booking} canEmail={canEmail} onClose={() => setDeclarationOpen(false)}/>}
+      {canDeclare && declarationOpen && <TestDriveDeclarations key={booking.id} booking={booking} canEmail={canEmail} onClose={() => setDeclarationOpen(false)}/>}
     </li>
   );
 }
 
 export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEmail?: boolean; enquiryId?: string } = {}) {
   const features = useDealerFeatures();
+  const access = useStaffAccess();
+  const canDeclare = !access.isError && !access.isLoading && access.data?.permissions.includes('sales.manage') === true;
   const [status, setStatus] = useState(enquiryId ? 'all' : 'active');
   useEffect(() => setStatus(enquiryId ? 'all' : 'active'), [enquiryId]);
   const [notice, setNotice] = useState('');
@@ -146,6 +151,8 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
   const contextFailed = Boolean(enquiryId && enquiries.isError);
   const bookings = (query.data ?? []).filter(booking => !enquiryId || relatedIds.has(booking.id)).filter(booking => status === 'all' || (status === 'active' ? bookingStatus(booking) !== 'cancelled' && isFutureAppointment(booking, now) : bookingStatus(booking) === status))
     .sort((a, b) => (a.appointmentAt ?? '').localeCompare(b.appointmentAt ?? ''));
+  // Keep the overview inexpensive: load the next eight preparations, then read others on demand.
+  const preparationIds = new Set(bookings.filter(booking => booking.appointmentStatus === 'confirmed' && booking.vehicleId && bookingNeedsPreparation(booking, now)).slice(0, 8).map(booking => booking.id));
 
   return (
     <Panel>
@@ -173,7 +180,7 @@ export function TestDriveBookingsPanel({ canEmail = false, enquiryId }: { canEma
       {contextFailed ? <div role="alert" className="p-6 text-sm"><p className="mb-3 text-destructive">Customer records could not be loaded, so linked test drives cannot be checked.</p><Button type="button" variant="outline" onClick={() => enquiries.refetch()}>Retry customer records</Button></div>
         : query.isLoading || contextLoading ? <p role="status" className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" />{contextLoading ? 'Loading customer appointments…' : 'Loading appointments…'}</p>
         : query.isError ? <div role="alert" className="p-6 text-sm"><p className="mb-3 text-destructive">Test-drive appointments could not be loaded.</p><Button type="button" variant="outline" onClick={() => query.refetch()}>Try again</Button></div>
-        : bookings.length ? <ul className="divide-y divide-border">{bookings.map(booking => <BookingRow key={booking.id} booking={booking} now={now} onDecision={setNotice} onMerge={setMergeEntry} canEmail={canEmail} canBook={features.enabled('testDriveBookings')} />)}</ul>
+        : bookings.length ? <ul className="divide-y divide-border">{bookings.map(booking => <BookingRow key={booking.id} booking={booking} now={now} onDecision={setNotice} onMerge={setMergeEntry} canEmail={canEmail} canBook={features.enabled('testDriveBookings')} checkPreparation={preparationIds.has(booking.id)} canDeclare={canDeclare} />)}</ul>
         : <div className="p-4"><EmptyState icon={CalendarClock} title={enquiryId ? 'No matching appointment for this customer' : status === 'pending' ? 'No requests awaiting approval' : 'No appointments to show'} body={enquiryId ? 'Open the customer record to arrange a test drive or check their enquiry.' : status === 'active' ? 'New test-drive bookings will appear here with the car, time and customer details.' : 'Choose another status to see other appointments.'} />{enquiryId && <Button variant="outline" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(enquiryId)}`}>Open customer</Link></Button>}</div>}
       {mergeEntry && enquiries.isLoading && <p role="status" className="p-4 text-sm">Loading records to merge…</p>}
       {mergeEntry && enquiries.isError && !enquiries.data && <div role="alert" className="p-4 text-sm"><p>Records could not be loaded for merging.</p><Button variant="outline" onClick={() => enquiries.refetch()}>Retry records</Button><Button variant="ghost" onClick={() => setMergeEntry(null)}>Cancel</Button></div>}

@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 const auth = vi.hoisted(() => ({ signedIn: true }));
 vi.mock('@clerk/react', () => ({ useAuth: () => ({ isSignedIn: auth.signedIn }), SignInButton: ({ children, mode, forceRedirectUrl, signUpForceRedirectUrl }: { children: React.ReactNode; mode: string; forceRedirectUrl: string; signUpForceRedirectUrl: string }) => <div data-testid="platform-sign-in" data-mode={mode} data-return={forceRedirectUrl} data-sign-up-return={signUpForceRedirectUrl}>{children}</div> }));
 import Platform from './platform';
-afterEach(() => { vi.unstubAllGlobals(); auth.signedIn = true; });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); auth.signedIn = true; });
 const dealer = { id:'example-dealer', name:'Example Dealer', canonicalOrigin:'https://dealer.example.test', status:'draft', stockPlatform:'autotrader', retailerId:'example', sourceUrl:'https://www.autotrader.co.uk/example', domains:[], activeKeyCount:0, latestImport:null,lastSuccessfulImport:null };
 const workspace = { dealer, domains:[{hostname:'dealer.example.test',verified:false,verificationToken:'fixture-token'}],members:[],imports:[],keys:[] };
 it('does not expose dealership controls when platform access is denied', async () => {
@@ -40,7 +40,7 @@ it('searches dealer names and never invents an import success', async () => {
   expect(screen.getByText('Last successful import: Not yet')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Search dealerships'),{target:{value:'another'}});
   expect(screen.getByText('No dealerships match these filters')).toBeInTheDocument();
-  expect(screen.getByText('Try another search or status.')).toBeInTheDocument();
+  expect(screen.getByText('Try another search, type or status.')).toBeInTheDocument();
   expect(screen.queryByText('Your first dealership starts here')).not.toBeInTheDocument();
   const section = screen.getByLabelText('Search dealerships').closest('section')!;
   expect(within(section).queryByRole('button', { name: 'Add dealership' })).not.toBeInTheDocument();
@@ -121,14 +121,15 @@ it('saves per-dealer onboarding evidence and requires a reason for skipped check
 });
 
 
-it('shows an up-to-date attention state when registered dealerships have successful imports', async () => {
-  const run = { runId: 'completed-run', status: 'completed', receivedAt: '2026-10-18T10:00:00Z', scrapedAt: '2026-10-18T09:59:00Z', receivedCount: 8 };
-  const active = { ...dealer, status: 'active', latestImport: run, lastSuccessfulImport: run };
+it('shows healthy live stock separately from setup tasks', async () => {
+  const timestamp = new Date(Date.now() - 60_000).toISOString();
+  const run = { runId: 'completed-run', status: 'completed', receivedAt: timestamp, scrapedAt: timestamp, receivedCount: 8 };
+  const active = { ...dealer, status: 'active', activeKeyCount: 1, latestImport: run, lastSuccessfulImport: run, isDemo: false };
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ dealers: [active], activity: [] })));
   render(<Platform />);
-  expect(await screen.findByRole('heading', { name: 'Dealership setup is up to date' })).toBeInTheDocument();
-  const section = screen.getByRole('heading', { name: 'Needs attention' }).closest('section')!;
-  expect(within(section).getByText('No setup tasks need attention.')).toBeInTheDocument();
+  expect(await screen.findByText('Live stock connections are up to date.')).toBeInTheDocument();
+  const section = screen.getByRole('region', { name: 'Dealership attention' });
+  expect(within(section).getByText('No setup or suspension tasks need attention.')).toBeInTheDocument();
   expect(within(section).queryByRole('button', { name: 'Add dealership' })).not.toBeInTheDocument();
   expect(screen.queryByText('Your first dealership starts here')).not.toBeInTheDocument();
 });
@@ -139,7 +140,7 @@ it('retains the first-dealership prompt when the platform has no dealerships', a
   expect(await screen.findByRole('heading', { name: 'Your first dealership starts here' })).toBeInTheDocument();
   const section = screen.getByRole('heading', { name: 'Needs attention' }).closest('section')!;
   expect(within(section).getByRole('button', { name: 'Add dealership' })).toBeEnabled();
-  expect(screen.queryByText('Dealership setup is up to date')).not.toBeInTheDocument();
+  expect(screen.queryByText('Live stock connections are up to date.')).not.toBeInTheDocument();
 });
 
 
@@ -150,8 +151,62 @@ it('keeps an empty status filter separate from an empty platform', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Dealerships' }));
   fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'active' } });
   expect(screen.getByText('No dealerships match these filters')).toBeInTheDocument();
-  expect(screen.getByText('Try another search or status.')).toBeInTheDocument();
+  expect(screen.getByText('Try another search, type or status.')).toBeInTheDocument();
   expect(screen.queryByText('Your first dealership starts here')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'all' } });
   expect(screen.getByRole('button', { name: /Example Dealer/ })).toBeInTheDocument();
+});
+
+
+it('separates live dealers and demos from explicit metadata, including a converted demo', async () => {
+  const now = Date.parse('2026-10-18T12:00:00Z');
+  vi.spyOn(Date, 'now').mockReturnValue(now);
+  const run = { runId: 'fresh', status: 'completed', receivedAt: new Date(now).toISOString(), scrapedAt: new Date(now).toISOString(), receivedCount: 8 };
+  const live = { ...dealer, id: 'demo-converted', name: 'Converted Live', status: 'active', isDemo: false, demoExpiresAt: null, activeKeyCount: 1, latestImport: run, lastSuccessfulImport: run };
+  const draft = { ...dealer, name: 'Live Draft', isDemo: false };
+  const demo = { ...dealer, id: 'ordinary-name', name: 'Current Demo', status: 'active', isDemo: true, demoExpiresAt: '2026-10-19T12:00:00Z' };
+  const expired = { ...demo, id: 'expired', name: 'Past Demo', demoExpiresAt: '2026-10-18T11:59:00Z' };
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ dealers: [live, draft, demo, expired], activity: [] })));
+  render(<Platform />);
+  await screen.findByText('Live stock connections are up to date.');
+  for (const label of ['Live websites', 'Live in setup', 'Active demos', 'Expired demos']) {
+    expect(within(screen.getByRole('article', { name: label })).getByText('1')).toBeInTheDocument();
+  }
+  const attention = screen.getByRole('region', { name: 'Dealership attention' });
+  expect(within(attention).getByText('Live Draft')).toBeInTheDocument();
+  expect(within(attention).queryByText('Current Demo')).not.toBeInTheDocument();
+  expect(within(attention).queryByText('Past Demo')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Dealerships' }));
+  const types = screen.getByRole('group', { name: 'Dealership type' });
+  fireEvent.click(within(types).getByRole('button', { name: 'Live 2' }));
+  expect(screen.getByText('Converted Live')).toBeInTheDocument();
+  expect(screen.queryByText('Current Demo')).not.toBeInTheDocument();
+  fireEvent.click(within(types).getByRole('button', { name: 'Demos 1' }));
+  expect(screen.getByText('Current Demo')).toBeInTheDocument();
+  expect(screen.getByText('Expires 19 Oct 2026, 13:00 (UK)')).toBeInTheDocument();
+  expect(screen.queryByText('Converted Live')).not.toBeInTheDocument();
+  expect(screen.queryByText('Past Demo')).not.toBeInTheDocument();
+  fireEvent.click(within(types).getByRole('button', { name: 'Expired 1' }));
+  expect(screen.getByText('Past Demo')).toBeInTheDocument();
+  expect(screen.getByText('Expired demo')).toBeInTheDocument();
+  expect(screen.queryByText('Current Demo')).not.toBeInTheDocument();
+});
+
+it('uses collection freshness, credentials and latest failures for live attention', async () => {
+  const now = Date.parse('2026-10-18T12:00:00Z');
+  vi.spyOn(Date, 'now').mockReturnValue(now);
+  const run = (ageHours: number, status = 'completed') => ({ runId: String(ageHours), status, receivedAt: new Date(now).toISOString(), scrapedAt: new Date(now - ageHours * 3_600_000).toISOString(), receivedCount: 8 });
+  const active = (id: string, hours: number, extra = {}) => ({ ...dealer, id, name: id, status: 'active', isDemo: false, activeKeyCount: 1, latestImport: run(hours), lastSuccessfulImport: run(hours), ...extra });
+  const dealers = [active('Fresh stock', 12.99), active('Warning stock', 13), active('Overdue stock', 14), active('Missing credential', 1, { activeKeyCount: 0 }), active('Latest failed', 1, { latestImport: run(1, 'failed') }), { ...dealer, name: 'Suspended dealer', status: 'suspended', isDemo: false }];
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ dealers, activity: [] })));
+  render(<Platform />);
+  const section = await screen.findByRole('region', { name: 'Dealership attention' });
+  expect(within(section).getByRole('heading', { name: 'Live website health 4' })).toBeInTheDocument();
+  expect(within(section).queryByText('Fresh stock')).not.toBeInTheDocument();
+  expect(within(section).getByText('Stock update due soon · 13+ hours')).toBeInTheDocument();
+  expect(within(section).getByText('Stock update overdue · 14+ hours')).toBeInTheDocument();
+  expect(within(section).getByText('Import credential missing')).toBeInTheDocument();
+  expect(within(section).getByText('Latest import failed')).toBeInTheDocument();
+  expect(within(section).getByRole('heading', { name: 'Setup and suspended dealerships 1' })).toBeInTheDocument();
+  expect(within(section).getByText('Suspended · review before reactivating')).toBeInTheDocument();
 });

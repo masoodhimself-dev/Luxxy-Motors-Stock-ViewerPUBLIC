@@ -72,3 +72,46 @@ body:has(.invoice-builder.is-editing) { overflow:hidden; }
 .invoice-car-photo-preview p { margin:8px 2px 0; font-size:14px; line-height:1.5; }
 .invoice-car-photo-preview p span { display:block; color:#536774; font-size:13px; }
 @media (hover:none) { .invoice-car-photo-preview { display:none; } }
+
+.invoice-resume-sheet h1 { font-size:28px; margin-bottom:20px; }
+.invoice-resume-identity { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; padding-bottom:22px; border-bottom:1px solid #e1e7ec; }
+.invoice-resume-car { display:flex; align-items:center; min-width:0; gap:16px; }
+.invoice-resume-car>div { min-width:0; overflow-wrap:anywhere; }
+.invoice-resume-car strong { font-size:18px; font-weight:650; line-height:1.4; }
+.invoice-resume-car p { margin-top:4px; color:#40586b; }
+.invoice-resume-car .invoice-car-photo img { display:block; width:112px; height:80px; object-fit:cover; }
+.invoice-resume-status { flex-shrink:0; padding:5px 10px; border-radius:6px; color:#405c74; background:#edf3f8; font-size:12px; font-weight:650; }
+.invoice-resume-status[data-status=reserved] { background:#fff5df; color:#77571a; }
+.invoice-resume-status[data-status=sold] { background:#eaf4ed; color:#2a6144; }
+.invoice-resume-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:22px 0; gap:16px; }
+.invoice-resume-totals dt { color:#647585; font-size:12px; }
+.invoice-resume-totals dd { margin-top:6px; font-size:24px; font-weight:650; line-height:1.25; overflow-wrap:anywhere; }
+.invoice-resume-totals [data-balance=settled] dd { color:#2a6b4c; }
+.invoice-resume-next { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px; border:1px solid #d4e3ed; border-radius:8px; background:#f2f7fa; }
+.invoice-resume-next strong { font-size:14px; font-weight:650; }
+.invoice-resume-next p { margin-top:4px; color:#536b7d; font-size:13px; }
+.invoice-resume-next button { flex-shrink:0; }
+.invoice-resume-records { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; padding:24px 0; }
+.invoice-resume-records section { min-width:0; overflow-wrap:anywhere; }
+.invoice-resume-records h2 { margin:0 0 8px; font-size:15px; }
+.invoice-resume-records button { margin-top:14px; margin-right:8px; }
+.invoice-resume-edit { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; border-top:1px solid #e1e7ec; padding-top:16px; }
+.invoice-resume-edit>span { flex:1 1 180px; color:#637282; font-size:12px; }
+.invoice-resume-edit button { padding-inline:10px; font-size:12px; }
+.invoice-resume-unsaved { margin-top:16px; padding:10px 12px; border:1px solid #ead8ac; border-radius:6px; background:#fff9eb; color:#755b25; font-size:12px!important; }
+.invoice-resume-paperwork { border-top:1px solid #e1e7ec; padding-top:16px; margin-top:16px; }
+.invoice-resume-paperwork summary { min-height:44px; }
+.invoice-resume-paperwork>div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid #e1e7ec; font-size:13px; }
+@media(max-width:640px) {
+  .invoice-resume-sheet h1 { font-size:25px; }
+  .invoice-resume-identity { flex-wrap:wrap; gap:12px; padding-bottom:18px; }
+  .invoice-resume-car { gap:12px; }
+  .invoice-resume-car strong { font-size:16px; }
+  .invoice-resume-car .invoice-car-photo img { width:88px; height:68px; }
+  .invoice-resume-totals { gap:10px; margin:20px 0; }
+  .invoice-resume-totals dd { font-size:19px; }
+  .invoice-resume-next { align-items:stretch; flex-direction:column; gap:14px; padding:15px; }
+  .invoice-resume-records { grid-template-columns:1fr; gap:22px; padding:22px 0; }
+  .invoice-resume-records section+section { border-top:1px solid #e1e7ec; padding-top:22px; }
+  .invoice-resume-edit>span { flex-basis:100%; }
+}
