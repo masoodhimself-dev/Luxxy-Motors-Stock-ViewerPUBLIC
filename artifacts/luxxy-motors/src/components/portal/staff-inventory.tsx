@@ -753,28 +753,10 @@ export function StaffInventory({
                       <fieldset disabled={!writable || busy}>
                         {(Object.keys(taskLabels) as (keyof Tasks)[]).map(
                           (key) => (
-                            <label key={key}>
-                              {taskLabels[key]}
-                              <NativeSelect
-                                value={draft.tasks[key]}
-                                onChange={(e) =>
-                                  setDraft({
-                                    ...draft,
-                                    tasks: {
-                                      ...draft.tasks,
-                                      [key]: e.target
-                                        .value as Tasks[typeof key],
-                                    },
-                                  })
-                                }
-                              >
-                                <option value="pending">To do</option>
-                                <option value="done">Done</option>
-                                <option value="not_required">
-                                  Not required
-                                </option>
-                              </NativeSelect>
-                            </label>
+                            <div className="inventory-prep-task" key={key}>
+                              <label><input type="checkbox" checked={draft.tasks[key] === "done"} disabled={draft.tasks[key] === "not_required"} onChange={event => setDraft({...draft,tasks:{...draft.tasks,[key]:event.target.checked ? "done" : "pending"}})} />{taskLabels[key]}</label>
+                              <button type="button" aria-label={`${draft.tasks[key] === "not_required" ? "Require" : "Not required:"} ${taskLabels[key]}`} aria-pressed={draft.tasks[key] === "not_required"} onClick={() => setDraft({...draft,tasks:{...draft.tasks,[key]:draft.tasks[key] === "not_required" ? "pending" : "not_required"}})}>{draft.tasks[key] === "not_required" ? "Not required · undo" : "Not required"}</button>
+                            </div>
                           ),
                         )}
                         <label>
@@ -1284,7 +1266,7 @@ export function StaffInventory({
                       <ClipboardCheck aria-hidden size={14} />
                       <span>
                         {c.tasks
-                          ? `${clearedTasks(c.tasks)}/4 preparation checks`
+                          ? clearedTasks(c.tasks) === 4 ? "Preparation complete" : `${4 - clearedTasks(c.tasks)} preparation checks to do`
                           : "Preparation not started"}
                       </span>
                       <span
@@ -1300,14 +1282,14 @@ export function StaffInventory({
                         />
                       </span>
                     </span>
-                    <span
+                    {(c.service_photo_count ?? 0) > 0 && <span
                       className="inventory-service-photos"
                       data-has-photos={(c.service_photo_count ?? 0) > 0}
                       title="Private service-book photos"
                     >
                       <Camera aria-hidden size={14} />
-                      {c.service_photo_count ?? 0}/3 service photos
-                    </span>
+                      {c.service_photo_count} service photos
+                    </span>}
                     {c.assigned_to_id && (
                       <span>
                         <UserRound aria-hidden size={14} />

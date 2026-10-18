@@ -739,3 +739,18 @@ it('retains supplied equipment when mileage is the only omitted card highlight',
   expect(card).toHaveTextContent('Heated seats');
   expect(card).not.toHaveTextContent('low mileage');
 });
+
+it('counts stock benefits within the selected make, model and budget together', () => {
+  stockFixture.cars = [
+    { ...originalCars[0], id:'match', make:'Toyota', model:'Yaris', title:'Toyota Yaris', price:4500, mileage:22000 },
+    { ...originalCars[1], id:'over-budget', make:'Toyota', model:'Yaris', title:'Toyota Yaris', price:7500, mileage:18000 },
+    { ...originalCars[2], id:'other-model', make:'Toyota', model:'Auris', title:'Toyota Auris', price:4000, mileage:12000 },
+  ];
+  renderHome();
+  fireEvent.change(screen.getByLabelText('Quick filter by make'), {target:{value:'Toyota'}});
+  fireEvent.change(screen.getByLabelText('Quick filter by model'), {target:{value:'Yaris'}});
+  fireEvent.change(screen.getByLabelText('Quick filter by maximum price'), {target:{value:'5000'}});
+  fireEvent.click(screen.getByRole('button',{name:'Advanced search'}));
+  expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (1)');
+  expect(resultTitles()).toEqual(['Toyota Yaris']);
+});

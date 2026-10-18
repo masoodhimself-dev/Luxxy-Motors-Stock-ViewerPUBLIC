@@ -1,3 +1,4 @@
+import { dealerHealthLabel } from "@/lib/dealer-health-label";
 import { useEffect, useState } from 'react';
 import { Activity, AlertCircle, ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
 import { customFetch } from '@workspace/api-client-react';
@@ -30,15 +31,6 @@ function age(seconds: number | null) {
   const hours = Math.floor(seconds / 3_600), minutes = Math.floor(seconds % 3_600 / 60);
   return `${hours ? `${hours}h ` : ''}${minutes}m since collection`;
 }
-function status(dealer: DealerImport) {
-  if (!dealer.connectionConfigured) return 'Import credential missing';
-  if (dealer.freshness === 'missing') return 'First import needed';
-  if (dealer.freshness === 'critical') return 'Stock overdue · 14h+';
-  if (dealer.freshness === 'warning') return 'Stock due soon · 13h+';
-  if (dealer.lastAttemptStatus === 'failed') return 'Last import failed';
-  if (dealer.lastAttemptStatus === 'quarantined') return 'Last import held for review';
-  return 'Stock up to date';
-}
 
 /** Mounted only after the platform overview has confirmed administrator access. */
 export function PlatformCapacity({ onOpenDealer }: { onOpenDealer: (dealerId: string) => void }) {
@@ -60,7 +52,7 @@ export function PlatformCapacity({ onOpenDealer }: { onOpenDealer: (dealerId: st
   const attention = dealers.filter(dealer => dealer.needsAttention);
   function dealerRows(rows: DealerImport[]) {
     return <ul className="platform-capacity-dealers">{rows.map(dealer => <li key={dealer.dealerId}>
-      <div><strong>{dealer.name}</strong><span className={dealer.needsAttention ? 'is-attention' : 'is-healthy'}>{status(dealer)}</span><small>{age(dealer.ageSeconds)}{dealer.lastAttemptStatus ? ` · Latest attempt: ${dealer.lastAttemptStatus}` : ''}</small><small>Last received: {time(dealer.lastSuccessfulImportAt)}</small></div>
+      <div><strong>{dealer.name}</strong><span className={dealer.needsAttention ? 'is-attention' : 'is-healthy'}>{dealerHealthLabel(dealer)}</span><small>{age(dealer.ageSeconds)}{dealer.lastAttemptStatus ? ` · Latest attempt: ${dealer.lastAttemptStatus}` : ''}</small><small>Last received: {time(dealer.lastSuccessfulImportAt)}</small></div>
       <Button variant="ghost" size="sm" onClick={() => onOpenDealer(dealer.dealerId)} aria-label={`Open ${dealer.name}`}>Open <ArrowRight size={15} aria-hidden="true"/></Button>
     </li>)}</ul>;
   }

@@ -339,7 +339,7 @@ it("keeps the stock list compact, identifies cars clearly and filters preparatio
   expect(
     screen.getByText("2020 · 52,000 miles · Petrol · Manual"),
   ).toBeVisible();
-  expect(screen.getByText("2/3 service photos")).toBeVisible();
+  expect(screen.getByText("2 service photos")).toBeVisible();
   expect(
     screen.getByRole("progressbar", {
       name: "Ford Focus preparation checks cleared",
@@ -366,17 +366,14 @@ it("keeps the stock list compact, identifies cars clearly and filters preparatio
       })
       .closest(".inventory-prep-summary"),
   ).toHaveAttribute("data-preparation", "empty");
-  expect(screen.getByText("2/3 service photos")).toHaveAttribute(
+  expect(screen.getByText("2 service photos")).toHaveAttribute(
     "data-has-photos",
     "true",
   );
   const bmw = screen
     .getByRole("heading", { name: "BMW 1 Series" })
     .closest("article")!;
-  expect(within(bmw).getByText("0/3 service photos")).toHaveAttribute(
-    "data-has-photos",
-    "false",
-  );
+  expect(within(bmw).queryByText("0/3 service photos")).not.toBeInTheDocument();
   expect(screen.getByText("Registration not supplied")).toBeVisible();
   expect(screen.getByText("Price not supplied")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Available" }));
@@ -957,4 +954,18 @@ it('uses the shared title formatting for staff car rows without changing source 
   mount();
   expect(await screen.findByRole('heading', {name: 'MG HS'})).toBeVisible();
   expect(screen.queryByRole('heading', {name: '2025 MG MG HS'})).not.toBeInTheDocument();
+});
+
+it("uses simple preparation checks and keeps not-required separate without saving automatically", async () => {
+ mount();
+ const cleaning = await screen.findByRole("checkbox",{name:"Cleaning & presentation"});
+ fireEvent.click(cleaning);
+ expect(cleaning).toBeChecked();
+ fireEvent.click(screen.getByRole("button",{name:"Not required: Cleaning & presentation"}));
+ expect(cleaning).not.toBeChecked();
+ expect(cleaning).toBeDisabled();
+ fireEvent.click(screen.getByRole("button",{name:"Require Cleaning & presentation"}));
+ expect(cleaning).toBeEnabled();
+ expect(cleaning).not.toBeChecked();
+ expect(state.fetch.mock.calls.every(([,options]) => !options?.method || options.method === "GET")).toBe(true);
 });

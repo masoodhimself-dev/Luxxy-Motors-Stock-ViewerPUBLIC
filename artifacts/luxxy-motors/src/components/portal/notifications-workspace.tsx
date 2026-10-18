@@ -25,8 +25,8 @@ import "./notifications-workspace.css";
 const views = [
   {
     id: "attention",
-    label: "Needs attention",
-    description: "Your next actions",
+    label: "Today",
+    description: "Customers and visits",
     icon: Inbox,
     tone: "neutral",
   },
@@ -138,34 +138,6 @@ export function NotificationsWorkspace({
                 <CalendarDays size={17} aria-hidden="true" />
                 Calendar
               </Button>
-              {canEmail && (
-                <>
-                  <Button
-                    variant="outline"
-                    data-tone="success"
-                    onClick={() =>
-                      onNewSale
-                        ? onNewSale()
-                        : navigate("/portal?section=sales")
-                    }
-                  >
-                    <FileText size={17} aria-hidden="true" />
-                    New sale
-                  </Button>
-                  <Button
-                    variant="outline"
-                    data-tone="violet"
-                    onClick={() =>
-                      navigate(
-                        "/portal?section=notifications&workView=email&view=drafts",
-                      )
-                    }
-                  >
-                    <Mail size={17} aria-hidden="true" />
-                    Saved email drafts
-                  </Button>
-                </>
-              )}
             </div>
           )}
         </header>

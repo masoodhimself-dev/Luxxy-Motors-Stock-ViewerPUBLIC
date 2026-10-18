@@ -132,16 +132,12 @@ it("shows actionable categories and links a reply directly to its customer witho
     "href",
     "/portal?section=notifications&enquiryId=one&workView=customers",
   );
-  expect(screen.getByRole("link", { name: "Prepare reply" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "Reply" })).toHaveAttribute(
     "href",
     "/portal?section=notifications&workView=email&compose=one",
   );
-  fireEvent.click(screen.getByRole("button", { name: /Saved drafts/ }));
-  expect(screen.queryByRole("link", { name: /Alex/ })).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /Sam/ })).toHaveAttribute(
-    "href",
-    "/portal?section=notifications&draft=two&workView=email",
-  );
+  expect(screen.getByRole("link", { name: /Open saved drafts/ })).toHaveAttribute("href", "/portal?section=notifications&workView=email&view=drafts");
+  expect(screen.queryByRole("link", { name: /Sam/ })).not.toBeInTheDocument();
   expect(
     state.fetch.mock.calls.every(
       ([, options]) => !options?.method || options.method === "GET",
@@ -167,7 +163,7 @@ it("hides email categories and compose links without email permission", async ()
     screen.queryByRole("button", { name: /Saved drafts/ }),
   ).not.toBeInTheDocument();
   expect(
-    screen.queryByRole("link", { name: "Prepare reply" }),
+    screen.queryByRole("link", { name: "Reply" }),
   ).not.toBeInTheDocument();
 });
 it("combines the business summary with actions and keeps detailed reporting closed", async () => {
@@ -377,53 +373,23 @@ it("keeps uncertain sends out of discard actions and opens only the selected dra
   expect(state.fetch).toHaveBeenCalledTimes(1);
 });
 
-it("keeps empty notification categories neutral instead of suggesting problems", async () => {
-  backend({
-    notifications: {
-      ...data,
-      counts: {
-        enquiries: 0,
-        followups: 0,
-        appointments: 0,
-        drafts: 0,
-        email: 0,
-      },
-      items: [],
-    },
-  });
-  show(<NotificationsHome />);
-  const categories = await screen.findByLabelText("Notification categories");
-  expect(
-    within(categories)
-      .getAllByRole("button")
-      .every((button) => button.dataset.tone === "neutral"),
-  ).toBe(true);
-  expect(
-    screen.getByRole("heading", { name: "You’re up to date" }),
-  ).toBeInTheDocument();
+it("hides zero filters and keeps the empty day calm", async () => {
+ backend({notifications:{...data,counts:{enquiries:0,followups:0,appointments:0,drafts:0,email:0},items:[]}});
+ show(<NotificationsHome />);
+ expect(await screen.findByText("You’re up to date")).toBeVisible();
+ expect(screen.queryByRole("button",{name:/Follow-ups due/})).not.toBeInTheDocument();
+ expect(screen.queryByText(/Email issues/)).not.toBeInTheDocument();
 });
-
-it("distinguishes actual email issues, due follow-ups and saved drafts while keeping their labels", async () => {
-  backend({
-    notifications: {
-      ...data,
-      counts: { ...data.counts, followups: 2, email: 1 },
-    },
-  });
-  show(<NotificationsHome />);
-  expect(
-    await screen.findByRole("button", { name: /Email needs attention/ }),
-  ).toHaveAttribute("data-tone", "danger");
-  expect(
-    screen.getByRole("button", { name: /Follow-ups due/ }),
-  ).toHaveAttribute("data-tone", "warning");
-  expect(screen.getByRole("button", { name: /Saved drafts/ })).toHaveAttribute(
-    "data-tone",
-    "violet",
-  );
-  expect(
-    screen.getByRole("button", { name: /Bookings & today/ }),
-  ).toHaveAttribute("data-tone", "neutral");
+it("keeps email problems below customer work and closed until requested", async () => {
+ backend({notifications:{...data,counts:{...data.counts,email:1},items:[...data.items,{...data.items[0],id:"failed",category:"email",customer:"Failed email",detail:"Email bounced"}]}});
+ show(<NotificationsHome />);
+ await screen.findByRole("link",{name:/Alex/});
+ const details = screen.getByText("Email issues · 1").closest("details")!;
+ expect(details).not.toHaveAttribute("open");
+ expect(screen.getByRole("link",{name:/Failed email/})).not.toBeVisible();
+ fireEvent.click(details.querySelector("summary")!);
+ expect(screen.getByRole("link",{name:/Failed email/})).toBeVisible();
+ expect(screen.getByText("Check email history before sending again")).toBeVisible();
 });
 
 it("puts due work ahead of replies and saved drafts, with honest timing based on the last refresh", async () => {
@@ -435,11 +401,11 @@ it("puts due work ahead of replies and saved drafts, with honest timing based on
   ] } });
   show(<NotificationsHome />);
   await screen.findByRole("link", { name: /Due customer/ });
-  const feed = screen.getByRole("region", { name: "Actions needing attention" });
+  const feed = screen.getByRole("region", { name: "Customers to contact" });
   const rows = within(feed).getAllByRole("listitem");
-  expect(rows.map(row => within(row).getByRole("heading").textContent)).toEqual(["Due customer", "Failed email", "Next visit", "Alex", "Sam"]);
+  expect(rows.map(row => within(row).getByRole("heading").textContent)).toEqual(["Due customer", "Alex"]);
   expect(within(rows[0]).getByText("3h overdue")).toBeVisible();
-  expect(within(rows[2]).getByText("Today 12:00")).toBeVisible();
+  expect(within(screen.getByRole("region", { name: "Today’s appointments" })).getByText("Today 12:00")).toBeVisible();
 });
 
 it("keeps Home to six actions with an explicit expand control and resets that limit when filtering", async () => {
@@ -449,14 +415,14 @@ it("keeps Home to six actions with an explicit expand control and resets that li
   ] } });
   show(<NotificationsHome />);
   await screen.findByRole("link", { name: /Customer 0/ });
-  const feed = screen.getByRole("region", { name: "Actions needing attention" });
+  const feed = screen.getByRole("region", { name: "Customers to contact" });
   expect(within(feed).getAllByRole("listitem")).toHaveLength(6);
-  fireEvent.click(screen.getByRole("button", { name: "Show all 9 actions" }));
-  expect(within(feed).getAllByRole("listitem")).toHaveLength(9);
+  fireEvent.click(screen.getByRole("button", { name: "Show all 8" }));
+  expect(within(feed).getAllByRole("listitem")).toHaveLength(8);
   expect(screen.getByRole("button", { name: "Show fewer" })).toHaveAttribute("aria-expanded", "true");
   fireEvent.click(screen.getByRole("button", { name: /Awaiting a reply/ }));
   expect(within(feed).getAllByRole("listitem")).toHaveLength(6);
-  expect(screen.getByRole("button", { name: "Show all 8 actions" })).toHaveAttribute("aria-expanded", "false");
+  expect(screen.getByRole("button", { name: "Show all 8" })).toHaveAttribute("aria-expanded", "false");
 });
 it("does not ask staff to record attendance for a pending request whose time has passed", async () => {
   backend({ notifications: { ...data, counts: { ...data.counts, appointments: 1 }, items: [
@@ -465,4 +431,25 @@ it("does not ask staff to record attendance for a pending request whose time has
   show(<NotificationsHome />);
   expect(await screen.findByText("Time passed — review request")).toBeVisible();
   expect(screen.queryByText("Check attendance")).not.toBeInTheDocument();
+});
+
+it("groups reply and overdue work for the same record, but never combines people by name", async () => {
+ const duplicate = {...data.items[0],category:"followups",at:"2026-10-16T07:00:00Z",detail:"Follow-up due",phone:"07700900123",preview:"Can I view the car?"};
+ backend({notifications:{...data,counts:{...data.counts,followups:1},items:[data.items[0],duplicate,{...data.items[0],id:"other-person",customer:"Alex"}]}});
+ show(<NotificationsHome />);
+ const contacts = await screen.findByRole("region",{name:"Customers to contact"});
+ await waitFor(() => expect(within(contacts).getAllByRole("listitem")).toHaveLength(2));
+ expect(within(contacts).getByText("3h overdue")).toBeVisible();
+ expect(within(contacts).getByText("Can I view the car?")).toBeVisible();
+ expect(within(contacts).getByRole("link",{name:"Call"})).toHaveAttribute("href","tel:07700900123");
+ expect(state.fetch.mock.calls.every(([,options]) => !options?.method || options.method === "GET")).toBe(true);
+});
+
+it("still finds a reply when that same record also has a higher-priority follow-up", async () => {
+ backend({notifications:{...data,counts:{...data.counts,followups:1},items:[data.items[0],{...data.items[0],category:"followups",detail:"Follow-up due"}]}});
+ show(<NotificationsHome />);
+ fireEvent.click(await screen.findByRole("button",{name:/Awaiting a reply/}));
+ expect(screen.getByRole("link",{name:/Alex/})).toBeVisible();
+ expect(screen.getByText("Reply needed")).toBeVisible();
+ expect(screen.queryByRole("region",{name:"Today’s appointments"})).not.toBeInTheDocument();
 });

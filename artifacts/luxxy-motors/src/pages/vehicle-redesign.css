@@ -253,3 +253,9 @@
 @media (min-width: 1100px) and (max-width: 1279px) {
   .vehicle-redesigned .vehicle-summary-main-actions { grid-template-columns: minmax(0, 1fr); }
 }
+@media(max-width:767px) {
+ .vehicle-redesigned .vehicle-browse-tools { padding-block:6px; }
+ .vehicle-redesigned .vehicle-phone-facts { margin-top:6px; line-height:1.45; }
+ .vehicle-redesigned .vehicle-phone-identity .vehicle-price-block { margin-top:8px; }
+ .vehicle-redesigned .vehicle-detail-grid { row-gap:14px; }
+}

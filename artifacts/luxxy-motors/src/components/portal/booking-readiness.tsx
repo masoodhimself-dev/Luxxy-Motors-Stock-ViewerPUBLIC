@@ -59,7 +59,7 @@ export function BookingReadiness({ booking, autoLoad = false }: { booking: Enqui
     </div>
     {query.isError ? <div className="booking-readiness-state"><span>Preparation could not be checked.</span><Button type="button" size="sm" variant="ghost" onClick={() => { setRequested(true); void query.refetch(); }}>Retry checks</Button></div>
       : staleBooking ? <p>Appointment changed. Refresh the booking before checking its preparation.</p>
-      : !query.data ? <div className="booking-readiness-state">{enabled ? <span role="status">Checking preparation…</span> : <><span>Signature and staff checks not loaded.</span><Button type="button" size="sm" variant="ghost" onClick={() => setRequested(true)}>Check preparation</Button></>}</div>
+      : !query.data ? <><ul aria-label="Recorded checks not loaded">{["Declaration", "Licence", "Insurance"].map(label => <li key={label}><Circle aria-hidden="true"/>{label} · status not loaded</li>)}</ul><div className="booking-readiness-state">{enabled ? <span role="status">Checking preparation…</span> : <><span>Signature and staff checks not loaded.</span><Button type="button" size="sm" variant="ghost" onClick={() => setRequested(true)}>Check preparation</Button></>}</div></>
       : <>
         <ul aria-label="Recorded checks">{([
           [signed, signed ? "Declaration signed" : record ? "Awaiting signature" : "Declaration needed"],

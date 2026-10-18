@@ -327,3 +327,33 @@
 .notifications-metrics span {
   color: var(--portal-neutral, #536374);
 }
+/* Customer work is the first content on Home; faults and reporting stay secondary. */
+.desk-filters { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.desk-filters > button { min-height:38px; padding:7px 12px; border:1px solid #dbe4e9; border-radius:7px; background:#fff; font-size:12px; }
+.desk-filters > button[aria-pressed=true] { background:#eaf3f8; border-color:#8eb3c8; color:#245e80; }
+.desk-filters > button:last-child { margin-left:auto; }
+.desk-priorities { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:12px; align-items:start; }
+.desk-priorities h3 small { margin-left:6px; color:#667984; font-size:12px; }
+.desk-priorities header > a { color:#245e80; font-size:12px; padding:8px; }
+.notifications-row-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.notifications-row-actions > a { display:inline-flex; min-height:38px; align-items:center; padding:6px 9px; border:1px solid #d5e0e7; border-radius:6px; color:#245e80; font-size:12px; font-weight:600; background:white; }
+.notifications-preview { max-width:62ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#5d7280; }
+.desk-priorities .notifications-feed li { align-items:flex-start; flex-wrap:wrap; padding:12px 14px; }
+.desk-priorities .notifications-record { min-width:180px; }
+.desk-priorities .notifications-empty { padding:20px 14px; }
+.desk-secondary { display:flex; flex-wrap:wrap; gap:10px; align-items:start; }
+.desk-email-issues { flex:1; min-width:240px; }
+.desk-email-issues summary { display:flex; gap:8px; align-items:center; padding:10px 14px; min-height:44px; cursor:pointer; color:#8c4343; font-weight:600; }
+.desk-email-issues summary span { margin-left:auto; color:#667984; font-size:11px; font-weight:400; }
+.desk-email-issues > a { display:block; padding:12px 14px; color:#245e80; text-decoration:underline; }
+.desk-drafts { display:flex; align-items:center; gap:8px; min-height:44px; padding:10px 14px; color:#65538a; font-size:12px; }
+.desk-clear { color:#256248; font-weight:600; }
+@media(max-width:900px) { .desk-priorities { grid-template-columns:1fr; } }
+@media(max-width:480px) { .desk-email-issues summary span { display:none; } .notifications-row-actions > a { min-height:44px; } }
+.desk-priorities:has(> section:only-child) { grid-template-columns:1fr; }
+@media(max-width:639px) {
+ .desk-filters { flex-wrap:nowrap; overflow-x:auto; padding-bottom:3px; }
+ .desk-filters > button { white-space:nowrap; flex-shrink:0; }
+ .desk-filters > button[aria-label="Refresh day"] { padding:8px; min-width:38px; }
+ .desk-filters > button[aria-label="Refresh day"] span { display:none; }
+}

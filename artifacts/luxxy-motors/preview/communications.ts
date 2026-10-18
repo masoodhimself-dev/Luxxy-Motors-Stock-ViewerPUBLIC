@@ -127,6 +127,9 @@ export async function communicationsPreview(
               at,
               href,
               customer: e.customerName,
+              enquiryId: e.id,
+              phone: e.phone,
+              preview: e.message?.slice(0,240),
               vehicle: e.vehicleTitle,
               reference: e.reference,
             });

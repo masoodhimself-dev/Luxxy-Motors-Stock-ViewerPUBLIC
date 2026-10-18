@@ -206,10 +206,10 @@ it('uses collection freshness, credentials and latest failures for live attentio
   const section = await screen.findByRole('region', { name: 'Dealership attention' });
   expect(within(section).getByRole('heading', { name: 'Live website health 4' })).toBeInTheDocument();
   expect(within(section).queryByText('Fresh stock')).not.toBeInTheDocument();
-  expect(within(section).getByText('Stock update due soon · 13+ hours')).toBeInTheDocument();
-  expect(within(section).getByText('Stock update overdue · 14+ hours')).toBeInTheDocument();
+  expect(within(section).getByText('Stock due soon · 13h+')).toBeInTheDocument();
+  expect(within(section).getByText('Stock overdue · 14h+')).toBeInTheDocument();
   expect(within(section).getByText('Import credential missing')).toBeInTheDocument();
-  expect(within(section).getByText('Latest import failed')).toBeInTheDocument();
+  expect(within(section).getByText('Last import failed')).toBeInTheDocument();
   expect(within(section).getByRole('heading', { name: 'Setup and suspended dealerships 1' })).toBeInTheDocument();
   expect(within(section).getByText('Suspended · review before reactivating')).toBeInTheDocument();
 });

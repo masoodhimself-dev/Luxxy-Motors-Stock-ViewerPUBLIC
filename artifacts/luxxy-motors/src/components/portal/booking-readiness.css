@@ -29,3 +29,8 @@
   .booking-readiness-heading > span { flex-basis: 100%; }
   .booking-readiness ul { flex-direction: column; gap: 5px; }
 }
+.booking-more-tools { position:relative; font-size:12px; }
+.booking-more-tools > summary { cursor:pointer; min-height:44px; display:flex; align-items:center; padding:8px; color:#596977; }
+.booking-more-tools > div { display:flex; flex-wrap:wrap; gap:8px; padding:8px; border:1px solid #d8e0e5; border-radius:8px; background:#fff; }
+.booking-readiness li { min-height:30px; border-radius:5px; padding:4px 7px; background:#fff; color:#865d24; }
+.booking-readiness li[data-complete=true] { background:#e8f5ed; }

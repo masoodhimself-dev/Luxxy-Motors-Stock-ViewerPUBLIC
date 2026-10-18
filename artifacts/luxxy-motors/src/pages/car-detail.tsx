@@ -253,6 +253,7 @@ export default function CarDetail() {
           registrationYear !== 'Unknown' ? registrationYear : null,
           car.mileage != null ? formatMileage(car.mileage) : car.mileageText,
           car.transmission,
+          car.fuel,
         ].filter(Boolean).join(' · ')}</p>
       ) : <>
         {(car.variant || car.trim) && <p className="vehicle-variant mt-3 text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}

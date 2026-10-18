@@ -1,3 +1,4 @@
+import { dealerHealthLabel } from "@/lib/dealer-health-label";
 import { PlatformFeatureControls } from '@/components/platform-feature-controls';
 import { DemoOnboardingAccess } from '@/components/demo-onboarding-access';
 import { PlatformDemos } from '@/components/platform-demos';
@@ -149,13 +150,7 @@ export default function Platform() {
     if (dealer.status === 'suspended') return 'Suspended · review before reactivating';
     const health = healthById.get(dealer.id);
     if (!health?.needsAttention) return '';
-    return [
-      !health.connectionConfigured && 'Import credential missing',
-      health.freshness === 'missing' && 'No successful stock collection',
-      health.freshness === 'warning' && 'Stock update due soon · 13+ hours',
-      health.freshness === 'critical' && 'Stock update overdue · 14+ hours',
-      ['failed', 'quarantined'].includes(health.lastAttemptStatus ?? '') && `Latest import ${health.lastAttemptStatus}`,
-    ].filter(Boolean).join(' · ');
+    return dealerHealthLabel(health);
   }
   const filtered = data.dealers.filter(dealer =>
     (dealerKind === 'all' || (dealerKind === 'live' && !dealer.isDemo) || (dealerKind === 'demos' && dealer.isDemo && !isExpiredDemo(dealer)) || (dealerKind === 'expired' && isExpiredDemo(dealer))) &&
@@ -182,7 +177,7 @@ export default function Platform() {
         {showAttention && attentionReason(dealer) && <small className="platform-dealer-attention">{attentionReason(dealer)}</small>}
       </span>
       <span className="platform-dealer-source">{platform(dealer.stockPlatform)}<small>Last successful import: {date(dealer.lastSuccessfulImport?.receivedAt)}</small></span>
-      <span className="platform-dealer-badges">{dealer.isDemo && <span className={`platform-badge platform-badge--${isExpiredDemo(dealer) ? 'expired' : 'demo'}`}>{isExpiredDemo(dealer) ? 'Expired demo' : 'Demo'}</span>}<Badge value={dealer.status} /></span><ArrowRight size={18} aria-hidden="true"/>
+      <span className="platform-dealer-badges">{dealer.isDemo && <span className={`platform-badge platform-badge--${isExpiredDemo(dealer) ? 'expired' : 'demo'}`}>{isExpiredDemo(dealer) ? 'Expired demo' : 'Demo'}</span>}{!(dealer.isDemo && isExpiredDemo(dealer)) && <Badge value={dealer.status} />}</span><ArrowRight size={18} aria-hidden="true"/>
     </button>)}</div> : <div className="platform-empty"><Building2 /><h3>{data.dealers.length > 0 ? 'No dealerships match these filters' : 'Your first dealership starts here'}</h3><p>{data.dealers.length > 0 ? 'Try another search, type or status.' : 'Create a draft, connect its domain and stock source, then activate it when it is ready.'}</p>{data.dealers.length === 0 && <Button onClick={() => navigate('new')}>Add dealership</Button>}</div>;
   }
   return <div className="platform-shell">
@@ -197,7 +192,7 @@ export default function Platform() {
             { label: 'Live in setup', count: liveSetup.length, note: 'Drafts awaiting launch', tone: 'setup' },
             { label: 'Active demos', count: activeDemos.length, note: 'Active with time remaining', tone: 'demo' },
             { label: 'Expired demos', count: expiredDemos.length, note: 'Demo period has ended', tone: 'expired' },
-          ].map(stat => <article key={stat.label} className={`platform-stat--${stat.tone}`} aria-label={stat.label}><span>{stat.label}</span><strong>{stat.count}</strong><small>{stat.note}</small></article>)}</section>
+          ].map(stat => <article key={stat.label} className={`platform-stat--${stat.tone}`} aria-label={stat.label}><button type="button" className="platform-stat-open" onClick={() => { setSearch(''); setDealerKind(stat.tone === "live" || stat.tone === "setup" ? "live" : stat.tone === "expired" ? "expired" : "demos"); setStatus(stat.tone === "setup" ? "draft" : stat.tone === "live" || stat.tone === "demo" ? "active" : "all"); navigate("dealers"); }}><span>{stat.label}</span><strong>{stat.count}</strong><small>{stat.note} →</small></button></article>)}</section>
           <PlatformCapacity onOpenDealer={id => void openDealer(id)}/>
           <section className="platform-panel" aria-label="Dealership attention"><div className="platform-section-heading"><div><h2>Needs attention</h2><p>Live website stock health and launch tasks are tracked separately. Demos are excluded.</p></div></div>
             {data.dealers.length === 0 ? dealerList([]) : <>

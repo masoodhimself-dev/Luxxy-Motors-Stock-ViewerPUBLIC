@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Enquiry, StaffOnlineReservation } from "@workspace/api-client-react";
 import {
@@ -488,7 +488,7 @@ function savedSale(overrides: Partial<SaleWorkspaceRecord["draft"]> = {}) {
 function fixtureCommand(sale: SaleWorkspaceRecord, command: SaleWorkspaceCommand) {
   return changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId: `fixture-command-${++serial}` }, context()).sale;
 }
-function fixturePayment(sale: SaleWorkspaceRecord, amount: string, kind: "deposit" | "final-payment" = "deposit") {
+function fixturePayment(sale: SaleWorkspaceRecord, amount: string, kind: "deposit" | "part-payment" | "final-payment" = "deposit") {
   return fixtureCommand(sale, { action: "invoice-payment", payment: {
     amount, kind, status: "confirmed", method: "Bank transfer", date: new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }), reference: "fixture payment",
   } });
@@ -526,7 +526,7 @@ it("opens a saved sale at its useful summary and resumes payments without repeat
 it("takes an incomplete saved customer straight to their details and still guards payment shortcuts", async () => {
   await mountSaved(savedSale({ customer: "" }));
   expect(screen.getByRole("button", { name: "Add customer details" })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Manage payments" }));
+  fireEvent.click(screen.getByRole("button", { name: "Record payment" }));
   expect(screen.getByRole("heading", { name: "Who is buying the car?" })).toBeInTheDocument();
   expect(screen.getByRole("alert")).toHaveTextContent("Enter the customer name");
   expect(screen.getByLabelText("Customer’s full name")).toHaveValue("");
@@ -537,7 +537,7 @@ it("resumes invoice creation for a fully paid saved sale without issuing anythin
   const sale = fixturePayment(savedSale(), "10000", "final-payment");
   await mountSaved(sale);
   expect(screen.getByRole("button", { name: "Create invoice" })).toBeVisible();
-  expect(screen.getByRole("region", { name: "Saved sale summary" })).toHaveTextContent("Still to pay£0.00");
+  expect(screen.getByRole("region", { name: "Saved sale summary" })).toHaveTextContent("Balance due£0.00");
   fireEvent.click(screen.getByRole("button", { name: "Create invoice" }));
   expect(screen.getByRole("heading", { name: "Which invoice do you need?" })).toBeInTheDocument();
   expect(mutations()).toHaveLength(0);
@@ -608,7 +608,7 @@ it("preserves an unrecorded payment while switching between the summary and the 
 it("does not let summary invoice shortcuts bypass an unrecorded payment", async () => {
   const sale = fixtureCommand(savedSale(), { action: "issue-invoice", kind: "full", acknowledge: true });
   await mountSaved(sale);
-  fireEvent.click(screen.getByRole("button", { name: "Manage payments" }));
+  fireEvent.click(screen.getByRole("button", { name: "Record payment" }));
   fireEvent.change(screen.getByLabelText("Payment amount (£)"), { target: { value: "250" } });
   fireEvent.click(screen.getByRole("button", { name: "Sale summary" }));
   fireEvent.click(screen.getByRole("button", { name: "Review sale completion" }));
@@ -622,4 +622,17 @@ it("does not let summary invoice shortcuts bypass an unrecorded payment", async 
   expect(screen.getByRole("alert")).toHaveTextContent("Save this payment first");
   expect(mutations()).toHaveLength(0);
   expect(state.sales[0].completedAt).toBeUndefined();
+});
+
+it("shows every interim payment with its amount and status directly on the saved sale", async () => {
+ let sale = fixturePayment(savedSale(), "500", "deposit");
+ sale = fixturePayment(sale, "250", "part-payment");
+ await mountSaved(sale);
+ const history = screen.getByRole("region",{name:"Recorded payments"});
+ expect(within(history).getAllByRole("listitem")).toHaveLength(2);
+ expect(history).toHaveTextContent("£500.00");
+ expect(history).toHaveTextContent("£250.00");
+ expect(history).toHaveTextContent("Received");
+ expect(screen.getByRole("region",{name:"Saved sale summary"})).toHaveTextContent("£9,250.00");
+ expect(mutations()).toHaveLength(0);
 });

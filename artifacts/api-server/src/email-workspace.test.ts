@@ -62,6 +62,7 @@ test("notification home and saved drafts: dealer isolation, permissions, version
         customerName: `Customer ${dealer}`,
         email: `${dealer}@example.test`,
         message: "Please tell me about this car.",
+        phone: dealer === "a" ? "07700900123" : "07700900999",
         followUpAt: new Date(Date.now() - 3600000),
       });
   }
@@ -239,6 +240,7 @@ test("notification home and saved drafts: dealer isolation, permissions, version
     assert.ok(
       notifications.data.items.every((r: any) => r.customer === "Customer a"),
     );
+    assert.ok(notifications.data.items.every((r: any) => r.enquiryId === ids[0] && r.phone === "07700900123" && r.preview === "Please tell me about this car."));
     assert.equal(notifications.data.capabilities.automaticSending, false);
     const accounts = await call(
       "/api/staff/notifications",

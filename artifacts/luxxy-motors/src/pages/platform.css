@@ -62,3 +62,6 @@
   .platform-dealer-kinds button { padding-inline: 12px; }
   .platform-dealer-badges { margin-left: 60px; }
 }
+.platform-stat-open { display:grid; gap:7px; width:100%; text-align:left; min-height:90px; border-radius:7px; }
+.platform-stat-open:hover small { text-decoration:underline; }
+.platform-stat-open:focus-visible { outline:2px solid #245e80; outline-offset:6px; }

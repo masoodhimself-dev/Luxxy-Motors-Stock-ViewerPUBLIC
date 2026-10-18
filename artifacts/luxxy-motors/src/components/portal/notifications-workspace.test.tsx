@@ -46,7 +46,7 @@ it("opens Needs attention by default with one integrated navigation", () => {
   expect(screen.getByRole("heading", { name: "Your day" })).toBeVisible();
   expect(screen.getByRole("region", { name: "Attention panel" })).toBeVisible();
   for (const name of [
-    "Needs attention",
+    "Today",
     "Customers & enquiries",
     "Test drives",
     "Email",
@@ -147,8 +147,7 @@ it("opens a quick enquiry over the home screen without navigating", () => {
   expect(quick).toHaveBeenCalledOnce();
   expect(currentQuery(location).get('section')).toBe('notifications');
   expect(currentQuery(location).has('workView')).toBe(false);
-  fireEvent.click(screen.getByRole('button', { name: 'New sale' }));
-  expect(sale).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('button', { name: 'New sale' })).not.toBeInTheDocument();
 });
 
 it("keeps creation and email shortcuts out of read-only staff views", () => {
@@ -161,9 +160,9 @@ it("keeps creation and email shortcuts out of read-only staff views", () => {
 
 it("opens calendar and saved drafts directly from home shortcuts", () => {
   const location = mount();
-  fireEvent.click(screen.getByRole('button', { name: 'Saved email drafts' }));
-  expect(currentQuery(location).get('workView')).toBe('email');
-  expect(currentQuery(location).get('view')).toBe('drafts');
+  fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+  expect(currentQuery(location).get('workView')).toBe('test-drives');
+  expect(currentQuery(location).get('deskView')).toBe('calendar');
 });
 
 it.each([
@@ -208,7 +207,7 @@ it("retains customer context across views and clears it when returning to Needs 
   expect(currentQuery(location).get("enquiryId")).toBe("enquiry-1");
   fireEvent.click(screen.getByRole("button", { name: /^Customers & enquiries/ }));
   expect(currentQuery(location).get("enquiryId")).toBe("enquiry-1");
-  fireEvent.click(screen.getByRole("button", { name: /^Needs attention/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Today/ }));
   expect(currentQuery(location).get("workView")).toBe("attention");
   expect(currentQuery(location).has("enquiryId")).toBe(false);
   expect(screen.getByRole("region", { name: "Attention panel" })).toBeVisible();
@@ -235,7 +234,7 @@ it("switches workspaces without sending emails, creating bookings or making netw
   const fetch = vi.fn();
   vi.stubGlobal("fetch", fetch);
   mount("section=notifications");
-  for (const name of ["Customers & enquiries", "Test drives", "Email", "Needs attention"]) {
+  for (const name of ["Customers & enquiries", "Test drives", "Email", "Today"]) {
     fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${name}`) }));
   }
   expect(fetch).not.toHaveBeenCalled();

@@ -96,7 +96,7 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
         <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(booking.id)}`}>Open customer</Link></Button>
         {canEmail && <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`}>Prepare email</Link></Button>}
         {canDeclare && <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration & QR</Button>}
-        <Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} />
+        <details className="booking-more-tools"><summary>More options</summary><div><Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} /></div></details>
       </div>
       {(booking.message || booking.partExchangeRegistration) && <details className="mt-4 border-t border-border pt-2 text-sm">
         <summary className="min-h-11 cursor-pointer py-3 font-medium">Visit details</summary>
