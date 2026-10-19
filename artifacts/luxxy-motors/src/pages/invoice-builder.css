@@ -18,6 +18,41 @@ body:has(.invoice-builder.is-editing) { overflow:hidden; }
 .invoice-steps [aria-current] b { color:#fff; background:#234c68; border-color:#234c68; }
 .invoice-builder-scroll { flex:1; min-height:0; overflow:auto; padding:32px 20px 48px; }
 .invoice-question-sheet { max-width:920px; margin:0 auto; padding:34px 40px; border:1px solid #dce3e9; border-radius:12px; background:#fff; box-shadow:0 5px 24px #172f4610; }
+.invoice-step-layout { max-width:920px; margin:0 auto; }
+.invoice-step-layout.has-vehicle-context { display:grid; grid-template-columns:300px minmax(0,1fr); align-items:start; gap:24px; max-width:1280px; }
+.invoice-step-layout > .invoice-question-sheet { min-width:0; width:100%; }
+.invoice-car-context { position:sticky; top:0; min-width:0; padding:20px; border:1px solid #dce3e9; border-radius:12px; background:#fff; }
+.invoice-car-context-photo { position:relative; aspect-ratio:16/9; overflow:hidden; border-radius:7px; background:#edf1f4; color:#7b8d9b; }
+.invoice-car-context-photo > svg { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+.invoice-car-context .invoice-car-photo { display:block; width:100%; height:100%; }
+.invoice-car-context .invoice-car-photo img { display:block; width:100%; height:100%; object-fit:cover; }
+.invoice-car-context-details { min-width:0; margin-top:16px; overflow-wrap:anywhere; }
+.invoice-car-context h2 { margin:5px 0 6px; font-size:19px; line-height:1.35; }
+.invoice-car-context .invoice-car-context-variant { margin-bottom:10px; color:#637282; font-size:13px; }
+.invoice-car-context .registration-plate-container { margin-top:8px; max-width:100%; }
+.invoice-car-context-specs { margin-top:12px; }
+.invoice-car-context-specs p { color:#536878; font-size:13px; line-height:1.7; }
+.invoice-car-context-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; margin-top:18px; padding-top:16px; border-top:1px solid #e1e7ec; }
+.invoice-car-context-footer dt { color:#637282; font-size:12px; }
+.invoice-car-context-footer dd { margin-top:3px; font-size:22px; font-weight:650; line-height:1.3; }
+.invoice-car-context-footer button { min-height:44px; }
+.invoice-car-context .invoice-car-context-lock { margin-top:12px; color:#637282; font-size:12px; }
+@media(max-width:1023px) {
+  .invoice-step-layout.has-vehicle-context { display:block; max-width:920px; }
+  .invoice-car-context { position:static; display:grid; grid-template-columns:160px minmax(0,1fr); gap:0 20px; margin-bottom:20px; }
+  .invoice-car-context-details { margin-top:0; }
+  .invoice-car-context-specs,.invoice-car-context-footer,.invoice-car-context-lock { grid-column:1/-1; }
+  .invoice-car-context-specs { display:flex; flex-wrap:wrap; gap:2px 16px; }
+}
+@media(max-width:640px) {
+  .invoice-car-context { grid-template-columns:100px minmax(0,1fr); gap:0 14px; padding:16px; margin-bottom:16px; }
+  .invoice-car-context h2 { font-size:17px; }
+  .invoice-car-context .invoice-car-context-variant { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; overflow:hidden; font-size:12px; margin-bottom:6px; }
+  .invoice-car-context-specs { margin-top:8px; }
+  .invoice-car-context-specs p { font-size:12px; }
+  .invoice-car-context-footer { margin-top:14px; padding-top:12px; }
+  .invoice-car-context-footer dd { font-size:20px; }
+}
 .invoice-builder-kicker { color:#506c83; font-size:11px!important; font-weight:650; text-transform:uppercase; letter-spacing:.1em; }
 .invoice-question-sheet fieldset { min-width:0; border:0; padding:0; margin:0; }
 .invoice-builder label { display:flex; flex-direction:column; gap:8px; font-size:13px; font-weight:500; }

@@ -32,7 +32,7 @@ const state = vi.hoisted(() => ({
         mileage: 22000,
         colour: "Blue",
         images: [],
-        heroImage: null,
+        heroImage: null as string | null,
       },
     ],
   },
@@ -67,6 +67,7 @@ vi.mock("@/components/sales-demo/sales-document", () => ({
 }));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
+const initialStockCars = structuredClone(state.stock.cars);
 let serial = 0;
 const context = (): SaleWorkspaceContext => ({
   now: new Date().toISOString(),
@@ -86,6 +87,7 @@ beforeEach(() => {
   state.reservations = [];
   state.search = "";
   state.enquiriesError = false;
+  state.stock.cars = structuredClone(initialStockCars);
   state.pdf.mockReset();
   serial = 0;
   state.fetch
@@ -399,6 +401,84 @@ async function openCustomerStep() {
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
+
+it("shows the selected car and agreed price beside the customer details", async () => {
+  state.stock.cars[0].heroImage = "https://images.example.com/ford-focus.jpg";
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), {
+    target: { value: "car-test" },
+  });
+  fireEvent.change(screen.getByLabelText("Agreed vehicle price (£)"), {
+    target: { value: "9750" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  const car = screen.getByRole("complementary", { name: "Selected car" });
+  expect(car).toHaveTextContent("Ford Focus");
+  expect(car).toHaveTextContent("2020");
+  expect(car).toHaveTextContent("Blue");
+  expect(car).toHaveTextContent("Petrol");
+  expect(car).toHaveTextContent("Manual");
+  expect(car).toHaveTextContent("22,000 miles");
+  expect(car).toHaveTextContent(/AB20\s*XYZ/);
+  expect(car).toHaveTextContent("£9,750.00");
+  expect(car).not.toHaveTextContent("£10,000.00");
+  expect(within(car).getByRole("button", { name: "Enlarge photo of Ford Focus" })).toBeEnabled();
+  expect(within(car).getByRole("button", { name: "Change car" })).toBeEnabled();
+  expect(screen.getByLabelText("Customer’s full name")).toBeEnabled();
+  expect(mutations()).toHaveLength(0);
+});
+
+it("returns to the vehicle step without losing entered customer details", async () => {
+  mount();
+  await openCustomerStep();
+  fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "Jamie Taylor" } });
+  fireEvent.change(screen.getByLabelText("Telephone"), { target: { value: "07700900123" } });
+  fireEvent.change(screen.getByLabelText("Email for the invoice"), { target: { value: "jamie@example.com" } });
+  fireEvent.change(screen.getByLabelText("Customer address"), { target: { value: "10 Test Road" } });
+
+  fireEvent.click(screen.getByRole("button", { name: "Change car" }));
+  expect(screen.getByRole("heading", { name: "Which car are you selling?" })).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "Vehicle" })).toHaveValue("car-test");
+  expect(screen.queryByRole("complementary", { name: "Selected car" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
+  expect(screen.getByLabelText("Telephone")).toHaveValue("07700900123");
+  expect(screen.getByLabelText("Email for the invoice")).toHaveValue("jamie@example.com");
+  expect(screen.getByLabelText("Customer address")).toHaveValue("10 Test Road");
+  expect(mutations()).toHaveLength(0);
+});
+
+it("updates the customer-step car summary and saved draft after changing vehicles", async () => {
+  state.stock.cars.push({
+    ...state.stock.cars[0], id: "car-second", title: "Toyota Yaris", make: "Toyota", model: "Yaris",
+    plate: "CD19 EFG", year: 2019, colour: "Red", transmission: "Automatic", mileage: 34000, price: 7500,
+  });
+  mount();
+  await openCustomerStep();
+  fireEvent.change(screen.getByLabelText("Customer’s full name"), { target: { value: "Jamie Taylor" } });
+  fireEvent.click(screen.getByRole("button", { name: "Change car" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Vehicle" }), { target: { value: "car-second" } });
+  expect(screen.getByLabelText("Agreed vehicle price (£)")).toHaveValue("7500");
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  const car = screen.getByRole("complementary", { name: "Selected car" });
+  expect(car).toHaveTextContent("Toyota Yaris");
+  expect(car).toHaveTextContent("Automatic");
+  expect(car).toHaveTextContent("34,000 miles");
+  expect(car).toHaveTextContent(/CD19\s*EFG/);
+  expect(car).toHaveTextContent("£7,500.00");
+  expect(car).not.toHaveTextContent("Ford Focus");
+  expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
+  fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+  await waitFor(() => expect(state.sales).toHaveLength(1));
+  expect(state.sales[0].draft).toMatchObject({
+    customer: "Jamie Taylor", vehicleId: "car-second", vehicle: "Toyota Yaris", registration: "CD19 EFG", price: "7500",
+  });
+});
+
 async function selectRecentCustomer(query = "Jamie") {
   const name = screen.getByRole("combobox", { name: "Customer’s full name" });
   fireEvent.focus(name);
@@ -553,6 +633,30 @@ it("takes an incomplete saved customer straight to their details and still guard
   expect(mutations()).toHaveLength(0);
 });
 
+it("keeps the saved car details visible when that car is no longer in the current stock feed", async () => {
+  state.stock.cars = [];
+  await mountSaved(savedSale({ price: "9750" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit customer details" }));
+  const car = screen.getByRole("complementary", { name: "Selected car" });
+  expect(car).toHaveTextContent("Ford Focus");
+  expect(car).toHaveTextContent(/AB20\s*XYZ/);
+  expect(car).toHaveTextContent("£9,750.00");
+  expect(within(car).queryByRole("img")).not.toBeInTheDocument();
+  expect(within(car).getByRole("button", { name: "Change car" })).toBeEnabled();
+  expect(screen.getByLabelText("Customer’s full name")).toHaveValue("Jamie Taylor");
+  expect(mutations()).toHaveLength(0);
+});
+
+it("does not let the customer-step change-car shortcut bypass a paid reservation's vehicle lock", async () => {
+  await mountSaved(fixturePayment(savedSale(), "500"));
+  fireEvent.click(screen.getByRole("button", { name: "Edit customer details" }));
+  const car = screen.getByRole("complementary", { name: "Selected car" });
+  expect(within(car).getByRole("button", { name: "Change car" })).toBeDisabled();
+  fireEvent.click(within(car).getByRole("button", { name: "Change car" }));
+  expect(screen.getByRole("heading", { name: "Who is buying the car?" })).toBeInTheDocument();
+  expect(mutations()).toHaveLength(0);
+});
+
 it("resumes invoice creation for a fully paid saved sale without issuing anything automatically", async () => {
   const sale = fixturePayment(savedSale(), "10000", "final-payment");
   await mountSaved(sale);
@@ -609,6 +713,7 @@ it("opens a completed sale's frozen invoice and keeps completed customer and veh
   fireEvent.click(screen.getByRole("button", { name: "View customer details" }));
   expect(screen.getByLabelText("Customer’s full name")).toBeDisabled();
   expect(screen.getByLabelText("Customer address")).toBeDisabled();
+  expect(within(screen.getByRole("complementary", { name: "Selected car" })).getByRole("button", { name: "Change car" })).toBeDisabled();
 });
 
 it("preserves an unrecorded payment while switching between the summary and the payment form", async () => {

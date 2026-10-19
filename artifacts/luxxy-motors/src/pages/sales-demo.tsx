@@ -50,6 +50,7 @@ import {
   Printer,
   Download,
   Mail,
+  Car,
 } from "@/components/icons";
 import "@/sales-workspace.css";
 import "./invoice-builder.css";
@@ -129,6 +130,8 @@ export function SalesWorkspace({
     ? saleWorkspaceTotals(draft as SaleWorkspaceDraft, rows)
     : null;
   const vehicle = stock?.cars.find((car) => car.id === draft?.vehicleId);
+  const showVehicleContext = Boolean(draft && step === 1 && !showSummary && !issued);
+  const vehicleChangeLocked = Boolean(record?.completedAt || record?.lifecycle?.status === "reserved");
   const customerOptions = [
     ...(enquiries.data ?? []).map((item) => ({
       id: `enquiry-${item.id}`,
@@ -708,6 +711,37 @@ export function SalesWorkspace({
             </nav>
           )}
           <main ref={scrollPane} className="invoice-builder-scroll">
+            <div className={`invoice-step-layout${showVehicleContext ? " has-vehicle-context" : ""}`}>
+              {showVehicleContext && draft && (
+                <aside className="invoice-car-context" aria-label="Selected car">
+                  <div className="invoice-car-context-photo">
+                    <Car size={36} aria-hidden="true" />
+                    {vehicle && <SaleVehiclePhoto key={vehicle.id} car={vehicle} />}
+                  </div>
+                  <div className="invoice-car-context-details">
+                    <p className="invoice-builder-kicker">Selected car</p>
+                    <h2>{draft.vehicle || "Selected vehicle"}</h2>
+                    {vehicle?.variant && <p className="invoice-car-context-variant">{vehicle.variant}</p>}
+                    <UKNumberPlate value={draft.registration} size="sm" variant="front" />
+                  </div>
+                  {vehicle && (
+                    <div className="invoice-car-context-specs">
+                      <p>{[vehicle.year, vehicle.colour].filter(Boolean).join(" · ")}</p>
+                      <p>{[vehicle.fuel, vehicle.transmission].filter(Boolean).join(" · ")}</p>
+                      {typeof vehicle.mileage === "number" && <p>{vehicle.mileage.toLocaleString("en-GB")} miles</p>}
+                    </div>
+                  )}
+                  <div className="invoice-car-context-footer">
+                    <dl><dt>Agreed price</dt><dd>{saleMoney(pence(draft.price))}</dd></dl>
+                    <Button type="button" variant="outline" disabled={busy || vehicleChangeLocked} onClick={() => {
+                      setStep(0);
+                      setProblem("");
+                      setReviewed(false);
+                    }}>Change car</Button>
+                  </div>
+                  {vehicleChangeLocked && <p className="invoice-car-context-lock">{record?.completedAt ? "The car is fixed for this completed sale." : "The car is fixed while this sale is reserved."}</p>}
+                </aside>
+              )}
             <div className={`invoice-question-sheet${showSummary ? " invoice-resume-sheet" : ""}`}>
               <p className="invoice-builder-kicker">
                 {showSummary && record ? "Saved sale" : issued ? "Invoice saved" : `Step ${step + 1} of 5`}
@@ -1532,6 +1566,7 @@ export function SalesWorkspace({
                   ))}
                 </details>
               ) : null}
+            </div>
             </div>
           </main>
           {!issued && !showSummary && (
