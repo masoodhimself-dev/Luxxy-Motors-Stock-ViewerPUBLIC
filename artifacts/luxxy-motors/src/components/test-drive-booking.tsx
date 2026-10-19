@@ -878,7 +878,7 @@ export function TestDriveBooking({
                     <div className="booking-time-recovery mt-4 flex flex-wrap items-center gap-3" aria-label="Help arranging a test drive">
                       {!availability.isError && nextBookingDate && <Button type="button" variant="outline" className="min-h-11" aria-label={`Check times on ${bookingDateLabel(nextBookingDate)}`} onClick={() => setSelectedDate(nextBookingDate)}>Check next date<ArrowRight size={16} aria-hidden="true" /></Button>}
                       <Link href={timeHelpHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Ask us about a time</Link>
-                      {getPhoneHref(settings) && <a href={getPhoneHref(settings)} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><Phone size={16} aria-hidden="true" />Call us</a>}
+                      {getPhoneHref(settings) && <a href={getPhoneHref(settings)} className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><Phone size={16} aria-hidden="true" />Call Us</a>}
                       {currentCar && getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings) && <a href={getVehicleWhatsAppHref(currentCar, 'arrange a test drive', settings)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-sm underline underline-offset-4"><MessageCircle size={16} aria-hidden="true" />WhatsApp</a>}
                     </div>
                   ) : <Link href={timeHelpHref} className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4">Can’t find a suitable time?</Link>}

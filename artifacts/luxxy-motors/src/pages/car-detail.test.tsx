@@ -246,7 +246,7 @@ it('opens a car-specific enquiry page and keeps print/share outside collapsed ph
   window.history.replaceState({}, '', '/vehicle/with-plate');
   const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
   render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
-  const enquiry = await screen.findByRole('link', {name:'Enquire about this car'});
+  const enquiry = await screen.findByRole('link', {name:'Enquire About This Car'});
   expect(enquiry).toHaveAttribute('href','/enquire?type=general&vehicleId=with-plate');
   expect(screen.getByRole('button',{name:'Share this vehicle'}).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();
   expect(screen.queryByText(/Check this car’s registration before driving/)).not.toBeInTheDocument();
@@ -276,7 +276,7 @@ describe('vehicle gallery contact policy', () => {
     featureState.data.features.publicEnquiries = true;
     renderVehicle('with-plate', settings());
     selectTenthPhoto();
-    expect(prompt().getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
+    expect(prompt().getByRole('link', { name: 'Book a Test Drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
     expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate');
     expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toHaveAttribute('href', 'tel:07388831790');
   });
@@ -287,7 +287,7 @@ describe('vehicle gallery contact policy', () => {
     Object.assign(stockFixture.cars[1], { inventoryStatus: 'reserved' });
     renderVehicle('with-plate', settings());
     selectTenthPhoto();
-    expect(prompt().queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
+    expect(prompt().queryByRole('link', { name: 'Book a Test Drive' })).not.toBeInTheDocument();
     expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate');
     expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toBeInTheDocument();
   });
@@ -303,7 +303,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings());
     selectTenthPhoto();
     expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toHaveAttribute('href', 'tel:07388831790');
-    expect(prompt().queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
+    expect(prompt().queryByRole('link', { name: 'Book a Test Drive' })).not.toBeInTheDocument();
     expect(prompt().queryByRole('link', { name: 'Ask a question' })).not.toBeInTheDocument();
   });
 
@@ -312,7 +312,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings('07388831790', false));
     selectTenthPhoto();
     expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toBeInTheDocument();
-    expect(prompt().queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
+    expect(prompt().queryByRole('link', { name: 'Book a Test Drive' })).not.toBeInTheDocument();
     expect(prompt().queryByRole('link', { name: 'Ask a question' })).not.toBeInTheDocument();
   });
 });

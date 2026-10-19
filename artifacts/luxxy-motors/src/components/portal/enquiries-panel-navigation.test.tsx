@@ -131,7 +131,7 @@ it('starts a calendar appointment with the selected day and booking intent witho
   mount('section=notifications&workView=test-drives&deskView=calendar');
   fireEvent.click(await screen.findByRole('button', { name: 'Add calendar appointment' }));
   expect(screen.getByRole('heading', { name: 'New appointment' })).toBeVisible();
-  expect(screen.getByRole('radio', { name: 'Book a test drive' })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'Book a Test Drive' })).toBeChecked();
   expect(screen.getByRole('status')).toHaveTextContent('New appointment for Monday 2 November');
   expect(state.create).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Back to calendar' }));
@@ -167,7 +167,7 @@ it('starts rescheduling on the existing UK day while requiring a new time', asyn
 it('pauses new test-drive intent while keeping phone enquiry fields usable', async () => {
   featureState.allowed = false;
   mount('section=notifications&workView=customers&deskView=new');
-  expect(await screen.findByRole('radio', { name: 'Book a test drive' })).toBeDisabled();
+  expect(await screen.findByRole('radio', { name: 'Book a Test Drive' })).toBeDisabled();
   expect(screen.getByRole('radio', { name: 'Log call / enquiry only' })).toBeEnabled();
   expect(screen.getByRole('combobox', { name: 'Customer name' })).toBeEnabled();
   expect(screen.getByText(/New test drives and rescheduling are paused by the platform/)).toBeVisible();

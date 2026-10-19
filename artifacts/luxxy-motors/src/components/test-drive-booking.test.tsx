@@ -177,7 +177,7 @@ it('offers the next permitted date and direct contact when a day has no slots', 
   state.empty = true;
   render(booking());
   expect(screen.getByTestId('button-continue-to-details')).toBeDisabled();
-  expect(screen.getByRole('link', { name: 'Call us' })).toHaveAttribute('href', 'tel:07700900123');
+  expect(screen.getByRole('link', { name: 'Call Us' })).toHaveAttribute('href', 'tel:07700900123');
   expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', expect.stringContaining('wa.me/447700900123'));
   fireEvent.click(screen.getByRole('button', { name: 'Check times on Saturday 17 October' }));
   expect(screen.getByTestId('button-viewing-date-2026-10-17')).toHaveAttribute('aria-pressed', 'true');

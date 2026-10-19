@@ -17,7 +17,7 @@ import { navigateToHomeTarget } from '@/lib/home-navigation';
 
 const enquiryTypes: EnquiryType[] = ['viewing', 'general', 'delivery', 'warranty', 'part_exchange'];
 const headings: Record<EnquiryType, { eyebrow: string; title: string; description: string }> = {
-  viewing: { eyebrow: 'Visit us', title: 'Book a test drive', description: 'Choose a date and time to see the car and ask us any questions.' },
+  viewing: { eyebrow: 'Visit us', title: 'Book a Test Drive', description: 'Choose a date and time to see the car and ask us any questions.' },
   general: { eyebrow: 'Talk to us', title: 'How can we help?', description: 'Tell us what you’d like to know, and we’ll help with your next step.' },
   delivery: { eyebrow: 'Nationwide delivery', title: 'Arrange delivery', description: 'Tell us your location and the car you are interested in. We’ll confirm delivery options and costs.' },
   warranty: { eyebrow: 'Added peace of mind', title: 'Warranty enquiries', description: 'Ask us about warranty options for the car you have in mind.' },
@@ -25,7 +25,7 @@ const headings: Record<EnquiryType, { eyebrow: string; title: string; descriptio
 };
 
 const metaHeadings: Record<EnquiryType, string> = {
-  viewing: 'Book a test drive',
+  viewing: 'Book a Test Drive',
   general: 'Contact us',
   delivery: 'Ask about delivery',
   warranty: 'Ask about warranty',
@@ -199,7 +199,7 @@ export default function Enquire() {
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
-              Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call us</a>.
+              Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call Us</a>.
             </p>}
 
 

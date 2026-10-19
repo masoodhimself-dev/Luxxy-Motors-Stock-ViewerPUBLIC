@@ -244,7 +244,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           {customerActions?.bookingHref && <Link href={customerActions.bookingHref} className="vehicle-gallery-interest-action vehicle-gallery-interest-primary" onClick={() => {
             recordBookingIntent({ source: 'vehicle_gallery', vehicleContext: true });
             contactFromPrompt();
-          }}><Calendar aria-hidden="true" />Book a test drive<ArrowRight aria-hidden="true" /></Link>}
+          }}><Calendar aria-hidden="true" />Book a Test Drive<ArrowRight aria-hidden="true" /></Link>}
           <div className="vehicle-gallery-interest-secondary">
             {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={contactFromPrompt}><Mail aria-hidden="true" />Ask a question</Link>}
             {customerActions?.call}
@@ -485,7 +485,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         </div>
         </>}
         {car && !interestOpen && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
-          <VehicleCall car={car} buttonLabel="Call us" className="vehicle-lightbox-contact-button" />
+          <VehicleCall car={car} buttonLabel="Call Us" className="vehicle-lightbox-contact-button" />
           <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={() => { messageRequested.current = true; swiped.current = false; setOverview(false); setOpen(false); }}>
             <Mail className="h-5 w-5" /> Message
           </Link>

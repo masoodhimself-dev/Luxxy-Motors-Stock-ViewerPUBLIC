@@ -31,7 +31,7 @@ export function useDealerSettings() {
       partExchange: saved.partExchange ? { ...saved.partExchange, enabled: !!saved.partExchange.enabled && features.enabled('partExchange') } : undefined,
     };
     const wording = (text: string) => text.replace(/book a viewing/gi, 'Book a test drive').replace(/arrange a viewing/gi, 'book a test drive');
-    return {...source, bookViewing: {...source.bookViewing, title: wording(source.bookViewing.title), description: wording(source.bookViewing.description), ctaLabel: wording(source.bookViewing.ctaLabel)}, hero: {...source.hero, subcopy: wording(source.hero.subcopy)}};
+    return {...source, bookViewing: {...source.bookViewing, title: wording(source.bookViewing.title), description: wording(source.bookViewing.description), ctaLabel: /^(book|arrange) a (test drive|viewing)$/i.test(source.bookViewing.ctaLabel.trim()) ? 'Book a Test Drive' : wording(source.bookViewing.ctaLabel)}, hero: {...source.hero, subcopy: wording(source.hero.subcopy)}};
   }, [query.data, features.data, features.isError]);
   return {
     settings,

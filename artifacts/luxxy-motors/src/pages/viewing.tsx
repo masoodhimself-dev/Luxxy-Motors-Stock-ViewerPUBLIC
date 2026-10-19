@@ -111,7 +111,7 @@ export default function Viewing() {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {unavailable && <Button onClick={() => void query.refetch()} disabled={query.isFetching} className="min-h-12">Try again</Button>}
           <Button asChild variant={unavailable ? 'outline' : 'default'} className="min-h-12"><Link href="/contact">Contact us</Link></Button>
-          {phoneHref && <Button asChild variant="outline" className="min-h-12"><a href={phoneHref}><Phone className="mr-2 h-4 w-4" /> Call us</a></Button>}
+          {phoneHref && <Button asChild variant="outline" className="min-h-12"><a href={phoneHref}><Phone className="mr-2 h-4 w-4" /> Call Us</a></Button>}
         </div>
       </div>,
     );
@@ -154,7 +154,7 @@ export default function Viewing() {
 
     {isCancelled ? <div className="border-t border-border bg-secondary/40 p-6 sm:p-10">
       <p ref={resultRef} tabIndex={-1} role="status" className="flex items-start gap-3 text-sm font-medium outline-none" data-testid="status-viewing-cancelled"><XCircle className="h-5 w-5 shrink-0 text-muted-foreground" /> This test drive will not go ahead.</p>
-      <div className="mt-5 flex flex-wrap items-center gap-4"><Button asChild className="min-h-12"><Link href="/stock">Browse stock</Link></Button>{phoneHref && <a className="inline-flex min-h-11 items-center text-sm underline underline-offset-4" href={phoneHref}>Call us</a>}{whatsAppHref && <a className="inline-flex min-h-11 items-center text-sm underline underline-offset-4" href={whatsAppHref}>WhatsApp</a>}</div>
+      <div className="mt-5 flex flex-wrap items-center gap-4"><Button asChild className="min-h-12"><Link href="/stock">Browse stock</Link></Button>{phoneHref && <a className="inline-flex min-h-11 items-center text-sm underline underline-offset-4" href={phoneHref}>Call Us</a>}{whatsAppHref && <a className="inline-flex min-h-11 items-center text-sm underline underline-offset-4" href={whatsAppHref}>WhatsApp</a>}</div>
     </div> : mode === 'confirm-cancel' ? <div className="border-t border-border p-6 sm:p-10">
       <h2 ref={changeHeadingRef} tabIndex={-1} className="text-xl font-semibold outline-none">Cancel your {isPending ? 'request' : 'test drive'}?</h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">This will release your appointment time.</p>
@@ -188,6 +188,6 @@ export default function Viewing() {
       </div>
     </div> : reschedule.isSuccess ? <div className="border-t border-border p-6 sm:p-10"><p ref={resultRef} tabIndex={-1} role="status" className="flex items-start gap-3 text-sm leading-6 outline-none" data-testid="status-reschedule-success"><Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />{booking.status === 'pending' ? 'Your new time has been requested. Please wait for us to confirm it.' : 'Your test drive has been moved and your new time is confirmed.'}</p></div> : null}
 
-    {!isCancelled && mode === 'idle' && <div className="border-t border-border p-6 sm:p-10"><h2 className="text-sm font-semibold">Before your visit</h2>{bookingSettings.instructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{bookingSettings.instructions}</p>}{dealerConfig.presentation?.parkingInstructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{dealerConfig.presentation.parkingInstructions}</p>}{location.directions && <a href={location.directions} target="_blank" rel="noopener noreferrer" className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Get directions</a>}{phoneHref && <a href={phoneHref} className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call us</a>}<Link href="/contact" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Directions & opening hours</Link></div>}
+    {!isCancelled && mode === 'idle' && <div className="border-t border-border p-6 sm:p-10"><h2 className="text-sm font-semibold">Before your visit</h2>{bookingSettings.instructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{bookingSettings.instructions}</p>}{dealerConfig.presentation?.parkingInstructions && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{dealerConfig.presentation.parkingInstructions}</p>}{location.directions && <a href={location.directions} target="_blank" rel="noopener noreferrer" className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Get directions</a>}{phoneHref && <a href={phoneHref} className="mt-3 mr-5 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call Us</a>}<Link href="/contact" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Directions & opening hours</Link></div>}
   </>);
 }

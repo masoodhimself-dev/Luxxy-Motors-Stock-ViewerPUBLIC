@@ -131,7 +131,7 @@ export const dealerConfig: DealerConfig = {
   bookViewing: {
     title: "Seen something you like?",
     description: "Book a test drive at a time that suits you.",
-    ctaLabel: "Book a test drive",
+    ctaLabel: "Book a Test Drive",
   },
   recentHandovers: {
     enabled: false,

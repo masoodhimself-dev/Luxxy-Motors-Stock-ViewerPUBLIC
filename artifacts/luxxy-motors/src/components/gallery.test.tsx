@@ -153,7 +153,7 @@ const promptPhotos = Array.from({ length: 12 }, (_, i) => `https://example.com/g
 const promptActions = {
   bookingHref: '/enquire?type=viewing&vehicleId=gallery-car',
   enquiryHref: '/enquire?type=general&vehicleId=gallery-car',
-  call: <a href="tel:07388831790">Call us</a>,
+  call: <a href="tel:07388831790">Call Us</a>,
 };
 
 it('offers vehicle-specific contact options on the tenth photo and lets customers keep browsing without another interruption', async () => {
@@ -165,9 +165,9 @@ it('offers vehicle-specific contact options on the tenth photo and lets customer
   }
   fireEvent.click(screen.getByRole('button', { name: 'Next photograph' }));
   expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Book a test drive' })).toHaveAttribute('href', promptActions.bookingHref);
+  expect(screen.getByRole('link', { name: 'Book a Test Drive' })).toHaveAttribute('href', promptActions.bookingHref);
   expect(screen.getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', promptActions.enquiryHref);
-  expect(screen.getByRole('link', { name: 'Call us' })).toHaveAttribute('href', 'tel:07388831790');
+  expect(screen.getByRole('link', { name: 'Call Us' })).toHaveAttribute('href', 'tel:07388831790');
   fireEvent.click(screen.getByRole('button', { name: 'Keep browsing' }));
   expect(screen.queryByRole('heading', { name: 'Like what you see?' })).not.toBeInTheDocument();
   expect(screen.getByText('10 / 12 photographs')).toBeInTheDocument();
@@ -183,8 +183,8 @@ it('shows the prompt when a customer selects a later thumbnail directly', () => 
   fireEvent.click(screen.getByRole('button', { name: 'Show photograph 10 of 12' }));
   expect(screen.getByRole('heading', { name: 'Like what you see?' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Ask a question' })).toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Book a test drive' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Book a Test Drive' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Call Us' })).not.toBeInTheDocument();
 });
 
 it('shows one prompt in fullscreen and dismisses it before Escape closes the gallery', async () => {

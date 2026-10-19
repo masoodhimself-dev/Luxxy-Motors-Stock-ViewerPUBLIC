@@ -62,7 +62,7 @@ describe('Card', () => {
     render(
       <Card data-testid="card">
         <CardHeader>
-          <CardTitle>Book a test drive</CardTitle>
+          <CardTitle>Book a Test Drive</CardTitle>
         </CardHeader>
         <CardContent>Wednesday, 4pm</CardContent>
       </Card>,

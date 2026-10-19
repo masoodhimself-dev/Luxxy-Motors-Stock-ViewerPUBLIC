@@ -64,7 +64,7 @@ export function VehicleWhatsApp({
         className={walkaround ? 'text-link mt-2 min-h-11 text-sm' : `vehicle-contact-action vehicle-contact-action-whatsapp ${compact ? 'h-12 w-12 shrink-0 p-0' : ''}`}
       >
         <SiWhatsapp aria-hidden="true" className="h-4 w-4" />
-        {!compact && (walkaround ? 'Request a walkaround video' : 'WhatsApp us')}
+        {!compact && (walkaround ? 'Request a walkaround video' : 'WhatsApp Us')}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
@@ -80,7 +80,7 @@ export function VehicleWhatsApp({
           }}
         >
           <div className="vehicle-action-heading">
-            <p className="vehicle-action-eyebrow"><SiWhatsapp aria-hidden="true" />WhatsApp us</p>
+            <p className="vehicle-action-eyebrow"><SiWhatsapp aria-hidden="true" />WhatsApp Us</p>
             <DialogTitle ref={dialogTitle} tabIndex={-1}>Review your WhatsApp message</DialogTitle>
             <DialogDescription>Check or edit your message. WhatsApp opens next; you choose when to send it.</DialogDescription>
           </div>

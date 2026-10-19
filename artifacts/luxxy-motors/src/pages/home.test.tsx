@@ -116,7 +116,7 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
     contact: { phone: '01234567890' },
     address: { city: 'Test City', region: 'Test Region' },
     hero: { copy: 'Find your next car', subcopy: 'Subcopy', announcement: 'Test Announcement', primaryCta: 'See stock', secondaryCta: 'Part exchange' },
-    bookViewing: { title: 'Book a test drive', ctaLabel: 'Book now', description: 'Book a test drive' },
+    bookViewing: { title: 'Book a Test Drive', ctaLabel: 'Book now', description: 'Book a Test Drive' },
     trustItems: ['Trust point 1'],
     whyBuy: [{ title: 'How we work', description: 'A clear buying process.' }],
     featuredVehicleIds: [] as string[],

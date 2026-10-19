@@ -31,7 +31,7 @@ const SIZES = Object.keys(SIZE_COVERAGE) as ButtonSize[];
 
 describe('Button', () => {
   it.each(SIZES)('renders the %s size with restrained corners and flat surfaces', (size) => {
-    render(<Button size={size}>Book a test drive</Button>);
+    render(<Button size={size}>Book a Test Drive</Button>);
 
     // The shared utility stays restrained; the approved adapter sets its 6px radius.
     expectRefinedGeometry(screen.getByRole('button').className, `Button ${size}`);
@@ -46,7 +46,7 @@ describe('Button', () => {
   });
 
   it('still lets a surface opt into a soft edge on purpose', () => {
-    render(<Button className="rounded-lg shadow-md">Book a test drive</Button>);
+    render(<Button className="rounded-lg shadow-md">Book a Test Drive</Button>);
 
     const { className } = screen.getByRole('button');
 

@@ -233,7 +233,7 @@ export default function CarDetail() {
   ) : null;
   const enquiryAction = (
     <a key="enquiry" className="vehicle-enquiry-action" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
-      <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Enquire about this car
+      <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Enquire About This Car
     </a>
   );
 

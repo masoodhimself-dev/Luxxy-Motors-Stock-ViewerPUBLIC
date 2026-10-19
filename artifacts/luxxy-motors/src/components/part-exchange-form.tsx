@@ -130,7 +130,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
       <p className="text-sm leading-6 text-muted-foreground">We’ve received your part-exchange details. Your name, phone number and car registration will help us match your photos to your enquiry.</p>
       {photoHref ? <Button asChild><a href={photoHref} target="_blank" rel="noopener noreferrer" data-testid="link-part-exchange-photos">Send photos through WhatsApp<ArrowRight className="h-4 w-4" aria-hidden="true" /></a></Button> : <p>WhatsApp is unavailable. Please call us to arrange how to share your photos.</p>}
       <p className="text-sm leading-6 text-muted-foreground">Send the prefilled message, then use WhatsApp’s attachment button to add the front, rear, both sides, interior, mileage and any damage. Photos are not attached automatically.</p>
-      {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call us</a>}
+      {phoneHref && <a href={phoneHref} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Call Us</a>}
     </div>;
   }
 

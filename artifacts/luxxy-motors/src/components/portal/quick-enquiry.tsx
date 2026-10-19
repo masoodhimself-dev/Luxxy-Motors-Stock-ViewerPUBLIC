@@ -146,7 +146,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
       return;
     }
     if (booking) {
-      if (!bookingEnabled) { setError("Test-drive bookings are unavailable. Turn off Book a test drive to save an enquiry only."); return; }
+      if (!bookingEnabled) { setError("Test-drive bookings are unavailable. Turn off Book a Test Drive to save an enquiry only."); return; }
       if (!carAvailable) { setError("Choose an available stock car for the test drive."); return; }
       if (!slotValid || !appointmentTime || !validStaffAppointmentDateTime(new Date(appointmentTime))) { setError("Choose an available future test-drive time."); return; }
     }
@@ -266,8 +266,8 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
                 <QuickEnquiryCars cars={stock?.cars ?? []} value={form.vehicleId} disabled={pending} loading={stockLoading} failed={Boolean(stockError)} onChange={id => { update("vehicleId", id); setAppointmentTime(""); setSlotValid(false); setError(""); }} />
                 <section className="quick-enquiry-booking" aria-label="Optional test-drive booking">
                   <label className="quick-booking-toggle">
-                    <input type="checkbox" aria-label="Book a test drive" checked={booking} disabled={pending || (!booking && !bookingEnabled)} onChange={event => { setBooking(event.target.checked); setAppointmentTime(""); setSlotValid(false); setError(""); }} />
-                    <span><strong>Book a test drive</strong><small>Add the appointment to this enquiry.</small></span>
+                    <input type="checkbox" aria-label="Book a Test Drive" checked={booking} disabled={pending || (!booking && !bookingEnabled)} onChange={event => { setBooking(event.target.checked); setAppointmentTime(""); setSlotValid(false); setError(""); }} />
+                    <span><strong>Book a Test Drive</strong><small>Add the appointment to this enquiry.</small></span>
                     <CalendarDays size={20} aria-hidden="true" />
                   </label>
                   {!bookingEnabled && <div className="quick-booking-unavailable"><p>{features.isLoading || settingsLoading ? "Checking test-drive availability…" : features.isError || settingsError ? "Booking availability could not load. You can still save an enquiry." : !features.enabled("testDriveBookings") ? "Test-drive bookings are paused by the platform. You can still save an enquiry." : "Test-drive bookings are switched off in Settings. You can still save an enquiry."}</p>{(features.isError || settingsError) && <Button type="button" variant="outline" size="sm" onClick={() => { void features.refetch(); void cache.invalidateQueries({ queryKey: getGetDealerSettingsQueryKey() }); }}>Retry booking availability</Button>}</div>}

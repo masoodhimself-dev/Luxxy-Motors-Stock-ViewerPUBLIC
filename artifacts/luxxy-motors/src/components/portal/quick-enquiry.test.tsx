@@ -467,7 +467,7 @@ it("allows a general enquiry when stock is unavailable and keeps closed dialogs 
 });
 
 function turnOnTestDrive() {
-  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a Test Drive/ }));
 }
 async function chooseTestDrive() {
   turnOnTestDrive();
@@ -480,7 +480,7 @@ it("books one test drive atomically through normal staff creation without the qu
   fill();
   fireEvent.change(screen.getByRole("combobox", { name: "Email (optional)" }), { target: { value: " alex@example.test " } });
   fireEvent.change(screen.getByRole("textbox", { name: "Notes (optional)" }), { target: { value: "  Would like a test drive.  " } });
-  expect(screen.getByRole("checkbox", { name: /^Book a test drive/ })).not.toBeChecked();
+  expect(screen.getByRole("checkbox", { name: /^Book a Test Drive/ })).not.toBeChecked();
   await chooseTestDrive();
   expect(screen.getAllByText(/UK time/).length).toBeGreaterThan(0);
   fireEvent.click(bookingButton());
@@ -516,7 +516,7 @@ it.each([
   Object.assign(state, patch);
   mount();
   fill();
-  expect(screen.getByRole("checkbox", { name: /^Book a test drive/ })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: /^Book a Test Drive/ })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Save enquiry" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
   await waitFor(() => expect(state.create).toHaveBeenCalledTimes(1));
@@ -569,11 +569,11 @@ it("clears the chosen time when booking is turned off and saves a normal no-emai
   mount(true, "car-one");
   fill();
   await chooseTestDrive();
-  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a Test Drive/ }));
   expect(screen.queryByRole("button", { name: "15:00" })).not.toBeInTheDocument();
   turnOnTestDrive();
   expect(await screen.findByRole("button", { name: "15:00" })).toHaveAttribute("aria-pressed", "false");
-  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a Test Drive/ }));
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
   await waitFor(() => expect(state.create).toHaveBeenCalledTimes(1));
   expect(state.createBooking).not.toHaveBeenCalled();
@@ -654,7 +654,7 @@ it("blocks a previously chosen booking if the feature check later fails while ge
   fireEvent.submit(bookingButton().closest("form")!);
   expect(state.createBooking).not.toHaveBeenCalled();
   expect(state.create).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a test drive/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /^Book a Test Drive/ }));
   fireEvent.click(screen.getByRole("button", { name: "Save enquiry" }));
   await waitFor(() => expect(state.create).toHaveBeenCalledTimes(1));
 });

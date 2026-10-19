@@ -117,7 +117,7 @@ export function VehicleCall({
         data-vehicle-contact="call"
       >
         <Phone className="h-4 w-4" aria-hidden="true" />
-        {!compact && (buttonLabel || 'Call us')}
+        {!compact && (buttonLabel || 'Call Us')}
       </a>
       <Dialog open={open} onOpenChange={next => { if (!callback.isPending) setOpen(next); }}>
         <DialogContent

@@ -331,7 +331,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}
                   className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-primary hover:bg-secondary"
                 >
-                  <span className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call us</span>
+                  <span className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call Us</span>
                 </a>
               )}
               {dealerConfig.contact.whatsapp && (

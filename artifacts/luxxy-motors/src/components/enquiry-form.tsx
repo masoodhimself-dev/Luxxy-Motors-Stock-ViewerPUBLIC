@@ -26,7 +26,7 @@ import { getVisitorId } from '@/lib/visitor';
 import { trackEvent } from '@/lib/analytics';
 
 const typeLabels: Record<EnquiryType, string> = {
-  viewing: 'Book a test drive',
+  viewing: 'Book a Test Drive',
   general: 'General enquiry',
   delivery: 'Delivery enquiry',
   warranty: 'Warranty enquiry',
@@ -255,7 +255,7 @@ export function EnquiryForm({
               {(!embedded || preferredContact === 'email') && email.trim() && mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
                 <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-accent">
                   {phoneHref && <a href={phoneHref} className="underline underline-offset-4" data-testid="link-fallback-call">Call {dealerConfig.contact.phone}</a>}
-                  {whatsAppHref && <a href={whatsAppHref} className="underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp us</a>}
+                  {whatsAppHref && <a href={whatsAppHref} className="underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp Us</a>}
                 </div>
               )}
             </div>

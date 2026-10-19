@@ -78,7 +78,7 @@ export default function Warranty() {
               <p id="warranty-vehicle-help" className="mt-3 text-xs leading-6 text-muted-foreground" role={stockLoading ? 'status' : stockError || unavailableVehicle ? 'alert' : undefined}>
                 {stockLoading ? 'Loading current stock. You can still send a general enquiry.' : stockError ? 'We couldn’t load the vehicle list. You can still ask a general warranty question.' : unavailableVehicle ? 'That car is no longer listed. Tell us which vehicle you mean in your enquiry.' : 'We’ll confirm the cover, cost and terms for your car.'}
               </p>
-              <Button asChild className="mt-5 w-full"><Link href={getEnquiryHref('warranty', vehicle)} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire about this car' : 'Send a warranty enquiry'}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
+              <Button asChild className="mt-5 w-full"><Link href={getEnquiryHref('warranty', vehicle)} data-testid="warranty-enquiry-link">{vehicle ? 'Enquire About This Car' : 'Send a warranty enquiry'}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link></Button>
               <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
                 {phoneHref && <a href={phoneHref} className="text-link inline-flex min-h-11 items-center gap-2"><Phone className="h-4 w-4" aria-hidden="true" />{formatPhoneDisplay(settings.contact.phone!)}</a>}
                 {whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" data-testid="warranty-whatsapp" className="text-link inline-flex min-h-11 items-center gap-2"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a>}

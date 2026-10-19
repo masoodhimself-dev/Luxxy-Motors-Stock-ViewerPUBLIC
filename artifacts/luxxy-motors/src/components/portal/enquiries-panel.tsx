@@ -580,7 +580,7 @@ function NewCall({
               onChange={() => setBooking(true)}
               className="h-5 w-5 accent-primary"
             />
-            Book a test drive
+            Book a Test Drive
           </label>
           {vehicleMode !== "stock" && (
             <p className="text-xs text-muted-foreground">

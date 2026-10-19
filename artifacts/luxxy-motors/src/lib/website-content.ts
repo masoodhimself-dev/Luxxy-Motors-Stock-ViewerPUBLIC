@@ -191,7 +191,7 @@ export const websiteFields = [
     "key": "viewingTitle",
     "label": "Viewing title",
     "group": "Enquiry pages",
-    "defaultValue": "Book a test drive"
+    "defaultValue": "Book a Test Drive"
   },
   {
     "key": "viewingDescription",

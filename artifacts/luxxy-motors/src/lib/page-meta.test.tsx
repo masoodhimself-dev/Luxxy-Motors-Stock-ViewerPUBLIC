@@ -69,9 +69,9 @@ describe('showroomPageMeta and enquiryPageMeta', () => {
   });
 
   it('names the vehicle being enquired about', () => {
-    const meta = enquiryPageMeta(dealer, { heading: 'Book a test drive', vehicleName: 'Ford Fiesta' });
+    const meta = enquiryPageMeta(dealer, { heading: 'Book a Test Drive', vehicleName: 'Ford Fiesta' });
 
-    expect(meta.title).toBe('Book a test drive: Ford Fiesta | Luxxy Motors');
+    expect(meta.title).toBe('Book a Test Drive: Ford Fiesta | Luxxy Motors');
     expect(meta.description).toContain('Ford Fiesta');
   });
 });
