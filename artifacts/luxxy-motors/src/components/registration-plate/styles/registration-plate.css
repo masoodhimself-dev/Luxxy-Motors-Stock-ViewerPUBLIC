@@ -1,0 +1,124 @@
+/* Only the plate uses this font. Host typography and theme tokens are untouched. */
+@font-face {
+  font-family: 'Forecourt Plate UK';
+  src: url('../fonts/forecourt-plate-uk.woff') format('woff'),
+       url('../fonts/forecourt-plate-uk.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.ukrp-plate {
+  --ukrp-width: 218px;
+  --ukrp-ratio: 4.95;
+  --ukrp-text-size: 18cqw;
+  display: inline-grid;
+  grid-template-columns: 12% minmax(0, 1fr);
+  inline-size: var(--ukrp-width);
+  max-inline-size: 100%;
+  aspect-ratio: var(--ukrp-ratio);
+  box-sizing: border-box;
+  container-type: inline-size;
+  overflow: hidden;
+  border: 1px solid #363636;
+  border-radius: 3px;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 1px 1px #17243614;
+  vertical-align: middle;
+  isolation: isolate;
+  flex: none;
+  direction: ltr;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.ukrp-plate--rear { background: #F8D83B; }
+.ukrp-plate--small { --ukrp-width: 158px; }
+.ukrp-plate--large { --ukrp-width: 354px; border-radius: 4px; }
+.ukrp-country {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.3cqw;
+  align-self: stretch;
+  background: #063B8B;
+  color: #fff;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ukrp-country > svg {
+  display: block;
+  width: 78%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  flex: none;
+}
+.ukrp-country > span {
+  color: #fff;
+  font-family: inherit;
+  font-size: 5.15cqw;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.ukrp-lettering {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  /* Room for a full monospace fallback during swap; loaded artwork stays centred. */
+  padding-inline: .5%;
+  font-size: calc(var(--ukrp-text-size) * var(--ukrp-fit, 1));
+  line-height: 1;
+}
+.ukrp-text {
+  color: #000;
+  display: block;
+  white-space: pre;
+  letter-spacing: 0;
+  word-spacing: 0;
+  font-family: 'Forecourt Plate UK', 'Courier New', Courier, monospace;
+  font-style: normal;
+  font-weight: 400;
+  font-synthesis: none;
+  font-kerning: none;
+  font-feature-settings: 'kern' 0, 'liga' 0;
+  line-height: 1;
+  text-rendering: geometricPrecision;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.ukrp-plate[data-flag='false'] {
+  --ukrp-width: 190px;
+  --ukrp-ratio: 4.3;
+  --ukrp-text-size: 20.6cqw;
+  grid-template-columns: minmax(0, 1fr);
+}
+.ukrp-plate--small[data-flag='false'] { --ukrp-width: 138px; }
+.ukrp-plate--large[data-flag='false'] { --ukrp-width: 308px; }
+.ukrp-missing {
+  display: inline-block;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+@media print {
+  .ukrp-plate {
+    box-shadow: none;
+    break-inside: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .ukrp-text { color: #000; }
+  .ukrp-country {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+@media (forced-colors: active) {
+  /* Preserve the intrinsically high-contrast plate face and national flag. */
+  .ukrp-plate, .ukrp-country, .ukrp-text { forced-color-adjust: none; }
+}

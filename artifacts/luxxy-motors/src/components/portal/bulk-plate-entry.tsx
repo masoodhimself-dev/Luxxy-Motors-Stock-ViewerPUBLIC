@@ -1,3 +1,5 @@
+import { UnionFlag } from '@/components/registration-plate/src/UnionFlag';
+import '../registration-plate/styles/registration-plate.css';
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, getGetStockQueryKey } from "@workspace/api-client-react";
@@ -387,7 +389,7 @@ export function BulkPlateEntry({
                   <div className="plate-entry-input-panel">
                     <label className="plate-entry-label">
                       Number plate
-                      <Input
+                      <span className="ukrp-plate ukrp-plate--large ukrp-plate--rear registration-plate-bulk"><span className="ukrp-country" aria-hidden="true"><UnionFlag /><span>UK</span></span><Input
                         className="uk-number-plate-input"
                         ref={input}
                         aria-label="Number plate from photo"
@@ -404,7 +406,7 @@ export function BulkPlateEntry({
                           setDraft(event.target.value.toUpperCase());
                           setError("");
                         }}
-                      />
+                      /></span>
                     </label>
                     <p className="plate-entry-hint">
                       Read it from the photo. If it is covered or unclear, skip

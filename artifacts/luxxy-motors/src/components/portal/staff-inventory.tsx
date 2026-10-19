@@ -676,15 +676,8 @@ export function StaffInventory({
                   <div className="inventory-vehicle-controls">
                     <label>
                       Number plate
-                      <Input
-                        aria-label="Number plate"
-                        value={plateDraft ?? car.plate ?? car.vrm ?? ""}
-                        maxLength={12}
-                        onChange={(e) =>
-                          setPlateDraft(e.target.value.toUpperCase())
-                        }
-                        placeholder="Enter plate from photo"
-                      />
+                      <UKNumberPlate editable required={false} variant="front" inputLabel="Number plate"
+                        value={plateDraft ?? car.plate ?? car.vrm ?? ""} onChange={setPlateDraft} />
                     </label>
                     <Button
                       disabled={

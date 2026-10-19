@@ -1,3 +1,4 @@
+import { UKNumberPlate } from '@/components/uk-number-plate';
 import { HoverHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
@@ -248,7 +249,7 @@ export function CarCard({
                 {shortTrim(car)}
               </p>
             )}
-            {registration && <p className="mt-1 text-xs text-muted-foreground">{summaryOnly ? customerRegistrationDetails(car) : registration}</p>}
+            {registration && <p className="mt-1 text-xs text-muted-foreground">{summaryOnly ? customerRegistrationDetails(car) : <UKNumberPlate value={registration} size="sm" variant="front" showFlag={false} />}</p>}
           </div>
         </div>
         <div className="vehicle-card-price mt-2 flex flex-wrap items-baseline gap-2">

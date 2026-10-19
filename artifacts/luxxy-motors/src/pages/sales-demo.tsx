@@ -1,3 +1,4 @@
+import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
 import { useEffect, useRef, useState } from "react";
@@ -565,13 +566,14 @@ export function SalesWorkspace({
     return (
       <label>
         {label}
-        <Input
+        {key === "registration" ? <UKNumberPlate editable required={false} variant="front" value={draft?.registration ?? ""}
+          inputLabel={label} onChange={value => update("registration",value)} disabled={Boolean(record?.completedAt)} /> : <Input
           type={type}
           value={draft?.[key] ?? ""}
           onChange={(event) => update(key, event.target.value)}
           disabled={Boolean(record?.completedAt)}
           inputMode={key === "price" ? "decimal" : undefined}
-        />
+        />}
       </label>
     );
   }

@@ -141,7 +141,7 @@ function CompareColumn({ car, onRemove }: { car: Car; onRemove: () => void }) {
 
         {registration && (
           <div className="mt-4">
-            <UKNumberPlate size="sm" value={registration} className="w-[104px]" testId="compare-plate" />
+            <UKNumberPlate size="sm" showFlag={false} value={registration} testId="compare-plate" />
           </div>
         )}
 
