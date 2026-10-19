@@ -32,3 +32,11 @@ The new supplied solid concepts are car, mileage, insurance, test-drive booking,
 - Solid artwork has no outline stroke. Existing caller refs, classes, accessibility, colour and animation handling remain supported. Manual/automatic selection continues to depend on recorded vehicle data.
 
 Tests compare every supplied solid variant’s geometry to its source, verify local mask isolation and colour inheritance, and retain the checks for the rest of the family.
+
+## Vehicle equipment explanation panels
+
+`vehicleFeatureDetails()` in `src/lib/vehicle-help.ts` supplies the plain-language title, explanation and semantic equipment key. It preserves front/rear positions and named functions instead of inferring extra equipment. The older `vehicleFeatureHelp()` string API remains available. The catalogue covers the 98 supplied Mercedes equipment labels; unrecognised, optional or explicitly absent equipment stays plain text.
+
+`VehicleFeature` opens `VehicleFeaturePanel` on click or tap. It uses a focus-managed dialog, a bottom sheet below 640px, and a centred card on larger screens. Escape, outside click, Close and Got it dismiss it and restore the trigger’s focus. Existing specification tooltips are unchanged. The list keeps readable feature names and receives 44px touch targets.
+
+The panel reserves an 80px artwork area on phones and 96px on larger screens. `src/components/vehicle-feature-artwork.tsx` isolates the current interface-icon mapping from the forthcoming equipment illustrations. Replace that mapping with the approved local equipment SVG components when supplied; the panel makes no viewBox assumptions and can accept the requested 48-unit drawings. Until then, relevant existing icons or a neutral information symbol are used. There are no new illustration assets or live AI calls in this change. Artwork is decorative beside the named explanation and inherits the dealer’s existing panel palette.

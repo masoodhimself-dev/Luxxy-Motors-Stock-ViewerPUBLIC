@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { vehicleFeatureHelp, vehicleHelpText } from '@/lib/vehicle-help';
+import { vehicleHelpText } from '@/lib/vehicle-help';
+import { VehicleFeaturePanel } from './vehicle-feature-panel';
 import { cn } from '@/lib/utils';
 
 /** Explain an existing action without changing what clicking it does. */
@@ -87,6 +88,5 @@ export function VehicleTerm({ label, value, children, className, ariaLabel }: { 
 }
 
 export function VehicleFeature({ feature }: { feature: string }) {
-  const text = vehicleFeatureHelp(feature);
-  return text ? <TermHelp text={text}>{feature}</TermHelp> : <span>{feature}</span>;
+  return <VehicleFeaturePanel feature={feature} />;
 }
