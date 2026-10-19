@@ -1,3 +1,4 @@
+import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
 import { VehicleFactIcon } from '@/components/vehicle-fact-icon';
 import { VehicleTerm } from '@/components/customer-help';
@@ -240,7 +241,7 @@ export default function CarDetail() {
   const registrationDetails = registration && (
     <dl className="vehicle-registration">
       <dt>Registration</dt>
-      <dd data-testid={`plate-vehicle-${car.id}`}>{registration}</dd>
+      <dd><UKNumberPlate value={registration} variant="front" size="sm" testId={`plate-vehicle-${car.id}`} /></dd>
     </dl>
   );
   const vehicleIdentity = (

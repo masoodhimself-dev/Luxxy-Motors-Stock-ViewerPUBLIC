@@ -138,7 +138,7 @@
   padding: 8px 14px;
   background: #fff0a9;
   color: #17242d;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--app-registration-font, ui-monospace, SFMono-Regular, Consolas, monospace);
   font-size: 30px;
   font-weight: 700;
   letter-spacing: 0.08em;

@@ -1,3 +1,4 @@
+import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEffect, useId, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { customFetch, useGetStaffDirectory } from "@workspace/api-client-react";
@@ -1236,7 +1237,7 @@ export function StaffInventory({
                     <div className="inventory-row-identity">
                       <h3>{c.title}</h3>
                       <p className="inventory-row-registration">
-                        {carRegistration(c)}
+                        {hasNumberPlate(c) ? <UKNumberPlate value={carRegistration(c)} variant="front" size="sm" testId={`inventory-plate-${c.id}`} /> : carRegistration(c)}
                         {!hasNumberPlate(c) && (
                           <span className="inventory-plate-needed">
                             Plate needed
