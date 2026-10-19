@@ -155,9 +155,10 @@ const { stockFixture, dealerConfigFixture, recentHandoversState, scrollToHomeTar
 let stockIsLoading = false;
 let demoSiteMode = false;
 vi.mock('@/lib/demo-status',()=>({useDemoStatus:()=>demoSiteMode}));
+vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ enabled: () => true }) }));
 
 let overrideSettings: typeof dealerConfigFixture & {
-  presentation?: { heroImageUrl?: string; heroImageAlt?: string; showroomImageUrl?: string; showroomImageAlt?: string };
+  presentation?: { websiteCopy?: { stockIntroduction?: string }; heroImageUrl?: string; heroImageAlt?: string; showroomImageUrl?: string; showroomImageAlt?: string };
 } = dealerConfigFixture;
 
 vi.mock('@/lib/dealer-settings-context', () => ({
@@ -276,8 +277,8 @@ describe('showroom search filters', () => {
     expect(hero).not.toHaveTextContent('£');
     expect(within(hero).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy brand image'));
     const introduction = screen.getByRole('region', { name: 'Plan your visit' });
-    expect(within(introduction).getByRole('img')).toHaveAttribute('src', expect.stringContaining('luxxy-forecourt.jpg'));
-    expect(within(introduction).getByRole('img')).toHaveAttribute('alt', expect.stringContaining('Illustrative Luxxy Motors showroom'));
+    expect(within(introduction).queryByRole('img')).not.toBeInTheDocument();
+    expect(introduction).toHaveTextContent('Test City');
   });
 
   it('keeps other dealerships on their own photographed stock', () => {
@@ -312,7 +313,7 @@ describe('showroom search filters', () => {
     expect(hero).not.toHaveTextContent('£');
   });
 
-  it('keeps a configured introduction photo and dealer points instead of replacing them with defaults', () => {
+  it('keeps the dealer points and booking link while replacing the introduction photo with visit information', () => {
     overrideSettings = {
       ...dealerConfigFixture,
       presentation: {
@@ -323,8 +324,8 @@ describe('showroom search filters', () => {
     };
     renderHome(false);
     const introduction = screen.getByRole('region', { name: 'Plan your visit' });
-    expect(within(introduction).getByRole('img')).toHaveAttribute('src', 'https://example.com/team.jpg');
-    expect(within(introduction).getByRole('img')).toHaveAttribute('alt', 'Our team outside the dealership');
+    expect(within(introduction).queryByRole('img')).not.toBeInTheDocument();
+    expect(introduction).toHaveTextContent('Test City');
     expect(screen.getByRole('heading', { name: 'How we work' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Why choose us?' })).toBeInTheDocument();
     expect(within(introduction).getByRole('link', { name: dealerConfigFixture.bookViewing.ctaLabel })).toHaveAttribute('href', '/enquire?type=viewing');
@@ -387,7 +388,7 @@ describe('showroom search filters', () => {
   it('keeps the homepage carousel separate from stock filters', () => {
     renderHome(false);
     expect(screen.getByRole('heading', { name: /Find your next car/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Featured cars' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Explore our cars' })).toBeInTheDocument();
     expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse Stock' })).toHaveAttribute('href', '/stock');
     expect(screen.queryByRole('button', { name: 'Auto-scroll cars' })).not.toBeInTheDocument();
@@ -535,11 +536,14 @@ describe('showroom search filters', () => {
     ['Automatic', 'button-quick-automatic'],
     ['Under £5k', 'button-quick-under-5000'],
     ['Low miles', 'button-quick-low-mileage'],
-  ])('moves focus to results after activating the %s quick filter', async (_label, testId) => {
+  ])('keeps the panel open for the %s quick choice and moves to results only after Show cars', async (_label, testId) => {
     renderHome();
 
     fireEvent.click(screen.getByRole("button", {name:"Advanced search"}));
     fireEvent.click(screen.getByTestId(testId));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(scrollToHomeTarget).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Show \d+ cars?$/ }));
 
     await waitFor(() => {
       expect(scrollToHomeTarget).toHaveBeenCalledWith('vehicle-results');
@@ -591,6 +595,7 @@ describe('supplied vehicle benefit searches', () => {
     fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'Audi A3']);
     expect(window.location.search).toBe('?lowMileage=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Show 2 cars' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove Up to 30,000 miles filter' }));
     expect(resultTitles()).toHaveLength(4);
     expect(window.location.search).toBe('');
@@ -626,11 +631,12 @@ describe('supplied vehicle benefit searches', () => {
     expect(screen.getByTestId('button-quick-lowAnnualTax')).toHaveTextContent('Road tax up to £35/year (3)');
     fireEvent.click(screen.getByTestId('button-quick-lowAnnualTax'));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series', 'Audi A3']);
-    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByTestId('button-quick-lowInsuranceGroup')).toHaveTextContent('Insurance groups 1–15 (2)');
     fireEvent.click(screen.getByTestId('button-quick-lowInsuranceGroup'));
     expect(resultTitles()).toEqual(['BMW 1 Series', 'BMW 3 Series']);
     expect(window.location.search).toBe('?lowAnnualTax=true&lowInsuranceGroup=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Show 2 cars' }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
     expect(resultTitles()).toHaveLength(5);
     expect(window.location.search).toBe('');
@@ -645,6 +651,7 @@ describe('supplied vehicle benefit searches', () => {
     fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
     expect(resultTitles()).toEqual(['BMW 1 Series']);
     expect(window.location.search).toBe('?make=BMW&maxPrice=5000&lowMileage=true');
+    fireEvent.click(screen.getByRole('button', { name: 'Show 1 car' }));
     expect(screen.getByRole('button', { name: 'Advanced search' })).toHaveTextContent('(3)');
   });
 
@@ -655,6 +662,7 @@ describe('supplied vehicle benefit searches', () => {
     expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (1)');
     fireEvent.click(screen.getByTestId('button-quick-low-mileage'));
     expect(resultTitles()).toEqual(['BMW 3 Series']);
+    fireEvent.click(screen.getByRole('button', { name: 'Show 1 car' }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
     expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (3)');
@@ -728,7 +736,7 @@ it('shows the dealership introduction before the stock request finishes', () => 
   renderHome(false);
   expect(screen.getByRole('heading', { name: 'Find your next car' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Loading cars…' })).toBeDisabled();
-  expect(screen.getByRole('status')).toHaveTextContent('Loading cars');
+  expect(screen.getByText('Loading cars…', { selector: 'p' })).toHaveAttribute('role', 'status');
 });
 
 it('retains supplied equipment when mileage is the only omitted card highlight', () => {
@@ -753,4 +761,62 @@ it('counts stock benefits within the selected make, model and budget together', 
   fireEvent.click(screen.getByRole('button',{name:'Advanced search'}));
   expect(screen.getByTestId('button-quick-low-mileage')).toHaveTextContent('Up to 30,000 miles (1)');
   expect(resultTitles()).toEqual(['Toyota Yaris']);
+});
+
+
+describe('compact customer stock presentation', () => {
+  it('keeps the result count by the title and preserves a bespoke stock introduction', () => {
+    renderHome();
+    expect(document.querySelector('.stock-title-group')).toContainElement(screen.getByTestId('text-filtered-stock-count'));
+    expect(screen.queryByText('Find your next used car.')).not.toBeInTheDocument();
+    cleanup();
+    overrideSettings = { ...dealerConfigFixture, presentation: { websiteCopy: { stockIntroduction: 'Browse our hand-picked stock.' } } } as typeof overrideSettings;
+    renderHome();
+    expect(screen.getByText('Browse our hand-picked stock.')).toBeInTheDocument();
+  });
+
+  it('puts core specifications before optional benefit badges and includes fuel in featured summaries', () => {
+    stockFixture.cars = [{ ...originalCars[0], emissionClass: 'Euro 6' }];
+    renderHome();
+    const card = screen.getByTestId('card-vehicle-bmw-1-series');
+    const specs = card.querySelector('.vehicle-specs')!;
+    const benefits = card.querySelector('.vehicle-benefit-summary')!;
+    expect(specs.compareDocumentPosition(benefits) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(specs).toHaveTextContent('Petrol');
+    cleanup();
+    renderHome(false);
+    expect(screen.getByText('2022 · 30k miles · Petrol · Automatic')).toBeInTheDocument();
+  });
+
+  it('combines quick choices, budget and fuel without reopening the filter panel', async () => {
+    renderHome();
+    expect(screen.getByLabelText('Search the showroom')).toHaveAccessibleDescription('Try “automatic under £10k” or a registration.');
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+    fireEvent.click(screen.getByTestId('button-quick-automatic'));
+    fireEvent.click(screen.getByTestId('button-quick-under-5000'));
+    fireEvent.change(screen.getByLabelText('Fuel'), { target: { value: 'Petrol' } });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('button-quick-automatic')).toHaveAttribute('aria-pressed', 'true');
+    expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
+    expect(scrollToHomeTarget).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Show 2 cars' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.location.search).toBe('?maxPrice=5000&fuel=Petrol&transmission=Automatic');
+    expect(screen.getByLabelText('Sort results')).toBeInTheDocument();
+  });
+});
+
+
+it('shows a supplied structured insurance category in stock without inferring it from prose', () => {
+  stockFixture.cars = [
+    { ...originalCars[0], writeOffCategory: null, sourceExtras: { writeOffCategory: 'Category S' } },
+    { ...originalCars[1], writeOffCategory: 'Unknown', sourceExtras: { writeOffCategory: 'Category S', description: 'The seller mentions Cat N.' } },
+  ];
+  renderHome();
+  expect(within(screen.getByTestId('card-vehicle-bmw-1-series')).getByText('Category S recorded')).toBeInTheDocument();
+  expect(within(screen.getByTestId('card-vehicle-bmw-3-series')).queryByText(/Category N recorded/)).not.toBeInTheDocument();
+  expect(within(screen.getByTestId('card-vehicle-bmw-3-series')).queryByText(/Category S recorded/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Category S' }));
+  expect(resultTitles()).toEqual(['BMW 1 Series']);
 });

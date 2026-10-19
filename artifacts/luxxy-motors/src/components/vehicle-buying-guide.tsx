@@ -3,12 +3,11 @@ import { Link, useLocation } from 'wouter';
 import { ArrowRight, Calendar } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
+import { useDealerFeatures } from '@/lib/dealer-features';
 import { buyerInformation } from '@/lib/buyer-information';
-import { dealershipLocation } from '@/lib/dealership-location';
-import { dealershipPhotography } from '@/lib/dealership-photography';
 import { getVehicleBookingHref, recordBookingIntent } from '@/lib/cta-helpers';
 import { readVehicleExchange, saveVehicleExchange } from '@/lib/vehicle-exchange-draft';
-import { DealershipPhotograph } from './dealership-photograph';
+import { ShowroomVisitPanel } from './showroom-visit-panel';
 import { UKNumberPlate } from './uk-number-plate';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -54,21 +53,15 @@ export function VehiclePartExchange({ car }: { car: Car }) {
 }
 
 export function VehicleVisit({ car }: { car: Car }) {
-  const {settings, isLoading, isError} = useDealerSettings();
-  const location = dealershipLocation(settings.address);
-  const photo = dealershipPhotography(settings).contact;
+  const { settings, isLoading, isError } = useDealerSettings();
+  const features = useDealerFeatures();
   const available = !car.inventoryStatus || car.inventoryStatus === 'available';
+  const canBook = available && !isLoading && !isError && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
   return <section aria-labelledby="vehicle-visit-heading" className="mt-8 border-t border-border pt-7">
     <h2 id="vehicle-visit-heading" className="section-heading">See it for yourself.</h2>
     <p className="mt-3 text-sm leading-6 text-muted-foreground">Take a closer look, sit behind the wheel and ask us your questions.</p>
-    {!isLoading && !isError && <>
-      {photo && <DealershipPhotograph photo={photo} className="mt-5" />}
-      <p className="mt-5 font-semibold">{settings.identity.name}</p>
-      {location.isSample ? <p className="mt-2 text-sm text-muted-foreground">Please confirm our showroom address with us before travelling.</p> : <address className="mt-2 not-italic text-sm leading-6">{location.lines.join(', ') || 'Contact us for our showroom address.'}</address>}
-      {settings.presentation?.visitInstructions && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{settings.presentation.visitInstructions}</p>}
-      {settings.presentation?.parkingInstructions && <p className="mt-2 text-sm leading-6 text-muted-foreground">{settings.presentation.parkingInstructions}</p>}
-    </>}
+    <ShowroomVisitPanel heading={null} showBooking={false} className="mt-5" />
     <p className="mt-3 text-xs leading-5 text-muted-foreground">{available ? 'Please confirm your test drive before travelling.' : 'Contact us to check this car’s availability before travelling.'}</p>
-    <div className="mt-4 flex flex-wrap gap-3">{available && <Button asChild><a href={getVehicleBookingHref(car)} onClick={()=>recordBookingIntent({source:'vehicle_visit',vehicleContext:true})}><Calendar className="h-4 w-4" />Choose a test-drive time</a></Button>}<Button asChild variant="outline"><Link href="/contact">Directions & opening hours<ArrowRight className="h-4 w-4" /></Link></Button></div>
+    <div className="mt-4 flex flex-wrap gap-3">{canBook && <Button asChild><a href={getVehicleBookingHref(car)} onClick={()=>recordBookingIntent({source:'vehicle_visit',vehicleContext:true})}><Calendar className="h-4 w-4" />Choose a test-drive time</a></Button>}</div>
   </section>;
 }

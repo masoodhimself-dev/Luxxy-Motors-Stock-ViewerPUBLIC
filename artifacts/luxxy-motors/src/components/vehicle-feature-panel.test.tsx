@@ -6,9 +6,19 @@ import { VehicleFeaturePanel } from './vehicle-feature-panel';
 const frontSensors = 'Parking Sensor - Front';
 const rearSensors = 'Parking Sensor - Rear';
 const cruise = 'Cruise Control with SPEEDTRONIC Variable Speed Limiter';
+const labels: Record<string, string> = {
+  [frontSensors]: 'Front parking sensors',
+  [rearSensors]: 'Rear parking sensors',
+  [cruise]: 'Cruise control and speed limiter',
+  'Automatic Climate Control with Digital Display': 'Automatic climate control',
+  'Heated Front Seats': 'Heated front seats',
+  'Bluetooth Interface for Hands-Free Telephone': 'Bluetooth hands-free calls',
+  'Hard Disk Drive HDD Map Navigation System with TMC Traffic Message Channel': 'Built-in navigation',
+  'ISOFIX Child Seat Fixing Points in Rear - Two Outer Seats': 'ISOFIX child-seat mounting points',
+};
 
 function openFeature(feature: string) {
-  const trigger = screen.getByRole('button', { name: feature });
+  const trigger = screen.getByRole('button', { name: labels[feature] || feature });
   fireEvent.click(trigger);
   return { trigger, dialog: screen.getByRole('dialog') };
 }
@@ -31,6 +41,15 @@ describe('vehicle equipment explanation panels', () => {
     expect(dialog).toHaveAccessibleDescription();
     expect(dialog.textContent?.toLowerCase()).toContain(feature.toLowerCase());
     expect(within(dialog).getByRole('button', { name: 'Close' })).toBeVisible();
+  });
+
+  it('shows the short label in the list and preserves the full manufacturer wording in its panel', () => {
+    render(<VehicleFeaturePanel feature={cruise} />);
+    const { trigger, dialog } = openFeature(cruise);
+    expect(trigger).toHaveTextContent('Cruise control and speed limiter');
+    expect(trigger).not.toHaveTextContent('SPEEDTRONIC');
+    expect(trigger).toHaveAttribute('title', cruise);
+    expect(within(dialog).getByText(cruise)).toBeVisible();
   });
 
   it('makes the previously unrecognised heated-front-seat feature explainable through the shared feature component', () => {
@@ -96,7 +115,7 @@ describe('vehicle equipment explanation panels', () => {
 
   it('opens on activation rather than hover or focus alone', () => {
     render(<VehicleFeaturePanel feature={frontSensors} />);
-    const trigger = screen.getByRole('button', { name: frontSensors });
+    const trigger = screen.getByRole('button', { name: 'Front parking sensors' });
     fireEvent.pointerEnter(trigger, { pointerType: 'mouse' });
     fireEvent.focus(trigger);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

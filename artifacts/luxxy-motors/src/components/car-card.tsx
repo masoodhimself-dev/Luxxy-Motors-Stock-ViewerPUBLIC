@@ -2,7 +2,7 @@ import { UKNumberPlate } from '@/components/uk-number-plate';
 import { HoverHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
-import { recordedWriteOffCategory } from '@/lib/vehicle-history';
+import { recordedWriteOffCategory, vehicleWriteOffCategory } from '@/lib/vehicle-history';
 import { PriceReduction } from '@/components/price-reduction';
 import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
@@ -120,7 +120,7 @@ export function CarCard({
 
   const visibleSpecs = specs.slice(0, 4);
   const hasSellingPoints = vehicleSellingPoints(car).some(point => point.label !== 'Mileage');
-  const category = catalogue ? recordedWriteOffCategory(car.writeOffCategory) : null;
+  const category = catalogue ? recordedWriteOffCategory(vehicleWriteOffCategory(car)) : null;
   return (
     <article
       className={cn(
@@ -258,7 +258,7 @@ export function CarCard({
               ? formatPrice(car.price, car.currency)
               : 'Price on application'}
           </p>
-          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? formatCompactMileage(car.mileage) : car.mileageText, car.transmission].filter(Boolean).join(' · ')}</p>}
+          {summaryOnly && <p className="featured-car-facts">{[car.year, car.mileage != null ? formatCompactMileage(car.mileage) : car.mileageText, car.fuel, car.transmission].filter(Boolean).join(' · ')}</p>}
           {!summaryOnly && <PriceReduction car={car} />}
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
@@ -269,12 +269,12 @@ export function CarCard({
               {car.inventoryStatus === 'reserved' && <span>Reserved</span>}
               {category && <VehicleTerm label="Insurance history" value={`Category ${category} recorded`}>Category {category} recorded</VehicleTerm>}
             </div>}
-            <VehicleSellingPoints car={car} compact omitMileage />
             <div className="vehicle-specs mb-3 mt-2">
               {visibleSpecs.map((spec) => (
                 <VehicleTerm key={spec.label} label={spec.label} value={spec.value} className="inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere]" ariaLabel={`${spec.label}: ${spec.value}`}>{spec.value}</VehicleTerm>
               ))}
             </div>
+            <VehicleSellingPoints car={car} compact omitMileage />
             {(!catalogue || !hasSellingPoints) && stockHighlights(car).length > 0 && <p className="stock-card-highlights mb-3 text-xs text-muted-foreground">{stockHighlights(car).join(' · ')}</p>}
             {!stretchedLink && <div
               className="vehicle-card-actions relative z-20 mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-border pt-2"

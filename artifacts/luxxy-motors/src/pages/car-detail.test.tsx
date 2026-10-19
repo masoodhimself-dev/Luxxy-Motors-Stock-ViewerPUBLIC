@@ -181,7 +181,7 @@ it('keeps the single identity and price in the normal summary on larger screens'
   renderVehicle('with-plate');
   expect(screen.getByTestId('vehicle-identity').closest('.vehicle-summary')).not.toBeNull();
   expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
-  expect(document.querySelector('.vehicle-phone-identity')).toBeNull();
+  expect(document.querySelector('.vehicle-compact-identity')).toBeNull();
 });
 
 describe('vehicle detail link preview', () => {
@@ -250,6 +250,20 @@ it('opens a car-specific enquiry page and keeps print/share outside collapsed ph
   expect(enquiry).toHaveAttribute('href','/enquire?type=general&vehicleId=with-plate');
   expect(screen.getByRole('button',{name:'Share this vehicle'}).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();
   expect(screen.queryByText(/Check this car’s registration before driving/)).not.toBeInTheDocument();
+});
+
+it('shows a supplied nested category beside the price and never promotes a description into a verified category', () => {
+  const car = stockFixture.cars[1];
+  try {
+    Object.assign(car, { specifications: { writeOffCategory: 'Cat N' } });
+    const view = renderVehicle('with-plate');
+    expect(screen.getByRole('link', { name: /Category N · recorded insurance history/ }).closest('.vehicle-price-block')).not.toBeNull();
+    view.unmount();
+    Object.assign(car, { specifications: null, sourceExtras: { description: 'Seller says Cat S; ask for records.' } });
+    renderVehicle('with-plate');
+    expect(document.querySelector('.vehicle-description-copy')).toHaveTextContent('Seller says Cat S; ask for records.');
+    expect(screen.queryByRole('link', { name: /recorded insurance history/ })).not.toBeInTheDocument();
+  } finally { Object.assign(car, { specifications: null, sourceExtras: null }); }
 });
 
 describe('vehicle gallery contact policy', () => {

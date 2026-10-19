@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasExplicitClearHistory, insuranceHistoryLabel, recordedWriteOffCategory } from './vehicle-history';
+import { hasExplicitClearHistory, insuranceHistoryLabel, recordedWriteOffCategory, vehicleWriteOffCategory } from './vehicle-history';
 
 describe('supplied vehicle insurance history', () => {
   it.each(['S', 'Cat S', 'Category S', 'Category S recorded'])('recognises %s precisely', (value) => {
@@ -18,5 +18,15 @@ describe('supplied vehicle insurance history', () => {
     expect(insuranceHistoryLabel(null)).toBe('Not provided');
     expect(insuranceHistoryLabel('Category C')).toBe('Category C');
     expect(insuranceHistoryLabel('Cat N')).toBe('Category N recorded');
+  });
+  it('reads supplied structured categories consistently with the vehicle information section', () => {
+    expect(vehicleWriteOffCategory({ specifications: { writeOffCategory: ' Cat S ' } })).toBe('Cat S');
+    expect(vehicleWriteOffCategory({ sourceExtras: { writeOffCategory: 'N' } })).toBe('N');
+    expect(vehicleWriteOffCategory({ writeOffCategory: 'Unknown', specifications: { writeOffCategory: 'S' } })).toBe('Unknown');
+    expect(vehicleWriteOffCategory({ writeOffCategory: ' ', specifications: { writeOffCategory: 2 }, sourceExtras: { writeOffCategory: 'N' } })).toBe('N');
+  });
+  it('does not treat a description or missing information as a confirmed insurance category', () => {
+    expect(vehicleWriteOffCategory({ sourceExtras: { description: 'Car is recorded as Cat S' } })).toBeNull();
+    expect(vehicleWriteOffCategory({})).toBeNull();
   });
 });

@@ -47,7 +47,7 @@ export const websiteFields = [
     "key": "featuredHeading",
     "label": "Featured heading",
     "group": "Homepage",
-    "defaultValue": "Featured cars"
+    "defaultValue": "Explore our cars"
   },
   {
     "key": "visitHeading",
@@ -259,6 +259,7 @@ export type WebsiteTextKey = typeof websiteFields[number]["key"];
 // Only known, unchanged template defaults are refreshed. Dealer-written copy,
 // including copy that happens to mention a team or showroom, stays untouched.
 const previousWebsiteDefaults: Partial<Record<WebsiteTextKey, readonly string[]>> = {
+  featuredHeading: ['Featured cars'],
   servicesHeading: ['The details, taken care of.'],
   teamHeading: ['Meet the team'],
   contactIntroduction: ['A question about a car, a part exchange or a visit? Speak to the team, send a message or arrange a time to see us.'],

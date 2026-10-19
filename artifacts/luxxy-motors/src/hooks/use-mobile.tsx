@@ -2,16 +2,17 @@ import * as React from 'react';
 
 const MOBILE_BREAKPOINT = 768;
 
-export function useIsMobile() {
+/** Match the breakpoint of the layout using this hook; other callers retain 768px. */
+export function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
   const [isMobile, setIsMobile] = React.useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches
+      ? window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches
       : false,
   );
 
   React.useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
     const onChange = () => {
       setIsMobile(mql.matches);
     };
@@ -23,7 +24,7 @@ export function useIsMobile() {
     // Older Safari versions expose the legacy MediaQueryList listener API.
     mql.addListener?.(onChange);
     return () => mql.removeListener?.(onChange);
-  }, []);
+  }, [breakpoint]);
 
   return isMobile;
 }

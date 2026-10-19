@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import type {Car} from './stock-context';
-import {prioritiseVehicleFeatures, vehicleContent} from './vehicle-content';
+import {prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs} from './vehicle-content';
 it('maps Grok content and removes headings and duplicates',()=>{
  expect(vehicleContent({sourceExtras:{advertDescription:' Description ',featureList:['Please note:', 'Exterior','Bluetooth',' bluetooth ',null,'Added extras']}} as unknown as Car)).toEqual({description:'Description',features:['Bluetooth']});
 });
@@ -40,4 +40,19 @@ it('keeps vehicleContent in original source order until a caller requests priori
  const features = ['Alloy wheels', 'Bluetooth', 'Apple CarPlay'];
  expect(vehicleContent({ features } as unknown as Car).features).toEqual(features);
  expect(prioritiseVehicleFeatures(vehicleContent({ features } as unknown as Car).features)).toEqual(['Apple CarPlay', 'Bluetooth', 'Alloy wheels']);
+});
+
+it('breaks long descriptions into paragraphs without losing the seller’s history disclosure', () => {
+ const first = 'This is the seller’s original description with supplied details and punctuation. '.repeat(6).trim();
+ const disclosure = 'Car is recorded as Cat S. Ask us for the available records.';
+ const description = `${first} ${disclosure}`;
+ const paragraphs = vehicleDescriptionParagraphs(description);
+ expect(paragraphs.length).toBeGreaterThan(1);
+ expect(paragraphs.join(' ')).toBe(description);
+ expect(paragraphs.join(' ')).toContain(disclosure);
+});
+
+it('keeps supplied paragraph breaks, line breaks, prices and decimals intact', () => {
+ expect(vehicleDescriptionParagraphs('Engine: 1.6L\nPrice: £7,995.50\n\nViewing by appointment.')).toEqual(['Engine: 1.6L\nPrice: £7,995.50', 'Viewing by appointment.']);
+ expect(vehicleDescriptionParagraphs('')).toEqual([]);
 });

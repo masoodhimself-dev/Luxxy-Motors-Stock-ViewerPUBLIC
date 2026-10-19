@@ -2,6 +2,24 @@ import type { Car } from './stock-context';
 const headings = new Set(['please note', 'audio and communications', 'drivers assistance', 'driver assistance', 'exterior', 'illumination', 'interior', 'performance', 'safety and security', 'valuable features', 'rare features', 'added extras']);
 const clean = (value: string) => value.replace(/\u0092/g, '’').trim();
 
+/** Add readable paragraphs without rewriting or dropping the seller's wording. */
+export function vehicleDescriptionParagraphs(description: string): string[] {
+  return description.trim().split(/\n\s*\n/).flatMap(block => {
+    const sentences = block.trim().split(/(?<=[.!?])\s+(?=[A-Z])/);
+    const paragraphs: string[] = [];
+    let paragraph = '';
+    for (const sentence of sentences) {
+      if (paragraph.length >= 320) {
+        paragraphs.push(paragraph);
+        paragraph = '';
+      }
+      paragraph += `${paragraph ? ' ' : ''}${sentence}`;
+    }
+    if (paragraph) paragraphs.push(paragraph);
+    return paragraphs;
+  });
+}
+
 const usefulEquipment = [
   /\b(?:apple\s*carplay|carplay|android\s*auto)\b/i,
   /\b(?:parking\s+(?:sensors?|camera)|revers(?:e|ing)\s+camera|rear[ -]?(?:view[ -]?)?camera|(?:360(?:[ -]*degrees?|°)?|surround)[ -]+(?:view[ -]+)?camera)\b/i,

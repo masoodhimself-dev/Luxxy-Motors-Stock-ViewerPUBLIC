@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, ArrowRight, Check, Copy, Mail, MapPin, MessageCircle, Phone } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import { DealershipPhotograph } from '@/components/dealership-photograph';
-import { dealershipPhotography } from '@/lib/dealership-photography';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { getPhoneHref, getWhatsAppHref } from '@/lib/cta-helpers';
@@ -21,7 +19,6 @@ export default function Contact() {
   const content = settings.presentation;
   const visitInstructions = content?.visitInstructions?.trim();
   const parkingInstructions = content?.parkingInstructions?.trim();
-  const photos = dealershipPhotography(settings);
   const email = settings.contact.email?.trim();
   usePageMeta({
     title: `Contact us & directions | ${settings.identity.name}`,
@@ -63,7 +60,6 @@ export default function Contact() {
         </section>
 
         <section aria-labelledby="find-us-heading" className="min-w-0" data-testid="contact-location">
-          {photos.contact && !isLoading && !isError && <DealershipPhotograph photo={photos.contact} className="mb-5" />}
           <div className="bg-primary px-5 py-6 text-primary-foreground sm:p-7">
             <p className="flex items-center gap-2 text-xs text-primary-foreground/75"><MapPin className="h-4 w-4" aria-hidden="true" />Plan your visit</p>
             <h2 id="find-us-heading" tabIndex={-1} className="mt-3 scroll-mt-28 font-display text-2xl font-semibold outline-none">{websiteText(settings, "contactDirectionsHeading")}</h2>

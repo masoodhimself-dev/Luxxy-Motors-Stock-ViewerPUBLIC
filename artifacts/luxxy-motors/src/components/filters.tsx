@@ -223,7 +223,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
           <Input
             aria-label="Search the showroom"
             data-testid="input-showroom-search"
-            placeholder="Make or model"
+            placeholder="Make, model, plate"
+            aria-describedby="stock-search-hint"
             value={filters.search}
             onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
             onKeyDown={(event) => {
@@ -295,8 +296,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             {maxBudgets.map(price => <option key={price} value={String(price)}>£{price.toLocaleString('en-GB')}</option>)}
           </Select>
         </div>
-        <p className="stock-search-hint">Search by registration, or try “automatic under £15k”.</p>
       </div>
+      <p id="stock-search-hint" className="stock-search-hint">Try “automatic under £10k” or a registration.</p>
       {(activeFilterCount > 0 || filters.sort) && (
         <div className="mt-2 flex items-center gap-4 overflow-x-auto whitespace-nowrap" aria-label="Applied filters">
           {appliedFilters.map(({ key, label }) => <button type="button" key={key} aria-label={`Remove ${label} filter`} className="inline-flex shrink-0 min-h-11 items-center gap-2 text-xs font-medium text-primary" onClick={() => {
@@ -310,8 +311,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
       <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}><DialogContent style={dialogBrandStyle} onCloseAutoFocus={event => {event.preventDefault(); filterButton.current?.focus({preventScroll:true});}} className="stock-filter-dialog premium-stock-filter-dialog flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-2xl">
         <div className="stock-filter-heading"><DialogTitle>Filter used cars</DialogTitle><DialogDescription>Choose what matters to you. Results update as you go.</DialogDescription></div>
          <section id="advanced-stock-filters" className="stock-filter-body min-h-0 flex-1 overflow-y-auto border-t border-border py-4">
-          {quickFilters && <div className="stock-quick-choices mb-5" onClick={event => {if ((event.target as HTMLElement).closest("button")) setShowAdvanced(false);}}><p className="mb-2 text-xs font-medium text-muted-foreground">Quick choices</p>{quickFilters}</div>}
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
+          <div className="stock-filter-fields grid grid-cols-2 gap-3 sm:gap-4">
             <Field label="Make">
               <Select
                 value={filters.make}
@@ -331,6 +331,8 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
                 {models.map((model) => <option key={model} value={model}>{model}</option>)}
               </Select>
             </Field>
+            <fieldset className="stock-budget-range col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
+            <legend className="sr-only">Budget range</legend>
             <Field label="Min budget">
               <Select
                 value={filters.minPrice}
@@ -353,6 +355,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
                 ))}
               </Select>
             </Field>
+            </fieldset>
             <Field label="Fuel">
               <Select
                 value={filters.fuel}
@@ -372,12 +375,10 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
               </Select>
             </Field>
           </div>
+          {quickFilters && <div className="stock-quick-choices mt-5 border-t border-border pt-4"><p className="mb-2 text-xs font-medium text-muted-foreground">Quick choices · combine as many as you need</p>{quickFilters}</div>}
           <fieldset className="stock-insurance-filters mt-8 border-t border-primary/10 pt-6">
              <legend className="text-sm font-semibold text-primary">Insurance history</legend>
-             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Choose one or more recorded categories. Category S records structural damage; Category N records non-structural damage. Ask for available repair and inspection records.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-3">
               {[
                 ['noWriteOff', 'No recorded write-off'],
                 ['catS', 'Category S'],
@@ -394,6 +395,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
                 </label>
               ))}
             </div>
+            <details className="stock-history-help mt-3 text-sm text-muted-foreground"><summary className="cursor-pointer">What do the categories mean?</summary><p className="mt-2 leading-relaxed">Category S records structural damage; Category N records non-structural damage. Ask for available repair and inspection records. Unknown history is not included in “No recorded write-off”.</p></details>
           </fieldset>
         </section>
         <div className="stock-filter-footer flex shrink-0 items-center justify-between gap-4 border-t pt-4"><button type="button" className="min-h-11 underline underline-offset-4" onClick={resetFilters}>Reset filters</button><button type="button" className="stock-search-submit min-h-12 px-6" onClick={() => {setShowAdvanced(false); handleSearchClick();}}>Show {matchCount ?? vehicleCount} {(matchCount ?? vehicleCount) === 1 ? 'car' : 'cars'}</button></div>

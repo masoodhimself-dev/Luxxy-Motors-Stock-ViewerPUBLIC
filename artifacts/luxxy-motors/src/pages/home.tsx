@@ -27,7 +27,7 @@ import { CarCard } from '@/components/car-card';
 import { Filters, type FilterState } from '@/components/filters';
 import { cn, getThumbnailUrl, vehicleDisplayTitle } from '@/lib/utils';
 import { getContactHref } from '@/lib/cta-helpers';
-import { hasExplicitClearHistory, recordedWriteOffCategory } from '@/lib/vehicle-history';
+import { hasExplicitClearHistory, recordedWriteOffCategory, vehicleWriteOffCategory } from '@/lib/vehicle-history';
 import { vehicleBenefits } from '@/lib/vehicle-benefits';
 import { useDealerSettings } from '@/lib/dealer-settings-context';
 import {
@@ -38,7 +38,7 @@ import {
 } from '@/lib/home-navigation';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { showroomPageMeta } from '@/lib/page-meta';
-import { ArrowRight, Grid2X2, List, ArrowUpRight, ChevronDown, Heart, Link2, SlidersHorizontal } from '@/components/icons';
+import { ArrowRight, Grid2X2, List, ChevronDown, Heart, Link2, SlidersHorizontal } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { trackEvent } from '@/lib/analytics';
 import { getGetRecentHandoversQueryKey, useGetRecentHandovers } from '@workspace/api-client-react';
@@ -190,10 +190,11 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
     if (filters.noWriteOff || filters.catS || filters.catN) {
       result = result.filter((c) => {
-        const cat = recordedWriteOffCategory(c.writeOffCategory);
+        const history = vehicleWriteOffCategory(c);
+        const cat = recordedWriteOffCategory(history);
         const isS = cat === 'S';
         const isN = cat === 'N';
-        const isClear = hasExplicitClearHistory(c.writeOffCategory);
+        const isClear = hasExplicitClearHistory(history);
 
         if (filters.noWriteOff && isClear) return true;
         if (filters.catS && isS) return true;
@@ -283,7 +284,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     });
   };
 
-  const applyQuickFilter = (nextFilters: Partial<FilterState>) => {
+  const applyQuickFilter = (nextFilters: Partial<FilterState>, openResults = true) => {
     const preset = nextFilters.transmission
       ? 'automatic'
       : nextFilters.maxPrice
@@ -296,14 +297,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     });
     setFilters(current => ({ ...current, ...nextFilters, ...(nextFilters.maxPrice && current.minPrice && +current.minPrice > +nextFilters.maxPrice ? { minPrice: '' } : {}) }));
     setVisibleCount(12);
-    revealResults('quick_filter');
+    if (openResults) revealResults('quick_filter');
   };
 
-  const toggleBenefitFilter = (key: typeof benefitChoices[number]['key']) => {
+  const toggleBenefitFilter = (key: typeof benefitChoices[number]['key'], openResults = true) => {
     setFilters(current => ({ ...current, [key]: !current[key] }));
     setVisibleCount(12);
     trackEvent('showroom_filter_applied', { source: 'quick_filter', preset: key, filter_count: 1 });
-    revealResults('quick_filter');
+    if (openResults) revealResults('quick_filter');
   };
 
   // The hero is a dealership introduction; featured stock only orders the stock list.
@@ -407,7 +408,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
           ].filter(choice => choice.count > 0).map(choice => <Link key={choice.href} href={choice.href} className="home-shortcut-card">
             <VehicleFactIcon label={choice.icon} value={choice.label} className="home-shortcut-icon" />
             <span className="home-shortcut-copy"><strong>{choice.label}</strong><small>{choice.count} {choice.count === 1 ? 'car' : 'cars'}</small></span>
-            <ArrowUpRight size={17} className="home-shortcut-arrow" aria-hidden="true" />
+            <ArrowRight size={17} className="home-shortcut-arrow" aria-hidden="true" />
           </Link>)}
         </div>
       </nav>}
@@ -420,8 +421,13 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <nav aria-label="Breadcrumb" className="stock-breadcrumb"><Link href="/">Home</Link><span aria-hidden="true">/</span><span>Used cars</span></nav>
           <div className="stock-heading-row">
-            <div>
+            <div className="stock-title-group">
               <h1 id="vehicle-results-heading" tabIndex={-1}>{websiteText(dealerConfig, "stockTitle")}</h1>
+              {!error && stock && <p className="stock-result-count" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
+                {!hasFilters
+                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'} in stock`
+                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
+              </p>}
             </div>
             <Collapsible open={stockOptionsOpen} onOpenChange={setStockOptionsOpen} className="stock-options" data-testid="stock-secondary-actions">
               <CollapsibleTrigger className="stock-options-trigger"><SlidersHorizontal size={16} aria-hidden="true" />View options<ChevronDown size={15} aria-hidden="true" /></CollapsibleTrigger>
@@ -433,7 +439,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               </CollapsibleContent>
             </Collapsible>
           </div>
-          <p className="stock-introduction">{websiteText(dealerConfig, "stockIntroduction")}</p>
+          {customerDefaultCopy(websiteText(dealerConfig, "stockIntroduction"), '', ['Find your next used car.']) && <p className="stock-introduction">{websiteText(dealerConfig, "stockIntroduction")}</p>}
         </div>
       </section>}
 
@@ -443,7 +449,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             quickFilters={<>             <div className="flex flex-wrap gap-2 text-sm">
               <button
                 type="button"
-                onClick={() => applyQuickFilter({ transmission: 'Automatic' })}
+                onClick={() => applyQuickFilter({ transmission: 'Automatic' }, false)}
+                aria-pressed={filters.transmission === 'Automatic'}
                 className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-automatic"
                 disabled={!publicCars.some(car => /automatic/i.test(car.transmission || ""))}
@@ -452,18 +459,19 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
               </button>
               <button
                 type="button"
-                onClick={() => applyQuickFilter({ maxPrice: '5000' })}
+                onClick={() => applyQuickFilter({ maxPrice: '5000' }, false)}
+                aria-pressed={filters.maxPrice === '5000'}
                 className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 data-testid="button-quick-under-5000"
                 disabled={!publicCars.some(car => car.price != null && car.price <= 5000)}
               >
                 Under £5k
               </button>
-              {publicCars.some(car => car.price != null && car.price <= 15000) && <button type="button" className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'})}>Under £15k</button>}
+              {publicCars.some(car => car.price != null && car.price <= 15000) && <button type="button" aria-pressed={filters.maxPrice === '15000'} className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'}, false)}>Under £15k</button>}
               {benefitChoices.filter(({ key }) => benefitCounts[key] > 0 || filters[key]).map(({ key, label, note }) => <button
                 key={key}
                 type="button"
-                onClick={() => toggleBenefitFilter(key)}
+                onClick={() => toggleBenefitFilter(key, false)}
                 aria-pressed={Boolean(filters[key])}
                 title={note}
                 className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary"
@@ -513,11 +521,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
           <div id="vehicle-results" data-home-section className="mt-2 md:mt-4">
             {!error && <div className="stock-results-bar">
-              {stock && <p className="stock-result-count" data-testid="text-filtered-stock-count" role="status" aria-live="polite" aria-atomic="true">
-                {!hasFilters
-                  ? `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'} in stock`
-                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car matches' : 'cars match'} your search`}
-              </p>}
               <CompareSelectionLink />
             </div>}
             {error ? (
@@ -667,7 +670,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                       data-testid={testid}
                     >
                       {service.ctaLabel}
-                      <ArrowUpRight className="h-4 w-4" />
+                      <ArrowRight className="h-4 w-4" />
                     </a>
                   </article>
                 ),

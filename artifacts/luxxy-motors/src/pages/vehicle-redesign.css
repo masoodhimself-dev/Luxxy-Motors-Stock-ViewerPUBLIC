@@ -50,14 +50,14 @@
 .vehicle-redesigned .vehicle-save-control:hover { background: hsl(var(--secondary)); }
 .vehicle-redesigned .vehicle-save-control[aria-pressed="true"] { color: var(--vehicle-link); }
 .vehicle-page.vehicle-redesigned .vehicle-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 28px; }
-.vehicle-redesigned .vehicle-phone-identity { padding-bottom: 0; }
-.vehicle-redesigned .vehicle-phone-identity .vehicle-availability { margin-bottom: 7px; color: var(--vehicle-link); font-size: 12px; line-height: 1.5; }
-.vehicle-redesigned .vehicle-phone-identity h1 { color: var(--vehicle-ink); font-size: 26px; line-height: 1.2; letter-spacing: -.025em; overflow-wrap: anywhere; }
-.vehicle-redesigned .vehicle-phone-facts { margin-top: 8px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.6; }
-.vehicle-redesigned .vehicle-phone-identity .vehicle-price-block { margin-top: 12px; padding-bottom: 0; border-bottom: 0; }
-.vehicle-redesigned .vehicle-phone-identity .luxxy-price { color: var(--vehicle-ink); font-size: 30px; line-height: 1.2; letter-spacing: -.035em; }
-.vehicle-redesigned .vehicle-phone-detail:empty { display: none; }
-.vehicle-redesigned .vehicle-phone-detail .vehicle-variant { margin-top: 0; }
+.vehicle-redesigned .vehicle-compact-identity { padding-bottom: 0; }
+.vehicle-redesigned .vehicle-compact-identity .vehicle-availability { margin-bottom: 7px; color: var(--vehicle-link); font-size: 12px; line-height: 1.5; }
+.vehicle-redesigned .vehicle-compact-identity h1 { color: var(--vehicle-ink); font-size: 26px; line-height: 1.2; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.vehicle-redesigned .vehicle-compact-facts { margin-top: 8px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.6; }
+.vehicle-redesigned .vehicle-compact-identity .vehicle-price-block { margin-top: 12px; padding-bottom: 0; border-bottom: 0; }
+.vehicle-redesigned .vehicle-compact-identity .luxxy-price { color: var(--vehicle-ink); font-size: 30px; line-height: 1.2; letter-spacing: -.035em; }
+.vehicle-redesigned .vehicle-compact-detail:empty { display: none; }
+.vehicle-redesigned .vehicle-compact-detail .vehicle-variant { margin-top: 0; }
 .vehicle-redesigned .vehicle-detail-gallery,
 .vehicle-redesigned .vehicle-summary-column { order: initial; grid-column: auto; grid-row: auto; }
 .vehicle-redesigned .vehicle-gallery-frame { padding: 0; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 6px; background: var(--vehicle-panel); box-shadow: none; }
@@ -229,7 +229,7 @@
   .vehicle-redesigned .vehicle-editorial-overview > section { display: block; }
   .vehicle-redesigned .vehicle-editorial-overview > section > :not(h2) { margin-top: 20px; }
   .vehicle-redesigned .vehicle-equipment-list { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 28px; }
-  .vehicle-redesigned .vehicle-description-section > p { max-width: 85ch; }
+  .vehicle-redesigned .vehicle-description-copy { max-width: 85ch; }
 }
 @media(max-width: 639px) {
   .vehicle-redesigned .vehicle-section-nav { gap: 8px; padding-bottom: 8px; }
@@ -255,8 +255,8 @@
 }
 @media(max-width:767px) {
  .vehicle-redesigned .vehicle-browse-tools { padding-block:6px; }
- .vehicle-redesigned .vehicle-phone-facts { margin-top:6px; line-height:1.45; }
- .vehicle-redesigned .vehicle-phone-identity .vehicle-price-block { margin-top:8px; }
+ .vehicle-redesigned .vehicle-compact-facts { margin-top:6px; line-height:1.45; }
+ .vehicle-redesigned .vehicle-compact-identity .vehicle-price-block { margin-top:8px; }
  .vehicle-redesigned .vehicle-detail-grid { row-gap:14px; }
 }
 
@@ -276,3 +276,14 @@
 .vehicle-redesigned .vehicle-direct-contact .vehicle-contact-action > svg { width: 18px; height: 18px; flex-shrink: 0; }
 @media (min-width: 640px) { .vehicle-redesigned .vehicle-direct-contact { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1100px) and (max-width: 1279px) { .vehicle-redesigned .vehicle-direct-contact { grid-template-columns: minmax(0, 1fr); } }
+
+/* Portrait tablets share the single-column identity instead of burying it below photographs. */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .vehicle-redesigned .vehicle-compact-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: center; }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-availability { grid-column: 1; }
+  .vehicle-redesigned .vehicle-compact-identity h1 { grid-column: 1; font-size: 32px; }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-compact-facts { grid-column: 1; font-size: 14px; }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-price-block { grid-column: 2; grid-row: 1 / span 3; margin: 0; text-align: right; }
+  .vehicle-redesigned .vehicle-compact-identity .vehicle-insurance-disclosure { max-width: 220px; text-align: left; }
+  .vehicle-redesigned .vehicle-compact-identity .luxxy-price { font-size: 34px; }
+}

@@ -7,7 +7,7 @@ describe('vehicle equipment grouped by available compact icons', () => {
     const features = ['Chrome Trim Window Highlights', 'Parking Sensor - Front', 'Factory specification ABC', 'Heated Front Seats', '17in Alloy Wheels'];
     const { container } = render(<VehicleEquipmentList features={features} />);
     const highlights = screen.getByRole('list', { name: 'Feature highlights' });
-    expect(within(highlights).getAllByRole('button').map(button => button.textContent)).toEqual(['Parking Sensor - Front', 'Heated Front Seats']);
+    expect(within(highlights).getAllByRole('button').map(button => button.textContent)).toEqual(['Front parking sensors', 'Heated front seats']);
     expect(highlights.querySelectorAll('svg')).toHaveLength(2);
     for (const svg of highlights.querySelectorAll('svg')) {
       expect(svg).toHaveAttribute('width', '24');
@@ -29,13 +29,17 @@ describe('vehicle equipment grouped by available compact icons', () => {
     const features = ['Parking Sensor - Front', 'Parking Sensor - Rear', 'Cruise Control', 'Automatic Climate Control', 'Heated Front Seats', 'Heated Rear Seats', 'Bluetooth Telephone', 'Bluetooth Audio', 'Satellite Navigation', 'ISOFIX Mounts', 'Reversing Camera', 'Apple CarPlay'];
     render(<VehicleEquipmentList features={features} />);
     const highlights = screen.getByRole('list', { name: 'Feature highlights' });
-    expect(within(highlights).getAllByRole('button').map(button => button.textContent)).toEqual(features);
+    expect(within(highlights).getAllByRole('button').map(button => button.textContent)).toEqual([
+      'Front parking sensors', 'Rear parking sensors', 'Cruise control', 'Automatic climate control',
+      'Heated front seats', 'Heated rear seats', 'Bluetooth hands-free calls', 'Bluetooth audio',
+      'Built-in navigation', 'ISOFIX child-seat mounting points', 'Reversing camera', 'Apple CarPlay',
+    ]);
     expect(screen.queryByText('More equipment')).not.toBeInTheDocument();
   });
 
   it('opens the same explanation when the icon itself is clicked', async () => {
     render(<VehicleEquipmentList features={['Parking Sensor - Front']} />);
-    const trigger = screen.getByRole('button', { name: 'Parking Sensor - Front' });
+    const trigger = screen.getByRole('button', { name: 'Front parking sensors' });
     fireEvent.click(trigger.querySelector('svg')!);
     expect(screen.getByRole('dialog', { name: 'Front parking sensors' })).toHaveAccessibleDescription(/at the front/);
     fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });

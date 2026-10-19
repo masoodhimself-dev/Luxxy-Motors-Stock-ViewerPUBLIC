@@ -1,7 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { vehicleFeatureDetails, vehicleFeatureHelp, vehicleHelpText } from './vehicle-help';
+import { vehicleFeatureDetails, vehicleFeatureHelp, vehicleFeatureLabel, vehicleHelpText } from './vehicle-help';
 
 describe('vehicle equipment explanations', () => {
+  it.each([
+    ['Parking Sensor - Front', 'Front parking sensors'],
+    ['Parking Sensor - Rear', 'Rear parking sensors'],
+    ['Cruise Control with SPEEDTRONIC Variable Speed Limiter', 'Cruise control and speed limiter'],
+    ['Automatic Climate Control with Digital Display', 'Automatic climate control'],
+    ['Bluetooth Interface for Hands-Free Telephone', 'Bluetooth hands-free calls'],
+    ['Hard Disk Drive HDD Map Navigation System with TMC Traffic Message Channel', 'Built-in navigation'],
+    ['ISOFIX Child Seat Fixing Points in Rear - Two Outer Seats', 'ISOFIX child-seat mounting points'],
+  ])('uses a concise customer label for “%s”', (feature, label) => {
+    expect(vehicleFeatureLabel(feature)).toBe(label);
+  });
+
+  it.each([
+    '17in Alloy Wheels - 5 Twin-Spoke Design',
+    '7in Colour Display',
+    'Chrome Trim Window Highlights',
+    'Apple CarPlay',
+    'Android Auto',
+    'Telephone Keypad',
+    'Optional parking sensors',
+    'Front or rear parking sensors',
+    'Special factory specification ABC-123',
+  ])('retains the supplied wording for detailed, branded or unconfirmed equipment: %s', feature => {
+    expect(vehicleFeatureLabel(feature)).toBe(feature);
+  });
+
   it('distinguishes front, rear and unspecified parking sensors', () => {
     expect(vehicleFeatureDetails('Parking Sensor - Front')).toMatchObject({ icon: 'parking-front', title: 'Front parking sensors' });
     expect(vehicleFeatureHelp('Parking Sensor - Front')).toContain('at the front');

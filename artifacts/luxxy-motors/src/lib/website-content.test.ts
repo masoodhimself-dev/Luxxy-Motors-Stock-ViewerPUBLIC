@@ -3,6 +3,9 @@ import { customerDefaultCopy, websiteFields, websiteText } from './website-conte
 describe('dealer page wording', () => {
   it('uses defaults for legacy settings and blank overrides', () => {
     expect(websiteText({}, 'stockTitle')).toBe('Browse Stock');
+    expect(websiteText({}, 'featuredHeading')).toBe('Explore our cars');
+    expect(websiteText({ presentation: { websiteCopy: { featuredHeading: 'Featured cars' } } }, 'featuredHeading')).toBe('Explore our cars');
+    expect(websiteText({ presentation: { websiteCopy: { featuredHeading: 'Our favourites' } } }, 'featuredHeading')).toBe('Our favourites');
     expect(websiteText({ presentation: { websiteCopy: { stockTitle: '  ' } } }, 'stockTitle')).toBe('Browse Stock');
   });
   it('uses the dealership wording and keeps a unique content inventory', () => {

@@ -6,7 +6,7 @@ import { VehicleEquipmentList } from '@/components/vehicle-equipment-list';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
-import { prioritiseVehicleFeatures, vehicleContent } from '@/lib/vehicle-content';
+import { prioritiseVehicleFeatures, vehicleContent, vehicleDescriptionParagraphs } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { stockRegistrationYear } from '@/lib/stock-presentation';
 import { websiteText } from "@/lib/website-content";
@@ -57,7 +57,7 @@ import {
   recordBookingIntent,
 } from '@/lib/cta-helpers';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
-import { recordedWriteOffCategory } from '@/lib/vehicle-history';
+import { recordedWriteOffCategory, vehicleWriteOffCategory } from '@/lib/vehicle-history';
 
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
@@ -75,7 +75,8 @@ function LedgerRow({ label, value, testId }: { label: string; value: string; tes
 
 export default function CarDetail() {
   const [shareMessage, setShareMessage] = useState('');
-  const isPhone = useIsMobile();
+  // Keep identity above the gallery until the two-column layout starts.
+  const isCompactLayout = useIsMobile(1100);
   const [, params] = useRoute('/vehicle/:id');
   const [location, setLocation] = useLocation();
   const { stock, isLoading, error } = useStock();
@@ -182,7 +183,7 @@ export default function CarDetail() {
   ].filter(fact => !['-', 'Ask us', 'Unknown', ''].includes(fact.value));
 
   const damageDisclosure = (() => {
-    const category = recordedWriteOffCategory(car.writeOffCategory);
+    const category = recordedWriteOffCategory(vehicleWriteOffCategory(car));
     if (category === 'S') {
       return {
         label: 'Category S',
@@ -245,13 +246,13 @@ export default function CarDetail() {
     </dl>
   );
   const vehicleIdentity = (
-    <header className={`min-w-0${isPhone ? ' vehicle-phone-identity' : ''}`} data-testid="vehicle-identity">
+    <header className={`min-w-0${isCompactLayout ? ' vehicle-compact-identity' : ''}`} data-testid="vehicle-identity">
       <p className="vehicle-availability luxxy-kicker mb-3">
         {vehicleAvailability(car.inventoryStatus)} · {dealerConfig.address?.city || dealerConfig.identity.name}
       </p>
       <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">{vehicleLabel}</h1>
-      {isPhone ? (
-        <p className="vehicle-phone-facts">{[
+      {isCompactLayout ? (
+        <p className="vehicle-compact-facts">{[
           registrationYear !== 'Unknown' ? registrationYear : null,
           car.mileage != null ? formatMileage(car.mileage) : car.mileageText,
           car.transmission,
@@ -291,7 +292,7 @@ export default function CarDetail() {
           </div>
         </div>
         <div className="vehicle-detail-grid min-w-0">
-          {isPhone && vehicleIdentity}
+          {isCompactLayout && vehicleIdentity}
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView customerActions={{
               bookingHref: dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? bookingHref : undefined,
@@ -302,8 +303,8 @@ export default function CarDetail() {
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
-          {!isPhone && vehicleIdentity}
-          {isPhone && <div className="vehicle-phone-detail">
+          {!isCompactLayout && vehicleIdentity}
+          {isCompactLayout && <div className="vehicle-compact-detail">
             {(car.variant || car.trim) && <p className="vehicle-variant text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
             {registrationDetails}
           </div>}
@@ -375,9 +376,9 @@ export default function CarDetail() {
               <h2 id="vehicle-description-heading" className="section-heading scroll-mt-28">
                 {websiteText(dealerConfig, "vehicleDescriptionHeading")}
               </h2>
-              <p className="mt-4 whitespace-pre-line text-base leading-7 text-foreground">
-                {description}
-              </p>
+              <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
+                {vehicleDescriptionParagraphs(description).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}
+              </div>
 
             </section>}
           </div>}

@@ -194,3 +194,17 @@ export function vehicleFeatureDetails(feature: string): VehicleFeatureDetails | 
 export function vehicleFeatureHelp(feature: string): string | undefined {
   return vehicleFeatureDetails(feature)?.description;
 }
+
+const conciseFeatureLabels = new Set<VehicleFeatureIconKey>([
+  'parking-front', 'parking-rear', 'parking', 'parking-assist',
+  'cruise-control', 'adaptive-cruise-control', 'speed-limiter',
+  'climate', 'heated-seats', 'bluetooth-calls', 'bluetooth-audio',
+  'navigation', 'isofix', 'camera',
+]);
+
+/** Shorten recognised highlights only; keep detailed specifications and brand names intact. */
+export function vehicleFeatureLabel(feature: string): string {
+  const details = vehicleFeatureDetails(feature);
+  if (details?.icon === 'bluetooth-calls' && !/bluetooth/i.test(feature)) return feature;
+  return details && conciseFeatureLabels.has(details.icon) ? details.title : feature;
+}

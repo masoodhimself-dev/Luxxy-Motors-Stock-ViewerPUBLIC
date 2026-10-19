@@ -1,5 +1,5 @@
 import type { Car } from "./stock-context";
-import { insuranceHistoryLabel } from "./vehicle-history";
+import { insuranceHistoryLabel, vehicleWriteOffCategory } from "./vehicle-history";
 import { vehicleHistoryFacts } from "./vehicle-extra-facts";
 /** Display supplied stock fields only. Missing records never imply a clean history or included cover. */
 export function buyerInformation(car: Car) {
@@ -30,7 +30,7 @@ export function buyerInformation(car: Car) {
       break;
     }
   }
-  const history = text(["writeOffCategory"]);
+  const history = vehicleWriteOffCategory(car);
   const records = vehicleHistoryFacts(car);
   return [
     { label: "Previous keepers", value: records.find(item => item.label === "Previous keepers")?.value ?? null },
