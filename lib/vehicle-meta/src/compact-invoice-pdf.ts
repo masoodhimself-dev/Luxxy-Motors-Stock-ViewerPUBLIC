@@ -1,3 +1,5 @@
+import { drawInvoiceRegistrationPlate } from './registration-plate-pdf.ts';
+import { formatRegistrationPlate } from './registration.ts';
 import { jsPDF } from 'jspdf';
 import qrcode from 'qrcode-generator';
 import { invoicePalette } from './invoice-palette.ts';
@@ -76,7 +78,8 @@ export function compactInvoicePdf(document: SaleWorkspaceDocument, options: { fi
   ].filter(([,v])=>Boolean(supplied(v))) as Array<[string,unknown]>;
   const titleRows=rows(draft.vehicle || vehicle?.title || '',128,12,true);
   const plateRows=draft.registration?rows(`Registration  ${draft.registration}`,128,9.5,true):[];
-  const vehicleHeader=Math.max(27,12+titleRows.length*5+plateRows.length*4);
+  const plateValue=formatRegistrationPlate(draft.registration);
+  const vehicleHeader=Math.max(27,12+titleRows.length*5+(plateValue?8:plateRows.length*4));
   const factWidth=(width-12)/4;
   const factHeights=Array.from({length:Math.ceil(facts.length/4)},(_,r)=>Math.max(10,...facts.slice(r*4,r*4+4).map(([,v])=>5+rows(v,factWidth-4,8.8,true).length*3.6)));
   const vehicleHeight=vehicleHeader+factHeights.reduce((a,b)=>a+b,0)+3;
@@ -84,7 +87,11 @@ export function compactInvoicePdf(document: SaleWorkspaceDocument, options: { fi
   line(y);
   heading('Vehicle details',y+5);
   text(titleRows,left,y+11,12,true);
-  if(plateRows.length) text(plateRows,left,y+12+titleRows.length*5,9.5,false);
+  if(plateRows.length) {
+    const baseline=y+12+titleRows.length*5;
+    if(plateValue) {text('Registration',left,baseline,8,false,muted);drawInvoiceRegistrationPlate(pdf,draft.registration,left+25,baseline-4.8);}
+    else text(plateRows,left,baseline,9.5,false);
+  }
   if(vehicle?.photoDataUrl) { try { const img=pdf.getImageProperties(vehicle.photoDataUrl); const w=Math.min(34,22*img.width/img.height),h=w*img.height/img.width; pdf.addImage(vehicle.photoDataUrl,img.fileType,right-38+(34-w)/2,y+3,w,h); } catch { /* Missing photos are omitted. */ } }
   let fy=y+vehicleHeader;
   facts.forEach(([label,value],i)=> { const x=left+(i%4)*factWidth; text(label,x,fy,7.8,false,muted); text(rows(value,factWidth-4,8.8,false),x,fy+4,8.8,false); if(i%4===3||i===facts.length-1) fy+=factHeights[Math.floor(i/4)]; });

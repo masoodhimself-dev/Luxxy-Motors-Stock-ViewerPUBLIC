@@ -1,3 +1,4 @@
+import { registerRegistrationPdfFont, registrationPdfFontName } from '../../../lib/vehicle-meta/src/registration-plate-pdf';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
@@ -23,6 +24,18 @@ function textRows(text: string): TextRow[] {
   const fontById = new Map<string, { family: string; style: string }>();
   let fontIndex = 1;
   for (const family of families) for (const style of fonts[family]) fontById.set(`F${fontIndex++}`, { family, style });
+  registerRegistrationPdfFont(metrics);
+  metrics.setFont(registrationPdfFontName,'normal');
+  const plateFont = metrics.getFont();
+  fontById.set(String(plateFont.id), {family:registrationPdfFontName,style:'normal'});
+  // Decode the PDF's own ToUnicode map: UK I/1 glyph outlines can be shared,
+  // so reversing the font cmap would confuse otherwise correct registrations.
+  const glyphCharacters = new Map<number,string>();
+  for(const stream of pdfStreams(text)) for(const block of stream.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+    for(const pair of block[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+      glyphCharacters.set(parseInt(pair[1],16),(pair[2].match(/.{4}/g)??[]).map(code=>String.fromCharCode(parseInt(code,16))).join(''));
+    }
+  }
   const rows: TextRow[] = [];
   for (const [page, stream] of pdfStreams(text).entries()) for (const block of stream.matchAll(/BT\n([\s\S]*?)\nET/g)) {
     const source = block[1], foundFont = source.match(/\/(F\d+) ([\d.]+) Tf/);
@@ -32,18 +45,24 @@ function textRows(text: string): TextRow[] {
     const size = Number(foundFont[2]);
     metrics.setFont(font.family, font.style); metrics.setFontSize(size);
     let x = 0, y = 0, leading = size * 1.15;
-    for (const operation of source.matchAll(/(-?[\d.]+) (-?[\d.]+) Td|([\d.]+) TL|\(((?:\\.|[^\\)])*)\) Tj|(T\*)/g)) {
+    for (const operation of source.matchAll(/(-?[\d.]+) (-?[\d.]+) Td|([\d.]+) TL|\(((?:\\.|[^\\)])*)\) Tj|(T\*)|<([0-9a-fA-F]+)> Tj/g)) {
       if (operation[1] !== undefined) { x += Number(operation[1]); y += Number(operation[2]); }
       else if (operation[3] !== undefined) leading = Number(operation[3]);
       else if (operation[4] !== undefined) {
         const row = literalText(operation[4]);
         rows.push({ text: row, x, y, size, width: metrics.getTextWidth(row), page, family: font.family });
       } else if (operation[5]) y -= leading;
+      else if (operation[6]) {
+        assert.equal(font.family,registrationPdfFontName,'Only embedded plate lettering uses glyph-encoded text');
+        const row = (operation[6].match(/.{4}/g) ?? []).map(glyph => glyphCharacters.get(parseInt(glyph,16)) ?? '\uFFFD').join('');
+        rows.push({text:row,x,y,size,width:metrics.getTextWidth(row),page,family:font.family});
+      }
     }
   }
   assert.ok(rows.length > 0, 'The PDF includes measurable text rows');
   return rows;
 }
+function readablePdfText(text: string) { return [text,...textRows(text).map(row=>row.text)].join('\n'); }
 function assertTextOnA4(text: string) {
   for (const row of textRows(text)) {
     assert.ok(row.x >= -0.1, `Text crosses the left page edge: ${row.text}`);
@@ -108,7 +127,7 @@ test('receipt leads with its own payment and does not repeat other payment refer
   assert.ok(later.document);
   const text = saleDocumentPdf(later.document).toString('latin1');
   assert.match(text, /PAYMENT RECEIVED/); assert.match(text, /£1,500.00/); assert.match(text, /SECOND-PAYMENT-REF/); assert.match(text, /£10,100.00/);
-  for (const value of ['10 Oct 2026', 'Cash', 'part payment', '£2,000.00', 'AB18 XYZ']) assert.ok(text.includes(value), `Receipt retains its payment and vehicle context: ${value}`);
+  for (const value of ['10 Oct 2026', 'Cash', 'part payment', '£2,000.00', 'AB18 XYZ']) assert.ok(readablePdfText(text).includes(value), `Receipt retains its payment and vehicle context: ${value}`);
   assert.doesNotMatch(text, /DEPOSIT-ONLY-REF|Vehicle price|AGREED SALE|PAYMENT HISTORY/);
   assert.ok(text.indexOf('PAYMENT RECEIVED') < text.indexOf('BALANCE REMAINING'));
   assert.equal(pageCount(text), 1); assertTextOnA4(text);
@@ -174,7 +193,7 @@ test('drafts are identified without claiming an empty draft is paid, and ink sav
   assert.ok(area(premiumFills) > 100, 'The ordinary design includes visible dealer colour');
   assert.ok(area(lightFills) <= area(premiumFills) * 0.05, 'Ink saving removes at least 95% of filled rectangular coverage');
   assert.equal(lightFills.filter(rectangle => Math.min(rectangle.width, rectangle.height) > 2).length, 0, 'Ink saving has no filled panels; thin rules are allowed');
-  for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(saleDocumentPdf(light).toString('latin1').includes(value), `Ink saving preserves ${value}`);
+  for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(readablePdfText(saleDocumentPdf(light).toString('latin1')).includes(value), `Ink saving preserves ${value}`);
 });
 
 test('ordinary invoice with three PX cars, three adjustments, contact details and collection stays on one A4 page', () => {
@@ -188,8 +207,8 @@ test('ordinary invoice with three PX cars, three adjustments, contact details an
   assert.ok(result.document);
   const text = saleDocumentPdf(result.document).toString('latin1');
   assert.equal((text.match(/\/Type \/Page\b/g) ?? []).length, 1);
-  for (const value of ['PX11 AAA', 'PX12 BBB', 'PX13 CCC', 'Administration agreed with buyer', 'Agreed discount', 'Example Motors Limited', 'TEST012345', '20 Oct 2026', '£10,200.00']) assert.ok(text.includes(value), value);
-  for (const value of ['£15,000.00', '£150.00', '£50.00', '-£250.00', '-£3,000.00', '-£1,250.00', '-£500.00']) assert.ok(text.includes(value), `The full agreed price breakdown retains ${value}`);
+  for (const value of ['PX11 AAA', 'PX12 BBB', 'PX13 CCC', 'Administration agreed with buyer', 'Agreed discount', 'Example Motors Limited', 'TEST012345', '20 Oct 2026', '£10,200.00']) assert.ok(readablePdfText(text).includes(value), value);
+  for (const value of ['£15,000.00', '£150.00', '£50.00', '-£250.00', '-£3,000.00', '-£1,250.00', '-£500.00']) assert.ok(readablePdfText(text).includes(value), `The full agreed price breakdown retains ${value}`);
   assertTextOnA4(text);
   if (process.env.LUXXY_PDF_QA_DIR) writeFileSync(`${process.env.LUXXY_PDF_QA_DIR}/three-px-invoice.pdf`, saleDocumentPdf(result.document));
 });
@@ -266,7 +285,7 @@ test('saved dealer colours vary the design without changing document text or fin
     const document = { ...original, snapshot: { ...original.snapshot, branding: invoiceBranding(original.snapshot.branding, { ...defaultInvoiceSettings, useWebsiteColour: false, accent }) } };
     const bytes = saleDocumentPdf(document), text = bytes.toString('latin1');
     assertTextOnA4(text);
-    for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(text.includes(value), `Palette changes preserve ${value}`);
+    for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(readablePdfText(text).includes(value), `Palette changes preserve ${value}`);
     return { bytes, text: textRows(text).map(row => row.text) };
   });
   assert.notDeepEqual(variants[0].bytes, variants[1].bytes, 'A dealer accent changes the actual PDF design');
@@ -306,11 +325,12 @@ test('all supported invoice print styles keep readable Helvetica text, exact tot
     assert.equal(pageCount(text), 1, variant.name);
     assertTextOnA4(text); assertRowsDoNotCollide(text);
     for (const row of textRows(text)) {
-      assert.equal(row.family, 'helvetica', `Print uses a built-in readable font: ${row.text}`);
+      if(row.family===registrationPdfFontName) assert.match(row.text,/^[A-Z0-9 ]+$/,'Only registration lettering uses the plate font');
+      else assert.equal(row.family,'helvetica',`Body text keeps its existing font: ${row.text}`);
       assert.ok(row.size >= 7.3, `Small print is legible: ${row.text}`);
       assert.ok(row.x >= 17 * 72 / 25.4 - .1 && row.x + row.width <= 193 * 72 / 25.4 + .1, `Text retains the stationery margins: ${row.text}`);
     }
-    for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(text.includes(value), `Style retains ${value}`);
+    for (const value of ['Northfield Motors', 'Jamie Taylor', 'AB18 XYZ', '£12,100.00']) assert.ok(readablePdfText(text).includes(value), `Style retains ${value}`);
     if (variant.style === 'classic' || variant.inkSaving) assert.equal(filledRectangles(text).length, 0, 'Plain printing removes filled panels');
     if (process.env.LUXXY_PDF_AUDIT_DIR) writeFileSync(`${process.env.LUXXY_PDF_AUDIT_DIR}/${variant.name}.pdf`, bytes);
   }
@@ -403,4 +423,23 @@ test('guided full invoice includes richer car details, a photo and every dated p
   assert.equal(full.snapshot.totals.balance,0);assert.equal(deposit.snapshot.totals.balance,2445000);assert.deepEqual(bytes,saleDocumentPdf(full));
   for (const row of textRows(text)) assert.ok(row.x >= 40 && row.x+row.width < 558, `Text fits A4: ${row.text}`);
   if(process.env.GUIDED_INVOICE_SAMPLE_DIR) {mkdirSync(process.env.GUIDED_INVOICE_SAMPLE_DIR,{recursive:true});for(const [name,document] of [['deposit',deposit],['full',full]] as const) {document.snapshot.branding.invoiceSettings={...defaultInvoiceSettings,footer:'Design sample only — fictional customer, vehicle details and payments.'};writeFileSync(`${process.env.GUIDED_INVOICE_SAMPLE_DIR}/${name}-invoice-sample.pdf`,saleDocumentPdf(document));}}
+});
+
+test('invoice plates embed the approved font, preserve all registration formats and stay inside A4 without a UK badge', () => {
+  const formats = [['MM00MMM','MM00 MMM'],['M222MMM','M222 MMM'],['MMM3333','MMM 3333'],['MMM222','MMM 222'],['BIZ1111','BIZ 1111']];
+  for(const style of ['branded','understated','modern','classic'] as const) for(const [registration,expected] of formats) {
+    const document=invoiceDocument({...draft,registration,adjustments:[]});
+    document.snapshot.branding.invoiceSettings={...defaultInvoiceSettings,style};
+    const before=JSON.stringify(document);
+    const bytes=saleDocumentPdf(document), text=bytes.toString('latin1');
+    const lettering=textRows(text).filter(row=>row.family===registrationPdfFontName);
+    assert.equal(lettering.length,1,`${style}/${registration}: one real registration`);
+    assert.equal(lettering[0].text,expected);
+    assert.ok(lettering[0].size>=15,'Registration stays readable in print');
+    assert.match(text,/\/FontFile2\b/,'TrueType font is embedded for offline printing');
+    assert.equal(textRows(text).some(row=>row.text==='UK'),false,'No UK badge on invoice');
+    assert.doesNotMatch(text,/\/Subtype \/Image/,'The plate is text/vector artwork, not a raster image');
+    assert.equal(pageCount(text),1);assertTextOnA4(text);assertRowsDoNotCollide(text);
+    assert.equal(JSON.stringify(document),before,'Rendering never alters the issued snapshot');
+  }
 });

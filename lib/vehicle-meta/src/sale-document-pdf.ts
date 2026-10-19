@@ -1,3 +1,5 @@
+import { drawInvoiceRegistrationPlate } from './registration-plate-pdf.ts';
+import { formatRegistrationPlate } from './registration.ts';
 import { jsPDF } from 'jspdf';
 import { customerSaleDocument } from './customer-sale.ts';
 import { invoicePalette } from './invoice-palette.ts';
@@ -163,14 +165,23 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     const block = (label: string, rows: string[], x: number, vehicleBlock = false) => {
       let blockY = y + 6;
       font(7.7, true, accent); pdf.text(label, x + 5, blockY); blockY += 6;
-      rows.forEach((row, index) => { const style = rowStyle(index, vehicleBlock); const textRows = split(row, 75, style.size, style.bold); font(style.size, style.bold, style.bold ? ink : muted); pdf.text(textRows, x + 5, blockY); blockY += textRows.length * style.size * 0.42 + 1.5; });
+      rows.forEach((row, index) => {
+        if (vehicleBlock && index === 1 && rowsHaveRegistration && document.type === 'invoice' && formatRegistrationPlate(draft.registration)) {
+          font(8.5,false,muted);pdf.text('Registration',x+5,blockY);
+          drawInvoiceRegistrationPlate(pdf,draft.registration,x+30,blockY-4.8);blockY+=9;
+        } else {const style = rowStyle(index, vehicleBlock); const textRows = split(row, 75, style.size, style.bold); font(style.size, style.bold, style.bold ? ink : muted); pdf.text(textRows, x + 5, blockY); blockY += textRows.length * style.size * 0.42 + 1.5;}
+      });
       return blockY;
     };
     // Very long addresses use flowing rows rather than a fixed-height two-column panel.
-    const heightOf = (rows: string[], vehicleBlock = false) => rows.reduce((sum, row, index) => { const style = rowStyle(index, vehicleBlock); return sum + split(row, 75, style.size, style.bold).length * style.size * 0.42 + 1.5; }, 15);
+    const heightOf = (rows: string[], vehicleBlock = false) => rows.reduce((sum, row, index) => { if(vehicleBlock && index===1 && rowsHaveRegistration && document.type==='invoice' && formatRegistrationPlate(draft.registration)) return sum+9; const style = rowStyle(index, vehicleBlock); return sum + split(row, 75, style.size, style.bold).length * style.size * 0.42 + 1.5; }, 15);
     if (Math.max(heightOf(customerRows), heightOf(vehicleRows, true)) > 65) {
       section('Customer'); customerRows.forEach((row, i) => line(row, i === 0 ? 11 : 9, i === 0));
-      section('Vehicle'); vehicleRows.forEach((row, i) => line(row, i === 0 ? 11 : 9, i === 0)); y += 4;
+      section('Vehicle'); vehicleRows.forEach((row, i) => {
+        if(i===1 && rowsHaveRegistration && document.type==='invoice' && formatRegistrationPlate(draft.registration)) {
+          ensure(12);font(8.5,false,muted);pdf.text('Registration',left,y);drawInvoiceRegistrationPlate(pdf,draft.registration,left+25,y-4.8);y+=10;
+        } else line(row,i===0?11:9,i===0);
+      }); y += 4;
     } else {
       const panelHeight = Math.max(heightOf(customerRows), heightOf(vehicleRows, true));
       ensure(panelHeight + 8);
@@ -198,7 +209,8 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     const extendedFacts = presentFacts.filter(([, value]) => split(value, 49, 9, true).length > 3);
     const titleRows = split(draft.vehicle || vehicle?.title || '', 112, 15, true);
     const registrationRows = draft.registration ? split(`Registration  ${draft.registration}`, 112, 10.5, true) : [];
-    const headerHeight = Math.max(30, 18 + (titleRows.length - 1) * 6.5 + registrationRows.length * 5 + 6);
+    const plateValue = formatRegistrationPlate(draft.registration);
+    const headerHeight = Math.max(30, plateValue ? 18 + titleRows.length * 6.5 + 8 : 18 + (titleRows.length - 1) * 6.5 + registrationRows.length * 5 + 6);
     const rowHeights = Array.from({length: Math.ceil(facts.length / 3)}, (_, row) => Math.max(10.3, ...facts.slice(row * 3, row * 3 + 3).map(([, value]) => 6 + split(value, 49, 9, true).length * 4.3)));
     const panelHeight = headerHeight + rowHeights.reduce((sum, h) => sum + h, 0) + 2;
     ensure(panelHeight + 8);
@@ -207,7 +219,11 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
     const top = y;
     font(7.5, true, accent); pdf.text('YOUR VEHICLE', left + 6, top + 8);
     font(15, true); pdf.text(titleRows, left + 6, top + 17);
-    if (draft.registration) { font(10.5, true, muted); pdf.text(registrationRows, left + 6, top + 18 + titleRows.length * 6.5); }
+    if (draft.registration) {
+      const baseline = top + 18 + titleRows.length * 6.5;
+      if (plateValue) {font(8.5,false,muted);pdf.text('Registration',left+6,baseline);drawInvoiceRegistrationPlate(pdf,draft.registration,left+31,baseline-4.8);}
+      else {font(10.5,true,muted);pdf.text(registrationRows,left+6,baseline);}
+    }
     const photo = vehicle?.photoDataUrl;
     if (photo && /^data:image\/(?:png|jpe?g);base64,[A-Za-z0-9+/=]+$/.test(photo) && photo.length < 2_800_000) {
       try {
