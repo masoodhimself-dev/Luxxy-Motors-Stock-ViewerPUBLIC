@@ -10,6 +10,31 @@ import {
   SiWhatsapp, Star, StockImport, iconNames,
 } from './index';
 
+type SuppliedIcon = typeof manifest.icons[number] & { solidPath?: string; compactPath?: string };
+
+function sourceSvg(path: string): Element {
+  const document = new DOMParser().parseFromString(readFileSync(`${process.cwd()}/src/assets/dealership-icons/${path}`, 'utf8'), 'image/svg+xml');
+  expect(document.querySelector('parsererror'), path).toBeNull();
+  return document.documentElement;
+}
+
+function expectInert(svg: Element, localMasks = false): void {
+  expect(svg.querySelector('script, foreignObject, image, use, a, iframe, animate, set')).toBeNull();
+  for (const element of [svg, ...svg.querySelectorAll('*')]) {
+    expect(element.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    for (const attribute of element.attributes) {
+      expect(attribute.name).not.toMatch(/^on|href$/i);
+      expect(attribute.value).not.toMatch(/javascript:|data:/i);
+      if (/url\(/i.test(attribute.value)) {
+        expect(localMasks && attribute.name === 'mask', `${element.localName} ${attribute.name}`).toBe(true);
+        const id = /^url\(#([^)]*)\)$/.exec(attribute.value)?.[1];
+        expect(id).toBeTruthy();
+        expect([...svg.querySelectorAll('mask')].find(mask => mask.id === id)).toBeDefined();
+      }
+    }
+  }
+}
+
 function artwork(element: Element): unknown {
   return {
     tag: element.localName,
@@ -22,29 +47,107 @@ describe('the supplied dealership icon family', () => {
   it('renders every supplied glyph as local, inert SVG artwork', () => {
     expect(manifest.icons).toHaveLength(100);
     expect(new Set(manifest.icons.map(icon => icon.name)).size).toBe(100);
-    for (const { name, path, brand } of manifest.icons) {
+    let retainedOutlineGlyphs = 0;
+    for (const icon of manifest.icons as SuppliedIcon[]) {
+      const { name, path, brand, solidPath } = icon;
       expect(iconNames).toContain(name);
       const { container, unmount } = render(<DealerSvgIcon name={name as typeof iconNames[number]} />);
       const svg = container.querySelector('svg')!;
-      const original = new DOMParser().parseFromString(readFileSync(`${process.cwd()}/src/assets/dealership-icons/${path}`, 'utf8'), 'image/svg+xml');
-      expect(original.querySelector('parsererror'), name).toBeNull();
+      const original = sourceSvg(path);
+      expectInert(original);
       expect(svg).toHaveAttribute('viewBox', '0 0 24 24');
       expect(svg).toHaveAttribute('data-dealer-icon', name);
-      expect([...svg.children].map(artwork), `${name} retains its supplied geometry`).toEqual([...original.documentElement.children].map(artwork));
-      expect(svg).toHaveAttribute('fill', original.documentElement.getAttribute('fill'));
-      expect(svg).toHaveAttribute('stroke', original.documentElement.getAttribute('stroke') ?? 'none');
-      if (!brand) expect(svg).toHaveAttribute('stroke-width', '1.85');
-      expect(svg.querySelector('path, circle, rect, line, polyline, polygon, ellipse')).not.toBeNull();
-      expect(svg.querySelector('script, foreignObject, image, use, a, iframe, animate, set')).toBeNull();
-      for (const element of [svg, ...svg.querySelectorAll('*')]) {
-        expect(element.namespaceURI).toBe('http://www.w3.org/2000/svg');
-        for (const attribute of element.attributes) {
-          expect(attribute.name).not.toMatch(/^on|href$/i);
-          expect(attribute.value).not.toMatch(/javascript:|data:|url\(/i);
-        }
+      if (solidPath) {
+        expect(svg).toHaveAttribute('data-icon-variant', 'standard');
+        expect(svg).toHaveAttribute('fill', 'currentColor');
+        expect(svg).toHaveAttribute('stroke', 'none');
+        expect(svg).not.toHaveAttribute('stroke-width');
+      } else {
+        retainedOutlineGlyphs += 1;
+        expect([...svg.children].map(artwork), `${name} retains its supplied geometry`).toEqual([...original.children].map(artwork));
+        expect(svg).toHaveAttribute('fill', original.getAttribute('fill'));
+        expect(svg).toHaveAttribute('stroke', original.getAttribute('stroke') ?? 'none');
+        if (!brand) expect(svg).toHaveAttribute('stroke-width', '1.85');
       }
+      expect(svg.querySelector('path, circle, rect, line, polyline, polygon, ellipse')).not.toBeNull();
+      expectInert(svg, Boolean(solidPath));
       unmount();
     }
+    expect(retainedOutlineGlyphs).toBe(92);
+  });
+
+  it('preserves every supplied solid layer in both optical sizes without importing review colours', () => {
+    const solidIcons = (manifest.icons as SuppliedIcon[]).filter(icon => icon.solidPath);
+    expect(solidIcons).toHaveLength(8);
+    for (const { name, solidPath, compactPath } of solidIcons) {
+      expect(compactPath, name).toBeTruthy();
+      for (const [variant, path, size] of [['standard', solidPath!, 24], ['compact', compactPath!, 16]] as const) {
+        const original = sourceSvg(path);
+        expectInert(original);
+        const { container, unmount } = render(<DealerSvgIcon name={name as typeof iconNames[number]} size={size} style={{ color: '#735629' }} />);
+        const svg = container.querySelector('svg')!;
+        const primary = svg.querySelector('g[data-layer="primary"]')!;
+        const accent = svg.querySelector('g[data-layer="accent"]')!;
+        expect(svg).toHaveAttribute('data-icon-variant', variant);
+        expect(svg).toHaveAttribute('fill', 'currentColor');
+        expect(svg).toHaveAttribute('stroke', 'none');
+        expect(svg).not.toHaveAttribute('stroke-width');
+        expect(svg).toHaveStyle({ color: '#735629' });
+        expect([...primary.children].map(artwork), `${name} ${variant} primary`).toEqual([...original.querySelector('g[data-layer="primary"]')!.children].map(artwork));
+        expect([...accent.children].map(artwork), `${name} ${variant} accent`).toEqual([...original.querySelector('g[data-layer="accent"]')!.children].map(artwork));
+        expect(accent).toHaveAttribute('fill', 'currentColor');
+        expect(Number(accent.getAttribute('opacity'))).toBe(0.5);
+        expect(svg.outerHTML).not.toMatch(/#172436|#3d63e8|--icon-ink|--icon-accent/i);
+        expect(svg.querySelector('[stroke-width], [stroke]:not([stroke="none"])')).toBeNull();
+        expectInert(svg, true);
+        unmount();
+      }
+    }
+  });
+
+  it('gives every solid icon its own local cut-out mask, including repeated glyphs', () => {
+    const { container } = render(<><CarFront /><CarFront /><CustomerEnquiry /><ManualTransmission /></>);
+    const svgs = [...container.querySelectorAll('svg')];
+    const ids = svgs.map(svg => svg.querySelector('mask')!.id);
+    expect(new Set(ids).size).toBe(svgs.length);
+    expect(ids.every(Boolean)).toBe(true);
+    for (const svg of svgs) {
+      const mask = svg.querySelector('mask')!;
+      const primary = svg.querySelector('g[data-layer="primary"]')!;
+      const accent = svg.querySelector('g[data-layer="accent"]')!;
+      expect(primary).toHaveAttribute('mask', `url(#${mask.id})`);
+      expect(mask).toHaveStyle({ maskType: 'luminance' });
+      expect(mask.querySelector('rect[fill="white"]')).not.toBeNull();
+      const cutout = mask.querySelector('g[fill="black"]')!;
+      expect(cutout).not.toBeNull();
+      expect([...cutout.children].map(artwork)).toEqual([...accent.children].map(artwork));
+    }
+  });
+
+  it('chooses compact artwork for small controls and standard artwork for larger or responsive-only sizes', () => {
+    const { container, rerender } = render(<CarFront />);
+    const expectVariant = (variant: string) => expect(container.querySelector('svg')).toHaveAttribute('data-icon-variant', variant);
+    expectVariant('standard');
+    for (const size of [12, 14, 16]) {
+      rerender(<CarFront size={size} />);
+      expectVariant('compact');
+    }
+    for (const size of [20, 24, 32]) {
+      rerender(<CarFront size={size} />);
+      expectVariant('standard');
+    }
+    for (const className of ['h-3 w-3', 'size-3.5', 'h-4 w-4 shrink-0', 'w-4', 'h-3.5 md:h-5']) {
+      rerender(<CarFront className={className} />);
+      expectVariant('compact');
+    }
+    for (const className of ['h-5 w-5', 'h-6 w-6', 'md:h-4 md:w-4', 'sm:size-4', 'size-40']) {
+      rerender(<CarFront className={className} />);
+      expectVariant('standard');
+    }
+    rerender(<CarFront size={16} strokeWidth={4} absoluteStrokeWidth />);
+    expectVariant('compact');
+    expect(container.querySelector('svg')).not.toHaveAttribute('stroke-width');
+    expect(container.querySelector('svg')).toHaveAttribute('stroke', 'none');
   });
 
   it('forwards refs, responsive sizing and caller presentation without changing the viewBox', () => {
@@ -54,7 +157,9 @@ describe('the supplied dealership icon family', () => {
     expect(ref.current).toHaveAttribute('width', '20');
     expect(ref.current).toHaveAttribute('height', '20');
     expect(ref.current).toHaveAttribute('viewBox', '0 0 24 24');
-    expect(ref.current).toHaveAttribute('stroke-width', '1.85');
+    expect(ref.current).toHaveAttribute('stroke', 'none');
+    expect(ref.current).not.toHaveAttribute('stroke-width');
+    expect(ref.current).toHaveAttribute('data-icon-variant', 'compact');
     expect(ref.current).toHaveClass('h-4', 'w-4', 'shrink-0');
     expect(ref.current).toHaveStyle({ color: '#173247' });
   });

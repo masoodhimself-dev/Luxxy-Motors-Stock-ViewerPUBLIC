@@ -1,6 +1,7 @@
 /** Shared dealership SVG family. Generated from the supplied kit; see assets/dealership-icons/README.md. */
-import { createElement, forwardRef, type SVGProps, type ReactElement } from 'react';
+import { createElement, forwardRef, useId, type SVGProps, type ReactElement } from 'react';
 import glyphs from '@/assets/dealership-icons/glyphs.json';
+import solidGlyphs from '@/assets/dealership-icons/solid-glyphs.json';
 import { Star as ReviewStar, Truck as DeliveryTruck, GripVertical as DragHandle, PanelLeftIcon as SidebarPanel, Monitor as DesktopPreview, Smartphone as PhonePreview, Sun as Daylight, TrendingUp as Trend, Radio as LiveIndicator, KeyRound as VehicleKey, Handshake as VisitHandshake, Facebook, Instagram, Twitter } from 'lucide-react';
 export { Facebook, Instagram, Twitter }; // Official service identities retain their established brand marks.
 export interface DealerIconProps extends SVGProps<SVGSVGElement> { size?: number | string; absoluteStrokeWidth?: boolean; }
@@ -8,13 +9,41 @@ export type DealerIcon = ReturnType<typeof makeIcon>;
 export type LucideIcon = DealerIcon;
 type SvgNode = [string, Record<string, string>, SvgNode[]];
 type GlyphName = keyof typeof glyphs;
+type SolidGlyphName = keyof typeof solidGlyphs;
 function drawNode([tag, props, children]: SvgNode, index: number): ReactElement { return createElement(tag, { ...props, key: index }, ...children.map(drawNode)); }
+
+// The supplied compact drawings have fewer details for 16px controls. Use the
+// existing base utility size when present; unrecognised CSS sizes use standard art.
+function usesCompactArtwork(size: number | string, className?: string) {
+ const dimension = className?.match(/(?:^|\s)(?:size|h|w)-(\d+(?:\.\d+)?)(?=\s|$)/);
+ if (dimension) return Number(dimension[1]) <= 4;
+ const pixels = typeof size === 'number' ? size : /^\d+(?:\.\d+)?(?:px)?$/.test(size) ? Number.parseFloat(size) : null;
+ return pixels !== null && pixels <= 16;
+}
+
+function SolidArtwork({name, compact}: {name: SolidGlyphName; compact: boolean}) {
+ const maskId = `dealer-icon-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+ const artwork = solidGlyphs[name][compact ? 'compact' : 'standard'];
+ return <>
+  <defs>
+   <mask id={maskId} x="0" y="0" width="24" height="24" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" style={{maskType: 'luminance'}}>
+    <rect width="24" height="24" fill="white" />
+    <g fill="black">{(artwork.accent as SvgNode[]).map(drawNode)}</g>
+   </mask>
+  </defs>
+  <g data-layer="primary" mask={`url(#${maskId})`}>{(artwork.primary as SvgNode[]).map(drawNode)}</g>
+  <g data-layer="accent" fill="currentColor" opacity=".5">{(artwork.accent as SvgNode[]).map(drawNode)}</g>
+ </>;
+}
+
 function makeIcon(name: GlyphName, rotation = 0) {
  const definition = glyphs[name];
+ const solid = Object.hasOwn(solidGlyphs, name);
  const Icon = forwardRef<SVGSVGElement, DealerIconProps>(({size = 24, strokeWidth = 1.85, absoluteStrokeWidth = false, children, className, style, ...props}, ref) => {
   const stroke = absoluteStrokeWidth && typeof size === 'number' && size > 0 ? Number(strokeWidth) * 24 / size : strokeWidth;
-  const artwork = (definition.nodes as SvgNode[]).map(drawNode);
-  return <svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={definition.fill} stroke={definition.stroke} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" data-dealer-icon={name} className={className} style={name === 'whatsapp' ? {color: 'var(--dealer-whatsapp-icon, #25d366)', ...style} : style} {...props}>
+  const compact = solid && usesCompactArtwork(size, className);
+  const artwork = solid ? <SolidArtwork name={name as SolidGlyphName} compact={compact} /> : (definition.nodes as SvgNode[]).map(drawNode);
+  return <svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={solid ? 'currentColor' : definition.fill} stroke={solid ? 'none' : definition.stroke} strokeWidth={solid ? undefined : stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" data-dealer-icon={name} data-icon-variant={solid ? compact ? 'compact' : 'standard' : undefined} className={className} style={name === 'whatsapp' ? {color: 'var(--dealer-whatsapp-icon, #25d366)', ...style} : style} {...props}>
    {rotation ? <g transform={`rotate(${rotation} 12 12)`}>{artwork}</g> : artwork}{children}
   </svg>;
  });

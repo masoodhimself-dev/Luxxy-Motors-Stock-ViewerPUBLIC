@@ -47,3 +47,9 @@ Label icon-only controls. Use aria-hidden="true" for decorative icons beside tex
 QR retains three clear finders and fewer data strokes. Merge customers uses two heads and converging paths. Licence check loses a redundant text line. Compare cars uses one vehicle and a two-way comparison arrow. Hybrid loses an unrelated lower arc; charging uses a clean plug. Vehicle history retains a clock while service book uses the approved bound logbook. Documents follow the invoice’s clipped page corner; receipts remain narrow till slips. Familiar navigation and status metaphors keep their conventional shapes with the unified stroke and spacing.
 
 WhatsApp remains subject to Meta’s terms and is the only third-party visual asset. Use its supplied black, white or green colours, as documented in the provenance note.
+
+## Installed solid overlay (19 October 2026)
+
+Eight concepts now use the 16 SVG downloads from the user-supplied `dealership-solid-review.html`: car, mileage, insurance, test-drive booking, customer enquiry, invoice and both transmissions. Originals are retained in `solid/`; runtime geometry is in `solid-glyphs.json`. The existing manifest records `solidPath` and `compactPath` for these concepts. Its original v2 `path` remains available for provenance.
+
+The interface inherits its existing colours rather than the review’s hard-coded cobalt/ink defaults. Local knockout masks plus a translucent detail layer preserve the two-tone shapes. The rest of the original family is unchanged. See `docs/design/dealership-icons.md` for integration and size rules.

@@ -12,7 +12,9 @@
       "star": true,
       "brand": false,
       "path": "icons/car.svg",
-      "previous_name": "car"
+      "previous_name": "car",
+      "solidPath": "solid/car-standard.svg",
+      "compactPath": "solid/car-compact.svg"
     },
     {
       "name": "mileage",
@@ -21,7 +23,9 @@
       "star": true,
       "brand": false,
       "path": "icons/mileage.svg",
-      "previous_name": "mileage"
+      "previous_name": "mileage",
+      "solidPath": "solid/mileage-standard.svg",
+      "compactPath": "solid/mileage-compact.svg"
     },
     {
       "name": "transmission-manual",
@@ -30,7 +34,9 @@
       "star": true,
       "brand": false,
       "path": "icons/transmission-manual.svg",
-      "previous_name": "transmission"
+      "previous_name": "transmission",
+      "solidPath": "solid/transmission-manual-standard.svg",
+      "compactPath": "solid/transmission-manual-compact.svg"
     },
     {
       "name": "transmission-automatic",
@@ -39,7 +45,9 @@
       "star": false,
       "brand": false,
       "path": "icons/transmission-automatic.svg",
-      "previous_name": null
+      "previous_name": null,
+      "solidPath": "solid/transmission-automatic-standard.svg",
+      "compactPath": "solid/transmission-automatic-compact.svg"
     },
     {
       "name": "registration-plate",
@@ -147,7 +155,9 @@
       "star": false,
       "brand": false,
       "path": "icons/insurance.svg",
-      "previous_name": "insurance"
+      "previous_name": "insurance",
+      "solidPath": "solid/insurance-standard.svg",
+      "compactPath": "solid/insurance-compact.svg"
     },
     {
       "name": "previous-keepers",
@@ -228,7 +238,9 @@
       "star": false,
       "brand": false,
       "path": "icons/customer-enquiry.svg",
-      "previous_name": null
+      "previous_name": null,
+      "solidPath": "solid/customer-enquiry-standard.svg",
+      "compactPath": "solid/customer-enquiry-compact.svg"
     },
     {
       "name": "whatsapp",
@@ -300,7 +312,9 @@
       "star": true,
       "brand": false,
       "path": "icons/test-drive-booking.svg",
-      "previous_name": "calendar-test-drive"
+      "previous_name": "calendar-test-drive",
+      "solidPath": "solid/test-drive-booking-standard.svg",
+      "compactPath": "solid/test-drive-booking-compact.svg"
     },
     {
       "name": "signed-declaration",
@@ -345,7 +359,9 @@
       "star": true,
       "brand": false,
       "path": "icons/invoice.svg",
-      "previous_name": "invoice"
+      "previous_name": "invoice",
+      "solidPath": "solid/invoice-standard.svg",
+      "compactPath": "solid/invoice-compact.svg"
     },
     {
       "name": "receipt",
@@ -905,5 +921,15 @@
       "path": "icons/failed.svg",
       "previous_name": "failed"
     }
-  ]
+  ],
+  "solidUpdate": {
+    "source": "dealership-solid-review.html",
+    "date": "2026-10-19",
+    "concepts": 8,
+    "variants": [
+      "standard",
+      "compact"
+    ],
+    "colour": "Inherits existing interface colour; translucent detail layer with a local knockout mask."
+  }
 }
