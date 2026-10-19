@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createSaleWorkspace, changeSaleWorkspace, saleWorkspaceBranding, type SaleWorkspaceContext } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, changeSaleWorkspace, currentInvoiceSettings, invoiceBranding, saleWorkspaceBranding, type SaleWorkspaceContext } from '@workspace/vehicle-meta';
 import type { SaleWorkspaceReadClient } from './sale-workspace-store';
 
 /** Only ever called after locking a row in dealer_demos. No live dealer fallback. */
@@ -15,7 +15,7 @@ export async function seedDemo(client: SaleWorkspaceReadClient, dealerId: string
     const v=vehicles[i];
     const price = Number(v?.source_price) > 0 ? Number(v!.source_price).toFixed(2) : '12995.00';
     let number=0;
-    const branding=saleWorkspaceBranding(config); branding.identity.name += ' · SAMPLE / DEMO';
+    const branding=invoiceBranding(saleWorkspaceBranding(config),currentInvoiceSettings(config?.invoiceSettings)); branding.identity.name += ' · SAMPLE / DEMO';
     const context: SaleWorkspaceContext={now:now.toISOString(),actor:'Demo setup (fictional)',nextId:randomUUID,nextNumber:() => `SAMPLE-${i+1}-${++number}`,branding,paperwork:{saleTerms:'SAMPLE ONLY — fictional demonstration. Not a contract of sale.',reservationTerms:'SAMPLE ONLY — no money received.'},vehicle:v?{id:v.id,title:v.title,registration:v.plate||v.registration}:undefined};
     let sale=createSaleWorkspace({requestId:randomUUID(),draft:{id:'',customer:['Alex Morgan (fictional)','Jamie Taylor (fictional)'][i],email:`demo${i+1}@example.invalid`,phone:'',address:'Fictional demonstration address',vehicleId:v?.id ?? '',vehicle:v?.title ?? 'Example vehicle',registration:v?.plate||v?.registration||'',price,partExchange:false,pxRegistration:'',pxDescription:'',pxValue:'0',deposit:'0',paymentMethod:'Bank transfer',notes:'SAMPLE — no real sale or payment.',collection:'',preparation:false,documents:false,handover:false}},context,`SAMPLE-SALE-${i+1}`).sale;
     const deposit=Math.min(200,Number(price));

@@ -145,6 +145,7 @@ export class DealerIntegrationsStore {
   async readSalesPaperwork() { const state = await this.readPrivate(); return { revision: state.revision, saleTerms: state.salesPaperwork?.saleTerms || (currentTenant()?.demo ? 'SAMPLE ONLY — fictional demonstration. Not a contract of sale.' : ''), reservationTerms: state.salesPaperwork?.reservationTerms || (currentTenant()?.demo ? 'SAMPLE ONLY — no real money received.' : ''), invoiceSettings: currentInvoiceSettings(state.salesPaperwork?.invoiceSettings) }; }
   async updateSalesPaperwork(raw: unknown) {
     const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), saleTerms: z.string().trim().max(20000), reservationTerms: z.string().trim().max(20000), invoiceSettings: z.object({
+      layoutVersion: z.literal('classic-ledger-v1').optional(),
       style: z.enum(['classic', 'modern', 'premium', 'understated', 'branded']), useWebsiteColour: z.boolean(), accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
       showLogo: z.boolean(), logoSize: z.enum(['small', 'medium', 'large']), inkSaving: z.boolean(),
       footer: z.string().trim().max(600), paymentInstructions: z.string().trim().max(1200),

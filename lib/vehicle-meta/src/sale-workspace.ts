@@ -31,6 +31,8 @@ export type SaleWorkspaceTotals = {
   deposit: number; confirmedPaid: number; pending: number; balance: number;
 };
 export type InvoiceSettings = {
+  /** Frozen only on newly prepared documents; unmarked historic snapshots retain their original renderer. */
+  layoutVersion?: 'classic-ledger-v1';
   style: 'classic' | 'modern' | 'premium' | 'understated' | 'branded'; useWebsiteColour: boolean; accent: string;
   showLogo: boolean; logoSize: 'small' | 'medium' | 'large'; inkSaving: boolean;
   footer: string; paymentInstructions: string;
@@ -41,9 +43,10 @@ export const invoiceTextLimits = { footer: 120, paymentInstructions: 240, saleTe
 export const compactInvoiceStyle = (style?: string) => style === 'understated' || style === 'branded';
 /** Migrate future settings, never the branding frozen in an already-issued document. */
 export function currentInvoiceSettings(settings?: Partial<InvoiceSettings>): InvoiceSettings {
-  return { ...defaultInvoiceSettings, ...settings, style: !settings?.style ? defaultInvoiceSettings.style : settings.style==='premium'||settings.style==='branded'?'branded':'understated' };
+  return { ...defaultInvoiceSettings, ...settings, layoutVersion: 'classic-ledger-v1', style: !settings?.style ? defaultInvoiceSettings.style : settings.style==='premium'||settings.style==='branded'?'branded':'understated' };
 }
 export const defaultInvoiceSettings: InvoiceSettings = {
+  layoutVersion: 'classic-ledger-v1',
   style: 'branded', useWebsiteColour: true, accent: '#215a7e', showLogo: true,
   logoSize: 'medium', inkSaving: false, footer: '', paymentInstructions: '',
   referencePrefix: '', startingSequence: 1,
@@ -481,6 +484,8 @@ export function saleWorkspaceBranding(config: unknown): SaleWorkspaceBranding {
     legal: { companyName: clean(source.legal?.companyName), companyNumber: clean(source.legal?.companyNumber), vatNumber: clean(source.legal?.vatNumber), termsUrl: clean(source.legal?.termsUrl), privacyUrl: clean(source.legal?.privacyUrl), cookieUrl: clean(source.legal?.cookieUrl) },
     presentation: { linkColour: clean(source.presentation?.linkColour) },
     ...(source.invoiceSettings ? { invoiceSettings: {
+      // This sanitizer also reads issued documents. Never apply the current layout to an older snapshot.
+      ...(source.invoiceSettings.layoutVersion === 'classic-ledger-v1' ? { layoutVersion: 'classic-ledger-v1' as const } : {}),
       style: ['classic', 'modern', 'premium', 'understated', 'branded'].includes(source.invoiceSettings.style) ? source.invoiceSettings.style : defaultInvoiceSettings.style,
       useWebsiteColour: source.invoiceSettings.useWebsiteColour !== false,
       accent: /^#[0-9a-fA-F]{6}$/.test(source.invoiceSettings.accent) ? source.invoiceSettings.accent : '#215a7e',

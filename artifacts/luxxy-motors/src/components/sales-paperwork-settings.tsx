@@ -88,8 +88,8 @@ export function SalesPaperworkSettings() {
           <div className="invoice-settings-layout">
             <div className="invoice-settings-controls integration-card">
               <header><h3>Your invoice design</h3><p>Choose a style that suits your dealership.</p></header>
-              <label className="integration-field">Design style<select disabled={busy} value={options.style} onChange={e => change('style', e.target.value as InvoiceSettings['style'])}><option value="understated">Design A - clean stationery</option><option value="branded">Design B - accent stationery</option></select></label>
-              <p className="invoice-design-help">White stationery, fine section rules and compact amount columns. Design B uses your accent for headings and rules. The QR verification code is added when the invoice is issued.</p>
+              <label className="integration-field">Design style<select disabled={busy} value={options.style} onChange={e => change('style', e.target.value as InvoiceSettings['style'])}><option value="understated">Classic ledger — understated</option><option value="branded">Classic ledger — branded</option></select></label>
+              <p className="invoice-design-help">Classic ledger uses white stationery, fine section rules and clear payment tables. The branded version uses your accent for headings and rules. The QR verification code is added when the invoice is issued.</p>
               <label><input type="checkbox" disabled={busy} checked={options.useWebsiteColour} onChange={e => change('useWebsiteColour', e.target.checked)} /> Use website colour</label>
               <label className="integration-field">Invoice colour<input type="color" disabled={busy || options.useWebsiteColour} value={options.accent} onChange={e => change('accent', e.target.value)} /></label>
               <label><input type="checkbox" disabled={busy} checked={options.showLogo} onChange={e => change('showLogo', e.target.checked)} /> Show dealership logo</label>
@@ -97,7 +97,7 @@ export function SalesPaperworkSettings() {
               <label><input type="checkbox" disabled={busy} checked={options.inkSaving} onChange={e => change('inkSaving', e.target.checked)} /> Ink-saving design</label>
               <label className="integration-field">Thank-you / footer wording<Textarea disabled={busy} rows={2} maxLength={invoiceTextLimits.footer} aria-invalid={options.footer.length>invoiceTextLimits.footer} value={options.footer} onChange={e => change('footer', e.target.value)} /></label>{counter('footer')}
             </div>
-            <div className="invoice-settings-preview"><h3>A4 design check</h3><p>Fictional customer and vehicle. Preview only updates when you ask; nothing is issued.</p><Button disabled={busy||tooLong||!dealer} onClick={()=>setPreview({dealer:previewDealer,terms:value.saleTerms,options:{...options}})}>{preview?'Update A4 preview':'Check A4 preview'}</Button>{preview ? <><PdfSalesDocument draft={sample} dealer={preview.dealer} documentType="Sales invoice" invoiceTerms={preview.terms} savedVehicle={{id:sample.vehicleId,year:2020,fuel:'Diesel',transmission:'Automatic',mileage:22000,colour:'Obsidian Black',engineSize:'2.0L',owners:1,serviceHistory:'Full'}}/>{JSON.stringify(preview.options)!==JSON.stringify(options)||preview.terms!==value.saleTerms?<p role="status">Settings have changed. Update the preview to check this version.</p>:null}</> : <div className="invoice-preview-empty">Your invoice preview will appear here.</div>}<p className="invoice-design-help">Character limits keep wording compact. Every actual invoice is also measured: excess content is refused rather than carried onto a second page or removed. Keep all confirmed payments.</p></div>
+            <div className="invoice-settings-preview"><h3>A4 design check</h3><p>Fictional customer and vehicle. Preview only updates when you ask; nothing is issued.</p><Button disabled={busy||tooLong||!dealer} onClick={()=>setPreview({dealer:previewDealer,terms:value.saleTerms,options:{...options}})}>{preview?'Update A4 preview':'Check A4 preview'}</Button>{preview ? <><PdfSalesDocument draft={sample} dealer={preview.dealer} documentType="Sales invoice" invoiceTerms={preview.terms} savedVehicle={{id:sample.vehicleId,year:2020,fuel:'Diesel',transmission:'Automatic',mileage:22000,colour:'Obsidian Black',engineSize:'2.0L',owners:1,serviceHistory:'Full'}}/>{JSON.stringify(preview.options)!==JSON.stringify(options)||preview.terms!==value.saleTerms?<p role="status">Settings have changed. Update the preview to check this version.</p>:null}</> : <div className="invoice-preview-empty">Your invoice preview will appear here.</div>}<p className="invoice-design-help">Character limits keep wording compact. Standard invoices aim to fit one A4 page with the car photo and all confirmed payments. Longer payment histories or wording continue onto additional pages without removing content.</p></div>
           </div>
           </div>
           <div role="tabpanel" id="invoice-settings-panel-payment" aria-labelledby="invoice-settings-tab-payment" hidden={settingsTab !== 'payment'} className="invoice-settings-panel">
@@ -114,7 +114,7 @@ export function SalesPaperworkSettings() {
             </div>
           </div>
           <div role="tabpanel" id="invoice-settings-panel-terms" aria-labelledby="invoice-settings-tab-terms" hidden={settingsTab !== 'terms'} className="invoice-settings-panel">
-            <div className="invoice-settings-detail-grid"><div className="integration-card invoice-settings-terms"><header><h3>Approved dealership wording</h3><p>Use your approved terms. Character limits help keep invoices on one A4 sheet.</p></header>
+            <div className="invoice-settings-detail-grid"><div className="integration-card invoice-settings-terms"><header><h3>Approved dealership wording</h3><p>Use your approved terms. Character limits keep wording concise; longer invoices continue onto additional A4 pages.</p></header>
           <label className="integration-field">
             Terms and conditions of sale
             <Textarea
@@ -145,7 +145,7 @@ export function SalesPaperworkSettings() {
           {counter('reservationTerms')}
             </div><aside className="invoice-settings-guidance"><FileCheck2 aria-hidden="true" /><h3>Saved with each invoice</h3><p>New documents use the wording saved here. Issued documents keep the terms agreed at the time.</p><p>Each new invoice includes a QR code to verify its reference, vehicle and issue-time amounts. Customer contact details remain private.</p></aside></div>
           </div>
-          {tooLong&&<p role="alert" className="integration-error">Existing wording exceeds the A4 limits. Shorten it before saving. Nothing has been removed automatically.</p>}
+          {tooLong&&<p role="alert" className="integration-error">Existing wording exceeds the character limits. Shorten it before saving. Nothing has been removed automatically.</p>}
           <div className="invoice-settings-save-bar"><p>{changed ? 'You have unsaved changes' : 'All document settings saved'}<small>Changes apply to future documents.</small></p><div>
           <Button disabled={busy || !changed || tooLong} onClick={() => void save()}>
             {busy ? "Saving…" : "Save document settings"}

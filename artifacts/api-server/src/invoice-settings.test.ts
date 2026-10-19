@@ -11,6 +11,20 @@ test('approved branded stationery is the default without overwriting an explicit
  assert.equal(currentInvoiceSettings({style:'understated'}).style,'understated');
  assert.equal(currentInvoiceSettings({style:'modern'}).style,'understated');
 });
+test('settings accept the current layout marker and older clients but reject unsupported layout versions without saving', async () => {
+ const dir=await mkdtemp(join(tmpdir(),'invoice-layout-settings-'));
+ try {
+  const store=new DealerIntegrationsStore({filename:join(dir,'settings.json'),dealerId:'layout-settings',production:false,databaseBacked:false});
+  const initial=await store.readSalesPaperwork();
+  const current=await store.updateSalesPaperwork({expectedRevision:initial.revision,saleTerms:'Approved terms',reservationTerms:'',invoiceSettings:{...defaultInvoiceSettings}});
+  assert.equal(current.invoiceSettings?.layoutVersion,'classic-ledger-v1');
+  const {layoutVersion:_version,...olderClient}=defaultInvoiceSettings;
+  const compatible=await store.updateSalesPaperwork({expectedRevision:current.revision,saleTerms:'Approved terms',reservationTerms:'',invoiceSettings:olderClient});
+  assert.equal(compatible.invoiceSettings?.layoutVersion,'classic-ledger-v1');
+  await assert.rejects(store.updateSalesPaperwork({expectedRevision:compatible.revision,saleTerms:'Must not save',reservationTerms:'',invoiceSettings:{...defaultInvoiceSettings,layoutVersion:'unrecognised'}}),/Check the document settings/);
+  assert.deepEqual(await store.readSalesPaperwork(),compatible);
+ } finally { await rm(dir,{recursive:true,force:true}); }
+});
 test('references cannot reset or collide across types, prefixes, years or dealers', () => {
  const a: Record<string, number> = {}, b: Record<string, number> = {}, now = '2026-10-10T10:00:00Z';
  const options = { ...defaultInvoiceSettings, referencePrefix: 'ABC', startingSequence: 100 };
