@@ -87,6 +87,6 @@ export function VehicleTerm({ label, value, children, className, ariaLabel }: { 
   return text ? <TermHelp text={text} className={className} ariaLabel={ariaLabel}>{children}</TermHelp> : <span className={className} aria-label={ariaLabel}>{children}</span>;
 }
 
-export function VehicleFeature({ feature }: { feature: string }) {
-  return <VehicleFeaturePanel feature={feature} />;
+export function VehicleFeature({ feature, icon }: { feature: string; icon?: ReactNode }) {
+  return <VehicleFeaturePanel feature={feature} leadingIcon={icon} />;
 }

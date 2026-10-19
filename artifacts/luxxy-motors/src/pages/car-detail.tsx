@@ -1,6 +1,7 @@
 import './vehicle-redesign.css';
 import { VehicleFactIcon } from '@/components/vehicle-fact-icon';
-import { VehicleFeature, VehicleTerm } from '@/components/customer-help';
+import { VehicleTerm } from '@/components/customer-help';
+import { VehicleEquipmentList } from '@/components/vehicle-equipment-list';
 import { VehicleSellingPoints } from '@/components/vehicle-selling-points';
 import { browseReturnHref, requestBrowseRestore } from '@/lib/browse-session';
 import { MobileActionDisclosure } from '@/components/mobile-action-disclosure';
@@ -28,7 +29,6 @@ import {
   Calendar,
   CustomerEnquiry,
   Share2,
-  Check,
 } from '@/components/icons';
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
@@ -364,20 +364,7 @@ export default function CarDetail() {
                 <h2 id="features-heading" className="section-heading scroll-mt-28">
                   {websiteText(dealerConfig, "vehicleFeaturesHeading")}
                 </h2>
-                <ul className="vehicle-equipment-list mt-5 grid gap-3 text-sm sm:grid-cols-2">
-                  {features.slice(0, 8).map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                      <VehicleFeature feature={feature} />
-                    </li>
-                  ))}
-                </ul>
-                {features.length > 8 && <details className="vehicle-equipment-more mt-5">
-                  <summary className="cursor-pointer py-3 text-sm font-semibold underline underline-offset-4">View all {features.length} features</summary>
-                  <ul className="vehicle-equipment-list mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                    {features.slice(8).map(feature => <li key={feature} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><VehicleFeature feature={feature} /></li>)}
-                  </ul>
-                </details>}
+                <VehicleEquipmentList features={features} />
               </section>
             )}
             {description && <section

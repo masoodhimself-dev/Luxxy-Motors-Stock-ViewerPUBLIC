@@ -1,18 +1,18 @@
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { vehicleFeatureDetails } from '@/lib/vehicle-help';
 import { VehicleFeatureArtwork } from './vehicle-feature-artwork';
 import './vehicle-feature-panel.css';
 
 /** Click-only explanations keep a large illustration from obscuring the list on hover. */
-export function VehicleFeaturePanel({ feature }: { feature: string }) {
+export function VehicleFeaturePanel({ feature, leadingIcon }: { feature: string; leadingIcon?: ReactNode }) {
   const title = useRef<HTMLHeadingElement>(null);
   const details = vehicleFeatureDetails(feature);
   if (!details) return <span>{feature}</span>;
 
   return <Dialog>
     <DialogTrigger asChild>
-      <button type="button" className="customer-term-help vehicle-feature-trigger">{feature}</button>
+      <button type="button" className="customer-term-help vehicle-feature-trigger">{leadingIcon}<span>{feature}</span></button>
     </DialogTrigger>
     <DialogContent
       className="vehicle-feature-panel"
