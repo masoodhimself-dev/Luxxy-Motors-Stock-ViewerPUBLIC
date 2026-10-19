@@ -705,7 +705,7 @@ export function SalesWorkspace({
                   data-complete={index < step}
                 >
                   <b>{index < step ? <Check size={14} /> : index + 1}</b>
-                  {label}
+                  <span className="invoice-step-label">{label}</span>
                 </span>
               ))}
             </nav>
@@ -742,13 +742,15 @@ export function SalesWorkspace({
                   {vehicleChangeLocked && <p className="invoice-car-context-lock">{record?.completedAt ? "The car is fixed for this completed sale." : "The car is fixed while this sale is reserved."}</p>}
                 </aside>
               )}
-            <div className={`invoice-question-sheet${showSummary ? " invoice-resume-sheet" : ""}`}>
+            <div className={`invoice-question-sheet${showSummary ? " invoice-resume-sheet" : ""}`} data-view={showSummary ? "summary" : issued ? "issued" : `step-${step + 1}`}>
+              <div className="invoice-question-heading">
               <p className="invoice-builder-kicker">
                 {showSummary && record ? "Saved sale" : issued ? "Invoice saved" : `Step ${step + 1} of 5`}
               </p>
               <h1 ref={heading} tabIndex={-1}>
                 {showSummary ? "Sale summary" : issued ? "Your invoice is ready." : questions[step]}
               </h1>
+              </div>
               {problem && (
                 <p role="alert" className="invoice-error">
                   {problem}
