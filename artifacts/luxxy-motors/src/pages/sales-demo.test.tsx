@@ -131,17 +131,37 @@ beforeEach(() => {
       },
     );
 });
-function mount() {
+function mount(props: Parameters<typeof SalesWorkspace>[0] = {}) {
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <SalesWorkspace />
+      <SalesWorkspace {...props} />
     </QueryClientProvider>,
   );
 }
+it("returns an embedded invoice to the sales list and keeps the unsaved-change guard", async () => {
+  const onExit = vi.fn();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  try {
+    mount({ embedded: true, onExit });
+    await details("full");
+    fireEvent.click(screen.getByRole("button", { name: "Back to sales" }));
+    expect(confirm).toHaveBeenCalledWith("Leave your unsaved invoice details?");
+    expect(screen.getByRole("heading", { name: "What has the customer paid?" })).toBeInTheDocument();
+    expect(onExit).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Back to sales" }));
+    expect(screen.getByRole("heading", { name: "Simple paperwork. Clear records." })).toBeInTheDocument();
+    expect(onExit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Back to workspace" }));
+    expect(onExit).toHaveBeenCalledOnce();
+  } finally {
+    confirm.mockRestore();
+  }
+});
 async function details(_type: "deposit" | "full") {
   fireEvent.click(await screen.findByRole("button", { name: /New invoice/ }));
   expect(

@@ -502,8 +502,7 @@ export function SalesWorkspace({
     setShowSummary(false);
     setIssued(null);
     setProblem("");
-    if (onExit) onExit();
-    else if (!embedded) navigate("/portal?section=sales");
+    if (!embedded) navigate("/portal?section=sales");
   }
   const latestInvoice = record?.documents.filter(document => document.type === "invoice").at(-1) ?? null;
   const invoiceIsCurrent = Boolean(latestInvoice && draft &&
@@ -558,6 +557,11 @@ export function SalesWorkspace({
     : total.balance > 0
       ? { label: "Record a payment", note: "Continue with the next payment, or prepare the invoice when you need it.", run: () => resumeAt(2) }
     : { label: latestInvoice ? "Create updated invoice" : "Create invoice", note: latestInvoice ? "The details or payments have changed since the saved invoice." : "The balance is settled. Prepare the customer’s invoice.", run: () => resumeAt(3) };
+  const matchingSales = (sales.data?.sales ?? []).filter((sale) =>
+    `${sale.reference} ${sale.draft.customer} ${sale.draft.vehicle} ${sale.draft.registration}`
+      .toLowerCase()
+      .includes(filter.toLowerCase()),
+  );
   function field(
     key: "customer" | "phone" | "email" | "registration" | "price",
     label: string,
@@ -636,13 +640,7 @@ export function SalesWorkspace({
             </p>
           )}
           <div className="invoice-sale-list">
-            {(sales.data?.sales ?? [])
-              .filter((sale) =>
-                `${sale.reference} ${sale.draft.customer} ${sale.draft.vehicle} ${sale.draft.registration}`
-                  .toLowerCase()
-                  .includes(filter.toLowerCase()),
-              )
-              .map((sale) => (
+            {matchingSales.map((sale) => (
                 <button key={sale.id} data-sale-status={sale.completedAt ? 'sold' : sale.lifecycle?.status === 'reserved' ? 'reserved' : 'in-progress'} onClick={() => open(sale)}>
                   <span>
                     <strong>{sale.draft.customer || "Customer to add"}</strong>
@@ -670,6 +668,12 @@ export function SalesWorkspace({
                 </button>
               ))}
           </div>
+          {!sales.isLoading && !sales.isError && Boolean(sales.data?.sales.length) && !matchingSales.length && (
+            <div className="invoice-empty" role="status">
+              <h2>No matching sales</h2>
+              <p>Try another customer, car or registration.</p>
+            </div>
+          )}
           {!sales.isLoading && !sales.isError && !sales.data?.sales.length && (
             <div className="invoice-empty">
               <Invoice size={32} />

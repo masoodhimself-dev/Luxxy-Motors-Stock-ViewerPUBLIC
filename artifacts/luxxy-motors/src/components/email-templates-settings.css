@@ -18,7 +18,7 @@
 .email-colour-field { display:flex; gap:10px; }
 .email-colour-field input[type=color] { flex:0 0 48px; width:48px; height:46px; border:1px solid #cad6df; border-radius:8px; background:#fff; padding:5px; cursor:pointer; }
 .email-colour-presets { display:flex; gap:7px; flex-wrap:wrap; }
-.email-colour-presets button { display:flex; align-items:center; gap:7px; padding:8px 10px; font-size:12px; border:1px solid #dce5ec; border-radius:8px; }
+.email-colour-presets button { min-height:44px; display:flex; align-items:center; gap:7px; padding:8px 10px; font-size:12px; border:1px solid #dce5ec; border-radius:8px; }
 .email-colour-presets span { width:12px; height:12px; border-radius:50%; }
 .email-studio-selector { max-width:640px; }
 .email-studio-grid { display:grid; grid-template-columns:minmax(0,1fr); align-items:start; gap:24px; min-width:0; }
@@ -64,4 +64,9 @@
  .email-preview-canvas iframe { height:620px; }
  .email-design-studio .email-variable-list button { min-height:44px; }
  .email-design-studio .integration-actions>* { flex:1 1 150px; }
+}
+
+.email-colour-presets button[aria-pressed=true] { border-color:var(--portal-info,#24577a); background:var(--portal-info-soft,#edf4ff); color:var(--portal-info,#24577a); }
+@media (max-width:767px) {
+ .settings-tabs-workspace .email-design-studio .email-variable-list button { min-height:44px; }
 }

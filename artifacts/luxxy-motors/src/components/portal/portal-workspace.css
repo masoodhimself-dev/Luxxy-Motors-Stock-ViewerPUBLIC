@@ -113,6 +113,7 @@
 .portal-access-screen { display: flex; align-items: flex-start; justify-content: center; padding-block: 64px; }
 .portal-access-card { width: 100%; padding: 40px; border-color: var(--portal-border); border-radius: 6px; background: var(--portal-panel); }
 .portal-access-card h1 { color: var(--portal-ink); font-size: 30px; font-weight: 600; }
+.portal-access-card > p { overflow-wrap: anywhere; }
 .portal-loading-state { width: 100%; }
 .portal-action-dialog { width: calc(100% - 32px); max-width: 560px; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; padding: 28px; gap: 20px; border: 1px solid var(--portal-border); border-radius: 6px; background: var(--portal-panel); color: var(--portal-ink); box-shadow: 0 20px 80px #12263424; scrollbar-width: thin; }
 .portal-action-dialog.portal-action-dialog-wide { max-width: 920px; }

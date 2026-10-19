@@ -243,3 +243,20 @@ it('responds to browser history navigation between bookmarked settings areas', a
   expect(await screen.findByText('Invoice editor fixture')).toBeInTheDocument();
   expect(topTab('Invoices')).toHaveAttribute('aria-selected', 'true');
 });
+
+it.each([
+  ['team', '/api/staff/team', 'Loading team access…', { members: [] }, 'No staff access records to show.'],
+  ['history', '/api/staff/settings-history', 'Loading publication history…', { revision: 1, versions: [] }, 'No website publications have been recorded yet.'],
+] as const)('explains loading and empty %s records without showing a blank list', async (tab, endpoint, loading, response, empty) => {
+  let finish: (response: Response) => void = () => {};
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input) === '/api/staff/access') return Response.json({ role: 'owner', permissions: ownerPermissions, user: {} });
+    if (String(input) === endpoint) return new Promise<Response>(resolve => { finish = resolve; });
+    throw new Error(`Unexpected settings request: ${input}`);
+  }));
+  showSettings(`settingsTab=${tab}`);
+  expect(await screen.findByText(loading)).toHaveAttribute('role', 'status');
+  await act(async () => { finish(Response.json(response)); });
+  expect(await screen.findByText(empty)).toBeInTheDocument();
+  expect(screen.queryByText(loading)).not.toBeInTheDocument();
+});

@@ -774,7 +774,7 @@ export function DealerSettingsPanel() {
             </Field>
           </div>
           <div className="settings-subsection settings-opening-hours mt-8 border border-border bg-secondary/10 p-5 sm:p-6">
-            <div className="mb-5 flex items-center justify-between gap-4">
+            <div className="settings-action-heading mb-5 flex items-center justify-between gap-4">
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
                   <Clock3 className="h-4 w-4 text-accent" /> Opening hours</p>
@@ -786,8 +786,8 @@ export function DealerSettingsPanel() {
             <div className="space-y-4">
               {form.hours.map((item, index) => (
                 <div key={`hour-${index}`} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.days} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, days: event.target.value }; updateGroup('hours', hours); }} placeholder="Monday – Friday" data-testid={`input-hours-days-${index}`} />
-                  <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.times} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, times: event.target.value }; updateGroup('hours', hours); }} placeholder="09:00 – 18:00" data-testid={`input-hours-times-${index}`} />
+                  <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.days} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, days: event.target.value }; updateGroup('hours', hours); }} placeholder="Monday – Friday" aria-label={`Days for opening hours row ${index + 1}`} data-testid={`input-hours-days-${index}`} />
+                  <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.times} onChange={(event) => { const hours = [...form.hours]; hours[index] = { ...item, times: event.target.value }; updateGroup('hours', hours); }} placeholder="09:00 – 18:00" aria-label={`Times for opening hours row ${index + 1}`} data-testid={`input-hours-times-${index}`} />
                   <Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('hours', form.hours.filter((_, rowIndex) => rowIndex !== index))} aria-label={`Remove hours row ${index + 1}`} data-testid={`button-remove-hours-${index}`}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1117,7 +1117,7 @@ export function DealerSettingsPanel() {
         <SectionCard id="proof" eyebrow="Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book a test drive." icon={<Check className="h-5 w-5" />}>
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
-              <div className="mb-4 flex items-end justify-between gap-4">
+              <div className="settings-action-heading mb-4 flex items-end justify-between gap-4">
                 <div>
                   <p className="text-[14px] font-bold text-primary">Trust points</p>
                   <p className="mt-1 text-[13px] text-primary/70">A compact strip of promises near the stock.</p>
@@ -1129,7 +1129,7 @@ export function DealerSettingsPanel() {
               <div className="space-y-3">
                 {form.trustItems.map((item, index) => (
                   <div key={`trust-${index}`} className="flex gap-3">
-                    <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item} onChange={(event) => { const items = [...form.trustItems]; items[index] = event.target.value; updateGroup('trustItems', items); }} placeholder="Carefully selected vehicles" data-testid={`input-trust-item-${index}`} />
+                    <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item} onChange={(event) => { const items = [...form.trustItems]; items[index] = event.target.value; updateGroup('trustItems', items); }} placeholder="Carefully selected vehicles" aria-label={`Trust point ${index + 1}`} data-testid={`input-trust-item-${index}`} />
                     <Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('trustItems', form.trustItems.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove trust point ${index + 1}`} data-testid={`button-remove-trust-item-${index}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -1143,7 +1143,7 @@ export function DealerSettingsPanel() {
               )}
             </div>
             <div>
-              <div className="mb-4 flex items-end justify-between gap-4">
+              <div className="settings-action-heading mb-4 flex items-end justify-between gap-4">
                 <div>
                   <p className="text-[14px] font-bold text-primary">Why buy from us</p>
                   <p className="mt-1 text-[13px] text-primary/70">Up to eight fuller reasons for the about section.</p>
@@ -1156,12 +1156,12 @@ export function DealerSettingsPanel() {
                 {form.whyBuy.map((item, index) => (
                   <div key={`why-${index}`} className="border border-border bg-secondary/10 p-4">
                     <div className="flex gap-3">
-                      <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.title} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, title: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Straightforward buying" data-testid={`input-why-buy-title-${index}`} />
+                      <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.title} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, title: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Straightforward buying" aria-label={`Selling point ${index + 1} title`} data-testid={`input-why-buy-title-${index}`} />
                       <Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('whyBuy', form.whyBuy.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove why buy point ${index + 1}`} data-testid={`button-remove-why-buy-${index}`}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <Textarea className="mt-3 rounded-md text-base focus-visible:border-accent" rows={2} value={item.description} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, description: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Clear information and no surprises." data-testid={`textarea-why-buy-description-${index}`} />
+                    <Textarea className="mt-3 rounded-md text-base focus-visible:border-accent" rows={2} value={item.description} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, description: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Clear information and no surprises." aria-label={`Selling point ${index + 1} description`} data-testid={`textarea-why-buy-description-${index}`} />
                   </div>
                 ))}
               </div>

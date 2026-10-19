@@ -954,13 +954,13 @@
   .inventory-photo-original {
     font-size: 11px;
   }
-  .inventory-vehicle-controls label {
-    flex: 1;
-    min-width: 150px;
-    max-width: none;
+  .inventory-vehicle-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .inventory-vehicle-controls > button {
-    flex: 1;
+  .inventory-vehicle-controls label {
+    min-width: 0;
+    max-width: none;
   }
   .inventory-vehicle-controls input {
     font-size: 16px;

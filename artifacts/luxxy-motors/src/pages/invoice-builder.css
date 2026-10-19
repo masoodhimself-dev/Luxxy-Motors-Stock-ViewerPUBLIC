@@ -62,6 +62,11 @@ body:has(.invoice-builder.is-editing) { overflow:hidden; }
   .invoice-review>div { grid-template-columns:1fr; gap:7px; }.invoice-builder-footer { padding:12px; }.invoice-builder-footer>span { max-width:110px; font-size:11px; }
   .invoice-selected-car img { width:90px; height:68px; }.invoice-selected-car { gap:12px; padding:12px; }
   .invoice-list-heading { flex-direction:column; align-items:flex-start; }.invoice-builder-list { padding:20px; }.invoice-sale-list>button { flex-wrap:wrap; gap:12px; }
+  .invoice-builder-footer { flex-direction:column; align-items:stretch; gap:8px; }
+  .invoice-builder-footer>span { max-width:none; }
+  .invoice-builder-footer>div { display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px; }
+  .invoice-builder-footer button { min-width:0; min-height:44px; white-space:normal; overflow-wrap:normal; word-break:normal; }
+  .invoice-builder input:not([type=checkbox]),.invoice-builder textarea,.invoice-builder select { font-size:16px; }
 }
 
 .invoice-car-photo { position:relative; flex-shrink:0; padding:0; border:0; border-radius:5px; overflow:hidden; cursor:zoom-in; background:#e7edf1; }

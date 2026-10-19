@@ -352,7 +352,7 @@
 @media(max-width:480px) { .desk-email-issues summary span { display:none; } .notifications-row-actions > a { min-height:44px; } }
 .desk-priorities:has(> section:only-child) { grid-template-columns:1fr; }
 @media(max-width:639px) {
- .desk-filters { flex-wrap:nowrap; overflow-x:auto; padding-bottom:3px; }
+ .desk-filters { flex-wrap:wrap; }
  .desk-filters > button { white-space:nowrap; flex-shrink:0; }
  .desk-filters > button[aria-label="Refresh day"] { padding:8px; min-width:38px; }
  .desk-filters > button[aria-label="Refresh day"] span { display:none; }

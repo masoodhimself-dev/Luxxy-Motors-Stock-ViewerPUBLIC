@@ -96,3 +96,19 @@ it('opens additional options from a deep link and follows browser Back without l
  }
  client.clear();
 });
+
+it('names repeated opening-hours and selling-point fields so staff can distinguish each row', async () => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json(previewSettings, { headers: { 'x-settings-revision': '4' } })));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><DealerSettingsPanel /></QueryClientProvider>);
+  const days = await screen.findByRole('textbox', { name: 'Days for opening hours row 1' });
+  expect(days).toHaveValue(previewSettings.hours[0].days);
+  expect(screen.getByRole('textbox', { name: 'Times for opening hours row 1' })).toHaveValue(previewSettings.hours[0].times);
+  fireEvent.click(screen.getByRole('tab', { name: 'More options' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'Selling points' }));
+  expect(screen.getByRole('textbox', { name: 'Trust point 1' })).toHaveValue(previewSettings.trustItems[0]);
+  expect(screen.getByRole('textbox', { name: 'Selling point 1 title' })).toHaveValue(previewSettings.whyBuy[0].title);
+  expect(screen.getByRole('textbox', { name: 'Selling point 1 description' })).toHaveValue(previewSettings.whyBuy[0].description);
+  client.clear();
+});

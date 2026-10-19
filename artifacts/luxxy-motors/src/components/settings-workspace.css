@@ -213,3 +213,8 @@
   background: var(--portal-info, #245ca5);
   filter: brightness(.94);
 }
+
+/* Keep add controls readable when a subsection has little inline space. */
+.portal-settings-premium .settings-action-heading { flex-wrap: wrap; align-items: center; }
+.portal-settings-premium .settings-action-heading > div { flex: 1 1 180px; min-width: 0; }
+.portal-settings-premium .settings-action-heading > button { flex-shrink: 0; min-height: 44px; white-space: nowrap; }

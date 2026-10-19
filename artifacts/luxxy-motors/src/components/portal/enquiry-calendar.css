@@ -140,7 +140,7 @@
   left: 12px;
   color: var(--diary-muted);
 }
-.staff-diary-search input {
+.staff-diary .staff-diary-search input:not([type="checkbox"]):not([type="radio"]):not(.uk-number-plate-input) {
   padding-left: 36px;
 }
 .staff-diary-filters :is(input:not([type="checkbox"]), select) {
@@ -844,6 +844,17 @@
   }
   .staff-diary-detail {
     padding: 28px 20px max(24px, env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 380px) {
+  .staff-diary-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .staff-diary-add {
+    width: 100%;
+    min-height: 44px;
+    white-space: nowrap;
   }
 }
 @media (prefers-reduced-motion: reduce) {

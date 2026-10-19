@@ -42,6 +42,8 @@ it('saving branding preserves the draft message and advances its revision',async
  fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Unsaved message'}});
  fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
  fireEvent.click(screen.getByRole('button',{name:'Use Forest green accent'}));
+ expect(screen.getByRole('button',{name:'Use Forest green accent'})).toHaveAttribute('aria-pressed','true');
+ expect(screen.getByRole('button',{name:'Use Deep blue accent'})).toHaveAttribute('aria-pressed','false');
  fireEvent.click(screen.getByRole('button',{name:'Save email branding'}));
  await screen.findByText('Email branding saved for every email template.');
  fireEvent.click(screen.getByRole('tab',{name:'Messages'}));

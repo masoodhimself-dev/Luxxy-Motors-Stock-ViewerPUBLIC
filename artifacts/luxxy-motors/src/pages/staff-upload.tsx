@@ -166,7 +166,7 @@ export default function StaffUpload() {
                 </label>
               </>
             )}
-            <div className="inventory-photo-grid">
+            {photos.length > 0 && <div className="inventory-photo-grid">
               {photos.map((p, i) => (
                 <figure key={i}>
                   <img
@@ -186,7 +186,7 @@ export default function StaffUpload() {
                   </figcaption>
                 </figure>
               ))}
-            </div>
+            </div>}
             {photos.length > 0 && (
               <Button disabled={busy} onClick={() => void send()}>
                 {busy
@@ -197,9 +197,9 @@ export default function StaffUpload() {
           </>
         )}
         {error && (
-          <p role="alert" className="inventory-error">
+          <div role="alert" className="inventory-error">
             {error}
-          </p>
+          </div>
         )}
         {busy && !photos.length && (
           <p role="status">Preparing small, readable photos…</p>
