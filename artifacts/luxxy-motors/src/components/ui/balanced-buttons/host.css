@@ -1,0 +1,61 @@
+/* Adapt the approved package to the existing application tokens and Radix controls.
+   No replacement palette, font or global button reset. Existing utility classes
+   remain responsible for variant colours, including dealer-specific themes. */
+:where(.db-btn, .db-menu) {
+  --db-text: hsl(var(--foreground));
+  --db-surface: hsl(var(--card));
+  --db-soft: hsl(var(--secondary));
+  --db-border: hsl(var(--input));
+  --db-action-bg: hsl(var(--primary));
+  --db-action-text: hsl(var(--primary-foreground));
+  --db-selected-bg: hsl(var(--secondary));
+  --db-selected-border: hsl(var(--primary));
+  --db-danger-bg: hsl(var(--destructive));
+  --db-danger-text: hsl(var(--destructive-foreground));
+  --db-disabled-bg: hsl(var(--muted));
+  --db-disabled-text: hsl(var(--muted-foreground));
+  --db-disabled-border: hsl(var(--border));
+  --db-focus: hsl(var(--ring));
+  --db-font-size: .875rem;
+  --db-font-size-prominent: .875rem;
+  --db-font-weight: 600;
+}
+/* The existing variants already draw their own surfaces and borders. Avoid
+   painting a second surface over branded utility classes. */
+.balanced-button::before { display: none; }
+.balanced-button {
+  border-radius: 6px;
+  gap: 10px;
+  line-height: 20px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  transform: none;
+  --icon-accent-opacity: .8;
+}
+.balanced-button.db-btn--standard { min-height: 48px; }
+.balanced-button.db-btn--prominent { min-height: 52px; }
+.balanced-button.db-btn--compact, .balanced-button.db-btn--icon { min-height: 44px; }
+.balanced-button.db-btn--icon { min-width: 44px; padding: 10px; }
+.balanced-button > svg { width: 20px; height: 20px; flex-shrink: 0; }
+.balanced-button:focus-visible { outline: 3px solid hsl(var(--ring)); outline-offset: 3px; }
+.balanced-button[aria-busy="true"] { cursor: progress; }
+.balanced-button:disabled { cursor: not-allowed; }
+.balanced-button > .db-labels { display: grid; }
+/* The four buying actions share geometry, while retaining their own colours. */
+.vehicle-page :is(.vehicle-booking-action,.vehicle-enquiry-action,.vehicle-contact-action) {
+  border-radius: 6px; min-height: 52px; gap: 10px;
+}
+.vehicle-page :is(.vehicle-booking-action,.vehicle-enquiry-action,.vehicle-contact-action) > svg {
+  width: 20px; height: 20px; flex-shrink: 0;
+}
+@media(prefers-reduced-motion:reduce) {
+  .balanced-button { transition: none; }
+}
+/* Page-specific legacy radius rules must not fragment the approved system. */
+:is(.customer-site,.premium-portal,.platform-shell,.portal-action-dialog) .balanced-button.db-btn {
+  border-radius: 6px;
+  gap: 10px;
+}
+[data-slot="button-group"][data-orientation="horizontal"] > .balanced-button.db-btn:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+[data-slot="button-group"][data-orientation="horizontal"] > .balanced-button.db-btn:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }

@@ -33,8 +33,7 @@ describe('Button', () => {
   it.each(SIZES)('renders the %s size with restrained corners and flat surfaces', (size) => {
     render(<Button size={size}>Book a test drive</Button>);
 
-    // `rounded-none` is the only radius allowed: anything else means a soft edge
-    // crept back into the base or a variant.
+    // The shared utility stays restrained; the approved adapter sets its 6px radius.
     expectRefinedGeometry(screen.getByRole('button').className, `Button ${size}`);
   });
 

@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-normal text-center gap-2 rounded-md font-display text-sm font-semibold  tracking-normal transition-[background-color,color,border-color,transform] duration-150 active:translate-y-px motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50   active:shadow-none border border-transparent",
+  "db-btn balanced-button inline-flex items-center justify-center whitespace-normal text-center gap-2 rounded-md font-display text-sm font-semibold  tracking-normal transition-[background-color,color,border-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50   active:shadow-none border border-transparent",
   {
     variants: {
       variant: {
@@ -21,10 +21,10 @@ const buttonVariants = cva(
         accent: "bg-accent text-accent-foreground hover:bg-accent/90 border-accent shadow-none",
       },
       size: {
-        default: "min-h-11 px-5 py-2.5",
-        sm: "min-h-11 px-3 py-2",
-        lg: "min-h-12 px-6 py-3 text-sm",
-        icon: "h-11 w-11 shrink-0",
+        default: "db-btn--standard min-h-12 px-5 py-3",
+        sm: "db-btn--compact min-h-11 px-3 py-2",
+        lg: "db-btn--prominent min-h-[52px] px-6 py-3 text-sm",
+        icon: "db-btn--icon h-11 w-11 shrink-0",
       },
     },
     defaultVariants: {
@@ -38,18 +38,40 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  status?: 'idle' | 'loading' | 'success'
+  loadingLabel?: string
+  successLabel?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, status, loadingLabel = 'Working…', successLabel = 'Complete', children, onClick, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
-    return (
+    const busy = status === 'loading'
+    const blocked = disabled || busy || props['aria-disabled'] === true || props['aria-disabled'] === 'true'
+    // Keep Slot children intact: existing links and Radix triggers depend on them.
+    const content = asChild || status === undefined ? children : <>
+      <span className="db-labels">
+        <span className="db-label-idle" aria-hidden={status !== 'idle'}>{children}</span>
+        <span className="db-label-loading" aria-hidden={!busy}>{loadingLabel}</span>
+        <span className="db-label-success" aria-hidden={status !== 'success'}>{successLabel}</span>
+      </span>
+    </>
+    return <>
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
-      />
-    )
+        disabled={disabled}
+        data-state={status}
+        aria-busy={busy || props['aria-busy'] || undefined}
+        aria-disabled={blocked || undefined}
+        onClick={event => {
+          if (blocked) { event.preventDefault(); event.stopPropagation(); return }
+          onClick?.(event)
+        }}
+      >{content}</Comp>
+      {!asChild && status !== undefined && <span className="db-sr-only" role="status" aria-live="polite">{busy ? loadingLabel : status === 'success' ? successLabel : ''}</span>}
+    </>
   }
 )
 Button.displayName = "Button"
