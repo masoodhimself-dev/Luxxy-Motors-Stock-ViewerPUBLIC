@@ -38,13 +38,14 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  'data-state'?: string
   status?: 'idle' | 'loading' | 'success'
   loadingLabel?: string
   successLabel?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, status, loadingLabel = 'Working…', successLabel = 'Complete', children, onClick, disabled, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, 'data-state': controlState, status, loadingLabel = 'Working…', successLabel = 'Complete', children, onClick, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     const busy = status === 'loading'
     const blocked = disabled || busy || props['aria-disabled'] === true || props['aria-disabled'] === 'true'
@@ -62,7 +63,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         {...props}
         disabled={disabled}
-        data-state={status}
+        data-state={status ?? controlState}
         aria-busy={busy || props['aria-busy'] || undefined}
         aria-disabled={blocked || undefined}
         onClick={event => {

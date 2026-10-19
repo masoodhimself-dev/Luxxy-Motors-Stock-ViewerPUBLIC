@@ -9,6 +9,10 @@ describe('Balanced buttons in the existing application', () => {
     expect(screen.getByRole('link', {name: 'Browse stock'})).toHaveAttribute('href', '/stock');
     expect(screen.queryByRole('button')).toBeNull();
   });
+  it('preserves state attributes supplied by existing Radix controls', () => {
+    render(<Button data-state="open">Quick actions</Button>);
+    expect(screen.getByRole('button')).toHaveAttribute('data-state', 'open');
+  });
   it('keeps native form submission and forwards the ref', () => {
     const submit = vi.fn(e => e.preventDefault());
     const ref = {current: null as HTMLButtonElement | null};
