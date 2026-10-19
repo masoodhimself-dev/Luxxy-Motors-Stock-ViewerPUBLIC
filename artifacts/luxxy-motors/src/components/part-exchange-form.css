@@ -1,0 +1,26 @@
+/* The page already supplies the card. Avoid a second frame and inset around
+   the form, which squeezed its fields and action labels on smaller phones. */
+.friendly-enquire .part-exchange-form {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.part-exchange-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.part-exchange-form label { min-width: 0; }
+.part-exchange-form :is(input:not(.uk-number-plate-input), textarea, select) {
+  font-size: 16px;
+}
+.part-exchange-actions > button { flex-shrink: 0; }
+.part-exchange-actions > span { min-width: 0; }
+@media (max-width: 639px) {
+  .part-exchange-actions { flex-direction: column; align-items: stretch; }
+  .part-exchange-actions > button { width: 100%; }
+}

@@ -5,6 +5,7 @@
 .friendly-enquire .customer-enquiry-form,
 .friendly-contact .customer-enquiry-form { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .friendly-enquire .enquiry-introduction { min-width: 0; }
+.friendly-enquire [data-testid="status-stock-error"] { margin-bottom: 20px; }
 .friendly-enquire .enquiry-introduction > [data-testid="enquiry-vehicle-summary"] { padding: 20px; border: 1px solid hsl(var(--border)); border-radius: 12px; background: hsl(var(--card)); }
 .friendly-contact .contact-talk-panel > .divide-y { margin-top: 24px; border: 1px solid hsl(var(--border)); border-radius: 12px; overflow: hidden; background: hsl(var(--card)); }
 .friendly-contact .contact-talk-panel [data-testid^="contact-"] { min-height: 88px; padding: 20px; }
@@ -34,6 +35,7 @@
   .friendly-enquire .enquiry-form-panel,
   .friendly-contact #contact-message > div:last-child { padding: 20px 16px; }
   .friendly-contact .contact-talk-panel [data-testid^="contact-"] { padding: 18px 16px; }
+  .friendly-contact .contact-phone-number { font-size: clamp(16px, 4.4vw, 20px); }
   .friendly-saved .friendly-shortlist-intro .page-heading { gap: 20px; }
   .friendly-saved .saved-car-list details dl > div { min-width: 0; }
 }

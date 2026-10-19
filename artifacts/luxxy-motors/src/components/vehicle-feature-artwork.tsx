@@ -12,6 +12,7 @@ const currentArtwork: Partial<Record<VehicleFeatureIconKey, typeof iconNames[num
   'adaptive-cruise-control': 'mileage',
   'speed-limiter': 'mileage',
   climate: 'settings',
+  'air-conditioning': 'settings',
   'heated-seats': 'seats',
   'bluetooth-calls': 'phone',
   'phone-integration': 'phone',

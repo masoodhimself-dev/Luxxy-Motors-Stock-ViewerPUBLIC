@@ -41,6 +41,14 @@ describe('vehicle equipment explanation panels', () => {
     expect(dialog).not.toHaveTextContent(/rear seats/i);
   });
 
+  it('uses the climate artwork for air conditioning instead of an unrelated information symbol', () => {
+    render(<VehicleFeaturePanel feature="Air Conditioning" />);
+    const { dialog } = openFeature('Air Conditioning');
+    const artwork = dialog.querySelector('[data-feature-icon="air-conditioning"]');
+    expect(artwork?.querySelector('svg')).toHaveAttribute('data-dealer-icon', 'settings');
+    expect(dialog).toHaveAccessibleDescription(/cools and helps dehumidify/i);
+  });
+
   it('explains the specified sensor position rather than asking the customer to identify it', () => {
     render(<VehicleFeaturePanel feature={frontSensors} />);
     const { dialog } = openFeature(frontSensors);

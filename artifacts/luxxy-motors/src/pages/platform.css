@@ -65,3 +65,41 @@
 .platform-stat-open { display:grid; gap:7px; width:100%; text-align:left; min-height:90px; border-radius:7px; }
 .platform-stat-open:hover small { text-decoration:underline; }
 .platform-stat-open:focus-visible { outline:2px solid #245e80; outline-offset:6px; }
+
+/* Keep management controls readable as the available workspace narrows. */
+.platform-main,
+.platform-header > div,
+.platform-workspace-body,
+.platform-section-heading > div { min-width: 0; }
+.platform-header h1 { overflow-wrap: anywhere; }
+.platform-sidebar nav button,
+.platform-tabs button,
+.platform-launch-group summary,
+.platform-step-body summary { min-height: 44px; }
+.platform-sidebar nav button { flex-shrink: 0; }
+.platform-tabs { padding-top: 4px; scroll-padding-inline: 4px; }
+.platform-step-footer { flex-wrap: wrap; gap: 12px; }
+.platform-step-footer > button { max-width: 100%; min-height: 44px; }
+.platform-step-footer > button:first-child { flex: 0 0 auto; }
+.platform-step-footer > button:last-child { flex: 0 1 auto; }
+.platform-member > div { min-width: 0; }
+.platform-member strong { overflow-wrap: anywhere; }
+@media (max-width: 1100px) and (min-width: 761px) {
+  .platform-header { align-items: flex-start; flex-wrap: wrap; }
+  .platform-header-actions { flex-shrink: 0; }
+}
+@media (max-width: 650px) {
+  .platform-section-heading { flex-wrap: wrap; }
+  .platform-dealer { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; column-gap: 12px; row-gap: 8px; }
+  .platform-dealer-avatar { grid-column: 1; grid-row: 1 / span 2; }
+  .platform-dealer-identity { grid-column: 2; }
+  .platform-dealer-badges { grid-column: 2; margin-left: 0; }
+  .platform-member { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; column-gap: 12px; row-gap: 8px; }
+  .platform-member > svg { margin-top: 3px; }
+  .platform-member > .platform-badge { grid-column: 2; justify-self: start; }
+  .platform-shell input:not([type="checkbox"]):not([type="radio"]),
+  .platform-shell select { font-size: 16px; }
+}
+@media (max-width: 359px) {
+  .platform-step-footer > button:last-child { flex: 1 0 100%; }
+}

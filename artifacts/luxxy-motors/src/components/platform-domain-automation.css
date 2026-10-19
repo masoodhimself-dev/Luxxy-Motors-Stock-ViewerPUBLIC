@@ -40,3 +40,4 @@
 .platform-domain-auto-history time{font-size:11px;color:#70818d}
 .platform-domain-auto-footer{border-top:1px solid #e2e9ee;padding-top:16px;margin:20px 0 0}
 @media(max-width:640px){.platform-domain-auto{padding:20px 16px}.platform-domain-auto-heading h2{font-size:19px}.platform-domain-auto-form{display:grid;gap:12px}.platform-domain-auto-form label{max-width:none}.platform-domain-auto-form>button{width:100%}.platform-domain-auto-job{padding:15px}.platform-domain-auto-job>button{width:100%;white-space:normal;height:auto;min-height:44px}.platform-domain-auto-jobs-heading{align-items:flex-start;flex-wrap:wrap}.platform-domain-auto-jobs-heading button{min-height:44px}.platform-domain-auto-job-top{align-items:flex-start;flex-direction:column;gap:8px}}
+.platform-domain-auto-history summary { min-height: 44px; padding-block: 12px; }

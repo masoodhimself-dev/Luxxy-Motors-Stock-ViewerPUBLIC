@@ -1,5 +1,6 @@
 .platform-feature-controls { min-width: 0; }
 .platform-feature-controls .platform-section-heading { align-items: flex-start; gap: 16px; }
+.platform-feature-controls .platform-section-heading > button { flex-shrink: 0; min-width: 144px; max-width: 100%; min-height: 44px; }
 .platform-feature-updated { color: #64748b; font-size: 12px; margin: 16px 0; }
 .platform-feature-list { border: 1px solid #d9e0e8; border-radius: 6px; overflow: hidden; }
 .platform-feature-row { display: grid; grid-template-columns: minmax(190px, .8fr) minmax(0, 1.5fr); gap: 28px; padding: 24px; background: white; }
@@ -20,3 +21,7 @@
 .platform-feature-audit p,.platform-feature-audit small { overflow-wrap: anywhere; color: #526173; }
 @media (max-width: 950px) { .platform-feature-row { grid-template-columns: 1fr; gap: 20px; } }
 @media (max-width: 540px) { .platform-feature-row { padding: 18px; } .platform-feature-fields { grid-template-columns: 1fr; } .platform-feature-fields button { width: 100%; } }
+@media (max-width: 650px) {
+  .platform-feature-controls .platform-section-heading { flex-direction: column; align-items: stretch; }
+  .platform-feature-controls .platform-section-heading > button { align-self: flex-start; min-height: 44px; }
+}

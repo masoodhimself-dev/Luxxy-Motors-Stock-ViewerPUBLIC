@@ -200,7 +200,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div className="site-header-inner container mx-auto flex h-[4.75rem] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <button type="button" onClick={handleLogoClick} className="site-header-brand flex min-w-0 items-center gap-3 text-left group" aria-label={`${dealerConfig.identity.name || 'Our dealership'} home`}>
+          <button type="button" onClick={handleLogoClick} className="site-header-brand flex min-w-0 items-center gap-3 text-left group" aria-label={`${dealerConfig.identity.name || 'Our dealership'} home`} title={dealerConfig.identity.name || 'Our dealership'}>
             <DealerWordmark {...dealerConfig.identity} logoAsset={headerLogo} className="text-primary" />
           </button>
 

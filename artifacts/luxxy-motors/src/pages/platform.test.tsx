@@ -213,3 +213,25 @@ it('uses collection freshness, credentials and latest failures for live attentio
   expect(within(section).getByRole('heading', { name: 'Setup and suspended dealerships 1' })).toBeInTheDocument();
   expect(within(section).getByText('Suspended · review before reactivating')).toBeInTheDocument();
 });
+
+it('supports keyboard navigation between dealer workspace tabs and labels the visible panel', async () => {
+  vi.stubGlobal('fetch', vi.fn(async path => String(path).endsWith('/workspace') ? Response.json(workspace) : String(path).endsWith('/demo') ? Response.json({ demo: false }) : Response.json({ dealers: [dealer], activity: [] })));
+  render(<Platform />);
+  fireEvent.click(await screen.findByRole('button', { name: /Example Dealer/ }));
+  const setup = await screen.findByRole('tab', { name: 'Setup' });
+  expect(setup).toHaveAttribute('tabindex', '0');
+  expect(screen.getByRole('tab', { name: 'Staff' })).toHaveAttribute('tabindex', '-1');
+  fireEvent.keyDown(setup, { key: 'End' });
+  const demo = screen.getByRole('tab', { name: 'Demo' });
+  expect(demo).toHaveFocus();
+  expect(demo).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tabpanel', { name: 'Demo' })).toBeInTheDocument();
+  fireEvent.keyDown(demo, { key: 'ArrowLeft' });
+  const imports = screen.getByRole('tab', { name: 'Imports' });
+  expect(imports).toHaveFocus();
+  expect(screen.getByRole('tabpanel', { name: 'Imports' })).toHaveTextContent('Latest 30 stock submissions');
+  fireEvent.keyDown(imports, { key: 'Home' });
+  expect(setup).toHaveFocus();
+  expect(screen.getByRole('tabpanel', { name: 'Setup' })).toHaveTextContent('Onboarding checklist');
+  expect(screen.getByRole('button', { name: 'Dealerships' })).toHaveAttribute('aria-current', 'page');
+});

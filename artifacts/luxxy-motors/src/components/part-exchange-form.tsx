@@ -1,4 +1,5 @@
 import { FeatureUnavailable } from './feature-unavailable';
+import './part-exchange-form.css';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { getVisitorId } from '@/lib/visitor';
@@ -136,7 +137,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
 
   if (!features.enabled('partExchange')) return <FeatureUnavailable title="Online part-exchange requests are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
 
-  return <form onSubmit={submit} className="space-y-6" data-testid="form-part-exchange">
+  return <form onSubmit={submit} className="part-exchange-form space-y-6" data-testid="form-part-exchange">
     {draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-sm text-muted-foreground" role="status"><p>Your unfinished part-exchange enquiry was restored.</p><button type="button" className="min-h-11 text-link" onClick={discardDraft}>Discard draft</button></div>}
     <fieldset disabled={mutation.isPending} className="min-w-0 space-y-6">
     <legend className="sr-only">Part-exchange enquiry</legend>
@@ -214,7 +215,7 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
     </div>}
 
     {!whatsAppHref && <p role="status" className="text-sm leading-6 text-muted-foreground">You can’t reach us on WhatsApp right now. {phoneHref ? <a className="underline underline-offset-4" href={phoneHref}>Call us to discuss your part exchange.</a> : 'Please contact us directly.'}</p>}
-    <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
+    <div className="part-exchange-actions flex items-center justify-between gap-3 border-t border-border pt-5">
       {step > 0 ? <Button type="button" variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</Button> : <span className="text-xs text-muted-foreground">Contact details at the end</span>}
       <Button type="submit" disabled={mutation.isPending || (step === 1 ? !selectedVehicle : step === 2 ? !ready || (delivery === 'whatsapp' && !whatsAppHref) : false)} data-testid="button-part-exchange-continue">{step === 2 ? <><MessageSquare className="h-4 w-4" aria-hidden="true" />{mutation.isPending ? 'Sending details…' : delivery === 'website' ? 'Send my details' : 'Open WhatsApp'}</> : <>Continue<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}</Button>
     </div>

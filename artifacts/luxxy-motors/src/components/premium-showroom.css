@@ -51,6 +51,14 @@
 }
 .customer-site .site-header-inner { gap: clamp(12px, 1.5vw, 24px); }
 .customer-site .site-header-brand { flex-shrink: 1; max-width: min(22vw, 260px); }
+.customer-site .site-header-brand > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 .customer-site .site-header-brand img { height: 56px; width: auto; max-width: 100%; object-fit: contain; object-position: left center; }
 .customer-site .site-header-brand svg { height: 50px; width: 182px; max-width: 100%; }
 .customer-site .site-header-nav { flex-shrink: 0; margin-left: auto; }

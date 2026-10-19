@@ -12,6 +12,8 @@
 .customer-site #contact .footer-directory-compact .footer-wordmark { min-height: 44px; }
 .customer-site #contact .footer-directory-compact .footer-text-link { margin-top: 8px; }
 .customer-site #contact .footer-bottom { padding-block: 16px; }
+.customer-site #contact .footer-bottom > div { min-width: 0; }
+.customer-site #contact .footer-bottom p { overflow-wrap: anywhere; }
 @media (max-width: 1099px) {
   .customer-site #contact .footer-directory-compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .customer-site #contact .footer-directory-compact:not(.footer-directory-with-hours) { grid-template-columns: 1fr 1fr; }
