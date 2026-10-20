@@ -285,3 +285,12 @@
   .vehicle-redesigned .vehicle-compact-identity .vehicle-insurance-disclosure { max-width: 220px; text-align: left; }
   .vehicle-redesigned .vehicle-compact-identity .luxxy-price { font-size: 34px; }
 }
+
+/* Keep the short specifications readable without punctuation between facts. */
+.vehicle-redesigned .vehicle-compact-facts { display: flex; flex-wrap: wrap; gap: 6px 0; padding: 0; list-style: none; }
+.vehicle-redesigned .vehicle-compact-facts li { white-space: nowrap; line-height: 1.25; }
+.vehicle-redesigned .vehicle-compact-facts li + li { margin-left: 12px; padding-left: 12px; border-left: 1px solid hsl(var(--border)); }
+@media (max-width: 479px) {
+  .vehicle-redesigned .vehicle-compact-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+  .vehicle-redesigned .vehicle-compact-facts li + li { margin: 0; padding: 0; border: 0; }
+}

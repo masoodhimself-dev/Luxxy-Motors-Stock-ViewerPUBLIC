@@ -171,7 +171,9 @@ it('puts one concise identity and price above the gallery on phones', () => {
   expect(identity.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(document.querySelectorAll('.vehicle-detail-grid h1')).toHaveLength(1);
   expect(identity).toHaveTextContent('BMW 3 Series');
-  expect(identity).toHaveTextContent('2024 (24 reg) · 90,000 miles · Manual');
+  expect(within(identity).getByRole('list', { name: 'Vehicle details' })).toHaveTextContent('2024 (24 reg)');
+  expect(within(identity).getByRole('list', { name: 'Vehicle details' })).toHaveTextContent('90,000 miles');
+  expect(within(identity).getByRole('list', { name: 'Vehicle details' })).toHaveTextContent('Manual');
   expect(identity).toHaveTextContent('£4,995');
   expect(identity.closest('.vehicle-summary')).toBeNull();
   expect(screen.getByTestId('plate-vehicle-with-plate').closest('.vehicle-summary')).not.toBeNull();

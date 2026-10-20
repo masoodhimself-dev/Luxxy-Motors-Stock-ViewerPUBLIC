@@ -34,8 +34,8 @@ it('puts configured showroom details, today’s closing time and working directi
   expect(screen.getByRole('link', { name: 'Get directions' })).toHaveAttribute('href', expect.stringContaining('Rear%20of%20176%20Rayners%20Lane'));
   expect(screen.getByRole('link', { name: /Call Us/ })).toHaveAttribute('href', 'tel:07388831790');
   expect(screen.queryByRole('img')).not.toBeInTheDocument();
-  expect(screen.getByText('View all opening hours')).toBeVisible();
-  fireEvent.click(screen.getByText('View all opening hours'));
+  expect(screen.getByText('Opening hours')).toBeVisible();
+  fireEvent.click(screen.getByText('Opening hours'));
   expect(screen.getByText('Sunday')).toBeVisible();
 });
 it('shows Sunday closed and the next confirmed opening in UK time', () => {

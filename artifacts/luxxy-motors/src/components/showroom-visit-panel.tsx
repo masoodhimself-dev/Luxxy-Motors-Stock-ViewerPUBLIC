@@ -63,7 +63,6 @@ export function ShowroomVisitPanel({
       <div className="showroom-visit-panel-location">
         <span className="showroom-visit-panel-icon"><MapPin size={25} /></span>
         <div>
-          <p className="showroom-visit-panel-label">Our showroom</p>
           {ready && settings.identity.name && <DetailHeading>{settings.identity.name}</DetailHeading>}
           {hasAddress ? <address>{location.lines.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</address>
             : <div>{area && <p className="showroom-visit-panel-note">Showroom area: {area}</p>}<p className="showroom-visit-panel-note">{isLoading ? 'Loading showroom address…' : 'Contact us to confirm the showroom address before travelling.'}</p></div>}
@@ -78,10 +77,9 @@ export function ShowroomVisitPanel({
           {ready && opening.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
           {ready && opening.state === 'closed' && !opening.next && <p>Contact us to arrange your next visit.</p>}
           {isError && <p>Please confirm our hours before travelling.</p>}
-          <small>UK time · Regular showroom hours</small>
         </div>
         {ready && Boolean(settings.hours?.length) && <details className="showroom-visit-panel-week">
-          <summary>View all opening hours<ChevronDown size={16} /></summary>
+          <summary>Opening hours<ChevronDown size={16} /></summary>
           <dl>{settings.hours!.map((hour, index) => <div key={`${hour.days}-${index}`}><dt>{hour.days}</dt><dd>{hour.times}</dd></div>)}</dl>
         </details>}
       </div>

@@ -253,12 +253,12 @@ export default function CarDetail() {
       </p>
       <h1 className="font-display text-[2rem] font-semibold leading-tight tracking-tight text-primary">{vehicleLabel}</h1>
       {isCompactLayout ? (
-        <p className="vehicle-compact-facts">{[
+        <ul className="vehicle-compact-facts" aria-label="Vehicle details">{[
           registrationYear !== 'Unknown' ? registrationYear : null,
           car.mileage != null ? formatMileage(car.mileage) : car.mileageText,
           car.transmission,
           car.fuel,
-        ].filter(Boolean).join(' · ')}</p>
+        ].filter(Boolean).map((fact, index) => <li key={`${index}-${fact}`}>{fact}</li>)}</ul>
       ) : <>
         {(car.variant || car.trim) && <p className="vehicle-variant mt-3 text-sm leading-relaxed text-muted-foreground">{car.variant || car.trim}</p>}
         {registrationDetails}

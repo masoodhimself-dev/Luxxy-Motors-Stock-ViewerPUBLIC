@@ -58,8 +58,7 @@ export function VehicleVisit({ car }: { car: Car }) {
   const available = !car.inventoryStatus || car.inventoryStatus === 'available';
   const canBook = available && !isLoading && !isError && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
   return <section aria-labelledby="vehicle-visit-heading" className="mt-8 border-t border-border pt-7">
-    <h2 id="vehicle-visit-heading" className="section-heading">See it for yourself.</h2>
-    <p className="mt-3 text-sm leading-6 text-muted-foreground">Take a closer look, sit behind the wheel and ask us your questions.</p>
+    <h2 id="vehicle-visit-heading" className="section-heading">Visit the showroom</h2>
     <ShowroomVisitPanel heading={null} showBooking={false} className="mt-5" />
     <p className="mt-3 text-xs leading-5 text-muted-foreground">{available ? 'Please confirm your test drive before travelling.' : 'Contact us to check this car’s availability before travelling.'}</p>
     <div className="mt-4 flex flex-wrap gap-3">{canBook && <Button asChild><a href={getVehicleBookingHref(car)} onClick={()=>recordBookingIntent({source:'vehicle_visit',vehicleContext:true})}><Calendar className="h-4 w-4" />Choose a test-drive time</a></Button>}</div>
