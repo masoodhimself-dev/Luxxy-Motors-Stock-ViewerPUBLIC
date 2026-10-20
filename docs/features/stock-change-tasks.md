@@ -8,6 +8,7 @@ Staff see a compact Stock changes worklist in Home. Open tasks with upcoming vis
 - Published price history supplies the existing public “Price reduced” label for 14 days. Imported reduction claims are discarded. Currency changes invalidate earlier reduction evidence.
 - Only the currently configured marketplace is eligible. Switching marketplace makes old-source task details unavailable for customer outreach.
 - The first accepted complete import missing an available/reserved car creates a missing-stock episode. Further misses update that episode; replaying the same import cannot duplicate it.
+- Vehicles already missing before this feature was installed are not backfilled as new work. If one returns and later disappears again, that new episode creates a task normally.
 - Existing stock-drop, validation, freshness and completeness safeguards remain in force. Rejected/quarantined imports do not change stock tasks.
 - Reappearance resolves the missing episode. Imports do not reopen staff-sold, hidden or archived cars.
 - Mark reviewed acknowledges the displayed revision only. A conflicting revision returns 409 and requires a refresh. Acknowledgement changes neither the vehicle nor any customer commitment. Reviewed missing episodes do not repeatedly return to Home until the car returns and disappears again.

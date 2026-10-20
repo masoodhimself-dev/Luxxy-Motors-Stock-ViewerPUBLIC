@@ -82,22 +82,20 @@ export async function recordPublishedStockPrice(
   // Currency boundaries are explicit tombstones in public-price history. Even
   // returning to GBP at the same numeric price cannot revive an older badge.
   if (currencyChanged) {
-    await query
-      .insert(vehicleChangesTable)
-      .values({
-        vehicleId: after.id,
-        importRunId,
-        fieldName: "websitePublishedPrice",
-        oldValue: previousPrice,
-        newValue: null,
-        changedAt: now,
-        auditMetadata: {
-          reason: "Public price currency changed",
-          dealerId: after.dealerId,
-          fromCurrency: before.currency,
-          toCurrency: after.currency,
-        },
-      });
+    await query.insert(vehicleChangesTable).values({
+      vehicleId: after.id,
+      importRunId,
+      fieldName: "websitePublishedPrice",
+      oldValue: previousPrice,
+      newValue: null,
+      changedAt: now,
+      auditMetadata: {
+        reason: "Public price currency changed",
+        dealerId: after.dealerId,
+        fromCurrency: before.currency,
+        toCurrency: after.currency,
+      },
+    });
     return;
   }
   if (
@@ -195,7 +193,12 @@ export async function recordMissingStockTasks(
         ),
       );
     const known = new Set(existing.map((task) => task.vehicleId));
-    const fresh = chunk.filter((v) => !known.has(v.id));
+    // Do not backfill old absences on rollout. Only a newly observed transition
+    // starts work; an existing unresolved episode still advances below.
+    const fresh = chunk.filter(
+      (v) =>
+        !known.has(v.id) && v.sourceStatus === "live" && v.missingCount === 0,
+    );
     if (fresh.some((vehicle) => vehicle.sourceStatus === "live"))
       await query.insert(vehicleChangesTable).values(
         fresh

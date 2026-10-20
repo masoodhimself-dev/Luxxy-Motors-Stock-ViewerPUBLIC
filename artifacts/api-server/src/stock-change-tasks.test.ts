@@ -853,6 +853,43 @@ test("durable stock tasks, public reductions and safe staff review use fictional
       },
     );
     await t.test(
+      "legacy missing stock is not backfilled until it returns and newly disappears",
+      async () => {
+        await reset();
+        const [legacy] = await db
+          .insert(vehiclesTable)
+          .values({
+            dealerId: dealerA,
+            source: "autotrader",
+            advertId: "legacy-missing",
+            title: "Fictional legacy car",
+            sourcePrice: 9500,
+            sourceStatus: "missing",
+            missingCount: 5,
+          })
+          .returning();
+        assert.equal((await importCars([])).status, 201);
+        assert.equal((await vehicle()).missingCount, 6);
+        assert.equal((await list()).data.tasks.length, 0);
+        assert.equal((await importCars([])).status, 201);
+        assert.equal((await vehicle()).missingCount, 7);
+        assert.equal((await db.select().from(stockChangeTasksTable)).length, 0);
+        assert.equal(
+          (await importCars([car("legacy-missing", 9500)])).status,
+          201,
+        );
+        assert.equal((await vehicle()).sourceStatus, "live");
+        assert.equal((await vehicle()).missingCount, 0);
+        assert.equal((await list()).data.tasks.length, 0);
+        assert.equal((await importCars([])).status, 201);
+        const tasks = (await list()).data.tasks;
+        assert.equal(tasks.length, 1);
+        assert.equal(tasks[0].kind, "missing_stock");
+        assert.equal(tasks[0].vehicleId, legacy.id);
+        assert.equal(tasks[0].missingCount, 1);
+      },
+    );
+    await t.test(
       "foreign-currency stock never creates GBP tasks/badges and returning to GBP cannot revive old evidence",
       async () => {
         await reset();
