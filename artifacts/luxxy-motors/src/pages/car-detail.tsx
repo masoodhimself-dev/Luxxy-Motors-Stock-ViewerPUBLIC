@@ -275,22 +275,12 @@ export default function CarDetail() {
   return (
     <div className="vehicle-page vehicle-redesigned vehicle-page-enter luxxy-shell min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="vehicle-browse-tools flex flex-wrap items-center justify-between gap-2 py-4">
+        <div className="vehicle-browse-tools flex items-center">
           <Link href={browseReturnHref()} onClick={() => requestBrowseRestore()} className="vehicle-return-link text-link min-h-11 text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
             Back to your results
           </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <SaveCarButton
-              car={car}
-              variant="inline"
-              className="vehicle-save-control border-transparent bg-transparent"
-            />
 
-            <span className="text-xs text-muted-foreground" role="status">
-              {shareMessage}
-            </span>
-          </div>
         </div>
         <div className="vehicle-detail-grid min-w-0">
           {isCompactLayout && vehicleIdentity}
@@ -344,7 +334,12 @@ export default function CarDetail() {
 
 
             </MobileActionDisclosure>}
-              <div className="vehicle-utility-actions"><VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} /><Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button></div>
+              <div className="vehicle-utility-actions" role="group" aria-label="Vehicle tools">
+                <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
+                <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
+                <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
+                {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}
+              </div>
             </div>
           </aside>
           </div>

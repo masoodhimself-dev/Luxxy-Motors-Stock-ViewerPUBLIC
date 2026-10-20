@@ -43,7 +43,7 @@
   max-width: 1560px;
   padding-inline: clamp(16px, 3vw, 48px);
 }
-.vehicle-redesigned .vehicle-browse-tools { padding-block: 18px; }
+.vehicle-redesigned .vehicle-browse-tools { padding-block: 4px; }
 .vehicle-redesigned .vehicle-return-link { font-size: 13px; font-weight: 500; }
 .vehicle-redesigned .vehicle-save-control { padding-inline: 12px; border: 0; border-radius: 6px; background: transparent; color: var(--vehicle-ink); font-size: 13px; font-weight: 500; }
 .vehicle-redesigned .vehicle-save-control svg { color: inherit; }
@@ -104,7 +104,7 @@
 .vehicle-redesigned .vehicle-secondary-grid .vehicle-contact-action,
 .vehicle-redesigned .vehicle-secondary-grid > button { min-height: 44px; height: auto; padding: 10px 8px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: transparent; color: var(--vehicle-ink); white-space: normal; font-size: 13px; font-weight: 500; line-height: 1.5; box-shadow: none; }
 .vehicle-redesigned .vehicle-utility-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; margin-top: 12px; padding-top: 8px; border-top: 1px solid hsl(var(--border)); }
-.vehicle-redesigned .vehicle-utility-actions button { min-height: 44px; padding-inline: 0; color: hsl(var(--muted-foreground)); font-size: 13px; font-weight: 500; }
+.vehicle-page.vehicle-redesigned .vehicle-utility-actions button { min-height: 44px; height: 44px; padding: 0; color: hsl(var(--muted-foreground)); font-size: 14px; font-weight: 500; line-height: 1.4; }
 .vehicle-redesigned .vehicle-details-content { margin-top: 36px; padding: 0; }
 .vehicle-redesigned .vehicle-section-nav { display: flex; flex-wrap: wrap; gap: 0 32px; padding: 5px 0; border-block: 1px solid hsl(var(--border)); }
 .vehicle-redesigned .vehicle-section-nav a { display: inline-flex; align-items: center; min-height: 48px; color: var(--vehicle-ink); font-size: 13px; font-weight: 500; text-decoration: none; }
@@ -181,7 +181,6 @@
   .vehicle-redesigned .vehicle-review-strip .vehicle-review-card [aria-live] > div:nth-last-child(2) { margin-top: 12px; }
 }
 @media (max-width: 639px) {
-  .vehicle-redesigned .vehicle-browse-tools { padding-block: 12px; }
   .vehicle-page.vehicle-redesigned .vehicle-detail-grid { gap: 22px; }
   .vehicle-redesigned .vehicle-summary { padding: 22px 20px; }
   .vehicle-redesigned .vehicle-summary .vehicle-price-block { margin-top: 20px; }
@@ -254,7 +253,6 @@
   .vehicle-redesigned .vehicle-summary-main-actions { grid-template-columns: minmax(0, 1fr); }
 }
 @media(max-width:767px) {
- .vehicle-redesigned .vehicle-browse-tools { padding-block:6px; }
  .vehicle-redesigned .vehicle-compact-facts { margin-top:6px; line-height:1.45; }
  .vehicle-redesigned .vehicle-compact-identity .vehicle-price-block { margin-top:8px; }
  .vehicle-redesigned .vehicle-detail-grid { row-gap:14px; }
