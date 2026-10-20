@@ -1,3 +1,4 @@
+import { VehicleDescriptionEditor } from './vehicle-description-editor';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEffect, useId, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -74,6 +75,7 @@ type Prep = {
   notes: string;
 };
 type Details = {
+  descriptionPreview?: boolean;
   previewReadOnly?: boolean;
   car: Car;
   preparation: Prep;
@@ -599,7 +601,7 @@ export function StaffInventory({
       {plateQueue && writable && <BulkPlateEntry cars={plateQueue} onClose={() => setPlateQueue(null)} />}
       {previewReadOnly && (
         <p className="inventory-preview-note">
-          Read-only preview · Changes, uploads and emails are disabled.
+          {details.data?.descriptionPreview ? "Local preview · Only description changes are simulated. Uploads and emails are disabled." : "Read-only preview · Changes, uploads and emails are disabled."}
         </p>
       )}
       {error && (
@@ -733,6 +735,7 @@ export function StaffInventory({
                 )}
               </div>
               <div className="inventory-workspace-grid">
+                <VehicleDescriptionEditor key={car.id} vehicleId={car.id} writable={Boolean(writable || (details.data?.descriptionPreview && access.data?.permissions.includes("sales.manage")))} />
                 <section className="inventory-card inventory-preparation-card">
                   <h3>
                     <ClipboardCheck aria-hidden size={18} />

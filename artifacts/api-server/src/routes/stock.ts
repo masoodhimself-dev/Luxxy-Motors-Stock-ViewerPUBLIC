@@ -1,3 +1,4 @@
+import { publishedDescription, retainedOriginals } from '../lib/vehicle-descriptions';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { matchesImportSecret } from "../middlewares/tenant";
 import { currentDealerId, currentTenant, multiTenantEnabled } from "../lib/tenant-context";
@@ -342,7 +343,7 @@ router.post("/stock/imports/grok", async (req, res): Promise<void> => {
   await importAdmission.run(req, res, () => importStock(req, res, "grok"));
 });
 
-async function projectVehicles(vehicles: Vehicle[]) {
+export async function projectVehicles(vehicles: Vehicle[]) {
   const ids = vehicles.map((vehicle) => vehicle.id);
   const images = ids.length ? await db.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
   const byVehicle = new Map<string, VehicleImage[]>();
@@ -356,8 +357,9 @@ async function projectVehicles(vehicles: Vehicle[]) {
     const hero = vehicle.websiteHeroImageOverride ?? gallery.find((image) => image.isHero)?.sourceUrl ?? null;
     const raw = projectedStockSourceData(vehicle.rawSourceData, vehicle.auditMetadata);
     const imported = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
-    const specifications = imported?.specifications;
+    const specifications = vehicle.websiteDescription ? { ...(imported?.specifications as Record<string, unknown> ?? {}), description: publishedDescription(vehicle.websiteDescription, vehicle) } : imported?.specifications;
     const sourceExtras = stockDescriptionExtras({ ...vehicle, title: vehicle.websiteTitleOverride ?? vehicle.title, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, specifications: imported?.specifications as Record<string, unknown> | null, sourceExtras: imported?.sourceExtras as Record<string, unknown> | null });
+    if (vehicle.websiteDescription) { sourceExtras.description = publishedDescription(vehicle.websiteDescription, vehicle); sourceExtras.originalAdvertDescriptions = retainedOriginals(vehicle); sourceExtras.descriptionOrigin = 'staff-reviewed'; }
     return { id: vehicle.id, inventoryStatus: vehicle.inventoryStatus, advertId: vehicle.advertId, title: vehicle.websiteTitleOverride ?? vehicle.title, variant: vehicle.variant, make: vehicle.make, model: vehicle.model, trim: vehicle.trim, year: vehicle.year, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, priceType: vehicle.priceType, currency: vehicle.currency, mileage: vehicle.mileage, mileageText: vehicle.mileageText, registration: vehicle.registration, registrationBand: vehicle.registrationBand, plate: vehicle.plate, vrm: vehicle.vrm, vrmVerified: vehicle.vrmVerified, fuel: vehicle.fuel, transmission: vehicle.transmission, bodyType: vehicle.bodyType, engineSize: vehicle.engineSize, engineCC: vehicle.engineCC, doors: vehicle.doors, seats: vehicle.seats, colour: vehicle.colour, emissionClass: vehicle.emissionClass, drivetrain: vehicle.drivetrain, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, advertUrl: vehicle.advertUrl, dealerName: vehicle.dealerName, dealerLocation: vehicle.dealerLocation, imageCount: vehicle.imageCount, heroImage: hero, images: vehicleImages, specifications: specifications !== null && typeof specifications === "object" && !Array.isArray(specifications) ? specifications : null, sourceExtras: sourceExtras !== null && typeof sourceExtras === "object" && !Array.isArray(sourceExtras) ? sourceExtras : null };
   });
 }

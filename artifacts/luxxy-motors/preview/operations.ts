@@ -99,7 +99,7 @@ export async function operationsPreview(req:IncomingMessage,res:ServerResponse,u
           const car=all.find(car=>car.id===detail[1]);
           if(!car) { send(res,404,{error:'Car not found.',previewReadOnly:true});return true; }
           if(detail[2])send(res,200,{customers:[],previewReadOnly:true});
-          else send(res,200,{car,vehiclePhotos:previewStock.cars.find(c=>c.id===car.id)?.images??[],preparation:{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''},photos:[],previewReadOnly:true});
+          else send(res,200,{descriptionPreview:process.env.VEHICLE_DESCRIPTION_PREVIEW==='true',car,vehiclePhotos:previewStock.cars.find(c=>c.id===car.id)?.images??[],preparation:{revision:0,tasks:{cleaning:'pending',inspection:'pending',mot:'pending',servicing:'pending'},assigned_to_id:null,due_date:null,notes:''},photos:[],previewReadOnly:true});
           return true;
         }
         const archived=all.filter(car=>car.inventory_status==='archived'),current=all.filter(car=>car.inventory_status!=='archived');

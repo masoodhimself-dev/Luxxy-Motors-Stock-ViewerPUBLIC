@@ -378,6 +378,7 @@ export default function CarDetail() {
               </h2>
               <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
                 {vehicleDescriptionParagraphs(description).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}
+                {Array.isArray(car.sourceExtras?.originalAdvertDescriptions) && <details className="border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{car.sourceExtras.originalAdvertDescriptions.filter((value): value is string => typeof value === 'string').map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
               </div>
 
             </section>}
