@@ -1,6 +1,6 @@
 import { websiteText } from "@/lib/website-content";
 import { useDealerSettings } from "@/lib/dealer-settings-context";
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from '@/components/icons';
 import type { PointerEvent, TouchEvent } from 'react';
 import { Link } from 'wouter';
@@ -10,7 +10,7 @@ import type { Car } from '@/lib/stock-context';
 type BrowseGesture = { id: number; x: number; y: number; moved: boolean };
 const DRAG_DISTANCE = 10;
 
-export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unavailable?: boolean }) {
+export function RollingStock({ cars, unavailable = false, shortcuts, showVehicles = true }: { cars: Car[]; unavailable?: boolean; shortcuts?: ReactNode; showVehicles?: boolean }) {
   const { settings } = useDealerSettings();
   const viewport = useRef<HTMLDivElement>(null);
   const pointerGesture = useRef<BrowseGesture | null>(null);
@@ -75,18 +75,19 @@ export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unava
     if (!element) return;
     element.scrollBy({ left: direction * element.clientWidth * .85, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
-  return <section className="rolling-stock homepage-stock" aria-labelledby="rolling-stock-heading">
+  return <section className="rolling-stock homepage-stock" aria-label="Browse cars">
     <div className="rolling-stock-footer container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
       <h2 id="rolling-stock-heading" className="section-heading">{websiteText(settings, "featuredHeading")}</h2>
       <div className="flex items-center gap-4">
-        {cars.length > 1 && <div className="rolling-stock-arrows" aria-label="Browse featured cars">
+        {showVehicles && cars.length > 1 && <div className="rolling-stock-arrows" aria-label="Browse featured cars">
           <button type="button" onClick={() => browse(-1)} aria-label="Previous featured cars"><ChevronLeft size={18} aria-hidden="true" /></button>
           <button type="button" onClick={() => browse(1)} aria-label="Next featured cars"><ChevronRight size={18} aria-hidden="true" /></button>
         </div>}
-        <Link href="/stock" className="text-link min-h-11 text-sm">Browse Stock</Link>
+        <Link href="/stock?all=1" className="text-link min-h-11 text-sm">View all stock</Link>
       </div>
     </div>
-    {cars.length ? <div
+    {shortcuts}
+    {showVehicles && (cars.length ? <div
       ref={viewport}
       className="rolling-stock-window"
       tabIndex={0}
@@ -122,7 +123,7 @@ export function RollingStock({ cars, unavailable = false }: { cars: Car[]; unava
     </div> : <div className="rolling-stock-empty container mx-auto px-4 sm:px-6 lg:px-8">
       <p className="text-muted-foreground" role={unavailable ? 'status' : undefined}>{unavailable ? 'We can’t show our stock right now. Please contact us for current availability.' : 'We have no cars online at the moment. Ask us about our stock.'}</p>
       <Link href="/contact" className="text-link">Contact us</Link>
-    </div>}
+    </div>)}
 
   </section>;
 }

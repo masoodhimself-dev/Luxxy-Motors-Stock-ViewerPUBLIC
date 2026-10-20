@@ -390,7 +390,7 @@ describe('showroom search filters', () => {
     expect(screen.getByRole('heading', { name: /Find your next car/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Explore our cars' })).toBeInTheDocument();
     expect(screen.queryByTestId('input-showroom-search')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Browse Stock' })).toHaveAttribute('href', '/stock');
+    expect(screen.getByRole('link', { name: 'View all stock' })).toHaveAttribute('href', '/stock?all=1');
     expect(screen.queryByRole('button', { name: 'Auto-scroll cars' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next featured cars' })).toBeInTheDocument();
     expect(screen.getAllByTestId(/^card-vehicle-/)).toHaveLength(originalCars.length);

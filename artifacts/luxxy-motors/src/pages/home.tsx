@@ -130,6 +130,12 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
 
   const bodyTypes = useMemo(() => stockBodyTypes(publicCars), [publicCars]);
   const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
+  const browseChoices = [
+    { label: 'Automatic', href: '/stock?transmission=Automatic', count: publicCars.filter(car => /automatic/i.test(car.transmission || '')).length },
+    { label: 'Under £10k', href: '/stock?maxPrice=10000', count: publicCars.filter(car => car.price != null && car.price <= 10000).length },
+    { label: 'ULEZ compliant', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
+    { label: 'Up to 30k miles', href: '/stock?lowMileage=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.lowMileage).length },
+  ].filter(choice => choice.count > 0);
 
   useEffect(() => {
     if (!browseStock) return;
@@ -401,26 +407,22 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </div>
       </section>}
 
-      {!browseStock && !isLoading && !error && publicCars.length > 0 && <section className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="home-browse-heading">
-        <div className="home-browse-heading">
-          <h2 id="home-browse-heading">Browse cars</h2>
-          <Link href="/stock?all=1" className="text-link">View all stock <ArrowRight size={16} aria-hidden="true" /></Link>
-        </div>
-        <nav className="home-browse-group" aria-label="Shop by preference">
+      {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
+      {!browseStock && !isLoading && (dealerConfig.presentation?.featuredEnabled !== false || (!error && publicCars.length > 0)) && <RollingStock
+        cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))}
+        unavailable={Boolean(error)}
+        showVehicles={dealerConfig.presentation?.featuredEnabled !== false}
+        shortcuts={!error && publicCars.length > 0 ? <div className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8">
+        {browseChoices.length > 0 && <nav className="home-browse-group" aria-label="Shop by preference">
           <h3>Quick filters</h3>
           <div className="home-browse-buttons">
-            {[
-              { label: 'Automatic', href: '/stock?transmission=Automatic', count: publicCars.filter(car => /automatic/i.test(car.transmission || '')).length },
-              { label: 'Under £10k', href: '/stock?maxPrice=10000', count: publicCars.filter(car => car.price != null && car.price <= 10000).length },
-              { label: 'ULEZ compliant', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
-              { label: 'Up to 30k miles', href: '/stock?lowMileage=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.lowMileage).length },
-            ].filter(choice => choice.count > 0).map(choice => <Button asChild variant="outline" size="sm" key={choice.href} className="home-browse-button">
+            {browseChoices.map(choice => <Button asChild variant="outline" size="sm" key={choice.href} className="home-browse-button">
               <Link href={choice.href} aria-label={`${choice.label} · ${choice.count} ${choice.count === 1 ? 'car' : 'cars'}`}>
                 <span>{choice.label}</span><span className="home-browse-count" aria-hidden="true">{choice.count}</span>
               </Link>
             </Button>)}
           </div>
-        </nav>
+        </nav>}
         {bodyTypes.length > 0 && <nav className="home-browse-group" aria-label="Browse by body type">
           <h3>Body type</h3>
           <div className="home-browse-buttons">
@@ -431,11 +433,8 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
             </Button>)}
           </div>
         </nav>}
-      </section>}
-
-
-      {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
-      {!browseStock && !isLoading && dealerConfig.presentation?.featuredEnabled !== false && <RollingStock cars={[...publicCars].sort((a, b) => Number(a.inventoryStatus === 'reserved') - Number(b.inventoryStatus === 'reserved'))} unavailable={Boolean(error)} />}
+        </div> : undefined}
+      />}
 
       {browseStock && <section className="stock-page-intro" aria-labelledby="vehicle-results-heading">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
