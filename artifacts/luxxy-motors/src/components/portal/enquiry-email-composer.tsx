@@ -159,6 +159,7 @@ function EnquiryEmailEditor({
   suggestedContent,
   sendBlockedReason,
   verifyContext,
+  sendRequestId,
 }: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
@@ -166,6 +167,7 @@ function EnquiryEmailEditor({
   suggestedContent?: SuggestedEmailContent;
   sendBlockedReason?: string;
   verifyContext?: () => Promise<void>;
+  sendRequestId?: string;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const features = useDealerFeatures();
@@ -373,7 +375,7 @@ function EnquiryEmailEditor({
     try {
       await verifyContext?.();
       sendingRequest.current ??= {
-        requestId: requestUuid(),
+        requestId: sendRequestId || requestUuid(),
         draft: reviewedDraft,
         previewHash: preview.previewHash,
         savedDraftVersion: savedVersion.current,
@@ -977,6 +979,7 @@ export function EnquiryEmailComposer(props: {
   suggestedContent?: SuggestedEmailContent;
   sendBlockedReason?: string;
   verifyContext?: () => Promise<void>;
+  sendRequestId?: string;
 }) {
   return <EnquiryEmailEditor key={props.entry.id} {...props} />;
 }

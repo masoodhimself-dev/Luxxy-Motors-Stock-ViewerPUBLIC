@@ -1,3 +1,4 @@
+import { saleCompletionChecklistItems } from '@workspace/vehicle-meta';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -63,6 +64,7 @@ test('local deposit and completion reserve then sell the car while retaining all
     assert.equal(sale.lifecycle?.status, 'reserved'); assert.equal(sale.documents.length, 3);
     const original = await store.pdf(sale.id, sale.documents[0].id);
     sale = (await store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: 'local-pack-final', command: { action: 'payment', payment: { amount: '11500', method: 'Bank transfer', date: new Date().toISOString().slice(0,10), reference: '', kind: 'final-payment', status: 'confirmed' } } })).sale;
+    sale = (await store.mutate({ id: sale.id, expectedRevision: sale.revision, requestId: 'local-pack-checks', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } })).sale;
     const input = { id: sale.id, expectedRevision: sale.revision, requestId: 'local-pack-complete', command: { action: 'complete-sale', acknowledge: true } as const };
     sale = (await store.mutate(input)).sale;
     assert.equal(sale.lifecycle?.status, 'sold'); assert.equal(sale.draft.handover, false);

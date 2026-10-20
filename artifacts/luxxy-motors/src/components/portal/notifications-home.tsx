@@ -18,6 +18,8 @@ import "./notifications-home.css";
 import { DealerDashboard } from "./dealer-administration";
 import { useStockChangeTasks } from "@/lib/stock-change-tasks";
 import { StockChangeTasks } from "./stock-change-tasks";
+import { useSoldVehicleFollowUps } from '@/lib/sold-vehicle-follow-ups';
+import { SoldVehicleFollowUpTasks } from './sold-vehicle-customer-review';
 
 const groups = {
   enquiries: { label: "Awaiting a reply", icon: CustomerEnquiry, tone: "info" },
@@ -96,8 +98,10 @@ export function NotificationsHome({
   const query = useWorkspaceNotifications(),
     data = query.data;
   const stockChanges = useStockChangeTasks();
+  const soldFollowUps = useSoldVehicleFollowUps();
+  const soldCount = Math.max(soldFollowUps.data?.total ?? 0, soldFollowUps.data?.tasks?.length ?? 0);
   const stockCount = Math.max(stockChanges.data?.total ?? 0, stockChanges.data?.tasks?.length ?? 0);
-  const [filter, setFilter] = useState<Category | "all" | "stock">("all");
+  const [filter, setFilter] = useState<Category | "all" | "stock" | "sold">("all");
   const [expanded, setExpanded] = useState(false);
   const categories = (Object.keys(groups) as Category[]).filter(
     (key) => data?.emailAccess || !["drafts", "email"].includes(key),
@@ -115,17 +119,18 @@ export function NotificationsHome({
   const contacts = groupItems(items.filter(item => (item.category === "enquiries" || item.category === "followups") && (filter === "all" || item.category === filter)));
   const visits = sortItems(items.filter(item => item.category === "appointments"));
   const issues = groupItems(items.filter(item => item.category === "email" || (item.category === "drafts" && /unconfirmed|sending|check before resending/i.test(item.detail))));
-  const chooseFilter = (next: Category | "all" | "stock") => { setFilter(next); setExpanded(false); };
+  const chooseFilter = (next: Category | "all" | "stock" | "sold") => { setFilter(next); setExpanded(false); };
   const count = categories.reduce((total, key) => total + (data?.counts[key] ?? 0), 0);
   const refresh = (
     <Button
       size="sm"
       variant="ghost"
       aria-label="Refresh day"
-      disabled={query.isFetching || stockChanges.isFetching}
+      disabled={query.isFetching || stockChanges.isFetching || soldFollowUps.isFetching}
       onClick={() => {
         void query.refetch();
         void stockChanges.refetch();
+        void soldFollowUps.refetch();
         void client.invalidateQueries({ queryKey: ["dealer-operations"] });
       }}
     >
@@ -161,17 +166,19 @@ export function NotificationsHome({
     <DealerDashboard compact>
       {query.isLoading && <p role="status">Loading your day…</p>}
       {query.isError && <p className="notifications-error" role="alert">Notifications could not be refreshed. Use Refresh to try again.{data && " The last loaded actions are shown below."}</p>}
-      {query.isError && !data && !stockChanges.data && refresh}
-      {(data || stockChanges.data) && <>
+      {query.isError && !data && !stockChanges.data && !soldFollowUps.data && refresh}
+      {(data || stockChanges.data || soldFollowUps.data) && <>
         <div className="desk-filters" aria-label="Notification categories">
           <button type="button" aria-pressed={filter === "all"} onClick={() => chooseFilter("all")}>All work</button>
           {(["enquiries", "followups", "appointments"] as Category[]).filter(key => (data?.counts[key] ?? 0) > 0).map(key => <button key={key} type="button" data-tone={groups[key].tone} aria-pressed={filter === key} onClick={() => chooseFilter(filter === key ? "all" : key)}>{groups[key].label} <b>{data!.counts[key]}</b></button>)}
           {(stockCount > 0 || filter === "stock") && <button type="button" aria-pressed={filter === "stock"} onClick={() => chooseFilter(filter === "stock" ? "all" : "stock")}>Stock changes <b>{stockCount}</b></button>}
+          {(soldCount > 0 || filter === "sold") && <button type="button" data-tone="warning" aria-pressed={filter === "sold"} onClick={() => chooseFilter(filter === "sold" ? "all" : "sold")}>Sold car follow-ups <b>{soldCount}</b></button>}
           {refresh}
         </div>
       </>}
+      {(filter === "all" || filter === "sold") && <SoldVehicleFollowUpTasks query={soldFollowUps} showEmpty={filter === "sold"} />}
       {(filter === "all" || filter === "stock") && <StockChangeTasks query={stockChanges} emailAccess={data?.emailAccess === true} showEmpty={filter === "stock"} />}
-      {data && filter !== "stock" && <>
+      {data && filter !== "stock" && filter !== "sold" && <>
         <div className="desk-priorities">
           {filter !== "appointments" && <section className="notifications-feed" aria-label="Customers to contact"><header><h3>Customers to contact <small>{contacts.length}</small></h3></header>
             {actionList(contacts, "contacts")}
@@ -186,7 +193,7 @@ export function NotificationsHome({
           {(data.counts.email > 0 || issues.length > 0) && <details className="notifications-feed desk-email-issues"><summary><MailWarning size={17} aria-hidden="true"/>Email issues · {issues.length}<span>Review delivery problems</span></summary>{actionList(issues,"email")}<Link href="/portal?section=notifications&workView=email">Open email history</Link></details>}
           {data.counts.drafts > 0 && <Link className="desk-drafts" href="/portal?section=notifications&workView=email&view=drafts"><FilePenLine size={17} aria-hidden="true"/>Open saved drafts<ArrowUpRight size={15} aria-hidden="true"/></Link>}
         </div>}
-        {count === 0 && stockCount === 0 && query.isSuccess && stockChanges.isSuccess && <p className="desk-clear" role="status">You’re up to date</p>}
+        {count === 0 && stockCount === 0 && soldCount === 0 && query.isSuccess && stockChanges.isSuccess && soldFollowUps.isSuccess && <p className="desk-clear" role="status">You’re up to date</p>}
         {categories.some(key => data.counts[key] > 8) && <p className="notifications-footnote">Showing up to eight records per category. Open Customers & enquiries, Test drives or Email for the full list.</p>}
         <p className="notifications-updated">Updated {new Date(data.generatedAt).toLocaleTimeString("en-GB", {timeZone:"Europe/London",hour:"2-digit",minute:"2-digit"})} · London time</p>
       </>}

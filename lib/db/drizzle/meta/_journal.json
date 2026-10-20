@@ -323,6 +323,13 @@
       "when": 1792141131334,
       "tag": "0045_stock_change_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792141131335,
+      "tag": "0046_sold_vehicle_follow_ups",
+      "breakpoints": true
     }
   ]
 }

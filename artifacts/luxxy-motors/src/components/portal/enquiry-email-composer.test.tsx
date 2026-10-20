@@ -865,3 +865,24 @@ it('rechecks stock before an explicitly reviewed send and never sends a stale up
   expect(calls('/email')).toHaveLength(0);
   expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Original staff message');
 });
+
+it('uses a supplied stable follow-up request ID across a lost response and retry', async () => {
+  const original = state.fetch.getMockImplementation()!;
+  let failed = false;
+  state.fetch.mockImplementation(async (url: string, options?: {method?: string}) => {
+    if (url.endsWith('/email') && options?.method === 'POST') {
+      if (!failed) { failed = true; throw new Error('Network went away'); }
+      return { delivery: { id: 'stable-delivery', requestId: '00000000-0000-4000-8000-000000000995', to: 'alex@example.test', subject: 'Approved reply', status: 'sent', photoCount: 0, createdAt: '2026-10-17T10:00:00Z' } };
+    }
+    return original(url, options);
+  });
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} sendRequestId="00000000-0000-4000-8000-000000000995" onClose={state.close} /></QueryClientProvider>);
+  await screen.findByRole('textbox', { name: 'Message' });
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Send email' }));
+  await screen.findByText(/Retry uses the same email request/);
+  fireEvent.click(screen.getByRole('button', { name: 'Check or retry same email' }));
+  await screen.findByRole('heading', { name: 'Submitted to Resend' });
+  expect(calls('/email')).toHaveLength(2);
+  expect(calls('/email').map(call => JSON.parse(call[1].body).requestId)).toEqual(['00000000-0000-4000-8000-000000000995', '00000000-0000-4000-8000-000000000995']);
+});

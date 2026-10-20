@@ -213,7 +213,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       send(res, 200, { ...mutation, ...(token ? { customerUrl: `/my-purchase/${token}`, expiresAt: mutation.sale.customerAccess?.expiresAt } : {}) }); return true;
     }
     if (req.method === 'GET' && url.pathname === '/api/sale-workspace/paperwork') { const p = await previewIntegrationsStore.readSalesPaperwork(); send(res, 200, { saleTerms: p.saleTerms, reservationTerms: p.reservationTerms, invoiceSettings: p.invoiceSettings }); return true; }
-    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
+    const route = /^\/api\/sale-workspace(?:\/([^/]+))?(?:\/(payments|documents|handover|take-deposit|complete-sale|invoice-payments|issue-invoice|finish-invoice-sale|checklists))?(?:\/([^/]+)\/(confirm|reverse))?$/.exec(url.pathname);
     if (!route) throw new SaleWorkspaceError('Sale action not found.', 404);
     const [, id, section, paymentId, action] = route;
     if (req.method === 'GET' && !section) { send(res, 200, id ? { sale: await store.get(id), preview: true } : { sales: await store.list(), preview: true }); return true; }
@@ -222,6 +222,7 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
     let command: SaleWorkspaceCommand | undefined;
     if (req.method === 'PUT' && id && !section) command = { action: 'update', draft: input.draft };
     if (req.method === 'POST' && id) {
+      if (section === 'checklists') command = { action: 'checklists', completion: input.completion, partExchanges: input.partExchanges };
       if (section === 'payments' && !paymentId) command = { action: 'payment', payment: input.payment };
       if (section === 'payments' && paymentId && action === 'confirm') command = { action: 'confirm', paymentId, date: input.date, reserveVehicle: input.reserveVehicle === true };
       if (section === 'payments' && paymentId && action === 'reverse') command = { action: 'reverse', paymentId, amount: input.amount, kind: input.kind, reason: input.reason, date: input.date, invoiceOnly: input.invoiceOnly === true };

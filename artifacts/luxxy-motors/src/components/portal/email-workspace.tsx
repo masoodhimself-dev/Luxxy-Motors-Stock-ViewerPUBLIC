@@ -29,6 +29,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { EmailDraftQueue } from "./email-draft-queue";
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
 import { StockChangeEmailComposer } from './stock-change-email-composer';
+import { SoldVehicleEmailComposer } from './sold-vehicle-email-composer';
 import { workspaceError } from "./enquiry-workspace-tools";
 import { customerHistoryHref } from "./history-links";
 import "./email-workspace.css";
@@ -172,6 +173,7 @@ export function EmailWorkspace({
   const [, navigate] = useLocation();
   const initial = new URLSearchParams(locationSearch);
   const stockChangeId = initial.get('stockChangeId');
+  const soldSaleId = initial.get('soldSaleId');
   const cache = useQueryClient();
   const [view, setView] = useState<"sent" | "drafts">(
     initial.get("view") === "drafts" || initial.has("draft")
@@ -578,8 +580,9 @@ export function EmailWorkspace({
       )}
       {compose && customer && (
         <StockAwareEmailComposer
-          key={`${customer.id}:${stockChangeId || ''}`}
+          key={`${customer.id}:${stockChangeId || ''}:${soldSaleId || ''}`}
           taskId={stockChangeId}
+          soldSaleId={soldSaleId}
           entry={customer}
           onClose={(result) => {
             setView(result === "sent" ? "sent" : "drafts");
@@ -1131,6 +1134,6 @@ export function EmailWorkspace({
   );
 }
 
-function StockAwareEmailComposer({ taskId, ...props }: Parameters<typeof EnquiryEmailComposer>[0] & { taskId: string | null; entry: import('@workspace/api-client-react').Enquiry }) {
-  return taskId ? <StockChangeEmailComposer {...props} taskId={taskId} /> : <EnquiryEmailComposer {...props} />;
+function StockAwareEmailComposer({ taskId, soldSaleId, ...props }: Parameters<typeof EnquiryEmailComposer>[0] & { taskId: string | null; soldSaleId: string | null; entry: import('@workspace/api-client-react').Enquiry }) {
+  return soldSaleId ? <SoldVehicleEmailComposer {...props} saleId={soldSaleId} /> : taskId ? <StockChangeEmailComposer {...props} taskId={taskId} /> : <EnquiryEmailComposer {...props} />;
 }

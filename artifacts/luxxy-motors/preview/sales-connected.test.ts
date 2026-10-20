@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-import { createSaleWorkspace, changeSaleWorkspace, customerSaleDocument, customerSaleView, publicSaleWorkspace, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
+import { createSaleWorkspace, changeSaleWorkspace, customerSaleDocument, customerSaleView, publicSaleWorkspace, saleCompletionChecklistItems, type SaleWorkspaceContext, type SaleWorkspaceDraft } from '@workspace/vehicle-meta';
 import { PreviewSaleWorkspaceStore } from './sales';
 import { archiveSaleDocument } from '../../api-server/src/lib/sale-document-pdf';
 let sequence = 0;
@@ -36,7 +36,8 @@ test('stock lifecycle is explicit, revision guarded, and prevents switching a re
   assert.equal(reserve.sale.lifecycle?.status, 'reserved');
   assert.throws(() => changeSaleWorkspace(reserve.sale, { action: 'update', draft: { ...reserve.sale.draft, vehicleId: 'car-b' } }, { expectedRevision: reserve.sale.revision, requestId: 'switch-request' }, context()), /Release/);
   assert.throws(() => changeSaleWorkspace(reserve.sale, { action: 'lifecycle', status: 'sold' }, { expectedRevision: 1, requestId: 'stale-request' }, context()), /another device/);
-  const sold = changeSaleWorkspace(reserve.sale, { action: 'lifecycle', status: 'sold' }, { expectedRevision: reserve.sale.revision, requestId: 'sold-request' }, context());
+  const checked = changeSaleWorkspace(reserve.sale, { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) }, { expectedRevision: reserve.sale.revision, requestId: 'checked-before-sold' }, context()).sale;
+  const sold = changeSaleWorkspace(checked, { action: 'lifecycle', status: 'sold' }, { expectedRevision: checked.revision, requestId: 'sold-request' }, context());
   assert.throws(() => changeSaleWorkspace(sold.sale, { action: 'lifecycle', status: 'released' }, { expectedRevision: sold.sale.revision, requestId: 'release-request' }, context()), /sold vehicle/);
 });
 

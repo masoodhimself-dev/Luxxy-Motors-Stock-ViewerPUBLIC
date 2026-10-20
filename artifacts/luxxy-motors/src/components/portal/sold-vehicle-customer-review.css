@@ -1,0 +1,51 @@
+.sold-customer-review { border:1px solid var(--portal-border,#d8e1e7); border-radius:9px; background:#fff; min-width:0; padding:16px; color:var(--portal-text,#1b2c38); }
+.sold-customer-review > header { display:flex; gap:12px; justify-content:space-between; align-items:start; }
+.sold-customer-review h3 { font-size:16px; font-weight:650; margin:0; }
+.sold-customer-review header p,.sold-review-help { color:var(--portal-neutral,#536374); font-size:12px; margin-top:4px; }
+.sold-review-count { padding:4px 8px; white-space:nowrap; font-size:11px; background:var(--portal-info-soft,#edf4fa); color:var(--portal-info,#245e80); border-radius:5px; }
+.sold-review-group { margin-top:16px; }
+.sold-review-group h4,.sold-review-interests > summary { font-size:13px; font-weight:650; margin:0 0 7px; }
+.sold-review-group h4 span,.sold-review-interests > summary > span { color:var(--portal-neutral,#536374); font-size:12px; margin-left:5px; }
+.sold-review-interests > summary { display:flex; flex-wrap:wrap; align-items:center; gap:5px; min-height:44px; cursor:pointer; }
+.sold-review-interests > summary small { flex:1; color:var(--portal-neutral,#536374); font-weight:400; font-size:11px; }
+.sold-customer-list { padding:0; margin:0; list-style:none; }
+.sold-customer-review .sold-customer-list > li { display:flex; gap:12px; justify-content:space-between; padding:13px 0; border-top:1px solid #e6ecef; min-width:0; }
+.sold-customer-list > li[data-urgent=true] { border-left:3px solid var(--portal-warning,#87510b); padding-left:10px!important; }
+.sold-customer-main { display:flex; gap:10px; min-width:0; flex:1; }
+.sold-customer-select { display:flex; align-items:start; padding:6px; min-height:44px; }
+.sold-customer-select input { width:18px; height:18px; accent-color:var(--portal-info,#245e80); }
+.sold-customer-details { min-width:0; overflow-wrap:anywhere; }
+.sold-customer-details h5 { font-size:13px; font-weight:650; margin:0 0 3px; }
+.sold-customer-details p { font-size:12px; color:var(--portal-neutral,#536374); margin:3px 0; }
+.sold-customer-details .sold-customer-date { display:flex; gap:5px; flex-wrap:wrap; align-items:center; color:var(--portal-warning,#87510b); font-weight:600; }
+.sold-customer-urgent { font-size:11px; font-weight:650; color:var(--portal-warning,#87510b); }
+.sold-customer-badge { display:inline-block; margin-top:4px; font-size:11px; color:var(--portal-warning,#87510b); background:var(--portal-warning-soft,#fff6e5); padding:3px 6px; border-radius:4px; }
+.sold-customer-details .sold-customer-done { display:flex; gap:5px; color:var(--portal-success,#14634a); align-items:center; }
+.sold-customer-actions { display:flex; flex-wrap:wrap; gap:5px; align-content:start; align-items:center; justify-content:flex-end; width:250px; flex-shrink:0; }
+.sold-customer-actions > a { display:inline-flex; align-items:center; justify-content:center; gap:5px; color:var(--portal-info,#245e80); font-size:12px; min-height:44px; padding:5px 9px; border:1px solid #d5e0e7; border-radius:6px; }
+.sold-customer-actions > button { font-size:11px; min-height:44px; padding-inline:9px; white-space:normal; }
+.sold-customer-actions > span { color:var(--portal-neutral,#536374); font-size:11px; width:100%; text-align:right; }
+.sold-customer-resolution { display:grid; gap:6px; width:100%; min-width:0; }
+.sold-customer-resolution label { display:grid; gap:4px; color:var(--portal-neutral,#536374); font-size:11px; }
+.sold-customer-resolution textarea { width:100%; min-width:0; border:1px solid var(--portal-border,#d8e1e7); border-radius:5px; padding:8px; font:inherit; font-size:12px; resize:vertical; }
+.sold-customer-resolution button { min-height:44px; height:auto; font-size:11px; white-space:normal; }
+.sold-review-bulk { background:var(--portal-warning-soft,#fff6e5); border:1px solid #e4d8bc; border-radius:6px; margin-top:13px; padding:12px; }
+.sold-review-bulk p { font-size:12px; margin:0 0 9px; }
+.sold-review-bulk > div { display:flex; flex-wrap:wrap; gap:6px; }
+.sold-review-bulk button { min-height:44px; font-size:12px; white-space:normal; }
+.sold-review-confirm p { flex-basis:100%; }
+.sold-review-error,.sold-review-notice { padding:12px; margin-top:10px; font-size:12px; border-radius:5px; background:var(--portal-warning-soft,#fff6e5); color:var(--portal-warning,#87510b); }
+.sold-review-notice { background:var(--portal-success-soft,#edf8f2); color:var(--portal-success,#14634a); }
+.sold-review-clear { display:flex; gap:7px; align-items:center; margin-top:14px; font-size:12px; color:var(--portal-neutral,#536374); }
+.sold-follow-up-tasks h3 small { font-size:12px; color:var(--portal-neutral,#536374); margin-left:5px; }
+.sold-follow-up-tasks header p { font-size:12px; color:var(--portal-neutral,#536374); margin-top:3px; }
+.sold-follow-up-tasks .sold-follow-up-list > li { display:block; padding:14px; border-left:3px solid var(--portal-warning,#87510b); }
+.sold-follow-up-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.sold-follow-up-heading > div { min-width:0; overflow-wrap:anywhere; }
+.sold-follow-up-heading h4 { font-size:14px; font-weight:650; margin:0; }
+.sold-follow-up-heading p { font-size:12px; color:var(--portal-neutral,#536374); margin-top:4px; }
+.sold-follow-up-heading button { min-height:44px; flex-shrink:0; }
+.sold-follow-up-list .sold-customer-review { margin-top:12px; }
+.sold-follow-up-tasks > .sold-review-help { padding:12px 14px; }
+@media(max-width:1000px) { .sold-customer-review .sold-customer-list > li { flex-wrap:wrap; } .sold-customer-actions { width:100%; justify-content:flex-start; } .sold-customer-actions > span { text-align:left; } }
+@media(max-width:639px) { .sold-customer-review { padding:12px; } .sold-customer-review > header { flex-wrap:wrap; gap:7px; } .sold-review-count { white-space:normal; } .sold-follow-up-heading { flex-wrap:wrap; align-items:start; } .sold-follow-up-list .sold-customer-review { padding:10px; } .sold-review-bulk button { flex:1 1 100%; } .sold-customer-actions { gap:6px; } .sold-review-interests > summary small { flex-basis:100%; order:2; } }

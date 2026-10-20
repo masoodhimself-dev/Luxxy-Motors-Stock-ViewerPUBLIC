@@ -1,4 +1,7 @@
 import { RoadTaxGuide } from "@/components/sales-demo/road-tax-guide";
+import { SaleChecklists } from '@/components/sales-demo/sale-checklists';
+import { SoldVehicleCustomerReview } from '@/components/portal/sold-vehicle-customer-review';
+import { soldVehicleFollowUpsQueryKey } from '@/lib/sold-vehicle-follow-ups';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
@@ -13,6 +16,8 @@ import {
 import {
   saleWorkspaceTotals,
   saleWorkspaceFingerprint,
+  saleWorkspaceChecklistProgress,
+  type SaleWorkspaceChecklistInput,
   type SaleWorkspaceRecord,
   type SaleWorkspaceMutation,
   type SaleWorkspaceDocument,
@@ -126,6 +131,7 @@ export function SalesWorkspace({
   const detailsDirty = Boolean(
     draft && JSON.stringify(draft) !== JSON.stringify(record?.draft),
   );
+  const checklistReady = Boolean(record && !detailsDirty && saleWorkspaceChecklistProgress(record).ready);
   const dirty = detailsDirty || Boolean(payment.amount.trim());
   const rows = record?.payments ?? [];
   const total = draft
@@ -381,6 +387,15 @@ export function SalesWorkspace({
       await saveInternal();
       setMessage("Details saved.");
     });
+  const saveChecks = (input: SaleWorkspaceChecklistInput) => run(async () => {
+    await command('/checklists', input);
+    setMessage('Checks saved.');
+  });
+  const checklistPanel = (intakeOnly = false) => draft ? <SaleChecklists
+    draft={draft as SaleWorkspaceDraft}
+    checklists={detailsDirty ? undefined : record?.checklists}
+    busy={busy} readOnly={Boolean(record?.completedAt || record?.lifecycle?.status === 'sold')}
+    intakeOnly={intakeOnly} onChange={saveChecks} /> : null;
   function next() {
     if (step === 2 && payment.amount.trim()) {
       setProblem(
@@ -797,6 +812,7 @@ export function SalesWorkspace({
                   </div>
                   {rows.length > 0 && <section className="invoice-summary-payments" aria-label="Recorded payments"><ul>{rows.map(row => <li key={row.id} data-status={row.status}><div><strong>{saleMoney(row.signedAmountPence)}</strong><span>{paymentDate(row.date)} · {row.method}</span></div><small>{row.status === "confirmed" ? row.signedAmountPence < 0 ? "Returned / reversed" : "Received" : row.status}{row.reference && ` · ${row.reference}`}</small></li>)}</ul></section>}
                   <div className="invoice-resume-edit"><span>{record.completedAt ? "Completed details are locked. Issued invoices remain unchanged." : "Need to correct something?"}</span><Button variant="ghost" disabled={busy} onClick={() => resumeAt(0)}>{record.completedAt ? "View vehicle details" : "Edit vehicle & price"}</Button><Button variant="ghost" disabled={busy} onClick={() => resumeAt(1)}>{record.completedAt ? "View customer details" : "Edit customer details"}</Button></div>
+                  {(record.completedAt || record.lifecycle?.status === 'sold') && <SoldVehicleCustomerReview saleId={record.id} />}
                   {record.documents.length > 1 && <details className="invoice-resume-paperwork"><summary>All saved paperwork ({record.documents.length})</summary>{[...record.documents].reverse().map(document => <div key={document.id}><span>{document.title}<small>{document.number}</small></span><Button variant="outline" size="sm" disabled={busy} onClick={() => documentAction(document, "print")}>Open {document.number}</Button></div>)}</details>}
                 </section>
               ) : issued ? (
@@ -838,6 +854,7 @@ export function SalesWorkspace({
                       <Mail size={17} /> {issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide ? 'Email invoice & tax guide' : 'Email customer'}
                     </Button>
                   </div>
+                  {issued.invoiceKind === 'full' && record && <SoldVehicleCustomerReview key={`${record.id}:${record.lifecycle?.status ?? 'draft'}`} saleId={record.id} />}
                   {issued.invoiceKind === "full" &&
                     !record?.completedAt &&
                     !soldChoice && (
@@ -847,6 +864,7 @@ export function SalesWorkspace({
                           Marking it sold removes it from the customer website.
                           Your invoice and payments stay saved.
                         </p>
+                        {checklistPanel()}
                         {total!.balance > 0 && (
                           <>
                             <p className="invoice-message" data-tone="warning">
@@ -871,6 +889,7 @@ export function SalesWorkspace({
                           <Button
                             disabled={
                               busy ||
+                              !checklistReady ||
                               total!.balance < 0 ||
                               (total!.balance > 0 && !outstandingAccepted) ||
                               !draft.vehicleId
@@ -884,6 +903,7 @@ export function SalesWorkspace({
                                 await client.invalidateQueries({
                                   queryKey: getGetStockQueryKey(),
                                 });
+                                await client.invalidateQueries({ queryKey: soldVehicleFollowUpsQueryKey });
                                 setSoldChoice(true);
                                 setMessage(
                                   "Car marked sold and removed from the website.",
@@ -1273,6 +1293,7 @@ export function SalesWorkspace({
                           Add part exchange
                         </Button>
                       </details>
+                      {checklistPanel(true)}
                       <p>
                         Record money actually received, one payment at a time.
                         This does not charge the customer.
@@ -1552,6 +1573,7 @@ export function SalesWorkspace({
                         reference={taxReference} onReferenceChange={setTaxReference}
                         onChange={enabled => update("roadTaxGuide", enabled)} />
                       </section>}
+                      {kind === 'full' && checklistPanel()}
                       <label className="invoice-check">
                         <input
                           type="checkbox"

@@ -5,6 +5,7 @@ import { loadBrochurePhotos } from './vehicle-brochure-images';
 import { archiveSaleDocument } from './sale-document-pdf';
 import { attachInvoiceVerification, invoiceVerificationView } from './invoice-verification';
 import { siteOrigin } from './enquiry-links';
+import { createSoldVehicleFollowUps } from './sold-vehicle-follow-ups';
 import { customerSaleView, customerSaleDocument } from '@workspace/vehicle-meta';
 import { changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace, invoiceBranding, saleWorkspaceBranding, saleWorkspaceFingerprint, saleWorkspaceNumber, SaleWorkspaceError, type SaleWorkspaceBranding, type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft, type SaleWorkspaceMutation, type SaleWorkspaceRecord, type SaleWorkspaceVehicleSnapshot } from '@workspace/vehicle-meta';
 
@@ -134,6 +135,7 @@ export class PostgresSaleWorkspaceStore {
     const metadata = { ...(vehicle.audit_metadata ?? {}), saleWorkspaceId: status === 'released' ? null : record.id, saleWorkspaceStatus: status, saleWorkspaceActor: actor, saleWorkspaceChangedAt: record.updatedAt };
     await client.query('UPDATE vehicles SET inventory_status = $3::inventory_status, audit_metadata = $4::jsonb, updated_at = $5 WHERE dealer_id = $1 AND id = $2::uuid', [this.dealerId, vehicleId, status === 'released' ? 'available' : status, JSON.stringify(metadata), record.updatedAt]);
     if (record.draft.sourceReservationId || record.draft.sourceEnquiryId) await client.query(`UPDATE leads SET stage = $3::lead_stage, updated_at = $4 WHERE dealer_id = $1 AND ${record.draft.sourceReservationId ? 'id' : 'enquiry_id'} = $2::uuid`, [this.dealerId, record.draft.sourceReservationId || record.draft.sourceEnquiryId, status === 'sold' ? 'collected' : status === 'released' ? 'qualifying' : 'reserved', record.updatedAt]);
+    if (status === 'sold' && vehicle.inventory_status !== 'sold') await createSoldVehicleFollowUps(client, this.dealerId, record, actor);
   }
   async mutate(input: { id?: string; requestId: string; expectedRevision?: number; draft?: unknown; command?: SaleWorkspaceCommand; actor: string }): Promise<SaleWorkspaceMutation> {
     if (input.command?.action === 'provider-refund-correction') throw new SaleWorkspaceError('Provider refund corrections require a verified payment event.', 403);

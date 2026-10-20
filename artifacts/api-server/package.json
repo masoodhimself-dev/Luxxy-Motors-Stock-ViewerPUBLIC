@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "exec node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:vehicle-descriptions && pnpm run test:stock-changes",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:vehicle-descriptions && pnpm run test:stock-changes && pnpm run test:sold-follow-ups",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -49,7 +49,8 @@
     "test:share-origin": "node test-build.mjs src/share-origin.test.ts && node --test dist-test/share-origin.test.mjs",
     "test:staff-origin": "node test-tenancy-build.mjs src/staff-write-origin.test.ts && node --test dist-test/staff-write-origin.test.mjs",
     "test:vehicle-descriptions": "node test-enquiry-emails-build.mjs src/vehicle-descriptions.test.ts && node --test dist-test/vehicle-descriptions.test.mjs",
-    "test:stock-changes": "node test-enquiry-emails-build.mjs src/stock-change-tasks.test.ts && node --test dist-test/stock-change-tasks.test.mjs"
+    "test:stock-changes": "node test-enquiry-emails-build.mjs src/stock-change-tasks.test.ts && node --test dist-test/stock-change-tasks.test.mjs",
+    "test:sold-follow-ups": "node test-enquiry-emails-build.mjs src/sold-vehicle-follow-ups.test.ts && node --test dist-test/sold-vehicle-follow-ups.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",

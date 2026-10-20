@@ -5,6 +5,8 @@ import type { Enquiry, StaffOnlineReservation } from "@workspace/api-client-reac
 import {
   changeSaleWorkspace,
   createSaleWorkspace,
+  saleCompletionChecklistItems,
+  partExchangeChecklistItems,
   type SaleWorkspaceRecord,
   type SaleWorkspaceContext,
   type SaleWorkspaceCommand,
@@ -65,6 +67,7 @@ vi.mock("@workspace/api-client-react", () => ({
 vi.mock("@/components/sales-demo/sales-document", () => ({
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
 }));
+vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
 const initialStockCars = structuredClone(state.stock.cars);
@@ -116,6 +119,8 @@ beforeEach(() => {
             ? { action: "update", draft: payload.draft }
             : url.endsWith("/invoice-payments")
               ? { action: "invoice-payment", payment: payload.payment }
+              : url.endsWith('/checklists')
+                ? { action: 'checklists', completion: payload.completion, partExchanges: payload.partExchanges }
               : url.endsWith("/issue-invoice")
                 ? {
                     action: "issue-invoice",
@@ -253,6 +258,7 @@ it("creates deposit and full invoices with interim payments, and asks before mar
   expect(state.sales[0].documents).toHaveLength(2);
   expect(state.sales[0].documents[1].snapshot.payments).toHaveLength(3);
   expect(state.sales[0].lifecycle?.status).toBe("reserved");
+  await completeFinalChecks();
   fireEvent.click(
     screen.getByRole("button", { name: "Yes, mark sold & remove" }),
   );
@@ -316,6 +322,7 @@ it("supports an explicitly agreed sale with a balance due and records the later 
   mount();
   await details("full");
   await issue("full");
+  await completeFinalChecks();
   fireEvent.click(
     screen.getByRole("checkbox", { name: /I confirm the sale can proceed/ }),
   );
@@ -595,6 +602,16 @@ function savedSale(overrides: Partial<SaleWorkspaceRecord["draft"]> = {}) {
 function fixtureCommand(sale: SaleWorkspaceRecord, command: SaleWorkspaceCommand) {
   return changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId: `fixture-command-${++serial}` }, context()).sale;
 }
+async function completeFinalChecks() {
+  for (const item of saleCompletionChecklistItems) {
+    const input = screen.getByRole('checkbox', { name: `Check: ${item.label}` });
+    if (!(input as HTMLInputElement).checked) {
+      fireEvent.click(input);
+      await waitFor(() => expect(input).toBeChecked());
+      await waitFor(() => expect(input).toBeEnabled());
+    }
+  }
+}
 function fixturePayment(sale: SaleWorkspaceRecord, amount: string, kind: "deposit" | "part-payment" | "final-payment" = "deposit") {
   return fixtureCommand(sale, { action: "invoice-payment", payment: {
     amount, kind, status: "confirmed", method: "Bank transfer", date: new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }), reference: "fixture payment",
@@ -688,6 +705,43 @@ it("offers the existing completion review for a current full invoice and still r
   expect(mutations()).toHaveLength(0);
 });
 
+it('persists final sale checks and requires every item before marking the car sold', async () => {
+  let sale = fixturePayment(savedSale(), '10000', 'final-payment');
+  sale = fixtureCommand(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  const frozenInvoice = structuredClone(sale.documents.at(-1));
+  await mountSaved(sale);
+  fireEvent.click(screen.getByRole('button', { name: 'Review sale completion' }));
+  const finish = screen.getByRole('button', { name: 'Yes, mark sold & remove' });
+  expect(finish).toBeDisabled();
+  for (const item of saleCompletionChecklistItems.slice(0, -1)) {
+    fireEvent.click(screen.getByRole('checkbox', { name: `Check: ${item.label}` }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: `Check: ${item.label}` })).toBeChecked());
+  }
+  expect(finish).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Not needed: Collection or delivery arranged' }));
+  await waitFor(() => expect(finish).toBeEnabled());
+  expect(state.sales[0].checklists?.completion.handover?.status).toBe('not_needed');
+  fireEvent.click(finish);
+  await waitFor(() => expect(state.sales[0].lifecycle?.status).toBe('sold'));
+  expect(state.sales[0].documents.at(-1)).toEqual(frozenInvoice);
+});
+
+it('requires the part-exchange intake checks as well as the final sale checks', async () => {
+  let sale = fixturePayment(savedSale({ exchanges: [{ registration: 'PX20ABC', description: 'Customer car', value: '1000' }] }), '9000', 'final-payment');
+  sale = fixtureCommand(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  sale = fixtureCommand(sale, { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) });
+  await mountSaved(sale);
+  fireEvent.click(screen.getByRole('button', { name: 'Review sale completion' }));
+  const finish = screen.getByRole('button', { name: 'Yes, mark sold & remove' });
+  expect(finish).toBeDisabled();
+  for (const item of partExchangeChecklistItems) {
+    fireEvent.click(screen.getByRole('checkbox', { name: `Check: ${item.label}` }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: `Check: ${item.label}` })).toBeChecked());
+  }
+  await waitFor(() => expect(finish).toBeEnabled());
+  expect(Object.keys(state.sales[0].checklists!.partExchanges.PX20ABC)).toHaveLength(5);
+});
+
 it("requires an updated invoice when later payments made the saved full invoice out of date", async () => {
   let sale = fixtureCommand(savedSale(), { action: "issue-invoice", kind: "full", acknowledge: true });
   const issuedBeforePayment = structuredClone(sale.documents.at(-1));
@@ -705,6 +759,7 @@ it("requires an updated invoice when later payments made the saved full invoice 
 it("opens a completed sale's frozen invoice and keeps completed customer and vehicle details locked", async () => {
   let sale = fixturePayment(savedSale(), "10000", "final-payment");
   sale = fixtureCommand(sale, { action: "issue-invoice", kind: "full", acknowledge: true });
+  sale = fixtureCommand(sale, { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) });
   sale = fixtureCommand(sale, { action: "finish-invoice-sale", acknowledge: true });
   const snapshot = structuredClone(sale);
   await mountSaved(sale);

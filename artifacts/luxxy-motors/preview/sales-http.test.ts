@@ -1,3 +1,4 @@
+import { saleCompletionChecklistItems } from '@workspace/vehicle-meta';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -158,6 +159,8 @@ test('guided invoice HTTP routes reserve on deposit, issue only two invoice kind
     const full=await post(`/api/sale-workspace/${sale.id}/issue-invoice`,{expectedRevision:sale.revision,requestId:randomUUID(),kind:'full',acknowledge:true});assert.equal(full.status,200);sale=full.data.sale;assert.equal(sale.documents.length,2);assert.equal(sale.lifecycle?.status,'reserved');
     const pdf=await fetch(`${origin}/api/sale-workspace/${sale.id}/documents/${full.data.document!.id}/pdf`);assert.equal(pdf.status,200);assert.match(pdf.headers.get('content-type') ?? '',/application\/pdf/);assert.ok((await pdf.arrayBuffer()).byteLength>1000);
     const denied=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:false});assert.equal(denied.status,422);assert.equal((await store.inventory())[car.id],'reserved');
+    const blocked=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:true});assert.equal(blocked.status,422);assert.match(blocked.data.error,/checklist/);
+    const checked=await post(`/api/sale-workspace/${sale.id}/checklists`,{expectedRevision:sale.revision,requestId:randomUUID(),completion:Object.fromEntries(saleCompletionChecklistItems.map(item=>[item.id,'checked']))});assert.equal(checked.status,200);sale=checked.data.sale;
     const sold=await post(`/api/sale-workspace/${sale.id}/finish-invoice-sale`,{expectedRevision:sale.revision,requestId:randomUUID(),acknowledge:true});assert.equal(sold.status,200);assert.equal((await store.inventory())[car.id],'sold');assert.equal(sold.data.sale.documents.length,2);
   } finally {server.closeAllConnections();await new Promise<void>(resolve => server.close(() => resolve()));previewStock.cars.splice(previewStock.cars.indexOf(car),1);await rm(directory,{recursive:true,force:true});}
 });

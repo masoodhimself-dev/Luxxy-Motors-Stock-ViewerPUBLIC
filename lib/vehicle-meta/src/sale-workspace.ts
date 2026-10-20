@@ -76,6 +76,51 @@ export type SaleWorkspaceDocument = {
   snapshot: { draft: SaleWorkspaceDraft; payments: SaleWorkspacePayment[]; totals: SaleWorkspaceTotals; branding: SaleWorkspaceBranding; vehicle?: SaleWorkspaceVehicleSnapshot };
 };
 export type SaleWorkspaceEvent = { id: string; type: string; description: string; occurredAt: string; actor: string };
+/** Staff attestations, not automated legal, safety or payment verification. */
+export const saleCompletionChecklistItems = [
+  { id: 'customer_vehicle', label: 'Customer and vehicle confirmed', detail: 'Check the buyer, vehicle and registration match this sale.' },
+  { id: 'price_payments', label: 'Agreed price and payments checked', detail: 'Review the price, allowance, payments and any balance still due.' },
+  { id: 'disclosures', label: 'Vehicle details and disclosures explained', detail: 'Discuss the recorded condition, history and any important disclosures.' },
+  { id: 'documents', label: 'Documents reviewed with the customer', detail: 'Review the invoice, agreed terms and available vehicle paperwork.' },
+  { id: 'handover', label: 'Collection or delivery arranged', detail: 'Confirm how and when the customer will receive the car.' },
+] as const;
+export const partExchangeChecklistItems = [
+  { id: 'identity', label: 'Registration and VIN checked', detail: 'Compare the vehicle identity with the available paperwork.' },
+  { id: 'condition', label: 'Mileage and condition inspected', detail: 'Record the mileage, visible condition and any known issues.' },
+  { id: 'ownership', label: 'Ownership and documents checked', detail: 'Check the supplier and available ownership and vehicle documents.' },
+  { id: 'finance', label: 'Finance position reviewed', detail: 'Check for outstanding finance and record any agreed settlement arrangements.' },
+  { id: 'keys', label: 'Keys and agreed items accounted for', detail: 'Check the keys, service records and other items included.' },
+] as const;
+export type SaleCompletionCheckId = typeof saleCompletionChecklistItems[number]['id'];
+export type PartExchangeCheckId = typeof partExchangeChecklistItems[number]['id'];
+export type SaleCheckStatus = 'pending' | 'checked' | 'not_needed';
+export type SaleCheckEvidence = { status: Exclude<SaleCheckStatus, 'pending'>; actor: string; at: string };
+export type SaleWorkspaceChecklists = {
+  completion: Partial<Record<SaleCompletionCheckId, SaleCheckEvidence>>;
+  partExchanges: Record<string, Partial<Record<PartExchangeCheckId, SaleCheckEvidence>>>;
+};
+export type SaleWorkspaceChecklistInput = {
+  completion?: Partial<Record<SaleCompletionCheckId, SaleCheckStatus>>;
+  partExchanges?: Array<{ registration: string; items: Partial<Record<PartExchangeCheckId, SaleCheckStatus>> }>;
+};
+export function normalizedSaleExchangeRegistration(value: string): string { return value.replace(/\s+/g, '').toUpperCase(); }
+export function saleWorkspaceExchanges(draft: SaleWorkspaceDraft): SaleWorkspaceExchange[] {
+  return draft.exchanges ?? (draft.partExchange ? [{ registration: draft.pxRegistration, description: draft.pxDescription, value: draft.pxValue }] : []);
+}
+export function saleWorkspaceChecklistProgress(record: Pick<SaleWorkspaceRecord, 'draft' | 'checklists'>) {
+  const completed = (value: SaleCheckEvidence | undefined) => value?.status === 'checked' || value?.status === 'not_needed';
+  const completionPending = saleCompletionChecklistItems.filter(item => !completed(record.checklists?.completion[item.id])).map(item => item.id);
+  const partExchanges = saleWorkspaceExchanges(record.draft).map(exchange => {
+    const registration = normalizedSaleExchangeRegistration(exchange.registration);
+    return { registration, pending: partExchangeChecklistItems.filter(item => !completed(record.checklists?.partExchanges[registration]?.[item.id])).map(item => item.id) };
+  });
+  const seenRegistrations = new Set<string>();
+  const invalidPartExchanges = partExchanges.filter(exchange => {
+    const invalid = !exchange.registration || seenRegistrations.has(exchange.registration);
+    seenRegistrations.add(exchange.registration); return invalid;
+  }).map(exchange => exchange.registration);
+  return { completionPending, partExchanges, invalidPartExchanges, ready: completionPending.length === 0 && invalidPartExchanges.length === 0 && partExchanges.every(exchange => exchange.pending.length === 0) };
+}
 export type SaleWorkspaceRecord = {
   id: string; reference: string; revision: number; draft: SaleWorkspaceDraft;
   payments: SaleWorkspacePayment[]; documents: SaleWorkspaceDocument[]; events: SaleWorkspaceEvent[];
@@ -88,12 +133,14 @@ export type SaleWorkspaceRecord = {
   documentArchives?: Record<string, { content: string; sha256: string }>;
   emailDeliveries?: Array<{ id: string; documentId: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string; providerId?: string }>;
   customerLinkEmail?: { id: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string };
+  checklists?: SaleWorkspaceChecklists;
   providerPayments?: Record<string, { paymentId: string; eventId: string; refundEvents?: Record<string, { amountRefundedPence: number }> }>;
 };
 export type SaleWorkspaceMutation = { sale: SaleWorkspaceRecord; document?: SaleWorkspaceDocument; replayed?: boolean; preview?: boolean };
 export type SaleWorkspacePaymentInput = { amount: string; method: string; date: string; reference: string; kind: 'deposit' | 'part-payment' | 'final-payment'; status: 'pending' | 'confirmed' };
 export type SaleWorkspaceCommand =
   | { action: 'update'; draft: SaleWorkspaceDraft }
+  | ({ action: 'checklists' } & SaleWorkspaceChecklistInput)
   | { action: 'payment'; payment: SaleWorkspacePaymentInput }
   | { action: 'take-deposit'; payment: SaleWorkspacePaymentInput }
   | { action: 'invoice-payment'; payment: SaleWorkspacePaymentInput }
@@ -241,6 +288,68 @@ function ready(record: SaleWorkspaceRecord) {
 function event(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type: string, description: string) {
   record.events.push({ id: context.nextId(), type, description, occurredAt: context.now, actor: context.actor });
 }
+function requireCompletedSaleChecklists(record: SaleWorkspaceRecord) {
+  // Previously completed sales remain usable; never invent attestations for historic sales.
+  if (record.completedAt || record.lifecycle?.status === 'sold') return;
+  const progress = saleWorkspaceChecklistProgress(record);
+  if (progress.completionPending.length) throw new SaleWorkspaceError('Complete the final sale checklist: mark each item checked or not needed before marking the car sold.');
+  if (progress.invalidPartExchanges.length) throw new SaleWorkspaceError('Give each part-exchange vehicle a different registration before completing its intake checks.');
+  if (progress.partExchanges.some(exchange => exchange.pending.length)) throw new SaleWorkspaceError('Complete the intake checklist for each part-exchange vehicle: mark each item checked or not needed before marking the car sold.');
+}
+function saveSaleChecklists(record: SaleWorkspaceRecord, input: SaleWorkspaceChecklistInput, context: SaleWorkspaceContext) {
+  if (record.completedAt || record.lifecycle?.status === 'sold') throw new SaleWorkspaceError('Completed sale checks are kept in the sale history and cannot be changed.', 409);
+  const checklists = record.checklists ??= { completion: {}, partExchanges: {} };
+  const apply = (source: unknown, target: Record<string, SaleCheckEvidence>, allowed: readonly string[], group: string) => {
+    if (!source || typeof source !== 'object' || Array.isArray(source)) throw new SaleWorkspaceError('Check the sale checklist items.');
+    for (const [id, status] of Object.entries(source)) {
+      if (!allowed.includes(id) || !['pending', 'checked', 'not_needed'].includes(String(status)) || typeof status !== 'string') throw new SaleWorkspaceError('Choose checked, not needed or pending for a recognised checklist item.');
+      if ((target[id]?.status ?? 'pending') === status) continue;
+      if (status === 'pending') delete target[id];
+      else target[id] = { status: status as SaleCheckEvidence['status'], actor: context.actor, at: context.now };
+      event(record, context, 'sale-check-updated', `${group}: ${id.replaceAll('_', ' ')} marked ${status.replaceAll('_', ' ')}`);
+    }
+  };
+  if (input.completion !== undefined) apply(input.completion, checklists.completion, saleCompletionChecklistItems.map(item => item.id), 'Final sale check');
+  if (input.partExchanges !== undefined) {
+    if (!Array.isArray(input.partExchanges) || input.partExchanges.length > 3) throw new SaleWorkspaceError('Check the part-exchange checklist.');
+    const active = new Set(saleWorkspaceExchanges(record.draft).map(exchange => normalizedSaleExchangeRegistration(exchange.registration)));
+    if (active.has('') || active.size !== saleWorkspaceExchanges(record.draft).length) throw new SaleWorkspaceError('Give each part-exchange vehicle a different registration before completing its intake checks.');
+    const seen = new Set<string>();
+    for (const exchange of input.partExchanges) {
+      if (!exchange || typeof exchange !== 'object' || typeof exchange.registration !== 'string') throw new SaleWorkspaceError('Choose a part-exchange vehicle on this sale.');
+      const registration = normalizedSaleExchangeRegistration(exchange.registration);
+      if (!active.has(registration) || seen.has(registration)) throw new SaleWorkspaceError('Choose each part-exchange vehicle on this sale only once.');
+      seen.add(registration);
+      apply(exchange.items, checklists.partExchanges[registration] ??= {}, partExchangeChecklistItems.map(item => item.id), `Part exchange ${registration}`);
+    }
+  }
+  if (input.completion === undefined && input.partExchanges === undefined) throw new SaleWorkspaceError('Choose a sale checklist item to update.');
+}
+function resetUpdatedSaleChecks(record: SaleWorkspaceRecord, previous: SaleWorkspaceDraft, context: SaleWorkspaceContext) {
+  if (!record.checklists || record.completedAt || record.lifecycle?.status === 'sold') return;
+  const changed = (fields: Array<keyof SaleWorkspaceDraft>) => fields.some(field => saleWorkspaceFingerprint(record.draft[field]) !== saleWorkspaceFingerprint(previous[field]));
+  let reset = false;
+  if (changed(['customer', 'email', 'phone', 'address', 'vehicleId', 'vehicle', 'registration', 'vin', 'price', 'exchanges', 'adjustments', 'partExchange', 'pxRegistration', 'pxDescription', 'pxValue'])) {
+    reset = Object.keys(record.checklists.completion).length > 0;
+    record.checklists.completion = {};
+  } else {
+    if (changed(['notes'])) { reset ||= Boolean(record.checklists.completion.disclosures); delete record.checklists.completion.disclosures; }
+    if (changed(['fulfilment', 'collection'])) { reset ||= Boolean(record.checklists.completion.handover); delete record.checklists.completion.handover; }
+    if (changed(['roadTaxGuide'])) { reset ||= Boolean(record.checklists.completion.documents); delete record.checklists.completion.documents; }
+  }
+  const previousExchanges = new Map(saleWorkspaceExchanges(previous).map(exchange => [normalizedSaleExchangeRegistration(exchange.registration), exchange]));
+  const next: SaleWorkspaceChecklists['partExchanges'] = {};
+  for (const exchange of saleWorkspaceExchanges(record.draft)) {
+    const registration = normalizedSaleExchangeRegistration(exchange.registration);
+    const evidence = record.checklists.partExchanges[registration];
+    const before = previousExchanges.get(registration);
+    if (evidence && before && !changed(['customer', 'email', 'phone', 'address']) && saleWorkspaceFingerprint({ ...exchange, registration }) === saleWorkspaceFingerprint({ ...before, registration })) next[registration] = evidence;
+    else if (evidence) reset = true;
+  }
+  if (Object.keys(record.checklists.partExchanges).some(registration => !next[registration])) reset = true;
+  record.checklists.partExchanges = next;
+  if (reset) event(record, context, 'sale-checks-reset', 'Relevant sale checks reset because the sale or part-exchange details changed');
+}
 function issueDocument(record: SaleWorkspaceRecord, context: SaleWorkspaceContext, type: SaleWorkspaceDocument['type'], title: string, payment?: SaleWorkspacePayment): SaleWorkspaceDocument {
   const amount = saleWorkspaceTotals(record.draft, record.payments);
   if (Object.values(amount).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('Check the sale amounts before issuing paperwork.');
@@ -309,14 +418,19 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','vin','price','exchanges','adjustments'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
     if (record.lifecycle && ['reserved', 'sold'].includes(record.lifecycle.status) && updated.vehicleId !== record.draft.vehicleId) throw new SaleWorkspaceError('Release the sale reservation before changing its vehicle.', 409);
     if (record.customerAccess && (updated.customer !== record.draft.customer || updated.email !== record.draft.email || updated.vehicleId !== record.draft.vehicleId)) record.customerAccess.revokedAt = context.now;
+    const previousDraft = record.draft;
     record.draft = updated;
+    resetUpdatedSaleChecks(record, previousDraft, context);
     event(record, context, 'sale-updated', 'Sale details updated');
+  } else if (command.action === 'checklists') {
+    saveSaleChecklists(record, command, context);
   } else if (command.action === 'lifecycle') {
     ready(record);
     if (!['reserved', 'sold', 'released'].includes(command.status)) throw new SaleWorkspaceError('Choose a valid stock action.');
     if (record.lifecycle?.status === 'sold' && command.status !== 'sold') throw new SaleWorkspaceError('A sold vehicle cannot be released from this sale.', 409);
     if (command.status === 'released' && saleWorkspaceTotals(record.draft, record.payments).confirmedPaid !== 0) throw new SaleWorkspaceError('Record the refund or payment correction before releasing this reservation.', 409);
     if (command.status === 'released' && record.lifecycle?.status !== 'reserved') throw new SaleWorkspaceError('Only a car reserved by this sale can be released.', 409);
+    if (command.status === 'sold') requireCompletedSaleChecklists(record);
     record.lifecycle = { status: command.status, vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'stock-' + command.status, command.status === 'released' ? 'Vehicle reservation released' : 'Vehicle marked ' + command.status);
   } else if (command.action === 'customer-link') {
@@ -429,6 +543,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (outstanding < 0) throw new SaleWorkspaceError('Resolve the customer credit before marking this car sold.');
     if (outstanding > 0 && command.acknowledgeOutstanding !== true) throw new SaleWorkspaceError('Settle the balance or explicitly acknowledge the outstanding amount before marking the car sold.');
     if (JSON.stringify(fullInvoice.snapshot.payments) !== JSON.stringify(record.payments) || ['customer','address','email','phone','vehicleId','vehicle','registration','vin','price','exchanges','adjustments'].some(key => JSON.stringify(fullInvoice.snapshot.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Create an updated full invoice with the latest details and payments before marking this car sold.');
+    requireCompletedSaleChecklists(record);
     record.completedAt = context.now;
     record.lifecycle = { status: 'sold', vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'sale-completed', 'Car marked sold after issuing the full invoice; removed from public stock' + (outstanding > 0 ? `; £${(outstanding / 100).toFixed(2)} remains outstanding (staff acknowledged)` : ''));
@@ -440,6 +555,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (!context.paperwork?.saleTerms.trim()) throw new SaleWorkspaceError('Add approved terms of sale in Settings → API integrations → Sales paperwork first.');
     const f = record.draft.fulfilment;
     if (f?.method === 'delivery' && !f.address.trim()) throw new SaleWorkspaceError('Enter the delivery address before completing this sale.');
+    requireCompletedSaleChecklists(record);
     const invoice = issueDocument(record, context, 'invoice', 'Sales invoice');
     const terms = issueDocument(record, context, 'terms', 'Terms and conditions of sale');
     terms.content = context.paperwork.saleTerms.trim();
@@ -461,11 +577,16 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const completedAt = command.completedAt ?? context.now;
     if (!/^\d{4}-\d{2}-\d{2}T/.test(completedAt) || !Number.isFinite(new Date(completedAt).getTime())) throw new SaleWorkspaceError('Choose a valid handover time.');
     if (new Date(completedAt).getTime() > new Date(context.now).getTime()) throw new SaleWorkspaceError('Handover cannot be recorded for a future time.');
+    requireCompletedSaleChecklists(record);
     record.draft.fulfilment = { ...fulfilment, completedAt: new Date(completedAt).toISOString(), completedBy: context.actor, completedRecipient: recipient };
     record.draft.handover = true;
     event(record, context, 'handover-completed', `${fulfilment.method === 'delivery' ? 'Delivered' : 'Collected'} by ${recipient}${balance ? ' with an acknowledged outstanding balance' : ''}`);
     document = issueDocument(record, context, 'handover', fulfilment.method === 'delivery' ? 'Delivery confirmation' : 'Collection confirmation');
   } else throw new SaleWorkspaceError('Unknown sale action.', 400);
+  if (!current.completedAt && current.lifecycle?.status !== 'sold' && record.checklists?.completion.price_payments && ['payment', 'take-deposit', 'invoice-payment', 'confirm', 'reverse', 'provider-refund-correction'].includes(command.action)) {
+    delete record.checklists.completion.price_payments;
+    event(record, context, 'sale-checks-reset', 'Price and payments check reset because the payment ledger changed');
+  }
   if (Object.values(saleWorkspaceTotals(record.draft, record.payments)).some(value => !Number.isSafeInteger(value))) throw new SaleWorkspaceError('The sale amounts exceed the supported range. Check the payment entries.');
   record.revision += 1; record.updatedAt = context.now; record.draft.payments = clone(record.payments);
   (record.requests ??= {})[key] = { fingerprint, ...(document ? { documentId: document.id } : {}) };

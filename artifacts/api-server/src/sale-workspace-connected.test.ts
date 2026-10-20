@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { SaleWorkspaceError, saleWorkspaceTotals, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
+import { SaleWorkspaceError, saleWorkspaceTotals, saleCompletionChecklistItems, type SaleWorkspaceDraft, type SaleWorkspaceRecord } from '@workspace/vehicle-meta';
 import { PostgresSaleWorkspaceStore, readSaleWorkspaceAssets, recordStripeReservationDeposit, recordStripeReservationRefund, type SaleWorkspaceDatabase } from './lib/sale-workspace-store';
 const vehicleId = '00000000-0000-4000-8000-000000000001';
 const reservationId = '00000000-0000-4000-8000-000000000002';
@@ -52,7 +52,8 @@ test('production availability mutations reject a competing buyer and preserve Gr
   assert.equal(f.vehicle().inventory_status, 'reserved'); assert.equal(f.vehicle().source_price, 12345); assert.equal(f.vehicle().audit_metadata.sourceFact, 'keep-me');
   await assert.rejects(f.store.mutate({ id: b.id, expectedRevision: b.revision, requestId: randomUUID(), actor: 'Staff B', command: { action: 'lifecycle', status: 'reserved' } }), (e: unknown) => e instanceof SaleWorkspaceError && e.status === 409);
   assert.equal((await f.store.get(b.id)).revision, 1);
-  await f.store.mutate({ id: a.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true } });
+  const checked = await f.store.mutate({ id: a.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } });
+  await f.store.mutate({ id: a.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Staff A', command: { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true } });
   assert.equal(f.vehicle().inventory_status, 'sold'); assert.equal(f.vehicle().source_status, 'live'); assert.equal(f.vehicle().source_price, 12345);
   assert.equal((await f.store.get(a.id)).lifecycle?.status, 'sold');
   assert.ok(f.statements.some(q => q.includes('pg_advisory_xact_lock'))); assert.ok(f.statements.some(q => q.includes('FROM vehicles') && q.includes('FOR UPDATE')));
@@ -146,11 +147,12 @@ test('deposit and completion atomically update stock and archives; stock conflic
   await assert.rejects(f.store.mutate({ id: b.id, requestId: randomUUID(), expectedRevision: b.revision, actor: 'Other staff', command: { action: 'take-deposit', payment } }), /another customer/);
   assert.equal((await f.store.get(b.id)).payments.length, 0);
   const paid = await f.store.mutate({ id: a.id, requestId: randomUUID(), expectedRevision: reserved.sale.revision, actor: 'Staff', command: { action: 'payment', payment: { ...payment, amount: '11500', kind: 'final-payment' } } });
+  const checked = await f.store.mutate({ id: a.id, expectedRevision: paid.sale.revision, requestId: randomUUID(), actor: 'Staff', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } });
   const requestId = randomUUID();
-  const finished = await f.store.mutate({ id: a.id, requestId, expectedRevision: paid.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
+  const finished = await f.store.mutate({ id: a.id, requestId, expectedRevision: checked.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
   assert.equal(f.vehicle().inventory_status, 'sold'); assert.ok(finished.sale.completedAt); assert.equal(finished.sale.draft.fulfilment?.completedAt, undefined);
   for (const id of finished.sale.packDocumentIds!) assert.ok((await f.store.pdf(a.id, id)).archive.content);
-  const retry = await f.store.mutate({ id: a.id, requestId, expectedRevision: paid.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
+  const retry = await f.store.mutate({ id: a.id, requestId, expectedRevision: checked.sale.revision, actor: 'Staff', command: { action: 'complete-sale', acknowledge: true } });
   assert.equal(retry.replayed, true); assert.equal(retry.sale.documents.length, finished.sale.documents.length);
 });
 

@@ -1,3 +1,4 @@
+import { saleCompletionChecklistItems } from '@workspace/vehicle-meta';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile, readdir } from 'node:fs/promises';
@@ -161,7 +162,8 @@ test('PostgreSQL migrations and two-dealer HTTP imports, settings and vehicle lo
     assert.equal((await postA({ ...updated, runId: 'reserved-refresh', scrapedAt: new Date(Date.now() + 2000).toISOString() })).status, 201);
     assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].inventoryStatus, 'reserved');
     const paid = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: reserved.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'payment', payment: { amount: '8495', kind: 'final-payment', status: 'confirmed', method: 'Bank transfer', date: '2026-10-09', reference: 'Fixture only' } } }));
-    const sold = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: paid.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'complete-sale', acknowledge: true } }));
+    const checked = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: paid.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) } }));
+    const sold = await runWithTenant(a, () => storeA.mutate({ id: created.sale.id, expectedRevision: checked.sale.revision, requestId: randomUUID(), actor: 'Fixture A', command: { action: 'complete-sale', acknowledge: true } }));
     assert.equal(sold.sale.lifecycle?.status,'sold'); assert.ok(sold.sale.documents.some(d=>d.type==='invoice')); assert.equal((await storeB.list()).length,0);
     assert.equal((await postA({ ...updated, runId: 'sold-refresh', scrapedAt: new Date(Date.now() + 3000).toISOString() })).status, 201);
     assert.equal((await db.select().from(vehiclesTable).where(eq(vehiclesTable.dealerId, a.dealerId)))[0].inventoryStatus, 'sold');
