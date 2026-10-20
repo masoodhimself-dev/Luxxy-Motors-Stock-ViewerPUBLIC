@@ -32,7 +32,7 @@
   --dealer-heading: var(--dealer-page-ink, #20303c);
   --dealer-link: var(--dealer-page-link, #215a7e);
 }
-.homepage-art-directed.homepage-premium :is(.rolling-stock, .review-panel, #visit) {
+.homepage-art-directed.homepage-premium :is(.rolling-stock, #visit) {
   --primary: var(--dealer-panel-primary-hsl, 209 37% 16%);
   --primary-foreground: var(--dealer-panel-primary-foreground-hsl, 0 0% 100%);
   --accent: var(--dealer-panel-accent-hsl, 204 59% 31%);
