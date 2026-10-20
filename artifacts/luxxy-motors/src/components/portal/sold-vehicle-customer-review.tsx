@@ -95,6 +95,7 @@ export function SoldVehicleCustomerReview({ saleId, onComplete }: { saleId: stri
             {row.urgent && pending(row) && <strong className="sold-customer-urgent">Call before they travel</strong>}
             {row.email && <p>{row.email}</p>}{row.phone && <p>{row.phone}{row.preferredContact === 'phone' && <span> · Prefers phone</span>}</p>}
             {cancelled && <span className="sold-customer-badge">Appointment cancelled{pending(row) ? ' — contact customer' : ''}</span>}
+            {row.kind === 'appointment' && !cancelled && !needsCancellation(row) && pending(row) && row.appointmentAt && <p className="sold-customer-urgent">Visit time has passed — contact customer</p>}
             {status && <p className="sold-customer-email-state">{status}</p>}
             {row.blockedReason && <p className="sold-customer-urgent" role="status">{row.blockedReason} Open the customer record to review what changed.</p>}
             {!pending(row) && <p className="sold-customer-done"><Check size={14} aria-hidden="true"/>{row.outcome === 'phone' ? 'Contact recorded by phone' : row.outcome === 'not_needed' ? row.kind === 'interest' && !row.note ? 'Optional update not needed' : 'Follow-up reviewed — see staff note' : status || 'Email sent'}</p>}

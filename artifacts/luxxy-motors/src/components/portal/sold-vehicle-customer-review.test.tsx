@@ -163,3 +163,19 @@ it('recovers a previously submitted email without preparing or sending a second 
   expect(JSON.parse(writes[0][1].body)).toEqual({ action: 'complete', expectedRevision: 1, outcome: 'email' });
   expect(state.compose).not.toHaveBeenCalled();
 });
+
+it('keeps an expired uncancelled visit actionable without offering an impossible cancellation', async () => {
+  current.customers = [customer({ appointmentAt: '2020-01-01T10:00:00Z', appointments: [{ enquiryId: 'alex', at: '2020-01-01T10:00:00Z', revision: 3, cancelledAt: null }], urgent: false })];
+  current.remaining = 1; current.upcomingAppointments = 0;
+  show(); await screen.findByText('Fictional Alex');
+  expect(screen.getByText('Visit time has passed — contact customer')).toBeVisible();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Cancel appointment…' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Appointment cancelled — contact customer')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Prepare sold update' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'I’ve spoken to them' }));
+  expect(await screen.findByText('Contact recorded by phone')).toBeVisible();
+  const writes = state.fetch.mock.calls.filter(([, options]) => options?.method);
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(writes[0][1].body).action).toBe('complete');
+});

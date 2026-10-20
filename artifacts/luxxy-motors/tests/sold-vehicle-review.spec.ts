@@ -7,8 +7,8 @@ const base: SoldVehicleFollowUpReview={saleId:'fictional-sale',vehicleId:'fictio
  {enquiryId:'fictional-casey',customerName:'Casey Patel',email:'casey@example.test',phone:'07700 900103',preferredContact:'email',kind:'interest',appointmentAt:null,appointmentRevision:0,appointmentCancelledAt:null,status:'pending',revision:1,cancelledByReview:false,contactedAt:null,outcome:null,emailStatus:null,urgent:false,appointments:[]},
 ]};
 const saved={to:'kept-recipient@example.test',subject:'My saved subject',message:'Keep this carefully prepared draft wording.',includeVehicle:false,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:7};
-async function setup(page:Page,options:{saved?:boolean;conflict?:boolean;permissions?:string[];followUpError?:boolean;submitted?:boolean}={}){
- let review=structuredClone(base); if(options.submitted){const row=review.customers[0];row.cancelledByReview=true;row.appointmentCancelledAt=now;row.appointments?.forEach(a=>{a.cancelledAt=now;});row.emailStatus='sent';review.upcomingAppointments--;} const writes:string[]=[],actions:{path:string;body:any}[]=[],errors:string[]=[];
+async function setup(page:Page,options:{saved?:boolean;conflict?:boolean;permissions?:string[];followUpError?:boolean;submitted?:boolean;expired?:boolean}={}){
+ let review=structuredClone(base); if(options.expired){const row=review.customers[0];row.appointmentAt='2020-01-01T10:00:00Z';row.appointments?.forEach(a=>{a.at=row.appointmentAt!;});row.urgent=false;review.customers=[row];review.remaining=1;review.upcomingAppointments=0;} if(options.submitted){const row=review.customers[0];row.cancelledByReview=true;row.appointmentCancelledAt=now;row.appointments?.forEach(a=>{a.cancelledAt=now;});row.emailStatus='sent';review.upcomingAppointments--;} const writes:string[]=[],actions:{path:string;body:any}[]=[],errors:string[]=[];
  page.on('pageerror',e=>errors.push(e.message)); await page.clock.setFixedTime(new Date(now));
  await page.route('**/api/**',async route=>{
   const req=route.request(),path=new URL(req.url()).pathname;
@@ -83,4 +83,10 @@ test('recovers a submitted email after reopening without sending another copy',a
  const state=await setup(page,{submitted:true});await page.goto('/portal?section=notifications');await page.getByRole('button',{name:'Review customers',exact:true}).click();
  const alex=page.getByRole('link',{name:'Alex Morgan',exact:true}).locator('xpath=ancestor::li[1]');await expect(alex.getByRole('button',{name:'Review cancellation email'})).toHaveCount(0);await alex.getByRole('button',{name:'Email already submitted — finish follow-up'}).click();
  await expect(page.getByText('The existing email submission has been confirmed. No second email was sent.')).toBeVisible();expect(state.actions).toHaveLength(1);expect(state.actions[0].body.outcome).toBe('email');expect(state.writes).toEqual([]);
+});
+
+test('an expired uncancelled visit can be completed by phone without cancelling a past booking',async({page})=>{
+ const state=await setup(page,{expired:true});await page.goto('/portal?section=notifications');await page.getByRole('button',{name:'Review customers',exact:true}).click();
+ await expect(page.getByText('Visit time has passed — contact customer')).toBeVisible();await expect(page.getByRole('checkbox')).toHaveCount(0);await expect(page.getByText('Appointment cancelled — contact customer')).toHaveCount(0);
+ await page.getByRole('button',{name:'I’ve spoken to them'}).click();await expect(page.getByText('No customers waiting',{exact:true})).toBeVisible();expect(state.review().remaining).toBe(0);expect(state.actions).toHaveLength(1);expect(state.actions[0].body.action).toBe('complete');expect(state.actions[0].body.outcome).toBe('phone');expect(state.writes).toEqual([]);
 });

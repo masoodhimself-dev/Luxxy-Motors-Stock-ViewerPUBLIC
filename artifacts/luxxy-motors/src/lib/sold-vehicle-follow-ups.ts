@@ -73,7 +73,7 @@ export function soldVehicleEmail(review: SoldVehicleFollowUpReview, enquiryId: s
   }) : '';
   const message = cancelled
     ? `The ${vehicle} you were due to view${date ? ` on ${date}` : ''} has now sold, so we’ve cancelled your test drive. Sorry for the inconvenience.`
-    : `A quick update—the ${vehicle} you asked about has now sold.`;
+    : `A quick update—the ${vehicle} you ${customer.kind === 'appointment' ? 'arranged to view' : 'asked about'} has now sold.`;
   return { content: {
     label: cancelled ? 'Test drive cancellation' : 'Sold car update',
     applyLabel: cancelled ? 'Use cancellation wording' : 'Use sold update wording',
