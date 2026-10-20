@@ -1000,16 +1000,7 @@ export function SalesWorkspace({
                       <div className="invoice-field-grid">
                         {field("registration", "Registration / number plate")}
                         {field("price", "Agreed vehicle price (£)")}
-                        <label>VIN / chassis number
-                          <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
-                            disabled={Boolean(record?.completedAt)} placeholder="17-character VIN"
-                            onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
-                          <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
-                        </label>
                       </div>
-                      <RoadTaxGuide key={`${draft.id}-${draft.vehicleId}`} registration={draft.registration} vin={draft.vin ?? ""}
-                        vehicle={draft.vehicle} enabled={draft.roadTaxGuide === true} disabled={Boolean(record?.completedAt)}
-                        onChange={enabled => update("roadTaxGuide", enabled)} />
                     </>
                   )}
                   {step === 1 && (
@@ -1540,6 +1531,30 @@ export function SalesWorkspace({
                           <dd>{saleMoney(total!.balance)}</dd>
                         </div>
                       </dl>
+                      {kind === 'full' && <section className="invoice-final-paperwork" aria-label="Vehicle paperwork">
+                        <h2>Vehicle paperwork</h2>
+                        <p className="invoice-note">Confirm the VIN and prepare the customer’s tax guide before creating the full invoice.</p>
+                        <label>VIN / chassis number
+                          <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
+                            disabled={Boolean(record?.completedAt)} placeholder="17-character VIN"
+                            onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
+                          <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
+                        </label>
+                      <RoadTaxGuide key={draft.vehicleId} registration={draft.registration} vin={draft.vin ?? ""}
+                        vehicle={draft.vehicle} enabled={draft.roadTaxGuide === true} disabled={Boolean(record?.completedAt)}
+                        onBusyChange={setBusy} dealerName={settings.identity.name} customerName={draft.customer} customerEmail={draft.email}
+                        route={draft.roadTaxGuideRoute ?? 'green-slip'} onRouteChange={route => update('roadTaxGuideRoute', route)}
+                        onEmail={async (reference, route, requestId) => {
+                          const saved = await saveInternal();
+                          const result = await customFetch<SaleWorkspaceMutation>(`/api/sale-workspace/${saved.id}/road-tax-guide/email`, {
+                            method: 'POST', body: JSON.stringify({ expectedRevision: saved.revision, requestId, reference, route, confirmedRecipient: saved.draft.email }),
+                          });
+                          accept(result);
+                          const delivery = result.sale.roadTaxGuideEmails?.find(item => item.id === requestId);
+                          if (delivery?.status !== 'sent') throw new Error(delivery?.error ?? 'Email was not sent.');
+                        }}
+                        onChange={enabled => update("roadTaxGuide", enabled)} />
+                      </section>}
                       <label className="invoice-check">
                         <input
                           type="checkbox"

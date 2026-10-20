@@ -177,6 +177,9 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       }
       return true;
     }
+    if (/^\/api\/sale-workspace\/[^/]+\/road-tax-guide\/email$/.test(url.pathname)) {
+      send(res, 503, { error: 'Local preview does not send emails. Download the guide to review it.' }); return true;
+    }
     const extra = /^\/api\/sale-workspace\/([^/]+)\/(lifecycle|customer-links|documents)(?:\/([^/]+))?(?:\/(pdf|email))?$/.exec(url.pathname);
     if (extra && (extra[2] !== 'documents' || extra[3])) {
       const [, saleId, section, item, action] = extra;

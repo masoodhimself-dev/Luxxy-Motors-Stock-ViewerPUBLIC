@@ -290,3 +290,10 @@ body:has(.invoice-builder.is-editing) { overflow: hidden; }
 .invoice-tax-guide > label { max-width: 36rem; }
 .invoice-tax-guide > button { justify-self: start; }
 @media (max-width: 640px) { .invoice-tax-guide > button { width: 100%; } }
+.invoice-final-paperwork { margin-block: 1.5rem; padding: clamp(1rem, 2vw, 1.5rem); background: #f7f9fb; border: 1px solid #d8e0e5; border-radius: 12px; }
+.invoice-final-paperwork > label { max-width: 36rem; }
+.invoice-tax-route-note { padding: 1rem; background: #fff; border-left: 3px solid #946c29; border-radius: 6px; font-size: .9rem; line-height: 1.6; }
+.invoice-tax-route-note a { text-decoration: underline; }
+.invoice-tax-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.invoice-tax-actions svg { width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
+@media (max-width: 640px) { .invoice-tax-actions { flex-direction: column; } .invoice-tax-actions > button { width: 100%; } }

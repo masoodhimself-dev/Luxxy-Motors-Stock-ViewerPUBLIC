@@ -1,3 +1,5 @@
+import { requireDealerFeature } from '../middlewares/dealer-features';
+import { emailRoadTaxGuide } from '../lib/road-tax-guide-email';
 import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from '../lib/dealer-integrations-store';
 import { createHash, randomBytes } from 'node:crypto';
@@ -75,6 +77,16 @@ router.post('/sale-workspace/:id/customer-links', requirePermission('sales.manag
   } catch (error) { failure(req, res, error); }
 });
 router.post('/sale-workspace/:id/customer-links/revoke', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'customer-revoke' }); });
+router.post('/sale-workspace/:id/road-tax-guide/email', requirePermission('sales.manage'), requireDealerFeature('customerEmails'), async (req, res) => {
+  try {
+    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
+    const service = store();
+    const result = await emailRoadTaxGuide({ saleId: req.params.id, expectedRevision: req.body?.expectedRevision, requestId: req.body?.requestId, reference: req.body?.reference, route: req.body?.route, confirmedRecipient: req.body?.confirmedRecipient, actor: staffLabel(req), dealerId: dealerId() }, {
+      service, send: sendTemplatedEmail, branding: async sale => (await readSaleWorkspaceAssets(sale.draft, dealerId(), pool)).branding,
+    });
+    res.json({ ...result, preview: false });
+  } catch (error) { failure(req, res, error); }
+});
 router.post('/sale-workspace/:id/customer-links/email', requirePermission('sales.manage'), async (req, res) => {
   try {
     if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
