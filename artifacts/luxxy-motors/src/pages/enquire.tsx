@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { ArrowLeft, ArrowRight, Camera, CircleAlert } from '@/components/icons';
 import { Link, useLocation, useSearch } from 'wouter';
 import { EnquiryForm } from '@/components/enquiry-form';
+import { VehicleCall } from '@/components/vehicle-call';
 import { TestDriveBooking } from '@/components/test-drive-booking';
 import { useStock } from '@/lib/stock-context';
 import type { EnquiryType } from '@/lib/cta-helpers';
@@ -199,7 +200,7 @@ export default function Enquire() {
             </div>
 
             {dealerConfig.contact.phone && <p className="mt-5 text-sm text-muted-foreground">
-              Prefer to talk? <a className="text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call Us</a>.
+              Prefer to talk? {vehicle ? <VehicleCall car={vehicle} className="inline-flex min-h-11 items-center gap-2 align-middle text-primary underline underline-offset-4" /> : <a className="inline-flex min-h-11 items-center text-primary underline underline-offset-4" href={`tel:${dealerConfig.contact.phone.replace(/[^0-9+]/g, '')}`}>Call Us</a>}.
             </p>}
 
 
