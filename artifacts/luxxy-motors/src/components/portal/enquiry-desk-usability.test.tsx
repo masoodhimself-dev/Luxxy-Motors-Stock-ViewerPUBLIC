@@ -7,11 +7,12 @@ import { EnquiryRecordBrowser, type EnquiryRecordActions } from './enquiry-recor
 import type { Car } from '@/lib/stock-context';
 import { DealerDashboard } from './dealer-administration';
 
+const workspaceMutation = vi.hoisted(() => vi.fn());
 vi.mock('@workspace/api-client-react', async importOriginal => ({
   ...await importOriginal<object>(),
   customFetch: vi.fn(),
   useGetStaffDirectory: () => ({ data: { currentUserId: 'staff-one', members: [] }, isError: false }),
-  useUpdateEnquiryWorkspace: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false }),
+  useUpdateEnquiryWorkspace: () => ({ mutateAsync: workspaceMutation, isPending: false, isError: false }),
   useChangeStaffFollowUp: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false }),
 }));
 
@@ -28,6 +29,7 @@ function show(ui: React.ReactNode) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 beforeEach(() => {
+  workspaceMutation.mockReset().mockResolvedValue({});
   vi.mocked(customFetch).mockReset().mockResolvedValue({ events: [], total: 0, nextCursor: null });
   window.matchMedia = vi.fn().mockReturnValue({ matches: false });
 });
@@ -58,7 +60,7 @@ it('passes the selected original record to the email action and keeps occasional
   expect(detail).not.toHaveTextContent('CALL-selected');
   fireEvent.click(within(detail).getByRole('button', { name: 'Prepare reply' }));
   expect(email).toHaveBeenCalledWith(selected);
-  const more = detail.querySelector('details')!;
+  const more = within(detail).getByText('More options', { exact: true }).closest('details')!;
   expect(more).not.toHaveAttribute('open');
   fireEvent.click(within(detail).getByText('More options', { exact: true }));
   fireEvent.click(within(detail).getByRole('button', { name: 'Update enquiry' }));
@@ -102,7 +104,7 @@ it('allows a new test drive after cancellation while retaining the original appo
   const onBook = vi.fn();
   const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook, onVehicle: vi.fn() };
   show(<EnquiryRecordBrowser entries={[cancelled]} cars={[]} selectedId={cancelled.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
-  expect(screen.getByText('Cancelled', { exact: true })).toBeVisible();
+  expect(within(screen.getByRole('region', { name: 'Selected enquiry: Customer cancelled' })).getByText('Visit cancelled', { exact: true })).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Change appointment' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Book another test drive' }));
   expect(onBook).toHaveBeenCalledWith(cancelled);
@@ -161,7 +163,7 @@ it('visibly disables booking while keeping conversation and appointment manageme
   expect(screen.getByRole('button', { name: 'Book test drive' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Book test drive' }));
   expect(onBook).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Log another conversation' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Record the response' }));
   expect(onConversation).toHaveBeenCalledWith(selected);
 });
 
@@ -173,4 +175,71 @@ it('keeps an existing appointment accessible for cancellation while new bookings
   expect(screen.getByRole('button', { name: 'Change appointment' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Change appointment' }));
   expect(onAppointment).toHaveBeenCalledWith(selected);
+});
+
+it('surfaces an overdue merged original even when the main enquiry is closed, and opens that task on demand', async () => {
+  const main = entry('closed-main', { status: 'closed', callOutcome: 'information_given', createdAt: '2026-10-17T09:00:00Z' });
+  const original = entry('overdue-original', {
+    mergedIntoId: main.id, createdAt: '2026-10-16T09:00:00Z', vehicleTitle: 'Toyota Yaris',
+    followUpAt: '2020-10-16T10:00:00Z', followUpNote: 'Call about the Toyota service history.',
+  });
+  const onFollowUp = vi.fn();
+  const actions: EnquiryRecordActions = { onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp, onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[main]} allEntries={[main, original]} cars={[]} selectedId={main.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+
+  const row = screen.getByRole('button', { name: 'Open enquiry for Customer closed-main, Ford Focus' });
+  expect(within(row).getByText('Follow-up overdue', { exact: true })).toBeVisible();
+  expect(within(row).getByText('Complete follow-up', { exact: true })).toBeVisible();
+  expect(within(row).queryByText('No further action', { exact: true })).not.toBeInTheDocument();
+  expect(within(row).getByText('Next step is on a linked enquiry')).toBeVisible();
+
+  const linkedWork = screen.getByRole('region', { name: 'Work on linked enquiries' });
+  expect(within(linkedWork).getByText('Follow-up overdue', { exact: true })).toBeVisible();
+  expect(within(linkedWork).getByText('Customer overdue-original — Toyota Yaris')).toBeVisible();
+  const originals = screen.getByRole('region', { name: 'Merged case original records' });
+  const details = originals.querySelector('details')!;
+  details.scrollIntoView = vi.fn();
+  expect(details).not.toHaveAttribute('open');
+  expect(within(originals).queryByRole('region', { name: 'Recommended next action' })).not.toBeInTheDocument();
+  await waitFor(() => expect(customFetch).toHaveBeenCalledExactlyOnceWith('/api/staff/enquiries/closed-main/conversations', expect.anything()));
+
+  fireEvent.click(within(linkedWork).getByRole('button', { name: 'Open linked task' }));
+  expect(details).toHaveAttribute('open');
+  const task = within(originals).getByRole('region', { name: 'Recommended next action' });
+  expect(within(task).getByText('Call about the Toyota service history.')).toBeVisible();
+  await waitFor(() => expect(customFetch).toHaveBeenCalledWith('/api/staff/enquiries/overdue-original/conversations', expect.anything()));
+  fireEvent.click(within(task).getByRole('button', { name: 'Complete follow-up' }));
+  expect(onFollowUp).toHaveBeenCalledExactlyOnceWith(original);
+  expect(workspaceMutation).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['scheduled', 'Mark arrived', 'arrived'],
+  ['arrived', 'Complete visit', 'completed'],
+] as const)('offers the real attendance action for a %s visit in the recommended next step', async (attendance, label, nextAttendance) => {
+  const visit = entry('visit', { appointmentAt: '2020-10-20T09:00:00Z', appointmentStatus: 'confirmed', appointmentRevision: 3, attendance });
+  const onUpdate = vi.fn();
+  const actions: EnquiryRecordActions = { onUpdate, onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[visit]} cars={[]} selectedId={visit.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  const nextStep = screen.getByRole('region', { name: 'Recommended next action' });
+  const attendanceButton = within(nextStep).getByRole('button', { name: label });
+  expect(attendanceButton).toBeEnabled();
+  expect(within(nextStep).queryByRole('button', { name: 'Update enquiry' })).not.toBeInTheDocument();
+  expect(within(nextStep).queryByRole('button', { name: 'Update the visit' })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: label })).toHaveLength(1);
+  fireEvent.click(attendanceButton);
+  await waitFor(() => expect(workspaceMutation).toHaveBeenCalledExactlyOnceWith({ id: visit.id, data: { expectedRevision: 1, expectedAppointmentRevision: 3, attendance: nextAttendance } }));
+  expect(onUpdate).not.toHaveBeenCalled();
+});
+
+it('explains missing contact details without offering an unrelated owner-and-notes edit as the primary action', () => {
+  const contactMissing = entry('contact-missing', { phone: null, email: null });
+  const onUpdate = vi.fn();
+  const actions: EnquiryRecordActions = { onUpdate, onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
+  show(<EnquiryRecordBrowser entries={[contactMissing]} cars={[]} selectedId={contactMissing.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+  const nextStep = screen.getByRole('region', { name: 'Recommended next action' });
+  expect(within(nextStep).getByRole('heading', { name: 'Check contact details' })).toBeVisible();
+  expect(within(nextStep).getByText('No phone number or email address is recorded.')).toBeVisible();
+  expect(within(nextStep).queryByRole('button')).not.toBeInTheDocument();
+  expect(onUpdate).not.toHaveBeenCalled();
 });

@@ -52,3 +52,12 @@ it('refreshes opened history when an enquiry write invalidates its existing quer
   expect(await screen.findByText('History note 2')).toBeVisible();
   expect(state.fetch).toHaveBeenCalledTimes(2);
 });
+
+it('shows latest saved conversations before the original message and keeps each note distinct', () => {
+  render(<ConversationHistory entry={{ ...entry, events: [event(1), event(2)] } as Enquiry} />);
+  const articles = screen.getAllByRole('article');
+  expect(articles[0]).toHaveTextContent('History note 2');
+  expect(articles[1]).toHaveTextContent('History note 1');
+  expect(articles[2]).toHaveTextContent('Internal showroom note');
+  expect(articles[3]).toHaveTextContent('Original customer question');
+});

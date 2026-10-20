@@ -9,6 +9,7 @@ import { callOutcomes, type CallOutcome } from '@/lib/enquiry-desk-model';
 import { appointmentLabel } from '@/lib/test-drive-dates';
 import { FollowUpFields, followUpIso } from './enquiry-follow-up';
 import { workspaceError } from './enquiry-workspace-tools';
+import './enquiry-history.css';
 
 export function ConversationEditor({ entry, onClose, onSaved }: { entry: Enquiry; onClose: () => void; onSaved: (entry: Enquiry) => void | Promise<void> }) {
   const [note, setNote] = useState('');
@@ -80,14 +81,22 @@ export function ConversationHistory({ entry, loadOnDemand = false }: { entry: En
 }
 
 function ConversationHistoryView({ entry, total, status, footer }: { entry: Enquiry; total?: number; status?: ReactNode; footer?: ReactNode }) {
-  const conversations = (entry.events ?? []).filter(event => event.kind === 'conversation_logged').sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
-  return <section className="enquiry-conversation-history" aria-label="Conversation history">
-    <h4>Conversation history{(total ?? conversations.length) ? ` · ${total ?? conversations.length}` : ''}</h4>
-    {entry.message && <article><p className="enquiry-conversation-meta">Original {entry.source === 'website_callback' ? 'website callback request' : entry.source === 'phone' ? 'call' : 'enquiry'}{entry.createdAt ? ` · ${appointmentLabel(entry.createdAt)}` : ''}</p><p className="whitespace-pre-wrap break-words">{entry.message}</p></article>}
-    {entry.staffNote && <article><p className="enquiry-conversation-meta">Internal note</p><p className="whitespace-pre-wrap break-words">{entry.staffNote}</p></article>}
-    {conversations.map(event => <article key={event.id} data-testid={`conversation-${event.id}`}><p className="enquiry-conversation-meta"><time dateTime={event.occurredAt}>{appointmentLabel(event.occurredAt)}</time> · {event.staffName || 'Staff member'}</p><p className="font-medium">{event.callOutcome ? callOutcomes[event.callOutcome as CallOutcome] || event.callOutcome : event.summary}</p><p className="whitespace-pre-wrap break-words">{event.note || event.summary}</p>{event.followUpAt && <p className="text-xs text-muted-foreground">Next follow-up: {appointmentLabel(event.followUpAt)}</p>}</article>)}
-    {status}
-    {!status && !conversations.length && !entry.message && !entry.staffNote && <p className="text-sm text-muted-foreground">No conversation notes recorded yet.</p>}
-    {footer}
+  const conversations = (entry.events ?? []).filter(event => event.kind === 'conversation_logged').sort((a, b) => (Date.parse(b.occurredAt) || 0) - (Date.parse(a.occurredAt) || 0));
+  return <section className="enquiry-conversation-history enquiry-history-conversations" aria-label="Conversation history">
+    <header className="enquiry-history-heading"><h4>Conversation history{(total ?? conversations.length) ? ` · ${total ?? conversations.length}` : ''}</h4><p>Latest conversations first. Notes are for staff only.</p></header>
+    {conversations.map(event => {
+      const title = event.callOutcome ? callOutcomes[event.callOutcome as CallOutcome] || event.callOutcome : event.summary;
+      const note = event.note || event.summary;
+      return <article className="enquiry-conversation-entry" key={event.id} data-testid={`conversation-${event.id}`} data-kind="conversation">
+        <header><span className="enquiry-history-type">Conversation</span><time dateTime={event.occurredAt}>{appointmentLabel(event.occurredAt)}</time></header>
+        {title && <h5>{title}</h5>}{note && note !== title && <p className="enquiry-history-copy">{note}</p>}
+        <p className="enquiry-conversation-author">Recorded by {event.staffName || 'Staff member'}</p>
+        {event.followUpAt && <p className="enquiry-conversation-followup">Follow-up arranged for {appointmentLabel(event.followUpAt)}</p>}
+      </article>;
+    })}
+    {status}{footer}
+    {entry.staffNote && <article className="enquiry-conversation-entry" data-kind="internal"><header><span className="enquiry-history-type">Internal note</span></header><p className="enquiry-history-copy">{entry.staffNote}</p></article>}
+    {entry.message && <article className="enquiry-conversation-entry" data-kind="original"><header><span className="enquiry-history-type">Original {entry.source === 'website_callback' ? 'website callback request' : entry.source === 'phone' ? 'call' : 'enquiry'}</span>{entry.createdAt && <time dateTime={entry.createdAt}>{appointmentLabel(entry.createdAt)}</time>}</header><p className="enquiry-history-copy">{entry.message}</p></article>}
+    {!status && !conversations.length && !entry.message && !entry.staffNote && <p className="enquiry-history-empty">No conversation notes recorded yet.</p>}
   </section>;
 }

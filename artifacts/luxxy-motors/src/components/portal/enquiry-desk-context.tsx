@@ -7,17 +7,26 @@ import { deskMatches } from '@/lib/enquiry-desk-model';
 import { enquiryGroup, enquiryRootRecords } from '@/lib/enquiry-groups';
 import { Button } from '@/components/ui/button';
 import type { Contact } from './enquiry-workspace-tools';
+import './enquiry-history.css';
 
 export function VehicleDeskContext({ car }: { car: Car }) {
   const content = vehicleContent(car);
   const facts = [
     ['Colour', car.colour], ['Registration', vehicleRegistrationLabel(car)],
     ['Mileage', car.mileage != null ? `${car.mileage.toLocaleString('en-GB')} miles` : null],
-    ['Fuel / gearbox', [car.fuel, car.transmission].filter(Boolean).join(' · ')],
+    ['Fuel', car.fuel], ['Gearbox', car.transmission],
   ].filter(([,value]) => value != null && value !== '');
-  const additionalFacts = [...vehicleHistoryFacts(car), ...vehicleRunningCosts(car)];
-  const factList = (rows: { label: string; value: string }[]) => <dl className="text-sm">{rows.map(({label,value}, i) => <div key={`${label}-${i}`} className="flex flex-wrap justify-between gap-2 border-b py-2"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium">{value}</dd></div>)}</dl>;
-  return <section className="enquiry-vehicle-context mt-4 space-y-3 border-t pt-3" aria-label="Vehicle facts beside call notes"><h3 className="font-semibold">Quick vehicle facts</h3>{factList(facts.map(([label,value]) => ({label: String(label), value: String(value)})))}{additionalFacts.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold">History & running costs</summary><div className="enquiry-vehicle-reference" tabIndex={0} role="region" aria-label="Vehicle history and running costs">{factList(additionalFacts)}</div></details>}{content.description && <details><summary className="cursor-pointer py-2 text-sm font-semibold">Description</summary><div className="enquiry-vehicle-reference" tabIndex={0} role="region" aria-label="Vehicle description"><p className="whitespace-pre-wrap text-sm leading-6">{content.description}</p></div></details>}{content.features.length > 0 && <details><summary className="cursor-pointer py-2 text-sm font-semibold">Equipment · {content.features.length} features</summary><div className="enquiry-vehicle-reference" tabIndex={0} role="region" aria-label="Vehicle equipment"><ul className="list-inside list-disc text-sm leading-6">{content.features.map(feature => <li key={feature}>{feature}</li>)}</ul></div></details>}</section>;
+  const history = vehicleHistoryFacts(car);
+  if (car.writeOffCategory) history.push({ label: 'Write-off category', value: car.writeOffCategory });
+  const costs = vehicleRunningCosts(car);
+  const factList = (rows: { label: string; value: string }[]) => <dl className="enquiry-history-facts">{rows.map(({label,value}, i) => <div key={`${label}-${i}`}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+  return <section className="enquiry-vehicle-context enquiry-history-vehicle" aria-label="Vehicle facts beside call notes">
+    <h3>Car details</h3>{factList(facts.map(([label,value]) => ({label: String(label), value: String(value)})))}
+    <section className="enquiry-history-vehicle-group" aria-label="Vehicle history"><h4>Vehicle history</h4>{history.length ? factList(history) : <p className="enquiry-history-empty">Service history and previous keepers haven’t been recorded.</p>}</section>
+    {costs.length > 0 && <details className="enquiry-history-vehicle-group"><summary>Running costs</summary><div className="enquiry-vehicle-reference" tabIndex={0} role="region" aria-label="Vehicle running costs">{factList(costs)}</div></details>}
+    {content.description && <details className="enquiry-history-vehicle-group"><summary>About this car</summary><div className="enquiry-vehicle-reference" tabIndex={0} role="region" aria-label="Vehicle description"><p className="enquiry-history-copy">{content.description}</p></div></details>}
+    {content.features.length > 0 && <details className="enquiry-history-vehicle-group"><summary>Equipment <span>{content.features.length} features</span></summary><div className="enquiry-vehicle-reference" tabIndex={0} role="region" aria-label="Vehicle equipment"><ul className="enquiry-history-equipment">{content.features.map(feature => <li key={feature}>{feature}</li>)}</ul></div></details>}
+  </section>;
 }
 
 export function DeskSearchResults({ search, entries, allEntries = entries, reservations, cars, onEntry, onCar, onContact }: { search: string; entries: Enquiry[]; allEntries?: Enquiry[]; reservations: StaffOnlineReservation[]; cars: Car[]; onEntry: (entry: Enquiry) => void; onCar: (car: Car) => void; onContact: (contact: Contact) => void }) {

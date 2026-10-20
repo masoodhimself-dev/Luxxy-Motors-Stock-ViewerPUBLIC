@@ -412,3 +412,16 @@ it("does not silently replace an unavailable requested profile with a different 
     "deleted-contact",
   );
 });
+
+it.each([
+  ['vehicles', 'vehicleId=car-1', 'Alex Morgan'],
+  ['customers', 'customerId=contact-1', 'BMW 320i M Sport — AB20 BMW'],
+])('shows the related person or car beside each %s history event', async (view, selection, context) => {
+  renderPanel(`section=history&view=${view}&${selection}`);
+  const activity = await screen.findByTestId('relationship-activity-enquiry-event');
+  expect(within(activity).getByText(context)).toBeVisible();
+  expect(activity).not.toHaveTextContent('LM-ENQ-101');
+  const timeline = screen.getByTestId('history-timeline');
+  const sources = screen.getByRole('region', { name: view === 'vehicles' ? 'Interested customers' : 'Cars in this history' });
+  expect(timeline.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

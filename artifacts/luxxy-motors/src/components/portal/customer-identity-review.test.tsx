@@ -15,7 +15,8 @@ it('shows household contact matches as review candidates and never reuses their 
   expect(screen.getByText(/Names differ; this contact may be shared/)).toBeVisible();
   expect(screen.getByText('Original Ford Fiesta')).toBeVisible();
   expect(document.body).not.toHaveTextContent('ENQ-ORIGINAL');
-  expect(screen.getByText(/Keep this original question/)).toHaveTextContent('Appointment:');
+  expect(screen.getByText('Keep this original question.')).toBeVisible();
+  expect(screen.getByText(/^Appointment:/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Review Jamie Customer’s details' }));
   expect(onReuse).not.toHaveBeenCalled();
   const review = within(screen.getByRole('group', { name: 'Review contact details for Jamie Customer' }));
@@ -51,4 +52,19 @@ it('offers an exact international reservation contact for explicit form reuse an
   expect(onReuse).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Use Alex Customer’s details' }));
   expect(onReuse).toHaveBeenCalledExactlyOnceWith({ customerName: contact.customerName, phone: reservation.phone, email: '' });
+});
+
+it('expands recent matching records without nesting or duplicating the history', () => {
+  const originals = Array.from({ length: 5 }, (_, index) => entry({ id: `original-${index}`, vehicleTitle: `Car ${index}`, createdAt: `2026-10-0${index + 1}T09:00:00Z` }));
+  render(<CustomerHistory contact={contact} enquiries={originals} reservations={[]} compact />);
+  const disclosure = screen.getByText('Customer history · 5 records', { selector: 'summary' }).closest('details')!;
+  disclosure.open = true;
+  fireEvent(disclosure, new Event('toggle'));
+  expect(screen.getAllByRole('article')).toHaveLength(3);
+  expect(screen.getAllByRole('article')[0]).toHaveTextContent('Car 4');
+  fireEvent.click(screen.getByRole('button', { name: 'View all 5 records' }));
+  expect(screen.getAllByRole('article')).toHaveLength(5);
+  expect(screen.getAllByRole('heading', { name: 'Customer history · 5 records' })).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Show recent records' }));
+  expect(screen.getAllByRole('article')).toHaveLength(3);
 });

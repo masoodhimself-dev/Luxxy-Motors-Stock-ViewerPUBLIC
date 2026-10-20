@@ -214,7 +214,13 @@ function Timeline({
   activities,
   filter,
   onFilterChange,
+  vehicles,
+  customers,
+  view,
 }: {
+  vehicles: Vehicle[];
+  customers: Customer[];
+  view: View;
   activities: Activity[];
   filter: TimelineFilter;
   onFilterChange: (filter: TimelineFilter) => void;
@@ -229,6 +235,8 @@ function Timeline({
         ),
     [activities, filter],
   );
+  const vehicleById = useMemo(() => new Map(vehicles.map(item => [item.id, item])), [vehicles]);
+  const customerById = useMemo(() => new Map(customers.map(item => [item.id, item])), [customers]);
   return (
     <section
       className="relationship-timeline"
@@ -237,8 +245,8 @@ function Timeline({
     >
       <div className="relationship-timeline-heading">
         <div>
-          <p className="relationship-kicker">The full picture</p>
-          <h3>Activity timeline</h3>
+          <h3>Activity history</h3>
+          <p className="relationship-timeline-order">Latest first</p>
         </div>
         <span>
           {activities.length} recorded{" "}
@@ -258,6 +266,7 @@ function Timeline({
             onClick={() => onFilterChange(item.id)}
           >
             {item.label}
+            <span className="relationship-filter-count" aria-hidden="true">{activities.filter(activity => matchesFilter(activity, item.id)).length}</span>
           </button>
         ))}
       </div>
@@ -286,10 +295,13 @@ function Timeline({
             const Icon = activityIcons[activity.kind];
             const timestamp = readableDate(activity.occurredAt);
             const amount = money(activity.amountPence);
+            const relatedVehicle = view === "customers" ? vehicleById.get(activity.vehicleId ?? '') : undefined;
+            const relatedCustomer = view === "vehicles" ? customerById.get(activity.customerId ?? '') : undefined;
             return (
               <li
                 key={activity.id}
                 className="relationship-event"
+                data-kind={activity.kind}
                 data-testid={`relationship-activity-${activity.id}`}
               >
                 <span
@@ -303,7 +315,7 @@ function Timeline({
                       {kindLabels[activity.kind]}
                     </span>
                     {activity.status && (
-                      <span className="relationship-status">
+                      <span className="relationship-status" data-status={activity.status}>
                         {readableStatus(activity.status)}
                       </span>
                     )}
@@ -315,9 +327,7 @@ function Timeline({
                     <h4>{activity.title}</h4>
                     {amount && <strong>{amount}</strong>}
                   </div>
-                  <p className="relationship-record-reference">
-                    {recordLabels[activity.recordType]}
-                  </p>
+                  {(relatedVehicle || relatedCustomer) && <p className="relationship-record-context">{relatedVehicle ? `${relatedVehicle.title}${relatedVehicle.registration ? ` — ${relatedVehicle.registration}` : ''}` : relatedCustomer?.name}</p>}
                   <ActivityDescription description={historyDescription(activity, activities)} />
                   {activity.url && (
                     <Link
@@ -450,11 +460,9 @@ export function RelationshipsPanel() {
     >
       <header className="relationship-heading">
         <div>
-          <p className="relationship-kicker">Connected records</p>
           <h2>Vehicle &amp; customer history</h2>
           <p>
-            Follow every recorded enquiry, appointment and sale, from the car or
-            the customer's point of view.
+            Find a car or customer to see their enquiries, visits and sales.
           </p>
         </div>
         <Button
@@ -760,7 +768,7 @@ export function RelationshipsPanel() {
                               </span>
                             )}
                             {vehicle.status && (
-                              <span className="relationship-status">
+                              <span className="relationship-status" data-status={vehicle.status}>
                                 {readableStatus(vehicle.status)}
                               </span>
                             )}
@@ -787,7 +795,7 @@ export function RelationshipsPanel() {
                         )}
                         {readableDate(selected.lastActivityAt) && (
                           <p className="relationship-latest">
-                            Latest recorded activity ·{" "}
+                            Last activity: {" "}
                             {readableDate(selected.lastActivityAt)}
                           </p>
                         )}
@@ -801,6 +809,7 @@ export function RelationshipsPanel() {
                     )}
                     <CountSummary counts={selected.counts} />
                   </article>
+                  <Timeline key={selectionKey} activities={selected.activities} filter={filter} onFilterChange={setFilter} vehicles={data.vehicles} customers={data.customers} view={view} />
                   {linkedCustomers.length > 0 && (
                     <section
                       className="relationship-connections"
@@ -870,12 +879,7 @@ export function RelationshipsPanel() {
                       </div>
                     </section>
                   )}
-                  <Timeline
-                    key={selectionKey}
-                    activities={selected.activities}
-                    filter={filter}
-                    onFilterChange={setFilter}
-                  />
+
                 </>
               )}
             </div>

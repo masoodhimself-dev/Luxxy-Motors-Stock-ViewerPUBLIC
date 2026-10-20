@@ -68,6 +68,7 @@ import { EnquiryRecordBrowser, type EnquiryRecordActions } from "./enquiry-recor
 import { CallbacksDesk } from "./enquiry-callbacks";
 import { isOutstandingCallback } from "./enquiry-callback-model";
 import { useStaffAppointmentDiary } from "@/lib/staff-appointment-diary";
+import { enquiryPresentation } from "@/lib/enquiry-presentation";
 import "./enquiries-workspace.css";
 import "./staff-appointment-picker.css";
 import { AppointmentSlots as Slots } from "./appointment-slots";
@@ -886,16 +887,31 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   ).length;
   const allEntries = query.data ?? [];
   const missingRequested = Boolean(requestedEnquiry && query.data && !query.data.some(entry => entry.id === requestedEnquiry));
-  const entries = enquiryRootRecords(allEntries)
-    .filter(entry => enquiryGroup(entry, allEntries).some(original => scoped.some(item => item.id === original.id)))
-    .filter(entry => contains(enquiryGroupSearchText(entry, allEntries), search) && enquiryGroup(entry, allEntries).some(original =>
-      filter === "all" || (filter === "followups" ? Boolean(original.followUpAt && !original.followUpCompletedAt)
-        : filter === "due" ? Boolean(original.followUpAt && !original.followUpCompletedAt && Date.parse(original.followUpAt) <= Date.now())
-        : filter === "upcoming" ? Boolean(original.appointmentAt && !original.appointmentCancelledAt && Date.parse(original.appointmentAt) > Date.now())
-        : Boolean(original.appointmentAt && !original.appointmentCancelledAt && londonDate(new Date(original.appointmentAt)) === londonDate()))))
-    .sort((a, b) => ["due", "followups"].includes(filter)
-      ? (enquiryGroup(a, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? "").localeCompare(enquiryGroup(b, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? "")
-      : 0);
+  const roots = enquiryRootRecords(allEntries)
+    .filter(entry => enquiryGroup(entry, allEntries).some(original => scoped.some(item => item.id === original.id)));
+  const matchesQueue = (original: Enquiry, value: string) => {
+    const summary = enquiryPresentation(original);
+    if (value === 'all') return true;
+    if (value === 'reply') return summary.action === 'respond';
+    if (value === 'done') return summary.action === 'none';
+    if (value === 'followups') return Boolean(original.followUpAt && !original.followUpCompletedAt) || summary.action === 'follow_up';
+    if (value === 'due') return Boolean(original.followUpAt && !original.followUpCompletedAt && Date.parse(original.followUpAt) <= Date.now());
+    if (value === 'visits') return Boolean(original.appointmentAt && !original.appointmentCancelledAt && original.attendance !== 'completed' && original.attendance !== 'no_show');
+    if (value === 'upcoming') return Boolean(original.appointmentAt && !original.appointmentCancelledAt && Date.parse(original.appointmentAt) > Date.now());
+    return Boolean(original.appointmentAt && !original.appointmentCancelledAt && londonDate(new Date(original.appointmentAt)) === londonDate());
+  };
+  const queues = [
+    { value: 'all', label: 'All enquiries', tone: 'muted' },
+    { value: 'reply', label: 'Needs reply', tone: 'info' },
+    { value: 'followups', label: 'Follow-ups', tone: 'warning' },
+    { value: 'visits', label: 'Test drives', tone: 'info' },
+    { value: 'done', label: 'No task scheduled', tone: 'success' },
+  ];
+  const groupPriority = (entry: Enquiry) => Math.min(...enquiryGroup(entry, allEntries).map(original => enquiryPresentation(original).priority));
+  const entries = roots.filter(entry => contains(enquiryGroupSearchText(entry, allEntries), search)
+    && (filter === 'done' ? enquiryGroup(entry, allEntries).every(original => matchesQueue(original, filter)) : enquiryGroup(entry, allEntries).some(original => matchesQueue(original, filter))))
+    .sort((a, b) => groupPriority(a) - groupPriority(b)
+      || (enquiryGroup(a, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? '9999').localeCompare(enquiryGroup(b, allEntries).filter(item => item.followUpAt && !item.followUpCompletedAt).map(item => item.followUpAt!).sort()[0] ?? '9999'));
   function clearSelectedRecord() {
     setSelectedEnquiryId(null);
     const requested = query.data?.find(entry => entry.id === requestedEnquiry);
@@ -904,6 +920,8 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   }
   function selectRecord(id: string) {
     setSelectedEnquiryId(id);
+    // In-place selection keeps the queue/search; an external deep link still resolves below.
+    openedEnquiry.current = id;
     if (embedded) {
       const params = new URLSearchParams({ section: 'notifications', workView: 'customers', enquiryId: id });
       if (mode === 'callbacks') params.set('deskView', 'callbacks');
@@ -916,11 +934,12 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
     canBook: bookingAccess.enabled,
     onUpdate: setWorkspaceEntry, onConversation: setConversationEntry, onMerge: entry => setMergeEntry(primaryEnquiry(entry, allEntries)), onFollowUp: entry => setFollowUpEntry({ ...entry }),
     onEmail: canEmail ? setEmailEntry : undefined,
+    onCustomerHistory: setHistoryContact,
     onAppointment: entry => setEditing({ ...entry }), onVehicle: setInformation,
     onBook: entry => { if (!bookingAccess.enabled) return; setInitialBookingDate(undefined); setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
   };
   return (
-    <Panel className="enquiries-premium-workspace">
+    <Panel className={`enquiries-premium-workspace${mode === "history" ? " enquiry-case-mode" : ""}`}>
       {!embedded && <div className="enquiry-workspace-heading bg-[#213e61] px-5 py-4 text-white">
         <div>
         <h2 className="text-xl font-semibold">Enquiry workspace</h2>
@@ -935,24 +954,30 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
           <TabsTrigger value="calendar" onClick={() => { setMode("calendar"); setGlobalSearch(""); }} id="desk-tab-calendar" aria-controls="desk-panel-calendar" className="min-h-11 rounded-sm px-5">Calendar</TabsTrigger>
         </TabsList>
       </Tabs>}
-      {mode !== "calendar" && <div aria-label="Workspace actions" data-record-mode={mode === "history" || mode === "callbacks" ? "true" : "false"} className="enquiry-workspace-ribbon flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
+      {mode === "history" ? <div className="enquiry-simple-toolbar" aria-label="Workspace actions">
+        <label><span className="sr-only">Find a customer or car</span><Input value={search} onChange={event => { clearSelectedRecord(); setSearch(event.target.value); }} placeholder="Search name, phone, email or car" /></label>
+        <Button variant="ghost" size="icon" aria-label="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); directory.refetch(); reservations.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className={`h-4 w-4${query.isFetching ? " animate-spin" : ""}`} aria-hidden /></Button>
+        <details className="enquiry-simple-filters"><summary>Filters &amp; tools{ownerScope !== "all" || !queues.some(queue => queue.value === filter) ? " · active" : ""}</summary><div>
+          <label className={field}>Enquiry ownership<NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">All owners</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>
+          <label className={field}>Show<NativeSelect value={filter} onChange={e => { setFilter(e.target.value); clearSelectedRecord(); }}><option value="all">All enquiries</option><option value="reply">Needs reply</option><option value="followups">Follow-ups</option><option value="due">Overdue follow-ups</option><option value="visits">Active test drives</option><option value="upcoming">Upcoming test drives</option><option value="today">Today’s test drives</option><option value="done">No task scheduled</option></NativeSelect></label>
+          <Button variant="outline" size="sm" onClick={() => { setMode("callbacks"); setGlobalSearch(""); }}>Callbacks ({callbackCount})</Button>
+          <Button variant="outline" size="sm" onClick={() => { setMode("stock"); setGlobalSearch(""); }}>Browse showroom stock</Button>
+        </div></details>
+      </div> : <>
+      {mode !== "calendar" && <div aria-label="Workspace actions" data-record-mode={mode === "callbacks" ? "true" : "false"} className="enquiry-workspace-ribbon flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
         {!embedded && <Button id="desk-tab-new" size="sm" onClick={() => { setMode("new"); setGlobalSearch(""); if (embedded) navigate("/portal?section=notifications&workView=customers&deskView=new"); }}>New enquiry</Button>}
-        <details className="enquiry-desk-more"><summary>More tools</summary><div><Button variant="ghost" size="sm" onClick={() => { setMode("callbacks"); setGlobalSearch(""); }}>Callbacks ({callbackCount})</Button><Button variant="ghost" size="sm" onClick={() => { setMode("stock"); setGlobalSearch(""); }}>Browse showroom stock</Button></div></details>
+        <Button variant="outline" size="sm" onClick={() => { setMode("callbacks"); setGlobalSearch(""); }}>Callbacks ({callbackCount})</Button><details className="enquiry-desk-more"><summary>More tools</summary><div><Button variant="ghost" size="sm" onClick={() => { setMode("stock"); setGlobalSearch(""); }}>Browse showroom stock</Button></div></details>
         <Button className="enquiry-ribbon-refresh" variant="ghost" size="icon" aria-label="Refresh enquiries and stock" title="Refresh enquiries and stock" disabled={query.isFetching} onClick={() => { query.refetch(); directory.refetch(); reservations.refetch(); client.invalidateQueries({ queryKey: ["/api/stock"] }); }}><RefreshCw className={`h-4 w-4${query.isFetching ? " animate-spin" : ""}`} aria-hidden /></Button>
         <Button className="enquiry-ribbon-overdue" variant={dueCount ? "outline" : "ghost"} size="sm" onClick={() => { if (mode === "callbacks") { setCallbackFilter("overdue"); setCallbackSearch(""); } else { setMode("history"); setFilter("due"); setSearch(""); } setGlobalSearch(""); clearSelectedRecord(); }}>Overdue now ({dueCount})</Button>
-        {mode === "history" ? <>
-          <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a customer or car</span><Input value={search} onChange={event => { clearSelectedRecord(); setSearch(event.target.value); }} placeholder="Name, phone, email or car" /></label>
-          <details className="enquiry-desk-more"><summary>More filters{filter !== "all" ? " · active" : ""}</summary><label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show</span><NativeSelect value={filter} onChange={event => { setFilter(event.target.value); clearSelectedRecord(); }}>
-            <option value="all">All enquiries</option><option value="upcoming">Upcoming test drives</option><option value="today">Today’s test drives</option><option value="followups">Follow-ups</option><option value="due">Overdue follow-ups</option>
-          </NativeSelect></label></details>
-        </> : mode === "callbacks" ? <>
+        {mode === "callbacks" ? <>
           <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Find a callback</span><Input value={callbackSearch} onChange={event => { setCallbackSearch(event.target.value); clearSelectedRecord(); }} placeholder="Customer, contact or registration" /></label>
           <label className="enquiry-record-ribbon-filter grid min-w-0 gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Show callbacks</span><NativeSelect value={callbackFilter} onChange={event => { setCallbackFilter(event.target.value); clearSelectedRecord(); }}>
             <option value="all">All callbacks</option><option value="overdue">Overdue now</option><option value="upcoming">Upcoming</option><option value="unscheduled">Needs a time</option><option value="website">Website requests</option><option value="unassigned">Unassigned</option>
           </NativeSelect></label>
         </> : <label className="enquiry-ribbon-search grid min-w-0 basis-full gap-1 text-xs font-medium sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="enquiry-ribbon-label">Search the workspace</span><Input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Search customer, phone, registration or car" /></label>}
-        {mode !== "new" && <label className="enquiry-ribbon-owner grid gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Enquiry ownership</span><NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">{mode === "history" || mode === "callbacks" ? "All owners" : "All enquiries"}</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>}
+        {mode !== "new" && <label className="enquiry-ribbon-owner grid gap-1 text-xs font-medium"><span className="enquiry-ribbon-label">Enquiry ownership</span><NativeSelect value={ownerScope} onChange={e => setOwnerScope(e.target.value)}><option value="all">{mode === "callbacks" ? "All owners" : "All enquiries"}</option><option value="mine" disabled={!directory.data}>My enquiries</option><option value="unassigned">Unassigned</option></NativeSelect></label>}
       </div>}
+      </>}
       <div className="enquiry-workspace-canvas space-y-5 bg-slate-100/70 p-3 sm:p-6">
         {mode !== "new" && !editing && <BookingAccessNotice access={bookingAccess} />}
         {notice && (
@@ -982,6 +1007,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         {mode === "callbacks" && <div role="tabpanel" id="desk-panel-callbacks" aria-label="Callbacks">{query.isLoading ? <p role="status">Loading callbacks…</p> : query.isError ? <p role="alert">Callbacks could not be loaded. Refresh to retry.</p> : missingRequested ? null : <CallbacksDesk search={callbackSearch} filter={callbackFilter} entries={callbackEntries} allEntries={allEntries} cars={stock?.cars ?? []} selectedId={selectedEnquiryId} onSelect={selectRecord} onBack={clearSelectedRecord} actions={recordActions} includeUnassigned={ownerScope === "mine"} />}</div>}
         {mode === "history" && (
           <div role="tabpanel" id="desk-panel-history" aria-labelledby={embedded ? undefined : "desk-tab-history"} aria-label={embedded ? "Customer enquiries" : undefined} className="enquiry-ledger-sheet enquiry-record-sheet enquiry-history-sheet border border-slate-200 bg-white">
+            <div className="enquiry-queue-nav" role="group" aria-label="Filter enquiries by next step">{queues.map(queue => <button type="button" key={queue.value} data-tone={queue.tone} aria-pressed={filter === queue.value} onClick={() => { setFilter(queue.value); clearSelectedRecord(); }}>{queue.label}<span>{roots.filter(entry => queue.value === "done" ? enquiryGroup(entry, allEntries).every(original => matchesQueue(original, queue.value)) : enquiryGroup(entry, allEntries).some(original => matchesQueue(original, queue.value))).length}</span></button>)}</div>
 
             {query.isLoading && <p role="status">Loading enquiries…</p>}
             {query.isError && <p role="alert">Enquiries could not be loaded. Use Refresh to try again.</p>}

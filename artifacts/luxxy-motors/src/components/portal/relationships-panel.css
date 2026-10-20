@@ -1092,3 +1092,57 @@
     font-size: 11px;
   }
 }
+
+/* Keep the history readable as a working record, with the activity above related profiles. */
+.relationships-panel { gap: 16px; }
+.relationship-heading h2 { font-size: clamp(23px, 2.2vw, 28px); margin-top: 0; }
+.relationship-directory-heading { padding: 17px 18px 14px; gap: 10px; }
+.relationship-profile-row, .has-selection .relationship-profile-row { min-height: 110px; padding: 15px 16px; }
+.relationship-row-copy { gap: 5px; }
+.relationship-list-counts { gap: 4px 10px; }
+.relationship-list-counts > span:not(:last-child):after { content: none; }
+.relationship-counts { display: flex; flex-wrap: wrap; padding: 12px 20px !important; gap: 8px 22px; }
+.relationship-counts > div { flex-direction: row; align-items: baseline; gap: 6px; }
+.relationship-counts dt { font-size: 12px; }
+.relationship-counts dd { font-size: 15px; font-weight: 650; }
+.relationship-profile-heading { padding: 20px; }
+.relationship-profile-heading h3 { font-size: clamp(19px, 2vw, 23px); margin-block: 3px 8px; }
+.relationship-match-note { margin: 0 20px 16px !important; padding: 9px 12px; border-left: 3px solid #b38a43; border-radius: 0; background: #fff8eb; color: #755c2e; }
+.relationship-timeline-heading { padding: 18px 20px 14px; }
+.relationship-timeline-heading h3 { font-size: 17px; margin: 0; }
+.relationship-timeline-order { font-size: 12px; color: var(--portal-muted, #586976); margin-top: 3px !important; }
+.relationship-filters { padding: 0 20px 14px; gap: 6px; }
+.relationship-filters > button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; }
+.relationship-filter-count { font-size: 11px; color: #596d7b; }
+.relationship-events { padding-inline: 20px !important; }
+.relationship-event { padding-block: 17px; gap: 12px; }
+.relationship-event:not(:last-child):before { top: 48px; bottom: -11px; }
+.relationship-event:not(:last-child) .relationship-event-content { padding-bottom: 17px; margin-bottom: -17px; }
+.relationship-event-icon { width: 30px; height: 30px; border-radius: 5px; }
+.relationship-event-icon-appointment, .relationship-event-icon-follow_up { background: #f2edfa; color: #705298; border-color: #dfd4ee; }
+.relationship-event-icon-reservation { background: #fff6e5; color: #866124; border-color: #ebdcbf; }
+.relationship-event-icon-document, .relationship-event-icon-note { background: #f2f5f7; color: #617480; border-color: #dce3e8; }
+.relationship-event-icon-chat { background: #eaf5f3; color: #31746b; border-color: #cfe5df; }
+.relationship-event[data-kind="appointment"] .relationship-kind, .relationship-event[data-kind="follow_up"] .relationship-kind { color: #705298; }
+.relationship-event[data-kind="reservation"] .relationship-kind { color: #866124; }
+.relationship-event[data-kind="payment"] .relationship-kind, .relationship-event[data-kind="sale"] .relationship-kind { color: #376c50; }
+.relationship-status[data-status="cancelled"], .relationship-status[data-status="no_show"], .relationship-status[data-status="rejected"] { color: #98504a; background: #fff1ef; border-color: #edcfca; }
+.relationship-status[data-status="pending"], .relationship-status[data-status="new"] { color: #825d20; background: #fff6e5; border-color: #ebdcbf; }
+.relationship-status[data-status="completed"], .relationship-status[data-status="attended"], .relationship-status[data-status="sold"] { color: #376c50; background: #edf7f0; border-color: #d2e7d8; }
+.relationship-record-context { margin-top: 4px !important; font-size: 12px; font-weight: 500; color: #506776; overflow-wrap: anywhere; line-height: 1.6; }
+.relationship-description { margin-top: 8px; line-height: 1.65; }
+.relationship-source-link, .relationship-description > button { min-height: 44px; }
+@media (max-width: 639px) {
+  .relationship-directory-heading, .relationship-profile-heading { padding: 16px; }
+  .relationship-profile-row, .has-selection .relationship-profile-row { min-height: 110px; padding: 15px 16px; }
+  .relationship-profile-heading:has(.relationship-profile-image) > div { flex-basis: auto; }
+  .relationship-profile-image { width: 85px; height: 68px; }
+  .relationship-counts { padding: 11px 16px !important; gap: 8px 16px; }
+  .relationship-match-note { margin: 0 16px 15px !important; }
+  .relationship-timeline-heading { padding: 16px; }
+  .relationship-filters { padding: 0 16px 13px; }
+  .relationship-filters > button { font-size: 12px; min-height: 44px; }
+  .relationship-events { padding-inline: 16px !important; }
+  .relationship-event-icon { width: 28px; height: 28px; }
+  .relationship-event:not(:last-child):before { top: 45px; }
+}
