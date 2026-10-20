@@ -28,7 +28,7 @@ const sizes = {sm:'small',md:'medium',lg:'large'} as const;
 
 /** Existing input contract and host formatter around the approved presentation. */
 export function UKNumberPlate({ value = '', editable = false, onChange, testId = 'uk-number-plate',
-  inputTestId, inputId, helpId, size = 'md', variant = 'rear', className, showFlag = true, inputLabel = "Your car’s UK registration number", required = true, disabled = false,
+  inputTestId, inputId, helpId, size = 'md', variant = 'rear', className, showFlag = false, inputLabel = "Your car’s UK registration number", required = true, disabled = false,
 }: UKNumberPlateProps) {
   if (!editable) return <span className={cn('registration-plate-container',className)} data-testid={testId} data-size={size} data-variant={variant}>
     <RegistrationPlate registration={value} formatter={formatRegistrationPlate} size={sizes[size]} variant={variant}

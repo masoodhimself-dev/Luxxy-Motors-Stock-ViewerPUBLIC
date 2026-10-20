@@ -21,7 +21,7 @@ export interface RegistrationPlateProps extends Omit<
 /** Selectable, accessible registration text. No lookup, storage or format mask. */
 export const RegistrationPlate = forwardRef<HTMLSpanElement, RegistrationPlateProps>(
   function RegistrationPlate(
-    { registration, formatter, variant = 'front', size = 'medium', showFlag = true,
+    { registration, formatter, variant = 'front', size = 'medium', showFlag = false,
       className = '', style, ...spanProps },
     ref,
   ) {

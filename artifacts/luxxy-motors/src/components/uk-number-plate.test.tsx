@@ -29,11 +29,11 @@ describe('registration plate foundations', () => {
     fireEvent.change(input,{target:{value:'ab12 cde!'}});
     expect(change).toHaveBeenCalledWith('AB12 CDE');
   });
-  it('uses the approved UK flag and supports flag-free compact plates', () => {
+  it('defaults to a flag-free face for display and editable plates', () => {
     const {rerender} = render(<UKNumberPlate value="MM00MMM" size="lg" variant="front" />);
     expect(screen.getByTestId('uk-number-plate')).toHaveAttribute('data-size','lg');
-    expect(document.querySelector('.ukrp-country svg')).toBeInTheDocument();
-    rerender(<UKNumberPlate value="MM00MMM" variant="rear" showFlag={false} />);
+    expect(document.querySelector('.ukrp-country')).toBeNull();
+    rerender(<UKNumberPlate editable value="MM00MMM" variant="rear" />);
     expect(screen.getByTestId('uk-number-plate')).toHaveAttribute('data-variant','rear');
     expect(document.querySelector('.ukrp-country')).toBeNull();
   });

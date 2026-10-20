@@ -295,6 +295,6 @@
   }
 }
 
-/* Reuse approved flag geometry without changing the existing input/ref or save flow. */
-.plate-entry-dialog .registration-plate-bulk { inline-size: 100%; max-inline-size: 354px; min-inline-size: 0; min-height: 64px; justify-self: center; }
-.plate-entry-dialog .registration-plate-bulk input { border: 0; border-radius: 0; background: transparent; height: 62px; padding-inline: 4px; }
+/* Flat, flag-free plate; retain the existing input/ref and save flow. */
+.plate-entry-dialog .registration-plate-bulk { inline-size: 100%; max-inline-size: 300px; min-inline-size: 0; min-height: 52px; justify-self: center; }
+.plate-entry-dialog .registration-plate-bulk input { border: 0; border-radius: 0; background: transparent; height: 50px; padding-inline: 4px; }
