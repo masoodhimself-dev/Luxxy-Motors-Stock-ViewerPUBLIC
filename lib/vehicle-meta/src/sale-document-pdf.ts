@@ -372,3 +372,25 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   }
   return new Uint8Array(pdf.output('arraybuffer'));
 }
+
+/** Local-only guide: no document reference is sent to a server or AI. */
+export function roadTaxGuidePdfBytes(input: { registration: string; vin: string; vehicle: string; reference: string }): Uint8Array {
+  if (!/^\d{12}$/.test(input.reference) || !input.registration.trim() || (input.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(input.vin))) throw new Error('Check the vehicle and green slip details.');
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  let y = 25;
+  const line = (text: string, size = 11) => { pdf.setFontSize(size); const lines = pdf.splitTextToSize(text, 170); pdf.text(lines, 20, y); y += lines.length * 6 + 5; };
+  pdf.setFont('helvetica', 'bold'); line('Your Road Tax guide', 20); pdf.setFont('helvetica', 'normal');
+  line(input.vehicle.slice(0, 200), 13); line(`Registration: ${input.registration.slice(0, 32)}`);
+  if (input.vin) line(`VIN: ${input.vin}`);
+  line(`Green new keeper slip reference: ${input.reference}`);
+  line('Keep this guide private. It contains your vehicle document reference.');
+  pdf.setFont('helvetica', 'bold'); line('Before driving away', 14); pdf.setFont('helvetica', 'normal');
+  line('Vehicle tax does not transfer from the previous keeper. Tax the vehicle before using it on the road, even if the rate is zero.');
+  line('1. Open the official GOV.UK vehicle tax service:');
+  pdf.setTextColor(33, 90, 126); pdf.textWithLink('www.gov.uk/vehicle-tax', 20, y, { url: 'https://www.gov.uk/vehicle-tax' }); y += 12; pdf.setTextColor(25, 38, 45);
+  line('2. Choose the green new keeper slip option and enter the 12-digit reference from the latest V5C/2. Check the vehicle details shown.');
+  line('3. Follow the official payment steps. GOV.UK will show the current rate and available payment options.');
+  line('4. Keep the DVLA confirmation. Make sure insurance and any required MOT are in place before driving.');
+  line('This is an independent guide, not a DVLA document, tax receipt or confirmation that the vehicle is taxed. If the reference is rejected, check the latest slip and follow GOV.UK help.');
+  return new Uint8Array(pdf.output('arraybuffer'));
+}

@@ -761,3 +761,18 @@ it("shows every interim payment with its amount and status directly on the saved
  expect(screen.getByRole("region",{name:"Saved sale summary"})).toHaveTextContent("£9,250.00");
  expect(mutations()).toHaveLength(0);
 });
+
+it('saves the VIN and guide preference without saving the green slip reference', async () => {
+  mount();
+  fireEvent.click(await screen.findByRole('button', {name: /New invoice/}));
+  fireEvent.change(screen.getByRole('combobox', {name:'Vehicle'}), {target:{value:'car-test'}});
+  fireEvent.change(screen.getByLabelText(/VIN \/ chassis number/), {target:{value:'wvwzzz1jzxw000001'}});
+  fireEvent.change(screen.getByLabelText('Generate a Road Tax guide?'), {target:{value:'yes'}});
+  fireEvent.change(screen.getByLabelText('Green slip document number (V5C/2)'), {target:{value:'012345678901'}});
+  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  fireEvent.change(screen.getByLabelText('Customer’s full name'),{target:{value:'Jamie Taylor'}});
+  fireEvent.click(screen.getByRole('button',{name:'Save details'}));
+  await waitFor(()=>expect(state.sales).toHaveLength(1));
+  expect(state.sales[0].draft.vin).toBe('WVWZZZ1JZXW000001');expect(state.sales[0].draft.roadTaxGuide).toBe(true);
+  expect(JSON.stringify(state.fetch.mock.calls)).not.toContain('012345678901');
+});

@@ -1,3 +1,4 @@
+import { RoadTaxGuide } from "@/components/sales-demo/road-tax-guide";
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { SaleVehiclePhoto,saleVehicleChoiceLabel } from '@/components/sales-demo/vehicle-choice';
@@ -942,6 +943,8 @@ export function SalesWorkspace({
                                 sourceEnquiryId: "",
                                 sourceReservationId: "",
                                 customerSource: "",
+                                vin: "",
+                                roadTaxGuide: false,
                                 vehicleId: car.id,
                                 vehicle: vehicleDisplayTitle(car),
                                 registration: vehicleRegistration(car),
@@ -997,7 +1000,16 @@ export function SalesWorkspace({
                       <div className="invoice-field-grid">
                         {field("registration", "Registration / number plate")}
                         {field("price", "Agreed vehicle price (£)")}
+                        <label>VIN / chassis number
+                          <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
+                            disabled={Boolean(record?.completedAt)} placeholder="17-character VIN"
+                            onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
+                          <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
+                        </label>
                       </div>
+                      <RoadTaxGuide key={`${draft.id}-${draft.vehicleId}`} registration={draft.registration} vin={draft.vin ?? ""}
+                        vehicle={draft.vehicle} enabled={draft.roadTaxGuide === true} disabled={Boolean(record?.completedAt)}
+                        onChange={enabled => update("roadTaxGuide", enabled)} />
                     </>
                   )}
                   {step === 1 && (
@@ -1503,6 +1515,7 @@ export function SalesWorkspace({
                           <dd>
                             {draft.vehicle}
                             <small>{draft.registration}</small>
+                            {draft.vin && <small>VIN: {draft.vin}</small>}
                           </dd>
                         </div>
                         <div>

@@ -17,6 +17,7 @@ export type SaleWorkspaceFulfilment = {
 export type SaleWorkspaceDraft = {
   id: string; customer: string; email: string; phone: string; address: string;
   vehicleId: string; vehicle: string; registration: string; price: string;
+  vin?: string; roadTaxGuide?: boolean;
   partExchange: boolean; pxRegistration: string; pxDescription: string; pxValue: string;
   deposit: string; paymentMethod: string; notes: string; collection: string;
   preparation: boolean; documents: boolean; handover: boolean;
@@ -186,8 +187,11 @@ export function saleWorkspaceFingerprint(value: unknown): string {
 export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledger: SaleWorkspacePayment[] = [], previous?: SaleWorkspaceDraft): SaleWorkspaceDraft {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new SaleWorkspaceError('Check the sale details.');
   const source = input as Record<string, unknown>;
-  const fields: Array<[string, number]> = [['customer', 200], ['email', 320], ['phone', 80], ['address', 2000], ['vehicleId', 128], ['vehicle', 1000], ['registration', 32], ['price', 16], ['pxRegistration', 32], ['pxDescription', 1000], ['pxValue', 16], ['paymentMethod', 100], ['notes', 12000], ['collection', 80], ['customerSource', 200], ['sourceEnquiryId', 128], ['sourceReservationId', 128]];
+  const fields: Array<[string, number]> = [['customer', 200], ['email', 320], ['phone', 80], ['address', 2000], ['vehicleId', 128], ['vehicle', 1000], ['registration', 32], ['vin', 17], ['price', 16], ['pxRegistration', 32], ['pxDescription', 1000], ['pxValue', 16], ['paymentMethod', 100], ['notes', 12000], ['collection', 80], ['customerSource', 200], ['sourceEnquiryId', 128], ['sourceReservationId', 128]];
   const draft = Object.fromEntries(fields.map(([name, limit]) => [name, text(source[name] ?? '', limit, name)])) as unknown as SaleWorkspaceDraft;
+  draft.vin = draft.vin?.toUpperCase() ?? '';
+  if (draft.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(draft.vin)) throw new SaleWorkspaceError('Enter the 17-character VIN from the vehicle or log book (no I, O or Q).');
+  draft.roadTaxGuide = source.roadTaxGuide === true;
   if (previous && (previous.sourceEnquiryId || previous.sourceReservationId)) {
     draft.sourceEnquiryId = previous.sourceEnquiryId; draft.sourceReservationId = previous.sourceReservationId;
   }
@@ -302,7 +306,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
   let document: SaleWorkspaceDocument | undefined;
   if (command.action === 'update') {
     const updated = cleanSaleWorkspaceDraft(command.draft, record.reference, record.payments, record.draft);
-    if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','price','exchanges','adjustments'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft]) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft]))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
+    if (record.completedAt && ['customer','email','phone','address','vehicleId','vehicle','registration','vin','price','exchanges','adjustments'].some(key => JSON.stringify(updated[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Completed sale details are locked. Use payment corrections and retain the issued invoice.', 409);
     if (record.lifecycle && ['reserved', 'sold'].includes(record.lifecycle.status) && updated.vehicleId !== record.draft.vehicleId) throw new SaleWorkspaceError('Release the sale reservation before changing its vehicle.', 409);
     if (record.customerAccess && (updated.customer !== record.draft.customer || updated.email !== record.draft.email || updated.vehicleId !== record.draft.vehicleId)) record.customerAccess.revokedAt = context.now;
     record.draft = updated;
@@ -424,7 +428,7 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     const outstanding = saleWorkspaceTotals(record.draft, record.payments).balance;
     if (outstanding < 0) throw new SaleWorkspaceError('Resolve the customer credit before marking this car sold.');
     if (outstanding > 0 && command.acknowledgeOutstanding !== true) throw new SaleWorkspaceError('Settle the balance or explicitly acknowledge the outstanding amount before marking the car sold.');
-    if (JSON.stringify(fullInvoice.snapshot.payments) !== JSON.stringify(record.payments) || ['customer','address','email','phone','vehicleId','vehicle','registration','price','exchanges','adjustments'].some(key => JSON.stringify(fullInvoice.snapshot.draft[key as keyof SaleWorkspaceDraft]) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft]))) throw new SaleWorkspaceError('Create an updated full invoice with the latest details and payments before marking this car sold.');
+    if (JSON.stringify(fullInvoice.snapshot.payments) !== JSON.stringify(record.payments) || ['customer','address','email','phone','vehicleId','vehicle','registration','vin','price','exchanges','adjustments'].some(key => JSON.stringify(fullInvoice.snapshot.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)) !== JSON.stringify(record.draft[key as keyof SaleWorkspaceDraft] ?? (key === 'vin' ? '' : undefined)))) throw new SaleWorkspaceError('Create an updated full invoice with the latest details and payments before marking this car sold.');
     record.completedAt = context.now;
     record.lifecycle = { status: 'sold', vehicleId: record.draft.vehicleId, changedAt: context.now };
     event(record, context, 'sale-completed', 'Car marked sold after issuing the full invoice; removed from public stock' + (outstanding > 0 ? `; £${(outstanding / 100).toFixed(2)} remains outstanding (staff acknowledged)` : ''));

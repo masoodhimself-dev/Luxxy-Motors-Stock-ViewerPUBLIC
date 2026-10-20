@@ -41,6 +41,8 @@ export type SaleDraft = {
   vehicleId: string;
   vehicle: string;
   registration: string;
+  vin?: string;
+  roadTaxGuide?: boolean;
   price: string;
   partExchange: boolean;
   pxRegistration: string;
@@ -151,6 +153,7 @@ export function errors(draft: SaleDraft, previous?: SaleDraft): string[] {
   return [
     !draft.customer.trim() && "Enter the customer name.",
     !draft.vehicleId && "Select a vehicle.",
+    Boolean(draft.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(draft.vin)) && "Enter the 17-character VIN from the vehicle or log book (no I, O or Q).",
     (!Number.isSafeInteger(amounts.price) || amounts.price <= 0) &&
       "Enter a valid vehicle price greater than zero.",
     Object.values(amounts).some((value) => !Number.isSafeInteger(value)) &&

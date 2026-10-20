@@ -285,3 +285,8 @@ body:has(.invoice-builder.is-editing) { overflow: hidden; }
 .invoice-summary-payments li > div { display:grid; gap:4px; }
 .invoice-summary-payments li span,.invoice-summary-payments li small { color:#596977; font-size:12px; }
 .invoice-summary-payments li[data-status=cancelled] strong { text-decoration:line-through; }
+
+.invoice-tax-guide { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border, #d8e0e5); display: grid; gap: .85rem; }
+.invoice-tax-guide > label { max-width: 36rem; }
+.invoice-tax-guide > button { justify-self: start; }
+@media (max-width: 640px) { .invoice-tax-guide > button { width: 100%; } }
