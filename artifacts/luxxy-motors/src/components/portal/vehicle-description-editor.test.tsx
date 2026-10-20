@@ -67,7 +67,11 @@ it("loads only on request, generates into editor and never publishes automatical
   expect(
     await screen.findByRole("textbox", { name: "Website description" }),
   ).toBeVisible();
-  await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue(draft));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("textbox", { name: "Website description" }),
+    ).toHaveValue(draft),
+  );
   expect(
     screen.getByRole("button", { name: "Publish description" }),
   ).toBeDisabled();
@@ -84,15 +88,20 @@ it("requires review again after edits and publishes exact staff text with revisi
   state.fetch.mockResolvedValue({ ...initial, draft });
   mount();
   fireEvent.click(screen.getByRole("button", { name: "Write description" }));
-  await screen.findByRole("textbox");
-  const review = screen.getByRole("checkbox");
+  await screen.findByRole("textbox", { name: "Website description" });
+  const review = screen.getByRole("checkbox", {
+    name: "I’ve checked the facts, equipment and important information.",
+  });
   fireEvent.click(review);
   expect(
     screen.getByRole("button", { name: "Publish description" }),
   ).toBeEnabled();
-  fireEvent.change(screen.getByRole("textbox"), {
-    target: { value: `${draft} Edited.` },
-  });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Website description" }),
+    {
+      target: { value: `${draft} Edited.` },
+    },
+  );
   expect(review).not.toBeChecked();
   fireEvent.click(review);
   state.fetch.mockResolvedValue({
@@ -113,8 +122,11 @@ it("requires review again after edits and publishes exact staff text with revisi
 it("allows saving without publishing, preserves edits on conflict and keeps originals visible", async () => {
   mount();
   fireEvent.click(screen.getByRole("button", { name: "Write description" }));
-  await screen.findByRole("textbox");
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: draft } });
+  await screen.findByRole("textbox", { name: "Website description" });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Website description" }),
+    { target: { value: draft } },
+  );
   state.fetch.mockRejectedValue({
     data: { error: "This car changed. Reload its latest details." },
   });
@@ -122,7 +134,9 @@ it("allows saving without publishing, preserves edits on conflict and keeps orig
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "This car changed.",
   );
-  expect(screen.getByRole("textbox")).toHaveValue(draft);
+  expect(
+    screen.getByRole("textbox", { name: "Website description" }),
+  ).toHaveValue(draft);
   expect(
     screen.getByText("Original advert. Category S repaired after accident."),
   ).toBeInTheDocument();
@@ -139,5 +153,71 @@ it("prevents writes in read-only access and shows manual editing when AI is unav
   expect(
     await screen.findByRole("button", { name: "Generate AI description" }),
   ).toBeDisabled();
-  expect(screen.getByRole("textbox")).toBeEnabled();
+  expect(
+    screen.getByRole("textbox", { name: "Website description" }),
+  ).toBeEnabled();
+});
+
+it("keeps unsaved copy when saving separate-history options and a verified tax rate", async () => {
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Write description" }));
+  await screen.findByRole("textbox", { name: "Website description" });
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Website description" }),
+    { target: { value: draft } },
+  );
+  fireEvent.change(screen.getByLabelText("History disclosure layout"), {
+    target: { value: "separate" },
+  });
+  fireEvent.change(
+    screen.getByLabelText("Confirmed full annual vehicle tax (£) · optional"),
+    { target: { value: "195" } },
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Save description options" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Confirm the current full annual tax rate",
+  );
+  expect(
+    state.fetch.mock.calls.filter((call) => call[1]?.method === "PUT"),
+  ).toHaveLength(0);
+  fireEvent.click(
+    screen.getByRole("checkbox", {
+      name: "I checked today’s full annual rate for this car, including any applicable supplement.",
+    }),
+  );
+  state.fetch.mockResolvedValue({
+    ...initial,
+    version: "c".repeat(64),
+    context: {
+      placement: "separate",
+      tax: {
+        annualPence: 19500,
+        checkedAt: new Date().toISOString(),
+        sourceUrl: "https://www.gov.uk/vehicle-tax-rate-tables",
+      },
+    },
+    taxSummary:
+      "Vehicle tax: £195.00 a year, approximately £17.06 a month by Direct Debit including the 5% surcharge.",
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Save description options" }),
+  );
+  await screen.findByText(/Options saved/);
+  expect(
+    screen.getByRole("textbox", { name: "Website description" }),
+  ).toHaveValue(draft);
+  expect(
+    screen.getByRole("button", { name: "Publish description" }),
+  ).toBeDisabled();
+  expect(
+    screen.getByRole("complementary", { name: "Verified tax preview" }),
+  ).toHaveTextContent("£17.06");
+  const payload = JSON.parse(
+    state.fetch.mock.calls.find((call) => call[1]?.method === "PUT")![1].body,
+  );
+  expect(payload.action).toBe("save-context");
+  expect(payload.context.placement).toBe("separate");
+  expect(payload.context.annualTaxGbp).toBe(195);
 });

@@ -205,7 +205,8 @@ export default function CarDetail() {
   const canReserve = Boolean(dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) > 0 && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency.toUpperCase() === 'GBP'));
   const hasSecondaryActions = canReserve || dealerConfig.partExchange?.enabled || dealerConfig.presentation?.comparisonEnabled;
   const content = vehicleContent(car);
-  const description = content.description;
+  const separateDescriptionNotes = car.sourceExtras?.vehicleDescriptionPlacement === 'separate' && typeof car.sourceExtras?.vehicleDescriptionBody === 'string' && Array.isArray(car.sourceExtras?.vehicleDescriptionDisclosures) && car.sourceExtras.vehicleDescriptionDisclosures.length > 0;
+  const description = separateDescriptionNotes ? String(car.sourceExtras!.vehicleDescriptionBody) : content.description;
   const features = prioritiseVehicleFeatures(content.features);
   const share = async () => {
     try {
@@ -378,6 +379,8 @@ export default function CarDetail() {
               </h2>
               <div className="vehicle-description-copy mt-4 space-y-4 text-base leading-7 text-foreground">
                 {vehicleDescriptionParagraphs(description).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}
+                {separateDescriptionNotes && <aside className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-6" aria-label="Vehicle history and important information"><h3 className="mb-2 font-semibold text-foreground">Vehicle history & important information</h3>{(car.sourceExtras!.vehicleDescriptionDisclosures as unknown[]).filter((note): note is string => typeof note === 'string').map(note => <p key={note} className="whitespace-pre-line">{note}</p>)}</aside>}
+                {typeof car.sourceExtras?.vehicleDescriptionTax === 'string' && <aside className="rounded-lg border border-border p-4 text-sm leading-6" aria-label="Verified vehicle tax"><h3 className="mb-2 font-semibold">Vehicle tax</h3><p>{car.sourceExtras.vehicleDescriptionTax}</p><a href="https://www.gov.uk/vehicle-tax-direct-debit/setting-up" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">About DVLA Direct Debit payments</a></aside>}
                 {Array.isArray(car.sourceExtras?.originalAdvertDescriptions) && <details className="border-t border-border pt-4 text-sm"><summary className="min-h-11 cursor-pointer py-2 font-semibold">Original advert information</summary>{car.sourceExtras.originalAdvertDescriptions.filter((value): value is string => typeof value === 'string').map((value, index) => <p key={index} className="whitespace-pre-line py-2">{value}</p>)}</details>}
               </div>
 

@@ -330,3 +330,18 @@ describe('vehicle gallery contact policy', () => {
     expect(prompt().queryByRole('link', { name: 'Ask a question' })).not.toBeInTheDocument();
   });
 });
+
+it('keeps a separate write-off disclosure visible and shows a verified tax estimate beside the narrative', () => {
+  const car = stockFixture.cars[1];
+  const previous = { specifications: car.specifications, sourceExtras: car.sourceExtras };
+  const narrative = 'A five-door car with a manual gearbox and useful recorded equipment.';
+  const disclosure = 'Recorded as Category S. The original advert reports repairs.';
+  try {
+    Object.assign(car, { specifications: { description: `${narrative}\n\nImportant information\n${disclosure}` }, sourceExtras: { vehicleDescriptionPlacement: 'separate', vehicleDescriptionBody: narrative, vehicleDescriptionDisclosures: [disclosure], vehicleDescriptionTax: 'Vehicle tax: £195 a year, approximately £17.06 a month by Direct Debit including the 5% surcharge.' } });
+    renderVehicle('with-plate');
+    const notes = screen.getByRole('complementary', { name: 'Vehicle history and important information' });
+    expect(notes).toBeVisible(); expect(notes).toHaveTextContent(disclosure); expect(notes.closest('details')).toBeNull();
+    expect(screen.getByText(narrative, { exact: true })).toBeVisible();
+    expect(screen.getByRole('complementary', { name: 'Verified vehicle tax' })).toHaveTextContent('£17.06');
+  } finally { Object.assign(car, previous); }
+});

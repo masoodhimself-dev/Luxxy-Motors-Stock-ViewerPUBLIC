@@ -6,6 +6,7 @@ import { requireStaff, requirePermission } from "../middlewares/staff-auth";
 import { currentDealerId } from "../lib/tenant-context";
 import { enforceStaffWriteOrigin } from "../middlewares/staff-write-origin";
 import {
+  descriptionContextInput,
   descriptionAiEnabled,
   descriptionFactsHash,
   descriptionMetadata,
@@ -79,11 +80,9 @@ export function createVehicleDescriptionsRouter(
       return;
     }
     if (!descriptionAiEnabled(currentDealerId())) {
-      res
-        .status(403)
-        .json({
-          error: "AI vehicle descriptions are not enabled for this dealership.",
-        });
+      res.status(403).json({
+        error: "AI vehicle descriptions are not enabled for this dealership.",
+      });
       return;
     }
     const { requestId, expectedVersion } = parsed.data;
@@ -197,29 +196,32 @@ export function createVehicleDescriptionsRouter(
         return view(updated!);
       });
       if (!generated) {
-        res
-          .status(424)
-          .json({
-            error:
-              "AI could not prepare a description. Nothing was published. Your original advert is unchanged. Reload to review or write it yourself.",
-          });
+        res.status(424).json({
+          error:
+            "AI could not prepare a description. Nothing was published. Your original advert is unchanged. Reload to review or write it yourself.",
+        });
         return;
       }
       res.json(final);
     } catch (error) {
-      res
-        .status(error instanceof DescriptionError ? error.status : 503)
-        .json({
-          error:
-            error instanceof DescriptionError
-              ? error.message
-              : "Descriptions are temporarily unavailable. Nothing was published.",
-        });
+      res.status(error instanceof DescriptionError ? error.status : 503).json({
+        error:
+          error instanceof DescriptionError
+            ? error.message
+            : "Descriptions are temporarily unavailable. Nothing was published.",
+      });
     }
   });
   router.put("/staff/vehicle-descriptions/:id", async (req, res) => {
     const parsed = z
       .discriminatedUnion("action", [
+        z
+          .object({
+            action: z.literal("save-context"),
+            expectedVersion: version,
+            context: descriptionContextInput,
+          })
+          .strict(),
         z
           .object({
             action: z.literal("save-draft"),
@@ -244,12 +246,10 @@ export function createVehicleDescriptionsRouter(
       !parsed.success ||
       !z.string().uuid().safeParse(req.params.id).success
     ) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Check the description and confirm your review before publishing.",
-        });
+      res.status(400).json({
+        error:
+          "Check the description and confirm your review before publishing.",
+      });
       return;
     }
     try {
@@ -288,6 +288,21 @@ export function createVehicleDescriptionsRouter(
             ? (meta.originalWebsiteDescription ?? null)
             : car.websiteDescription,
         };
+        if (action === "save-context") {
+          const input = parsed.data.context;
+          next.context = {
+            placement: input.placement,
+            ...(input.annualTaxGbp !== null
+              ? {
+                  tax: {
+                    annualPence: Math.round(input.annualTaxGbp * 100),
+                    checkedAt: new Date().toISOString(),
+                    sourceUrl: input.sourceUrl,
+                  },
+                }
+              : {}),
+          };
+        }
         if (action === "save-draft")
           next.draft = {
             requestId: "staff-edited",
@@ -297,6 +312,8 @@ export function createVehicleDescriptionsRouter(
             factsHash: descriptionFactsHash(car),
           };
         if (action === "publish") {
+          next.publishedContext = meta.context ?? { placement: "inline" };
+          next.publishedBody = parsed.data.description;
           next.publishedOriginals = retainedOriginals(car);
           next.publishedAt = new Date().toISOString();
           next.publishedBy = req.staff!.authUserId;
@@ -306,6 +323,8 @@ export function createVehicleDescriptionsRouter(
           delete next.draft;
           delete next.publishedAt;
           delete next.publishedBy;
+          delete next.publishedContext;
+          delete next.publishedBody;
         }
         const [updated] = await tx
           .update(vehiclesTable)
@@ -330,14 +349,12 @@ export function createVehicleDescriptionsRouter(
       });
       res.json(result);
     } catch (error) {
-      res
-        .status(error instanceof DescriptionError ? error.status : 503)
-        .json({
-          error:
-            error instanceof DescriptionError
-              ? error.message
-              : "The description could not be saved. Reload and try again.",
-        });
+      res.status(error instanceof DescriptionError ? error.status : 503).json({
+        error:
+          error instanceof DescriptionError
+            ? error.message
+            : "The description could not be saved. Reload and try again.",
+      });
     }
   });
   return router;

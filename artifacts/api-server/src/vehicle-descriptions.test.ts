@@ -14,6 +14,9 @@ import { projectVehicles } from "./routes/stock";
 import { runWithTenant } from "./lib/tenant-context";
 import { createVehicleDescriptionsRouter } from "./routes/vehicle-descriptions";
 import {
+  verifiedTax,
+  taxDescription,
+  descriptionContextInput,
   validateDescriptionEquipment,
   descriptionFacts,
   descriptionFactsHash,
@@ -133,6 +136,89 @@ test("boot measurements remain explicit and distinguish seats up from folded sea
   );
   assert.match(descriptionRequest(car).instructions, /We’re pleased to offer/);
   assert.match(descriptionRequest(car).instructions, /seats to be folded/);
+});
+test("original advert is supplied as untrusted context and fuel-economy figures require exact evidence", () => {
+  const input = JSON.parse(descriptionRequest(sample).input);
+  assert.match(input.originalAdvert, /Category S repaired/);
+  assert.ok(input.features.includes("Bluetooth"));
+  assert.match(
+    descriptionRequest(sample).instructions,
+    /not verified inspection evidence/,
+  );
+  assert.throws(() =>
+    validateDescriptionEquipment("Recorded fuel economy is 65mpg.", sample),
+  );
+  const supplied = {
+    ...sample,
+    rawSourceData: {
+      sourceExtras: {
+        runningCosts: { items: [{ label: "Average", value: "34.2mpg" }] },
+      },
+    },
+  };
+  assert.doesNotThrow(() =>
+    validateDescriptionEquipment(
+      "Recorded fuel economy is 34.2mpg; actual consumption varies.",
+      supplied,
+    ),
+  );
+  assert.throws(() =>
+    validateDescriptionEquipment("Recorded fuel economy is 65mpg.", supplied),
+  );
+});
+test("verified tax uses the DD surcharge, expires, distinguishes zero tax and requires confirmation", () => {
+  const context = {
+    placement: "separate" as const,
+    tax: {
+      annualPence: 19500,
+      checkedAt: "2026-10-20T12:00:00Z",
+      sourceUrl: "https://www.gov.uk/vehicle-tax-rate-tables",
+    },
+  };
+  assert.equal(
+    verifiedTax(context, new Date("2026-10-20T12:00:00Z"))?.monthlyPence,
+    1706,
+  );
+  assert.equal(
+    verifiedTax(
+      { ...context, tax: { ...context.tax, annualPence: 0 } },
+      new Date("2026-10-20T12:00:00Z"),
+    )?.monthlyPence,
+    null,
+  );
+  assert.equal(verifiedTax(context, new Date("2026-11-21T12:00:00Z")), null);
+  assert.equal(
+    verifiedTax(
+      {
+        ...context,
+        tax: { ...context.tax, checkedAt: "2027-03-31T12:00:00Z" },
+      },
+      new Date("2027-04-01T12:00:00Z"),
+    ),
+    null,
+  );
+  assert.equal(verifiedTax(undefined), null);
+  assert.equal(taxDescription(undefined), null);
+  const input = {
+    placement: "separate",
+    annualTaxGbp: 195,
+    confirmedCurrentRate: false,
+    sourceUrl: context.tax.sourceUrl,
+  };
+  assert.equal(descriptionContextInput.safeParse(input).success, false);
+  assert.equal(
+    descriptionContextInput.safeParse({ ...input, confirmedCurrentRate: true })
+      .success,
+    true,
+  );
+  assert.equal(
+    descriptionContextInput.safeParse({
+      ...input,
+      confirmedCurrentRate: true,
+      sourceUrl: "https://www.gov.uk.evil.test",
+    }).success,
+    false,
+  );
 });
 test("provider bounds requests, disables tools/storage and rejects unsupported or incomplete output", async () => {
   const request = descriptionRequest(sample);
@@ -543,6 +629,105 @@ test("tenant-scoped generation, replay, stale facts, protected publishing, resto
       assert.equal(manualRecovery.status, 200);
       assert.equal(manualRecovery.data.current, "");
       assert.equal(manualRecovery.data.draft, copy);
+    },
+  );
+  await t.test(
+    "description options stay in draft and separate layout retains complete disclosure in API and brochures",
+    async () => {
+      current = (await invoke("GET")).data;
+      const context = {
+        placement: "separate",
+        annualTaxGbp: 195,
+        confirmedCurrentRate: true,
+        sourceUrl: "https://www.gov.uk/vehicle-tax-rate-tables",
+      };
+      assert.equal(
+        (
+          await invoke("PUT", "", {
+            action: "save-context",
+            expectedVersion: current.version,
+            context: { ...context, placement: "hidden" },
+          })
+        ).status,
+        400,
+      );
+      assert.equal(
+        (
+          await invoke("PUT", "", {
+            action: "save-context",
+            expectedVersion: current.version,
+            context: { ...context, confirmedCurrentRate: false },
+          })
+        ).status,
+        400,
+      );
+      const options = await invoke("PUT", "", {
+        action: "save-context",
+        expectedVersion: current.version,
+        context,
+      });
+      assert.equal(options.status, 200);
+      current = options.data;
+      assert.equal(current.current, "");
+      assert.match(current.taxSummary, /17.06/);
+      assert.equal(current.draftStale, true);
+      current = (
+        await invoke("PUT", "", {
+          action: "save-draft",
+          expectedVersion: current.version,
+          description: copy,
+        })
+      ).data;
+      const publish = await invoke("PUT", "", {
+        action: "publish",
+        expectedVersion: current.version,
+        description: copy,
+        reviewed: true,
+      });
+      assert.equal(publish.status, 200);
+      current = publish.data;
+      const [row] = await db
+        .select()
+        .from(vehiclesTable)
+        .where(eq(vehiclesTable.id, id));
+      const [projected] = await projectVehicles([row!]);
+      assert.equal(projected!.sourceExtras?.vehicleDescriptionBody, copy);
+      assert.equal(
+        projected!.sourceExtras?.vehicleDescriptionPlacement,
+        "separate",
+      );
+      assert.match(
+        String(projected!.sourceExtras?.vehicleDescriptionDisclosures),
+        /Category S/,
+      );
+      assert.match(String(projected!.sourceExtras?.description), /Category S/);
+      assert.match(
+        String(projected!.sourceExtras?.vehicleDescriptionTax),
+        /17.06/,
+      );
+      assert.match(
+        String(
+          (projected!.specifications as Record<string, unknown>).description,
+        ),
+        /Category S/,
+      );
+      current = (
+        await invoke("PUT", "", {
+          action: "save-context",
+          expectedVersion: current.version,
+          context: { ...context, annualTaxGbp: 200 },
+        })
+      ).data;
+      assert.match(current.taxSummary, /17.50/);
+      const [unchangedRow] = await db
+        .select()
+        .from(vehiclesTable)
+        .where(eq(vehiclesTable.id, id));
+      const [unchanged] = await projectVehicles([unchangedRow!]);
+      assert.match(
+        String(unchanged!.sourceExtras?.vehicleDescriptionTax),
+        /17.06/,
+      );
     },
   );
   await engine.close();

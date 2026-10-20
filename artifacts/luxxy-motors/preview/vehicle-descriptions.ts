@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { previewStock } from "./stock";
 import {
+  descriptionContextInput,
   descriptionView,
   descriptionVersion,
   descriptionFactsHash,
@@ -72,6 +73,7 @@ export async function vehicleDescriptionPreview(
         : `${source.year ?? ""} ${source.make ?? ""} ${source.model ?? ""} with ${source.mileage?.toLocaleString("en-GB") ?? "unconfirmed"} miles. ${source.fuel ?? ""} engine and ${source.transmission ?? ""} gearbox. Review the original advert and equipment before publishing.`;
     car.auditMetadata = {
       vehicleDescription: {
+        ...descriptionMetadata(car),
         firstOriginals: originalDescriptions(car),
         draft: {
           requestId: String(input.requestId),
@@ -90,13 +92,34 @@ export async function vehicleDescriptionPreview(
   }
   if (req.method === "PUT") {
     const meta = descriptionMetadata(car);
-    if (input.action === "publish") {
+    if (input.action === "save-context") {
+      const parsed = descriptionContextInput.safeParse(input.context);
+      if (!parsed.success)
+        return send(
+          { error: "Confirm the current full tax rate and source." },
+          400,
+        );
+      meta.context = {
+        placement: parsed.data.placement,
+        ...(parsed.data.annualTaxGbp !== null
+          ? {
+              tax: {
+                annualPence: Math.round(parsed.data.annualTaxGbp * 100),
+                checkedAt: new Date().toISOString(),
+                sourceUrl: parsed.data.sourceUrl,
+              },
+            }
+          : {}),
+      };
+    } else if (input.action === "publish") {
       if (input.reviewed !== true)
         return send({ error: "Review required." }, 400);
       car.websiteDescription = publishedDescription(
         String(input.description),
         car,
       );
+      meta.publishedContext = meta.context;
+      meta.publishedBody = String(input.description);
       delete meta.draft;
     } else if (input.action === "restore") {
       car.websiteDescription = null;

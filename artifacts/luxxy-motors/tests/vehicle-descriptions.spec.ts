@@ -30,6 +30,31 @@ for (const [device, width, height] of [
         .getByRole("button", { name: "Restore original advert" })
         .click();
     await editor
+      .getByText("Description options & verified tax", { exact: true })
+      .click();
+    await editor
+      .getByLabel("History disclosure layout")
+      .selectOption("separate");
+    await editor
+      .getByLabel("Confirmed full annual vehicle tax (£) · optional")
+      .fill("195");
+    await editor
+      .getByRole("checkbox", {
+        name: "I checked today’s full annual rate for this car, including any applicable supplement.",
+        exact: true,
+      })
+      .check();
+    await editor
+      .getByRole("button", { name: "Save description options", exact: true })
+      .click();
+    await expect(editor.getByRole("status")).toContainText("Options saved");
+    await expect(
+      editor.getByRole("complementary", { name: "Verified tax preview" }),
+    ).toContainText("£17.06");
+    await editor
+      .getByText("Description options & verified tax", { exact: true })
+      .click();
+    await editor
       .getByRole("button", {
         name: /Generate (?:another AI draft|AI description)/,
       })
@@ -55,7 +80,7 @@ for (const [device, width, height] of [
       .toBe(true);
     await editor.screenshot({
       path: path.resolve(
-        `../../output/vehicle-ai-descriptions-2026-10-20/${device}-editor.png`,
+        `../../output/vehicle-description-context-2026-10-20/${device}-editor.png`,
       ),
     });
     await field.fill(
@@ -67,7 +92,12 @@ for (const [device, width, height] of [
     await expect(editor.getByRole("status")).toContainText(
       "Draft saved. Your website has not changed.",
     );
-    await editor.getByRole("checkbox").check();
+    await editor
+      .getByRole("checkbox", {
+        name: "I’ve checked the facts, equipment and important information.",
+        exact: true,
+      })
+      .check();
     await editor.getByRole("button", { name: "Publish description" }).click();
     await expect(editor.getByRole("status")).toContainText(
       "Description published",

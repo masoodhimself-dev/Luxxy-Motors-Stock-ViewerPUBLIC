@@ -6,6 +6,11 @@ import { workspaceError } from "./enquiry-workspace-tools";
 import "./vehicle-description-editor.css";
 export type DescriptionView = {
   previewExample?: boolean;
+  context?: {
+    placement: "inline" | "separate";
+    tax?: { annualPence: number; checkedAt: string; sourceUrl: string };
+  };
+  taxSummary?: string | null;
   version: string;
   current: string;
   originals: string[];
@@ -40,9 +45,34 @@ export function VehicleDescriptionEditor({
     retry: false,
     queryFn: () => customFetch<DescriptionView>(path),
   });
-  const dirty = body !== saved;
+  const [placement, setPlacement] = useState<"inline" | "separate">("inline"),
+    [annualTax, setAnnualTax] = useState(""),
+    [taxConfirmed, setTaxConfirmed] = useState(false),
+    [taxSource, setTaxSource] = useState(
+      "https://www.gov.uk/vehicle-tax-rate-tables",
+    );
+  const contextDirty = Boolean(
+    data &&
+    (placement !== (data.context?.placement ?? "inline") ||
+      annualTax !==
+        (data.context?.tax ? String(data.context.tax.annualPence / 100) : "") ||
+      taxSource !==
+        (data.context?.tax?.sourceUrl ??
+          "https://www.gov.uk/vehicle-tax-rate-tables") ||
+      taxConfirmed),
+  );
+  const dirty = body !== saved || contextDirty;
   function accept(value: DescriptionView) {
     setData(value);
+    setPlacement(value.context?.placement ?? "inline");
+    setAnnualTax(
+      value.context?.tax ? String(value.context.tax.annualPence / 100) : "",
+    );
+    setTaxSource(
+      value.context?.tax?.sourceUrl ??
+        "https://www.gov.uk/vehicle-tax-rate-tables",
+    );
+    setTaxConfirmed(false);
     setBody(value.draft || value.current);
     setSaved(value.draft || value.current);
     setReviewed(false);
@@ -73,7 +103,7 @@ export function VehicleDescriptionEditor({
     }
   }
   async function act(
-    action: "generate" | "save-draft" | "publish" | "restore",
+    action: "generate" | "save-draft" | "publish" | "restore" | "save-context",
   ) {
     if (!data || busy) return;
     if (
@@ -87,6 +117,18 @@ export function VehicleDescriptionEditor({
       !window.confirm("Use the original imported advert on the website again?")
     )
       return;
+    if (
+      action === "save-context" &&
+      annualTax.trim() &&
+      (!taxConfirmed ||
+        !Number.isFinite(Number(annualTax)) ||
+        Number(annualTax) < 0)
+    ) {
+      setError(
+        "Confirm the current full annual tax rate, including any supplement.",
+      );
+      return;
+    }
     setBusy(true);
     setError("");
     setNotice("");
@@ -97,7 +139,18 @@ export function VehicleDescriptionEditor({
           : {
               action,
               expectedVersion: data.version,
-              ...(action !== "restore" ? { description: body } : {}),
+              ...(action === "save-context"
+                ? {
+                    context: {
+                      placement,
+                      annualTaxGbp: annualTax.trim() ? Number(annualTax) : null,
+                      confirmedCurrentRate: taxConfirmed,
+                      sourceUrl: taxSource,
+                    },
+                  }
+                : action !== "restore"
+                  ? { description: body }
+                  : {}),
               ...(action === "publish" ? { reviewed: true } : {}),
             };
       const result = await customFetch<DescriptionView>(
@@ -109,17 +162,25 @@ export function VehicleDescriptionEditor({
         },
       );
       client.setQueryData(["vehicle-description", vehicleId], result);
-      accept(result);
+      if (action === "save-context") {
+        const editing = body;
+        const previousSaved = saved;
+        accept(result);
+        setBody(editing);
+        setSaved(previousSaved);
+      } else accept(result);
       setNotice(
-        action === "publish"
-          ? "Description published to your website."
-          : action === "restore"
-            ? "Your website is using the original advert again."
-            : action === "generate"
-              ? result.generationStatus === "ready"
-                ? "Draft ready. Review and edit it before publishing."
-                : "No completed draft yet. Reload to check this request."
-              : "Draft saved. Your website has not changed.",
+        action === "save-context"
+          ? "Options saved. Generate a new draft, or review and save your existing text before publishing."
+          : action === "publish"
+            ? "Description published to your website."
+            : action === "restore"
+              ? "Your website is using the original advert again."
+              : action === "generate"
+                ? result.generationStatus === "ready"
+                  ? "Draft ready. Review and edit it before publishing."
+                  : "No completed draft yet. Reload to check this request."
+                : "Draft saved. Your website has not changed.",
       );
       if (action === "publish" || action === "restore")
         await client.invalidateQueries({
@@ -220,7 +281,7 @@ export function VehicleDescriptionEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy || !data.aiAvailable}
+                  disabled={busy || !data.aiAvailable || contextDirty}
                   onClick={() => void act("generate")}
                 >
                   {busy
@@ -247,6 +308,103 @@ export function VehicleDescriptionEditor({
                   check its result. A new request is allowed after two minutes.
                 </p>
               )}
+              <details className="vehicle-copy-options">
+                <summary>Description options & verified tax</summary>
+                <p>
+                  Original advert wording and equipment are used together.
+                  Driving and economy claims must have supporting facts.
+                  Inspection or safety certification is never inferred from Cat
+                  S or an MOT.
+                </p>
+                {data.context?.tax && !data.taxSummary && (
+                  <p role="alert">
+                    The tax verification needs refreshing. No tax figure will be
+                    shown until the current rate is checked again.
+                  </p>
+                )}
+                <label htmlFor={`${id}-placement`}>
+                  History disclosure layout
+                </label>
+                <select
+                  id={`${id}-placement`}
+                  value={placement}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setPlacement(event.target.value as "inline" | "separate");
+                    setReviewed(false);
+                  }}
+                  className="min-h-11 w-full rounded-md border border-border bg-background px-3"
+                >
+                  <option value="inline">
+                    Include important information in the description
+                  </option>
+                  <option value="separate">
+                    Separate, visible history section beneath the description
+                  </option>
+                </select>
+                <p className="text-sm">
+                  Write-off history remains visible and readable. It cannot be
+                  hidden or reduced to tiny print.
+                </p>
+                <label htmlFor={`${id}-tax`}>
+                  Confirmed full annual vehicle tax (£) · optional
+                </label>
+                <input
+                  id={`${id}-tax`}
+                  type="number"
+                  min="0"
+                  max="10000"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={annualTax}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setAnnualTax(event.target.value);
+                    setTaxConfirmed(false);
+                    setReviewed(false);
+                  }}
+                  className="min-h-11 w-full rounded-md border border-border bg-background px-3"
+                  placeholder="Leave blank if not confirmed"
+                />
+                <label htmlFor={`${id}-tax-source`}>GOV.UK source</label>
+                <input
+                  id={`${id}-tax-source`}
+                  type="url"
+                  value={taxSource}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setTaxSource(event.target.value);
+                    setTaxConfirmed(false);
+                  }}
+                  className="min-h-11 w-full rounded-md border border-border bg-background px-3"
+                />
+                <label className="vehicle-copy-review">
+                  <input
+                    type="checkbox"
+                    checked={taxConfirmed}
+                    disabled={busy || !annualTax.trim()}
+                    onChange={(event) => setTaxConfirmed(event.target.checked)}
+                  />
+                  <span>
+                    I checked today’s full annual rate for this car, including
+                    any applicable supplement.
+                  </span>
+                </label>
+                <p className="text-sm">
+                  The monthly estimate includes the current 5% Direct Debit
+                  surcharge. Figures expire after 30 days or at the tax-year
+                  boundary. DVLA confirms the instalments. Options are published
+                  only when you publish the description.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || !contextDirty}
+                  onClick={() => void act("save-context")}
+                >
+                  Save description options
+                </Button>
+              </details>
               <label htmlFor={`${id}-text`}>Website description</label>
               <textarea
                 id={`${id}-text`}
@@ -280,6 +438,12 @@ export function VehicleDescriptionEditor({
               <details className="vehicle-copy-preview">
                 <summary>Preview the published description</summary>
                 <div>{body || "Your description will appear here."}</div>
+                {data.context?.placement === "separate" &&
+                  data.disclosures.length > 0 && (
+                    <h4 className="mt-4 font-semibold">
+                      Vehicle history & important information
+                    </h4>
+                  )}
                 {data.disclosures
                   .filter(
                     (note) => !body.toLowerCase().includes(note.toLowerCase()),
@@ -288,6 +452,15 @@ export function VehicleDescriptionEditor({
                     <p key={note}>{note}</p>
                   ))}
               </details>
+              {data.taxSummary && (
+                <aside
+                  className="vehicle-copy-disclosures"
+                  aria-label="Verified tax preview"
+                >
+                  <strong>Verified vehicle tax</strong>
+                  <p>{data.taxSummary}</p>
+                </aside>
+              )}
               <label className="vehicle-copy-review">
                 <input
                   type="checkbox"
@@ -306,6 +479,7 @@ export function VehicleDescriptionEditor({
                     busy ||
                     !reviewed ||
                     body.trim().length < 20 ||
+                    contextDirty ||
                     data.draftStale
                   }
                   onClick={() => void act("publish")}
@@ -315,7 +489,7 @@ export function VehicleDescriptionEditor({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy || body.trim().length < 20}
+                  disabled={busy || contextDirty || body.trim().length < 20}
                   onClick={() => void act("save-draft")}
                 >
                   Save draft
