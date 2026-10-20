@@ -1,3 +1,4 @@
+import { bodyTypeKey, stockBodyTypes } from '@/lib/body-types';
 import { VehicleFactIcon } from "@/components/vehicle-fact-icon";
 import { CompareSelectionLink } from '@/components/saved-car-controls';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -50,6 +51,7 @@ const defaultFilters: FilterState = {
   maxPrice: '',
   fuel: '',
   transmission: '',
+  bodyType: '',
   search: '',
   catS: false,
   catN: false,
@@ -119,13 +121,14 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     return saved &&
       Object.keys(defaultFilters).every(
         (key) =>
-          (saved[key as keyof FilterState] === undefined && benefitChoices.some(choice => choice.key === key)) ||
+          (saved[key as keyof FilterState] === undefined && (key === 'bodyType' || benefitChoices.some(choice => choice.key === key))) ||
           typeof saved[key as keyof FilterState] === typeof defaultFilters[key as keyof FilterState],
       )
       ? { ...defaultFilters, ...saved }
       : defaultFilters;
   });
 
+  const bodyTypes = useMemo(() => stockBodyTypes(publicCars), [publicCars]);
   const benefitsByCar = useMemo(() => new Map(publicCars.map(car => [car.id, vehicleBenefits(car)])), [publicCars]);
 
   useEffect(() => {
@@ -172,6 +175,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
     if (filters.make) result = result.filter((c) => c.make === filters.make);
     if (filters.model) result = result.filter((c) => c.model === filters.model);
     if (filters.fuel) result = result.filter((c) => c.fuel === filters.fuel);
+    if (filters.bodyType) result = result.filter(car => bodyTypeKey(car.bodyType) === bodyTypeKey(filters.bodyType));
     if (filters.transmission)
       result = result.filter((c) => c.transmission === filters.transmission);
 
@@ -397,21 +401,37 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         </div>
       </section>}
 
-      {!browseStock && !isLoading && !error && publicCars.length > 0 && <nav className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Shop by preference">
-        <div className="home-shortcut-intro"><span>Find your kind of car</span><p>A few good places to start.</p></div>
-        <div className="home-shortcut-grid">
-          {[
-            { label: 'Automatic', icon: 'Transmission', href: '/stock?transmission=Automatic', count: publicCars.filter(car => /automatic/i.test(car.transmission || '')).length },
-            { label: 'Under £10k', icon: 'Price', href: '/stock?maxPrice=10000', count: publicCars.filter(car => car.price != null && car.price <= 10000).length },
-            { label: 'ULEZ compliant', icon: 'Emissions', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
-            { label: 'Up to 30k miles', icon: 'Mileage', href: '/stock?lowMileage=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.lowMileage).length },
-          ].filter(choice => choice.count > 0).map(choice => <Link key={choice.href} href={choice.href} className="home-shortcut-card">
-            <VehicleFactIcon label={choice.icon} value={choice.label} className="home-shortcut-icon" />
-            <span className="home-shortcut-copy"><strong>{choice.label}</strong><small>{choice.count} {choice.count === 1 ? 'car' : 'cars'}</small></span>
-            <ArrowRight size={17} className="home-shortcut-arrow" aria-hidden="true" />
-          </Link>)}
+      {!browseStock && !isLoading && !error && publicCars.length > 0 && <section className="home-shopping-shortcuts container mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="home-browse-heading">
+        <div className="home-browse-heading">
+          <h2 id="home-browse-heading">Browse cars</h2>
+          <Link href="/stock?all=1" className="text-link">View all stock <ArrowRight size={16} aria-hidden="true" /></Link>
         </div>
-      </nav>}
+        <nav className="home-browse-group" aria-label="Shop by preference">
+          <h3>Quick filters</h3>
+          <div className="home-browse-buttons">
+            {[
+              { label: 'Automatic', href: '/stock?transmission=Automatic', count: publicCars.filter(car => /automatic/i.test(car.transmission || '')).length },
+              { label: 'Under £10k', href: '/stock?maxPrice=10000', count: publicCars.filter(car => car.price != null && car.price <= 10000).length },
+              { label: 'ULEZ compliant', href: '/stock?ulez=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.ulez).length },
+              { label: 'Up to 30k miles', href: '/stock?lowMileage=true', count: publicCars.filter(car => benefitsByCar.get(car.id)?.lowMileage).length },
+            ].filter(choice => choice.count > 0).map(choice => <Button asChild variant="outline" size="sm" key={choice.href} className="home-browse-button">
+              <Link href={choice.href} aria-label={`${choice.label} · ${choice.count} ${choice.count === 1 ? 'car' : 'cars'}`}>
+                <span>{choice.label}</span><span className="home-browse-count" aria-hidden="true">{choice.count}</span>
+              </Link>
+            </Button>)}
+          </div>
+        </nav>
+        {bodyTypes.length > 0 && <nav className="home-browse-group" aria-label="Browse by body type">
+          <h3>Body type</h3>
+          <div className="home-browse-buttons">
+            {bodyTypes.map(type => <Button asChild variant="outline" size="sm" key={type.label} className="home-browse-button">
+              <Link href={'/stock?bodyType=' + encodeURIComponent(type.label)} aria-label={`${type.label} · ${type.count} ${type.count === 1 ? 'car' : 'cars'}`}>
+                <span>{type.label}</span><span className="home-browse-count" aria-hidden="true">{type.count}</span>
+              </Link>
+            </Button>)}
+          </div>
+        </nav>}
+      </section>}
 
 
       {!browseStock && isLoading && <section className="home-stock-loading container mx-auto px-4 sm:px-6 lg:px-8" aria-label="Loading featured cars" aria-busy="true"><p role="status">Loading cars…</p><div className="home-stock-skeletons" aria-hidden="true">{[1, 2, 3, 4].map(n => <div key={n} className="animate-pulse bg-muted" />)}</div></section>}
@@ -494,6 +514,7 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
                   filters.minPrice || filters.maxPrice,
                   filters.fuel,
                   filters.transmission,
+                  filters.bodyType,
                   filters.search,
                   filters.noWriteOff,
                   filters.catS,

@@ -820,3 +820,39 @@ it('shows a supplied structured insurance category in stock without inferring it
   fireEvent.click(screen.getByRole('checkbox', { name: 'Category S' }));
   expect(resultTitles()).toEqual(['BMW 1 Series']);
 });
+
+describe('homepage browse buttons and body types', () => {
+  it('uses the standard buttons, removes the tagline and counts only public body types', () => {
+    stockFixture.cars = [
+      {...originalCars[0],bodyType:'SUV'}, {...originalCars[1],bodyType:' suv '},
+      {...originalCars[2],bodyType:'Hatchback'}, {...originalCars[3],bodyType:'Estate',inventoryStatus:'hidden'},
+    ];
+    renderHome(false);
+    const section = screen.getByRole('region',{name:'Browse cars'});
+    expect(within(section).queryByText('A few good places to start.')).not.toBeInTheDocument();
+    expect(within(section).getByRole('link',{name:'Automatic · 1 car'})).toHaveClass('db-btn');
+    const types = within(section).getByRole('navigation',{name:'Browse by body type'});
+    expect(within(types).getByRole('link',{name:'SUV · 2 cars'})).toHaveAttribute('href','/stock?bodyType=SUV');
+    expect(within(types).getByRole('link',{name:'Hatchback · 1 car'})).toHaveAttribute('href','/stock?bodyType=Hatchback');
+    expect(within(types).queryByRole('link',{name:/Estate/})).not.toBeInTheDocument();
+  });
+  it('applies a linked body type with budget, then allows changing and clearing it in stock filters', () => {
+    stockFixture.cars = originalCars.map((car,index)=>({...car,bodyType:index<2?'SUV':'Hatchback'}));
+    window.history.replaceState({},'', '/stock?bodyType=SUV&maxPrice=8000');
+    renderHome();
+    expect(resultTitles()).toEqual(['BMW 1 Series']);
+    expect(screen.getByRole('button',{name:'Remove SUV filter'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Advanced search'}));
+    expect(screen.getByLabelText('Body type')).toHaveValue('SUV');
+    fireEvent.change(screen.getByLabelText('Body type'),{target:{value:'Hatchback'}});
+    expect(resultTitles()).toEqual(['Ford Fiesta','Audi A3','VW Golf']);
+    expect(new URLSearchParams(window.location.search).get('bodyType')).toBe('Hatchback');
+    fireEvent.click(screen.getByRole('button',{name:'Reset filters'}));
+    expect(resultTitles()).toHaveLength(5);expect(window.location.search).toBe('');
+  });
+  it('does not show a body-type row when no body types are supplied', () => {
+    stockFixture.cars = originalCars.map(car=>({...car,bodyType:null}));
+    renderHome(false);
+    expect(screen.queryByRole('navigation',{name:'Browse by body type'})).not.toBeInTheDocument();
+  });
+});

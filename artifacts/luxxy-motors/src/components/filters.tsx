@@ -1,3 +1,4 @@
+import { stockBodyTypes } from '@/lib/body-types';
 import { parseStockSearch } from '@/lib/natural-stock-search';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { arrivalTime } from '@/lib/stock-presentation';
@@ -19,6 +20,7 @@ export interface FilterState {
   maxPrice: string;
   fuel: string;
   transmission: string;
+  bodyType?: string;
   search: string;
   catS: boolean;
   catN: boolean;
@@ -48,6 +50,7 @@ const emptyFilters: FilterState = {
   maxPrice: '',
   fuel: '',
   transmission: '',
+  bodyType: '',
   search: '',
   catS: false,
   catN: false,
@@ -143,6 +146,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     ...(filters.minPrice ? [{ key: 'minPrice' as const, label: `From £${Number(filters.minPrice).toLocaleString('en-GB')}` }] : []),
     ...(filters.maxPrice ? [{ key: 'maxPrice' as const, label: `Up to £${Number(filters.maxPrice).toLocaleString('en-GB')}` }] : []),
     ...(filters.fuel ? [{ key: 'fuel' as const, label: filters.fuel }] : []),
+    ...(filters.bodyType ? [{ key: 'bodyType' as const, label: filters.bodyType }] : []),
     ...(filters.transmission ? [{ key: 'transmission' as const, label: filters.transmission }] : []),
     ...(['catS', 'catN', 'noWriteOff'] as const).filter((key) => filters[key]).map((key) => ({ key, label: key === 'catS' ? 'Category S' : key === 'catN' ? 'Category N' : 'No recorded write-off' })),
     ...([
@@ -187,6 +191,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     return Array.from(transmissionSet).sort();
   }, [cars]);
 
+  const bodyTypes = useMemo(() => stockBodyTypes(cars), [cars]);
   const activeFilterCount =
     Number(Boolean(filters.search)) +
     Number(Boolean(filters.make)) +
@@ -194,6 +199,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     Number(Boolean(filters.minPrice || filters.maxPrice)) +
     Number(Boolean(filters.fuel)) +
     Number(Boolean(filters.transmission)) +
+    Number(Boolean(filters.bodyType)) +
     Number(filters.noWriteOff) +
     Number(filters.catS) +
     Number(filters.catN) +
@@ -356,6 +362,13 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
               </Select>
             </Field>
             </fieldset>
+            <Field label="Body type">
+              <Select ariaLabel="Body type" value={filters.bodyType ?? ''} onChange={bodyType => setFilters(current => ({ ...current, bodyType }))}>
+                <option value="">Any body type</option>
+                {filters.bodyType && !bodyTypes.some(type => type.label === filters.bodyType) && <option value={filters.bodyType}>{filters.bodyType}</option>}
+                {bodyTypes.map(type => <option key={type.label} value={type.label}>{type.label}</option>)}
+              </Select>
+            </Field>
             <Field label="Fuel">
               <Select
                 value={filters.fuel}

@@ -294,32 +294,26 @@
   .home-stock-skeletons { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 }
 
-/* Compact shopping paths: useful counts, clear destinations, no oversized pills. */
-.homepage-art-directed.homepage-premium .home-shopping-shortcuts { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(0, 3fr); align-items: center; gap: 20px; padding-block: 18px; overflow: visible; }
-.home-shopping-shortcuts .home-shortcut-intro > span { display: block; font-size: 18px; font-weight: 600; letter-spacing: -.025em; color: var(--dealer-heading); }
-.home-shopping-shortcuts .home-shortcut-intro p { margin-top: 5px; font-size: 13px; color: var(--home-surface-muted); }
-.home-shortcut-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); gap: 10px; }
-.homepage-art-directed.homepage-premium .home-shopping-shortcuts .home-shortcut-card { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 66px; padding: 10px 12px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: var(--premium-panel, #fff); color: var(--dealer-heading); text-decoration: none; transition: background-color .15s, border-color .15s; }
-.homepage-art-directed.homepage-premium .home-shopping-shortcuts .home-shortcut-card:hover { border-color: var(--dealer-link); background: hsl(var(--secondary)); }
-.home-shortcut-card:focus-visible { outline: 2px solid var(--dealer-link); outline-offset: 3px; }
-.home-shortcut-icon { width: 23px; height: 23px; flex-shrink: 0; color: var(--dealer-link); }
-.home-shortcut-copy { display: grid; gap: 2px; min-width: 0; }
-.home-shortcut-copy strong { font-size: 13px; font-weight: 600; line-height: 1.35; }
-.home-shortcut-copy small { font-size: 12px; color: var(--home-surface-muted); line-height: 1.3; }
-.home-shortcut-arrow { margin-left: auto; flex-shrink: 0; color: var(--home-surface-muted); }
+/* Stock shortcuts share the site's existing button component and colours. */
+.homepage-art-directed.homepage-premium .home-shopping-shortcuts { display: grid; gap: 14px; padding-block: 24px; overflow: visible; }
+.home-browse-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.homepage-art-directed .home-shopping-shortcuts .home-browse-heading h2 { margin: 0; font-size: 20px; line-height: 1.3; font-weight: 600; color: var(--dealer-heading); }
+.home-browse-heading .text-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; }
+.home-browse-group { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: 12px; }
+.home-browse-group h3 { margin: 0; font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--home-surface-muted); }
+.home-browse-buttons { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.home-browse-button { gap: 10px; font-weight: 500; }
+.home-browse-count { font-size: 12px; color: var(--home-surface-muted); font-variant-numeric: tabular-nums; }
 .homepage-art-directed.homepage-premium .home-shopping-shortcuts + .rolling-stock { padding-top: 0; }
 .homepage-art-directed.homepage-premium .home-shopping-shortcuts + .rolling-stock .rolling-stock-footer { padding-top: 2px; padding-bottom: 10px; }
-@media (max-width: 1099px) {
- .homepage-art-directed.homepage-premium .home-shopping-shortcuts { grid-template-columns: minmax(0,1fr); gap: 10px; }
- .home-shopping-shortcuts .home-shortcut-intro { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
- .home-shopping-shortcuts .home-shortcut-intro p { margin-top: 0; }
-}
 @media (max-width: 639px) {
- .homepage-art-directed.homepage-premium .home-shopping-shortcuts { padding-block: 12px; gap: 8px; }
- .home-shortcut-grid { grid-auto-flow: row; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
- .home-shortcut-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
- .home-shopping-shortcuts .home-shortcut-intro p { display: none; }
- .homepage-art-directed.homepage-premium .home-shopping-shortcuts .home-shortcut-card { min-height: 56px; padding: 8px 10px; gap: 8px; }
- .home-shortcut-icon { width: 20px; height: 20px; }
- .home-shortcut-arrow { width: 14px; }
+ .homepage-art-directed.homepage-premium .home-shopping-shortcuts { gap: 16px; padding-block: 16px; }
+ .home-browse-group { grid-template-columns: minmax(0,1fr); gap: 6px; }
+ .home-browse-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .home-browse-button { justify-content: space-between; min-width: 0; }
+ .home-browse-heading .text-link { font-size: 12px; }
+}
+@media (min-width: 1100px) {
+ .homepage-art-directed.homepage-premium .home-shopping-shortcuts { grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 32px; }
+ .home-browse-heading { grid-column: 1 / -1; }
 }
