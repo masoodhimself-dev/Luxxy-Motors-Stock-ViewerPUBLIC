@@ -43,7 +43,6 @@ export type SaleDraft = {
   registration: string;
   vin?: string;
   roadTaxGuide?: boolean;
-  roadTaxGuideRoute?: 'green-slip' | 'no-logbook';
   price: string;
   partExchange: boolean;
   pxRegistration: string;

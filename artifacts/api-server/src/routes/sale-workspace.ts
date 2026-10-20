@@ -1,5 +1,5 @@
 import { requireDealerFeature } from '../middlewares/dealer-features';
-import { emailRoadTaxGuide } from '../lib/road-tax-guide-email';
+import { invoiceEmailAttachments } from '../lib/invoice-email-attachments';
 import { currentDealerId } from "../lib/tenant-context";
 import { dealerIntegrationsStore } from '../lib/dealer-integrations-store';
 import { createHash, randomBytes } from 'node:crypto';
@@ -77,16 +77,6 @@ router.post('/sale-workspace/:id/customer-links', requirePermission('sales.manag
   } catch (error) { failure(req, res, error); }
 });
 router.post('/sale-workspace/:id/customer-links/revoke', requirePermission('sales.manage'), async (req, res) => { await mutate(req, res, { action: 'customer-revoke' }); });
-router.post('/sale-workspace/:id/road-tax-guide/email', requirePermission('sales.manage'), requireDealerFeature('customerEmails'), async (req, res) => {
-  try {
-    if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
-    const service = store();
-    const result = await emailRoadTaxGuide({ saleId: req.params.id, expectedRevision: req.body?.expectedRevision, requestId: req.body?.requestId, reference: req.body?.reference, route: req.body?.route, confirmedRecipient: req.body?.confirmedRecipient, actor: staffLabel(req), dealerId: dealerId() }, {
-      service, send: sendTemplatedEmail, branding: async sale => (await readSaleWorkspaceAssets(sale.draft, dealerId(), pool)).branding,
-    });
-    res.json({ ...result, preview: false });
-  } catch (error) { failure(req, res, error); }
-});
 router.post('/sale-workspace/:id/customer-links/email', requirePermission('sales.manage'), async (req, res) => {
   try {
     if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
@@ -118,7 +108,7 @@ router.get('/sale-workspace/:id/documents/:documentId/pdf', async (req, res) => 
     res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `attachment; filename="${document.number.replace(/[^A-Za-z0-9_-]/g, '')}.pdf"`); res.setHeader('ETag', '"' + archive.sha256 + '"'); res.end(Buffer.from(archive.content, 'base64'));
   } catch (error) { failure(req, res, error); }
 });
-router.post('/sale-workspace/:id/documents/:documentId/email', requirePermission('payments.record'), async (req, res) => {
+router.post('/sale-workspace/:id/documents/:documentId/email', requirePermission('payments.record'), requireDealerFeature('customerEmails'), async (req, res) => {
   try {
     if (!uuid(req.params.id)) throw new SaleWorkspaceError('Sale not found.', 404);
     const requestId = req.body?.requestId;
@@ -133,16 +123,19 @@ router.post('/sale-workspace/:id/documents/:documentId/email', requirePermission
     if (delivery?.documentId && delivery.documentId !== document.id) throw new SaleWorkspaceError('This request was used for another document.', 409);
     if (delivery?.status === 'sent' || delivery?.status === 'failed' || delivery?.status === 'prepared') { res.json({ sale: current, preview: false, replayed: true }); return; }
     delivery ??= { id: requestId, documentId: document.id, to, status: 'sending', attemptedAt: new Date().toISOString() };
+    const { archive } = await service.pdf(current.id, document.id);
+    const attachments = invoiceEmailAttachments(document, archive.content, { reference: req.body?.taxGuide?.reference,
+      fileId: createHash('sha256').update(document.id + ':' + requestId).digest('hex').slice(0, 32), createdAt: delivery.attemptedAt });
+    const includesTaxGuide = attachments.length > 1;
     const started = await service.mutate({ id: current.id, expectedRevision: req.body?.expectedRevision, requestId: 'email-start-' + requestId, actor: staffLabel(req), command: { action: 'email-status', delivery } });
     current = started.sale;
     try {
-      const { archive } = await service.pdf(current.id, document.id);
       const providerId = await sendTemplatedEmail({ templateId: document.type === 'invoice' ? 'invoice' : document.type === 'statement' ? 'balance_statement' : document.type === 'receipt' ? 'payment_receipt' : 'document_email', to,
         variables: { customer_name: document.snapshot.draft.customer, customer_email: to, dealer_name: document.snapshot.branding.identity.name, dealer_email: document.snapshot.branding.contact.email, dealer_phone: document.snapshot.branding.contact.phone, reference: current.reference, vehicle_title: document.snapshot.draft.vehicle, vehicle_registration: document.snapshot.draft.registration, document_title: document.title, document_type: document.title, document_number: document.number, issued_at: document.issuedAt, amount: emailMoney(document.paymentAmountPence ?? document.snapshot.totals.totalDue), amount_received: emailMoney(document.snapshot.totals.confirmedPaid), balance: emailMoney(document.balanceAtIssue) },
-        facts: [{ label: 'Document', value: `${document.title} ${document.number}` }, { label: 'Vehicle', value: document.snapshot.draft.vehicle }, ...(document.snapshot.draft.registration ? [{ label: 'Registration', value: document.snapshot.draft.registration }] : []), { label: 'Issued', value: new Date(document.issuedAt).toLocaleString('en-GB', { timeZone: 'Europe/London' }) }, ...(document.paymentAmountPence != null ? [{ label: 'Receipt amount', value: emailMoney(document.paymentAmountPence) }] : []), { label: 'Payments recorded at issue', value: emailMoney(document.snapshot.totals.confirmedPaid) }, { label: 'Balance at issue', value: emailMoney(document.balanceAtIssue) }],
-        idempotencyKey: 'sale-document-' + document.id + '-' + requestId, attachments: [{ filename: document.number + '.pdf', content: archive.content }] });
+        facts: [{ label: 'Document', value: `${document.title} ${document.number}` }, { label: 'Vehicle', value: document.snapshot.draft.vehicle }, ...(document.snapshot.draft.registration ? [{ label: 'Registration', value: document.snapshot.draft.registration }] : []), { label: 'Issued', value: new Date(document.issuedAt).toLocaleString('en-GB', { timeZone: 'Europe/London' }) }, ...(document.paymentAmountPence != null ? [{ label: 'Receipt amount', value: emailMoney(document.paymentAmountPence) }] : []), { label: 'Payments recorded at issue', value: emailMoney(document.snapshot.totals.confirmedPaid) }, { label: 'Balance at issue', value: emailMoney(document.balanceAtIssue) }, ...(includesTaxGuide ? [{ label: 'Attachments', value: 'Invoice and Road Tax guide' }] : [])],
+        idempotencyKey: 'sale-document-' + document.id + '-' + requestId, attachments });
       delivery = { ...delivery, status: 'sent', sentAt: new Date().toISOString(), providerId };
-    } catch (error) { delivery = { ...delivery, status: error instanceof Error && /disabled|Configure RESEND|private Resend/.test(error.message) ? 'prepared' : 'failed', error: error instanceof Error ? error.message.slice(0, 300) : 'Email delivery failed.' }; }
+    } catch (error) { delivery = { ...delivery, status: error instanceof Error && /disabled|Configure RESEND|private Resend/.test(error.message) ? 'prepared' : 'failed', error: includesTaxGuide ? 'The invoice email was not confirmed. Check delivery before trying again.' : error instanceof Error ? error.message.slice(0, 300) : 'Email delivery failed.' }; }
     const finished = await service.finishEmail(current.id, 'email-finish-' + requestId, { action: 'email-status', delivery }, staffLabel(req));
     res.json({ ...finished, preview: false });
   } catch (error) { failure(req, res, error); }

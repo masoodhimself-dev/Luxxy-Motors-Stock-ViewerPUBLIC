@@ -95,6 +95,7 @@ export function SalesWorkspace({
   });
   const [record, setRecord] = useState<SaleWorkspaceRecord | null>(null);
   const [draft, setDraft] = useState<SaleDraft | null>(null);
+  const [taxReference, setTaxReference] = useState("");
   const [kind, setKind] = useState<"deposit" | "full">("full");
   const [step, setStep] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
@@ -196,6 +197,7 @@ export function SalesWorkspace({
   function open(saved?: SaleWorkspaceRecord, initial?: SaleDraft) {
     if (lock.current) return;
     if (dirty && !window.confirm("Leave your unsaved invoice details?")) return;
+    setTaxReference("");
     setRecord(saved ?? null);
     setDraft(initial ?? (saved ? structuredClone(saved.draft) : emptyDraft()));
     setStep(0);
@@ -482,13 +484,15 @@ export function SalesWorkspace({
   }
   function email(doc: SaleWorkspaceDocument) {
     run(async () => {
-      const result = await command(`/documents/${doc.id}/email`, {});
+      const withTaxGuide = doc.type === 'invoice' && doc.invoiceKind === 'full' && doc.snapshot.draft.roadTaxGuide === true;
+      const result = await command(`/documents/${doc.id}/email`, withTaxGuide ? { taxGuide: { reference: taxReference } } : {});
       const delivery = result.sale.emailDeliveries
         ?.filter((d) => d.documentId === doc.id)
         .at(-1);
+      if (delivery?.status === 'sent') setTaxReference('');
       setMessage(
         delivery?.status === "sent"
-          ? "Invoice emailed to the customer."
+          ? withTaxGuide ? "Invoice and Road Tax guide accepted for delivery to the customer." : "Invoice emailed to the customer."
           : delivery?.status === "prepared"
             ? "Email prepared. Enable Resend in settings to send it."
             : delivery?.error || "Email status updated.",
@@ -809,6 +813,9 @@ export function SalesWorkspace({
                       </small>
                     </div>
                   </div>
+                  {issued.type === 'invoice' && issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide && <RoadTaxGuide
+                    enabled reference={taxReference} onReferenceChange={setTaxReference} disabled={busy}
+                    invoiceReady customerEmail={issued.snapshot.draft.email} />}
                   <div className="invoice-document-actions">
                     <Button
                       disabled={busy}
@@ -825,10 +832,10 @@ export function SalesWorkspace({
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={busy || !draft.email}
+                      disabled={busy || !issued.snapshot.draft.email || (issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide === true && !/^\d{12}$/.test(taxReference))}
                       onClick={() => email(issued)}
                     >
-                      <Mail size={17} /> Email customer
+                      <Mail size={17} /> {issued.invoiceKind === 'full' && issued.snapshot.draft.roadTaxGuide ? 'Email invoice & tax guide' : 'Email customer'}
                     </Button>
                   </div>
                   {issued.invoiceKind === "full" &&
@@ -937,6 +944,7 @@ export function SalesWorkspace({
                             const car = stock?.cars.find(
                               (c) => c.id === event.target.value,
                             );
+                            setTaxReference('');
                             if (car)
                               setDraft({
                                 ...draft,
@@ -1533,26 +1541,15 @@ export function SalesWorkspace({
                       </dl>
                       {kind === 'full' && <section className="invoice-final-paperwork" aria-label="Vehicle paperwork">
                         <h2>Vehicle paperwork</h2>
-                        <p className="invoice-note">Confirm the VIN and prepare the customer’s tax guide before creating the full invoice.</p>
+                        <p className="invoice-note">Confirm the VIN and choose whether to include a tax guide when emailing the full invoice.</p>
                         <label>VIN / chassis number
                           <Input value={draft.vin ?? ""} maxLength={17} autoComplete="off" spellCheck={false}
                             disabled={Boolean(record?.completedAt)} placeholder="17-character VIN"
                             onChange={event => update("vin", event.target.value.toUpperCase().replace(/\s/g, ""))} />
                           <small>Copy from the vehicle or log book. Leave blank if not available yet.</small>
                         </label>
-                      <RoadTaxGuide key={draft.vehicleId} registration={draft.registration} vin={draft.vin ?? ""}
-                        vehicle={draft.vehicle} enabled={draft.roadTaxGuide === true} disabled={Boolean(record?.completedAt)}
-                        onBusyChange={setBusy} dealerName={settings.identity.name} customerName={draft.customer} customerEmail={draft.email}
-                        route={draft.roadTaxGuideRoute ?? 'green-slip'} onRouteChange={route => update('roadTaxGuideRoute', route)}
-                        onEmail={async (reference, route, requestId) => {
-                          const saved = await saveInternal();
-                          const result = await customFetch<SaleWorkspaceMutation>(`/api/sale-workspace/${saved.id}/road-tax-guide/email`, {
-                            method: 'POST', body: JSON.stringify({ expectedRevision: saved.revision, requestId, reference, route, confirmedRecipient: saved.draft.email }),
-                          });
-                          accept(result);
-                          const delivery = result.sale.roadTaxGuideEmails?.find(item => item.id === requestId);
-                          if (delivery?.status !== 'sent') throw new Error(delivery?.error ?? 'Email was not sent.');
-                        }}
+                      <RoadTaxGuide enabled={draft.roadTaxGuide === true} disabled={Boolean(record?.completedAt)}
+                        reference={taxReference} onReferenceChange={setTaxReference}
                         onChange={enabled => update("roadTaxGuide", enabled)} />
                       </section>}
                       <label className="invoice-check">

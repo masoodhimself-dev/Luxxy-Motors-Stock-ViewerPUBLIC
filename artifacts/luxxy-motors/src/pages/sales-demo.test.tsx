@@ -106,6 +106,11 @@ beforeEach(() => {
           return result;
         }
         const current = state.sales[0];
+        if (url.endsWith('/email')) {
+          const documentId = url.split('/documents/')[1].split('/')[0];
+          const result = changeSaleWorkspace(current, {action:'email-status',delivery:{id:payload.requestId,documentId,to:current.draft.email,status:'sent',attemptedAt:context().now}}, payload,context());
+          state.sales[0]=result.sale;return result;
+        }
         const action =
           options.method === "PUT"
             ? { action: "update", draft: payload.draft }
@@ -776,10 +781,32 @@ it('asks for VIN and tax guide only at the full invoice review, without saving t
   fireEvent.click(screen.getByRole('button',{name:/^Full invoice/}));
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   fireEvent.change(screen.getByLabelText(/VIN \/ chassis number/), {target:{value:'wvwzzz1jzxw000001'}});
-  fireEvent.change(screen.getByLabelText('Generate a Road Tax guide?'), {target:{value:'yes'}});
+  fireEvent.change(screen.getByLabelText('Attach a Road Tax guide to the invoice email?'), {target:{value:'yes'}});
   fireEvent.change(screen.getByLabelText('Green slip document number (V5C/2)'), {target:{value:'012345678901'}});
   fireEvent.click(screen.getByRole('button',{name:'Save details'}));
   await waitFor(()=>expect(state.sales).toHaveLength(1));
   expect(state.sales[0].draft.vin).toBe('WVWZZZ1JZXW000001');expect(state.sales[0].draft.roadTaxGuide).toBe(true);
   expect(JSON.stringify(state.fetch.mock.calls)).not.toContain('012345678901');
+});
+
+it('sends the tax reference only with the issued full invoice email, never on create or download', async () => {
+ mount();fireEvent.click(await screen.findByRole('button',{name:/New invoice/}));
+ fireEvent.change(screen.getByRole('combobox',{name:'Vehicle'}),{target:{value:'car-test'}});fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ fireEvent.change(screen.getByLabelText('Customer’s full name'),{target:{value:'Buyer'}});fireEvent.change(screen.getByLabelText('Email for the invoice'),{target:{value:'buyer@example.invalid'}});
+ fireEvent.click(screen.getByRole('button',{name:'Continue'}));fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ fireEvent.click(screen.getByRole('button',{name:/^Full invoice/}));fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ fireEvent.change(screen.getByLabelText('Attach a Road Tax guide to the invoice email?'),{target:{value:'yes'}});
+ fireEvent.change(screen.getByLabelText('Green slip document number (V5C/2)'),{target:{value:'012345678901'}});
+ fireEvent.click(screen.getByRole('checkbox',{name:/I have checked the customer/}));fireEvent.click(screen.getByRole('button',{name:'Create full invoice'}));
+ await screen.findByRole('heading',{name:'Your invoice is ready.'});
+ expect(JSON.stringify(state.fetch.mock.calls)).not.toContain('012345678901');expect(JSON.stringify(state.sales)).not.toContain('012345678901');
+ expect(screen.queryByRole('button',{name:'Download guide'})).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:'Email guide to customer'})).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Download PDF'}));await waitFor(()=>expect(state.pdf).toHaveBeenCalledOnce());
+ const email=screen.getByRole('button',{name:'Email invoice & tax guide'});await waitFor(()=>expect(email).toBeEnabled());
+ expect(state.fetch.mock.calls.filter(([url])=>String(url).endsWith('/email'))).toHaveLength(0);
+ fireEvent.click(email);
+ await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('Invoice and Road Tax guide accepted'));
+ const sent=state.fetch.mock.calls.filter(([url])=>String(url).endsWith('/email'));expect(sent).toHaveLength(1);
+ expect(JSON.parse(sent[0][1].body).taxGuide).toEqual({reference:'012345678901'});
+ expect(screen.getByLabelText('Green slip document number (V5C/2)')).toHaveValue('');expect(JSON.stringify(state.sales)).not.toContain('012345678901');
 });

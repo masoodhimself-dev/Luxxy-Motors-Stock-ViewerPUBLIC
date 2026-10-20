@@ -17,7 +17,7 @@ export type SaleWorkspaceFulfilment = {
 export type SaleWorkspaceDraft = {
   id: string; customer: string; email: string; phone: string; address: string;
   vehicleId: string; vehicle: string; registration: string; price: string;
-  vin?: string; roadTaxGuide?: boolean; roadTaxGuideRoute?: 'green-slip' | 'no-logbook';
+  vin?: string; roadTaxGuide?: boolean;
   partExchange: boolean; pxRegistration: string; pxDescription: string; pxValue: string;
   deposit: string; paymentMethod: string; notes: string; collection: string;
   preparation: boolean; documents: boolean; handover: boolean;
@@ -88,7 +88,6 @@ export type SaleWorkspaceRecord = {
   documentArchives?: Record<string, { content: string; sha256: string }>;
   emailDeliveries?: Array<{ id: string; documentId: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string; providerId?: string }>;
   customerLinkEmail?: { id: string; to: string; status: "prepared" | "sending" | "sent" | "failed"; attemptedAt: string; sentAt?: string; error?: string };
-  roadTaxGuideEmails?: Array<{ id: string; to: string; route: 'green-slip' | 'no-logbook'; status: 'sending' | 'sent' | 'failed'; attemptedAt: string; sentAt?: string; error?: string; providerId?: string }>;
   providerPayments?: Record<string, { paymentId: string; eventId: string; refundEvents?: Record<string, { amountRefundedPence: number }> }>;
 };
 export type SaleWorkspaceMutation = { sale: SaleWorkspaceRecord; document?: SaleWorkspaceDocument; replayed?: boolean; preview?: boolean };
@@ -110,7 +109,6 @@ export type SaleWorkspaceCommand =
   | { action: 'customer-link'; tokenHash: string; expiresAt: string }
   | { action: 'customer-revoke' }
   | { action: 'link-email-status'; delivery: NonNullable<SaleWorkspaceRecord['customerLinkEmail']> }
-  | { action: 'tax-guide-email-status'; delivery: NonNullable<SaleWorkspaceRecord['roadTaxGuideEmails']>[number] }
   | { action: 'email-status'; delivery: NonNullable<SaleWorkspaceRecord['emailDeliveries']>[number] }
   | { action: 'handover'; recipient: string; completedAt?: string; acknowledgeOutstanding?: boolean };
 export type SaleWorkspaceContext = {
@@ -194,8 +192,6 @@ export function cleanSaleWorkspaceDraft(input: unknown, reference: string, ledge
   draft.vin = draft.vin?.toUpperCase() ?? '';
   if (draft.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(draft.vin)) throw new SaleWorkspaceError('Enter the 17-character VIN from the vehicle or log book (no I, O or Q).');
   draft.roadTaxGuide = source.roadTaxGuide === true;
-  if (source.roadTaxGuideRoute != null && !['green-slip', 'no-logbook'].includes(String(source.roadTaxGuideRoute))) throw new SaleWorkspaceError('Choose the tax guide route.');
-  draft.roadTaxGuideRoute = source.roadTaxGuideRoute === 'no-logbook' ? 'no-logbook' : 'green-slip';
   if (previous && (previous.sourceEnquiryId || previous.sourceReservationId)) {
     draft.sourceEnquiryId = previous.sourceEnquiryId; draft.sourceReservationId = previous.sourceReservationId;
   }
@@ -336,11 +332,6 @@ export function changeSaleWorkspace(current: SaleWorkspaceRecord, command: SaleW
     if (command.delivery.status === 'sending' && (!record.customerAccess || record.customerAccess.revokedAt || Date.parse(record.customerAccess.expiresAt) <= Date.parse(context.now))) throw new SaleWorkspaceError('Create an active customer link first.', 409);
     record.customerLinkEmail = clone(command.delivery);
     event(record, context, 'customer-link-email-' + command.delivery.status, 'Customer link email ' + command.delivery.status);
-  } else if (command.action === 'tax-guide-email-status') {
-    const rows = record.roadTaxGuideEmails ??= [];
-    const index = rows.findIndex(row => row.id === command.delivery.id);
-    if (index < 0) rows.push(clone(command.delivery)); else rows[index] = clone(command.delivery);
-    event(record, context, 'tax-guide-email-' + command.delivery.status, 'Road Tax guide email ' + command.delivery.status);
   } else if (command.action === 'email-status') {
     if (!record.documents.some(item => item.id === command.delivery?.documentId)) throw new SaleWorkspaceError('Document not found.', 404);
     const rows = record.emailDeliveries ??= [];

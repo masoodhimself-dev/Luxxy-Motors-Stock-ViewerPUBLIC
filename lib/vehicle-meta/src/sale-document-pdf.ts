@@ -373,14 +373,13 @@ export function saleDocumentPdfBytes(input: SaleWorkspaceDocument, options: { fi
   return new Uint8Array(pdf.output('arraybuffer'));
 }
 
-/** Rendered locally for download and in memory for an explicitly requested email.
+/** Rendered in memory only as an attachment to an explicitly requested full-invoice email.
  * No document reference belongs in stored sales, invoice snapshots or URLs. */
 export function roadTaxGuidePdfBytes(input: {
   registration: string; vin: string; vehicle: string; reference: string;
-  route?: 'green-slip' | 'no-logbook'; dealerName?: string; customerName?: string; fileId?: string; createdAt?: string;
+  dealerName?: string; fileId?: string; createdAt?: string;
 }): Uint8Array {
-  const route = input.route ?? 'green-slip';
-  if (!['green-slip', 'no-logbook'].includes(route) || (route === 'green-slip' && !/^\d{12}$/.test(input.reference)) || !input.registration.trim() || (input.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(input.vin))) throw new Error('Check the vehicle and green slip details.');
+  if (!/^\d{12}$/.test(input.reference) || !input.registration.trim() || (input.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(input.vin))) throw new Error('Check the vehicle and green slip details.');
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   if (input.fileId) pdf.setFileId(input.fileId);
   if (input.createdAt) pdf.setCreationDate(new Date(input.createdAt));
@@ -392,13 +391,12 @@ export function roadTaxGuidePdfBytes(input: {
   text((input.dealerName || 'Your dealership').slice(0, 75), 18, 20, 12, ink, true);
   text('CUSTOMER PAPERWORK', 18, 32, 8, muted);
   text('Your Road Tax guide', 18, 44, 23, ink, true);
-  text(route === 'green-slip' ? 'Tax online using your green new keeper slip' : 'No logbook? Your V62 and Post Office guide', 18, 53, 10, muted);
+  text('Tax online using your green new keeper slip', 18, 53, 10, muted);
   pdf.setFillColor('#f1f5f7'); pdf.roundedRect(18, 62, 174, 41, 2, 2, 'F');
   text(input.vehicle.slice(0, 65), 23, 71, 11, ink, true);
   text(`Registration: ${input.registration.slice(0, 32)}`, 23, 79);
   if (input.vin) text(`VIN: ${input.vin}`, 23, 87, 9);
-  if (route === 'green-slip') text(`Green slip reference: ${input.reference}`, 23, 96, 10, ink, true);
-  else text('No green slip reference is needed for this guide.', 23, 96, 9, muted);
+  text(`Green slip reference: ${input.reference}`, 23, 96, 10, ink, true);
   let y = 115;
   const step = (number: string, heading: string, body: string) => {
     pdf.setFillColor(blue); pdf.circle(22, y - 1, 4, 'F'); text(number, 20.9, y + .2, 9, '#ffffff', true);
@@ -406,17 +404,11 @@ export function roadTaxGuidePdfBytes(input: {
     pdf.setFontSize(10); const lines = pdf.splitTextToSize(body, 156); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(muted); pdf.text(lines, 31, y + 7);
     y += 15 + lines.length * 5;
   };
-  if (route === 'green-slip') {
-    step('1', 'Open the official tax service', 'Go to www.gov.uk/vehicle-tax. Tax does not transfer from the previous keeper, even when the rate is zero.');
-    step('2', 'Use the latest green slip', 'Choose the new keeper slip (V5C/2), enter the 12-digit reference above and check the vehicle details.');
-    step('3', 'Choose your payment option', 'Follow GOV.UK to see the current tax rate and available payment options. Keep the DVLA confirmation.');
-    step('4', 'Check before driving away', 'Make sure the vehicle is taxed, insured and has any required MOT before using it on the road.');
-  } else {
-    step('1', 'Get form V62 and check your keeper status', 'Download the print-only V62 from GOV.UK or collect it from a Post Office that deals with vehicle tax. Complete the application and check any fee.');
-    step('2', 'Existing registered keeper: ask at the Post Office', 'If the V5C was already in your name, a participating Post Office can handle your V62 and tax together. Take MOT evidence and payment; Northern Ireland also requires insurance evidence.');
-    step('3', 'New buyer: apply for a V5C first', 'DVLA says a new keeper without the green slip cannot tax the vehicle yet. Apply by post using V62. Confirm the next steps with DVLA and keep the car off the road until taxed.');
-  }
-  const note = route === 'green-slip' ? 'PRIVATE: this guide contains your green slip reference. Share it only with the intended customer.' : 'A V62 application is not proof of tax. Do not assume every new buyer can tax at the time of applying.';
+  step('1', 'Open the official tax service', 'Go to www.gov.uk/vehicle-tax. Tax does not transfer from the previous keeper, even when the rate is zero.');
+  step('2', 'Use the latest green slip', 'Choose the new keeper slip (V5C/2), enter the 12-digit reference above and check the vehicle details.');
+  step('3', 'Choose your payment option', 'Follow GOV.UK to see the current tax rate and available payment options. Keep the DVLA confirmation.');
+  step('4', 'Check before driving away', 'Make sure the vehicle is taxed, insured and has any required MOT before using it on the road.');
+  const note = 'PRIVATE: this guide contains your green slip reference. Share it only with the intended customer.';
   pdf.setFontSize(9); const noteLines = pdf.splitTextToSize(note, 164);
   pdf.setFillColor('#faf5e9'); pdf.roundedRect(18, y, 174, noteLines.length * 4 + 9, 2, 2, 'F');
   pdf.setFont('helvetica', 'normal'); pdf.setTextColor('#765a25'); pdf.text(noteLines, 23, y + 6);
@@ -424,9 +416,6 @@ export function roadTaxGuidePdfBytes(input: {
   text('Independent customer guide - not a DVLA document, tax receipt or confirmation of tax.', 18, 271, 8, muted);
   pdf.setFontSize(8); pdf.setTextColor(blue);
   pdf.textWithLink('GOV.UK tax guidance', 18, 279, { url: 'https://www.gov.uk/tax-vehicle-without-v11-reminder' });
-  if (route === 'no-logbook') {
-    pdf.textWithLink('Official V62 form', 68, 279, { url: 'https://www.gov.uk/government/publications/application-for-a-vehicle-registration-certificate' });
-    pdf.textWithLink('Find a Post Office', 111, 279, { url: 'https://www.postoffice.co.uk/branch-finder' });
-  } else pdf.textWithLink('Tax your vehicle online', 68, 279, { url: 'https://www.gov.uk/vehicle-tax' });
+  pdf.textWithLink('Tax your vehicle online', 68, 279, { url: 'https://www.gov.uk/vehicle-tax' });
   return new Uint8Array(pdf.output('arraybuffer'));
 }

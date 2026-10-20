@@ -1,3 +1,4 @@
+import { invoiceEmailAttachments } from '../../api-server/src/lib/invoice-email-attachments';
 import { loadBrochurePhotos } from '../../api-server/src/lib/vehicle-brochure-images';
 // Local network sandbox only. The production entry never imports this file.
 import { previewIntegrationsStore } from './dealer-integrations';
@@ -177,9 +178,6 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
       }
       return true;
     }
-    if (/^\/api\/sale-workspace\/[^/]+\/road-tax-guide\/email$/.test(url.pathname)) {
-      send(res, 503, { error: 'Local preview does not send emails. Download the guide to review it.' }); return true;
-    }
     const extra = /^\/api\/sale-workspace\/([^/]+)\/(lifecycle|customer-links|documents)(?:\/([^/]+))?(?:\/(pdf|email))?$/.exec(url.pathname);
     if (extra && (extra[2] !== 'documents' || extra[3])) {
       const [, saleId, section, item, action] = extra;
@@ -207,6 +205,8 @@ export async function salesPreview(req: IncomingMessage, res: ServerResponse, ur
         if (!document) throw new SaleWorkspaceError('Document not found.', 404);
         const to = document.snapshot.draft.email;
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new SaleWorkspaceError('The issued document needs a valid customer email.');
+        const { archive } = await store.pdf(saleId, document.id);
+        invoiceEmailAttachments(document, archive.content, { reference: input.taxGuide?.reference, fileId: '0123456789abcdef0123456789abcdef', createdAt: document.issuedAt });
         command = { action: 'email-status', delivery: { id: input.requestId, documentId: document.id, to, status: 'prepared', attemptedAt: new Date().toISOString(), error: 'Email is prepared. Add and enable Resend in API settings to send.' } };
       }
       const mutation = await store.mutate({ id: saleId, command, expectedRevision: input.expectedRevision, requestId: input.requestId });

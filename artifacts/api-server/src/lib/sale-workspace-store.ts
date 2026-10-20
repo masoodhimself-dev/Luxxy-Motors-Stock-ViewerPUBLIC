@@ -48,7 +48,7 @@ export class PostgresSaleWorkspaceStore {
     return invoiceVerificationView(result.rows[0]?.state, documentId, token);
   }
   /** Provider acceptance is merged under a row lock; concurrent payments cannot strand it as sending. */
-  async finishEmail(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' | 'link-email-status' | 'tax-guide-email-status' }>, actor: string) {
+  async finishEmail(id: string, requestId: string, command: Extract<SaleWorkspaceCommand, { action: 'email-status' | 'link-email-status' }>, actor: string) {
     const client = await this.database.connect();
     try {
       await client.query('BEGIN');
