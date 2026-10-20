@@ -81,7 +81,7 @@ type EmailPreview = {
   previewHash: string;
   attachments: { id: string; filename: string; byteSize: number }[];
 };
-export type SuggestedEmailContent = { subject: string; message: string; label: string };
+export type SuggestedEmailContent = { subject: string; message: string; label: string; applyLabel?: string };
 export type InitialEmailContent = { subject: string; message: string; appendText: string; link: string };
 const request = <T,>(path: string, body?: unknown) =>
   customFetch<T>(
@@ -158,12 +158,14 @@ function EnquiryEmailEditor({
   initialContent,
   suggestedContent,
   sendBlockedReason,
+  verifyContext,
 }: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
   initialContent?: InitialEmailContent;
   suggestedContent?: SuggestedEmailContent;
   sendBlockedReason?: string;
+  verifyContext?: () => Promise<void>;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
   const features = useDealerFeatures();
@@ -346,6 +348,7 @@ function EnquiryEmailEditor({
     setBusyAction("review");
     setError("");
     try {
+      await verifyContext?.();
       await persistDraft();
       const result = await request<EmailPreview>(
         `${base}/email-preview`,
@@ -368,6 +371,7 @@ function EnquiryEmailEditor({
     setError("");
     // A lost response retries the exact request; changing the draft creates a new review.
     try {
+      await verifyContext?.();
       sendingRequest.current ??= {
         requestId: requestUuid(),
         draft: reviewedDraft,
@@ -622,7 +626,7 @@ function EnquiryEmailEditor({
                       }}
                       className="enquiry-email-form"
                     >
-                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : 'Your saved draft has been kept. You can choose the appointment follow-up wording instead.'}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => { change({ templateId: undefined, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false }); setSuggestionApplied(true); }}>Use appointment follow-up wording</Button>}</div>}
+                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : `Your saved draft has been kept. You can choose the ${suggestedContent.label.toLowerCase()} wording instead.`}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => { change({ templateId: undefined, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false }); setSuggestionApplied(true); }}>{suggestedContent.applyLabel || `Use ${suggestedContent.label.toLowerCase()} wording`}</Button>}</div>}
                       {initialContent && !draft.message.includes(initialContent.link) && <div className="enquiry-email-readiness"><p>Your saved message has been kept. Add the private declaration link when you are ready.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ message: `${draft.message.trim()}\n\n${initialContent.appendText}`.trim() })}>Add declaration link</Button></div>}
                       <fieldset disabled={busy || aiBusy}>
                         <label>
@@ -972,6 +976,7 @@ export function EnquiryEmailComposer(props: {
   initialContent?: InitialEmailContent;
   suggestedContent?: SuggestedEmailContent;
   sendBlockedReason?: string;
+  verifyContext?: () => Promise<void>;
 }) {
   return <EnquiryEmailEditor key={props.entry.id} {...props} />;
 }

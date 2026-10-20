@@ -316,6 +316,13 @@
       "when": 1792141131333,
       "tag": "0044_feature_controls",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792141131334,
+      "tag": "0045_stock_change_tasks",
+      "breakpoints": true
     }
   ]
 }

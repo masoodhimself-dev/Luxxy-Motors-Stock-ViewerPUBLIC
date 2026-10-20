@@ -1,4 +1,6 @@
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
+import { recordPublishedStockPrice } from '../lib/stock-change-tasks';
+import { randomUUID } from 'node:crypto';
 import { currentDealerId } from "../lib/tenant-context";
 import { Router, type Request, type Response } from 'express';
 import { clerkClient } from '@clerk/express';
@@ -69,11 +71,13 @@ router.patch('/staff/vehicles/:id/price', requireStaff, requirePermission('stock
     const price = req.body?.price;
     if (!uuid(req.params.id) || !(price === null || (typeof price === 'number' && Number.isInteger(price) && price >= 0 && price <= 10_000_000))) throw new OperationError('Enter a valid advertised price in pounds, or clear the override.');
     const updated = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`stock-import:${dealerId()}`}))`);
       const [vehicle] = await tx.select().from(vehiclesTable).where(and(eq(vehiclesTable.id, req.params.id), eq(vehiclesTable.dealerId, dealerId()))).for('update');
       if (!vehicle) throw new OperationError('Vehicle not found.', 404);
       if (req.body?.expectedUpdatedAt && new Date(req.body.expectedUpdatedAt).getTime() !== vehicle.updatedAt.getTime()) throw new OperationError('This vehicle has changed. Refresh before changing its price.', 409);
       const [result] = await tx.update(vehiclesTable).set({ websitePriceOverride: price, updatedAt: new Date() }).where(tenantAnd(eq(vehiclesTable.id, vehicle.id), tenantEq(vehiclesTable.dealerId, currentDealerId()))).returning();
       await tx.insert(vehicleChangesTable).values({ vehicleId: vehicle.id, fieldName: 'websitePriceOverride', oldValue: vehicle.websitePriceOverride, newValue: price, auditMetadata: { actor: staffLabel(req), authUserId: req.staff?.authUserId, reason: 'Staff price override' } });
+      await recordPublishedStockPrice(tx, vehicle, result, `manual:${randomUUID()}`, new Date(), Number.isFinite(Number(process.env.STOCK_MISSING_HIDE_THRESHOLD)) && Number(process.env.STOCK_MISSING_HIDE_THRESHOLD) >= 0 ? Number(process.env.STOCK_MISSING_HIDE_THRESHOLD) : 2);
       return { id: result.id, price: result.websitePriceOverride ?? result.sourcePrice, websitePriceOverride: result.websitePriceOverride, updatedAt: result.updatedAt };
     });
     res.json(updated);

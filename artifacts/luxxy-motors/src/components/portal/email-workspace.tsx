@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { EmailDraftQueue } from "./email-draft-queue";
 import { EnquiryEmailComposer } from "./enquiry-email-composer";
+import { StockChangeEmailComposer } from './stock-change-email-composer';
 import { workspaceError } from "./enquiry-workspace-tools";
 import { customerHistoryHref } from "./history-links";
 import "./email-workspace.css";
@@ -170,6 +171,7 @@ export function EmailWorkspace({
   const locationSearch = useSearch();
   const [, navigate] = useLocation();
   const initial = new URLSearchParams(locationSearch);
+  const stockChangeId = initial.get('stockChangeId');
   const cache = useQueryClient();
   const [view, setView] = useState<"sent" | "drafts">(
     initial.get("view") === "drafts" || initial.has("draft")
@@ -575,8 +577,9 @@ export function EmailWorkspace({
         </section>
       )}
       {compose && customer && (
-        <EnquiryEmailComposer
-          key={customer.id}
+        <StockAwareEmailComposer
+          key={`${customer.id}:${stockChangeId || ''}`}
+          taskId={stockChangeId}
           entry={customer}
           onClose={(result) => {
             setView(result === "sent" ? "sent" : "drafts");
@@ -1126,4 +1129,8 @@ export function EmailWorkspace({
         ))}
     </section>
   );
+}
+
+function StockAwareEmailComposer({ taskId, ...props }: Parameters<typeof EnquiryEmailComposer>[0] & { taskId: string | null; entry: import('@workspace/api-client-react').Enquiry }) {
+  return taskId ? <StockChangeEmailComposer {...props} taskId={taskId} /> : <EnquiryEmailComposer {...props} />;
 }

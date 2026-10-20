@@ -21,7 +21,7 @@ export function notificationHref(view: NotificationView, search = ''): string {
     const enquiry = previous.get('enquiryId') || previous.get('compose') || previous.get('draft');
     if (enquiry) params.set('enquiryId', enquiry);
     if (notificationView(search) === view) {
-      const keys = view === 'email' ? ['customer', 'view', 'compose', 'draft'] : ['deskView'];
+      const keys = view === 'email' ? ['customer', 'view', 'compose', 'draft', 'stockChangeId'] : ['deskView'];
       for (const key of keys) { const value = previous.get(key); if (value) params.set(key, value); }
     }
   }

@@ -1,4 +1,5 @@
 import { vehicleDescriptionPreview } from './preview/vehicle-descriptions';
+import { stockChangesPreview } from './preview/stock-changes';
 import { communicationsPreview } from "./preview/communications";
 import { declarationQa } from './preview/declaration-qa';
 import { plateEntryQa } from './preview/plate-entry-qa';
@@ -50,6 +51,7 @@ export default mergeConfig(
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
             if (await vehicleDescriptionPreview(req, res, url)) return;
+            if (await stockChangesPreview(req, res, url)) return;
             if (await declarationQa(req, res, url)) return;
             if (await plateEntryQa(req, res, url)) return;
             const deferred = deferredCustomerFeatureResponse(url.pathname, req.method ?? 'GET');

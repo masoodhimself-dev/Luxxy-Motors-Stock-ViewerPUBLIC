@@ -1,3 +1,4 @@
+import { publicPriceReductions, recordMissingStockTasks, recordPublishedStockPrice, resolveReappearedStockTasks } from '../lib/stock-change-tasks';
 import { descriptionDisclosures, descriptionMetadata, taxDescription, publishedDescription, retainedOriginals } from '../lib/vehicle-descriptions';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { matchesImportSecret } from "../middlewares/tenant";
@@ -287,15 +288,16 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           if (canonicalJson(imageChanges.before) !== canonicalJson(imageChanges.after)) {
             auditChanges.sourceImages = { oldValue: imageChanges.before, newValue: imageChanges.after };
           }
-          const preserveMissingState = existing.inventoryStatus === "sold" || existing.inventoryStatus === "archived";
-          await tx.update(vehiclesTable).set({
+          const preserveMissingState = ["sold", "archived", "hidden"].includes(existing.inventoryStatus);
+          const [updatedVehicle] = await tx.update(vehiclesTable).set({
             ...databaseChanges,
             // Merge against the row at update time, never a stale read that could
             // overwrite a sale reservation created while this import was running.
             auditMetadata: sql`coalesce(${vehiclesTable.auditMetadata}, '{}'::jsonb) || ${JSON.stringify({ sourceCheckMetadata })}::jsonb`,
             importRunId: run.id, lastSeenAt: now,
             ...(preserveMissingState ? {} : { sourceStatus: "live", missingCount: 0, archivedAt: null, retirementStartedAt: null }),
-          }).where(tenantAnd(eq(vehiclesTable.id, existing.id), tenantEq(vehiclesTable.dealerId, currentDealerId())));
+          }).where(tenantAnd(eq(vehiclesTable.id, existing.id), tenantEq(vehiclesTable.dealerId, currentDealerId()))).returning();
+          await recordPublishedStockPrice(tx, existing, updatedVehicle, `import:${run.id}:${existing.id}`, now, settings.missingHideThreshold, run.id, settings.platform);
           const changes = Object.entries(auditChanges).map(([fieldName, change]) => ({
             vehicleId: existing.id, importRunId: run.id, fieldName, oldValue: change.oldValue, newValue: change.newValue,
           }));
@@ -303,6 +305,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
           Object.keys(auditChanges).length ? updated++ : unchanged++;
         }
       }
+      await resolveReappearedStockTasks(tx, settings.dealerId, present.filter(vehicle => !["sold", "archived", "hidden"].includes(vehicle.inventoryStatus) && vehicle.sourceStatus === "missing").map(vehicle => vehicle.id), now, run.id);
       const absent = current.filter(vehicle => !incomingIds.has(vehicle.advertId));
       if (absent.length) {
         // Bounded batches preserve exactly the rows observed by this snapshot,
@@ -310,6 +313,7 @@ async function importStock(req: Request, res: Response, source: ImportSource): P
         for (let start = 0; start < absent.length; start += 500) {
           await tx.update(vehiclesTable).set({ sourceStatus: "missing", missingCount: sql`${vehiclesTable.missingCount} + 1`, importRunId: run.id }).where(and(eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform), inArray(vehiclesTable.id, absent.slice(start, start + 500).map(vehicle => vehicle.id))));
         }
+        await recordMissingStockTasks(tx, absent, run.id, now);
         missing = absent.length;
       }
       await tx.update(stockImportRunsTable).set({ status: "completed", addedCount: created, changedCount: updated, missingCount: missing }).where(tenantAnd(eq(stockImportRunsTable.id, run.id), tenantEq(stockImportRunsTable.dealerId, currentDealerId())));
@@ -344,6 +348,7 @@ router.post("/stock/imports/grok", async (req, res): Promise<void> => {
 });
 
 export async function projectVehicles(vehicles: Vehicle[]) {
+  const reductions = await publicPriceReductions(vehicles);
   const ids = vehicles.map((vehicle) => vehicle.id);
   const images = ids.length ? await db.select().from(vehicleImagesTable).where(and(inArray(vehicleImagesTable.vehicleId, ids), eq(vehicleImagesTable.isActive, true))).orderBy(vehicleImagesTable.sortOrder) : [];
   const byVehicle = new Map<string, VehicleImage[]>();
@@ -359,6 +364,9 @@ export async function projectVehicles(vehicles: Vehicle[]) {
     const imported = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
     const specifications = vehicle.websiteDescription ? { ...(imported?.specifications as Record<string, unknown> ?? {}), description: publishedDescription(vehicle.websiteDescription, vehicle) } : imported?.specifications;
     const sourceExtras = stockDescriptionExtras({ ...vehicle, title: vehicle.websiteTitleOverride ?? vehicle.title, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, specifications: imported?.specifications as Record<string, unknown> | null, sourceExtras: imported?.sourceExtras as Record<string, unknown> | null });
+    delete sourceExtras.websitePriceReduction;
+    const reduction = reductions.get(vehicle.id);
+    if (reduction) sourceExtras.websitePriceReduction = reduction;
     if (vehicle.websiteDescription) { sourceExtras.description = publishedDescription(vehicle.websiteDescription, vehicle); sourceExtras.originalAdvertDescriptions = retainedOriginals(vehicle); sourceExtras.descriptionOrigin = 'staff-reviewed'; const metadata = descriptionMetadata(vehicle); sourceExtras.vehicleDescriptionBody = metadata.publishedBody ?? vehicle.websiteDescription; sourceExtras.vehicleDescriptionPlacement = metadata.publishedContext?.placement ?? 'inline'; sourceExtras.vehicleDescriptionDisclosures = descriptionDisclosures(vehicle); sourceExtras.vehicleDescriptionTax = taxDescription(metadata.publishedContext); }
     return { id: vehicle.id, inventoryStatus: vehicle.inventoryStatus, advertId: vehicle.advertId, title: vehicle.websiteTitleOverride ?? vehicle.title, variant: vehicle.variant, make: vehicle.make, model: vehicle.model, trim: vehicle.trim, year: vehicle.year, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, priceType: vehicle.priceType, currency: vehicle.currency, mileage: vehicle.mileage, mileageText: vehicle.mileageText, registration: vehicle.registration, registrationBand: vehicle.registrationBand, plate: vehicle.plate, vrm: vehicle.vrm, vrmVerified: vehicle.vrmVerified, fuel: vehicle.fuel, transmission: vehicle.transmission, bodyType: vehicle.bodyType, engineSize: vehicle.engineSize, engineCC: vehicle.engineCC, doors: vehicle.doors, seats: vehicle.seats, colour: vehicle.colour, emissionClass: vehicle.emissionClass, drivetrain: vehicle.drivetrain, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, advertUrl: vehicle.advertUrl, dealerName: vehicle.dealerName, dealerLocation: vehicle.dealerLocation, imageCount: vehicle.imageCount, heroImage: hero, images: vehicleImages, specifications: specifications !== null && typeof specifications === "object" && !Array.isArray(specifications) ? specifications : null, sourceExtras: sourceExtras !== null && typeof sourceExtras === "object" && !Array.isArray(sourceExtras) ? sourceExtras : null };
   });

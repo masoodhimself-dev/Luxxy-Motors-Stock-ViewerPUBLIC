@@ -839,3 +839,29 @@ it('keeps a saved draft until staff explicitly choose follow-up wording', async 
   expect(screen.getByRole('checkbox', { name: 'Appointment details' })).not.toBeChecked();
   expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });
+
+it('checks a stock update again before saving a reviewed email and keeps the text if it changed', async () => {
+  const verifyContext = vi.fn().mockRejectedValue({ status: 409, data: { error: 'The price changed again. Review the car.' } });
+  const suggestedContent = { label: 'Price update', applyLabel: 'Use price update wording', subject: 'A price update', message: 'The advertised price is now £8,495.' };
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={suggestedContent} verifyContext={verifyContext} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue(suggestedContent.message);
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The price changed again. Review the car.');
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(suggestedContent.message);
+  expect(verifyContext).toHaveBeenCalledTimes(1);
+  expect(calls('/email-draft')).toHaveLength(0);
+  expect(calls('/email-preview')).toHaveLength(0);
+  expect(calls('/email')).toHaveLength(0);
+});
+
+it('rechecks stock before an explicitly reviewed send and never sends a stale update', async () => {
+  const verifyContext = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValue({ status: 409, data: { error: 'This car is no longer advertised.' } });
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} verifyContext={verifyContext} onClose={state.close} /></QueryClientProvider>);
+  await screen.findByRole('textbox', { name: 'Message' });
+  fireEvent.click(screen.getByRole('button', { name: 'Review email' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Send email' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('This car is no longer advertised.');
+  expect(verifyContext).toHaveBeenCalledTimes(2);
+  expect(calls('/email')).toHaveLength(0);
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Original staff message');
+});
