@@ -14,6 +14,7 @@ import { projectVehicles } from "./routes/stock";
 import { runWithTenant } from "./lib/tenant-context";
 import { createVehicleDescriptionsRouter } from "./routes/vehicle-descriptions";
 import {
+  validateDescriptionEquipment,
   descriptionFacts,
   descriptionFactsHash,
   descriptionDisclosures,
@@ -66,6 +67,48 @@ test("records only approved facts, preserves every original and makes disclosure
     descriptionFactsHash({ ...sample, mileage: 80000 }),
   );
   assert.equal(descriptionView(sample).originals.length, 1);
+});
+test("boot measurements remain explicit and distinguish seats up from folded seats", () => {
+  const car = {
+    ...sample,
+    rawSourceData: {
+      sourceExtras: {
+        specCategories: [
+          {
+            category: "Size and dimensions",
+            items: [
+              { name: "Boot space (seats up)", value: "316L" },
+              { name: "Boot space (seats down)", value: "1,215L" },
+            ],
+          },
+        ],
+      },
+    },
+  };
+  const facts = descriptionFacts(car).facts;
+  assert.throws(() =>
+    validateDescriptionEquipment("A huge 880L boot for your luggage.", sample),
+  );
+  assert.throws(() =>
+    validateDescriptionEquipment(
+      "Apple CarPlay and built-in navigation.",
+      sample,
+    ),
+  );
+  assert.doesNotThrow(() =>
+    validateDescriptionEquipment(
+      "The boot holds 316 litres. With the seats folded, boot space is 1,215 litres.",
+      car,
+    ),
+  );
+  assert.equal(facts.bootSpaceSeatsUpLitres, 316);
+  assert.equal(facts.bootSpaceSeatsDownLitres, 1215);
+  assert.equal(
+    descriptionFacts(sample).facts.bootSpaceSeatsUpLitres,
+    undefined,
+  );
+  assert.match(descriptionRequest(car).instructions, /We’re pleased to offer/);
+  assert.match(descriptionRequest(car).instructions, /seats to be folded/);
 });
 test("provider bounds requests, disables tools/storage and rejects unsupported or incomplete output", async () => {
   const request = descriptionRequest(sample);
@@ -125,27 +168,23 @@ test("tenant-scoped generation, replay, stale facts, protected publishing, resto
   process.env.OPENAI_API_KEY = "fictional-only";
   process.env.AI_DRAFTS_DEALER_IDS = "a";
   for (const id of ["a", "b"])
-    await db
-      .insert(dealershipsTable)
-      .values({
-        id,
-        name: id,
-        status: "active",
-        canonicalOrigin: `https://${id}.example.test`,
-        stockPlatform: "autotrader",
-        retailerId: id,
-        sourceUrl: "https://www.autotrader.co.uk/example",
-      });
-  const id = randomUUID();
-  await db
-    .insert(vehiclesTable)
-    .values({
-      ...sample,
+    await db.insert(dealershipsTable).values({
       id,
-      dealerId: "a",
-      source: "autotrader",
-      advertId: "fictional",
+      name: id,
+      status: "active",
+      canonicalOrigin: `https://${id}.example.test`,
+      stockPlatform: "autotrader",
+      retailerId: id,
+      sourceUrl: "https://www.autotrader.co.uk/example",
     });
+  const id = randomUUID();
+  await db.insert(vehiclesTable).values({
+    ...sample,
+    id,
+    dealerId: "a",
+    source: "autotrader",
+    advertId: "fictional",
+  });
   let calls = 0,
     fail = false;
   let hold: Promise<void> | undefined;
