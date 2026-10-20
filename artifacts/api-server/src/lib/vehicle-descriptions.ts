@@ -287,14 +287,23 @@ export function validateDescriptionEquipment(
   }
   for (const sentence of description.split(/(?<=[.!?])\s+|\n/)) {
     if (!/\b(?:boot|luggage)\b/i.test(sentence)) continue;
-    const expected = /\b(?:fold(?:ed|ing)?|seats down)\b/i.test(sentence)
-      ? input.facts.bootSpaceSeatsDownLitres
-      : input.facts.bootSpaceSeatsUpLitres;
-    for (const value of sentence.matchAll(
-      /(?<![\d.])(\d[\d,]*)\s*[- ]?(?:litres?|liters?|L)\b/gi,
-    )) {
-      if (Number(value[1]!.replaceAll(",", "")) !== expected)
-        throw new Error("Unsupported boot capacity.");
+    const folded = /\b(?:fold(?:ed|ing)?|seats down)\b/i.test(sentence);
+    const capacities = [
+      ...sentence.matchAll(
+        /(?<![\d.])(\d[\d,]*)\s*[- ]?(?:litres?|liters?|L)\b/gi,
+      ),
+    ].map((value) => Number(value[1]!.replaceAll(",", "")));
+    for (const litres of capacities) {
+      const normalBoot = litres === input.facts.bootSpaceSeatsUpLitres;
+      const foldedBoot = litres === input.facts.bootSpaceSeatsDownLitres;
+      // A single sentence may correctly give both capacities. A larger folded
+      // figure still requires an explicit seats-folded qualification.
+      if (
+        (normalBoot && (!folded || capacities.length > 1)) ||
+        (foldedBoot && folded)
+      )
+        continue;
+      throw new Error("Unsupported boot capacity.");
     }
   }
 }

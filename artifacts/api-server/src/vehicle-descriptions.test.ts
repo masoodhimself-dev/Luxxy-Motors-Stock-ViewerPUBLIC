@@ -101,6 +101,15 @@ test("boot measurements remain explicit and distinguish seats up from folded sea
       car,
     ),
   );
+  assert.doesNotThrow(() =>
+    validateDescriptionEquipment(
+      "The boot has 316 litres, increasing to 1,215 litres with the seats folded.",
+      car,
+    ),
+  );
+  assert.throws(() =>
+    validateDescriptionEquipment("The boot has 1,215 litres.", car),
+  );
   assert.equal(facts.bootSpaceSeatsUpLitres, 316);
   assert.equal(facts.bootSpaceSeatsDownLitres, 1215);
   assert.equal(
