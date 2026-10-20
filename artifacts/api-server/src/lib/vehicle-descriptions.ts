@@ -71,7 +71,11 @@ export function descriptionDisclosures(vehicle: DescriptionVehicle): string[] {
     extras = object(raw.sourceExtras);
   const notes = [
     ...retainedOriginals(vehicle),
-    ...descriptionFacts(vehicle).features,
+    ...descriptionFacts(vehicle).features.filter((feature) =>
+      /\b(?:faulty|broken|inoperative|damaged|missing|removed|not working|doesn['’]?t work|no (?:service|warranty|mot))\b/i.test(
+        feature,
+      ),
+    ),
   ]
     .flatMap((value) => value.split(/(?<=[.!?])\s+|\n+/))
     .map((value) => value.trim())

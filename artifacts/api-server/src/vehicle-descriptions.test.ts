@@ -50,6 +50,21 @@ test("records only approved facts, preserves every original and makes disclosure
       }),
     ).includes("private"),
   );
+  assert.deepEqual(
+    descriptionDisclosures({
+      rawSourceData: {
+        sourceExtras: {
+          featureList: [
+            "Tyre Repair Kit",
+            "Lane Keep Assist with Lane Departure Warning System",
+            "Tyre Pressure Warning",
+            "Rear camera not working",
+          ],
+        },
+      },
+    }),
+    ["Rear camera not working"],
+  );
   const notes = descriptionDisclosures(sample);
   for (const phrase of [
     "Category S repaired after accident.",
