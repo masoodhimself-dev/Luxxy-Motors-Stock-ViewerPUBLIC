@@ -15,6 +15,7 @@ import { callbackTiming } from './enquiry-callback-model';
 import { enquiryGroup, primaryEnquiry } from '@/lib/enquiry-groups';
 import { EnquiryPhotoPeek } from './enquiry-photo-peek';
 import { CustomerEmailSummary } from './customer-email-summary';
+import { canFollowUpAppointment } from '@/lib/appointment-follow-up-email';
 import { enquiryPresentation, enquiryRequestText } from '@/lib/enquiry-presentation';
 import './enquiry-record-browser.css';
 
@@ -29,6 +30,7 @@ export type EnquiryRecordActions = {
   onMerge?: (entry: Enquiry) => void;
   onEmail?: (entry: Enquiry) => void;
   onCustomerHistory?: (entry: Enquiry) => void;
+  onAppointmentFollowUp?: (entry: Enquiry) => void;
 };
 
 function ClaimEnquiry({ entry }: { entry: Enquiry }) {
@@ -42,6 +44,7 @@ function ClaimEnquiry({ entry }: { entry: Enquiry }) {
 function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; actions: EnquiryRecordActions }) {
   const presentation = enquiryPresentation(entry);
   const [emailOpen, setEmailOpen] = useState(false);
+  const showAppointmentEmail = Boolean(actions.onAppointmentFollowUp && canFollowUpAppointment(entry));
   const outstanding = Boolean(entry.followUpAt && !entry.followUpCompletedAt);
   const future = entry.appointmentAt && Date.parse(entry.appointmentAt) > Date.now() && !entry.appointmentCancelledAt;
   const visitFinished = entry.attendance === 'completed' || entry.attendance === 'no_show';
@@ -76,7 +79,8 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     </section>
     <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
       {!(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response")) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Log another conversation</Button>}
-      {actions.onEmail && actionLabel !== 'Prepare reply' && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Prepare reply</Button>}
+      {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}
+      {actions.onEmail && !showAppointmentEmail && actionLabel !== 'Prepare reply' && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Prepare reply</Button>}
       {presentation.action !== 'follow_up' && <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Request follow-up'}</Button>}
     </div>
     <section className="enquiry-detail-car" aria-label="Enquiry vehicle">

@@ -68,6 +68,7 @@ import { EnquiryRecordBrowser, type EnquiryRecordActions } from "./enquiry-recor
 import { CallbacksDesk } from "./enquiry-callbacks";
 import { isOutstandingCallback } from "./enquiry-callback-model";
 import { useStaffAppointmentDiary } from "@/lib/staff-appointment-diary";
+import { appointmentFollowUpEmail } from "@/lib/appointment-follow-up-email";
 import { enquiryPresentation } from "@/lib/enquiry-presentation";
 import "./enquiries-workspace.css";
 import "./staff-appointment-picker.css";
@@ -802,6 +803,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   const [workspaceEntry, setWorkspaceEntry] = useState<Enquiry | null>(null);
   const [conversationEntry, setConversationEntry] = useState<Enquiry | null>(null);
   const [emailEntry, setEmailEntry] = useState<Enquiry | null>(null);
+  const [appointmentEmail, setAppointmentEmail] = useState(false);
   const [mergeEntry, setMergeEntry] = useState<Enquiry | null>(null);
   const [selectedEnquiryId, setSelectedEnquiryId] = useState<string | null>(null);
   const [callbackFilter, setCallbackFilter] = useState("all");
@@ -933,7 +935,8 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
   const recordActions: EnquiryRecordActions = {
     canBook: bookingAccess.enabled,
     onUpdate: setWorkspaceEntry, onConversation: setConversationEntry, onMerge: entry => setMergeEntry(primaryEnquiry(entry, allEntries)), onFollowUp: entry => setFollowUpEntry({ ...entry }),
-    onEmail: canEmail ? setEmailEntry : undefined,
+    onEmail: canEmail ? entry => { setAppointmentEmail(false); setEmailEntry(entry); } : undefined,
+    onAppointmentFollowUp: canEmail ? entry => { setAppointmentEmail(true); setEmailEntry(entry); } : undefined,
     onCustomerHistory: setHistoryContact,
     onAppointment: entry => setEditing({ ...entry }), onVehicle: setInformation,
     onBook: entry => { if (!bookingAccess.enabled) return; setInitialBookingDate(undefined); setSelection(undefined); setInitial(entry); setMode("new"); setNotice("Customer details copied. Saving creates a new test-drive booking."); },
@@ -1022,7 +1025,7 @@ export function EnquiriesPanel({ canEmail = false, embedded = false, initialView
         await Promise.all([client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() }), client.invalidateQueries({ predicate: item => String(item.queryKey[0]).endsWith("/availability") })]);
       }} />}
       {conversationEntry && <ConversationEditor entry={conversationEntry} onClose={() => setConversationEntry(null)} onSaved={async entry => { client.setQueryData(enquirySummaryKey(), (current: Enquiry[] | undefined) => current?.map(item => item.id === entry.id ? entry : item)); setConversationEntry(null); setSelectedEnquiryId(mode === "callbacks" ? entry.id : primaryEnquiry(entry, allEntries).id); setNotice(`${entry.customerName}: conversation saved.`); await Promise.all([query.refetch(), client.invalidateQueries({ queryKey: getGetEnquiriesQueryKey() }), client.invalidateQueries({ queryKey: getGetTestDriveBookingsQueryKey() })]); }} />}
-      {emailEntry && <EnquiryEmailComposer entry={emailEntry} onClose={() => setEmailEntry(null)} />}
+      {emailEntry && <EnquiryEmailComposer entry={emailEntry} suggestedContent={appointmentEmail ? appointmentFollowUpEmail(emailEntry, stock?.cars.find(car => car.id === emailEntry.vehicleId), deskSettings.identity.name) : undefined} onClose={() => { setEmailEntry(null); setAppointmentEmail(false); }} />}
       {workspaceEntry && <WorkspaceEditor entry={workspaceEntry} onClose={() => setWorkspaceEntry(null)} />}
       {historyContact && <Dialog open onOpenChange={open => { if (!open) setHistoryContact(null); }}><DialogContent className="portal-action-dialog portal-action-dialog-wide enquiry-action-dialog max-w-2xl"><DialogHeader><DialogTitle>{historyContact.customerName} — customer history</DialogTitle><DialogDescription>Enquiries, appointments and reservations matched by contact details.</DialogDescription></DialogHeader><CustomerHistory contact={historyContact} enquiries={query.data ?? []} reservations={reservations.data?.reservations ?? []} />{(query.isError || reservations.isError) && <p role="alert">Some records could not be loaded. Refresh to retry.</p>}</DialogContent></Dialog>}
       {information && (

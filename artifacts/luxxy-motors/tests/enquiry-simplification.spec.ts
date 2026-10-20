@@ -234,3 +234,35 @@ for (const width of [390, 820, 1440]) {
     expect(runtimeErrors).toEqual([]);
   });
 }
+
+for (const width of [390, 820, 1440]) test(`appointment follow-up stays a reviewed draft at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 1000 });
+  const missed = width === 390;
+  const appointment = { ...entries[2], appointmentAt: '2026-10-18T13:00:00Z', attendance: missed ? 'no_show' : 'completed' };
+  const { writes, runtimeErrors } = await setup(page, [appointment]);
+  await page.route('**/api/staff/enquiries/*/email-context', route => route.fulfill({ json: {
+    version: 0, savedDraft: null, email: 'alex@example.test', customerName: appointment.customerName,
+    vehicleId: car.id, vehicleTitle: car.title, reference: appointment.reference, revision: 1,
+    vehicleAvailable: true, appointmentAvailable: true, defaults: { subject: 'Original subject', message: 'Original message' },
+    ready: true, templates: [], invoices: [], photos: [], deliveries: [],
+  } }));
+  await page.getByTestId(`enquiry-${appointment.id}`).getByRole('button').click();
+  const selected = page.getByRole('region', { name: `Selected enquiry: ${appointment.customerName}` });
+  await selected.getByRole('button', { name: 'Follow-up email', exact: true }).click();
+  const composer = page.getByRole('dialog', { name: 'Prepare customer email', exact: true });
+  await expect(composer).toBeVisible();
+  await expect(composer.getByRole('textbox', { name: 'Subject', exact: true })).toHaveValue('Any questions about the Toyota Yaris?');
+  const message = composer.getByRole('textbox', { name: 'Message', exact: true });
+  await expect(message).toHaveValue(new RegExp(missed ? 'We missed you' : 'Thanks for coming'));
+  await expect(message).toHaveValue(/If you’d like to leave a deposit/);
+  await expect(message).toHaveValue(/confirm availability/);
+  await expect(composer.getByRole('checkbox', { name: 'Appointment details', exact: true })).not.toBeChecked();
+  await message.scrollIntoViewIfNeeded();
+  await noOverflow(page, width);
+  await page.screenshot({ path: `../../output/enquiry-simplification/appointment-follow-up-${width}.png`, fullPage: true });
+  expect(writes).toEqual([]);
+  expect(runtimeErrors).toEqual([]);
+  await composer.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(composer).toHaveCount(0);
+  expect(writes).toEqual([]);
+});

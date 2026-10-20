@@ -81,6 +81,7 @@ type EmailPreview = {
   previewHash: string;
   attachments: { id: string; filename: string; byteSize: number }[];
 };
+export type SuggestedEmailContent = { subject: string; message: string; label: string };
 export type InitialEmailContent = { subject: string; message: string; appendText: string; link: string };
 const request = <T,>(path: string, body?: unknown) =>
   customFetch<T>(
@@ -155,11 +156,13 @@ function EnquiryEmailEditor({
   entry,
   onClose,
   initialContent,
+  suggestedContent,
   sendBlockedReason,
 }: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
   initialContent?: InitialEmailContent;
+  suggestedContent?: SuggestedEmailContent;
   sendBlockedReason?: string;
 }) {
   const base = `/api/staff/enquiries/${entry.id}`;
@@ -183,6 +186,7 @@ function EnquiryEmailEditor({
     } | null>(null);
   const cache = useQueryClient();
   const savedVersion = useRef(0);
+  const [suggestionApplied, setSuggestionApplied] = useState(false);
   const [dirty, setDirty] = useState(false),
     [saveNotice, setSaveNotice] = useState("");
   const [draft, setDraft] = useState<EmailDraft>({
@@ -230,11 +234,12 @@ function EnquiryEmailEditor({
       );
       return;
     }
+    setSuggestionApplied(Boolean(suggestedContent));
     setDraft({
       to: data.email,
-      ...(initialContent ? { subject: initialContent.subject, message: initialContent.message } : data.defaults),
+      ...(initialContent ? { subject: initialContent.subject, message: initialContent.message } : suggestedContent ? { subject: suggestedContent.subject, message: suggestedContent.message } : data.defaults),
       includeVehicle: data.vehicleAvailable,
-      includeAppointment: data.appointmentAvailable,
+      includeAppointment: suggestedContent ? false : data.appointmentAvailable,
       photoIds: [],
       documentIds: [],
       expectedRevision: data.revision,
@@ -245,6 +250,7 @@ function EnquiryEmailEditor({
     context.isFetching,
     context.isError,
     initialContent,
+    suggestedContent,
   ]);
   function change(value: Partial<EmailDraft>) {
     if ("templateId" in value || "expectedRevision" in value)
@@ -616,6 +622,7 @@ function EnquiryEmailEditor({
                       }}
                       className="enquiry-email-form"
                     >
+                      {suggestedContent && <div className="enquiry-email-readiness" role="status"><p>{suggestionApplied ? `${suggestedContent.label} prepared. Edit the wording and review before sending.` : 'Your saved draft has been kept. You can choose the appointment follow-up wording instead.'}</p>{!suggestionApplied && <Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => { change({ templateId: undefined, subject: suggestedContent.subject, message: suggestedContent.message, includeAppointment: false }); setSuggestionApplied(true); }}>Use appointment follow-up wording</Button>}</div>}
                       {initialContent && !draft.message.includes(initialContent.link) && <div className="enquiry-email-readiness"><p>Your saved message has been kept. Add the private declaration link when you are ready.</p><Button type="button" variant="outline" disabled={busy || aiBusy} onClick={() => change({ message: `${draft.message.trim()}\n\n${initialContent.appendText}`.trim() })}>Add declaration link</Button></div>}
                       <fieldset disabled={busy || aiBusy}>
                         <label>
@@ -963,6 +970,7 @@ export function EnquiryEmailComposer(props: {
   entry: Pick<Enquiry, "id" | "customerName" | "reference">;
   onClose: (result?: "sent" | "draft") => void;
   initialContent?: InitialEmailContent;
+  suggestedContent?: SuggestedEmailContent;
   sendBlockedReason?: string;
 }) {
   return <EnquiryEmailEditor key={props.entry.id} {...props} />;

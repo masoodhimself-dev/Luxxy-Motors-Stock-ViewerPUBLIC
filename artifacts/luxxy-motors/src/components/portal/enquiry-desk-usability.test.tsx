@@ -243,3 +243,14 @@ it('explains missing contact details without offering an unrelated owner-and-not
   expect(within(nextStep).queryByRole('button')).not.toBeInTheDocument();
   expect(onUpdate).not.toHaveBeenCalled();
 });
+
+it('prepares a follow-up for the selected missed appointment without sending or opening a generic reply', () => {
+ const selected = entry('missed-appointment', { appointmentAt: '2020-10-10T11:00:00Z', attendance: 'no_show' });
+ const followUpEmail = vi.fn(), email = vi.fn();
+ const actions: EnquiryRecordActions = { onEmail: email, onAppointmentFollowUp: followUpEmail, onUpdate: vi.fn(), onConversation: vi.fn(), onFollowUp: vi.fn(), onAppointment: vi.fn(), onBook: vi.fn(), onVehicle: vi.fn() };
+ show(<EnquiryRecordBrowser entries={[selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
+ fireEvent.click(screen.getByRole('button', { name: 'Follow-up email' }));
+ expect(followUpEmail).toHaveBeenCalledExactlyOnceWith(selected);
+ expect(email).not.toHaveBeenCalled();
+ expect(vi.mocked(customFetch).mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+});

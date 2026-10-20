@@ -818,3 +818,24 @@ it('keeps uncertain email acceptance protected when a saved-status refresh fails
   expect(screen.queryByRole('button', {name: 'Send email'})).not.toBeInTheDocument();
   expect(calls('/email')).toHaveLength(1);
 });
+
+it('prepares appointment follow-up wording without sending or including old appointment details', async () => {
+  const suggestedContent = { label: 'Appointment follow-up', subject: 'Any questions about the Yaris?', message: 'Hi Alex,\n\nDo you have any questions? Let us know if you would like to discuss a deposit.' };
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={suggestedContent} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue(suggestedContent.message);
+  expect(screen.getByRole('textbox', { name: 'Subject' })).toHaveValue(suggestedContent.subject);
+  expect(screen.getByRole('textbox', { name: 'Customer email' })).toHaveValue('alex@example.test');
+  expect(screen.getByRole('checkbox', { name: 'Appointment details' })).not.toBeChecked();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+});
+it('keeps a saved draft until staff explicitly choose follow-up wording', async () => {
+  const suggestedContent = { label: 'Appointment follow-up', subject: 'Follow-up subject', message: 'Gentle follow-up wording' };
+  state.fetch.mockImplementation(async (url: string) => url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'staff', content: { to: 'saved@example.test', subject: 'Saved subject', message: 'Keep my existing message', includeVehicle: true, includeAppointment: true, photoIds: ['photo-one'], documentIds: ['invoice-one'], expectedRevision: 2 } } } : url.endsWith('/config') ? config : {});
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={suggestedContent} onClose={state.close} /></QueryClientProvider>);
+  expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('Keep my existing message');
+  fireEvent.click(screen.getByRole('button', { name: 'Use appointment follow-up wording' }));
+  expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(suggestedContent.message);
+  expect(screen.getByRole('textbox', { name: 'Customer email' })).toHaveValue('saved@example.test');
+  expect(screen.getByRole('checkbox', { name: 'Appointment details' })).not.toBeChecked();
+  expect(state.fetch.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
+});
