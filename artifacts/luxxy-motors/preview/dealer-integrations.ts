@@ -3,8 +3,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { emailTemplateVariables, EmailTemplateError } from '@workspace/vehicle-meta';
 import { DealerIntegrationsStore, IntegrationSettingsError } from '../../api-server/src/lib/dealer-integrations-store';
+import { emailWebsiteBranding } from '../../api-server/src/lib/email-website-branding';
+import { readPreviewSettings } from './reservations';
 import { previewEmailTemplate } from '../../api-server/src/lib/email-template-preview';
-export const previewIntegrationsStore = new DealerIntegrationsStore({ filename: fileURLToPath(new URL('../../../.local/dealer-integrations-private.json', import.meta.url)), production: false });
+export const previewIntegrationsStore = new DealerIntegrationsStore({ filename: fileURLToPath(new URL('../../../.local/dealer-integrations-private.json', import.meta.url)), production: false, readWebsiteBranding: async () => emailWebsiteBranding(await readPreviewSettings(), 'https://example.test') });
 function local(req: IncomingMessage) { const remote = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, ''), host = new URL(`http://${req.headers.host}`).hostname; const lanHost = process.env.LUXXY_PREVIEW_LAN_HOST, privateIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/; return ((['127.0.0.1', '::1'].includes(remote) && ['127.0.0.1', 'localhost', '[::1]'].includes(host)) || Boolean(lanHost && privateIp.test(lanHost) && host === lanHost && (privateIp.test(remote) || remote === '127.0.0.1'))) && (!req.headers.origin || req.headers.origin === `http://${req.headers.host}`); }
 async function body(req: IncomingMessage) { let data = ''; for await (const chunk of req) { data += chunk; if (Buffer.byteLength(data) > 64_000) throw new IntegrationSettingsError('This settings request is too large.', 413); } try { return JSON.parse(data); } catch { throw new IntegrationSettingsError('Invalid settings request.'); } }
 function send(res: ServerResponse, status: number, value: object) { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify({ ...value, preview: true })); }

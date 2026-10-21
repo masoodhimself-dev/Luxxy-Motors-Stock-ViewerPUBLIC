@@ -91,3 +91,29 @@ describe('unpublished showroom drafts', () => {
   });
 
 });
+
+
+it('retains the complete shared draft when opting out of a saved brochure colour override', () => {
+  const saved = {...structuredClone(previewSettings),brochure:{accentColour:'#835b33',footerNote:'Saved note'}};
+  const form = {...structuredClone(saved),identity:{...saved.identity,name:'Unpublished dealership name'},brochure:{...saved.brochure,accentColour:undefined}};
+  const baseline = JSON.stringify(saved);
+  expect(writeSettingsDraft(baseline, form, 4)).toBe(true);
+  // Reading session storage exercises the JSON round-trip: undefined is omitted.
+  const restored = readSettingsDraft(saved);
+  expect(restored?.form.identity.name).toBe('Unpublished dealership name');
+  expect(restored?.form.brochure).toEqual({footerNote:'Saved note'});
+  expect(restored?.saved).toBe(baseline);
+  expect(restored?.revision).toBe(4);
+});
+it.each(['not-a-colour',42,null])('rejects a malformed optional brochure colour override %j', accentColour => {
+  const saved = {...structuredClone(previewSettings),brochure:{accentColour:'#835b33'}};
+  sessionStorage.setItem('luxxy-showroom-draft-v1', JSON.stringify({saved:JSON.stringify(saved),updatedAt:Date.now(),form:{...saved,brochure:{accentColour}}}));
+  expect(readSettingsDraft(saved)).toBeNull();
+});
+
+it('keeps an explicit vehicle-sheet inheritance choice and retained custom override in a shared draft', () => {
+  const saved = {...structuredClone(previewSettings),brochure:{accentColour:'#835b33',useWebsiteColour:false}};
+  const form = {...structuredClone(saved),brochure:{...saved.brochure,useWebsiteColour:true}};
+  writeSettingsDraft(JSON.stringify(saved), form, 4);
+  expect(readSettingsDraft(saved)?.form.brochure).toEqual({accentColour:'#835b33',useWebsiteColour:true});
+});

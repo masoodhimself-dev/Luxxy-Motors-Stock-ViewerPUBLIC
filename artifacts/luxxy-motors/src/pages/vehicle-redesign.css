@@ -153,6 +153,7 @@
 .vehicle-redesigned .vehicle-enquiry-visit-row figure img { width: 100%; max-height: 280px; border-radius: 6px; object-fit: cover; }
 .vehicle-redesigned .vehicle-enquiry-visit-row .text-sm { font-size: 14px; line-height: 1.75; }
 .vehicle-redesigned :is(h2, h3, #vehicle-enquiry, #vehicle-history) { scroll-margin-top: calc(var(--site-header-height, 80px) + 24px); }
+.vehicle-redesigned #vehicle-enquiry { scroll-margin-top: 0; }
 .vehicle-redesigned .vehicle-similar-stock { background: var(--vehicle-panel); }
 .vehicle-redesigned .vehicle-similar-stock .vehicle-card { border-radius: 6px; box-shadow: none; }
 .vehicle-redesigned .vehicle-similar-stock .vehicle-card-heading h3 { color: var(--vehicle-ink); font-size: 18px; font-weight: 600; }

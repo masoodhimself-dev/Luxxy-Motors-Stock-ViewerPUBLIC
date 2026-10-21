@@ -57,7 +57,7 @@ import {
   recordBookingIntent,
 } from '@/lib/cta-helpers';
 import { navigateToHomeTarget } from '@/lib/home-navigation';
-import { recordedWriteOffCategory, vehicleWriteOffCategory } from '@/lib/vehicle-history';
+import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
 
 
 function LedgerRow({ label, value, testId }: { label: string; value: string; testId?: string }) {
@@ -90,8 +90,10 @@ export default function CarDetail() {
     if (!car?.id) return;
     const scrollToSection = () => {
       const id = window.location.hash.slice(1);
-      if (['vehicle-description-heading', 'features-heading'].includes(id)) {
-        document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      if (['vehicle-description-heading', 'features-heading', 'vehicle-enquiry'].includes(id)) {
+        const target = document.getElementById(id);
+        target?.scrollIntoView({ block: 'start', behavior: 'instant' });
+        if (id === 'vehicle-enquiry') document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
       }
     };
     const frame = requestAnimationFrame(scrollToSection);
@@ -182,24 +184,7 @@ export default function CarDetail() {
     { label: 'Body', value: car.bodyType || 'Ask us' },
   ].filter(fact => !['-', 'Ask us', 'Unknown', ''].includes(fact.value));
 
-  const damageDisclosure = (() => {
-    const category = recordedWriteOffCategory(vehicleWriteOffCategory(car));
-    if (category === 'S') {
-      return {
-        label: 'Category S',
-        explanation:
-          'This vehicle previously had structural damage recorded by an insurer. Ask us for the available repair and inspection records before deciding to buy.',
-      };
-    }
-    if (category === 'N') {
-      return {
-        label: 'Category N',
-        explanation:
-          'This vehicle previously had non-structural damage recorded by an insurer. Ask us for the available repair and inspection records before deciding to buy.',
-      };
-    }
-    return null;
-  })();
+  const damageDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
 
   const hasHandoverInformation = handoverFacts.length > 0 || Boolean(dealerConfig.presentation?.includedInformation?.trim()) || Boolean(damageDisclosure);
   const canReserve = Boolean(dealerConfig.onlineReservation?.enabled && dealerConfig.onlineReservation.terms?.trim() && (!car.inventoryStatus || car.inventoryStatus === 'available') && (car.price ?? 0) > 0 && (car.price ?? 0) * 100 >= dealerConfig.onlineReservation.depositPence && (!car.currency || car.currency.toUpperCase() === 'GBP'));
@@ -222,6 +207,10 @@ export default function CarDetail() {
     }
   };
 
+  const openVehicleEnquiry = () => {
+    document.getElementById('vehicle-enquiry')?.scrollIntoView({block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+    document.getElementById('vehicle-enquiry-heading')?.focus({preventScroll: true});
+  };
   const bookingAction = (!car.inventoryStatus || car.inventoryStatus === 'available') ? (
     <Button asChild size="lg" key="booking" className="vehicle-booking-action">
       <a
@@ -235,7 +224,11 @@ export default function CarDetail() {
     </Button>
   ) : null;
   const enquiryAction = (
-    <a key="enquiry" className="vehicle-enquiry-action" href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`}>
+    <a key="enquiry" className="vehicle-enquiry-action" href="#vehicle-enquiry" onClick={event => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      openVehicleEnquiry();
+    }}>
       <CustomerEnquiry className="h-4 w-4" aria-hidden="true" /> Enquire About This Car
     </a>
   );
@@ -267,7 +260,7 @@ export default function CarDetail() {
         <p className="luxxy-price text-[2rem]">{car.price ? formatPrice(car.price, car.currency) : 'Price on application'}</p>
         <PriceReduction car={car} />
         {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <p className="text-sm text-muted-foreground">{car.priceType}</p>}
-        {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.label} · recorded insurance history</span><ArrowRight className="h-4 w-4" /></a>}
+        {damageDisclosure && <a href="#vehicle-history" className="vehicle-insurance-disclosure"><VehicleFactIcon label="Insurance history" /><span>{damageDisclosure.summary}</span><ArrowRight className="h-4 w-4" /></a>}
       </div>
     </header>
   );
@@ -287,7 +280,8 @@ export default function CarDetail() {
           <div className="vehicle-detail-gallery min-w-0">
             <Gallery key={car.id} car={car} images={car.images || []} heroImage={car.heroImage} vehicleLabel={vehicleLabel} customerView customerActions={{
               bookingHref: dealerConfig.testDriveBooking?.enabled && (!car.inventoryStatus || car.inventoryStatus === 'available') ? bookingHref : undefined,
-              enquiryHref: customerFeatures.enabled('publicEnquiries') ? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}` : undefined,
+              enquiryHref: customerFeatures.enabled('publicEnquiries') ? '#vehicle-enquiry' : undefined,
+              onEnquiry: customerFeatures.enabled('publicEnquiries') ? openVehicleEnquiry : undefined,
               call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
             }} />
             <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>

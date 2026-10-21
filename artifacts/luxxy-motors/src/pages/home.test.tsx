@@ -533,8 +533,6 @@ describe('showroom search filters', () => {
   });
 
   it.each([
-    ['Automatic', 'button-quick-automatic'],
-    ['Under £5k', 'button-quick-under-5000'],
     ['Low miles', 'button-quick-low-mileage'],
   ])('keeps the panel open for the %s quick choice and moves to results only after Show cars', async (_label, testId) => {
     renderHome();
@@ -788,15 +786,17 @@ describe('compact customer stock presentation', () => {
     expect(screen.getByText('2022 · 30k miles · Petrol · Automatic')).toBeInTheDocument();
   });
 
-  it('combines quick choices, budget and fuel without reopening the filter panel', async () => {
+  it('combines transmission, budget and fuel without duplicated shortcut controls', async () => {
     renderHome();
     expect(screen.getByLabelText('Search the showroom')).toHaveAccessibleDescription('Try “automatic under £10k” or a registration.');
     fireEvent.click(screen.getByRole('button', { name: 'Advanced search' }));
-    fireEvent.click(screen.getByTestId('button-quick-automatic'));
-    fireEvent.click(screen.getByTestId('button-quick-under-5000'));
+    fireEvent.change(screen.getByLabelText('Transmission'), { target: { value: 'Automatic' } });
+    fireEvent.change(screen.getByLabelText('Max budget'), { target: { value: '5000' } });
     fireEvent.change(screen.getByLabelText('Fuel'), { target: { value: 'Petrol' } });
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByTestId('button-quick-automatic')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('button-quick-automatic')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('button-quick-under-5000')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Transmission')).toHaveValue('Automatic');
     expect(resultTitles()).toEqual(['BMW 1 Series', 'VW Golf']);
     expect(scrollToHomeTarget).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Show 2 cars' }));
@@ -804,6 +804,16 @@ describe('compact customer stock presentation', () => {
     expect(window.location.search).toBe('?maxPrice=5000&fuel=Petrol&transmission=Automatic');
     expect(screen.getByLabelText('Sort results')).toBeInTheDocument();
   });
+});
+
+it('keeps explicit advert category wording visible without treating it as structured history', () => {
+  stockFixture.cars = [{...originalCars[0], writeOffCategory: null, sourceExtras: {description: 'This car was recorded as Cat S. Ask us for repair records.'}}];
+  renderHome();
+  expect(screen.getByText('Advert states Category S')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name:'Advanced search'}));
+  fireEvent.click(screen.getByRole('checkbox', {name:'Category S'}));
+  expect(screen.queryByTestId('card-vehicle-bmw-1-series')).not.toBeInTheDocument();
+  expect(screen.getByText('No matches')).toBeInTheDocument();
 });
 
 

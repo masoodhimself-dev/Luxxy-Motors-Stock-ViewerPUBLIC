@@ -2,6 +2,8 @@ import { jsPDF } from "jspdf";
 import {
   formatVehicleName,
   vehicleRegistration,
+  vehicleSheetAccent,
+  vehicleSheetUsesWebsiteColour,
   type VehicleMetaSource,
 } from "@workspace/vehicle-meta";
 
@@ -9,6 +11,7 @@ export type BrochureVehicle = VehicleMetaSource &
   Record<string, unknown> & { id: string };
 export type BrochureDealer = {
   name: string;
+  primaryHsl?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -18,6 +21,7 @@ export type BrochureOptions = {
   title?: string;
   introduction?: string;
   accentColour?: string;
+  useWebsiteColour?: boolean;
   footerNote?: string;
   includeDescription?: boolean;
   includeFeatures?: boolean;
@@ -25,17 +29,15 @@ export type BrochureOptions = {
   photoLimit?: number;
   galleryLayout?: "grid" | "large";
 };
-export function brochureOptions(value: unknown): Required<BrochureOptions> {
+export function brochureOptions(value: unknown, primaryHsl?: string): Required<BrochureOptions> {
   const options = record(value);
+  const colour = { accentColour: typeof options.accentColour === 'string' ? options.accentColour : undefined, useWebsiteColour: typeof options.useWebsiteColour === 'boolean' ? options.useWebsiteColour : undefined };
   return {
+    useWebsiteColour: vehicleSheetUsesWebsiteColour(colour),
     title:
       brochureText(options.title).slice(0, 60) || "Your next car, in detail",
     introduction: brochureText(options.introduction).slice(0, 300),
-    accentColour:
-      typeof options.accentColour === "string" &&
-      /^#[0-9a-fA-F]{6}$/.test(options.accentColour)
-        ? options.accentColour
-        : "#835b33",
+    accentColour: vehicleSheetAccent(primaryHsl, colour.accentColour, colour.useWebsiteColour),
     footerNote: brochureText(options.footerNote).slice(0, 500),
     includeDescription: options.includeDescription !== false,
     includeFeatures: options.includeFeatures !== false,
@@ -53,16 +55,18 @@ export function brochureDealer(config: unknown): BrochureDealer {
   const value = record(config),
     identity = record(value.identity),
     contact = record(value.contact),
-    address = record(value.address);
+    address = record(value.address),
+    primaryHsl = brochureText(record(identity.brandColors).primaryHsl);
   return {
     name: brochureText(identity.name) || "Vehicle showroom",
+    primaryHsl,
     phone: brochureText(contact.phone),
     email: brochureText(contact.email),
     address: ["street", "city", "region", "postcode"]
       .map((key) => brochureText(address[key]))
       .filter(Boolean)
       .join(", "),
-    brochure: brochureOptions(value.brochure),
+    brochure: brochureOptions(value.brochure, primaryHsl),
   };
 }
 export type BrochurePhoto = { url: string; caption: string };
@@ -263,7 +267,7 @@ export function renderVehicleBrochure(input: {
   generatedAt?: Date;
 }): Buffer {
   const { vehicle, dealer } = input;
-  const options = brochureOptions(dealer.brochure);
+  const options = brochureOptions(dealer.brochure, dealer.primaryHsl);
   const photos = input.photos.slice(
     0,
     options.includeGallery ? options.photoLimit : 1,

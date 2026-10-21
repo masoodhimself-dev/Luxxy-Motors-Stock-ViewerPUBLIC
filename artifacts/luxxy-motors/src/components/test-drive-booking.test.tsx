@@ -194,3 +194,28 @@ it('keeps the night-time message specific to an empty today, not future dates', 
   expect(screen.queryByLabelText('Booking at night')).not.toBeInTheDocument();
   expect(screen.getByTestId('status-availability-empty')).toHaveTextContent('No appointments are available on this date');
 });
+
+
+it('adds part exchange once and keeps typed answers when removed and added again', () => {
+  render(booking());
+  fireEvent.click(within(screen.getByTestId('group-viewing-slots')).getByRole('button'));
+  fireEvent.click(screen.getByTestId('button-continue-to-details'));
+  fireEvent.click(screen.getByRole('button', { name: 'Add a part exchange (optional)' }));
+  expect(screen.queryByRole('checkbox', { name: 'Yes, I have a car to part-exchange' })).not.toBeInTheDocument();
+  const registration = screen.getByTestId('enquiry-part-exchange-plate-input');
+  fireEvent.change(registration, { target: { value: 'AB12 CDE' } });
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Approximate mileage' }), { target: { value: '42000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Remove part exchange' }));
+  expect(screen.queryByTestId('enquiry-part-exchange-details')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByTestId('input-customer-name'), { target: { value: 'Fictional Buyer' } });
+  fireEvent.change(screen.getByTestId('input-customer-phone'), { target: { value: '07700900123' } });
+  fireEvent.change(screen.getByTestId('input-customer-email'), { target: { value: 'fictional@example.test' } });
+  fireEvent.submit(screen.getByTestId('button-review-booking').closest('form')!);
+  expect(screen.getByTestId('booking-review')).not.toHaveTextContent('AB12 CDE');
+  expect(state.mutate).not.toHaveBeenCalled();
+  // The tab-local saved draft retains values, but flags them as excluded.
+  const draft = JSON.parse(window.sessionStorage.getItem('luxxy.enquiry-draft.viewing:booking-car')!);
+  expect(draft.data.hasPartExchange).toBe(false);
+  expect(draft.data.exchange.registration).toBe('AB12 CDE');
+  expect(draft.data.exchange.mileage).toBe('42000');
+});

@@ -21,6 +21,7 @@ import { normaliseTenantHost, multiTenantEnabled } from '../lib/tenant-context';
 import { importSecretDigest } from '../middlewares/tenant';
 import { importActivityDetails } from '../lib/platform-import-activity';
 import { newDealerSettings } from './dealer-settings';
+import { platformStockConnection } from '../lib/platform-stock-connection';
 const router = Router();
 router.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
@@ -85,13 +86,14 @@ router.get('/overview', async (_req, res) => {
 router.get('/dealers/:id/workspace', async (req, res) => {
   const [dealer] = await db.select().from(dealershipsTable).where(eq(dealershipsTable.id, req.params.id));
   if (!dealer) { res.status(404).json({ error: 'Dealer not found.' }); return; }
-  const [domains, members, imports, keys] = await Promise.all([
+  const [domains, members, imports, keys, effectiveStockConnection] = await Promise.all([
     db.select().from(dealerDomainsTable).where(eq(dealerDomainsTable.dealerId, dealer.id)),
     db.select({ id: portalUsersTable.id, name: portalUsersTable.name, email: portalUsersTable.email, role: portalUsersTable.role, disabledAt: portalUsersTable.disabledAt }).from(portalUsersTable).where(eq(portalUsersTable.dealerId, dealer.id)),
     db.select({ runId: stockImportRunsTable.runId, status: stockImportRunsTable.status, receivedAt: stockImportRunsTable.receivedAt, scrapedAt: stockImportRunsTable.scrapedAt, receivedCount: stockImportRunsTable.receivedCount, updatedAt: stockImportRunsTable.updatedAt, expectedCount: stockImportRunsTable.expectedCount, addedCount: stockImportRunsTable.addedCount, changedCount: stockImportRunsTable.changedCount, missingCount: stockImportRunsTable.missingCount, errors: stockImportRunsTable.errors, source: stockImportRunsTable.source, retailerId: stockImportRunsTable.retailerId }).from(stockImportRunsTable).where(eq(stockImportRunsTable.dealerId, dealer.id)).orderBy(desc(stockImportRunsTable.receivedAt)).limit(30),
     db.select({ id: dealerImportKeysTable.id, createdAt: dealerImportKeysTable.createdAt, disabledAt: dealerImportKeysTable.disabledAt }).from(dealerImportKeysTable).where(eq(dealerImportKeysTable.dealerId, dealer.id)),
+    platformStockConnection(dealer),
   ]);
-  res.json({ dealer, domains, members, imports, keys });
+  res.json({ dealer, domains, members, imports, keys, effectiveStockConnection });
 });
 const origin = z.string().url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && (!u.port || u.port === '443') && !u.username && !u.password && u.pathname === '/' && !u.search && !u.hash && Boolean(normaliseTenantHost(u.host)); });
 const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional() }).strict().refine(v => Number(Boolean(v.ownerAuthUserId)) + Number(Boolean(v.ownerEmail)) + Number(v.useMyAccount === true) === 1);

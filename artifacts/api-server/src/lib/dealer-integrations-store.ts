@@ -1,4 +1,5 @@
 import { demoProvisioning } from './demo-policy';
+import { emailWebsiteBranding, resolveEmailWebsiteAppearance, type EmailWebsiteBranding, type EmailWebsiteSettings } from './email-website-branding';
 import { currentDealerId, currentTenant, multiTenantEnabled } from "./tenant-context";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -9,8 +10,8 @@ import { type InvoiceSettings, defaultInvoiceSettings, currentInvoiceSettings, i
 export class IntegrationSettingsError extends Error { constructor(message: string, readonly status = 400) { super(message); this.name = 'IntegrationSettingsError'; } }
 export type ResendSettings = { enabled: boolean; apiKey: string; from: string; replyTo: string };
 export type StripeSettings = { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey: string; webhookSecret: string };
-export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection };
-const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance } });
+export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection };
+const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance }, useWebsiteBranding: true });
 export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { if(currentTenant()?.demo){ const p=demoProvisioning(); return {enabled:p.emailReady,apiKey:process.env.DEMO_RESEND_API_KEY??'',from:p.emailDomain?`${currentDealerId()} Demo <${currentDealerId()}@${p.emailDomain}>`:'',replyTo:''}; } return multiTenantEnabled() || settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
 const clean = z.string().trim().max(512).refine(value => !/[\r\n\u0000-\u001f\u007f]/.test(value), 'Use a single line without control characters.');
 const updateSchema = z.object({
@@ -66,7 +67,7 @@ export function applyIntegrationUpdate(current: PrivateDealerSettings, raw: unkn
 export class DealerIntegrationsStore {
   private queue: Promise<unknown> = Promise.resolve();
   readonly filename: string;
-  constructor(private options: { filename?: string; dealerId?: string; encryptionKey?: string; production?: boolean; databaseBacked?: boolean } = {}) {
+  constructor(private options: { filename?: string; dealerId?: string; encryptionKey?: string; production?: boolean; databaseBacked?: boolean; readWebsiteBranding?: () => Promise<EmailWebsiteBranding> } = {}) {
     const dealer = options.dealerId ?? currentDealerId();
     this.filename = options.filename ?? resolve(process.env.INTEGRATIONS_PRIVATE_DIR ?? '.private/dealer-integrations', `${createHash('sha256').update(dealer).digest('hex').slice(0, 24)}.json`);
     if (process.env.FRONTEND_DIST_DIR && this.filename.startsWith(resolve(process.env.FRONTEND_DIST_DIR) + '/')) throw new IntegrationSettingsError('Private integration storage must be outside the public website directory.', 503);
@@ -119,7 +120,8 @@ export class DealerIntegrationsStore {
     const temp = `${this.filename}.${randomUUID()}.tmp`; await writeFile(temp, source, { mode: 0o600 }); await rename(temp, this.filename); await chmod(this.filename, 0o600);
   }
   async readStockConnection(transaction?: unknown): Promise<{ revision: number; connection: StockConnection }> {
-    const state = await this.readPrivate(transaction);
+    // Stock imports do not need email branding or another database connection.
+    const state = await this.serial(() => this.load(transaction));
     const scoped = currentTenant();
     if (state.stockConnection) {
       if (scoped && (state.stockConnection.platform !== scoped.platform || state.stockConnection.retailerId !== scoped.retailerId)) throw new IntegrationSettingsError('Stock settings do not match the registered dealership.', 503);
@@ -167,26 +169,56 @@ export class DealerIntegrationsStore {
       return { revision: state.revision, ...state.salesPaperwork };
     });
   }
-  async readPrivate(transaction?: unknown) { return this.serial(() => this.load(transaction)); }
-  async readMasked() { return maskedIntegrationSettings(await this.readPrivate()); }
+  private async templateResponse(state: PrivateDealerSettings) {
+    const websiteAppearance = this.options.readWebsiteBranding ? await this.options.readWebsiteBranding() : undefined;
+    return {
+      revision: state.revision,
+      templates: defaultEmailTemplates.map(template => ({ ...template, ...state.templates[template.id] })),
+      appearance: resolveEmailWebsiteAppearance(state.appearance, state.useWebsiteBranding === true, websiteAppearance),
+      customAppearance: state.appearance,
+      useWebsiteBranding: state.useWebsiteBranding === true,
+      ...(websiteAppearance ? { websiteAppearance } : {}),
+    };
+  }
+  async readPrivate(transaction?: unknown) {
+    const state = await this.serial(() => this.load(transaction));
+    // Never acquire an unrelated database connection while a caller holds a transaction.
+    if (!transaction && state.useWebsiteBranding && this.options.readWebsiteBranding) return { ...state, appearance: resolveEmailWebsiteAppearance(state.appearance, true, await this.options.readWebsiteBranding()) };
+    return state;
+  }
+  async readMasked() { return maskedIntegrationSettings(await this.serial(() => this.load())); }
   async update(raw: unknown) { return this.serial(async () => { const next = applyIntegrationUpdate(await this.load(), raw); await this.save(next); return maskedIntegrationSettings(next); }); }
-  async listTemplates() { const state = await this.readPrivate(); return { revision: state.revision, templates: defaultEmailTemplates.map(template => ({ ...template, ...state.templates[template.id] })), appearance: state.appearance }; }
+  async listTemplates() { return this.templateResponse(await this.serial(() => this.load())); }
   async updateAppearance(raw: unknown) {
-    const input = raw as { expectedRevision?: unknown; appearance?: unknown } | null;
-    if (!input || typeof input.expectedRevision !== 'number' || Object.keys(input).some(key => !['expectedRevision', 'appearance'].includes(key))) throw new EmailTemplateError('Enter valid email branding settings.');
+    const input = raw as { expectedRevision?: unknown; appearance?: unknown; useWebsiteBranding?: unknown } | null;
+    if (!input || !Number.isSafeInteger(input.expectedRevision) || Object.keys(input).some(key => !['expectedRevision', 'appearance', 'useWebsiteBranding'].includes(key)) || (input.useWebsiteBranding !== undefined && typeof input.useWebsiteBranding !== 'boolean')) throw new EmailTemplateError('Enter valid email branding settings.');
     const appearance = validateEmailAppearance(input.appearance);
-    return this.serial(async () => { const state = await this.load(); if (state.revision !== input.expectedRevision) throw new EmailTemplateError('These settings changed in another session. Reload before saving.', 409); state.appearance = appearance; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, templates: defaultEmailTemplates.map(template => ({ ...template, ...state.templates[template.id] })), appearance: state.appearance }; });
+    return this.serial(async () => {
+      const state = await this.load();
+      if (state.revision !== input.expectedRevision) throw new EmailTemplateError('These settings changed in another session. Reload before saving.', 409);
+      state.appearance = appearance;
+      // Legacy clients explicitly saving custom appearance keep their previous behaviour.
+      state.useWebsiteBranding = input.useWebsiteBranding === true;
+      state.revision++; state.updatedAt = new Date().toISOString();
+      await this.save(state);
+      return this.templateResponse(state);
+    });
   }
   async updateTemplate(raw: unknown) {
     const input = raw as { id?: unknown; expectedRevision?: unknown; subject?: unknown; body?: unknown; headline?: unknown; reset?: unknown } | null;
     if (!input || typeof input.id !== 'string' || !defaultEmailTemplates.some(template => template.id === input.id) || typeof input.expectedRevision !== 'number' || Object.keys(input).some(key => !['id', 'expectedRevision', 'subject', 'body', 'headline', 'reset'].includes(key))) throw new EmailTemplateError('Choose a supported email template.');
     const copy = input.reset === true ? undefined : validateEmailTemplate(input);
-    return this.serial(async () => { const state = await this.load(); if (state.revision !== input.expectedRevision) throw new EmailTemplateError('These settings changed in another session. Reload before saving.', 409); if (copy) state.templates[input.id as string] = copy; else delete state.templates[input.id as string]; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return { revision: state.revision, templates: defaultEmailTemplates.map(template => ({ ...template, ...state.templates[template.id] })), appearance: state.appearance }; });
+    return this.serial(async () => { const state = await this.load(); if (state.revision !== input.expectedRevision) throw new EmailTemplateError('These settings changed in another session. Reload before saving.', 409); if (copy) state.templates[input.id as string] = copy; else delete state.templates[input.id as string]; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state); return this.templateResponse(state); });
   }
 }
 const stores = new Map<string, DealerIntegrationsStore>();
 function scopedStore(): DealerIntegrationsStore {
   const id = currentDealerId(), shared = multiTenantEnabled(); const key = `${shared ? 'shared' : 'legacy'}:${id}`;
-  let store = stores.get(key); if (!store) { store = new DealerIntegrationsStore({ dealerId: id, ...(shared ? { databaseBacked: true, production: true } : {}) }); stores.set(key, store); } return store;
+  let store = stores.get(key); if (!store) { store = new DealerIntegrationsStore({ dealerId: id, ...(shared ? { databaseBacked: true, production: true } : {}), readWebsiteBranding: async () => {
+      const { db, dealerSettingsTable } = await import('@workspace/db');
+      const { eq } = await import('drizzle-orm');
+      const [row] = await db.select({ config: dealerSettingsTable.config }).from(dealerSettingsTable).where(eq(dealerSettingsTable.dealerId, id));
+      return emailWebsiteBranding((row?.config ?? {}) as EmailWebsiteSettings, currentTenant()?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL ?? '');
+    } }); stores.set(key, store); } return store;
 }
 export const dealerIntegrationsStore = new Proxy({} as DealerIntegrationsStore, { get(_target, prop) { const store = scopedStore(); const value = Reflect.get(store, prop); return typeof value === 'function' ? value.bind(store) : value; } });

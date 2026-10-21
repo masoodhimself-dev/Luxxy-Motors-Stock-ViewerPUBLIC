@@ -6,6 +6,29 @@ import Platform from './platform';
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); auth.signedIn = true; });
 const dealer = { id:'example-dealer', name:'Example Dealer', canonicalOrigin:'https://dealer.example.test', status:'draft', stockPlatform:'autotrader', retailerId:'example', sourceUrl:'https://www.autotrader.co.uk/example', domains:[], activeKeyCount:0, latestImport:null,lastSuccessfulImport:null };
 const workspace = { dealer, domains:[{hostname:'dealer.example.test',verified:false,verificationToken:'fixture-token'}],members:[],imports:[],keys:[] };
+it('shows the effective stock source and retains a different registered URL as reference only', async () => {
+  const effectiveStockConnection={status:'known',platform:'autotrader',retailerId:'example',sourceUrl:dealer.sourceUrl+'?sort=price-asc',enabled:false,usesOverride:true};
+  vi.stubGlobal('fetch',vi.fn(async path=>String(path).endsWith('/workspace')?Response.json({...workspace,effectiveStockConnection}):Response.json({dealers:[dealer],activity:[]})));
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  fireEvent.click(await screen.findByRole('tab',{name:'Stock connection'}));
+  const source=screen.getByTestId('platform-stock-source');
+  expect(within(source).getByText('Effective source')).toBeInTheDocument();
+  expect(within(source).getByText(effectiveStockConnection.sourceUrl)).toBeInTheDocument();
+  expect(within(source).getByText('Registered source (reference)')).toBeInTheDocument();
+  expect(within(source).getByText(dealer.sourceUrl)).toBeInTheDocument();
+  expect(within(source).getByText('Paused in stock connection settings')).toBeInTheDocument();
+  expect(screen.getByText(/does not confirm the worker is running/)).toBeInTheDocument();
+});
+it('does not present an unknown effective source as the active registry source', async () => {
+  vi.stubGlobal('fetch',vi.fn(async path=>String(path).endsWith('/workspace')?Response.json({...workspace,effectiveStockConnection:{status:'unknown',platform:null,retailerId:null,sourceUrl:null,enabled:null,usesOverride:null}}):Response.json({dealers:[dealer],activity:[]})));
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  fireEvent.click(await screen.findByRole('tab',{name:'Stock connection'}));
+  expect(screen.getByRole('status')).toHaveTextContent('The effective stock source could not be confirmed.');
+  expect(screen.queryByText('Effective source',{exact:true})).not.toBeInTheDocument();
+  expect(screen.getByTestId('platform-stock-source')).toHaveTextContent('Registered source (reference)');
+});
 it('does not expose dealership controls when platform access is denied', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: 'Forbidden' }, { status: 403 })));
   render(<Platform />); await screen.findByRole('alert'); expect(screen.queryByRole('button', { name:'Create draft dealership' })).not.toBeInTheDocument();
@@ -30,8 +53,34 @@ it('guides draft creation using the current account and real DNS instructions', 
   await screen.findByText(/Draft dealership created/);
   expect(screen.getByRole('button',{name:'Activate dealership'})).toBeDisabled();
   fireEvent.click(screen.getByRole('tab',{name:'Domains'}));
-  expect(screen.getByText('_dealer-verification.dealer.example.test')).toBeInTheDocument();
-  expect(screen.getByText('fixture-token')).toBeInTheDocument();
+  expect(screen.getByText('fixture-token')).not.toBeVisible();
+  fireEvent.click(screen.getByText('Manual DNS setup',{exact:true}));
+  expect(screen.getByText('_dealer-verification.dealer.example.test')).toBeVisible();
+  expect(screen.getByText('fixture-token')).toBeVisible();
+});
+it('keeps manual DNS controls collapsed and opening them makes no domain changes', async () => {
+  const writes: string[]=[];
+  vi.stubGlobal('fetch',vi.fn(async (path,init)=>{
+    if (init?.method && !['GET','HEAD'].includes(init.method)) writes.push(String(path));
+    if (String(path).endsWith('/workspace')) return Response.json(workspace);
+    if (String(path).endsWith('/domain-automation')) return Response.json({configured:false,reason:'Fictional local test',jobs:[]});
+    return Response.json({dealers:[dealer],activity:[]});
+  }));
+  render(<Platform/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Example Dealer/}));
+  fireEvent.click(await screen.findByRole('tab',{name:'Domains'}));
+  const summary=screen.getByText('Manual DNS setup',{exact:true});
+  const details=summary.closest('details')!;
+  expect(details).not.toHaveAttribute('open');
+  expect(screen.getByLabelText(/^Add another domain/)).not.toBeVisible();
+  expect(screen.getByText('fixture-token')).not.toBeVisible();
+  expect(screen.getByRole('region',{name:'Automatic domain setup'})).toBeVisible();
+  fireEvent.click(summary);
+  expect(details).toHaveAttribute('open');
+  expect(screen.getByText('fixture-token')).toBeVisible();
+  expect(screen.getByRole('button',{name:'Check DNS ownership'})).toBeVisible();
+  expect(screen.getByLabelText(/^Add another domain/)).toBeVisible();
+  expect(writes).toEqual([]);
 });
 it('searches dealer names and never invents an import success', async () => {
   vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({ dealers:[dealer],activity:[] })));

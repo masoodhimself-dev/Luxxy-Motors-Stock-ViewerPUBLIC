@@ -74,7 +74,7 @@ export function CompleteSaleDialog({
           </details>
         ) : (
           <p role="alert">
-            Add your approved terms in Settings → API integrations → Sales
+            Add your approved terms in Settings → Emails & documents → Invoices & terms
             paperwork.
           </p>
         )}

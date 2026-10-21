@@ -9,9 +9,10 @@ for(const width of [390,1280]) test(`saved details and vehicle booking at ${widt
  await page.goto(`/vehicle/${car.id}`);
  await page.getByRole('button',{name:/Save .* to your saved cars/}).click();
  await page.goto('/saved');
- await page.locator('summary').filter({hasText:'More details'}).click();
- await expect(page.getByRole('heading',{name:'About this car'})).toBeVisible();
- await page.getByRole('link',{name:'Book a test drive',exact:true}).click();
+ await expect(page.locator('.saved-car-list details')).toHaveCount(0);
+ await expect(page.getByRole('link',{name:'View vehicle',exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'View vehicle',exact:true}).click();
+ await page.getByRole('link',{name:'Book a test drive',exact:true}).first().click();
  await expect(page).toHaveURL(new RegExp(`vehicleId=${car.id}`));
  await expect(page.getByTestId('card-enquiry-vehicle')).toContainText(String(car.year));
  await expect(page.getByTestId('group-viewing-dates')).toBeVisible();

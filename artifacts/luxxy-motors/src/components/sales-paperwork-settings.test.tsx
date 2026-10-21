@@ -66,8 +66,8 @@ it('keeps unsaved design, payment and terms edits between tabs and saves them to
  }));
  render(<SalesPaperworkSettings/>);await screen.findByRole('tab',{name:'Design'});
  fireEvent.change(screen.getByLabelText('Logo size'),{target:{value:'large'}});
- fireEvent.click(screen.getByRole('tab',{name:'Payment & references'}));
- expect(screen.getByRole('tabpanel',{name:'Payment & references'})).toBeVisible();
+ fireEvent.click(screen.getByRole('tab',{name:'Payment details'}));
+ expect(screen.getByRole('tabpanel',{name:'Payment details'})).toBeVisible();
  expect(screen.queryByRole('tabpanel',{name:'Design'})).not.toBeInTheDocument();
  fireEvent.change(screen.getByLabelText('Payment instructions'),{target:{value:'Use the invoice reference when paying.'}});
  fireEvent.change(screen.getByLabelText('Dealer reference prefix'),{target:{value:'abcd'}});
@@ -75,7 +75,7 @@ it('keeps unsaved design, payment and terms edits between tabs and saves them to
  fireEvent.change(screen.getByLabelText('Terms and conditions of sale'),{target:{value:'New approved terms'}});
  fireEvent.click(screen.getByRole('tab',{name:'Design'}));
  expect(screen.getByLabelText('Logo size')).toHaveValue('large');
- fireEvent.click(screen.getByRole('tab',{name:'Payment & references'}));
+ fireEvent.click(screen.getByRole('tab',{name:'Payment details'}));
  expect(screen.getByLabelText('Payment instructions')).toHaveValue('Use the invoice reference when paying.');
  expect(screen.getByLabelText('Dealer reference prefix')).toHaveValue('ABCD');
  expect(writes).toHaveLength(0);

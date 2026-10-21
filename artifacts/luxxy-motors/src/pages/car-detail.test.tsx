@@ -244,14 +244,32 @@ it('discloses a supplied insurance category alongside the price without inferrin
   expect(screen.queryByRole('link', { name: /recorded insurance history/ })).not.toBeInTheDocument();
 });
 
-it('opens a car-specific enquiry page and keeps print/share outside collapsed phone options', async () => {
+it('opens the existing car-specific enquiry form and keeps print/share outside collapsed phone options', async () => {
+  const scrollIntoView = vi.fn();
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {configurable: true, value: scrollIntoView});
   window.history.replaceState({}, '', '/vehicle/with-plate');
   const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
   render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail /></SavedCarsProvider></QueryClientProvider>);
   const enquiry = await screen.findByRole('link', {name:'Enquire About This Car'});
-  expect(enquiry).toHaveAttribute('href','/enquire?type=general&vehicleId=with-plate');
+  expect(enquiry).toHaveAttribute('href','#vehicle-enquiry');
+  fireEvent.click(enquiry);
+  expect(scrollIntoView).toHaveBeenCalledWith({block:'start', behavior:'smooth'});
+  expect(screen.getByRole('heading', {name:'Enquire about this BMW 3 Series'})).toHaveFocus();
   expect(screen.getByRole('button',{name:'Share this vehicle'}).closest('[data-testid="vehicle-secondary-actions"]')).toBeNull();
   expect(screen.queryByText(/Check this car’s registration before driving/)).not.toBeInTheDocument();
+});
+
+it('shows an explicit advert category as an unconfirmed advert disclosure beside the price', () => {
+  const car = stockFixture.cars[1];
+  try {
+    Object.assign(car, {sourceExtras: {description:'This car is recorded as Cat S. Ask for repair records.'}});
+    renderVehicle('with-plate');
+    const link = screen.getByRole('link', {name:/Advert states Category S · read the insurance history/});
+    expect(link.closest('.vehicle-price-block')).not.toBeNull();
+    expect(screen.getByText(/Its structured insurance-history field has not confirmed that category/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Mileage/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^Fuel/})).not.toBeInTheDocument();
+  } finally { Object.assign(car, {sourceExtras: null}); }
 });
 
 it('shows a supplied nested category beside the price and never promotes a description into a verified category', () => {
@@ -293,7 +311,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings());
     selectTenthPhoto();
     expect(prompt().getByRole('link', { name: 'Book a Test Drive' })).toHaveAttribute('href', '/enquire?type=viewing&vehicleId=with-plate');
-    expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate');
+    expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '#vehicle-enquiry');
     expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toHaveAttribute('href', 'tel:07388831790');
   });
 
@@ -304,7 +322,7 @@ describe('vehicle gallery contact policy', () => {
     renderVehicle('with-plate', settings());
     selectTenthPhoto();
     expect(prompt().queryByRole('link', { name: 'Book a Test Drive' })).not.toBeInTheDocument();
-    expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '/enquire?type=general&vehicleId=with-plate');
+    expect(prompt().getByRole('link', { name: 'Ask a question' })).toHaveAttribute('href', '#vehicle-enquiry');
     expect(prompt().getByRole('link', { name: 'Call about BMW 3 Series' })).toBeInTheDocument();
   });
 

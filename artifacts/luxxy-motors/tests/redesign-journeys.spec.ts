@@ -180,10 +180,12 @@ test('gallery thumbnails use one tab stop and support arrow, Home and End keys',
 test('service enquiry headings track the selected type without discarding typed details', async ({ page }) => {
   await page.goto('/enquire?type=general');
   await page.getByTestId('input-customer-name').fill('Test Customer');
-  await page.getByTestId('select-enquiry-type').selectOption('warranty');
+  await page.getByText('Need something else?', { exact: true }).click();
+  await page.getByRole('link', { name: 'Warranty enquiry', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Warranty enquiries');
   await expect(page.getByTestId('input-customer-name')).toHaveValue('Test Customer');
-  await page.getByTestId('select-enquiry-type').selectOption('delivery');
+  await page.getByText('Need something else?', { exact: true }).click();
+  await page.getByRole('link', { name: 'Delivery enquiry', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Arrange delivery');
 });
 

@@ -3,6 +3,7 @@ import './part-exchange-form.css';
 import { useDealerFeatures } from '@/lib/dealer-features';
 import { useCreateEnquiry, type EnquiryInput } from '@workspace/api-client-react';
 import { getVisitorId } from '@/lib/visitor';
+import { enquiryDraftKey, readEnquiryDraft } from '@/lib/enquiry-draft';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Check, MessageSquare } from '@/components/icons';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,12 @@ export function PartExchangeForm({ vehicle, stockCars }: { vehicle?: Car; stockC
   useEffect(() => {
     skipDraftSave.current = true;
     const draft = readPartExchangeDraft(draftKey);
-    setDetails(draft?.details ?? { ...emptyDetails });
+    const enquiry = readEnquiryDraft(enquiryDraftKey(vehicle?.id, 'part_exchange')) ?? readEnquiryDraft(enquiryDraftKey(vehicle?.id, 'general'));
+    setDetails(draft?.details ?? { ...emptyDetails, name: enquiry?.customerName ?? '', email: enquiry?.email ?? '', phone: enquiry?.phone ?? '',
+      registration: enquiry?.hasPartExchange ? enquiry.exchange.registration : '',
+      mileage: enquiry?.hasPartExchange ? enquiry.exchange.mileage : '',
+      conditionNotes: enquiry?.hasPartExchange ? enquiry.exchange.notes : '',
+    });
     setVehicleId(draft?.vehicleId ?? vehicle?.id ?? '');
     setDelivery(draft?.delivery ?? 'website');
     vehicleTouched.current = Boolean(draft);

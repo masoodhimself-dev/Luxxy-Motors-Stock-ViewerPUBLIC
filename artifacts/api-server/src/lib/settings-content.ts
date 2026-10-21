@@ -39,7 +39,9 @@ export function reservationSettingsError(settings?: ReservationSettings): string
   return null;
 }
 
-/** Merge brochure options so older clients do not erase a dealer's PDF design. */
+/** Merge brochure options so older clients do not erase a dealer's PDF design.
+ * The explicit useWebsiteColour flag changes inheritance without deleting the retained custom accent.
+ * Omitting the flag preserves the existing mode, including when an older client edits another field. */
 export function preserveBrochure<T extends { brochure?: object }>(incoming: T, previous: unknown): T {
   const brochure = previous && typeof previous === 'object' && 'brochure' in previous ? previous.brochure : undefined;
   if (!brochure || typeof brochure !== 'object' || Array.isArray(brochure)) return incoming;

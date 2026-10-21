@@ -51,7 +51,7 @@ export async function platformPreview(req: IncomingMessage, res: ServerResponse,
     else if(req.method==='GET'&&/^\/api\/platform\/dealers\/[^/]+\/workspace$/.test(url.pathname)) {
       const dealer=(await dealers()).find(d=>d.id===decodeURIComponent(url.pathname.split('/')[4]));
       if(!dealer) send(res,404,{error:'Example dealer not found.'});
-      else send(res,200,{dealer:{...dealer,sourceUrl:dealer.stockPlatform==='cazoo'?'https://www.cazoo.co.uk/fictional':'https://www.autotrader.co.uk/fictional'},domains:[{hostname:new URL(dealer.canonicalOrigin).hostname,verified:false,verificationToken:'EXAMPLE-ONLY-NOT-A-REAL-DNS-TOKEN'}],members:[],imports:[],keys:[]});
+      else send(res,200,{dealer:{...dealer,sourceUrl:dealer.stockPlatform==='cazoo'?'https://www.cazoo.co.uk/fictional':'https://www.autotrader.co.uk/fictional'},effectiveStockConnection:{status:'known',platform:dealer.stockPlatform,retailerId:dealer.retailerId,sourceUrl:dealer.stockPlatform==='cazoo'?'https://www.cazoo.co.uk/fictional':'https://www.autotrader.co.uk/fictional',enabled:true,usesOverride:false},domains:[{hostname:new URL(dealer.canonicalOrigin).hostname,verified:false,verificationToken:'EXAMPLE-ONLY-NOT-A-REAL-DNS-TOKEN'}],members:[],imports:[],keys:[]});
     }
     else if(req.method==='GET'&&url.pathname==='/api/platform/dealers') send(res,200,{dealers:await dealers(),localExample:true});
     else if(req.method==='POST'&&url.pathname==='/api/platform/dealers') {

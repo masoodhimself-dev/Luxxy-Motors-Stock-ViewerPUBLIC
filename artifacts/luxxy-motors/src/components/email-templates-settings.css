@@ -70,3 +70,9 @@
 @media (max-width:767px) {
  .settings-tabs-workspace .email-design-studio .email-variable-list button { min-height:44px; }
 }
+
+.email-brand-inheritance { font-weight:600; margin-bottom:12px; }
+.email-brand-inheritance-help { margin:0 0 18px; padding:12px 14px; border-left:3px solid var(--settings-accent,#0f766e); background:#f2f8f6; color:#3f5c56; font-size:13px; line-height:1.6; }
+.email-preview-save { margin-top:16px; padding:14px; border:1px solid #e0cfaa; border-radius:8px; background:#fffaf0; font-size:13px; line-height:1.6; }
+.email-preview-save .integration-actions { margin-top:12px; }
+.email-inactive-templates { margin-top:10px; color:var(--settings-muted,#617078); font-size:12px; }

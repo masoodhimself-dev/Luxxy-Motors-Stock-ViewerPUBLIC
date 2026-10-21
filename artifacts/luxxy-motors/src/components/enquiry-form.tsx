@@ -82,13 +82,13 @@ export function EnquiryForm({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
   const [hasPartExchange, setHasPartExchange] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
-  const [exchangeExpanded, setExchangeExpanded] = useState(() => Boolean(readVehicleExchange(vehicle?.id)));
   const [exchange, setExchange] = useState(() => readVehicleExchange(vehicle?.id) ?? { registration: '', mileage: '', notes: '' });
   useEffect(() => {
     const draft = readVehicleExchange(vehicle?.id);
-    if (draft) { setExchange(draft); setHasPartExchange(true); setExchangeExpanded(true); }
+    if (draft) { setExchange(draft); setHasPartExchange(true); }
   }, [vehicle?.id]);
-  const exchangeSummary = !embedded && hasPartExchange && vehicle ? [
+  const includePartExchange = hasPartExchange && features.enabled('partExchange');
+  const exchangeSummary = includePartExchange && vehicle ? [
     'Part exchange', `Registration: ${exchange.registration.trim().toUpperCase()}`,
     `Mileage: ${exchange.mileage} miles`, `Other details: ${exchange.notes.trim() || 'None supplied'}`,
   ].join('\n') : '';
@@ -121,8 +121,7 @@ export function EnquiryForm({
     if (draft) {
       setCustomerName(draft.customerName);setEmail(draft.email);setPhone(draft.phone);
       setMessage(draft.message); messageTouched.current=Boolean(draft.message);
-      setPreferredContact(embedded && draft.preferredContact === 'whatsapp' ? 'phone' : draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
-      setExchangeExpanded(draft.hasPartExchange);
+      setPreferredContact(draft.preferredContact);setHasPartExchange(draft.hasPartExchange);setExchange(draft.exchange);
       setDraftSaved(true);
       setDraftRestored(true);
     } else { setDraftSaved(false); setDraftRestored(false); }
@@ -143,7 +142,7 @@ export function EnquiryForm({
   const discardDraft = () => {
     discardEnquiryDraft(draftKey);setDraftSaved(false);setDraftRestored(false);
     setCustomerName('');setEmail('');setPhone('');setMessage('');messageTouched.current=true;
-    setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});setAdditionalContact(false);setExchangeExpanded(false);
+    setHasPartExchange(false);setExchange({registration:'',mileage:'',notes:''});setAdditionalContact(false);
     setPhoneError('');setNameError('');setEmailError('');
   };
   const focusPhone = () => document.querySelector<HTMLInputElement>('[data-testid="input-customer-phone"]')?.focus();
@@ -156,14 +155,15 @@ export function EnquiryForm({
   const whatsAppHref = getWhatsAppHref(undefined, dealerConfig);
 
   const changeType = (nextType: EnquiryType) => {
-    if (nextType === 'viewing') {
-      if (customerName || email || phone || message || exchange.registration) {
-        saveEnquiryDraft(draftKey, { customerName, email, phone, message, preferredContact, hasPartExchange, exchange });
-      }
-      navigate(testDrivePath);
-      return;
+    if (nextType === type) return;
+    const draft = { customerName, email, phone, message, preferredContact, hasPartExchange, exchange };
+    if (customerName || email || phone || message || exchange.registration) {
+      saveEnquiryDraft(draftKey, draft);
+      // Keep contact and question details when changing the task or returning here.
+      const nextKey = enquiryDraftKey(vehicle?.id, nextType);
+      if (!readEnquiryDraft(nextKey)) saveEnquiryDraft(nextKey, nextType === 'viewing' ? { ...draft, message: '' } : draft);
     }
-    setType(nextType);
+    navigate(`/enquire?type=${nextType}${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`);
     onTypeChange?.(nextType);
   };
 
@@ -171,7 +171,7 @@ export function EnquiryForm({
     event.preventDefault();
     if (!features.enabled('publicEnquiries')) return;
     if (message.trim().length > messageLimit) return;
-    const contactPhone = embedded && preferredContact === 'email' ? '' : phone;
+    const contactPhone = phone;
     const normalizedPhone = normalisePhone(contactPhone);
     if (contactPhone.trim() && !normalizedPhone) {
       setPhoneError('Enter a valid UK or international phone number, including at least 7 digits.');
@@ -187,12 +187,12 @@ export function EnquiryForm({
       vehicleId: vehicle?.id ?? null,
       type,
       customerName: customerName.trim(),
-      email: embedded && preferredContact !== 'email' ? null : email.trim() || null,
-      phone: embedded && preferredContact === 'email' ? null : normalizedPhone,
+      email: email.trim() || null,
+      phone: normalizedPhone,
       preferredContact,
-      message: [message.trim(), embedded ? '' : exchangeSummary].filter(Boolean).join('\n\n'),
+      message: [message.trim(), exchangeSummary].filter(Boolean).join('\n\n'),
       appointmentAt: null,
-      partExchange: !embedded && hasPartExchange && vehicle ? {
+      partExchange: includePartExchange && vehicle ? {
         registration: exchange.registration.trim().toUpperCase(),
         mileage: Number(exchange.mileage),
         condition: null,
@@ -245,14 +245,14 @@ export function EnquiryForm({
             <Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <div>
               <p className="luxxy-label text-primary/70">
-                {(!email.trim() || embedded && preferredContact !== 'email') ? (preferredContact === 'whatsapp' ? 'We’ll reply on WhatsApp' : 'We’ll reply by phone') : mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Your enquiry is saved'}
+                {!email.trim() ? (preferredContact === 'whatsapp' ? 'We’ll reply on WhatsApp' : 'We’ll reply by phone') : mutation.data.customerNotificationStatus === 'sent' ? 'Confirmation email sent' : 'Your enquiry is saved'}
               </p>
               <p className="mt-1 text-xs leading-5 text-primary/70">
                 {mutation.data.customerNotificationStatus === 'sent'
                   ? `We sent your enquiry details to ${email.trim()}.`
                   : `Your enquiry is saved. We’ll reply using your chosen contact details. You do not need to send it again.`}
               </p>
-              {(!embedded || preferredContact === 'email') && email.trim() && mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
+              {email.trim() && mutation.data.customerNotificationStatus !== 'sent' && (phoneHref || whatsAppHref) && (
                 <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-accent">
                   {phoneHref && <a href={phoneHref} className="underline underline-offset-4" data-testid="link-fallback-call">Call {dealerConfig.contact.phone}</a>}
                   {whatsAppHref && <a href={whatsAppHref} className="underline underline-offset-4" data-testid="link-fallback-whatsapp">WhatsApp Us</a>}
@@ -262,7 +262,7 @@ export function EnquiryForm({
           </div>
         </div>
         {vehicle && dealerConfig.onlineReservation?.enabled && <div className="mx-auto mt-6 max-w-sm border-t border-border pt-5">
-          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
+          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={includePartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
         </div>}
         <Button
           type="button"
@@ -280,18 +280,9 @@ export function EnquiryForm({
 
   if (!features.enabled('publicEnquiries')) return <FeatureUnavailable title="Online enquiries are currently unavailable" loading={features.isLoading} error={features.isError} retry={() => void features.refetch()} />;
 
-  if (embedded) return <form onSubmit={submit} className="space-y-5" data-testid="form-enquiry">
-    <label className="block"><span className={labelClass}>What would you like to know?</span><Textarea required rows={3} maxLength={messageLimit} value={message} onChange={event => { messageTouched.current = true; setMessage(event.target.value); }} placeholder="Ask your question about this car" data-testid="textarea-enquiry-message" /></label>
-    <fieldset><legend className={labelClass}>How should we reply?</legend><div className="grid grid-cols-2 gap-3">{(['email', 'phone'] as const).map(method => <label key={method} className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-sm ${preferredContact === method ? 'border-primary bg-secondary' : 'border-border'}`}><input type="radio" name="enquiry-reply" value={method} checked={preferredContact === method} onChange={() => { setPreferredContact(method); setPhoneError(''); }} />{method === 'email' ? 'Email' : 'Phone'}</label>)}</div></fieldset>
-    <label className="block"><span className={labelClass}>Your name</span><Input ref={nameInputRef} required minLength={2} maxLength={120} autoComplete="name" value={customerName} onChange={event => setCustomerName(event.target.value)} data-testid="input-customer-name" /></label>
-    {preferredContact === 'email' ? <label className="block"><span className={labelClass}>Email address</span><Input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} data-testid="input-customer-email" /></label> : <label className="block"><span className={labelClass}>Phone number</span><Input required type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={event => { setPhone(event.target.value); setPhoneError(''); }} aria-invalid={Boolean(phoneError)} aria-describedby={phoneError ? 'inline-phone-error' : undefined} data-testid="input-customer-phone" />{phoneError && <span id="inline-phone-error" role="alert" className="text-sm text-destructive">{phoneError}</span>}</label>}
-    {mutation.isError && <p role="alert" className="text-sm text-destructive">{apiErrorMessage(mutation.error)}</p>}
-    <Button type="submit" disabled={mutation.isPending} className="min-h-12 w-full" data-testid="button-submit-enquiry">{mutation.isPending ? 'Sending…' : 'Send enquiry'}<ArrowRight className="h-4 w-4" /></Button>
-    <p className="text-sm leading-6 text-muted-foreground">We’ll include {vehicleLabel} with your question. {showroomHours(dealerConfig.hours ?? []).state === 'closed' ? 'We’re currently closed. We’ll aim to reply after we reopen.' : 'We’ll reply during opening hours.'}</p>
-  </form>;
 
   return (
-    <form onSubmit={submit} onInvalidCapture={event => { if ((event.target as HTMLElement).closest('.customer-enquiry-exchange')) setExchangeExpanded(true); }} className="customer-enquiry-form space-y-4 sm:space-y-6" data-testid="form-enquiry">
+    <form onSubmit={submit} className={`customer-enquiry-form space-y-4 sm:space-y-6${embedded ? ' customer-enquiry-form-embedded' : ''}`} data-testid="form-enquiry">
       {draftSaved && draftRestored && <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs text-muted-foreground" data-testid="enquiry-draft-notice"><p>Your unfinished enquiry was restored.</p><button type="button" onClick={discardDraft} className="text-link min-h-11 shrink-0">Discard draft</button></div>}
       <h2 id="enquiry-form-heading" className="sr-only">Your enquiry</h2>
 
@@ -323,6 +314,13 @@ export function EnquiryForm({
           </div>
         </div>
       )}
+
+      <label className="block customer-enquiry-question">
+        <span className={labelClass}><MessageSquare className="h-4 w-4 text-accent" aria-hidden="true" />Your question{!embedded && includePartExchange && <span className="text-muted-foreground">(optional)</span>}</span>
+        <Textarea id="enquiry-question" required={embedded || !includePartExchange} minLength={1} maxLength={messageLimit} rows={3}
+          value={message} onChange={event => { messageTouched.current = true; setMessage(event.target.value); }}
+          placeholder="What would you like to know?" data-testid="textarea-enquiry-message" />
+      </label>
 
           <fieldset className="customer-enquiry-contact">
             <legend className="sr-only">Contact details</legend>
@@ -363,27 +361,10 @@ export function EnquiryForm({
             {!additionalContact && !(preferredContact === 'email' ? phone : email) && <button type="button" className="customer-enquiry-add-contact text-link" onClick={() => setAdditionalContact(true)}>{preferredContact === 'email' ? 'Add a phone number (optional)' : 'Add an email address (optional)'}</button>}
           </fieldset>
 
-            <details className="customer-enquiry-topic">
-              <summary>Change enquiry type</summary>
-              <label className="block">
-              <span className={labelClass}>What can we help with?</span>
-              <NativeSelect value={type} onChange={(event) => changeType(event.target.value as EnquiryType)} data-testid="select-enquiry-type">
-                {Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </NativeSelect>
-              </label>
-            </details>
-
-        {selectedVehicle && <details className="customer-enquiry-exchange" open={exchangeExpanded} onToggle={event => setExchangeExpanded(event.currentTarget.open)}>
-          <summary>Add a part exchange (optional)</summary>
-          <fieldset className="space-y-4 border-t border-border pt-4">
-          <legend className="text-sm font-semibold">Do you have a car to part-exchange?</legend>
-          <div className="flex gap-3">
-            {[false, true].map(value => <label key={String(value)} className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm border px-4 text-sm transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-accent ${hasPartExchange === value ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-secondary"}`}>
-              <input type="radio" name="has-part-exchange" checked={hasPartExchange === value} onChange={() => setHasPartExchange(value)} className="accent-primary" />
-              {value ? 'Yes' : 'No'}
-            </label>)}
-          </div>
-          {hasPartExchange && <div className="space-y-4" data-testid="enquiry-part-exchange-details">
+        {selectedVehicle && features.enabled('partExchange') && <div className="customer-enquiry-exchange">
+          {!hasPartExchange ? <button type="button" className="customer-enquiry-exchange-add" onClick={() => setHasPartExchange(true)}>Add a part exchange (optional)</button> : <fieldset className="space-y-4 border-t border-border pt-4">
+          <legend className="sr-only">Part-exchange details</legend>
+          <div className="space-y-4" data-testid="enquiry-part-exchange-details">
             <p className="text-sm text-muted-foreground">Just your registration and approximate mileage for now. We can discuss condition, keys and paperwork when we speak.</p>
             <div className="max-w-sm">
               <label className="block">
@@ -402,24 +383,9 @@ export function EnquiryForm({
             <details className="border-t border-border pt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-primary">Anything to mention? (optional)</summary><label className="block"><span className={labelClass}>Anything we should know about your car?</span>
               <Textarea rows={3} maxLength={400} value={exchange.notes} onChange={event => setExchange(current => ({ ...current, notes: event.target.value }))} />
             </label></details>
-          </div>}
-        </fieldset></details>}
-        <details open={!hasPartExchange || Boolean(message) || undefined} className="border-t border-border pt-2">
-          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">{hasPartExchange ? 'Add a message (optional)' : 'Your message'}</summary>
-        <label className="block">
-          <span className={labelClass}><MessageSquare className="h-3.5 w-3.5 text-accent" />Anything else we should know?</span>
-          <Textarea
-            required={!hasPartExchange}
-            minLength={1}
-            maxLength={messageLimit}
-            rows={4}
-            value={message}
-            onChange={(event) => { messageTouched.current = true; setMessage(event.target.value); }}
-            placeholder={`How can we help?`}
-            data-testid="textarea-enquiry-message"
-          />
-        </label>
-        </details>
+            <button type="button" className="text-link min-h-11 text-sm" onClick={() => setHasPartExchange(false)}>Remove part exchange</button>
+          </div>
+        </fieldset>}</div>}
         {message.length > messageLimit && <p role="alert" className="text-sm text-destructive">Please shorten your message by {message.length - messageLimit} characters to include your part-exchange details.</p>}
 
       {mutation.isError && (
@@ -430,20 +396,28 @@ export function EnquiryForm({
       )}
       <div className="space-y-4">
         <Button key="submit-enquiry" type="submit" size="lg" disabled={mutation.isPending} className="group min-h-12 w-full rounded-md font-display text-[13px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-submit-enquiry">
-          {mutation.isPending ? 'Sending enquiry…' : `Send ${typeLabels[type].toLowerCase()}`}
+          {mutation.isPending ? 'Sending enquiry…' : 'Send enquiry'}
           {!mutation.isPending && <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />}
         </Button>
         <div className="flex items-start gap-3 border-t border-border px-0 py-3 font-medium text-[13px] tracking-normal leading-relaxed text-primary/70">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
            <span>
-             {`We’ll use your details to answer your enquiry.`}
+             We’ll use your details to answer your enquiry. {showroomHours(dealerConfig.hours ?? []).state === 'closed' ? 'We’re currently closed and will reply during opening hours.' : 'We’ll reply during opening hours.'}
            </span>
         </div>
       </div>
+      {!embedded && <details key={type} className="customer-enquiry-topic">
+        <summary>Need something else?</summary>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 pb-3" aria-label="Other enquiries">
+          {(Object.entries(typeLabels) as Array<[EnquiryType, string]>).filter(([value]) => value !== type && (value !== 'part_exchange' || features.enabled('partExchange')) && (value !== 'viewing' || features.enabled('testDriveBookings'))).map(([value, label]) =>
+            <Link key={value} href={`/enquire?type=${value}${vehicle ? `&vehicleId=${encodeURIComponent(vehicle.id)}` : ''}`} onClick={event => { event.preventDefault(); changeType(value); }} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{label}</Link>
+          )}
+        </div>
+      </details>}
       {vehicle && dealerConfig.onlineReservation?.enabled && (
         <MobileActionDisclosure label="Or reserve this car" className="border-t border-border pt-2" testId="enquiry-reservation-options">
           <p className="mb-3 text-xs text-muted-foreground">You can also reserve this car online. Your enquiry is submitted separately.</p>
-          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={hasPartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
+          <ReserveCar key={vehicle.id} car={vehicle} customer={{ customerName, email, phone }} partExchange={includePartExchange && exchange.registration && exchange.mileage ? { registration: exchange.registration, mileage: Number(exchange.mileage) } : undefined} className="w-full" />
         </MobileActionDisclosure>
       )}
     </form>

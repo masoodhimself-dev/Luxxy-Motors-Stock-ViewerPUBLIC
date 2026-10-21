@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync, inflateSync } from 'node:zlib';
-import { brochureOptions, selectBrochurePhotos, brochureDetails, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureVehicle } from './lib/vehicle-brochure';
+import { brochureDealer, brochureOptions, selectBrochurePhotos, brochureDetails, brochureFilename, brochurePhotos, renderVehicleBrochure, type BrochureVehicle } from './lib/vehicle-brochure';
 import { brochureOrigin, createBrochureHandler } from './lib/vehicle-brochure-handler';
+import { vehicleSheetAccent, hexColourContrast } from '@workspace/vehicle-meta';
 import { imageDimensions, isPublicImageAddress, permittedBrochureImage } from './lib/vehicle-brochure-images';
 
 const vehicle: BrochureVehicle = {
@@ -154,7 +155,7 @@ test('brochure options control optional content without removing supplied facts 
   const text=contentStreams(pdf);
   for(const value of ['A CLOSER LOOK AT YOUR CAR','Visit our showroom','Appointments welcome','Category S','71,600 miles']) assert.ok(text.includes(value),value);
   assert.ok(!text.includes('OPTIONAL DESCRIPTION'));assert.ok(!text.includes('OPTIONAL FEATURE'));
-  assert.equal(brochureOptions({accentColour:'bad',photoLimit:999}).accentColour,'#835b33');
+  assert.equal(brochureOptions({accentColour:'bad',photoLimit:999}).accentColour,'#263c46');
   assert.equal(brochureOptions({photoLimit:999}).photoLimit,80);
   assert.equal(brochureDetails({...vehicle,title:'MG MG HS',make:'MG',year:2026}).name,'2026 MG HS');
 });
@@ -169,4 +170,22 @@ test('changing saved brochure settings invalidates the cache and limits image fe
   const generate=createBrochureHandler({findVehicle:async()=>vehicle,readDealer:async()=>({name:'Test Motors',brochure:{includeGallery}}),loadPhotos:async photos=>{counts.push(photos.length);return photos;}});
   const first=await generate(vehicle.id,'');includeGallery=false;const second=await generate(vehicle.id,'');
   assert.deepEqual(counts,[2,1]);assert.notDeepEqual(first.body,second.body);
+});
+
+
+test('production PDF dealer mapping uses the same explicit branding mode as browser printing', () => {
+  const identity = {name:'Test Motors',brandColors:{primaryHsl:'120 100% 20%'}};
+  const existingCustom = brochureDealer({identity,brochure:{accentColour:'#123456'}});
+  assert.equal(existingCustom.brochure?.accentColour,'#123456');
+  assert.equal(existingCustom.brochure?.useWebsiteColour,false);
+  const inherited = brochureDealer({identity,brochure:{accentColour:'#123456',useWebsiteColour:true}});
+  assert.equal(inherited.primaryHsl,'120 100% 20%');
+  assert.equal(inherited.brochure?.accentColour,vehicleSheetAccent(identity.brandColors.primaryHsl,'#123456',true));
+  // The handler and render function normalise the mapped options again; inheritance must not lose its source.
+  assert.equal(brochureOptions(inherited.brochure,inherited.primaryHsl).accentColour,'#006600');
+  const newDealer = brochureDealer({identity});
+  assert.equal(newDealer.brochure?.useWebsiteColour,true);
+  assert.equal(newDealer.brochure?.accentColour,'#006600');
+  const pale = brochureDealer({identity:{...identity,brandColors:{primaryHsl:'42 80% 80%'}},brochure:{useWebsiteColour:true}});
+  assert.ok(hexColourContrast(pale.brochure!.accentColour!,'#ffffff') >= 4.5);
 });

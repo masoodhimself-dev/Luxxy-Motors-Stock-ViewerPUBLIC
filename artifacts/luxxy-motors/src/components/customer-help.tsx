@@ -83,7 +83,7 @@ export function TermHelp({ text, children, className, ariaLabel }: { text: strin
 }
 
 export function VehicleTerm({ label, value, children, className, ariaLabel }: { label: string; value?: string; children: ReactNode; className?: string; ariaLabel?: string }) {
-  const text = vehicleHelpText(label, value);
+  const text = /^(?:year(?:\s*\/\s*plate)?|mileage|fuel|colou?r)$/i.test(label.trim()) ? undefined : vehicleHelpText(label, value);
   return text ? <TermHelp text={text} className={className} ariaLabel={ariaLabel}>{children}</TermHelp> : <span className={className} aria-label={ariaLabel}>{children}</span>;
 }
 

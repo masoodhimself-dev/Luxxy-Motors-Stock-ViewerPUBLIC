@@ -63,3 +63,12 @@ it('keeps the same contact sheet on phones instead of unexpectedly launching the
  show();const link=screen.getByRole('link',{name:'Call about MG HS'});const event=new MouseEvent('click',{bubbles:true,cancelable:true});
  act(()=>link.dispatchEvent(event));expect(event.defaultPrevented).toBe(true);expect(screen.getByRole('dialog')).toHaveTextContent('Let’s talk about this car');
 });
+
+it('makes callback the first contact action when closed, with calling still available',()=>{
+ vi.setSystemTime(new Date('2026-10-18T13:00:00Z'));show();const dialog=open();
+ const request=within(dialog).getByRole('button',{name:'Request a callback'});
+ const dial=within(dialog).getByRole('link',{name:/Call the showroom/});
+ expect(request.compareDocumentPosition(dial)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ expect(dialog).toHaveTextContent('Ask us to call you back when we reopen.');
+ expect(state.mutate).not.toHaveBeenCalled();
+});

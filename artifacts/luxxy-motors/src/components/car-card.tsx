@@ -1,8 +1,9 @@
 import { UKNumberPlate } from '@/components/uk-number-plate';
-import { HoverHelp, VehicleTerm } from './customer-help';
+import { HoverHelp, TermHelp, VehicleTerm } from './customer-help';
 import { VehicleSellingPoints } from './vehicle-selling-points';
 import { vehicleSellingPoints } from '@/lib/vehicle-selling-points';
-import { recordedWriteOffCategory, vehicleWriteOffCategory } from '@/lib/vehicle-history';
+import { vehicleInsuranceDisclosure } from '@/lib/vehicle-history';
+import { vehicleContent } from '@/lib/vehicle-content';
 import { PriceReduction } from '@/components/price-reduction';
 import { shortTrim, stockHighlights, stockRegistrationYear } from '@/lib/stock-presentation';
 import { customerRegistrationDetails } from '@/lib/customer-vehicle-meta';
@@ -120,7 +121,7 @@ export function CarCard({
 
   const visibleSpecs = specs.slice(0, 4);
   const hasSellingPoints = vehicleSellingPoints(car).some(point => point.label !== 'Mileage');
-  const category = catalogue ? recordedWriteOffCategory(vehicleWriteOffCategory(car)) : null;
+  const insuranceDisclosure = vehicleInsuranceDisclosure(car, vehicleContent(car).description);
   return (
     <article
       className={cn(
@@ -263,11 +264,12 @@ export function CarCard({
           {car.priceType && /^(?:\+\s*VAT|VAT (?:included|qualifying)|inc(?:lusive of)?\.? VAT|ex(?:cluding)?\.? VAT)$/i.test(car.priceType.trim()) && <span className="text-xs text-muted-foreground">{car.priceType}</span>}
 
         </div>
+        {summaryOnly && insuranceDisclosure && <p className="stock-card-status mt-2 text-xs">{insuranceDisclosure.cardLabel}</p>}
         {!summaryOnly && (
           <>
-            {catalogue && (car.inventoryStatus === 'reserved' || category) && <div className="stock-card-status">
-              {car.inventoryStatus === 'reserved' && <span>Reserved</span>}
-              {category && <VehicleTerm label="Insurance history" value={`Category ${category} recorded`}>Category {category} recorded</VehicleTerm>}
+            {((catalogue && car.inventoryStatus === 'reserved') || insuranceDisclosure) && <div className="stock-card-status">
+              {catalogue && car.inventoryStatus === 'reserved' && <span>Reserved</span>}
+              {insuranceDisclosure && <TermHelp text={insuranceDisclosure.explanation}>{insuranceDisclosure.cardLabel}</TermHelp>}
             </div>}
             <div className="vehicle-specs mb-3 mt-2">
               {visibleSpecs.map((spec) => (

@@ -2438,6 +2438,7 @@ components:
         title: { type: string, maxLength: 60 }
         introduction: { type: string, maxLength: 300 }
         accentColour: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        useWebsiteColour: { type: boolean, description: "Use the website primary colour for vehicle sheets and PDFs. If omitted, existing accent overrides remain custom; otherwise website branding is used." }
         footerNote: { type: string, maxLength: 500 }
         includeDescription: { type: boolean }
         includeFeatures: { type: boolean }

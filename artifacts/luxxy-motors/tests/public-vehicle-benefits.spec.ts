@@ -56,8 +56,9 @@ for (const width of [390, 820, 1440]) test(`public vehicle benefits, explanation
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await summary.screenshot({ path: `/tmp/public-benefit-detail-${width}.png` });
   await page.goto('/saved?cars=' + encodeURIComponent(car.id));
-  await expect(page.getByTestId(`row-vehicle-${car.id}`).getByRole('list', { name: 'Vehicle highlights' })).toContainText('Insurance group 11E');
-  await page.getByLabel('More details about Ford Fiesta', { exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Equipment highlights' }).locator('..')).toContainText('Apple CarPlay');
+  await expect(page.getByTestId(`compact-vehicle-${car.id}`).getByRole('list', { name: 'Vehicle highlights' })).toContainText('Insurance group 11E');
+  await expect(page.locator('.saved-car-list details')).toHaveCount(0);
+  await page.getByRole('link', {name:'View vehicle',exact:true}).click();
+  await expect(page.locator('.vehicle-features-section')).toContainText('Apple CarPlay');
   expect(writes).toEqual([]); expect(errors).toEqual([]);
 });

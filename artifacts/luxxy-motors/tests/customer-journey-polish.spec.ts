@@ -42,12 +42,13 @@ for (const width of [320, 390, 820, 1024, 1440]) {
     await expect(page.getByLabel('Search the showroom')).toHaveAccessibleDescription(/automatic under £10k/);
     await page.getByRole('button', { name: 'Advanced search' }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByTestId('button-quick-automatic').click();
+    await dialog.getByLabel('Transmission', {exact:true}).selectOption('Automatic');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Under £15k', exact: true }).click();
+    await dialog.getByLabel('Max budget', {exact:true}).selectOption('15000');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByTestId('button-quick-automatic')).toHaveAttribute('aria-pressed', 'true');
-    await expect(dialog.getByRole('button', { name: 'Under £15k', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(dialog.getByLabel('Transmission', {exact:true})).toHaveValue('Automatic');
+    await expect(dialog.getByLabel('Max budget', {exact:true})).toHaveValue('15000');
+    await expect(dialog.getByTestId('button-quick-automatic')).toHaveCount(0);
     await dialog.getByRole('button', { name: /^Show \d+ cars?$/ }).click();
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(/transmission=Automatic/);

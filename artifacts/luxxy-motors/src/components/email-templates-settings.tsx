@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { customFetch } from '@workspace/api-client-react';
 import { Mail, Save, RotateCcw, Eye, Smartphone, Monitor, FileText } from '@/components/icons';
-import { type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
+import { customerFeaturePolicy, type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,10 +10,13 @@ import { SettingsTabs } from '@/components/settings-tabs';
 import { emailPreviewDocument } from '@/components/portal/customer-email-preview';
 import './integration-settings.css';
 import './email-templates-settings.css';
-type TemplateResponse = { revision: number; templates: EmailTemplate[]; variables: string[]; appearance: EmailAppearance; preview?: boolean };
+type TemplateResponse = { revision: number; templates: EmailTemplate[]; variables: string[]; appearance: EmailAppearance; useWebsiteBranding?: boolean; customAppearance?: EmailAppearance; websiteAppearance?: {logoUrl: string; brandColour: string}; preview?: boolean };
 type Preview = { subject: string; html: string; text: string };
 const categories = ['Enquiries', 'Bookings', 'Reservations', 'Sales', 'Customer access'];
 const request = <T,>(path: string, method = 'GET', body?: unknown) => customFetch<T>(path, { method, ...(body ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {}) });
+const normalise = (response: TemplateResponse): TemplateResponse => ({ ...response, appearance: response.customAppearance ?? response.appearance });
+const resolvedAppearance = (response: TemplateResponse): EmailAppearance => response.useWebsiteBranding && response.websiteAppearance ? { ...response.appearance, ...response.websiteAppearance } : response.appearance;
+const brandingSnapshot = (response: TemplateResponse) => JSON.stringify([response.appearance, response.useWebsiteBranding ?? false]);
 const previewKey = (id: string, subject: string, body: string, headline: string, appearance: EmailAppearance) => JSON.stringify([id,subject,body,headline,appearance]);
 function messageVariables(template: EmailTemplate | undefined, available: string[]) {
   const common = ['dealer_name','dealer_phone','customer_name','reference','vehicle_title'];
@@ -29,6 +32,7 @@ function messageVariables(template: EmailTemplate | undefined, available: string
 }
 export function EmailTemplatesSettings() {
   const [settingsTab, setSettingsTab] = useState('messages');
+  const [showInactive, setShowInactive] = useState(false);
   const [data, setData] = useState<TemplateResponse>(), [selected, setSelected] = useState('enquiry_acknowledgement');
   const [headline,setHeadline] = useState(''), [subject, setSubject] = useState(''), [body, setBody] = useState(''), [preview, setPreview] = useState<Preview>();
   const [renderedKey, setRenderedKey] = useState(''), [device, setDevice] = useState<'desktop'|'phone'>('desktop'), [previewMode,setPreviewMode] = useState<'design'|'text'>('design');
@@ -47,29 +51,30 @@ export function EmailTemplatesSettings() {
   async function load() {
     setBusy(true); setError('');
     try {
-      const result = await request<TemplateResponse>('/api/email-templates');
-      apply(result); setSavedAppearance(JSON.stringify(result.appearance));
+      const result = normalise(await request<TemplateResponse>('/api/email-templates'));
+      apply(result); setSavedAppearance(brandingSnapshot(result));
       const template = result.templates.find(item => item.id === selected);
-      if (template) await buildPreview(selected,template.subject,template.body,template.headline ?? '',result.appearance);
+      if (template) await buildPreview(selected,template.subject,template.body,template.headline ?? '',resolvedAppearance(result));
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'The email templates could not be loaded.'); }
     finally { setBusy(false); }
   }
   useEffect(() => { void load(); }, []);
   const active = data?.templates.find(template => template.id === selected);
-  const appearanceChanged = Boolean(data && savedAppearance !== JSON.stringify(data.appearance));
+  const appearanceChanged = Boolean(data && savedAppearance !== brandingSnapshot(data));
+  const visibleTemplates = data?.templates.filter(template => customerFeaturePolicy.onlineCardReservations || showInactive || template.category !== 'Reservations') ?? [];
   const wordingChanged = Boolean(active && (subject !== active.subject || body !== active.body || headline !== (active.headline ?? '')));
-  const previewStale = Boolean(data && preview && renderedKey !== previewKey(selected,subject,body,headline,data.appearance));
+  const previewStale = Boolean(data && preview && renderedKey !== previewKey(selected,subject,body,headline,resolvedAppearance(data)));
   const previewDocument = useMemo(() => preview ? emailPreviewDocument(preview.html) : '', [preview?.html]);
   async function save(reset = false) {
     if (!data) return; setBusy(true); setError(''); setMessage('');
     try {
-      const result = await request<TemplateResponse>('/api/email-templates', 'PUT', { id: selected, expectedRevision: data.revision, ...(reset ? { reset: true } : { subject, body, headline }) });
-      const next = { ...result, appearance: appearanceChanged ? data.appearance : result.appearance };
+      const result = normalise(await request<TemplateResponse>('/api/email-templates', 'PUT', { id: selected, expectedRevision: data.revision, ...(reset ? { reset: true } : { subject, body, headline }) }));
+      const next = { ...result, ...(appearanceChanged ? { appearance: data.appearance, useWebsiteBranding: data.useWebsiteBranding } : {}) };
       apply(next);
       const template = next.templates.find(item => item.id === selected);
       setMessage(reset ? 'Default email wording restored.' : 'Email template saved. Future emails will use this wording.');
       if (template) {
-        try { await buildPreview(selected,template.subject,template.body,template.headline ?? '',next.appearance); }
+        try { await buildPreview(selected,template.subject,template.body,template.headline ?? '',resolvedAppearance(next)); }
         catch { setError('Your template is saved, but the preview could not be refreshed. Try Update preview.'); }
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'The template could not be saved.'); }
@@ -78,17 +83,17 @@ export function EmailTemplatesSettings() {
   async function saveAppearance() {
     if (!data) return; setBusy(true); setError(''); setMessage('');
     try {
-      const result = await request<TemplateResponse>('/api/email-templates/appearance', 'PUT', { expectedRevision: data.revision, appearance: data.appearance });
-      setData(result); setSavedAppearance(JSON.stringify(result.appearance));
+      const result = normalise(await request<TemplateResponse>('/api/email-templates/appearance', 'PUT', { expectedRevision: data.revision, appearance: data.appearance, useWebsiteBranding: data.useWebsiteBranding ?? false }));
+      setData(result); setSavedAppearance(brandingSnapshot(result));
       setMessage('Email branding saved for every email template.');
-      try { await buildPreview(selected,subject,body,headline,result.appearance); }
+      try { await buildPreview(selected,subject,body,headline,resolvedAppearance(result)); }
       catch { setError('Your branding is saved, but the preview could not be refreshed. Try Update preview.'); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Email branding could not be saved.'); }
     finally { setBusy(false); }
   }
   async function showPreview() {
     if (!data) return; setBusy(true); setError('');
-    try { await buildPreview(selected,subject,body,headline,data.appearance); setSettingsTab('preview'); }
+    try { await buildPreview(selected,subject,body,headline,resolvedAppearance(data)); setSettingsTab('preview'); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'The preview could not be created.'); }
     finally { setBusy(false); }
   }
@@ -101,9 +106,10 @@ export function EmailTemplatesSettings() {
   async function selectTemplate(id: string) {
     if (!data || id === selected || (wordingChanged && !window.confirm('Discard the unsaved wording for this email?'))) return;
     setSelected(id); apply(data,id); setMessage(''); setBusy(true); setError('');
-    try { const template = data.templates.find(item => item.id === id); if (template) await buildPreview(id,template.subject,template.body,template.headline ?? '',data.appearance); }
+    try { const template = data.templates.find(item => item.id === id); if (template) await buildPreview(id,template.subject,template.body,template.headline ?? '',resolvedAppearance(data)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'The preview could not be created.'); }
     finally { setBusy(false); }
+    return true;
   }
   return <section className="integration-settings email-design-studio" aria-label="Customise all emails" data-settings-dirty={appearanceChanged || wordingChanged}>
     <div className="integration-heading"><div><p className="integration-eyebrow">Customer communication</p><h2>Email templates</h2><p>Edit your messages and branding. Preview with sample details before saving.</p></div><Mail aria-hidden="true" /></div>
@@ -114,7 +120,7 @@ export function EmailTemplatesSettings() {
       <div className="email-studio-grid" data-view={settingsTab}>
       <div className="email-studio-editing" hidden={settingsTab === 'preview'}>
       <div role="tabpanel" id="email-settings-panel-messages" aria-labelledby="email-settings-tab-messages" hidden={settingsTab !== 'messages'} className="email-settings-panel">
-      <div className="email-studio-selector integration-field"><label htmlFor="email-template-select">Choose a message</label><NativeSelect id="email-template-select" value={selected} onChange={event => void selectTemplate(event.target.value)}>{categories.map(category => <optgroup label={category} key={category}>{data.templates.filter(template => template.category === category).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}</optgroup>)}</NativeSelect><small>{data.templates.length} editable templates · saves affect future messages</small></div>
+      <div className="email-studio-selector integration-field"><label htmlFor="email-template-select">Choose a message</label><NativeSelect id="email-template-select" value={selected} onChange={event => void selectTemplate(event.target.value)}>{categories.filter(category => visibleTemplates.some(template => template.category === category)).map(category => <optgroup label={category} key={category}>{visibleTemplates.filter(template => template.category === category).map(template => <option key={template.id} value={template.id}>{template.label}</option>)}</optgroup>)}</NativeSelect><small>{visibleTemplates.length} templates · saves affect future messages</small>{!customerFeaturePolicy.onlineCardReservations && <label className="integration-check email-inactive-templates"><input type="checkbox" checked={showInactive} onChange={async event => { const checked = event.target.checked; if (!checked && active?.category === 'Reservations' && !await selectTemplate('enquiry_acknowledgement')) return; setShowInactive(checked); }} />Show inactive reservation templates</label>}</div>
         <div className="email-studio-editor integration-card"><header><p className="email-studio-kicker">{active?.category}</p><h3>{active?.label}</h3><span>{wordingChanged ? 'Unsaved wording' : 'Saved wording'}</span></header>
           <div className="integration-field"><label htmlFor="email-subject">Subject line</label><Input id="email-subject" maxLength={200} value={subject} onChange={event => setSubject(event.target.value)} /><small className="email-field-help"><span>Keep it clear and specific.</span><span>{subject.length.toLocaleString()} / 200</span></small></div>
           <div className="integration-field"><label htmlFor="email-title">Email title</label><Input id="email-title" maxLength={200} value={headline} onChange={event => setHeadline(event.target.value)} placeholder="Use the title for this type of message" /><small className="email-field-help"><span>Optional. Leave blank for the default title.</span><span>{headline.length.toLocaleString()} / 200</span></small></div>
@@ -126,9 +132,11 @@ export function EmailTemplatesSettings() {
       </div>
       <div role="tabpanel" id="email-settings-panel-branding" aria-labelledby="email-settings-tab-branding" hidden={settingsTab !== 'branding'} className="email-settings-panel">
       <div className="integration-card email-branding-panel"><header><p className="email-studio-kicker">Shared across every message</p><h3>Email branding</h3><p>Your logo, colour and sign-off.</p><span>{appearanceChanged ? 'Unsaved branding' : 'Saved branding'}</span></header>
+        {data.websiteAppearance && <label className="integration-check email-brand-inheritance"><input type="checkbox" checked={data.useWebsiteBranding ?? false} onChange={event => setData({ ...data, useWebsiteBranding: event.target.checked })} />Use website logo and colour</label>}
+        {data.useWebsiteBranding && <p className="email-brand-inheritance-help">Future emails follow your published website logo and colour. Your heading and footer wording stay as entered. If the logo is unsuitable for email, your dealership name is shown.</p>}
         <div className="integration-grid">
-          <div className="integration-field"><label htmlFor="email-logo">Logo image address</label><Input id="email-logo" type="url" value={data.appearance.logoUrl} onChange={event => appearanceField('logoUrl', event.target.value)} placeholder="https://yourdomain.co.uk/logo.png" /><small>Optional HTTPS image. Your name remains visible when images are blocked.</small></div>
-          <div className="integration-field"><label htmlFor="email-colour">Accent colour</label><div className="email-colour-field"><input aria-label="Choose email brand colour" type="color" value={/^#[a-f0-9]{6}$/i.test(data.appearance.brandColour) ? data.appearance.brandColour : '#172033'} onChange={event => appearanceField('brandColour', event.target.value)} /><Input id="email-colour" value={data.appearance.brandColour} onChange={event => appearanceField('brandColour', event.target.value)} maxLength={7} /></div><div className="email-colour-presets" aria-label="Email accent presets">{[['Deep blue','#24577A'],['Forest green','#286455'],['Charcoal','#253342'],['Burgundy','#763D50']].map(([name,colour]) => <button type="button" key={name} aria-label={`Use ${name} accent`} aria-pressed={data.appearance.brandColour.toLowerCase() === colour.toLowerCase()} onClick={() => appearanceField('brandColour',colour)}><span style={{background:colour}} />{name}</button>)}</div><small>Buttons automatically use contrasting text. Body text stays dark and readable.</small></div>
+          <div className="integration-field" hidden={data.useWebsiteBranding}><label htmlFor="email-logo">Logo image address</label><Input id="email-logo" type="url" value={data.appearance.logoUrl} onChange={event => appearanceField('logoUrl', event.target.value)} placeholder="https://yourdomain.co.uk/logo.png" /><small>Optional HTTPS image. Your name remains visible when images are blocked.</small></div>
+          <div className="integration-field" hidden={data.useWebsiteBranding}><label htmlFor="email-colour">Accent colour</label><div className="email-colour-field"><input aria-label="Choose email brand colour" type="color" value={/^#[a-f0-9]{6}$/i.test(data.appearance.brandColour) ? data.appearance.brandColour : '#172033'} onChange={event => appearanceField('brandColour', event.target.value)} /><Input id="email-colour" value={data.appearance.brandColour} onChange={event => appearanceField('brandColour', event.target.value)} maxLength={7} /></div><div className="email-colour-presets" aria-label="Email accent presets">{[['Deep blue','#24577A'],['Forest green','#286455'],['Charcoal','#253342'],['Burgundy','#763D50']].map(([name,colour]) => <button type="button" key={name} aria-label={`Use ${name} accent`} aria-pressed={data.appearance.brandColour.toLowerCase() === colour.toLowerCase()} onClick={() => appearanceField('brandColour',colour)}><span style={{background:colour}} />{name}</button>)}</div><small>Buttons automatically use contrasting text. Body text stays dark and readable.</small></div>
           <div className="integration-field"><label htmlFor="email-heading">Brand heading</label><Input id="email-heading" value={data.appearance.heading} onChange={event => appearanceField('heading', event.target.value)} maxLength={200} /><small className="email-field-help"><span>Usually your dealership name.</span><span>{data.appearance.heading.length.toLocaleString()} / 200</span></small></div>
           <div className="integration-field"><label htmlFor="email-footer">Footer wording</label><Textarea id="email-footer" rows={4} value={data.appearance.footer} onChange={event => appearanceField('footer', event.target.value)} maxLength={4000} placeholder="Company information or a short sign-off" /><small className="email-field-help"><span>Contact links appear automatically. Customer variables work here too.</span><span>{data.appearance.footer.length.toLocaleString()} / 4,000</span></small></div>
         </div><div className="integration-actions"><Button type="button" disabled={!appearanceChanged} onClick={() => void saveAppearance()}>Save email branding</Button><Button type="button" variant="outline" onClick={() => void showPreview()}>Preview branding</Button></div>
@@ -140,6 +148,7 @@ export function EmailTemplatesSettings() {
           <div className="email-preview-toolbar"><div className="email-preview-switch" aria-label="Preview size"><button type="button" aria-pressed={device==='desktop'} onClick={() => setDevice('desktop')}><Monitor size={15} />Desktop</button><button type="button" aria-pressed={device==='phone'} onClick={() => setDevice('phone')}><Smartphone size={15} />Phone</button></div><span role="status">{busy ? 'Preparing…' : previewStale ? 'Preview needs updating' : preview ? 'Preview is current' : 'Preview unavailable'}</span></div>
           {preview ? previewMode==='text' ? <pre className="email-plain-preview">{preview.text}</pre> : <div className={`email-preview-canvas ${device==='phone' ? 'email-preview-phone' : ''}`}><iframe title="Email preview using sample customer information" sandbox="" referrerPolicy="no-referrer" srcDoc={previewDocument} /></div> : <div className="email-preview-empty"><Mail size={32} /><p>Preview the finished email using fictional customer details.</p><Button type="button" variant="outline" onClick={() => void showPreview()}>Build preview</Button></div>}
           {previewStale && <Button type="button" variant="outline" onClick={() => void showPreview()}>Update preview with your changes</Button>}
+          {settingsTab === 'preview' && (wordingChanged || appearanceChanged) && <div className="email-preview-save"><p>{wordingChanged && appearanceChanged ? 'Wording and branding have unsaved changes.' : wordingChanged ? 'This message has unsaved wording.' : 'Email branding has unsaved changes.'} Previewing does not save them.</p><div className="integration-actions">{wordingChanged && <Button type="button" onClick={() => void save()}>Save template</Button>}{appearanceChanged && <Button type="button" onClick={() => void saveAppearance()}>Save email branding</Button>}</div></div>}
           <p className="integration-footnote">This is the server-generated design. Email apps may render small details differently. Saving or previewing sends no email.</p>
         </aside>
       </div>

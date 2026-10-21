@@ -148,6 +148,21 @@ it('opens a car-specific enquiry from fullscreen without scrolling to the page f
   expect(window.location.pathname + window.location.search).toBe('/enquire?type=general&vehicleId=gallery-car');
 });
 
+it('closes fullscreen before opening the shared inline enquiry when supplied by the vehicle page', async () => {
+  const car = {id:'gallery-car',title:'Ford Fiesta'} as Car;
+  const onEnquiry = vi.fn();
+  window.history.replaceState({}, '', '/vehicle/gallery-car');
+  render(<Gallery car={car} customerView customerActions={{enquiryHref:'#vehicle-enquiry',onEnquiry}} images={labelledPhotos} />);
+  fireEvent.click(screen.getByRole('button', {name:'View gallery fullscreen'}));
+  const dialog = await screen.findByRole('dialog');
+  const message = within(dialog).getByRole('link', {name:'Message'});
+  expect(message).toHaveAttribute('href','#vehicle-enquiry');
+  fireEvent.click(message);
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(onEnquiry).toHaveBeenCalledTimes(1));
+  expect(window.location.pathname + window.location.search).toBe('/vehicle/gallery-car');
+});
+
 const promptCar = { id: 'gallery-car', title: 'Ford Fiesta' } as Car;
 const promptPhotos = Array.from({ length: 12 }, (_, i) => `https://example.com/gallery-prompt-${i + 1}.jpg`);
 const promptActions = {

@@ -2,7 +2,7 @@ import { VehicleCall } from '@/components/vehicle-call';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { responsiveVehicleImage, retryOriginalImage } from "@/lib/responsive-vehicle-image";
 import { orderVehiclePhotos, photoGroup, type PhotoGroup } from "@/lib/vehicle-photography";
-import { useState, useMemo, useRef, useEffect, useId, type ReactNode } from 'react';
+import { useState, useMemo, useRef, useEffect, useId, type ReactNode, type MouseEvent } from 'react';
 import { Camera, ChevronLeft, ChevronRight, Maximize2, Mail, LayoutGrid, RotateCw, Calendar, ArrowRight, ZoomIn, ZoomOut } from '@/components/icons';
 import { recordBookingIntent } from '@/lib/cta-helpers';
 import { getSafeImageUrl, cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ interface GalleryProps {
   heroImage?: string | null;
   vehicleLabel?: string;
   customerView?: boolean;
-  customerActions?: { bookingHref?: string; enquiryHref?: string; call?: ReactNode };
+  customerActions?: { bookingHref?: string; enquiryHref?: string; onEnquiry?: () => void; call?: ReactNode };
 }
 function imageCaption(image: CarImage | string | undefined) {
   return image && typeof image === 'object' ? image.caption || '' : '';
@@ -38,6 +38,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
   const hasCustomerActions = Boolean(customerActions?.bookingHref || customerActions?.enquiryHref || customerActions?.call);
   const [overviewFocusIndex, setOverviewFocusIndex] = useState(0);
   const messageRequested = useRef(false);
+  const inlineEnquiryRequested = useRef(false);
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const overviewRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const overviewToggleRef = useRef<HTMLButtonElement | null>(null);
@@ -77,11 +78,20 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
     requestAnimationFrame(() => (open ? fullscreenPhoto : inlinePhoto).current?.focus({ preventScroll: true }));
   };
   const contactFromPrompt = () => {
-    messageRequested.current = true;
+    messageRequested.current = open;
     swiped.current = false;
     setInterestOpen(false);
     setOverview(false);
     setOpen(false);
+  };
+  const requestEnquiry = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    if (customerActions?.onEnquiry) {
+      event.preventDefault();
+      if (open) inlineEnquiryRequested.current = true;
+      else requestAnimationFrame(customerActions.onEnquiry);
+    }
+    contactFromPrompt();
   };
   useEffect(() => {
     if (interestOpen && !overview) interestHeading.current?.focus({ preventScroll: true });
@@ -246,7 +256,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
             contactFromPrompt();
           }}><Calendar aria-hidden="true" />Book a Test Drive<ArrowRight aria-hidden="true" /></Link>}
           <div className="vehicle-gallery-interest-secondary">
-            {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={contactFromPrompt}><Mail aria-hidden="true" />Ask a question</Link>}
+            {customerActions?.enquiryHref && <Link href={customerActions.enquiryHref} className="vehicle-gallery-interest-action" onClick={requestEnquiry}><Mail aria-hidden="true" />Ask a question</Link>}
             {customerActions?.call}
           </div>
         </div>
@@ -372,6 +382,10 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
           if (!messageRequested.current) return;
           event.preventDefault();
           messageRequested.current = false;
+          if (inlineEnquiryRequested.current) {
+            inlineEnquiryRequested.current = false;
+            if (customerActions?.onEnquiry) requestAnimationFrame(customerActions.onEnquiry);
+          }
         }}
         aria-describedby={undefined}
         onEscapeKeyDown={event => {
@@ -486,7 +500,7 @@ export function Gallery({ car, images, heroImage, vehicleLabel = 'Vehicle', cust
         </>}
         {car && !interestOpen && <div className="vehicle-lightbox-contact" aria-label="Contact about this vehicle">
           <VehicleCall car={car} buttonLabel="Call Us" className="vehicle-lightbox-contact-button" />
-          <Link href={`/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={() => { messageRequested.current = true; swiped.current = false; setOverview(false); setOpen(false); }}>
+          <Link href={customerActions?.enquiryHref ?? `/enquire?type=general&vehicleId=${encodeURIComponent(car.id)}`} className="vehicle-lightbox-contact-button" onClick={requestEnquiry}>
             <Mail className="h-5 w-5" /> Message
           </Link>
         </div>}

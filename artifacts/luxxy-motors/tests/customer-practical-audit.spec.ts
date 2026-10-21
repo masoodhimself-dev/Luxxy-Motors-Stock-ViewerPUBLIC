@@ -108,9 +108,10 @@ for (const width of [320, 820, 1440]) {
     await expect(page.getByRole('alertdialog')).toContainText('Clear your saved cars?');
     await page.getByRole('button', { name: 'Keep my cars', exact: true }).click();
     await expect(page.getByTestId('text-saved-count')).toContainText('1 car saved');
-    await page.locator('summary').filter({ hasText: 'More details' }).click();
+    await expect(page.locator('.saved-car-list details')).toHaveCount(0);
+    await expect(page.getByRole('link',{name:'View vehicle',exact:true})).toBeVisible();
     await fits(page);
-    await capture(page, 'saved-expanded');
+    await capture(page, 'saved-shortlist');
     await page.getByTestId('button-clear-saved').click();
     await page.getByRole('button', { name: 'Clear saved cars', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'No saved cars yet', exact: true })).toBeVisible();

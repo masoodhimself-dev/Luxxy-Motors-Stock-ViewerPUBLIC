@@ -51,8 +51,8 @@ for (const width of [390, 820, 1440]) {
       await card.getByRole('button', { name: /^Save .* to your saved cars$/ }).click();
       await page.getByRole('button', { name: /^Saved cars(?:,|$)/ }).filter({ visible: true }).click();
       await expect(page).toHaveTitle(/^Saved cars \|/);
-      await page.locator('summary').filter({ hasText: 'More details' }).click();
-      await expect(page.getByRole('heading', { name: 'About this car' })).toBeVisible();
+      await expect(page.locator('.saved-car-list details')).toHaveCount(0);
+      await expect(page.getByRole('link', {name:'View vehicle',exact:true})).toBeVisible();
       await checkAndCapture(page, 'saved');
       await page.getByRole('link', { name: 'View vehicle', exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`${vehicleHref}$`));

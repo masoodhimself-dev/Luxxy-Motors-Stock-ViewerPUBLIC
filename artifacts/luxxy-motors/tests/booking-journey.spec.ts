@@ -186,8 +186,7 @@ test('optional part exchange and message can be reviewed and edited before sendi
   await chooseTime(page);
   await fillContact(page);
   await expect(page.getByTestId('enquiry-part-exchange-details')).toHaveCount(0);
-  await page.locator('summary').filter({ hasText: 'Have a car to part-exchange?' }).click();
-  await page.getByRole('checkbox', { name: 'Yes, I have a car to part-exchange' }).check();
+  await page.getByRole('button', { name: 'Add a part exchange (optional)', exact: true }).click();
   await page.getByLabel('Your car’s UK registration number', { exact: true }).fill('ab12 cde');
   await page.getByLabel('Approximate mileage', { exact: true }).fill('42000');
   await page.locator('summary').filter({ hasText: 'Anything you’d like us to know?' }).click();
@@ -273,21 +272,21 @@ test('disabled online booking offers a direct request for help', async ({ page }
   await expect(page.getByTestId('group-viewing-slots')).toHaveCount(0);
 });
 
-test('contact enquiry booking choice uses the new journey and Back restores the original draft', async ({ page }) => {
-  await page.goto('/contact');
+test('general enquiry booking link uses the new journey and Back restores the original draft', async ({ page }) => {
+  await page.goto('/enquire?type=general');
   await page.getByTestId('input-customer-name').fill('Contact Customer');
   await page.getByTestId('input-customer-email').fill('contact@example.test');
   await page.getByTestId('textarea-enquiry-message').fill('Please tell me about your warranty.');
-  await page.getByText('Change enquiry type', { exact: true }).click();
-  await page.getByTestId('select-enquiry-type').selectOption('viewing');
+  await page.getByText('Need something else?', { exact: true }).click();
+  await page.getByTestId('form-enquiry').locator('[aria-label="Other enquiries"]').getByRole('link', { name: 'Book a Test Drive', exact: true }).click();
   await expect(page).toHaveURL(/\/enquire\?type=viewing$/);
   await expect(page.getByTestId('viewing-vehicle-required')).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(/\/contact$/);
+  await expect(page).toHaveURL(/\/enquire\?type=general$/);
   await expect(page.getByTestId('input-customer-name')).toHaveValue('Contact Customer');
   await expect(page.getByTestId('textarea-enquiry-message')).toHaveValue('Please tell me about your warranty.');
-  await page.getByText('Change enquiry type', { exact: true }).click();
-  await page.getByTestId('select-enquiry-type').selectOption('viewing');
+  await page.getByText('Need something else?', { exact: true }).click();
+  await page.getByTestId('form-enquiry').locator('[aria-label="Other enquiries"]').getByRole('link', { name: 'Book a Test Drive', exact: true }).click();
   await page.locator('input[name="viewing-vehicle"][value="preview-2"]').check();
   await page.getByRole('link', { name: 'Choose date and time' }).click();
   await chooseTime(page);

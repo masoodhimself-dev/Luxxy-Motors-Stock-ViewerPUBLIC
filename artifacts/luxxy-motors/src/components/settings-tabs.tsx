@@ -37,7 +37,7 @@ export function SettingsTabs({ idPrefix, label, value, items, onValueChange }: {
   return <div ref={root} className="settings-tabs" role="tablist" aria-label={label} aria-orientation="horizontal">
     {items.map(({ id, label: title, icon: Icon }, index) => <button
       key={id} type="button" role="tab" id={`${idPrefix}-tab-${id}`}
-      aria-controls={`${idPrefix}-panel-${id}`} aria-selected={value === id}
+      aria-controls={value === id ? `${idPrefix}-panel-${id}` : undefined} aria-selected={value === id}
       tabIndex={value === id || (!hasSelection && index === 0) ? 0 : -1}
       onKeyDown={event => move(event, index)} onClick={() => onValueChange(id)}
     >{Icon && <Icon size={17} aria-hidden="true" />}<span>{title}</span></button>)}

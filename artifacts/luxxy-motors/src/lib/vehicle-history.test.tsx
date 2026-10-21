@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasExplicitClearHistory, insuranceHistoryLabel, recordedWriteOffCategory, vehicleWriteOffCategory } from './vehicle-history';
+import { advertisedWriteOffCategory, hasExplicitClearHistory, insuranceHistoryLabel, recordedWriteOffCategory, vehicleInsuranceDisclosure, vehicleWriteOffCategory } from './vehicle-history';
 
 describe('supplied vehicle insurance history', () => {
   it.each(['S', 'Cat S', 'Category S', 'Category S recorded'])('recognises %s precisely', (value) => {
@@ -28,5 +28,38 @@ describe('supplied vehicle insurance history', () => {
   it('does not treat a description or missing information as a confirmed insurance category', () => {
     expect(vehicleWriteOffCategory({ sourceExtras: { description: 'Car is recorded as Cat S' } })).toBeNull();
     expect(vehicleWriteOffCategory({})).toBeNull();
+  });
+});
+
+describe('advert insurance disclosure', () => {
+  it.each([
+    ['This car is recorded as Cat S. Ask for the repair records.', 'S'],
+    ['Previously recorded as Category N', 'N'],
+    ['The car was classified as a category S by the insurer.', 'S'],
+  ])('labels an explicit advert statement separately: %s', (description, category) => {
+    expect(advertisedWriteOffCategory(description)).toBe(category);
+    const disclosure = vehicleInsuranceDisclosure({}, description)!;
+    expect(disclosure.cardLabel).toBe(`Advert states Category ${category}`);
+    expect(disclosure.explanation).toContain('has not confirmed that category');
+    expect(disclosure.explanation).not.toMatch(/safe to drive|certified|approved|roadworthy/);
+  });
+  it.each([
+    'Seller says Cat S; ask for records.', 'Not recorded as Cat S.', 'Never registered as Category N.',
+    'Could be recorded as Cat S.', 'If recorded as Cat S, ask for checks.', 'Recorded as Cat S?',
+    'Example: recorded as Category S.', 'Incorrectly recorded as Category N.',
+    'Category S unknown.', 'Was recorded as Cat S in error.',
+    'Recorded as Cat S. Classified as Cat N.',
+    'We accept cars recorded as Category S in part exchange.',
+    'Our previous car was recorded as Cat S; this one is HPI clear.',
+    'Our previous car was damaged. It was recorded as Category N.',
+    'Customers ask about vehicles recorded as Category S.',
+    'Recorded as Category S. This car is HPI clear.',
+    'Recorded as Cat S. No insurance write-off recorded.',
+  ])('does not guess from ambiguous, conflicting or negated copy: %s', description => {
+    expect(advertisedWriteOffCategory(description)).toBeNull();
+  });
+  it('keeps structured history authoritative and does not change filter data', () => {
+    expect(vehicleInsuranceDisclosure({writeOffCategory: 'N'}, 'Recorded as Cat S.')?.cardLabel).toBe('Category N recorded');
+    expect(vehicleWriteOffCategory({sourceExtras: {description: 'Recorded as Cat S.'}})).toBeNull();
   });
 });

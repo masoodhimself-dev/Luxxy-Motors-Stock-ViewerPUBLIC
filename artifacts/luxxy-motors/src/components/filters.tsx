@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Car as CarType } from '@/lib/stock-context';
+import { stockBudgetOptions } from '@/lib/stock-budget-options';
 
 export interface FilterState {
   make: string;
@@ -208,7 +209,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
     Number(Boolean(filters.lowAnnualTax)) +
     Number(Boolean(filters.lowInsuranceGroup));
 
-  const maxBudgets = Array.from(new Set([5000, 10000, 15000, 20000, 30000, 40000, 50000, 75000, 100000, ...(filters.maxPrice && Number.isFinite(Number(filters.maxPrice)) ? [Number(filters.maxPrice)] : [])])).sort((a, b) => a - b);
+  const maxBudgets = stockBudgetOptions(cars, filters.maxPrice);
 
   const handleSearchClick = () => {
     setFilters(current => {const parsed = parseStockSearch(current.search, cars); return {...current, ...(parsed.make && parsed.make !== current.make ? {model:''} : {}), ...parsed};});
@@ -341,17 +342,19 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             <legend className="sr-only">Budget range</legend>
             <Field label="Min budget">
               <Select
+                ariaLabel="Min budget"
                 value={filters.minPrice}
                 onChange={(value) => changeBudget('minPrice', value)}
               >
                 <option value="">Any</option>
-                {Array.from(new Set([5000, 10000, 20000, 30000, 40000, 50000, 75000, ...(filters.minPrice && Number.isFinite(Number(filters.minPrice)) ? [Number(filters.minPrice)] : [])])).sort((a,b) => a-b).map((price) => (
+                {stockBudgetOptions(cars, filters.minPrice).map((price) => (
                   <option key={price} value={String(price)}>£{price.toLocaleString()}</option>
                 ))}
               </Select>
             </Field>
             <Field label="Max budget">
               <Select
+                ariaLabel="Max budget"
                 value={filters.maxPrice}
                 onChange={(value) => changeBudget('maxPrice', value)}
               >
@@ -371,6 +374,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             </Field>
             <Field label="Fuel">
               <Select
+                ariaLabel="Fuel"
                 value={filters.fuel}
                 onChange={(fuel) => setFilters((current) => ({ ...current, fuel }))}
               >
@@ -380,6 +384,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
             </Field>
             <Field label="Transmission">
               <Select
+                ariaLabel="Transmission"
                 value={filters.transmission}
                 onChange={(transmission) => setFilters((current) => ({ ...current, transmission }))}
               >
@@ -388,7 +393,7 @@ export function Filters({ cars, filters, setFilters, onSearch, vehicleCount, mat
               </Select>
             </Field>
           </div>
-          {quickFilters && <div className="stock-quick-choices mt-5 border-t border-border pt-4"><p className="mb-2 text-xs font-medium text-muted-foreground">Quick choices · combine as many as you need</p>{quickFilters}</div>}
+          {quickFilters && <div className="stock-quick-choices mt-5 border-t border-border pt-4"><p className="mb-2 text-xs font-medium text-muted-foreground">Other preferences</p>{quickFilters}</div>}
           <fieldset className="stock-insurance-filters mt-8 border-t border-primary/10 pt-6">
              <legend className="text-sm font-semibold text-primary">Insurance history</legend>
             <div className="mt-3 flex flex-wrap gap-3">

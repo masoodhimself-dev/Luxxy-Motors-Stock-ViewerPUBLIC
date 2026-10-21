@@ -143,14 +143,14 @@ for (const width of [390, 820, 1440]) {
     await page.getByRole('button', { name: /Save .* to your saved cars/ }).click();
     await page.goto('/saved');
     await expect(page.getByTestId('text-saved-count')).toContainText('1 car saved');
-    await page.locator('summary').filter({ hasText: 'More details' }).click();
+    await expect(page.locator('.saved-car-list details')).toHaveCount(0);
     if (width >= 768) {
       const photoColumn = page.locator('.saved-car-list .vehicle-card-photo').first();
       const columnBounds = await photoColumn.boundingBox();
       const linkBounds = await photoColumn.locator('> a[data-stock-link]').boundingBox();
       expect(Math.abs((columnBounds!.y + columnBounds!.height / 2) - (linkBounds!.y + linkBounds!.height / 2)), 'A contained saved photo should sit centrally in the stretched row').toBeLessThanOrEqual(1);
     }
-    await inspect(page, 'saved-expanded');
+    await inspect(page, 'saved-shortlist');
     expect(writes).toEqual([]);
     expect(errors).toEqual([]);
   });

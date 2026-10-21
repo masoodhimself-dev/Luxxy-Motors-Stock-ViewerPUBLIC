@@ -681,6 +681,8 @@ export interface DealerBrochure {
   introduction?: string;
   /** @pattern ^#[0-9a-fA-F]{6}$ */
   accentColour?: string;
+  /** Use the website primary colour for vehicle sheets and PDFs. If omitted, existing accent overrides remain custom; otherwise website branding is used. */
+  useWebsiteColour?: boolean;
   /** @maxLength 500 */
   footerNote?: string;
   includeDescription?: boolean;

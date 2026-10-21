@@ -4,6 +4,7 @@ import { Printer } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import type { DealerConfig } from '@/config/dealer';
 import { formatPhoneDisplay, vehicleDisplayTitle } from '@/lib/utils';
+import { vehicleSheetAccent } from '@/lib/vehicle-sheet-branding';
 import { vehiclePrintData, type VehiclePrintFact } from '@/lib/vehicle-print-data';
 
 const supplied = (value?: string) => {
@@ -32,7 +33,7 @@ export function VehiclePrint({ car, dealer, features, description }: { car: Car;
   const printedEmail = email && !/@(?:example\.(?:com|org|net)|[^@]+\.(?:test|invalid))$/i.test(email) ? email : '';
   const address = [dealer.address?.street, dealer.address?.city, dealer.address?.region, dealer.address?.postcode].map(supplied).filter(Boolean).join(', ');
   const url = `${window.location.origin}/vehicle/${encodeURIComponent(car.id)}`;
-  const accent = /^#[0-9a-f]{6}$/i.test(dealer.brochure?.accentColour ?? '') ? dealer.brochure!.accentColour : '#263c46';
+  const accent = vehicleSheetAccent(dealer.identity.brandColors?.primaryHsl, dealer.brochure?.accentColour, dealer.brochure?.useWebsiteColour);
   const legal = [supplied(dealer.legal.companyNumber) ? `Company no. ${dealer.legal.companyNumber}` : '', supplied(dealer.legal.vatNumber) ? `VAT no. ${dealer.legal.vatNumber}` : ''].filter(Boolean).join(' · ');
 
   const fit = useCallback(() => {

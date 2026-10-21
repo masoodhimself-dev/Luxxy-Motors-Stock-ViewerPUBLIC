@@ -2,7 +2,6 @@ import { CompareSelectionLink } from '@/components/saved-car-controls';
 import { readSavedSnapshots, savedPriceReduction } from '@/lib/saved-car-snapshots';
 import { formatPrice } from '@/lib/utils';
 import { ShowroomPhoto } from '@/components/showroom-photo';
-import { SavedCarDetails } from '@/components/saved-car-details';
 import { usePageMeta } from '@/hooks/use-page-meta';
 import { useDealerSettings } from "@/lib/dealer-settings-context";
 import { websiteText } from "@/lib/website-content";
@@ -184,9 +183,17 @@ export default function Saved() {
           </div>
         ) : cars.length > 0 ? (
           <div className="saved-car-list mt-6 flex flex-col gap-6">
-            {cars.map((car) => (
-              <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">{!sharedIds && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">{savedPriceReduction(snapshots[car.id], car) != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(savedPriceReduction(snapshots[car.id], car)!, car.currency)} since you saved it</p>}{car.inventoryStatus === 'reserved' && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}</div>}<CarCard car={car} layout="row" /><SavedCarDetails car={car} /></div>
-            ))}
+            {cars.map((car) => {
+              const reduction = savedPriceReduction(snapshots[car.id], car);
+              const reserved = car.inventoryStatus === 'reserved';
+              return <div key={car.id} className="overflow-hidden rounded-md border border-border bg-card">
+                {!sharedIds && (reduction != null || reserved) && <div className="flex flex-wrap gap-2 px-4 pt-4 text-sm" aria-label="Saved car updates">
+                  {reduction != null && <p className="rounded bg-secondary px-3 py-2 font-medium">Price reduced by {formatPrice(reduction, car.currency)} since you saved it</p>}
+                  {reserved && <p className="rounded bg-secondary px-3 py-2">{snapshots[car.id]?.status === 'available' ? 'Reserved since you saved it' : 'Currently reserved'}</p>}
+                </div>}
+                <CarCard car={car} layout="compact" catalogue analyticsSource="saved_cars" />
+              </div>;
+            })}
           </div>
         ) : (
           <PageEmptyState

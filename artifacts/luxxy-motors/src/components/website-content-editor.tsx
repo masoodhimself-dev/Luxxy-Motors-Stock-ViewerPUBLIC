@@ -1,3 +1,4 @@
+import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import { useState } from 'react';
 import type { DealerPresentation } from '@workspace/api-client-react';
 import { websiteFields } from '@/lib/website-content';
@@ -6,10 +7,11 @@ import { Textarea } from './ui/textarea';
 
 export function WebsiteContentEditor({ value, onChange }: { value: DealerPresentation; onChange: (value: DealerPresentation) => void }) {
   const [search, setSearch] = useState('');
-  const groups = [...new Set(websiteFields.map(field => field.group))];
-  const filtered = websiteFields.filter(field => `${field.group} ${field.label} ${field.defaultValue}`.toLowerCase().includes(search.toLowerCase()));
+  const visibleFields = websiteFields.filter(field => field.group !== 'Navigation' && (field.group !== 'Comparison' || customerFeaturePolicy.vehicleComparison));
+  const groups = [...new Set(visibleFields.map(field => field.group))];
+  const filtered = visibleFields.filter(field => `${field.group} ${field.label} ${field.defaultValue}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="space-y-5">
-    <p className="text-sm leading-6 text-muted-foreground">Choose a page and edit its wording. Leave a field empty to use the standard text shown underneath. Vehicle facts, prices, payment messages and validation remain controlled by the application.</p>
+    <p className="text-sm leading-6 text-muted-foreground">Choose a page and edit its wording. Navigation uses consistent standard labels. Leave a field empty to use the standard text shown underneath. Vehicle facts, prices, payment messages and validation remain controlled by the application.</p>
     <label className="block text-sm font-medium">Find a page or phrase<Input className="mt-2" value={search} onChange={event => setSearch(event.target.value)} placeholder="For example: contact, stock, reviews" /></label>
     {groups.map(group => {
       const fields = filtered.filter(field => field.group === group);

@@ -1,6 +1,9 @@
 import { WebsiteContentEditor } from "./website-content-editor";
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
-import { LaunchReadiness, SettingsPreview } from './settings-preview';
+import { vehicleSheetAccent, vehicleSheetUsesWebsiteColour } from '@/lib/vehicle-sheet-branding';
+import { editableShowroomWeek, showroomWeekRows, showroomBookingCopy, settingsSectionGroup, type DealerSettingsGroup } from '@/lib/settings-simplification';
+import { parseReviews } from './reviews-settings';
+import { LaunchReadiness, SettingsPreview, launchChecks } from './settings-preview';
 import { ShowroomPhoto } from './showroom-photo';
 import { ReviewsSettings } from './reviews-settings';
 import { ColourField, isValidHsl } from '@/components/brand/colour-field';
@@ -49,6 +52,7 @@ import './settings-workspace.css';
 
 type ServiceKey = 'warranty' | 'delivery' | 'partExchange';
 type FormSection =
+  | "bookings"
   | "identity"
   | "contact"
   | "homepage"
@@ -62,24 +66,19 @@ type FormSection =
 
 const ActiveSettingsSection = createContext<FormSection | null>(null);
 const websiteTabs = [
-  { id: 'contact', label: 'Showroom', icon: MapPin },
   { id: 'identity', label: 'Brand', icon: Palette },
-  { id: 'presentation', label: 'Photos & bookings', icon: Image },
   { id: 'homepage', label: 'Homepage', icon: Store },
-  { id: 'more', label: 'More options', icon: Plus },
+  { id: 'presentation', label: 'Photos & visits', icon: Image },
+  { id: 'services', label: 'Services', icon: Truck },
+  { id: 'proof', label: 'Selling points', icon: Check },
+  { id: 'pages', label: 'Page wording', icon: FileText },
+  { id: 'brochure', label: 'Vehicle sheets', icon: FileText },
   { id: 'review', label: 'Review & publish', icon: Check },
 ] as const;
-const additionalWebsiteTabs = [
-  { id: 'pages', label: 'Page wording' },
-  { id: 'services', label: 'Services' },
-  { id: 'proof', label: 'Selling points' },
-  { id: 'brochure', label: 'Printed details' },
-  { id: 'legal', label: 'Business details' },
-] as const;
-const isAdditionalSection = (section: string | null): boolean =>
-  additionalWebsiteTabs.some(tab => tab.id === section);
+const dealershipTabs = [{ id: 'contact', label: 'Contact & hours', icon: MapPin }, { id: 'legal', label: 'Company details', icon: Store }] as const;
+const bookingTabs = [{ id: 'bookings', label: 'Appointments', icon: Clock3 }] as const;
 const isFormSection = (section: string | null): section is FormSection =>
-  section !== 'more' && [...websiteTabs, ...additionalWebsiteTabs].some(tab => tab.id === section);
+  [...websiteTabs, ...dealershipTabs, ...bookingTabs].some(tab => tab.id === section);
 
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const defaultTestDriveBooking: DealerTestDriveBooking = {
@@ -257,7 +256,7 @@ function SectionCard({
   const active = useContext(ActiveSettingsSection);
   if (active && active !== id) return null;
   return (
-    <section tabIndex={-1} id={isAdditionalSection(id) ? `website-more-panel-${id}` : `settings-${id}`} role={isAdditionalSection(id) ? 'tabpanel' : undefined} aria-labelledby={isAdditionalSection(id) ? `website-more-tab-${id}` : undefined} className="settings-section scroll-mt-28 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
+    <section tabIndex={-1} id={`settings-${id}`} className="settings-section scroll-mt-28 rounded-md border border-border bg-card p-6 shadow-none luxxy-surface sm:p-8">
       <div className="settings-section-heading mb-8 flex flex-col items-start gap-4 border-b border-border pb-6 sm:flex-row">
         <div aria-hidden="true" className="settings-section-icon flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-secondary/20 text-primary">
           {icon}
@@ -318,9 +317,6 @@ function ServiceEditor({
         </label>
       </div>
       <div className="settings-service-fields mt-6 grid gap-5 sm:grid-cols-2">
-        <Field label="Section title">
-          <Input value={service.title} onChange={(event) => onChange({ ...service, title: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-title`} />
-        </Field>
         <Field label="Button label">
           <Input value={service.ctaLabel} onChange={(event) => onChange({ ...service, ctaLabel: event.target.value })} data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}-cta`} />
         </Field>
@@ -333,19 +329,21 @@ function ServiceEditor({
 }
 
 
-function TestDriveSettings({ value, onChange, errors }: {
+function TestDriveSettings({ value, onChange, errors, showroomHours }: {
   value: DealerTestDriveBooking;
   onChange: (value: DealerTestDriveBooking) => void;
   errors: Record<string, string>;
+  showroomHours: DealerSettings['hours'];
 }) {
+  const [copyPreview, setCopyPreview] = useState(false);
+  const bookingCopy = showroomBookingCopy(showroomHours, value);
   const [blockedDate, setBlockedDate] = useState('');
   const update = <K extends keyof DealerTestDriveBooking>(key: K, next: DealerTestDriveBooking[K]) => onChange({ ...value, [key]: next });
   const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/London' }).format(new Date(`${date}T12:00:00Z`));
   return (
     <div className="settings-subsection settings-booking-settings rounded-md border border-border p-4 sm:p-6" data-testid="test-drive-settings">
       <div className="border-b border-border pb-5">
-        <h3 className="font-display text-xl font-semibold text-primary">Test-drive appointments</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose when customers can book and what they need for their visit. All appointment times use UK time.</p>
+        <p className="text-sm text-muted-foreground">All appointment times use UK time.</p>
         <label className="mt-3 flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5 accent-primary" checked={value.enabled} onChange={event => update('enabled', event.target.checked)} data-testid="checkbox-test-drive-enabled" />Accept online test-drive bookings</label>
       </div>
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -370,7 +368,12 @@ function TestDriveSettings({ value, onChange, errors }: {
       </div>
       <fieldset className="mt-6 border-t border-border pt-5">
         <legend className="pr-3 text-sm font-semibold">Appointment hours</legend>
-        <p className="mb-3 text-sm text-muted-foreground">These times control the booking calendar. Your displayed showroom opening hours are managed in Your showroom.</p>
+        <p className="mb-3 text-sm text-muted-foreground">These times control the booking calendar. Your public opening hours are managed in Dealership details. Appointment hours can be different.</p>
+        <div className="settings-hours-copy mb-4 rounded-md border border-border bg-background p-3">
+          <Button type="button" variant="outline" disabled={!bookingCopy} onClick={() => setCopyPreview(!copyPreview)}>Use showroom hours…</Button>
+          <p className="mt-2 text-xs text-muted-foreground">{bookingCopy ? 'Preview the confirmed showroom timetable before replacing these appointment hours. Other booking rules stay the same.' : 'Confirm all seven showroom days first. Each open day must fit a full appointment. Your current appointment hours are unchanged.'}</p>
+          {copyPreview && bookingCopy && <div className="mt-3 border-t border-border pt-3" data-testid="booking-hours-copy-preview"><p className="font-semibold">Proposed appointment hours</p><ul className="my-3 text-sm">{[1, 2, 3, 4, 5, 6, 0].map(day => { const proposed = bookingCopy.find(item => item.day === day)!; return <li key={day}>{weekdayNames[day]}: {proposed.enabled ? `${proposed.open}–${proposed.close}` : 'Closed'}</li>; })}</ul><div className="flex flex-wrap gap-2"><Button type="button" onClick={() => { update('weeklyHours', bookingCopy); setCopyPreview(false); }}>Apply these hours to draft</Button><Button type="button" variant="outline" onClick={() => setCopyPreview(false)}>Keep current hours</Button></div></div>}
+        </div>
         <div className="divide-y divide-border">
           {[1, 2, 3, 4, 5, 6, 0].map(dayNumber => {
             const day = value.weeklyHours.find(entry => entry.day === dayNumber)!;
@@ -404,15 +407,24 @@ function TestDriveSettings({ value, onChange, errors }: {
   );
 }
 
-export function DealerSettingsPanel() {
+function ShowroomHoursEditor({ value, onChange, error }: { value: DealerSettings['hours']; onChange: (hours: DealerSettings['hours']) => void; error?: string }) {
+  const week = editableShowroomWeek(value)!;
+  const [timeError, setTimeError] = useState('');
+  return <fieldset className="settings-subsection settings-opening-hours mt-6"><legend className="px-2 text-base font-semibold">Showroom opening hours</legend><p className="mb-4 text-sm text-muted-foreground">UK time. Unknown stays unconfirmed, never closed. Editing the timetable updates your draft; booking hours are separate.</p><div className="divide-y divide-border">{[1, 2, 3, 4, 5, 6, 0].map(day => {
+    const entry = week.find(item => item.day === day)!;
+    const edit = (patch: Partial<typeof entry>) => onChange(showroomWeekRows(week.map(item => item.day === day ? { ...item, ...patch } : item)));
+    return <div key={day} className="settings-hours-day"><span className="text-sm font-medium">{weekdayNames[day]}</span><NativeSelect value={entry.state} aria-label={`${weekdayNames[day]} opening status`} onChange={event => edit({ state: event.target.value as typeof entry.state })}><option value="open">Open</option><option value="closed">Closed</option><option value="unknown">Unknown</option></NativeSelect>{entry.state === 'open' ? <><Input type="time" value={entry.open} aria-label={`${weekdayNames[day]} opens`} onChange={event => { if (event.target.value && event.target.value < entry.close) { setTimeError(''); edit({ open: event.target.value }); } else setTimeError(`${weekdayNames[day]} opening time must be before closing. Your saved draft time is unchanged.`); }} /><Input type="time" value={entry.close} aria-label={`${weekdayNames[day]} closes`} onChange={event => { if (event.target.value && event.target.value > entry.open) { setTimeError(''); edit({ close: event.target.value }); } else setTimeError(`${weekdayNames[day]} closing time must be after opening. Your saved draft time is unchanged.`); }} /></> : <span className="settings-hours-state text-xs text-muted-foreground">{entry.state === 'closed' ? 'Closed all day' : 'Not yet confirmed'}</span>}</div>;
+  })}</div><p className="mt-3 text-xs text-muted-foreground">For each open day, closing must be after opening. Adjust the later time first when moving both times past the current closing time.</p>{(error || timeError) && <p role="alert" className="mt-3 text-sm text-destructive">{error || timeError}</p>}</fieldset>;
+}
+
+export function DealerSettingsPanel({ group = 'website', allowReviewImport = false }: { group?: DealerSettingsGroup; allowReviewImport?: boolean }) {
   const search = useSearch();
   const [, navigate] = useLocation();
   const requestedSection = new URLSearchParams(search).get('websiteSection');
-  const activeSection: FormSection = isFormSection(requestedSection) ? requestedSection : 'contact';
-  const additionalSection = isAdditionalSection(activeSection);
-  const mainTab = additionalSection ? 'more' : activeSection;
-  const [lastAdditionalSection, setLastAdditionalSection] = useState<FormSection>('pages');
-  useEffect(() => { if (additionalSection) setLastAdditionalSection(activeSection); }, [activeSection, additionalSection]);
+  const activeSection: FormSection = isFormSection(requestedSection) ? requestedSection : group === 'dealership' ? 'contact' : group === 'bookings' ? 'bookings' : 'identity';
+  const sectionGroup = settingsSectionGroup(activeSection);
+  const groupTabs = sectionGroup === 'dealership' ? dealershipTabs : sectionGroup === 'bookings' ? bookingTabs : websiteTabs;
+  const mainTab = activeSection;
   const { stock } = useStock();
   const stockWithThumbnails = useMemo(() => {
     return (stock?.cars || []).filter((car) => Boolean(getThumbnailUrl(car)));
@@ -455,17 +467,7 @@ export function DealerSettingsPanel() {
   }, [dirty, draftStored]);
 
 
-  const completeness = useMemo(() => {
-    const checks = [
-      form.identity.name,
-      form.hero.copy,
-      form.hero.subcopy,
-      form.contact.phone || form.contact.email,
-      form.address.city,
-      form.trustItems.filter(Boolean).length > 0,
-    ];
-    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-  }, [form]);
+  const readinessIssues = launchChecks(form).filter(check => check.issue);
 
   const updateGroup = <K extends keyof DealerSettings>(key: K, value: DealerSettings[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -492,12 +494,13 @@ export function DealerSettingsPanel() {
     if (form.brochure?.accentColour && !/^#[0-9a-fA-F]{6}$/.test(form.brochure.accentColour)) errors['brochure.accentColour'] = 'Use a six-digit colour such as #835b33.';
     if (!isValidHsl(form.identity.brandColors.primaryHsl) || !isValidHsl(form.identity.brandColors.accentHsl)) errors['identity.colours'] = 'Use a hue from 0–360 and saturation/lightness from 0–100%, or choose a colour using the picker.';
     for (const [key, value] of Object.entries(form.presentation || {})) {
+      if (/^(showroom|visit|contact|reception)Image(Url|Alt)$/.test(key)) continue;
       if (key.endsWith("Colour") && value && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) errors[`presentation.${key}`] = "Use a six-digit hex colour, or leave blank.";
       if (key.endsWith("Url") && typeof value === "string" && value && !/^https:\/\/[^\s]+$/.test(value))
         errors[`presentation.${key}`] =
           "Use a full HTTPS address, or leave this empty.";
     }
-    for (const subject of ["hero", "showroom", "team", "visit", "contact", "reception"] as const) {
+    for (const subject of ["hero", "team"] as const) {
       if (
         form.presentation?.[`${subject}ImageUrl`] &&
         !form.presentation?.[`${subject}ImageAlt`]?.trim()
@@ -506,15 +509,17 @@ export function DealerSettingsPanel() {
           "Describe the photograph for customers using a screen reader.";
     }
     for (const [group, fields] of Object.entries({ identity: { logoAsset: form.identity.logoAsset }, contact: { email: '' }, address: { mapsUrl: form.address.mapsUrl }, legal: { termsUrl: form.legal.termsUrl, privacyUrl: form.legal.privacyUrl, cookieUrl: form.legal.cookieUrl }, social: form.social })) {
-      for (const [key, value] of Object.entries(fields)) if (value && !/^https?:\/\/[^\s]+$/.test(value)) errors[`${group}.${key}`] = 'Use a full HTTP or HTTPS address.';
+      for (const [key, value] of Object.entries(fields)) {
+        // Onboarded demos and installed logos already use same-site asset paths.
+        const installedLogo = group === 'identity' && key === 'logoAsset' && /^\/(?![\/\\])[^\s\\\u0000-\u001f]+$/.test(value);
+        if (value && !installedLogo && !/^https?:\/\/[^\s]+$/.test(value)) errors[`${group}.${key}`] = 'Use a full HTTP or HTTPS address.';
+      }
     }
     if (form.contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact.email)) errors['contact.email'] = 'Enter a valid email address.';
     if (!form.identity.name.trim()) errors['identity.name'] = 'Add the dealership name.';
     if (!form.hero.copy.trim()) errors['hero.copy'] = 'Add a homepage headline.';
     if (!form.hero.subcopy.trim()) errors['hero.subcopy'] = 'Add a short supporting line.';
     if (!form.hero.primaryCta.trim()) errors['hero.primaryCta'] = 'Add a primary button label.';
-    if (!form.bookViewing.title.trim()) errors['bookViewing.title'] = 'Add a test-drive title.';
-    if (!form.bookViewing.description.trim()) errors['bookViewing.description'] = 'Add a test-drive description.';
     if (!form.bookViewing.ctaLabel.trim()) errors['bookViewing.ctaLabel'] = 'Add a test-drive button label.';
     const reservation = form.onlineReservation;
     if (reservation && (!Number.isInteger(reservation.depositPence) || reservation.depositPence < 100 || reservation.depositPence > 1000000)) errors['onlineReservation.depositPence'] = 'Enter a deposit between £1 and £10,000, in pounds and pence.';
@@ -536,6 +541,7 @@ export function DealerSettingsPanel() {
       }
       if (booking.enabled && !booking.weeklyHours.some(day => day.enabled)) errors['testDriveBooking.weeklyHours'] = 'Choose at least one available day, or turn off online test-drive booking.';
     }
+    try { parseReviews(JSON.stringify(form.presentation?.reviews ?? [])); } catch (error) { errors['presentation.reviews'] = (error as Error).message; }
     if (form.hours.some((item) => !item.days.trim() || !item.times.trim())) errors.hours = 'Complete or remove each opening-hours row.';
     if (form.trustItems.some((item) => !item.trim())) errors.trustItems = 'Remove empty trust points or fill them in.';
     if (form.whyBuy.some((item) => !item.title.trim() || !item.description.trim())) errors.whyBuy = 'Complete or remove each why-buy point.';
@@ -544,7 +550,7 @@ export function DealerSettingsPanel() {
       const first = Object.keys(errors)[0];
       if (first.startsWith("brochure")) scrollToSection("brochure");
       else if (/^presentation\.(footerLogoUrl|faviconUrl|.*Colour)$/.test(first)) scrollToSection("identity");
-      else if (first.startsWith("testDriveBooking")) scrollToSection("presentation");
+      else if (first.startsWith("testDriveBooking")) scrollToSection("bookings");
       else if (first.startsWith("presentation")) scrollToSection("presentation");
       else if (first.startsWith('identity')) scrollToSection('identity');
       else if (first.startsWith('hero') || first.startsWith('bookViewing')) scrollToSection('homepage');
@@ -559,7 +565,7 @@ export function DealerSettingsPanel() {
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!initialized || !settingsQuery.data) return;
+    if (!initialized || !settingsQuery.data || !dirty || updateSettings.isPending) return;
     setSaveMessage('');
     if (savedRevision === null) { setValidationErrors({ revision: 'Your draft has no publication version. Discard the draft to reload published settings before saving.' }); return; }
     if (!validate()) return;
@@ -581,15 +587,13 @@ export function DealerSettingsPanel() {
   };
 
   const scrollToSection = (section: FormSection) => {
-    navigate(`/portal?section=settings&settingsTab=website&websiteSection=${section}`);
+    navigate(`/portal?section=settings&settingsTab=${settingsSectionGroup(section)}&websiteSection=${section}`);
   };
 
   const addHour = () => updateGroup('hours', [...form.hours, { days: '', times: '' }]);
-  const addTrustItem = () => {
-    if (form.trustItems.length < 8) updateGroup('trustItems', [...form.trustItems, '']);
-  };
-  const addWhyBuy = () => {
-    if (form.whyBuy.length < 8) updateGroup('whyBuy', [...form.whyBuy, { title: '', description: '' }]);
+  const addSellingPoint = () => {
+    if (form.whyBuy.length || !form.trustItems.length) { if (form.whyBuy.length < 8) updateGroup('whyBuy', [...form.whyBuy, { title: '', description: '' }]); }
+    else if (form.trustItems.length < 8) updateGroup('trustItems', [...form.trustItems, '']);
   };
   const addFeatured = (id: string) => {
     if (!id || form.featuredVehicleIds.includes(id) || form.featuredVehicleIds.length >= 8) return;
@@ -639,22 +643,10 @@ export function DealerSettingsPanel() {
 
   return (
     <section className="settings-studio portal-settings-premium settings-website-tabs mb-12" aria-labelledby="settings-heading">
-      <div className="settings-studio-heading mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="settings-studio-eyebrow luxxy-kicker text-primary">Website editor</p>
-          <h2 id="settings-heading" className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-primary">Your website</h2>
-          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-primary/70">
-            Changes stay private until you review and publish.
-          </p>
-        </div>
-        <div className="settings-profile-status flex items-center gap-4 border border-border bg-card px-5 py-4 shadow-none luxxy-surface">
-          <p className="text-sm text-muted-foreground">
-            Basic profile fields{" "}
-            <span className="ml-2 font-semibold tabular-nums text-primary">
-              {Math.round(completeness * 6 / 100)} of 6
-            </span>
-          </p>
-        </div>
+      <div className="settings-studio-heading settings-compact-heading">
+        <h2 id="settings-heading" className="sr-only">{sectionGroup === 'dealership' ? 'Dealership details' : sectionGroup === 'bookings' ? 'Bookings' : 'Your website'}</h2>
+        <p className="settings-draft-explainer">Changes stay in your draft until you publish.</p>
+        <Button type="button" variant="ghost" onClick={() => scrollToSection('review')} className="settings-check-link">Website checks <span>{readinessIssues.length ? `${readinessIssues.length} to review` : 'No missing details'}</span></Button>
       </div>
 
       {settingsQuery.isError && (
@@ -671,13 +663,13 @@ export function DealerSettingsPanel() {
       )}
 
       <div className="settings-workspace">
-      <SettingsTabs idPrefix="website-settings" label="Website settings" value={mainTab} items={websiteTabs} onValueChange={section => scrollToSection(section === 'more' ? lastAdditionalSection : section as FormSection)} />
+      {groupTabs.length > 1 && <SettingsTabs idPrefix="website-settings" label="Website settings" value={mainTab} items={groupTabs} onValueChange={section => scrollToSection(section as FormSection)} />}
 
       {dirty && (
         <div className="settings-draft-notice mb-6 flex flex-wrap items-center justify-between gap-3 border-l-2 border-accent bg-secondary/40 px-4 py-3" role="status">
           <div className="text-sm">
             <p className="font-semibold">Unpublished changes</p>
-            <p className="mt-1 text-muted-foreground">{draftStored ? 'Your draft stays in this browser tab for 24 hours, including when you view the published showroom.' : 'Your draft stays while this app is open. Browser storage is unavailable; keep this tab open until you publish.'}</p>
+            <p className="mt-1 text-muted-foreground">{draftStored ? 'All dealership, website and booking edits share this draft. It stays in this browser tab for 24 hours, including when you change areas.' : 'Your draft stays while this app is open. Browser storage is unavailable; keep this tab open until you publish.'}</p>
             {settingsQuery.data && savedSnapshot !== JSON.stringify(copySettings(settingsQuery.data)) && <p className="mt-1">Published settings have changed since this draft started. Check them before publishing your draft.</p>}
           </div>
           <Button type="button" variant="outline" onClick={() => {
@@ -697,7 +689,7 @@ export function DealerSettingsPanel() {
         <ul className="mt-2 list-disc space-y-2 pl-5 text-sm">{Object.entries(validationErrors).map(([key, message]) => <li key={key}>{message}</li>)}</ul>
       </div>}
       <ActiveSettingsSection.Provider value={activeSection}>
-      <form role="tabpanel" id={`website-settings-panel-${mainTab}`} aria-labelledby={`website-settings-tab-${mainTab}`} tabIndex={0} onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
+      <form role={groupTabs.length > 1 ? "tabpanel" : undefined} id={`website-settings-panel-${mainTab}`} aria-labelledby={groupTabs.length > 1 ? `website-settings-tab-${mainTab}` : undefined} aria-label={groupTabs.length === 1 ? "Booking settings" : undefined} tabIndex={0} onSubmit={save} data-preserves-draft="true" className="settings-editor space-y-6" noValidate onFocusCapture={event => {
         const control = event.target;
         if (!(control instanceof HTMLElement) || !control.matches('input, select, textarea')) return;
         const editor = event.currentTarget;
@@ -708,8 +700,7 @@ export function DealerSettingsPanel() {
           }
         });
       }}>
-        {additionalSection && <div className="settings-website-more"><p>Additional website options</p><SettingsTabs idPrefix="website-more" label="Additional website settings" value={activeSection} items={additionalWebsiteTabs} onValueChange={section => scrollToSection(section as FormSection)} /></div>}
-        <SectionCard id="identity" eyebrow="Brand" title="Brand identity" description="This is the name, mark and colour language customers will recognise across your site." icon={<Palette className="h-5 w-5" />}>
+        <SectionCard id="identity" eyebrow="Brand" title="Brand identity" description="Your dealership name, logos and website colours." icon={<Palette className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Dealership name" error={validationErrors['identity.name']}>
               <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.identity.name} onChange={(event) => updateNested('identity', 'name', event.target.value)} data-testid="input-identity-name" />
@@ -731,6 +722,8 @@ export function DealerSettingsPanel() {
             <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Page and text colours</summary><p className="mb-4 text-xs text-muted-foreground">Keep text dark enough to read on your chosen backgrounds. Blank values retain the neutral design.</p><div className="grid gap-4 sm:grid-cols-2">{([['pageColour', 'Page background', '#f6f6f5'], ['panelColour', 'Cards and forms', '#ffffff'], ['headingColour', 'Headings and prices', '#202428'], ['linkColour', 'Links and accents', '#254e77']] as const).map(([key, label, fallback]) => <Field key={key} label={label} error={validationErrors[`presentation.${key}`]}><div className="flex gap-2"><input aria-label={`${label} colour picker`} type="color" value={form.presentation?.[key] || fallback} onChange={event => updatePresentation(key, event.target.value)} className="h-11 w-14" /><Input aria-label={`${label} hex value`} value={form.presentation?.[key] || ''} placeholder={fallback} maxLength={7} onChange={event => updatePresentation(key, event.target.value)} /></div></Field>)}</div></details>
             {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
+          <div className="settings-logo-previews mt-5 grid gap-3 sm:grid-cols-2">{form.identity.logoAsset && <div className="rounded-md border border-border bg-white p-4"><p className="mb-3 text-xs text-slate-600">Header logo · light background</p><img src={form.identity.logoAsset} alt="Header logo preview" className="max-h-16 max-w-full object-contain" /></div>}{form.presentation?.footerLogoUrl && <div className="rounded-md bg-[#1b2526] p-4 text-white"><p className="mb-3 text-xs text-white/80">Footer logo · dark background</p><img src={form.presentation.footerLogoUrl} alt="Footer logo preview" className="max-h-16 max-w-full object-contain" /></div>}</div>
+          <p className="mt-3 text-xs text-muted-foreground">Use hosted image URLs. Direct website asset uploads are not available in this installation.</p>
           <div className="settings-brand-preview mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
             <DealerWordmark {...form.identity} />
             <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.primaryHsl})` }} />
@@ -741,7 +734,7 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="contact" eyebrow="Visit" title="Contact and opening hours" description="Give shoppers the details they need to call, message or find the forecourt with confidence." icon={<MapPin className="h-5 w-5" />}>
+        <SectionCard id="contact" eyebrow="Visit" title="Contact and opening hours" description="Your public contact details, address and showroom hours." icon={<MapPin className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-3">
             <Field label="Phone">
               <Input type="tel" className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.contact.phone} onChange={(event) => updateNested('contact', 'phone', event.target.value)} data-testid="input-contact-phone" />
@@ -773,7 +766,7 @@ export function DealerSettingsPanel() {
               </div>
             </Field>
           </div>
-          <div className="settings-subsection settings-opening-hours mt-8 border border-border bg-secondary/10 p-5 sm:p-6">
+          {editableShowroomWeek(form.hours) ? <ShowroomHoursEditor value={form.hours} onChange={hours => updateGroup('hours', hours)} error={validationErrors.hours} /> : <><p className="mt-6 text-sm text-muted-foreground">These hours use a custom format. Edit them as written; split shifts, overnight hours and appointment-only arrangements are kept unchanged.</p>          <div className="settings-subsection settings-opening-hours mt-8 border border-border bg-secondary/10 p-5 sm:p-6">
             <div className="settings-action-heading mb-5 flex items-center justify-between gap-4">
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
@@ -803,6 +796,7 @@ export function DealerSettingsPanel() {
               </p>
             )}
           </div>
+</>}
         </SectionCard>
 
         <SectionCard id="homepage" eyebrow="First impression" title="Homepage content" description="Shape the first few seconds of the showroom: your announcement, headline, supporting line and calls to action." icon={<Store className="h-5 w-5" />}>
@@ -828,7 +822,7 @@ export function DealerSettingsPanel() {
               <div>
                 <p className="flex items-center gap-2 font-display text-[1.25rem] font-semibold tracking-[-.02em] text-primary">
                   <Image className="h-4 w-4 text-accent" /> Featured vehicles</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-primary/70">Select up to 8 vehicles to lead the stock list. These selections do not change your homepage photograph. Choose that separately in Photos & visit.</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-primary/70">Select up to 8 vehicles to lead the stock list. These selections do not change your homepage photograph. Choose that separately in Photos & visits.</p>
               </div>
             </div>
 
@@ -945,36 +939,22 @@ export function DealerSettingsPanel() {
               </Field>
             </div>
           </div>}
-          <div className="mt-8 border-t border-border pt-8">
-            <p className="mb-5 font-display text-[14px] font-semibold tracking-normal text-primary">Viewing invitation</p>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Title" error={validationErrors['bookViewing.title']}>
-                <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.bookViewing.title} onChange={(event) => updateNested('bookViewing', 'title', event.target.value)} data-testid="input-viewing-title" />
-              </Field>
-              <Field label="Button label" error={validationErrors['bookViewing.ctaLabel']}>
-                <Input required className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.bookViewing.ctaLabel} onChange={(event) => updateNested('bookViewing', 'ctaLabel', event.target.value)} data-testid="input-viewing-cta" />
-              </Field>
-              <Field label="Description" error={validationErrors['bookViewing.description']}>
-                <Textarea required rows={3} className="rounded-md text-base focus-visible:border-accent" value={form.bookViewing.description} onChange={(event) => updateNested('bookViewing', 'description', event.target.value)} data-testid="textarea-viewing-description" />
-              </Field>
-            </div>
-          </div>
+          <details className="mt-6 border-t border-border pt-3"><summary className="cursor-pointer py-3 text-sm font-medium">Test-drive button wording</summary><Field label="Button label" error={validationErrors['bookViewing.ctaLabel']}><Input value={form.bookViewing.ctaLabel} onChange={event => updateNested('bookViewing', 'ctaLabel', event.target.value)} data-testid="input-viewing-cta" /></Field></details>
         </SectionCard>
 
         <SectionCard
           id="presentation"
           eyebrow="Photography & visits"
-          title="Make the dealership your own"
+          title="Photos and visiting information"
           description="Add genuine dealership photos, practical visiting details and your customer-review page. Leave anything unconfirmed empty."
           icon={<Image className="h-5 w-5" />}
         >
           <div className="space-y-6">
-            <TestDriveSettings value={form.testDriveBooking ?? defaultTestDriveBooking} onChange={value => updateGroup('testDriveBooking', value)} errors={validationErrors} />
-            {(["hero", "showroom", "team", "visit", "contact", "reception"] as const).map((subject) => (
+            {(["hero", "team"] as const).map((subject) => (
               <div key={subject} className="settings-photo-group grid gap-4 sm:grid-cols-2">
                 <Field
-                  label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : subject === "visit" ? "Visit / forecourt" : subject === "contact" ? "Contact page" : subject === "reception" ? "Reception" : "Showroom"} photograph URL`}
-                  hint={subject === "hero" ? "HTTPS · independent of featured stock; use a landscape photograph with the whole car in frame" : subject === "showroom" ? "HTTPS · beside the dealership introduction; leave blank to omit the showroom photo" : "HTTPS"}
+                  label={`${subject === "hero" ? "Homepage" : "Team"} photograph URL`}
+                  hint={subject === "hero" ? "HTTPS · use a landscape photograph with the whole car in frame" : "HTTPS · shown with your team introduction"}
                   error={validationErrors[`presentation.${subject}ImageUrl`]}
                 >
                   <Input
@@ -992,7 +972,7 @@ export function DealerSettingsPanel() {
                   />
                 </Field>
                 <Field
-                  label={`${subject === "hero" ? "Homepage" : subject === "team" ? "Team" : subject === "visit" ? "Visit / forecourt" : subject === "contact" ? "Contact page" : subject === "reception" ? "Reception" : "Showroom"} photograph description`}
+                  label={`${subject === "hero" ? "Homepage" : "Team"} photograph description`}
                   error={validationErrors[`presentation.${subject}ImageAlt`]}
                 >
                   <Input
@@ -1057,7 +1037,7 @@ export function DealerSettingsPanel() {
                 />
               </Field>
             </div>
-            <ReviewsSettings value={form.presentation} onChange={value => updateGroup("presentation", value)} />
+            <ReviewsSettings allowImport={allowReviewImport} value={form.presentation} onChange={value => updateGroup("presentation", value)} />
             <details className="border-y border-border py-3 text-sm">
               <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold">Vehicle photography guide</summary>
               <ol className="ml-5 mt-3 list-decimal space-y-2 leading-6 text-muted-foreground">
@@ -1077,7 +1057,8 @@ export function DealerSettingsPanel() {
 
         <SectionCard id="brochure" eyebrow="Customer printing" title="One-page vehicle sheet" description="A single A4 sheet with all supplied vehicle details. Your logo, name, address and contact details come from Identity and Contact & hours." icon={<FileText className="h-5 w-5" />}>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Print accent colour" hint="Headings, price and dividing lines" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#263c46'} onChange={e=>updateGroup('brochure',{...form.brochure,accentColour:e.target.value})} /></Field>
+            <div className="sm:col-span-2"><label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-5 w-5" checked={vehicleSheetUsesWebsiteColour(form.brochure)} onChange={event => updateGroup('brochure', { ...form.brochure, useWebsiteColour: event.target.checked, accentColour: form.brochure?.accentColour ?? vehicleSheetAccent(form.identity.brandColors.primaryHsl) })} />Use website colour for vehicle sheets</label><p className="mt-1 text-xs text-muted-foreground">Uses your primary brand colour, adjusted only when needed for clear printing on white. Your logo and public contact details also come from the website.</p></div>
+            {!vehicleSheetUsesWebsiteColour(form.brochure) && <Field label="Print accent colour" hint="Override for headings, price and dividing lines" error={validationErrors['brochure.accentColour']}><Input type="color" className="h-11 w-full" value={form.brochure?.accentColour ?? '#263c46'} onChange={event => updateGroup('brochure', { ...form.brochure, accentColour: event.target.value })} /></Field>}
             <Field label="Closing note" hint="Optional appointment instructions, up to 500 characters"><Textarea maxLength={500} rows={3} value={form.brochure?.footerNote ?? ''} placeholder="Useful information for customers who print this sheet." onChange={e=>updateGroup('brochure',{...form.brochure,footerNote:e.target.value})} /></Field>
           </div>
           <p className="mt-5 text-sm leading-6 text-muted-foreground">The full description, equipment, specifications, running costs and history are included when supplied. Missing details and unavailable photographs are omitted. Up to three supplied photographs are shown; the layout adjusts to keep everything on one A4 page.</p>
@@ -1101,7 +1082,7 @@ export function DealerSettingsPanel() {
                   Enable online reservations
                 </label>
               </div>
-              <p className="mt-4 border-l-2 border-accent pl-3 text-sm leading-6 text-muted-foreground">This switch controls whether customers can reserve online. Payment availability and test/live mode are configured separately in Email & payments. Verify a complete reservation before enabling this service. Switching this off prevents new online reservations; existing reservations remain in the portal.</p>
+              <p className="mt-4 border-l-2 border-accent pl-3 text-sm leading-6 text-muted-foreground">This switch controls whether customers can reserve online. Payment availability and test/live mode are configured separately in Advanced → Connections. Verify a complete reservation before enabling this service. Switching this off prevents new online reservations; existing reservations remain in the portal.</p>
               <div className="mt-6 grid gap-5 sm:grid-cols-[minmax(0,12rem)_1fr]">
                 <Field label="Reservation deposit (£)" hint="£1–£10,000" error={validationErrors['onlineReservation.depositPence']}>
                   <Input type="number" inputMode="decimal" min={1} max={10000} step="0.01" value={(form.onlineReservation?.depositPence ?? 10000) / 100} onChange={(event) => updateGroup('onlineReservation', { enabled: form.onlineReservation?.enabled ?? false, terms: form.onlineReservation?.terms ?? '', depositPence: Math.round(Number(event.target.value) * 100) })} data-testid="input-online-reservation-deposit" />
@@ -1114,64 +1095,11 @@ export function DealerSettingsPanel() {
           </div>
         </SectionCard>
 
-        <SectionCard id="proof" eyebrow="Confidence" title="Trust and dealership information" description="Short, specific proof points help customers decide to make the call or book a test drive." icon={<Check className="h-5 w-5" />}>
-          <div className="grid gap-10 lg:grid-cols-2">
-            <div>
-              <div className="settings-action-heading mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[14px] font-bold text-primary">Trust points</p>
-                  <p className="mt-1 text-[13px] text-primary/70">A compact strip of promises near the stock.</p>
-                </div>
-                <Button type="button" size="sm" variant="outline" className="rounded-md text-[12px] font-medium shadow-none" onClick={addTrustItem} disabled={form.trustItems.length >= 8} data-testid="button-add-trust-item">
-                  <Plus className="mr-2 h-4 w-4" /> Add
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {form.trustItems.map((item, index) => (
-                  <div key={`trust-${index}`} className="flex gap-3">
-                    <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item} onChange={(event) => { const items = [...form.trustItems]; items[index] = event.target.value; updateGroup('trustItems', items); }} placeholder="Carefully selected vehicles" aria-label={`Trust point ${index + 1}`} data-testid={`input-trust-item-${index}`} />
-                    <Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('trustItems', form.trustItems.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove trust point ${index + 1}`} data-testid={`button-remove-trust-item-${index}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              {validationErrors.trustItems && (
-                <p className="mt-3 text-[12px] font-semibold text-destructive">
-                  {validationErrors.trustItems}
-                </p>
-              )}
-            </div>
-            <div>
-              <div className="settings-action-heading mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[14px] font-bold text-primary">Why buy from us</p>
-                  <p className="mt-1 text-[13px] text-primary/70">Up to eight fuller reasons for the about section.</p>
-                </div>
-                <Button type="button" size="sm" variant="outline" className="rounded-md text-[12px] font-medium shadow-none" onClick={addWhyBuy} disabled={form.whyBuy.length >= 8} data-testid="button-add-why-buy">
-                  <Plus className="mr-2 h-4 w-4" /> Add
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {form.whyBuy.map((item, index) => (
-                  <div key={`why-${index}`} className="border border-border bg-secondary/10 p-4">
-                    <div className="flex gap-3">
-                      <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={item.title} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, title: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Straightforward buying" aria-label={`Selling point ${index + 1} title`} data-testid={`input-why-buy-title-${index}`} />
-                      <Button type="button" size="icon" variant="ghost" className="h-11 w-11 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => updateGroup('whyBuy', form.whyBuy.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove why buy point ${index + 1}`} data-testid={`button-remove-why-buy-${index}`}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Textarea className="mt-3 rounded-md text-base focus-visible:border-accent" rows={2} value={item.description} onChange={(event) => { const items = [...form.whyBuy]; items[index] = { ...item, description: event.target.value }; updateGroup('whyBuy', items); }} placeholder="Clear information and no surprises." aria-label={`Selling point ${index + 1} description`} data-testid={`textarea-why-buy-description-${index}`} />
-                  </div>
-                ))}
-              </div>
-              {validationErrors.whyBuy && (
-                <p className="mt-3 text-[12px] font-semibold text-destructive">
-                  {validationErrors.whyBuy}
-                </p>
-              )}
-            </div>
-          </div>
+        <SectionCard id="proof" eyebrow="Confidence" title="Selling points" description="The reasons customers should choose your dealership. Keep each point specific and accurate." icon={<Check className="h-5 w-5" />}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{form.whyBuy.length ? 'These points appear on your homepage.' : form.trustItems.length ? 'Your existing short points appear on your homepage.' : 'This section stays hidden until you add a point.'}</p><Button type="button" variant="outline" onClick={addSellingPoint} disabled={(form.whyBuy.length || form.trustItems.length) >= 8}><Plus className="mr-2 h-4 w-4" />Add selling point</Button></div>
+          <div className="space-y-4">{form.whyBuy.length ? form.whyBuy.map((item, index) => <div key={index} className="rounded-md border border-border p-4"><div className="flex gap-2"><Input value={item.title} aria-label={`Selling point ${index + 1} title`} placeholder="Title" onChange={event => updateGroup('whyBuy', form.whyBuy.map((point, at) => at === index ? { ...point, title: event.target.value } : point))} /><Button type="button" variant="ghost" size="icon" aria-label={`Remove selling point ${index + 1}`} onClick={() => updateGroup('whyBuy', form.whyBuy.filter((_, at) => at !== index))}><Trash2 className="h-4 w-4" /></Button></div><Textarea className="mt-3" rows={2} aria-label={`Selling point ${index + 1} description`} placeholder="Explain what this means for the customer." value={item.description} onChange={event => updateGroup('whyBuy', form.whyBuy.map((point, at) => at === index ? { ...point, description: event.target.value } : point))} /></div>) : form.trustItems.map((item, index) => <div key={index} className="flex gap-2"><Input value={item} aria-label={`Selling point ${index + 1}`} onChange={event => updateGroup('trustItems', form.trustItems.map((point, at) => at === index ? event.target.value : point))} /><Button type="button" variant="ghost" size="icon" aria-label={`Remove selling point ${index + 1}`} onClick={() => updateGroup('trustItems', form.trustItems.filter((_, at) => at !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}</div>
+          {form.whyBuy.length > 0 && form.trustItems.length > 0 && <details className="mt-4 border-t border-border pt-3"><summary className="cursor-pointer py-3 text-sm">Previously saved short points</summary><p className="text-xs text-muted-foreground">Kept unchanged. The website uses these only if you remove every point above.</p><ul className="mt-2 list-disc pl-5 text-sm">{form.trustItems.map((item, index) => <li key={index}>{item}</li>)}</ul></details>}
+          {(validationErrors.trustItems || validationErrors.whyBuy) && <p role="alert" className="mt-3 text-sm text-destructive">{validationErrors.whyBuy || validationErrors.trustItems}</p>}
         </SectionCard>
 
         <SectionCard id="legal" eyebrow="Details" title="Social and company details" description="Keep social profiles and company details in one place so the footer stays current." icon={<ExternalLink className="h-5 w-5" />}>
@@ -1214,12 +1142,13 @@ export function DealerSettingsPanel() {
         <SectionCard id="pages" eyebrow="Your words" title="Edit your customer pages" description="Change the wording without changing how the website works." icon={<FileText className="h-5 w-5" />}>
           <WebsiteContentEditor value={form.presentation || {}} onChange={value => updateGroup('presentation', value)} />
         </SectionCard>
+        <SectionCard id="bookings" eyebrow="Appointments" title="Test-drive bookings" description="Set your appointment availability and instructions. Public showroom hours stay separate." icon={<Clock3 className="h-5 w-5" />}><TestDriveSettings value={form.testDriveBooking ?? defaultTestDriveBooking} onChange={value => updateGroup('testDriveBooking', value)} errors={validationErrors} showroomHours={form.hours} /></SectionCard>
         <SectionCard id="review" eyebrow="Ready when you are" title="Review your website" description="Check the content, preview your branding, then publish the complete draft." icon={<Check className="h-5 w-5" />}>
-          <LaunchReadiness settings={form} /><SettingsPreview settings={form} />
+          <p className="mb-4 text-sm text-muted-foreground">Publishing applies the complete shared draft, including changes in Dealership details and Bookings.</p><LaunchReadiness settings={form} /><SettingsPreview settings={form} /><Link href="/portal?section=settings&settingsTab=history" className="text-link mb-5 inline-flex min-h-11 items-center text-sm">Publication history</Link>
           <div className="settings-review-booking mt-5 rounded-md border border-border p-4 text-sm">
             <p className="font-semibold">Test-drive booking</p>
             <p className="mt-2 text-muted-foreground">{form.testDriveBooking?.enabled === false ? 'Online booking is turned off.' : `${form.testDriveBooking?.durationMinutes ?? 30}-minute appointments · ${form.testDriveBooking?.confirmationMode === 'approval' ? 'staff approval required' : 'confirmed immediately'} · up to ${form.testDriveBooking?.dailyCapacity ?? 16} appointments a day.`}</p>
-            <Button type="button" variant="link" className="mt-1 h-auto min-h-11 px-0" onClick={() => scrollToSection('presentation')}>Review booking settings</Button>
+            <Button type="button" variant="link" className="mt-1 h-auto min-h-11 px-0" onClick={() => scrollToSection('bookings')}>Review booking settings</Button>
           </div>
           <p className="text-sm leading-6 text-muted-foreground">Stock credentials, email keys, payment connections and your domain are private deployment settings. They are never stored in the public website settings. Stock photographs and prices come from your dealership’s stock feed.</p>
         </SectionCard>
@@ -1244,13 +1173,13 @@ export function DealerSettingsPanel() {
                   <CircleAlert className="h-4 w-4" />{Object.values(validationErrors)[0]}</p>
               )}
             {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && (
-                <p className="text-primary/70">{dirty ? 'Unpublished changes — publish when ready.' : 'Showing published settings.'}</p>
+                <p className="text-primary/70">{dirty ? 'Shared draft has unpublished changes.' : 'Saved — no unpublished changes.'}</p>
               )}
           </div>
           <div className="settings-save-actions grid grid-cols-2 gap-2 sm:flex">
             <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 border border-border bg-card px-2 sm:px-6 font-display text-[12px] font-semibold tracking-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="link-preview-showroom">
               <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
-            <Button type="submit" disabled={updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
+            <Button type="submit" disabled={!dirty || updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
               <Save className="mr-2 h-4 w-4" />
               {updateSettings.isPending ? 'Publishing…' : activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
             </Button>

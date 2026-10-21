@@ -278,5 +278,9 @@ export function customerDefaultCopy(value: string | null | undefined, fallback: 
 }
 
 export function websiteText(settings: Pick<DealerConfig, "presentation">, key: WebsiteTextKey): string {
-  return customerDefaultCopy(settings.presentation?.websiteCopy?.[key], websiteFields.find(field => field.key === key)!.defaultValue, previousWebsiteDefaults[key]).trim();
+  const field = websiteFields.find(field => field.key === key)!;
+  // Routine navigation is consistent on every screen. Keep legacy overrides
+  // stored for compatibility without turning page-editing into menu design.
+  if (field.group === 'Navigation') return field.defaultValue;
+  return customerDefaultCopy(settings.presentation?.websiteCopy?.[key], field.defaultValue, previousWebsiteDefaults[key]).trim();
 }

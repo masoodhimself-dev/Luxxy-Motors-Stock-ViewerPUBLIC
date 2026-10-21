@@ -1,6 +1,6 @@
 /* Public enquiry form: one reply method first, extra details on demand. */
 .customer-enquiry-form { min-width: 0; }
-.customer-enquiry-form > :first-child:not([data-testid="enquiry-draft-notice"]) { padding-bottom: 18px; }
+
 .customer-enquiry-form .customer-enquiry-contact { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .customer-enquiry-contact > label { min-width: 0; }
 .customer-enquiry-contact .customer-enquiry-reply { grid-column: 1 / -1; max-width: 320px; }
@@ -12,8 +12,8 @@
 .customer-enquiry-form :is(details, fieldset) { min-width: 0; }
 .customer-enquiry-exchange,
 .customer-enquiry-topic { border-top: 1px solid hsl(var(--border)); }
-.customer-enquiry-exchange > summary,
-.customer-enquiry-topic > summary { display: list-item; min-height: 48px; padding-block: 14px; color: hsl(var(--foreground)); font-size: 14px; font-weight: 500; cursor: pointer; }
+.customer-enquiry-exchange-add,
+.customer-enquiry-topic > summary { display: block; min-height: 48px; padding-block: 14px; color: hsl(var(--foreground)); font-size: 14px; font-weight: 500; cursor: pointer; }
 .customer-enquiry-topic > label { padding-bottom: 16px; }
 .customer-enquiry-exchange[open] > summary { color: hsl(var(--accent)); }
 .customer-enquiry-exchange fieldset { padding: 16px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--secondary) / .35); }
@@ -27,3 +27,8 @@
   .customer-enquiry-form { gap: 20px; }
   .customer-enquiry-exchange fieldset { padding: 14px 12px; }
 }
+
+.customer-enquiry-form-embedded .customer-enquiry-contact { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.customer-enquiry-form-embedded .customer-enquiry-reply { max-width: none; }
+.customer-enquiry-exchange-add { width: 100%; text-align: left; text-decoration: underline; text-underline-offset: 4px; }
+.customer-enquiry-exchange:has(fieldset) { padding-top: 16px; }

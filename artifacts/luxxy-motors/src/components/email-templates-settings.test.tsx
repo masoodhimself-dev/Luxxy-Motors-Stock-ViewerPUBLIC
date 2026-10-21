@@ -3,14 +3,14 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { defaultEmailAppearance, defaultEmailTemplates, emailTemplateVariables } from '@workspace/vehicle-meta';
 import { EmailTemplatesSettings } from './email-templates-settings';
 afterEach(()=>vi.unstubAllGlobals());
-function api(options: { failPreviewAfterSave?: boolean } = {}) {
- let revision=1;const templates=structuredClone(defaultEmailTemplates);let appearance={...defaultEmailAppearance};
+function api(options: { failPreviewAfterSave?: boolean; websiteBranding?: boolean } = {}) {
+ let revision=1;const templates=structuredClone(defaultEmailTemplates);let appearance={...defaultEmailAppearance};let useWebsiteBranding=false;const websiteAppearance={logoUrl:'https://dealer.example.test/logo.svg',brandColour:'#DDAA44'};
  const writes: Array<{url:string;body:any}>=[];const previews: any[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url,init)=>{
   const body=init?.body ? JSON.parse(init.body):undefined;
   if(String(url).endsWith('/preview')){previews.push(body);if(options.failPreviewAfterSave && writes.length)return Response.json({error:'Preview temporarily unavailable'},{status:503});return Response.json({subject:body.subject,html:'<!doctype html><html><body><h1>Rendered sample email</h1></body></html>',text:'Plain-text sample email'});}
-  if(init?.method==='PUT') {writes.push({url:String(url),body});expect(body.expectedRevision).toBe(revision);revision++;if(String(url).endsWith('/appearance'))appearance=body.appearance;else {const entry=templates.find(t=>t.id===body.id)!;entry.subject=body.subject;entry.body=body.body;entry.headline=body.headline;}}
-  return Response.json({revision,templates,appearance,variables:emailTemplateVariables});
+  if(init?.method==='PUT') {writes.push({url:String(url),body});expect(body.expectedRevision).toBe(revision);revision++;if(String(url).endsWith('/appearance')){appearance=body.appearance;useWebsiteBranding=body.useWebsiteBranding;}else {const entry=templates.find(t=>t.id===body.id)!;entry.subject=body.subject;entry.body=body.body;entry.headline=body.headline;}}
+  return Response.json({revision,templates,appearance,variables:emailTemplateVariables,...(options.websiteBranding ? {customAppearance:appearance,useWebsiteBranding,websiteAppearance}: {})});
  }));return {writes,previews};
 }
 it('renders a server preview without writes and marks edits stale until refreshed',async()=>{
@@ -104,4 +104,29 @@ it('distinguishes a saved template from a failed preview refresh',async()=>{
  expect(await screen.findByRole('alert')).toHaveTextContent('Your template is saved, but the preview could not be refreshed');
  expect(screen.getByRole('button',{name:'Save template'})).toBeDisabled();
  expect(writes).toHaveLength(1);
+});
+
+it('previews inherited website branding while retaining the custom override and approved wording',async()=>{
+ const {writes,previews}=api({websiteBranding:true});render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));
+ fireEvent.change(screen.getByLabelText('Logo image address'),{target:{value:'https://custom.example.test/logo.png'}});
+ fireEvent.change(screen.getByLabelText('Footer wording'),{target:{value:'Approved dealer footer'}});
+ fireEvent.click(screen.getByRole('checkbox',{name:'Use website logo and colour'})); expect(writes).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button',{name:'Preview branding'}));await screen.findByText('Preview is current');
+ expect(previews.at(-1).appearance).toMatchObject({logoUrl:'https://dealer.example.test/logo.svg',brandColour:'#DDAA44',footer:'Approved dealer footer'});
+ expect(screen.getByText('Email branding has unsaved changes. Previewing does not save them.')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Save email branding'}));await screen.findByText('Email branding saved for every email template.');
+ expect(writes[0].body).toMatchObject({useWebsiteBranding:true,appearance:{logoUrl:'https://custom.example.test/logo.png',footer:'Approved dealer footer'}});
+ fireEvent.click(screen.getByRole('tab',{name:'Branding'}));fireEvent.click(screen.getByRole('checkbox',{name:'Use website logo and colour'}));
+ expect(screen.getByLabelText('Logo image address')).toHaveValue('https://custom.example.test/logo.png');expect(screen.getByLabelText('Footer wording')).toHaveValue('Approved dealer footer');
+});
+it('hides inactive templates in one step after an approved wording discard',async()=>{
+ api();vi.stubGlobal('confirm',vi.fn().mockReturnValue(true));render(<EmailTemplatesSettings/>);await screen.findByText('Preview is current');
+ fireEvent.click(screen.getByRole('checkbox',{name:'Show inactive reservation templates'}));
+ fireEvent.change(screen.getByLabelText('Choose a message'),{target:{value:'reservation_confirmation'}});await screen.findByText('Preview is current');
+ fireEvent.change(screen.getByLabelText('Your message'),{target:{value:'Unsaved reservation message'}});
+ fireEvent.click(screen.getByRole('checkbox',{name:'Show inactive reservation templates'}));
+ await waitFor(()=>expect(screen.getByRole('checkbox',{name:'Show inactive reservation templates'})).not.toBeChecked());
+ expect(screen.getByLabelText('Choose a message')).toHaveValue('enquiry_acknowledgement');expect(window.confirm).toHaveBeenCalledTimes(1);
+ expect(screen.queryByRole('option',{name:'Reservation confirmation'})).not.toBeInTheDocument();
 });

@@ -49,9 +49,7 @@ export function ShowroomVisitPanel({
   const area = ready && !location.isSample && !hasAddress
     ? [...new Set([settings.address?.city, settings.address?.region, settings.address?.postcode].map(value => value?.trim()).filter(Boolean))].join(', ')
     : '';
-  const directions = hasAddress
-    ? location.directions || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.lines.join(', '))}`
-    : null;
+  const directions = hasAddress ? location.directions : null;
   const phone = ready ? settings.contact.phone?.trim() : '';
   const canBook = ready && showBooking && features.enabled('testDriveBookings') && settings.testDriveBooking?.enabled !== false;
   const instructions = ready ? publishedInstructions(settings.presentation?.visitInstructions) : '';

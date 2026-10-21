@@ -62,10 +62,29 @@ export function VehicleCall({
   const location = dealershipLocation(settings.address);
   const detailsReady = !settingsLoading && !settingsError;
   const directions = detailsReady && !location.isSample && location.lines.length
-    ? location.directions || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.lines.join(', '))}` : null;
+    ? location.directions : null;
   const label = vehicleDisplayTitle(car);
   const showCallback = callbackForm && (features.enabled('publicEnquiries') || callback.isSuccess);
   const receivedCallbackTime = callback.data?.followUpAt ? showroomOpeningLabel(callback.data.followUpAt) : null;
+
+  const showroomInformation = (
+    <section className="vehicle-call-showroom" aria-label="Showroom information">
+            <div className="vehicle-call-hours" data-status={detailsReady ? hours.state : 'unknown'} role="status" aria-live="polite">
+              <span className="vehicle-call-status"><Clock3 size={16} aria-hidden="true" />{settingsLoading ? 'Checking opening hours…' : settingsError ? 'Hours unavailable' : hours.statusLabel}</span>
+              {detailsReady && hours.todayText && <strong>{hours.todayText}</strong>}
+              {detailsReady && hours.state === 'closed' && hours.next && <p>Opens {hours.next}</p>}
+              {detailsReady && hours.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
+              {detailsReady && hours.state === 'closed' && !hours.next && <p>Contact us to arrange your next visit.</p>}
+              {settingsError && <p>Please confirm our hours before travelling.</p>}
+              <small>UK time · Regular showroom hours</small>
+            </div>
+            <div className="vehicle-call-location">
+              <h3><MapPin size={16} aria-hidden="true" />Our showroom</h3>
+              {detailsReady && location.lines.length > 0 && !location.isSample ? <address>{location.lines.join(', ')}</address> : <p>{settingsLoading ? 'Loading showroom address…' : 'Contact us to confirm our showroom address.'}</p>}
+              {directions && <a href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} aria-hidden="true" /></a>}
+            </div>
+          </section>
+  );
 
   async function copyNumber() {
     try {
@@ -141,38 +160,24 @@ export function VehicleCall({
               {showCallback ? 'Request a callback' : 'Let’s talk about this car'}
             </DialogTitle>
             <DialogDescription>
-              {showCallback ? 'Just your name and number. We’ll get back to you during opening hours.' : features.enabled('publicEnquiries') ? 'Call the showroom, or ask us to call you back.' : 'Call us to ask about this car or arrange a visit.'}
+              {showCallback ? 'Just your name and number. We’ll get back to you during opening hours.' : features.enabled('publicEnquiries') ? detailsReady && hours.state === 'closed' ? 'We’re currently closed. Ask us to call you back when we reopen.' : 'Call the showroom, or ask us to call you back.' : 'Call us to ask about this car or arrange a visit.'}
             </DialogDescription>
           </div>
 
           <div className="vehicle-call-content">
           <VehicleDialogVehicle car={car} />
 
-          <section className="vehicle-call-showroom" aria-label="Showroom information">
-            <div className="vehicle-call-hours" data-status={detailsReady ? hours.state : 'unknown'} role="status" aria-live="polite">
-              <span className="vehicle-call-status"><Clock3 size={16} aria-hidden="true" />{settingsLoading ? 'Checking opening hours…' : settingsError ? 'Hours unavailable' : hours.statusLabel}</span>
-              {detailsReady && hours.todayText && <strong>{hours.todayText}</strong>}
-              {detailsReady && hours.state === 'closed' && hours.next && <p>Opens {hours.next}</p>}
-              {detailsReady && hours.state === 'unknown' && <p>Today’s hours aren’t confirmed. Please check before travelling.</p>}
-              {detailsReady && hours.state === 'closed' && !hours.next && <p>Contact us to arrange your next visit.</p>}
-              {settingsError && <p>Please confirm our hours before travelling.</p>}
-              <small>UK time · Regular showroom hours</small>
-            </div>
-            <div className="vehicle-call-location">
-              <h3><MapPin size={16} aria-hidden="true" />Our showroom</h3>
-              {detailsReady && location.lines.length > 0 && !location.isSample ? <address>{location.lines.join(', ')}</address> : <p>{settingsLoading ? 'Loading showroom address…' : 'Contact us to confirm our showroom address.'}</p>}
-              {directions && <a href={directions} target="_blank" rel="noopener noreferrer">Get directions<ArrowUpRight size={15} aria-hidden="true" /></a>}
-            </div>
-          </section>
-
           {!showCallback && <div className="vehicle-call-contact" data-closed={detailsReady && hours.state === 'closed'}>
             <div className="vehicle-call-contact-actions">
+              {detailsReady && hours.state === 'closed' && (features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
               <a href={href} className="vehicle-call-dial"><Phone size={19} aria-hidden="true" /><span><small>Call the showroom</small><strong>{formatPhoneDisplay(settings.contact.phone)}</strong></span></a>
-              {(features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
+              {!(detailsReady && hours.state === 'closed') && (features.enabled('publicEnquiries') || callback.isSuccess) && <button type="button" className="vehicle-call-request" onClick={() => setCallbackForm(true)}>{callback.isSuccess ? 'View callback request' : 'Request a callback'}</button>}
             </div>
             <div className="vehicle-call-copy"><button type="button" onClick={() => void copyNumber()}><Copy size={14} aria-hidden="true" />Copy number</button>{copyStatus && <p role="status">{copyStatus}</p>}</div>
             {detailsReady && hours.state === 'closed' && <p className="vehicle-call-closed-note">{features.enabled('publicEnquiries') ? 'We’re away from the showroom. Request a callback for when we’re back.' : 'Please call during our opening hours.'}</p>}
           </div>}
+
+          {!showCallback && showroomInformation}
 
           {showCallback && (callback.isSuccess ? (
             <div className="vehicle-call-result">
@@ -215,6 +220,8 @@ export function VehicleCall({
               <Button type="submit" className="vehicle-action-primary" disabled={callback.isPending}>{callback.isPending ? 'Sending…' : 'Request a callback'}</Button>
             </form>
           ))}
+
+          {showCallback && <details className="vehicle-call-showroom-disclosure"><summary>Showroom details and opening hours</summary>{showroomInformation}</details>}
 
           {showCallback && <div className="vehicle-phone-panel vehicle-phone-panel-secondary vehicle-call-telephone-footer">
             <p className="vehicle-action-label">Our phone number</p>

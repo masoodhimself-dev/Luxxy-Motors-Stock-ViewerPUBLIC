@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Link } from 'wouter';
-import { Search, ChevronDown, RotateCcw, ArrowRight } from '@/components/icons';
+import { Search, ChevronDown, RotateCcw } from '@/components/icons';
 import type { Car } from '@/lib/stock-context';
 import type { FilterState } from '@/components/filters';
 import { formatPrice } from '@/lib/utils';
+import { stockBudgetOptions } from '@/lib/stock-budget-options';
 
 export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, count, buttonLabel, loading = false }: {
   loading?: boolean; buttonLabel?: string; cars: Car[]; filters: FilterState; setFilters: Dispatch<SetStateAction<FilterState>>;
@@ -22,7 +22,6 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, 
   }, []);
   const options = (key: 'make' | 'model' | 'fuel' | 'transmission') => Array.from(new Set(cars.filter(car => key !== 'model' || !filters.make || car.make === filters.make).map(car => car[key]).filter((value): value is string => Boolean(value)))).sort();
   const hasFilters = Object.entries(filters).some(([key, value]) => key !== 'sort' && Boolean(value));
-  const budgets = [1000, 2500, 5000, 7500, 10000, 12500, 15000, 20000, 25000, 30000, 40000, 50000, 75000, 100000, 150000, 250000, 500000];
   const update = (key: keyof FilterState, value: string) => setFilters(current => ({ ...current, [key]: value, ...(key === 'make' ? { model: '' } : {}), ...(key === 'minPrice' && value && current.maxPrice && +value > +current.maxPrice ? { maxPrice: '' } : {}), ...(key === 'maxPrice' && value && current.minPrice && +value < +current.minPrice ? { minPrice: '' } : {}) }));
   const select = (key: 'make' | 'model' | 'fuel' | 'transmission', label: string) => (
     <label className="hero-search-field">
@@ -39,7 +38,7 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, 
       <span className="hero-search-label">{key === 'minPrice' ? 'Minimum price' : 'Maximum price'}</span>
       <select aria-label={key === 'minPrice' ? 'Search minimum price' : 'Search maximum price'} value={filters[key]} onChange={event => update(key, event.target.value)}>
         <option value="">No limit</option>
-        {Array.from(new Set([...budgets, ...(filters[key] ? [+filters[key]] : [])])).sort((a,b) => a-b).map(price => <option key={price} value={price}>{formatPrice(price)}</option>)}
+        {stockBudgetOptions(cars, filters[key]).map(price => <option key={price} value={price}>{formatPrice(price)}</option>)}
       </select>
       <ChevronDown aria-hidden="true" />
     </label>
@@ -53,7 +52,6 @@ export function HeroStockSearch({ cars, filters, setFilters, onSearch, onReset, 
     <div className="hero-search-secondary">
       <button type="button" aria-expanded={advancedOpen} aria-controls={advancedId} onClick={() => setAdvancedOpen(open => !open)}>More filters<ChevronDown aria-hidden="true" size={15} className={advancedOpen ? 'rotate-180' : ''} /></button>
       {hasFilters && <button type="button" onClick={onReset}><RotateCcw aria-hidden="true" size={15} />Reset</button>}
-      <Link href="/stock?all=1">See all cars<ArrowRight aria-hidden="true" size={15} /></Link>
     </div>
     <div id={advancedId} hidden={!advancedOpen} className="hero-search-expanded">
       <div className="hero-search-field-grid">

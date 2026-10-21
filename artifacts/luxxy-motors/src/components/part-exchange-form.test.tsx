@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dealerConfig } from '@/config/dealer';
 import type { Car } from '@/lib/stock-context';
 import { partExchangeDraftKey } from '@/lib/part-exchange-draft';
+import { enquiryDraftKey, saveEnquiryDraft } from '@/lib/enquiry-draft';
 import { PartExchangeForm } from './part-exchange-form';
 
 const featureState = vi.hoisted(() => ({ allowed: true, isLoading: false, isError: false, refetch: vi.fn() }));
@@ -75,4 +76,21 @@ describe('short part exchange journey', () => {
     expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('');
     await waitFor(() => expect(sessionStorage.getItem(partExchangeDraftKey(car.id))).toBeNull());
   });
+});
+
+it('carries typed contact and exchange details into a separate valuation task without sending', () => {
+  saveEnquiryDraft(enquiryDraftKey(car.id, 'part_exchange'), {
+    customerName: 'Fictional Buyer', email: 'fictional@example.test', phone: '07700900123', preferredContact: 'phone',
+    message: 'Original question stays in its enquiry draft', hasPartExchange: true,
+    exchange: { registration: 'AB12 CDE', mileage: '42000', notes: 'Two keys' },
+  });
+  render(<PartExchangeForm vehicle={car} stockCars={[car]} />);
+  expect(screen.getByTestId('input-part-exchange-registration')).toHaveValue('AB12 CDE');
+  expect(screen.getByTestId('input-part-exchange-mileage')).toHaveValue(42000);
+  fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+  fireEvent.click(screen.getByTestId('button-part-exchange-continue'));
+  expect(screen.getByTestId('input-customer-name')).toHaveValue('Fictional Buyer');
+  expect(screen.getByTestId('input-customer-phone')).toHaveValue('07700900123');
+  expect(screen.getByTestId('input-customer-email')).toHaveValue('fictional@example.test');
+  expect(mutation.mutate).not.toHaveBeenCalled();
 });

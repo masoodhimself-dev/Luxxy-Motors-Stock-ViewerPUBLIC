@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { customerDefaultCopy, websiteFields, websiteText } from './website-content';
 describe('dealer page wording', () => {
+  it('keeps routine navigation consistent without deleting stored overrides or page introductions', () => {
+    const websiteCopy = {navigationStock:'Look around', navigationContact:'Say hello', generalDescription:'Ask our team about this car.'};
+    const settings = {presentation:{websiteCopy}};
+    expect(websiteText(settings,'navigationStock')).toBe('Browse Stock');
+    expect(websiteText(settings,'navigationContact')).toBe('Contact us');
+    expect(websiteText(settings,'generalDescription')).toBe('Ask our team about this car.');
+    expect(websiteCopy.navigationStock).toBe('Look around');
+  });
   it('uses defaults for legacy settings and blank overrides', () => {
     expect(websiteText({}, 'stockTitle')).toBe('Browse Stock');
     expect(websiteText({}, 'featuredHeading')).toBe('Explore our cars');

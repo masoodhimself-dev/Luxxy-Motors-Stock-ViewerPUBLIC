@@ -27,7 +27,7 @@ export function createBrochureHandler(dependencies: {
       let bytes = cached && cached.expires > Date.now() ? cached.bytes : undefined;
       if (!bytes) {
         const photos = brochurePhotos(vehicle);
-        const options = brochureOptions(dealer.brochure);
+        const options = brochureOptions(dealer.brochure, dealer.primaryHsl);
         const loaded = await (dependencies.loadPhotos ?? ((items) => loadBrochurePhotos(items, process.env.VEHICLE_PDF_IMAGE_HOSTS)))(selectBrochurePhotos(photos, options.includeGallery ? options.photoLimit : 1));
         bytes = renderVehicleBrochure({ vehicle, dealer, vehicleUrl, photos: loaded, totalPhotos: photos.length, preview: dependencies.preview });
         for (const [oldKey, value] of cache) if (value.expires <= Date.now()) cache.delete(oldKey);

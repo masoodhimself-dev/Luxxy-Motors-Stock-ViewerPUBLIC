@@ -171,3 +171,20 @@ test('partial page edits preserve other pages and allow explicit reset', () => {
   const updated = preservePresentation({ presentation: { websiteCopy: { stockTitle: '' } } }, previous);
   assert.deepEqual(updated.presentation, { heroImagePosition: 'right', websiteCopy: { stockTitle: '', contactTitle: 'Visit' } });
 });
+
+
+test('vehicle-sheet website inheritance survives validation, compatibility merge and reload while retaining the custom colour', () => {
+  const previous = GetDealerSettingsResponse.parse({...legacy,brochure:{accentColour:'#123456',footerNote:'Keep this note',photoLimit:6}});
+  const submitted = UpdateDealerSettingsBody.parse({...previous,brochure:{...previous.brochure,useWebsiteColour:true}});
+  const stored = UpdateDealerSettingsBody.parse(preserveBrochure(submitted,previous));
+  const reloaded = GetDealerSettingsResponse.parse(JSON.parse(JSON.stringify(stored)));
+  assert.deepEqual(reloaded.brochure,{accentColour:'#123456',useWebsiteColour:true,footerNote:'Keep this note',photoLimit:6});
+  const legacyClientUpdate = UpdateDealerSettingsBody.parse({...legacy,brochure:{footerNote:'Edited by an older client'}});
+  const compatible = GetDealerSettingsResponse.parse(preserveBrochure(legacyClientUpdate,reloaded));
+  assert.equal(compatible.brochure?.useWebsiteColour,true);
+  assert.equal(compatible.brochure?.accentColour,'#123456');
+  const returnToCustom = GetDealerSettingsResponse.parse(preserveBrochure(UpdateDealerSettingsBody.parse({...compatible,brochure:{useWebsiteColour:false}}),compatible));
+  assert.equal(returnToCustom.brochure?.useWebsiteColour,false);
+  assert.equal(returnToCustom.brochure?.accentColour,'#123456');
+  assert.equal(UpdateDealerSettingsBody.safeParse({...legacy,brochure:{useWebsiteColour:'yes'}}).success,false);
+});

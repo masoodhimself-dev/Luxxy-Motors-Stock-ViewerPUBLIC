@@ -4,10 +4,12 @@ const key = 'luxxy-showroom-draft-v1';
 type Draft = { saved: string; form: DealerSettings; updatedAt: number; revision?: number | null };
 let memoryDraft: Draft | null = null;
 
-function matchesShape(value: unknown, example: unknown): boolean {
+function matchesShape(value: unknown, example: unknown, path = ''): boolean {
+  // Removing this optional override intentionally restores website inheritance.
+  if (path === 'brochure.accentColour' && value === undefined) return true;
   if (example == null) return true;
-  if (Array.isArray(example)) return Array.isArray(value) && value.every((item) => !example.length || matchesShape(item, example[0]));
-  if (typeof example === 'object') return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.entries(example).every(([name, field]) => matchesShape((value as Record<string, unknown>)[name], field)));
+  if (Array.isArray(example)) return Array.isArray(value) && value.every((item) => !example.length || matchesShape(item, example[0], `${path}[]`));
+  if (typeof example === 'object') return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.entries(example).every(([name, field]) => matchesShape((value as Record<string, unknown>)[name], field, path ? `${path}.${name}` : name)));
   return typeof value === typeof example;
 }
 
@@ -45,6 +47,9 @@ export function readSettingsDraft(saved: DealerSettings): Draft | null {
   }
   if (typeof draft.saved !== 'string' || !matchesShape(draft.form, saved)) return null;
   if (!bookingDraftHasValidShape(draft.form.testDriveBooking)) return null;
+  const brochure = draft.form.brochure;
+  if (brochure !== undefined && (!brochure || typeof brochure !== 'object' || Array.isArray(brochure) || (brochure.accentColour !== undefined && (typeof brochure.accentColour !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(brochure.accentColour))))) return null;
+  if (brochure?.useWebsiteColour !== undefined && typeof brochure.useWebsiteColour !== 'boolean') return null;
   return draft;
 }
 

@@ -281,13 +281,10 @@ for (const viewport of viewports) {
       const [car] = await currentCars(request);
       await page.goto(`/saved?cars=${car.id}`);
       await settleContent(page);
-      const details = page.locator('summary').filter({ hasText: 'More details' });
+      const details = page.getByRole('link', {name:'View vehicle',exact:true});
       await expectReachable(details);
-      await details.tap();
-      await expect(details.locator('..')).toHaveAttribute('open', '');
-      const booking = page.getByRole('link', { name: 'Book a test drive', exact: true });
-      await expectReachable(booking);
-      await expect(booking).toHaveAttribute('href', new RegExp(`vehicleId=${car.id}`));
+      await expect(details).toHaveAttribute('href', `/vehicle/${car.id}`);
+      await expect(page.locator('.saved-car-list details')).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
       await capture(page, 'saved-details');
 

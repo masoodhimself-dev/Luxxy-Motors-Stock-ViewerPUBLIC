@@ -965,31 +965,9 @@ export function TestDriveBooking({
                       </span>
                     </label>
                   </div>
-                  <details
-                    className="border-t border-border"
-                    open={details.hasPartExchange || undefined}
-                  >
-                    <summary className="min-h-12 cursor-pointer py-3 text-sm font-medium">
-                      Have a car to part-exchange?{" "}
-                      <span className="font-normal text-muted-foreground">
-                        Optional
-                      </span>
-                    </summary>
-                    <label className="flex min-h-11 items-center gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={details.hasPartExchange}
-                        onChange={(event) =>
-                          setDetails((old) => ({
-                            ...old,
-                            hasPartExchange: event.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-primary"
-                      />
-                      Yes, I have a car to part-exchange
-                    </label>
-                    {details.hasPartExchange && (
+                  <div className="border-t border-border pt-3">
+                    {!details.hasPartExchange ? <button type="button" className="min-h-12 text-sm font-medium underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: true }))}>Add a part exchange (optional)</button> : <div>
+                    <p className="text-sm font-semibold">Your part exchange</p>
                       <div
                         className="mt-4 grid gap-4 sm:grid-cols-2"
                         data-testid="enquiry-part-exchange-details"
@@ -1032,8 +1010,9 @@ export function TestDriveBooking({
                           />
                         </label>
                       </div>
-                    )}
-                  </details>
+                    <button type="button" className="mt-2 min-h-11 text-sm underline underline-offset-4" onClick={() => setDetails(old => ({ ...old, hasPartExchange: false }))}>Remove part exchange</button>
+                    </div>}
+                  </div>
                   <details
                     className="border-t border-border"
                     open={Boolean(details.message) || undefined}

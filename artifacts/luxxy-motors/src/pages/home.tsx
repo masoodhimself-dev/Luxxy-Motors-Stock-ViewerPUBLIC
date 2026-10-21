@@ -466,27 +466,6 @@ export default function Home({ browseStock = false }: { browseStock?: boolean })
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <Filters
             quickFilters={<>             <div className="flex flex-wrap gap-2 text-sm">
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ transmission: 'Automatic' }, false)}
-                aria-pressed={filters.transmission === 'Automatic'}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-automatic"
-                disabled={!publicCars.some(car => /automatic/i.test(car.transmission || ""))}
-              >
-                Automatic
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickFilter({ maxPrice: '5000' }, false)}
-                aria-pressed={filters.maxPrice === '5000'}
-                className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
-                data-testid="button-quick-under-5000"
-                disabled={!publicCars.some(car => car.price != null && car.price <= 5000)}
-              >
-                Under £5k
-              </button>
-              {publicCars.some(car => car.price != null && car.price <= 15000) && <button type="button" aria-pressed={filters.maxPrice === '15000'} className="min-h-11 px-2 text-muted-foreground underline underline-offset-4 hover:text-primary" onClick={() => applyQuickFilter({maxPrice:'15000'}, false)}>Under £15k</button>}
               {benefitChoices.filter(({ key }) => benefitCounts[key] > 0 || filters[key]).map(({ key, label, note }) => <button
                 key={key}
                 type="button"

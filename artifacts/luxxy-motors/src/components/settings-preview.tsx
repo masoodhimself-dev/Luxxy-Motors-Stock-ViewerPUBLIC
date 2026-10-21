@@ -1,3 +1,5 @@
+import { customerFeaturePolicy } from '@workspace/vehicle-meta';
+import { editableShowroomWeek } from '@/lib/settings-simplification';
 import type { DealerSettings } from '@workspace/api-client-react';
 import { ShowroomPhoto } from './showroom-photo';
 
@@ -6,24 +8,23 @@ export function launchChecks(settings: DealerSettings) {
   return [
     { label: 'Contact details', issue: !settings.contact.phone && !settings.contact.email ? 'Add a phone number or email' : sample(settings.contact) ? 'Replace sample contact details' : null },
     { label: 'Showroom address', issue: !settings.address.street || !settings.address.postcode ? 'Add address and postcode' : sample(settings.address) ? 'Replace the sample address' : null },
-    { label: 'Opening hours', issue: !settings.hours.length ? 'Add opening hours' : sample(settings.hours) ? 'Replace sample opening hours' : null },
+    { label: 'Opening hours', issue: !settings.hours.length ? 'Add confirmed opening hours' : sample(settings.hours) ? 'Replace sample opening hours' : !editableShowroomWeek(settings.hours) ? 'Check custom opening hours; automatic open/closed status may be unavailable' : editableShowroomWeek(settings.hours)?.some(day => day.state === 'unknown') ? 'Confirm the unknown showroom days, or keep them explicitly unconfirmed' : null },
     { label: 'Visiting information', issue: sample([settings.presentation?.visitInstructions, settings.presentation?.parkingInstructions]) ? 'Replace template visiting instructions' : null },
-    { label: 'Dealership photography', issue: !settings.presentation?.showroomImageUrl ? 'Add a genuine showroom photo or confirm the illustration is suitable' : null },
-    { label: 'Online payments', issue: settings.onlineReservation?.enabled ? 'Review Email & payments and test a reservation before launch; this content check does not verify the payment connection' : null },
+    ...(customerFeaturePolicy.onlineCardReservations ? [{ label: 'Online payments', issue: settings.onlineReservation?.enabled ? 'Review the payment connection and test a reservation before launch; this content check does not verify the payment connection' : null }] : []),
   ];
 }
 export function LaunchReadiness({ settings }: { settings: DealerSettings }) {
   const checks = launchChecks(settings);
   return <details className="settings-review-details settings-launch-readiness mb-6 border-y border-border py-3 text-sm">
-    <summary className="min-h-11 cursor-pointer py-3 font-semibold">Launch readiness · {checks.filter(check => check.issue).length} items to review</summary>
+    <summary className="min-h-11 cursor-pointer py-3 font-semibold">Website checks · {checks.filter(check => check.issue).length} to review</summary>
     <div className="settings-review-content">
       <p className="text-muted-foreground">Based on this draft. Passing a check confirms a field is present, not that its contents are accurate. Review before publishing.</p>
-      <ul className="settings-readiness-list divide-y divide-border">{checks.map(check => <li key={check.label} className="flex flex-wrap justify-between gap-2 py-3"><span className="font-medium">{check.label}</span><span className={check.issue ? 'text-amber-800' : 'text-muted-foreground'}>{check.issue || 'Added / not required — confirm accuracy'}</span></li>)}</ul>
+      <ul className="settings-readiness-list divide-y divide-border">{checks.map(check => <li key={check.label} className="flex flex-wrap justify-between gap-2 py-3"><span className="font-medium">{check.label}</span><span className={check.issue ? 'text-amber-800' : 'text-muted-foreground'}>{check.issue || 'No missing details detected'}</span></li>)}</ul>
     </div>
   </details>;
 }
 export function SettingsPreview({ settings }: { settings: DealerSettings }) {
-  const photo = settings.presentation?.heroImageUrl || settings.presentation?.showroomImageUrl;
+  const photo = settings.presentation?.heroImageUrl;
   const review = settings.presentation?.reviewsEnabled && settings.presentation.reviews?.[0];
   return <details className="settings-review-details settings-appearance-preview mb-6 border border-border bg-card p-4">
     <summary className="min-h-11 cursor-pointer py-2 font-semibold">Preview your draft appearance</summary>
