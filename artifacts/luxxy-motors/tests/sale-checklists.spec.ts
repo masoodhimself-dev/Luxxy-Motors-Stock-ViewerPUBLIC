@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import {
   changeSaleWorkspace, createSaleWorkspace, publicSaleWorkspace,
-  SaleWorkspaceError, saleCompletionChecklistItems, partExchangeChecklistItems,
+  SaleWorkspaceError, partExchangeChecklistItems,
   type SaleWorkspaceCommand, type SaleWorkspaceContext, type SaleWorkspaceDraft,
 } from '@workspace/vehicle-meta';
 
@@ -31,8 +31,9 @@ function fixture(partExchange: boolean) {
   sale = changeSaleWorkspace(sale, { action: 'invoice-payment', payment: { amount: partExchange ? '9000' : '10000', method: 'Bank transfer', date: '2026-10-20', reference: 'Fictional funds only', kind: 'final-payment', status: 'confirmed' } }, { expectedRevision: sale.revision, requestId: randomUUID() }, context()).sale;
   return changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: randomUUID() }, context()).sale;
 }
-async function setup(page: Page, options: { partExchange?: boolean; serverReject?: boolean } = {}) {
+async function setup(page: Page, options: { partExchange?: boolean; intakeComplete?: boolean; serverReject?: boolean } = {}) {
   let sale = fixture(Boolean(options.partExchange));
+  if (options.intakeComplete) sale = changeSaleWorkspace(sale, { action: 'checklists', partExchanges: [{ registration: 'ZZ19PXE', items: Object.fromEntries(partExchangeChecklistItems.map(item => [item.id, 'checked'])) }] }, { expectedRevision: sale.revision, requestId: randomUUID() }, context()).sale;
   const originalInvoice = JSON.stringify(sale.documents);
   const originalPayments = JSON.stringify(sale.payments);
   const writes: string[] = [], actions: Array<{ path: string; body: any }> = [], errors: string[] = [];
@@ -47,7 +48,7 @@ async function setup(page: Page, options: { partExchange?: boolean; serverReject
       if (path.endsWith('/checklists')) command = { action: 'checklists', completion: body.completion, partExchanges: body.partExchanges };
       else if (path.endsWith('/finish-invoice-sale')) {
         command = { action: 'finish-invoice-sale', acknowledge: body.acknowledge, acknowledgeOutstanding: body.acknowledgeOutstanding };
-        if (options.serverReject && sale.checklists) delete sale.checklists.completion.documents;
+        if (options.serverReject && sale.checklists) delete sale.checklists.partExchanges.ZZ19PXE;
       } else { writes.push(`${request.method()} ${path}`); return route.abort(); }
       try {
         const result = changeSaleWorkspace(sale, command, body, context()); sale = result.sale;
@@ -79,85 +80,52 @@ async function noOverflow(page: Page, width: number) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
   expect(await page.locator('.invoice-builder').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 }
-async function checkCompletion(page: Page, onChecked?: () => Promise<void>) {
-  const panel = page.getByRole('region', { name: 'Final sale checklist', exact: true });
-  for (const item of saleCompletionChecklistItems) {
-    if (item.id === 'documents') {
-      const notNeeded = panel.getByRole('button', { name: `Not needed: ${item.label}`, exact: true });
-      await notNeeded.click(); await expect(notNeeded).toHaveAttribute('aria-pressed', 'true');
-    } else {
-      const checked = panel.getByRole('checkbox', { name: `Check: ${item.label}`, exact: true });
-      await checked.click(); await expect(checked).toBeChecked();
-    }
-    await expect(panel).toHaveAttribute('aria-busy', 'false');
-    if (onChecked) await onChecked();
-  }
-}
 for (const width of [320, 390, 820, 1440]) {
-  test(`actual final sale checks gate completion and fit at ${width}px`, async ({ page }) => {
+  test(`final reminders need no extra checklist ticks at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 }); const state = await setup(page);
     await openCompletion(page, state.id);
-    const sold = page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true });
-    await expect(sold).toBeDisabled();
-    const panel = page.getByRole('region', { name: 'Final sale checklist', exact: true });
-    await expect(panel.getByRole('checkbox')).toHaveCount(5);
-    await expect(panel).not.toContainText('Part-exchange intake');
+    const reminder = page.getByRole('complementary', { name: 'Before completing the sale' });
+    await expect(reminder).toBeVisible();
+    await expect(reminder.getByRole('checkbox')).toHaveCount(0);
+    await expect(reminder.getByRole('button')).toHaveCount(0);
     await noOverflow(page, width);
-    await checkCompletion(page);
-    await expect(sold).toBeEnabled();
-    await expect(panel.getByRole('button', { name: 'Not needed: Documents reviewed with the customer' })).toHaveAttribute('aria-pressed', 'true');
-    await panel.scrollIntoViewIfNeeded();
-    await page.screenshot({ path: `/tmp/luxxy-sale-checklist-${width}.png`, fullPage: true });
-    await noOverflow(page, width);
-    expect(state.actions.filter(action => action.path.endsWith('/checklists'))).toHaveLength(5);
-    expect(state.actions.filter(action => action.path.endsWith('/finish-invoice-sale'))).toHaveLength(0);
-    await sold.click();
+    expect(state.actions).toEqual([]);
+    await page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Car marked sold and removed from the website.' })).toBeVisible();
     expect(state.current().lifecycle?.status).toBe('sold');
     expect(JSON.stringify(state.current().documents)).toBe(state.originalInvoice);
     expect(JSON.stringify(state.current().payments)).toBe(state.originalPayments);
+    expect(state.actions.filter(action => action.path.endsWith('/checklists'))).toHaveLength(0);
     expect(state.writes).toEqual([]); expect(state.errors).toEqual([]);
   });
-  test(`part-exchange intake is a separate required checklist at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 }); const state = await setup(page, { partExchange: true });
+  test(`saved part-exchange intake is not asked for again at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 }); const state = await setup(page, { partExchange: true, intakeComplete: true });
     await openCompletion(page, state.id);
-    const sold = page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true });
-    const panel = page.getByRole('region', { name: 'Final sale checklist', exact: true });
-    await checkCompletion(page);
-    await expect(sold).toBeDisabled();
-    for (const item of partExchangeChecklistItems) {
-      const row = panel.getByRole('group', { name: item.label, exact: true });
-      if (item.id === 'finance') {
-        const notNeeded = row.getByRole('button', { name: `Not needed: ${item.label}`, exact: true });
-        await notNeeded.click(); await expect(notNeeded).toHaveAttribute('aria-pressed', 'true');
-      } else {
-        const checked = row.getByRole('checkbox', { name: `Check: ${item.label}`, exact: true });
-        await checked.click();
-        // A completed intake folds away; its persisted input still records the checked state.
-        await expect(panel.locator(`input[aria-label="Check: ${item.label}"]`)).toBeChecked();
-      }
-      await expect(panel).toHaveAttribute('aria-busy', 'false');
-    }
-    await expect(sold).toBeEnabled();
-    await expect(panel).toContainText('Part-exchange intake — ZZ19 PXE');
+    const reminder = page.getByRole('complementary', { name: 'Before completing the sale' });
+    await expect(reminder).toContainText('No need to complete them again');
+    await expect(reminder.getByRole('checkbox')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true })).toBeEnabled();
     await noOverflow(page, width);
-    await panel.locator('.sale-px-checks > summary').click();
-    await panel.locator('.sale-px-checks').scrollIntoViewIfNeeded();
-    await page.screenshot({ path: `/tmp/luxxy-sale-checklist-px-${width}.png`, fullPage: true });
-    expect(state.actions.filter(action => action.path.endsWith('/checklists'))).toHaveLength(10);
-    expect(state.current().checklists?.partExchanges.ZZ19PXE.finance?.status).toBe('not_needed');
-    expect(JSON.stringify(state.current().documents)).toBe(state.originalInvoice);
-    expect(JSON.stringify(state.current().payments)).toBe(state.originalPayments);
+    expect(state.actions).toEqual([]);
     expect(state.writes).toEqual([]); expect(state.errors).toEqual([]);
   });
 }
 
-test('a newly invalidated server check blocks the sale and displays the actual rule error', async ({ page }) => {
-  const state = await setup(page, { serverReject: true }); await openCompletion(page, state.id);
-  await checkCompletion(page);
+test('unfinished intake is linked back to Payments without repeating its form', async ({ page }) => {
+  const state = await setup(page, { partExchange: true }); await openCompletion(page, state.id);
+  await expect(page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true })).toBeDisabled();
+  await expect(page.getByRole('complementary', { name: 'Before completing the sale' }).getByRole('checkbox')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review part-exchange checks', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'What has the customer paid?', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Part-exchange intake checks' }).getByRole('checkbox')).toHaveCount(5);
+  expect(state.actions).toEqual([]);
+});
+
+test('server still refuses a genuinely incomplete part-exchange intake', async ({ page }) => {
+  const state = await setup(page, { partExchange: true, intakeComplete: true, serverReject: true }); await openCompletion(page, state.id);
   await page.getByRole('button', { name: 'Yes, mark sold & remove', exact: true }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'Complete the final sale checklist: mark each item checked or not needed before marking the car sold.' })).toBeVisible();
-  expect(state.current().completedAt).toBeUndefined(); expect(state.current().lifecycle?.status).not.toBe('sold');
+  await expect(page.getByRole('alert').filter({ hasText: 'Complete the intake checklist for each part-exchange vehicle' })).toBeVisible();
+  expect(state.current().completedAt).toBeUndefined();
   expect(JSON.stringify(state.current().documents)).toBe(state.originalInvoice);
   expect(JSON.stringify(state.current().payments)).toBe(state.originalPayments);
   expect(state.writes).toEqual([]); expect(state.errors).toEqual([]);

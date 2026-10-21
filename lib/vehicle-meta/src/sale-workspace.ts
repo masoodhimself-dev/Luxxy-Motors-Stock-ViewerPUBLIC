@@ -107,6 +107,17 @@ export function normalizedSaleExchangeRegistration(value: string): string { retu
 export function saleWorkspaceExchanges(draft: SaleWorkspaceDraft): SaleWorkspaceExchange[] {
   return draft.exchanges ?? (draft.partExchange ? [{ registration: draft.pxRegistration, description: draft.pxDescription, value: draft.pxValue }] : []);
 }
+/** Intake belongs to the incoming car, not the buyer's contact details or its allowance. */
+export function saleWorkspaceRetainedIntakeChecks(record: Pick<SaleWorkspaceRecord, 'draft' | 'checklists'>, draft: SaleWorkspaceDraft) {
+  const previous = new Map(saleWorkspaceExchanges(record.draft).map(exchange => [normalizedSaleExchangeRegistration(exchange.registration), exchange]));
+  const retained: SaleWorkspaceChecklists['partExchanges'] = {};
+  for (const exchange of saleWorkspaceExchanges(draft)) {
+    const registration = normalizedSaleExchangeRegistration(exchange.registration);
+    const evidence = record.checklists?.partExchanges[registration];
+    if (registration && evidence && previous.get(registration)?.description === exchange.description) retained[registration] = evidence;
+  }
+  return retained;
+}
 export function saleWorkspaceChecklistProgress(record: Pick<SaleWorkspaceRecord, 'draft' | 'checklists'>) {
   const completed = (value: SaleCheckEvidence | undefined) => value?.status === 'checked' || value?.status === 'not_needed';
   const completionPending = saleCompletionChecklistItems.filter(item => !completed(record.checklists?.completion[item.id])).map(item => item.id);
@@ -119,7 +130,8 @@ export function saleWorkspaceChecklistProgress(record: Pick<SaleWorkspaceRecord,
     const invalid = !exchange.registration || seenRegistrations.has(exchange.registration);
     seenRegistrations.add(exchange.registration); return invalid;
   }).map(exchange => exchange.registration);
-  return { completionPending, partExchanges, invalidPartExchanges, ready: completionPending.length === 0 && invalidPartExchanges.length === 0 && partExchanges.every(exchange => exchange.pending.length === 0) };
+  // Final sale items are reminders. Retain historical attestations without requiring new ones.
+  return { completionPending, partExchanges, invalidPartExchanges, ready: invalidPartExchanges.length === 0 && partExchanges.every(exchange => exchange.pending.length === 0) };
 }
 export type SaleWorkspaceRecord = {
   id: string; reference: string; revision: number; draft: SaleWorkspaceDraft;
@@ -292,7 +304,6 @@ function requireCompletedSaleChecklists(record: SaleWorkspaceRecord) {
   // Previously completed sales remain usable; never invent attestations for historic sales.
   if (record.completedAt || record.lifecycle?.status === 'sold') return;
   const progress = saleWorkspaceChecklistProgress(record);
-  if (progress.completionPending.length) throw new SaleWorkspaceError('Complete the final sale checklist: mark each item checked or not needed before marking the car sold.');
   if (progress.invalidPartExchanges.length) throw new SaleWorkspaceError('Give each part-exchange vehicle a different registration before completing its intake checks.');
   if (progress.partExchanges.some(exchange => exchange.pending.length)) throw new SaleWorkspaceError('Complete the intake checklist for each part-exchange vehicle: mark each item checked or not needed before marking the car sold.');
 }
@@ -337,15 +348,7 @@ function resetUpdatedSaleChecks(record: SaleWorkspaceRecord, previous: SaleWorks
     if (changed(['fulfilment', 'collection'])) { reset ||= Boolean(record.checklists.completion.handover); delete record.checklists.completion.handover; }
     if (changed(['roadTaxGuide'])) { reset ||= Boolean(record.checklists.completion.documents); delete record.checklists.completion.documents; }
   }
-  const previousExchanges = new Map(saleWorkspaceExchanges(previous).map(exchange => [normalizedSaleExchangeRegistration(exchange.registration), exchange]));
-  const next: SaleWorkspaceChecklists['partExchanges'] = {};
-  for (const exchange of saleWorkspaceExchanges(record.draft)) {
-    const registration = normalizedSaleExchangeRegistration(exchange.registration);
-    const evidence = record.checklists.partExchanges[registration];
-    const before = previousExchanges.get(registration);
-    if (evidence && before && !changed(['customer', 'email', 'phone', 'address']) && saleWorkspaceFingerprint({ ...exchange, registration }) === saleWorkspaceFingerprint({ ...before, registration })) next[registration] = evidence;
-    else if (evidence) reset = true;
-  }
+  const next = saleWorkspaceRetainedIntakeChecks({ draft: previous, checklists: record.checklists }, record.draft);
   if (Object.keys(record.checklists.partExchanges).some(registration => !next[registration])) reset = true;
   record.checklists.partExchanges = next;
   if (reset) event(record, context, 'sale-checks-reset', 'Relevant sale checks reset because the sale or part-exchange details changed');

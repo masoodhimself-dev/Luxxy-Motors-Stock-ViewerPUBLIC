@@ -357,21 +357,26 @@ test('staff may explicitly sell with an outstanding balance, then record later f
   assert.throws(() => changeSaleWorkspace(sold,{action:'invoice-payment',payment:{amount:'500',method:'Cash',date:'2026-10-04',reference:'',kind:'deposit',status:'confirmed'}},{expectedRevision:sold.revision,requestId:'guided-sold-reserve'},context()),/already sold/);
 });
 
-test('final checks gate every first sold transition, while invoices and deposits remain available', () => {
+test('final reminders do not block sale completion, handover or sold transitions', () => {
   const sale = create();
   const unchanged = JSON.stringify(sale);
-  const invoice = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: 'checklist-invoice' }, context()).sale;
+  const invoice = changeSaleWorkspace(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true }, { expectedRevision: sale.revision, requestId: 'reminder-invoice' }, context()).sale;
   for (const command of [
     { action: 'finish-invoice-sale', acknowledge: true, acknowledgeOutstanding: true },
     { action: 'lifecycle', status: 'sold' },
     { action: 'handover', recipient: 'Buyer', acknowledgeOutstanding: true },
-  ] as SaleWorkspaceCommand[]) assert.throws(() => changeSaleWorkspace(invoice, command, { expectedRevision: invoice.revision, requestId: 'unchecked-' + command.action }, context()), /final sale checklist/);
-  const paid = changeSaleWorkspace(sale, payment('12000', 'final-payment'), { expectedRevision: sale.revision, requestId: 'unchecked-paid' }, context()).sale;
-  assert.throws(() => changeSaleWorkspace(paid, { action: 'complete-sale', acknowledge: true }, { expectedRevision: paid.revision, requestId: 'unchecked-complete' }, { ...context(), paperwork: { saleTerms: 'Approved fixture terms', reservationTerms: '' } }), /final sale checklist/);
+  ] as SaleWorkspaceCommand[]) {
+    const result = changeSaleWorkspace(invoice, command, { expectedRevision: invoice.revision, requestId: 'reminder-' + command.action }, context()).sale;
+    assert.equal(result.checklists, undefined);
+    assert.equal(JSON.stringify(result.documents[0]), JSON.stringify(invoice.documents[0]));
+    assert.deepEqual(result.payments, invoice.payments);
+  }
+  const paid = changeSaleWorkspace(sale, payment('12000', 'final-payment'), { expectedRevision: sale.revision, requestId: 'reminder-paid' }, context()).sale;
+  const complete = changeSaleWorkspace(paid, { action: 'complete-sale', acknowledge: true }, { expectedRevision: paid.revision, requestId: 'reminder-complete' }, { ...context(), paperwork: { saleTerms: 'Approved fixture terms', reservationTerms: '' } }).sale;
+  assert.ok(complete.completedAt);
+  assert.equal(complete.checklists, undefined);
   assert.equal(JSON.stringify(sale), unchanged);
-  assert.equal(saleWorkspaceChecklistProgress(sale).ready, false);
-  assert.equal(saleWorkspaceChecklistProgress(sale).completionPending.length, 5);
-  assert.equal(invoice.documents.length, 1);
+  assert.equal(saleWorkspaceChecklistProgress(sale).ready, true);
 });
 
 test('checklist evidence is attributed by the server, revision guarded and safely replayed', () => {
@@ -412,7 +417,7 @@ test('changing sale details invalidates affected checks and cannot accept forged
   for (const changes of [{ customer: 'Another buyer' }, { vehicle: 'Another model' }, { price: '13000' }, { vin: 'WAUZZZ8V0GA000001' }]) {
     const changed = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, ...changes, checklists: checked.checklists } as any }, { expectedRevision: checked.revision, requestId: 'checklist-edit-' + Object.keys(changes)[0] }, context()).sale;
     assert.deepEqual(changed.checklists?.completion, {});
-    assert.equal(saleWorkspaceChecklistProgress(changed).ready, false);
+    assert.equal(saleWorkspaceChecklistProgress(changed).ready, true);
   }
   const notes = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, notes: 'Updated condition disclosure' } }, { expectedRevision: checked.revision, requestId: 'checklist-notes' }, context()).sale;
   assert.equal(notes.checklists?.completion.disclosures, undefined); assert.ok(notes.checklists?.completion.price_payments);
@@ -422,14 +427,17 @@ test('changing sale details invalidates affected checks and cannot accept forged
   assert.equal(forged.checklists, undefined);
 });
 
-test('part-exchange changes reset only the changed intake and customer changes reset both', () => {
+test('physical part-exchange changes reset only that car; buyer and allowance changes keep saved intake', () => {
   const original = createSaleWorkspace({ draft: { ...draft(), partExchange: true, exchanges: [{ registration: 'AB12 CDE', description: 'First car', value: '100' }, { registration: 'CD34 EFG', description: 'Second car', value: '200' }] }, requestId: 'px-reset-create' }, context(), 'PX-RESET').sale;
   const checked = reviewChecks(original);
-  const altered = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, exchanges: [{ ...checked.draft.exchanges![0], value: '150' }, checked.draft.exchanges![1]] } }, { expectedRevision: checked.revision, requestId: 'px-reset-one' }, context()).sale;
+  const altered = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, exchanges: [{ ...checked.draft.exchanges![0], description: 'Condition corrected' }, checked.draft.exchanges![1]] } }, { expectedRevision: checked.revision, requestId: 'px-reset-one' }, context()).sale;
   assert.equal(altered.checklists?.partExchanges.AB12CDE, undefined);
   assert.deepEqual(altered.checklists?.partExchanges.CD34EFG, checked.checklists?.partExchanges.CD34EFG);
   const buyer = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, customer: 'New owner' } }, { expectedRevision: checked.revision, requestId: 'px-reset-buyer' }, context()).sale;
-  assert.deepEqual(buyer.checklists?.partExchanges, {});
+  assert.deepEqual(buyer.checklists?.partExchanges, checked.checklists?.partExchanges);
+  const allowance = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, vin: 'WAUZZZ8V0GA000001', exchanges: [{ ...checked.draft.exchanges![0], value: '150' }, checked.draft.exchanges![1]] } }, { expectedRevision: checked.revision, requestId: 'px-allowance' }, context()).sale;
+  assert.deepEqual(allowance.checklists?.partExchanges, checked.checklists?.partExchanges);
+  assert.equal(saleWorkspaceChecklistProgress(allowance).ready, true);
 });
 
 test('payment changes reset the payments attestation without changing reviewed documents or other checks', () => {
@@ -456,7 +464,7 @@ test('legacy part-exchange scalar edits reset the final checks and effective int
   const checked = reviewChecks(initial);
   // Historical records may only contain the original scalar part-exchange fields.
   delete checked.draft.exchanges;
-  for (const changes of [{ pxValue: '1100' }, { pxDescription: 'Condition corrected' }, { pxRegistration: 'XY34 ZAB' }]) {
+  for (const changes of [{ pxDescription: 'Condition corrected' }, { pxRegistration: 'XY34 ZAB' }]) {
     const altered = changeSaleWorkspace(checked, { action: 'update', draft: { ...checked.draft, ...changes } }, { expectedRevision: checked.revision, requestId: 'legacy-px-edit-' + Object.keys(changes)[0] }, context()).sale;
     assert.equal(altered.checklists?.completion.price_payments, undefined);
     assert.deepEqual(altered.checklists?.completion, {});

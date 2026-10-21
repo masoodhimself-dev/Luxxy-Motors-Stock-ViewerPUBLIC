@@ -2,7 +2,7 @@
 
 ## Final sale checks
 
-Staff complete the final checks on the full-invoice review and mark-sold screens. Every item must be **Checked** or **Not needed** before the first sold transition. Missing evidence means pending; checks are never selected automatically.
+The full-invoice review and mark-sold screens show a plain reminder list. Staff do not fill in or save final checklist items, and missing historical final attestations do not block a sale. The existing invoice review, explicit sold confirmation and outstanding-balance acknowledgement remain unchanged.
 
 | Check ID | Staff check |
 | --- | --- |
@@ -12,7 +12,7 @@ Staff complete the final checks on the full-invoice review and mark-sold screens
 | `documents` | Documents reviewed with the customer |
 | `handover` | Collection or delivery arranged |
 
-Each effective part-exchange vehicle has its own intake checks, keyed by uppercase registration without spaces:
+Each effective part-exchange vehicle has its own intake checks in Payments, keyed by uppercase registration without spaces. Completed intake folds away and is not repeated on the final screen. An unfinished intake has a link back to Payments:
 
 | Check ID | Staff check |
 | --- | --- |
@@ -39,9 +39,9 @@ These are staff attestations. The application does not perform a vehicle inspect
 
 Accepted states are `pending`, `checked` and `not_needed`. The server records the actor and timestamp for each saved attestation and appends sale-history events. Clients cannot supply their own actor/time evidence. Resetting a check to pending removes its current evidence but retains its history.
 
-The server enforces the gate on `finish-invoice-sale`, `complete-sale`, `lifecycle: sold` and a first handover that marks a car sold. Preparing an invoice or recording a deposit remains separate. Each part-exchange row needs a distinct registration; two rows cannot share one set of intake attestations. Existing balance acknowledgements, payment validation and stock ownership guards still apply.
+Only unfinished part-exchange intake checks are enforced on `finish-invoice-sale`, `complete-sale`, `lifecycle: sold` and a first handover that marks a car sold. Preparing an invoice or recording a deposit remains separate. Each part-exchange row needs a distinct registration; two rows cannot share one set of intake attestations. Existing balance acknowledgements, payment validation and stock ownership guards still apply.
 
-Changes to the buyer, vehicle, VIN, price, part exchanges or adjustments reset final checks, including edits to the original scalar part-exchange registration/description/value fields on older records. Notes reset the disclosure check; fulfilment arrangements reset the handover check; tax-guide changes reset the documents check. Payment-ledger changes reset the price/payments check. A changed part-exchange row resets that vehicle's intake checks; changed buyer/contact details reset intake evidence. Unchanged intake rows retain their evidence.
+Saved intake remains valid when buyer/contact details, the sale vehicle's VIN, payments or the part-exchange allowance change. Replacing the incoming registration or changing its recorded description requires checks for that changed incoming car; other incoming cars retain their saved evidence. The frontend uses the same rule while editing, so unrelated unsaved paperwork edits do not display completed intake as pending. Historical final-check evidence and events remain supported for older clients and stored records, but are not a completion gate.
 
 Previously sold/completed records are not backfilled with invented checks and remain usable for their existing payment and handover operations. Completed evidence cannot be rewritten through the checklist endpoint. Existing issued invoice/document snapshots remain unchanged.
 
@@ -97,4 +97,4 @@ The actual sales screen also has browser coverage with fictional intercepted req
 pnpm --filter @workspace/luxxy-motors exec playwright test --config playwright.sale-checklists.config.ts
 ```
 
-The browser suite checks final/intake gating, both attestation choices, the shared server-rule error, no horizontal overflow and unchanged invoice/payment JSON. It blocks every unexpected application write. Supporting HTTP regression tests exercise the actual local preview route's rejection of an incomplete checklist before accepting the saved checks and explicit sold confirmation.
+The browser suite covers non-editable reminders, retained intake, the link back to Payments, shared intake-rule errors, no horizontal overflow and unchanged invoice/payment JSON. It blocks every unexpected application write. Supporting HTTP regression tests exercise the actual local preview route's explicit sold confirmation without final checklist writes, preserving retry, revision, origin and immutable invoice/payment rules.

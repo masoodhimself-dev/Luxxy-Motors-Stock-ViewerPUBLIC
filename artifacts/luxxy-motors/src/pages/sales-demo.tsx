@@ -17,6 +17,7 @@ import {
   saleWorkspaceTotals,
   saleWorkspaceFingerprint,
   saleWorkspaceChecklistProgress,
+  saleWorkspaceRetainedIntakeChecks,
   type SaleWorkspaceChecklistInput,
   type SaleWorkspaceRecord,
   type SaleWorkspaceMutation,
@@ -393,9 +394,10 @@ export function SalesWorkspace({
   });
   const checklistPanel = (intakeOnly = false) => draft ? <SaleChecklists
     draft={draft as SaleWorkspaceDraft}
-    checklists={detailsDirty ? undefined : record?.checklists}
+    checklists={record ? { completion: record.checklists?.completion ?? {}, partExchanges: saleWorkspaceRetainedIntakeChecks(record, draft as SaleWorkspaceDraft) } : undefined}
     busy={busy} readOnly={Boolean(record?.completedAt || record?.lifecycle?.status === 'sold')}
-    intakeOnly={intakeOnly} onChange={saveChecks} /> : null;
+    intakeOnly={intakeOnly} onChange={saveChecks}
+    onReviewIntake={() => { setIssued(null); setShowSummary(false); setStep(2); setProblem(''); }} /> : null;
   function next() {
     if (step === 2 && payment.amount.trim()) {
       setProblem(

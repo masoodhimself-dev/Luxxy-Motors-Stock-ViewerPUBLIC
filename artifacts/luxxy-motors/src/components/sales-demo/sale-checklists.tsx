@@ -18,6 +18,7 @@ interface Props {
   busy?: boolean;
   readOnly?: boolean;
   intakeOnly?: boolean;
+  onReviewIntake?: () => void;
   onChange: (input: SaleWorkspaceChecklistInput) => void;
 }
 
@@ -41,20 +42,26 @@ function CheckRow({ item, evidence, disabled, onChange }: {
   </div>;
 }
 
-export function SaleChecklists({ draft, checklists, busy = false, readOnly = false, intakeOnly = false, onChange }: Props) {
+export function SaleChecklists({ draft, checklists, busy = false, readOnly = false, intakeOnly = false, onChange, onReviewIntake }: Props) {
   const exchanges = saleWorkspaceExchanges(draft);
   const registrations = exchanges.map(exchange => normalizedSaleExchangeRegistration(exchange.registration));
   const duplicates = new Set(registrations.filter((registration, index) => registration && registrations.indexOf(registration) !== index));
   if (intakeOnly && !exchanges.length) return null;
-  const pending = saleCompletionChecklistItems.filter(item => !checklists?.completion[item.id]).length;
+  if (!intakeOnly) {
+    const intakeComplete = !duplicates.size && exchanges.every(exchange => {
+      const registration = normalizedSaleExchangeRegistration(exchange.registration);
+      return registration && partExchangeChecklistItems.every(item => Boolean(checklists?.partExchanges[registration]?.[item.id]));
+    });
+    return <aside className="sale-checklists sale-reminders" aria-label="Before completing the sale">
+      <header><div><h2>Before completing the sale</h2><p>A quick reminder of what to review.</p></div></header>
+      <ul>{saleCompletionChecklistItems.map(item => <li key={item.id}>{item.detail}</li>)}</ul>
+      {exchanges.length > 0 && <div className="sale-intake-status">
+        <p>{intakeComplete ? 'Part-exchange intake checks are saved. No need to complete them again.' : 'Part-exchange intake checks still need completing in Payments.'}</p>
+        {!intakeComplete && onReviewIntake && !readOnly && <Button type="button" variant="outline" disabled={busy} onClick={onReviewIntake}>Review part-exchange checks</Button>}
+      </div>}
+    </aside>;
+  }
   return <section className="sale-checklists" aria-label={intakeOnly ? 'Part-exchange intake checks' : 'Final sale checklist'} aria-busy={busy}>
-    {!intakeOnly && <>
-      <header><div><h2>Final sale checks</h2><p>Check each item or mark it not needed before marking the car sold.</p></div>
-        <span className="sale-check-count" data-ready={pending === 0}>{pending ? `${pending} to check` : 'Checks complete'}</span></header>
-      <div className="sale-check-rows">{saleCompletionChecklistItems.map(item => <CheckRow key={item.id} item={item}
-        evidence={checklists?.completion[item.id]} disabled={busy || readOnly}
-        onChange={status => onChange({ completion: { [item.id]: status } })} />)}</div>
-    </>}
     {duplicates.size > 0 && <p className="sale-check-hint" role="alert">The same part-exchange registration appears more than once. Correct the entries in Payments before completing these checks.</p>}
     {exchanges.map((exchange, index) => {
       const registration = normalizedSaleExchangeRegistration(exchange.registration);
@@ -69,6 +76,6 @@ export function SaleChecklists({ draft, checklists, busy = false, readOnly = fal
           onChange={status => onChange({ partExchanges: [{ registration, items: { [item.id]: status } }] })} />)}</div>
       </details>;
     })}
-    <p className="sale-check-hint">{readOnly ? 'Saved checks are kept with this sale.' : busy ? 'Saving checks…' : 'Checks save as you go. Changing sale details may require a fresh check.'}</p>
+    <p className="sale-check-hint">{readOnly ? 'Saved checks are kept with this sale.' : busy ? 'Saving checks…' : 'Checks save as you go. Completed intake checks stay saved for this car.'}</p>
   </section>;
 }

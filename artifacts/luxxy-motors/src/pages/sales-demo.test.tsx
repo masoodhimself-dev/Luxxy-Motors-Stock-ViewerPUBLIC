@@ -603,14 +603,8 @@ function fixtureCommand(sale: SaleWorkspaceRecord, command: SaleWorkspaceCommand
   return changeSaleWorkspace(sale, command, { expectedRevision: sale.revision, requestId: `fixture-command-${++serial}` }, context()).sale;
 }
 async function completeFinalChecks() {
-  for (const item of saleCompletionChecklistItems) {
-    const input = screen.getByRole('checkbox', { name: `Check: ${item.label}` });
-    if (!(input as HTMLInputElement).checked) {
-      fireEvent.click(input);
-      await waitFor(() => expect(input).toBeChecked());
-      await waitFor(() => expect(input).toBeEnabled());
-    }
-  }
+  expect(screen.getByRole('complementary', { name: 'Before completing the sale' })).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox', { name: /^Check:/ })).not.toBeInTheDocument();
 }
 function fixturePayment(sale: SaleWorkspaceRecord, amount: string, kind: "deposit" | "part-payment" | "final-payment" = "deposit") {
   return fixtureCommand(sale, { action: "invoice-payment", payment: {
@@ -705,41 +699,46 @@ it("offers the existing completion review for a current full invoice and still r
   expect(mutations()).toHaveLength(0);
 });
 
-it('persists final sale checks and requires every item before marking the car sold', async () => {
+it('shows reminders and marks a paid car sold without final checklist writes', async () => {
   let sale = fixturePayment(savedSale(), '10000', 'final-payment');
   sale = fixtureCommand(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true });
   const frozenInvoice = structuredClone(sale.documents.at(-1));
   await mountSaved(sale);
   fireEvent.click(screen.getByRole('button', { name: 'Review sale completion' }));
+  await completeFinalChecks();
   const finish = screen.getByRole('button', { name: 'Yes, mark sold & remove' });
-  expect(finish).toBeDisabled();
-  for (const item of saleCompletionChecklistItems.slice(0, -1)) {
-    fireEvent.click(screen.getByRole('checkbox', { name: `Check: ${item.label}` }));
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: `Check: ${item.label}` })).toBeChecked());
-  }
-  expect(finish).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Not needed: Collection or delivery arranged' }));
-  await waitFor(() => expect(finish).toBeEnabled());
-  expect(state.sales[0].checklists?.completion.handover?.status).toBe('not_needed');
+  expect(finish).toBeEnabled();
   fireEvent.click(finish);
   await waitFor(() => expect(state.sales[0].lifecycle?.status).toBe('sold'));
   expect(state.sales[0].documents.at(-1)).toEqual(frozenInvoice);
+  expect(state.sales[0].checklists).toBeUndefined();
+  expect(mutations().filter(([url]) => String(url).endsWith('/checklists'))).toHaveLength(0);
 });
 
-it('requires the part-exchange intake checks as well as the final sale checks', async () => {
+it('does not ask for saved part-exchange checks again on the final screen', async () => {
   let sale = fixturePayment(savedSale({ exchanges: [{ registration: 'PX20ABC', description: 'Customer car', value: '1000' }] }), '9000', 'final-payment');
   sale = fixtureCommand(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true });
-  sale = fixtureCommand(sale, { action: 'checklists', completion: Object.fromEntries(saleCompletionChecklistItems.map(item => [item.id, 'checked'])) });
+  sale = fixtureCommand(sale, { action: 'checklists', partExchanges: [{ registration: 'PX20ABC', items: Object.fromEntries(partExchangeChecklistItems.map(item => [item.id, 'checked'])) }] });
+  const checks = structuredClone(sale.checklists);
   await mountSaved(sale);
   fireEvent.click(screen.getByRole('button', { name: 'Review sale completion' }));
-  const finish = screen.getByRole('button', { name: 'Yes, mark sold & remove' });
-  expect(finish).toBeDisabled();
-  for (const item of partExchangeChecklistItems) {
-    fireEvent.click(screen.getByRole('checkbox', { name: `Check: ${item.label}` }));
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: `Check: ${item.label}` })).toBeChecked());
-  }
-  await waitFor(() => expect(finish).toBeEnabled());
-  expect(Object.keys(state.sales[0].checklists!.partExchanges.PX20ABC)).toHaveLength(5);
+  expect(screen.getByRole('button', { name: 'Yes, mark sold & remove' })).toBeEnabled();
+  expect(screen.getByText(/No need to complete them again/)).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox', { name: /^Check:/ })).not.toBeInTheDocument();
+  expect(state.sales[0].checklists).toEqual(checks);
+  expect(mutations()).toHaveLength(0);
+});
+
+it('takes unfinished intake checks back to Payments rather than duplicating them', async () => {
+  let sale = fixturePayment(savedSale({ exchanges: [{ registration: 'PX20ABC', description: 'Customer car', value: '1000' }] }), '9000', 'final-payment');
+  sale = fixtureCommand(sale, { action: 'issue-invoice', kind: 'full', acknowledge: true });
+  await mountSaved(sale);
+  fireEvent.click(screen.getByRole('button', { name: 'Review sale completion' }));
+  expect(screen.getByRole('button', { name: 'Yes, mark sold & remove' })).toBeDisabled();
+  expect(screen.queryByRole('checkbox', { name: /^Check:/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Review part-exchange checks' }));
+  expect(screen.getByRole('heading', { name: 'What has the customer paid?' })).toBeInTheDocument();
+  expect(screen.getAllByRole('checkbox', { name: /^Check:/ })).toHaveLength(5);
 });
 
 it("requires an updated invoice when later payments made the saved full invoice out of date", async () => {
