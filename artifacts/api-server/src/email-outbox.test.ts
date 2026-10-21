@@ -687,6 +687,66 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
         },
       );
       await t.test(
+        "old and new queued layouts validate and transport the exact approved bytes across the upgrade",
+        async () => {
+          const config = (await dealerIntegrationsStore.readPrivate()).resend;
+          const outputs: string[] = [];
+          for (const layoutVersion of [
+            undefined,
+            "correspondence-v1",
+          ] as const) {
+            const [enquiry] = await db
+              .insert(enquiriesTable)
+              .values({
+                dealerId: "a",
+                type: "general",
+                customerName: "Layout customer",
+                email: "buyer@example.test",
+                message: "Keep the approved message",
+                customerNotificationStatus: "sending",
+                customerNotificationAttemptedAt: new Date(),
+              })
+              .returning();
+            const fake = {
+              kind: "customer",
+              dealer_id: "a",
+              enquiry_id: enquiry!.id,
+              send_key: `layout-${layoutVersion ?? "legacy"}`,
+              validation: {
+                workspaceRevision: 0,
+                appointmentRevision: 0,
+                version: "received-0-0",
+                ...(layoutVersion ? { layoutVersion } : {}),
+              },
+            } as unknown as EmailOutbox;
+            const request = await rebuildAutomaticOutboxEmail(fake);
+            outputs.push(request.html);
+            const row = await enqueueEmailOutbox({
+              enquiryId: enquiry!.id,
+              kind: "customer",
+              config,
+              request,
+              validation: fake.validation,
+            });
+            let sentBody = "";
+            const delivered = await deliverEmailOutbox(row.id, {
+              // Earlier fault scenarios intentionally leave an account cooldown.
+              now: new Date(Date.now() + (5 + outputs.length) * 60_000),
+              send: async (_config, body) => {
+                sentBody = body;
+                return "fictional-layout-provider-id";
+              },
+            });
+            assert.equal(delivered!.status, "sent");
+            assert.equal(sentBody, row.payload);
+            assert.equal(JSON.parse(sentBody).html, request.html);
+          }
+          assert.notEqual(outputs[0], outputs[1]);
+          assert.match(outputs[0]!, /class="email-pad"/);
+          assert.match(outputs[1]!, /class="content"/);
+        },
+      );
+      await t.test(
         "single-dealer machine approvals remain valid only while that exact token is configured",
         async () => {
           const f = await fixture("machine", "staff"),
@@ -717,6 +777,7 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
             validation: {
               input,
               previewHash: prepared.previewHash,
+              layoutVersion: "correspondence-v1",
               machineTokenHash: createHash("sha256")
                 .update("fictional_machine_token")
                 .digest("hex"),
@@ -730,6 +791,27 @@ test("durable immutable email outbox: retry, restart, ownership, freshness, boun
               (await rebuildStaffOutboxEmail(row, config)).to,
               input.to,
             );
+            const legacy = await previewEnquiryEmail(
+              f.id,
+              input,
+              config,
+              await dealerProfile(),
+              db as any,
+              "legacy-v1",
+            );
+            const legacyRow = {
+              ...row,
+              validation: {
+                ...row.validation,
+                layoutVersion: undefined,
+                previewHash: legacy.previewHash,
+              },
+            };
+            assert.equal(
+              (await rebuildStaffOutboxEmail(legacyRow, config)).html,
+              legacy.rendered.html,
+            );
+            assert.notEqual(legacy.rendered.html, prepared.rendered.html);
             process.env.PORTAL_API_TOKEN = "rotated_machine_token";
             await assert.rejects(
               rebuildStaffOutboxEmail(row, config),

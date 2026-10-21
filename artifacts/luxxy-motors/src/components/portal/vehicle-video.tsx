@@ -197,7 +197,9 @@ export function VehicleVideoEditor({
                 label="Video QR / share link"
               />
               <ShareQr
-                url={`https://wa.me/?text=${encodeURIComponent(`Here is the car video: ${query.data?.shareUrl || ""}`)}`}
+                whatsapp vehicleId={vehicleId}
+                url={query.data?.shareUrl}
+                message="Here is the car video you asked about."
                 label="WhatsApp QR"
               />
               <a
@@ -207,8 +209,8 @@ export function VehicleVideoEditor({
                 Email video link
               </a>
               <p>
-                Hidden during normal website browsing. Scan the WhatsApp QR on
-                your phone, choose the customer and tap Send. Email video link
+                Enter the customer’s number, then scan the WhatsApp QR on
+                your phone and tap Send. Email video link
                 opens your email app.
               </p>
               {writable && (

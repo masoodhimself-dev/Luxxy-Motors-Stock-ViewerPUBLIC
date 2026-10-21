@@ -426,3 +426,20 @@ it('supports double-click zoom and resets zoom for another photo or an overview'
   expect(dialog).not.toHaveClass('is-gallery-zoomed');
   expect(within(dialog).queryByRole('button', { name: 'Zoom out' })).not.toBeInTheDocument();
 });
+
+it('switches between published video and photos without autoplay', () => {
+ render(<Gallery images={['/front.jpg','/rear.jpg']} video={{url:'/walkaround.mp4'}} />);
+ expect(document.querySelector('video')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Video'}));
+ expect(document.querySelector('video')).toHaveAttribute('controls');
+ expect(document.querySelector('video')).toHaveAttribute('playsinline');
+ expect(document.querySelector('video')).not.toHaveAttribute('autoplay');
+ expect(screen.queryByRole('button',{name:'Next photograph'})).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Photos (2)'}));
+ expect(document.querySelector('video')).toBeNull();
+ expect(screen.getByRole('button',{name:'Next photograph'})).toBeVisible();
+});
+it('does not offer video without a published clip', () => {
+ render(<Gallery images={['/front.jpg']} />);
+ expect(screen.queryByRole('button',{name:'Video'})).toBeNull();
+});

@@ -68,3 +68,15 @@ it("attachments use the original document bytes and type", () => {
   expect(file.size).toBe(14);
   expect(file.type).toBe("application/pdf");
 });
+
+it('long-message handoff keeps the token private and opens WhatsApp for the staff-selected customer', async () => {
+ window.history.replaceState({},'',`/phone-share#${'a'.repeat(64)}?wa=${encodeURIComponent('+353861234567')}`);
+ render(<PhoneShare />);
+ const open=await screen.findByRole('link',{name:'Open WhatsApp'});
+ const url=new URL(open.getAttribute('href')!);
+ expect(url.pathname).toBe('/353861234567');
+ expect(url.searchParams.get('text')).toContain('Fictional invoice ready');
+ expect(url.searchParams.get('text')).toContain(`/phone-share#${'a'.repeat(64)}`);
+ expect(url.searchParams.get('text')).not.toContain('?wa=');
+ expect((fetch as any).mock.calls[0][1].headers['x-phone-share-token']).toBe('a'.repeat(64));
+});

@@ -1,3 +1,4 @@
+import { ShareQr } from "@/components/share-qr";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
@@ -778,7 +779,7 @@ export function RelationshipsPanel() {
                           </div>
                         )}
                         {customer && (
-                          <div className="relationship-contact-details">
+                          <div className="relationship-contact-details"><ShareQr whatsapp label="WhatsApp QR" customerName={customer.name || ""} customerEmail={customer.email || ""} customerPhone={customer.phone || ""} message={`Hello ${customer.name || ""}, following up on your enquiry.`} />
                             {customer.email && (
                               <a href={`mailto:${customer.email}`}>
                                 <Mail aria-hidden="true" />

@@ -1,3 +1,4 @@
+import { ShareQr } from "@/components/share-qr";
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, CalendarDays, Phone } from '@/components/icons';
@@ -63,6 +64,7 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
     <header className="enquiry-detail-customer">
       <div className="enquiry-detail-heading"><div><p className="enquiry-detail-eyebrow">{presentation.purpose} / {presentation.source}</p><h3>{entry.customerName}</h3></div><span className="enquiry-state-label" data-tone={presentation.tone}>{presentation.state}</span></div>
       <div className="enquiry-detail-contact">{entry.phone ? <a href={`tel:${entry.phone.replace(/[^+\d]/g, '')}`}><Phone aria-hidden className="h-4 w-4" />{entry.phone}</a> : <p className="text-sm text-muted-foreground">No phone supplied</p>}{entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}</div>
+      <ShareQr whatsapp label="WhatsApp QR" enquiryId={entry.id} customerName={entry.customerName} customerEmail={entry.email || ""} customerPhone={entry.phone || ""} message={`Hello ${entry.customerName}, thanks for your interest${entry.vehicleTitle ? ` in ${entry.vehicleTitle}` : ""}. How can we help?`} />
       <div className="enquiry-detail-owner"><p className="text-xs text-muted-foreground">Assigned to <strong>{entry.assignedToName || 'Unassigned'}</strong></p><ClaimEnquiry entry={entry} /></div>
     </header>
     <section className="enquiry-request" aria-label="Customer request">

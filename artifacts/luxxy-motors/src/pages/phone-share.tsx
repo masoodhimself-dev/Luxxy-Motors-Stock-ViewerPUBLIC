@@ -1,7 +1,9 @@
+import { customerWhatsAppUrl } from "@/lib/customer-whatsapp";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import "@/components/share-qr.css";
 type Pack = {
+  customerPhone?: string;
   title: string;
   message: string;
   expiresAt: string;
@@ -21,7 +23,7 @@ export default function PhoneShare() {
     [notice, setNotice] = useState("");
   useEffect(() => {
     document.title = "Customer sharing preview";
-    const token = window.location.hash.slice(1);
+    const token = window.location.hash.slice(1).split("?")[0];
     const controller = new AbortController();
     if (!/^[a-f0-9]{64}$/.test(token)) {
       setError("This sharing link is incomplete. Scan a fresh QR code.");
@@ -85,6 +87,8 @@ export default function PhoneShare() {
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
+  const number = new URLSearchParams(window.location.hash.split('?')[1] || '').get('wa') || pack?.customerPhone || '';
+  const whatsappUrl = pack ? customerWhatsAppUrl(number, pack.message + (pack.files.length ? "\n\nView your documents and photos:\n" + window.location.href.split('?wa=')[0] : '')) : null;
   return (
     <main className="phone-share-page">
       <p>Customer sharing preview</p>
@@ -124,11 +128,11 @@ export default function PhoneShare() {
               Copy message
             </Button>
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(pack.message + "\n\n" + window.location.href)}`}
+              href={whatsappUrl || undefined}
               target="_blank"
               rel="noreferrer"
             >
-              Share link on WhatsApp
+              {whatsappUrl ? "Open WhatsApp" : "No valid customer phone number — ask staff for a new QR"}
             </a>
           </div>
           <p>

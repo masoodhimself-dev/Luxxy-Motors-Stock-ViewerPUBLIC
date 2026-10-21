@@ -88,7 +88,7 @@ function ConversationHistoryView({ entry, total, status, footer }: { entry: Enqu
       const title = event.callOutcome ? callOutcomes[event.callOutcome as CallOutcome] || event.callOutcome : event.summary;
       const note = event.note || event.summary;
       return <article className="enquiry-conversation-entry" key={event.id} data-testid={`conversation-${event.id}`} data-kind="conversation">
-        <header><span className="enquiry-history-type">Conversation</span><time dateTime={event.occurredAt}>{appointmentLabel(event.occurredAt)}</time></header>
+        <header><span className="enquiry-history-type">{event.summary === "WhatsApp sent — staff confirmed" ? "WhatsApp" : "Conversation"}</span><time dateTime={event.occurredAt}>{appointmentLabel(event.occurredAt)}</time></header>
         {title && <h5>{title}</h5>}{note && note !== title && <p className="enquiry-history-copy">{note}</p>}
         <p className="enquiry-conversation-author">Recorded by {event.staffName || 'Staff member'}</p>
         {event.followUpAt && <p className="enquiry-conversation-followup">Follow-up arranged for {appointmentLabel(event.followUpAt)}</p>}

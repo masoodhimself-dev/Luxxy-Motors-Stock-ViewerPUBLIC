@@ -573,6 +573,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       snapshot: {
         draft: {
           customer: "Fictional buyer",
+          phone: "07700 900123",
           vehicle: "Fictional car",
           roadTaxGuide: false,
         },
@@ -630,6 +631,9 @@ test("isolated real HTTP media and QR workflow", async (t) => {
         });
         assert.equal(created.status, 201, JSON.stringify(created.json));
         grant = created.json;
+        assert.equal(grant.customerPhone, "07700 900123");
+        assert.equal(grant.hasAttachments, true);
+        assert.match(grant.message, /Fictional car/);
         assert.match(grant.url, /\/phone-share#[a-f0-9]{64}$/);
         const opened = await call("/phone-shares", {
           user: "",
@@ -786,6 +790,69 @@ test("isolated real HTTP media and QR workflow", async (t) => {
         );
       },
     );
+    await t.test("phone-only enquiries share full reviewed text without email, while stale revisions and cross-dealer access fail", async () => {
+      const enquiryId = randomUUID();
+      await db.insert(enquiriesTable).values({id:enquiryId,dealerId:a.dealerId,type:'general',customerName:'Fictional phone buyer',email:null,phone:'07700 900456',message:'Question'});
+      const source = {kind:'enquiry-message',enquiryId,draft:{to:'',subject:'Your enquiry',message:'Hello, here are the details you requested.',includeVehicle:false,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:0}};
+      const body = {requestId:randomUUID(),token:'56'.repeat(32),source};
+      const created = await call('/staff/phone-shares',{method:'POST',body});
+      assert.equal(created.status,201,JSON.stringify(created.json));
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),token:'61'.repeat(32)},user:'accounts'})).status,403);
+      assert.equal(created.json.customerPhone,'07700 900456');
+      assert.equal(created.json.hasAttachments,false);
+      assert.match(created.json.message,/Hello, here are the details you requested/);
+      const replay = await call('/staff/phone-shares',{method:'POST',body});
+      assert.deepEqual(replay.json,{...created.json,replayed:true});
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),token:'57'.repeat(32)},user:b.dealerId,host:'b.example.test'})).status,404);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),token:'58'.repeat(32),source:{...source,draft:{...source.draft,expectedRevision:1}}}})).status,409);
+      const confirmation={requestId:randomUUID(),enquiryId,grantId:created.json.id,phone:'07700 900456',message:created.json.message,confirmed:true};
+      assert.equal(Number((await pool.query("SELECT count(*) FROM enquiry_events WHERE enquiry_id=$1",[enquiryId])).rows[0].count),0);
+      const saved=await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:confirmation});
+      assert.equal(saved.status,201,JSON.stringify(saved.json));
+      assert.equal(saved.json.enquiryId,enquiryId);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:confirmation})).status,200);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...confirmation,message:'Changed'}})).status,409);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...confirmation,requestId:randomUUID()},user:'accounts'})).status,403);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...confirmation,requestId:randomUUID()},user:b.dealerId,host:'b.example.test'})).status,409);
+      const history=(await pool.query('SELECT summary,detail FROM enquiry_events WHERE enquiry_id=$1',[enquiryId])).rows;
+      assert.equal(history.length,1);assert.equal(history[0].detail.message,created.json.message);assert.equal(history[0].detail.deliveryVerified,false);assert.match(history[0].detail.note,/Staff confirmed sent on WhatsApp/);
+      assert.equal((await pool.query('SELECT status FROM enquiries WHERE id=$1',[enquiryId])).rows[0].status,'contacted');
+      const matches=await call('/staff/phone-shares/enquiries?q='+encodeURIComponent('+44 7700 900456'));
+      assert.equal(matches.status,200,JSON.stringify(matches.json));assert.equal(matches.json.enquiries[0].id,enquiryId);
+      const owned=await call('/staff/phone-shares/enquiries?id='+enquiryId,{user:b.dealerId,host:'b.example.test'});
+      assert.equal(owned.json.enquiries.length,0);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_emails')).rows[0].count),0);
+    });
+    await t.test("explicit new-customer confirmation creates one enquiry and does not affect appointments or money",async()=>{
+      const input={requestId:randomUUID(),newCustomer:{name:'Fictional new video customer'},vehicleId:carA,phone:'+447700900999',message:'Here is your video: https://a.example.test/vehicle/'+carA,confirmed:true};
+      const created=await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:input});
+      assert.equal(created.status,201,JSON.stringify(created.json));
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:input})).json.enquiryId,created.json.enquiryId);
+      const entry=(await pool.query('SELECT * FROM enquiries WHERE id=$1',[created.json.enquiryId])).rows[0];
+      assert.equal(entry.customer_name,input.newCustomer.name);assert.equal(entry.phone,input.phone);assert.equal(entry.vehicle_id,carA);assert.equal(entry.appointment_at,null);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...input,requestId:randomUUID(),confirmed:false}})).status,400);
+      assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...input,requestId:randomUUID(),vehicleId:carB}})).status,404);
+    });
+    await t.test("reservation sharing uses saved payment facts, includes archived receipts, and does not change payment or email records", async () => {
+      const id=randomUUID();
+      const reservation={id,dealerId:a.dealerId,reference:'FICTIONAL-RES',vehicleId:carA,vehicleTitle:'Fictional car',customerName:'Fictional buyer',email:'buyer@example.test',phone:'07700 900789',depositPence:10000,amountReceivedPence:10000,amountRefundedPence:0,paymentStatus:'confirmed',status:'reserved',mode:'live',expiresAt:new Date(Date.now()+86400000).toISOString(),saleId};
+      const receiptId=randomUUID();
+      const receipt={id:receiptId,number:'RCPT-TEST',type:'receipt',paymentId:'deposit',snapshot:{payments:[{id:'deposit',kind:'deposit'}]}};
+      const sale={...frozen,documents:[...frozen.documents,receipt],documentArchives:{...frozen.documentArchives,[receiptId]:{content:pdf.toString('base64')}}};
+      await pool.query('UPDATE sale_workspace SET state=$1::jsonb WHERE id=$2',[JSON.stringify(sale),saleId]);
+      await pool.query("INSERT INTO leads(id,dealer_id,customer_name,stage,source)VALUES($1,$2,'Fictional buyer','reserved','website_form')",[id,a.dealerId]);
+      await pool.query("INSERT INTO lead_events(lead_id,type,actor_type,payload)VALUES($1,'note_added','system',$2::jsonb)",[id,JSON.stringify({kind:'online_stripe_reservation',reservation})]);
+      const body={requestId:randomUUID(),token:'59'.repeat(32),source:{kind:'reservation',reservationId:id}};
+      const created=await call('/staff/phone-shares',{method:'POST',body});
+      assert.equal(created.status,201,JSON.stringify(created.json));
+      assert.equal(created.json.customerPhone,reservation.phone);assert.equal(created.json.hasAttachments,true);
+      const opened=await call('/phone-shares',{user:'',headers:{'x-phone-share-token':body.token}});
+      assert.equal(opened.json.files[0].content,pdf.toString('base64'));
+      assert.match(opened.json.message,/100/);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),token:'60'.repeat(32)},user:b.dealerId,host:'b.example.test'})).status,404);
+      assert.deepEqual((await pool.query("SELECT payload->'reservation' AS record FROM lead_events WHERE lead_id=$1",[id])).rows[0].record,reservation);
+      assert.deepEqual((await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state,sale);
+    });
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await engine.close();

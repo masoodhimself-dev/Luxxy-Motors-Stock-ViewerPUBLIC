@@ -957,12 +957,12 @@ export function StaffInventory({
                 <section className="inventory-card inventory-customer-email">
                   <h3>
                     <Mail aria-hidden size={18} />
-                    Email a customer
+                    Message a customer
                   </h3>
                   <p>
-                    Choose a linked enquiry, then select photos and review the
-                    email before sending. The recipient can be changed in the
-                    email window.
+                    Choose a linked enquiry and any photos, then review your
+                    message. Send by email or scan a WhatsApp QR to send from
+                    your own phone.
                   </p>
                   <NativeSelect
                     aria-label="Choose customer to email"

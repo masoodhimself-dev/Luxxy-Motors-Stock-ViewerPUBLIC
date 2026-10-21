@@ -1,3 +1,4 @@
+import { ShareQr } from "@/components/share-qr";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, type StaffDirectory } from '@workspace/api-client-react';
@@ -60,6 +61,7 @@ function CustomerContext({ conversation }: { conversation: ChatConversation }) {
       <h3><UserRound aria-hidden="true" />{conversation.customerName || 'Website visitor'}</h3>
       {conversation.email && <a href={`mailto:${conversation.email}`}><Mail aria-hidden="true" />{conversation.email}</a>}
       {conversation.phone && <a href={`tel:${conversation.phone}`}><Phone aria-hidden="true" />{conversation.phone}</a>}
+      <ShareQr whatsapp label="WhatsApp QR" enquiryId={conversation.enquiryId || undefined} customerName={conversation.customerName || ""} customerEmail={conversation.email || ""} vehicleId={conversation.vehicle?.id} customerPhone={conversation.phone || ""} message={`Hello ${conversation.customerName || ""}, following up on your enquiry.`} />
       {!conversation.email && !conversation.phone && <p>Contact details have not been shared.</p>}
       {conversation.callbackRequested && <p className="staff-chat-callback"><Phone aria-hidden="true" />Callback requested</p>}
     </div>

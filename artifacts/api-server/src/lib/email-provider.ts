@@ -1,10 +1,11 @@
-import { dealerFeatureEnabled } from './dealer-features';
-import { multiTenantEnabled } from './tenant-context';
+import { dealerFeatureEnabled } from "./dealer-features";
+import { multiTenantEnabled } from "./tenant-context";
 import { demoEmailEnvelope } from "./demo-policy";
 import {
   defaultEmailTemplates,
   renderEmailTemplate,
   type EmailFacts,
+  type EmailLayoutVersion,
 } from "@workspace/vehicle-meta";
 import {
   dealerIntegrationsStore,
@@ -213,10 +214,16 @@ export function sendPreparedEmail(
       // Missing tenant context also fails closed in the shared installation.
       if (multiTenantEnabled()) {
         try {
-          if (!(await dealerFeatureEnabled('customerEmails'))) throw new EmailProviderError(503, 60, 'feature_disabled', false);
+          if (!(await dealerFeatureEnabled("customerEmails")))
+            throw new EmailProviderError(503, 60, "feature_disabled", false);
         } catch (error) {
           if (error instanceof EmailProviderError) throw error;
-          throw new EmailProviderError(503, 60, 'feature_policy_unavailable', false);
+          throw new EmailProviderError(
+            503,
+            60,
+            "feature_policy_unavailable",
+            false,
+          );
         }
       }
       let response: Response;
@@ -277,6 +284,7 @@ async function resendSettings(): Promise<ResendSettings> {
 }
 export async function renderDealerEmail(input: {
   templateId: string;
+  layoutVersion?: EmailLayoutVersion;
   variables: Record<string, string | number | null | undefined>;
   facts: EmailFacts;
   attachments?: Array<{ filename: string; content: string }>;
@@ -296,6 +304,7 @@ export async function renderDealerEmail(input: {
     appearance,
     {
       templateId: input.templateId,
+      layoutVersion: input.layoutVersion,
       attachments: input.attachments?.map((item) => item.filename),
     },
   );

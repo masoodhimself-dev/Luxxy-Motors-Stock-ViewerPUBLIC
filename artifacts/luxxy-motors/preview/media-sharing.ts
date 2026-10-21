@@ -17,7 +17,7 @@ export async function mediaSharingPreview(
   url: URL,
 ) {
   const match =
-    /^\/api\/(?:staff\/inventory\/([^/]+)\/videos(?:\/.*)?|vehicles\/([^/]+)\/video(?:\/(media))?|staff\/phone-shares(?:\/([^/]+)\/revoke)?|phone-shares)$/.exec(
+    /^\/api\/(?:staff\/inventory\/([^/]+)\/videos(?:\/.*)?|vehicles\/([^/]+)\/video(?:\/(media))?|staff\/phone-shares(?:\/([^/]+)\/revoke)?|staff\/phone-shares\/(?:enquiries|confirm-whatsapp)|phone-shares)$/.exec(
       url.pathname,
     );
   if (!match) return false;
@@ -114,6 +114,13 @@ export async function mediaSharingPreview(
       error:
         "Private QR packs require the authenticated server. Nothing was sent.",
     });
+  if (url.pathname === "/api/staff/phone-shares/enquiries" && req.method === "GET") {
+    return send(200,{enquiries:[{id:demoId,customerName:"Fictional Alex",phone:"07700 900123",email:"alex@example.test",vehicleTitle:"Sample vehicle"}],canCreate:true});
+  }
+  if (url.pathname === "/api/staff/phone-shares/confirm-whatsapp" && req.method === "POST") {
+    let body=""; for await (const part of req) {body+=String(part);if(body.length>65536)return send(413,{error:"Preview request too large."});}
+    try {const data=JSON.parse(body);if(data.confirmed!==true)return send(400,{error:"Confirm the message was sent."});return send(201,{enquiryId:data.enquiryId||demoId,confirmedAt:new Date().toISOString(),preview:true});}catch{return send(400,{error:"Invalid preview request."});}
+  }
   if (url.pathname === "/api/staff/phone-shares" && req.method === "POST") {
     let body = "";
     for await (const part of req) {
@@ -136,6 +143,9 @@ export async function mediaSharingPreview(
     packs.set(data.token, saved);
     return send(201, {
       ...saved,
+      message: "Local visual test only. This is not a real invoice or customer message.",
+      customerPhone: "07700 900123",
+      hasAttachments: true,
       url: `http://${req.headers.host}/phone-share#${data.token}`,
       preview: true,
     });
@@ -156,6 +166,7 @@ export async function mediaSharingPreview(
     pdf.text("FICTIONAL LOCAL SHARING EXAMPLE", 18, 24);
     pdf.text("No real customer document or email was used.", 18, 40);
     return send(200, {
+      customerPhone: "07700 900123",
       title: "Fictional invoice sharing example",
       message:
         "Local visual test only. This is not a real invoice or customer message.",

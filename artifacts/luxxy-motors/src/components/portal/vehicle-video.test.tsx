@@ -11,8 +11,8 @@ vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.api(...args),
 }));
 vi.mock("@/components/share-qr", () => ({
-  ShareQr: ({ label, url }: { label: string; url?: string }) => (
-    <button data-url={url}>{label}</button>
+  ShareQr: ({ label, url, whatsapp }: { label: string; url?: string; whatsapp?: boolean }) => (
+    <button data-url={url} data-whatsapp={whatsapp}>{label}</button>
   ),
 }));
 function mount(node: React.ReactNode) {
@@ -101,10 +101,8 @@ it("an existing published clip stays separate from a new draft", async () => {
       .getByRole("button", { name: "WhatsApp QR" })
       .getAttribute("data-url")!,
   );
-  expect(whatsapp.origin).toBe("https://wa.me");
-  expect(whatsapp.searchParams.get("text")).toContain(
-    "https://dealer.example/vehicle/car?video=1#walkaround",
-  );
+  expect(whatsapp.href).toBe("https://dealer.example/vehicle/car?video=1#walkaround");
+  expect(screen.getByRole("button",{name:"WhatsApp QR"})).toHaveAttribute("data-whatsapp","true");
   expect(
     screen.getByRole("link", { name: "Email video link" }),
   ).toHaveAttribute("href", expect.stringContaining("mailto:?"));

@@ -75,3 +75,12 @@
   margin: 12px 0;
   line-height: 1.6;
 }
+
+.phone-share-message { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow-y: auto; font: inherit; font-size: .875rem; background: var(--muted, #f3f5f6); padding: 1rem; border-radius: .25rem; }
+
+.phone-share-confirmation { border-top: 1px solid #dbe2e5; padding-top: 1rem; display: grid; gap: .75rem; }
+.phone-share-confirmation label, .phone-share-email-fallback label { display: grid; gap: .375rem; font-size: .875rem; }
+.phone-share-confirmation a, .phone-share-email-fallback a { text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+
+.phone-share-confirmation label.phone-share-create { display:flex; align-items:center; gap:.5rem; min-height:44px; }
+.phone-share-create input[type="checkbox"] { width:18px; height:18px; flex:none; margin:0; }

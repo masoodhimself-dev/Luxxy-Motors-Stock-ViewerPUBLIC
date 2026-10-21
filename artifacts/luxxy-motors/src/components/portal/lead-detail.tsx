@@ -1,3 +1,4 @@
+import { ShareQr } from "@/components/share-qr";
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -551,6 +552,7 @@ export function LeadDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 value={lead.email}
                 href={lead.email ? `mailto:${lead.email}` : undefined}
               />
+              <ShareQr whatsapp label="WhatsApp QR" enquiryId={lead.enquiryId || undefined} customerName={lead.customerName} customerEmail={lead.email || ""} vehicleId={lead.vehicleId || undefined} customerPhone={lead.phone || ""} message={`Hello ${lead.customerName || ""}, thanks for your interest${lead.vehicleTitle ? ` in ${lead.vehicleTitle}` : ""}. How can we help?`} />
               <DetailRow icon={UserRound} label="Handled by" value={lead.owner} />
               <DetailRow
                 icon={CalendarClock}

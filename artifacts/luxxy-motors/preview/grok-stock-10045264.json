@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "runId": "06be37f0-7fa1-4f55-9e2e-e6fb4da76801",
+  "runId": "3717c837-c04c-4a34-b849-87d586a3a55d",
   "source": "grok",
   "retailerId": "10045264",
   "dealerName": "PARAMOUNT AUTO GROUP LTD",
-  "scrapedAt": "2026-10-01T13:00:27.462708+00:00",
+  "scrapedAt": "2026-10-04T14:35:27.000900+00:00",
   "complete": true,
-  "expectedAdvertCount": 7,
-  "count": 7,
+  "expectedAdvertCount": 8,
+  "count": 8,
   "failedAdvertIds": [],
   "errors": [],
   "cars": [
@@ -26,9 +26,9 @@
       "mileageText": "74,200 miles",
       "registration": "2015 (15 reg)",
       "registrationBand": "15 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
+      "plate": "SD15 DYP",
+      "vrm": "SD15 DYP",
+      "vrmVerified": true,
       "fuel": "Petrol",
       "transmission": "Manual",
       "bodyType": "Hatchback",
@@ -303,9 +303,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,176 below market average",
-          "goodPriceLowerBound": "\u00a33,847",
-          "goodPriceUpperBound": "\u00a34,044"
+          "comparisonDescription": "£1,176 below market average",
+          "goodPriceLowerBound": "£3,847",
+          "goodPriceUpperBound": "£4,044"
         },
         "specCategories": [
           {
@@ -435,13 +435,13 @@
           }
         ],
         "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00",
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
-        "detailSource": "fresh",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
+        "detailSource": "cached",
         "advertDescription": "This 2015 Ford Focus T Zetec is a practical hatchback that offers a reliable driving experience. With 74,200 miles on the clock, this vehicle has covered a low mileage for its age, making it a sensible choice for those seeking a well-maintained car. It is powered by a 1.0 litre petrol engine, which is compliant with Euro 6 emission standards, ensuring it meets current environmental requirements for modern driving.\n\nThe vehicle is equipped with air conditioning to keep the cabin comfortable in all weather conditions, alongside Bluetooth connectivity that allows for seamless audio streaming while on the move. This model is particularly efficient, achieving an impressive 61 mpg, which helps to keep running costs manageable. Furthermore, the car benefits from low CO2 emissions, making it a cost-effective and environmentally conscious option compared to many other vehicles in its class.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": null,
@@ -505,7 +505,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "105g/km"
             },
             {
@@ -516,7 +516,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a320"
+              "value": "£20"
             },
             {
               "key": "FUEL_URBAN",
@@ -565,7 +565,10 @@
               "value": "Partial"
             }
           ]
-        }
+        },
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/e2ad59eb629a4401bab3959f097b71c1.jpg"
       }
     },
     {
@@ -583,9 +586,9 @@
       "mileageText": "91,000 miles",
       "registration": "2016 (65 reg)",
       "registrationBand": "65 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
+      "plate": "MP65 FWC",
+      "vrm": "MP65 FWC",
+      "vrmVerified": true,
       "fuel": "Petrol",
       "transmission": "Manual",
       "bodyType": "SUV",
@@ -601,7 +604,7 @@
       "advertUrl": "https://www.autotrader.co.uk/car-details/202609105910316",
       "dealerName": "PARAMOUNT AUTO GROUP LTD",
       "dealerLocation": "Wembley",
-      "imageCount": 73,
+      "imageCount": 76,
       "heroImage": "https://m.atcdn.co.uk/a/media/bae84ff765924d0cb5b66fd437f7c230.jpg",
       "images": [
         {
@@ -793,6 +796,10 @@
           "caption": "Wing Mirror"
         },
         {
+          "url": "https://m.atcdn.co.uk/a/media/3e682387db284b71a38704d3ef6fcb82.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
           "url": "https://m.atcdn.co.uk/a/media/5ed8d272dcd34dd68d0e701f163e4c76.jpg",
           "caption": "Steering Wheel"
         },
@@ -814,6 +821,10 @@
         },
         {
           "url": "https://m.atcdn.co.uk/a/media/93c3ba280031481482de8a3b3842c82f.jpg",
+          "caption": "Roof"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8135d34a169c4aadbc881dd271dcf362.jpg",
           "caption": "Roof"
         },
         {
@@ -895,6 +906,10 @@
         {
           "url": "https://m.atcdn.co.uk/a/media/b6802c7073f14733b1505435d6ae1351.jpg",
           "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/36e1612fa63948d18aaecbc05e85079b.jpg",
+          "caption": "vehicle image"
         }
       ],
       "specifications": {
@@ -936,9 +951,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,070 below market average",
-          "goodPriceLowerBound": "\u00a34,846",
-          "goodPriceUpperBound": "\u00a35,093"
+          "comparisonDescription": "£1,070 below market average",
+          "goodPriceLowerBound": "£4,846",
+          "goodPriceUpperBound": "£5,093"
         },
         "specCategories": [
           {
@@ -1066,19 +1081,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 20,161 more miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai n-tec+ SUV",
-          "registrationDateFormatted": "January 2016"
-        },
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2016 Nissan Qashqai for sale - 6 Month Warranty -HPI Clear - Fresh 12 Month MOT - Fresh Service - New Suspension Fitted - 6 Owners \n\nPlease be aware this vehicle does not come with any service history except the service we have done on the car \n\nThe 2016 Nissan Qashqai DIG-T n-tec+ is a practical and well-equipped crossover that balances performance with everyday usability. This model is powered by a 1.2-litre petrol engine, which meets Euro 6 emission standards, ensuring it remains compliant with modern environmental regulations. As an n-tec+ trim, it offers a comprehensive suite of technology designed to make driving more convenient, including automatic headlights that adjust to changing light conditions and an intelligent key system that allows for keyless entry.\n\nThis vehicle stands out for its focus on efficiency and ease of use, making it a sensible choice for a wide range of drivers. It offers an impressive fuel economy of 49 mpg and low CO2 emissions, which helps to keep running costs manageable. The inclusion of a 360-degree bird-view around view monitor provides excellent parking assistance, while the dual-zone climate control ensures a comfortable cabin environment for all passengers. Furthermore, the integration of Bluetooth technology allows for seamless telephone connectivity, and the vehicle benefits from a low insurance group, adding to its overall value and appeal.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -1171,7 +1180,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "133g/km"
             },
             {
@@ -1182,7 +1191,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3200"
+              "value": "£200"
             },
             {
               "key": "FUEL_URBAN",
@@ -1231,627 +1240,11 @@
               "value": "Partial"
             }
           ]
-        }
-      }
-    },
-    {
-      "advertId": "202609206212316",
-      "title": "2015 Nissan Juke",
-      "variant": "1.2 DIG-T Tekna Euro 6 (s/s) 5dr",
-      "make": "Nissan",
-      "model": "Juke",
-      "trim": "Tekna",
-      "year": 2015,
-      "price": 3975,
-      "priceType": null,
-      "currency": "GBP",
-      "mileage": 83600,
-      "mileageText": "83,600 miles",
-      "registration": "2015 (65 reg)",
-      "registrationBand": "65 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
-      "fuel": "Petrol",
-      "transmission": "Manual",
-      "bodyType": "SUV",
-      "engineSize": "1.2L",
-      "engineCC": 1197,
-      "doors": 5,
-      "seats": 5,
-      "colour": "Grey",
-      "emissionClass": "Euro 6",
-      "drivetrain": "Front Wheel Drive",
-      "owners": 5,
-      "writeOffCategory": null,
-      "advertUrl": "https://www.autotrader.co.uk/car-details/202609206212316",
-      "dealerName": "PARAMOUNT AUTO GROUP LTD",
-      "dealerLocation": "Wembley",
-      "imageCount": 64,
-      "heroImage": "https://m.atcdn.co.uk/a/media/b7e20aa77ba24092a2cf3f7329665273.jpg",
-      "images": [
-        {
-          "url": "https://m.atcdn.co.uk/a/media/b7e20aa77ba24092a2cf3f7329665273.jpg",
-          "caption": "Front Right"
         },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/552e929679bc49a9b9c4caf0865274fb.jpg",
-          "caption": "Front"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/92d15d40b2f54943a963f0b77e926154.jpg",
-          "caption": "Front Left"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/fed9aaad5ec642adbebd829b4a4cb052.jpg",
-          "caption": "Front Left"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/f49e7894ddc0453fb1157d8c3fb671f6.jpg",
-          "caption": "Rear Left"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/6799163641854f3aaab7c1a3347e4187.jpg",
-          "caption": "Front Right"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/5099423a7a8c42adb3911e03dc71bcc0.jpg",
-          "caption": "Front Right"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/22123220fa0d45839862a561aeb524a4.jpg",
-          "caption": "Side Left"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/a5a4ae7c3ac14801919cdbb99b0f4030.jpg",
-          "caption": "Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/8b41e6287a914ae5b72dd755f37575b2.jpg",
-          "caption": "Side Right"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/4c53d07c85b043cdb80801766ee0b7dc.jpg",
-          "caption": "Side Right"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/794789f779694c00bd3335a7d25e191f.jpg",
-          "caption": "Rear Right"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/50e00e30de514657bb6191b78d4c1d55.jpg",
-          "caption": "Interior Front"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/17164127767b4fff9401346fd6b13fd2.jpg",
-          "caption": "Interior Front"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/9571192fdd2c4eb1a007f27eeeabafb5.jpg",
-          "caption": "Interior Front"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/5d937a473ff2483a9bc530d19865e7cd.jpg",
-          "caption": "Interior Front"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/17daf3a107514ff08e9c7e11b02dfec0.jpg",
-          "caption": "Seat Driver"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/c0b8c52960ca42cb94c8e97dd077ee97.jpg",
-          "caption": "Seat Driver"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/c7a28be3f7574a90a7a69af194d1909a.jpg",
-          "caption": "Seat Driver"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/552b6b2ed1f140f2a33858587bfa9f98.jpg",
-          "caption": "Seat Driver"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/4d15829e7ebb486a8f6e076087bb9cdf.jpg",
-          "caption": "Seat Driver"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/38c34dd43dfe49028fff6d3aa4b7ce2f.jpg",
-          "caption": "Seat Driver"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/f9be2b6356254ad884a0907980fb770c.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/744c40c0cbc54e9a9b1abec784bd5ca5.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/e10d387e961d473aa8902f633fbc8458.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/a16faf8e02f54ecf9046d05f8ad29aa8.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/ba56fe7600924235a3978db8e83fac3e.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/be39f2d877144101a81abf6f9964746d.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/9dfa76535aa9406ea6003db117a54bd2.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/7051c9e4925d4ea288dcfe91eddb067c.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/02c9ebae7cdd481687f9d1c132e83b84.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/6dc6b3f3a2ee40bdad468cf1f8ff2103.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/3dcd2353de7546d0b8a41dfd16372e0f.jpg",
-          "caption": "Seats Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/1cd7c2fccb7a458d8f5cdf247cb907d2.jpg",
-          "caption": "Misc Controls"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/7a3db3a9021943818f60100af5dcbe21.jpg",
-          "caption": "Misc Controls"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/b6c2d19a318449789ce26212395bb070.jpg",
-          "caption": "Misc Controls"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/db4120a0840549c1ad7e6ce0635fc0c2.jpg",
-          "caption": "Misc Controls"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/84b62537225e4fa3a3b582510c267ad1.jpg",
-          "caption": "Misc Controls"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/93203c96a1374a1a925bef1ae5b87291.jpg",
-          "caption": "Door Interior"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/c11bd49c12b84fe89e86ce171dcfb433.jpg",
-          "caption": "Wheel"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/66a037f98478405ab5879d573e2f2c01.jpg",
-          "caption": "Wheel"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/f0e63e3f816e4a1dbedef0a7d1b86225.jpg",
-          "caption": "Infotainment System"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/6d2054a52e7146aaaec07ba60cb269f6.jpg",
-          "caption": "Infotainment System"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/18167606272c426980fc929df24e5ea7.jpg",
-          "caption": "Driver Instruments"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/fa42041a3ee34ff3a1ff817c0be808f0.jpg",
-          "caption": "Driver Instruments"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/25485bdd90f641c087dcd43866dd705d.jpg",
-          "caption": "Wing Mirror"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/ca286c7c97bf44a99862491ee0576b8e.jpg",
-          "caption": "Wing Mirror"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/65e50a3bd26b44459ce9552940a1639e.jpg",
-          "caption": "Wing Mirror"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/16e867fb075a4fafa720746a692bbaa2.jpg",
-          "caption": "Steering Wheel"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/f74ba344b66240879e552508b7b8fa2f.jpg",
-          "caption": "Seat Front Passenger"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/a9583da2e8b3496f9f9e88c1215d0de9.jpg",
-          "caption": "Seat Front Passenger"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/3e472475ca61454eb700767b86b2cd8b.jpg",
-          "caption": "Seat Front Passenger"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/88bb394834964bd7a764a6c86777b430.jpg",
-          "caption": "Seat Front Passenger"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/4c1c324be26b462d924f03c056bec443.jpg",
-          "caption": "Lights Rear"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/62b7777f99904efd8a2220ee8e5305cc.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/379582a99fb8417e9c1529f4f203efb2.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/5261690c356f4fa4aab0641f67f8467e.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/82a8b0a646034c78ad54cbb0f2afa33a.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/21efa540e03c4601b83a7787758dcdc4.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/1c518856bee44ee0986fe1eb35dcd19f.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/946543c3e8b94375a0c548adc6b29e12.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/a11bbc86494b48a0932f4a47ec536f44.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/a03f9bef0631425ea7ff9e92c8e7f9ed.jpg",
-          "caption": "vehicle image"
-        },
-        {
-          "url": "https://m.atcdn.co.uk/a/media/bebed253a9824b06a1b3e2d486e882e5.jpg",
-          "caption": "vehicle image"
-        }
-      ],
-      "specifications": {
-        "MILEAGE": "83,600 miles",
-        "REGISTRATION": "2015 (65 reg)",
-        "OWNERS": "5",
-        "FUELTYPE": "Petrol",
-        "BODYTYPE": "SUV",
-        "ENGINESIZELITRES": "1.2L",
-        "GEARBOX": "Manual",
-        "DOORS": "5",
-        "SEATS": "5",
-        "BODYCOLOUR": "Grey",
-        "SERVICEHISTORY": "Full",
-        "EMISSIONCLASS": "Euro 6"
-      },
-      "sourceExtras": {
-        "stockListUrl": "https://www.autotrader.co.uk/cars/retailer/stock?advertising-location=at_cars&advertising-location=at_profile_cars&onesearchad=Used&onesearchad=Nearly%20New&onesearchad=New&postcode=HA0%204GP&retailerId=10045264&sort=price-asc",
-        "attentionGrabber": "New Timing Chain+Full History",
-        "serviceHistory": "Full",
-        "writeOffStatusExplicit": "Never been written off",
-        "writeOffCheck": {
-          "id": "WRITE_OFF",
-          "label": "Never been written off",
-          "status": "PASSED"
-        },
-        "vehicleCheckId": "33e6ecc6b1324a8bb53d8b42b9b62e4b",
-        "generationId": "77f476b550e448fc849e9a5446dd7ab9",
-        "derivativeId": "40bcfefec124401e83421aabbff52aa1",
-        "engineCC": 1197,
-        "engineLitres": 1.2,
-        "engineFormatted": "1.2L",
-        "vehicleRegisteredText": "Vehicle registered: 11/11/2015",
-        "dealerAddress": "Studio 7, 261 Ealing Road",
-        "dealerPhone": "(07537) 122736",
-        "dealerTown": "WEMBLEY",
-        "dealerPostcode": "HA0 1ET",
-        "vehicleCheckStatus": "PASSED",
-        "vehicleCheckStatusText": "9 checks passed, 1 item to note",
-        "marketPriceRating": {
-          "value": "LOW",
-          "label": "Lower price",
-          "comparisonDescription": "\u00a3457 below market average",
-          "goodPriceLowerBound": "\u00a34,343",
-          "goodPriceUpperBound": "\u00a34,565"
-        },
-        "specCategories": [
-          {
-            "category": "Performance",
-            "count": "7",
-            "items": [
-              {
-                "name": "0-62mph",
-                "value": "10.8 seconds"
-              },
-              {
-                "name": "Top speed",
-                "value": "111mph"
-              },
-              {
-                "name": "Cylinders",
-                "value": "4"
-              },
-              {
-                "name": "Valves",
-                "value": "16"
-              },
-              {
-                "name": "Engine power",
-                "value": "113BHP"
-              },
-              {
-                "name": "Engine torque",
-                "value": "190NM"
-              },
-              {
-                "name": "Miles per gallon",
-                "value": "49.6mpg"
-              }
-            ]
-          },
-          {
-            "category": "Size and dimensions",
-            "count": "10",
-            "items": [
-              {
-                "name": "Height",
-                "value": "1,565mm"
-              },
-              {
-                "name": "Length",
-                "value": "4,135mm"
-              },
-              {
-                "name": "Width",
-                "value": "1,765mm"
-              },
-              {
-                "name": "Ground clearance",
-                "value": "180mm"
-              },
-              {
-                "name": "Wheelbase",
-                "value": "2,530mm"
-              },
-              {
-                "name": "Seats",
-                "value": "5"
-              },
-              {
-                "name": "Fuel tank capacity",
-                "value": "46L"
-              },
-              {
-                "name": "Boot space (seats down)",
-                "value": "1,189L"
-              },
-              {
-                "name": "Boot space (seats up)",
-                "value": "354L"
-              },
-              {
-                "name": "Minimum kerb weight",
-                "value": "1,236kg"
-              }
-            ]
-          }
-        ],
-        "vehicleHighlights": [
-          {
-            "key": "InsuranceGroupVeryLow",
-            "title": "Lower insurance group",
-            "description": "11E\n\nThis vehicle's insurance group is in the lowest 25% compared to vehicles of similar age and body type.",
-            "descriptionList": [
-              "11E\n\nThis vehicle's insurance group is in the lowest 25% compared to vehicles of similar age and body type."
-            ],
-            "badge": "Lowest 25%",
-            "linkDescription": "More about running costs",
-            "quantifier": "VERY_LOW",
-            "vehicleHighlightContext": {
-              "quantifier": "VERY_LOW",
-              "highlightName": "INSURANCE_GROUP",
-              "index": 1
-            }
-          },
-          {
-            "key": "FuelEconomyHigh",
-            "title": "Better fuel economy",
-            "description": "49.6mpg\n\nThis vehicle gets more MPG on average than vehicles of similar age and body type.",
-            "descriptionList": [
-              "49.6mpg\n\nThis vehicle gets more MPG on average than vehicles of similar age and body type."
-            ],
-            "linkDescription": "More about running costs",
-            "quantifier": "HIGH",
-            "vehicleHighlightContext": {
-              "quantifier": "HIGH",
-              "highlightName": "FUEL_ECONOMY",
-              "index": 2
-            }
-          },
-          {
-            "key": "Co2EmissionVeryLow",
-            "title": "Lower emissions",
-            "description": "128g/km\n\nThis vehicle's CO2 emissions are in the is in the lowest 25% compared to vehicles of similar age and body type.",
-            "descriptionList": [
-              "128g/km\n\nThis vehicle's CO2 emissions are in the is in the lowest 25% compared to vehicles of similar age and body type."
-            ],
-            "badge": "Lowest 25%",
-            "linkDescription": "More about running costs",
-            "quantifier": "VERY_LOW",
-            "vehicleHighlightContext": {
-              "quantifier": "VERY_LOW",
-              "highlightName": "CO2_EMISSION",
-              "index": 3
-            }
-          }
-        ],
-        "detailCapturedAt": "2026-10-01T12:02:44.242926+00:00",
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
-        "detailSource": "fresh",
-        "websitePriceReduction": {
-          "previousPrice": 4175,
-          "currentPrice": 3975,
-          "detectedAt": "2026-10-01T12:02:44.242926+00:00"
-        },
-        "advertDescription": "This 2015 Nissan Juke DIG-T Tekna is a practical compact crossover that combines a 1.2 litre petrol engine with the high specification of the Tekna trim level. As a Euro 6 compliant vehicle, it meets modern emission standards while offering a balanced driving experience. The interior is well equipped with heated front seats for added comfort and an intelligent key system that allows for keyless entry and push button starting. Drivers can also benefit from seamless connectivity through the integrated Bluetooth telephone system and maintain a comfortable cabin environment using the automatic climate control, which includes a pollen filter.\n\nThe vehicle is designed to be both economical and easy to manage, making it a sensible choice for daily driving. It achieves an impressive fuel economy of 50 mpg and benefits from low CO2 emissions, which helps to keep running costs down. Safety and convenience are prioritised through the included safety pack, which features blind spot assistance and a 360 degree camera system to aid with parking. Furthermore, the vehicle falls into a low insurance group, offering additional financial benefits compared to many other cars in its class.",
-        "retailerDescription": {
-          "title": "Buying with PARAMOUNT AUTO GROUP LTD",
-          "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
-          ]
-        },
-        "featuresHighlights": [],
-        "featureList": [
-          "Please note:",
-          "Audio and Communications",
-          "12V Socket - Front",
-          "AUX Socket for MP3 Player",
-          "DAB and Internet Radio with 6 Speakers",
-          "NissanConnect",
-          "Telephone - Bluetooth Integration",
-          "USB Port",
-          "Drivers Assistance",
-          "Colour Reversing Camera",
-          "Cruise Control with Speed Limiter",
-          "Drive Computer with Temperature Gauge",
-          "Gear Shift Indicator",
-          "Nissan Dynamic Control System",
-          "TPMS - Tyre Pressure Monitoring System",
-          "Exterior",
-          "17in Alloy Wheels - Urban",
-          "Body Coloured Handles",
-          "Body-Coloured Door Mirrors with LED Indicators",
-          "Electric Folding and Heated Door Mirrors",
-          "Front and Rear Electric Windows",
-          "Grey exterior colour",
-          "Puncture Repair Kit",
-          "Rear Privacy Glass",
-          "Illumination",
-          "Automatic Lights and Wipers",
-          "Front Fog Lights",
-          "LED Signature Daytime Running Lights",
-          "Interior",
-          "2 Speed Wiper with Variable Intermittent",
-          "3 Adjustable Rear Head Restraints",
-          "60-40 Split Rear Folding Seats",
-          "Armrest - Coloured Stitching to Matching Centre Console",
-          "Automatic Climate Control with Pollen Filter",
-          "Black Headliner",
-          "Boot Capacity with Flexi-Floor Board",
-          "Chrome Interior Door Handles",
-          "Front Armrest",
-          "Front Cupholders x2",
-          "Front Door Pockets with Drinks Bottle Holders",
-          "Front Map Reading Lights",
-          "Glovebox",
-          "Height Adjustable Driver Seat",
-          "Leather Steering Wheel and Gear Knob",
-          "Rear Tonneau Cover Integrated into Tailgate",
-          "Seats - Heated Front",
-          "Steering Wheel Mounted Audio Controls",
-          "Tilt Adjustable Steering Wheel",
-          "Performance",
-          "Power Assisted Steering - Speed Sensitive",
-          "Safety and Security",
-          "Airbag - Driver",
-          "Airbag - Front Passenger",
-          "Airbags - Curtain",
-          "Airbags - Side",
-          "ESP ABS EBD and Brake Assist",
-          "Engine Immobiliser",
-          "Front Seat Belt Height Adjustment",
-          "Front Seat Belts with Load Limiter and Pretensioners",
-          "ISOFIX Child Seat Anchoring Points",
-          "Intelligent Key with Start Push Button",
-          "Passenger Airbag Cut-Off Switch",
-          "Rear Door Child Locks",
-          "Rear Wiper with Intermittent",
-          "Safety Pack",
-          "Traction Control"
-        ],
-        "runningCosts": {
-          "title": "Running Costs",
-          "items": [
-            {
-              "key": "Emission",
-              "label": "CO\u2082 emissions",
-              "value": "128g/km"
-            },
-            {
-              "key": "Insurance",
-              "label": "Insurance group",
-              "value": "11E"
-            },
-            {
-              "key": "Tax",
-              "label": "Tax per year",
-              "value": "\u00a3170"
-            },
-            {
-              "key": "FUEL_URBAN",
-              "label": "Urban",
-              "value": "39.8mpg"
-            },
-            {
-              "key": "FUEL_EXTRA_URBAN",
-              "label": "Extra Urban",
-              "value": "57.7mpg"
-            },
-            {
-              "key": "FUEL_AVERAGE",
-              "label": "Average",
-              "value": "49.6mpg"
-            }
-          ]
-        },
-        "insuranceGroup": null,
-        "historyExtras": {
-          "ownersData": {
-            "title": "Owners",
-            "value": "5",
-            "key": "HAS_OWNERS"
-          },
-          "serviceHistory": {
-            "historyType": "FULL",
-            "label": "Service history",
-            "description": "Full service history",
-            "additionalItems": []
-          },
-          "historyItems": [
-            {
-              "key": "OWNERS",
-              "label": "Owners",
-              "value": "5"
-            },
-            {
-              "key": "KEYS",
-              "label": "Keys",
-              "value": "Contact seller"
-            },
-            {
-              "key": "SERVICE_HISTORY",
-              "label": "Service history",
-              "value": "Full"
-            }
-          ]
-        }
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/ef337658b2f64472972121ef0855e699.jpg"
       }
     },
     {
@@ -1869,9 +1262,9 @@
       "mileageText": "58,000 miles",
       "registration": "2016 (16 reg)",
       "registrationBand": "16 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
+      "plate": "EK16 UTE",
+      "vrm": "EK16 UTE",
+      "vrmVerified": true,
       "fuel": "Petrol",
       "transmission": "Manual",
       "bodyType": "SUV",
@@ -2078,9 +1471,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,257 below market average",
-          "goodPriceLowerBound": "\u00a36,646",
-          "goodPriceUpperBound": "\u00a36,985"
+          "comparisonDescription": "£1,257 below market average",
+          "goodPriceLowerBound": "£6,646",
+          "goodPriceUpperBound": "£6,985"
         },
         "specCategories": [
           {
@@ -2208,19 +1601,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 10,855 fewer miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai N-Connecta SUV",
-          "registrationDateFormatted": "March 2016"
-        },
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2016 Nissan Qashqai for sale - 1 Owner from New - Good Condition - 2 Keys - 6 Month Warranty \n\nThis 2016 Nissan Qashqai DIG-T N-Connecta is a practical choice for those seeking a reliable family vehicle. Having covered 58,000 miles, this car has been maintained by only one owner from new. It is powered by a 1.2 litre petrol engine that meets Euro 6 emission standards, ensuring it remains compliant with current environmental regulations.\n\nThe vehicle is well equipped to make daily driving easier and more comfortable. It features the Smart Vision Pack, which includes front and rear parking sensors, alongside the Tech Pack that provides a 360 degree camera system to assist with manoeuvring. Inside, passengers can enjoy dual zone climate control air conditioning and the convenience of an intelligent key with keyless entry, while Bluetooth connectivity allows for seamless phone integration. Beyond its equipment, this model is an economical option, offering a fuel economy of 50 mpg and low CO2 emissions. Furthermore, it sits in a low insurance group, which helps to keep ongoing running costs manageable.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -2294,7 +1681,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "133g/km"
             },
             {
@@ -2305,7 +1692,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3200"
+              "value": "£200"
             },
             {
               "key": "FUEL_URBAN",
@@ -2354,7 +1741,620 @@
               "value": "Contact seller"
             }
           ]
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/a95d356e2f014e5eb7011407a8f1e271.jpg"
+      }
+    },
+    {
+      "advertId": "202610026606092",
+      "title": "2016 Nissan Qashqai",
+      "variant": "1.2 DIG-T N-Connecta XTRON 2WD Euro 6 (s/s) 5dr",
+      "make": "Nissan",
+      "model": "Qashqai",
+      "trim": "N-Connecta",
+      "year": 2016,
+      "price": 5750,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 85400,
+      "mileageText": "85,400 miles",
+      "registration": "2016 (16 reg)",
+      "registrationBand": "16 reg",
+      "plate": "YC16 ZTU",
+      "vrm": "YC16 ZTU",
+      "vrmVerified": true,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": "SUV",
+      "engineSize": "1.2L",
+      "engineCC": 1197,
+      "doors": 5,
+      "seats": 5,
+      "colour": "Grey",
+      "emissionClass": "Euro 6",
+      "drivetrain": "Front Wheel Drive",
+      "owners": 3,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.autotrader.co.uk/car-details/202610026606092",
+      "dealerName": "PARAMOUNT AUTO GROUP LTD",
+      "dealerLocation": "Wembley",
+      "imageCount": 66,
+      "heroImage": "https://m.atcdn.co.uk/a/media/d98641b6a0654fb0b0617c818030dd18.jpg",
+      "images": [
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d98641b6a0654fb0b0617c818030dd18.jpg",
+          "caption": "Front Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/06998183e2994f2e90053ea7299c3253.jpg",
+          "caption": "Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c8c4734bbe814e74929078543babc37b.jpg",
+          "caption": "Front Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/3f1ddfdef6594852a2e12f764cc4bf92.jpg",
+          "caption": "Front Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/1815c945d4b248059de6d76ecd1c9ec3.jpg",
+          "caption": "Front Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/5c8ab082ebb8424ba05b4e696f3f41f7.jpg",
+          "caption": "Rear Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8f474d4bc4884d119f8c353f5c7ade4d.jpg",
+          "caption": "Front Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/a8c05ee7fdc944c8924575c1f98f0903.jpg",
+          "caption": "Side Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/1c7606a0183348e3942d0d9be9d08d5b.jpg",
+          "caption": "Side Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/223c5fef12a448f5b765428116e86318.jpg",
+          "caption": "Side Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/65e9ef5464cd4b68a3ceeee2a835655a.jpg",
+          "caption": "Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e38aa46a2866440d8beb6b98b8c98572.jpg",
+          "caption": "Side Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/820dfb3360634ef38a376f87d06c67f7.jpg",
+          "caption": "Side Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/f3df509c2b2d4f64b20d100c8d91ffc2.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/0fbd3bf20c484ce39e51a849c223d23f.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/5bb0d5d1b1024955ac54e66d40e5a4d0.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/494ad881b593413cadcc9824a2f93cc3.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/984ecef502d744369675c6a9a70c9054.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d49cfb2256b9464d86e38919c0b86de7.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/ac27a7b5453d47c59e9027ad2fb44175.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d7af09ba54ef4d5b8b4122aa7bfcf796.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/ce2f111766f44346aa774ae8661b900d.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/760add1feafc4da483c2938a5b3cec52.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d2136a4d180a44db8b02bb1134c34f05.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/baa724b7f25d414b988108b94360cc00.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/75d150eabf55400d93545924f212c4c2.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/7d97240aecae4e8ca7dd58ed781baf5c.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/fe39725c165e48f6bbaf5e037e5da74f.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/909eba6147d845d084cbc092631ffc0f.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/4e5431c085db480597bf4b0dec1df104.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/86a7c601344948949f1e1bef9517c173.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/1741d56b28af495194a06c87b58c3a89.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/7119c8078ca94eb59b3fa4f62f504cc4.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/985dc921469e4a6c90072941bd988255.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e8054f8a4fbc458db2465a05ce444909.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/005f23eb0d594d6eaed3eafa92933944.jpg",
+          "caption": "Door Interior"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/5a0a272a133c45d6bfdaf7b6f31dbec7.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e20eb5185e00420f91af20b758a6b754.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/eb9184fd95d24fea95db3ee9aab1d3be.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/521a32035a844fe68818b853743c7dd5.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/7df69858afd04f66b2f620eb76a6177b.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/48639b5c6842424aa76f37857408b847.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/851055b59f8d4ef992986c123b148018.jpg",
+          "caption": "Driver Instruments"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d2d1b467ddf44a7b93fcd67f1d9fbc52.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/53a46e7a876d482989623e210834ebbe.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/736365fe24734478aa3ce859a2968ad8.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/9f949f2f06f943b88e8a6ac3035ff3b1.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/2ead45cac06e4ced9400d964eb0bc41b.jpg",
+          "caption": "Steering Wheel"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/4e3512f4a3d74a98a862df97a3a001ac.jpg",
+          "caption": "Roof"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/2663dc26b5c44c3a82b2364050d30ee4.jpg",
+          "caption": "Roof"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/f9ce797d8f7f47a7b3495292c0f65db5.jpg",
+          "caption": "Roof"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/5c38787870e24b38ab1a3902de0ee25b.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d773e10d43c741b4bbd77e91506011fb.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/cbc2baeab161493b823419312243d6fb.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/af623b846622407bb232d02f7acbb844.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/edf25922a25f47c09baa86e22c45fccf.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/55b5225a0e574628a6cf54d9010dc930.jpg",
+          "caption": "Lights Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/be104a0993694063a81d4604e41b9189.jpg",
+          "caption": "Lights Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c8238ab290e54712a98da64f557a098a.jpg",
+          "caption": "Lights Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/887196076dd94aceae957ed577b4d2b5.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/24f9d5ffa6254da6ab164cec7de4e1ef.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/de87afa61a8143b9ba8aa36709eee155.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/b4411b97eb5c43a4ad06d263479147f5.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/2effd92b4cf84ec491117913dafc404a.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/6458e2dfdb324574bf34707917c4c745.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/bbb739a3ac0547c5989735d735d00fa7.jpg",
+          "caption": "vehicle image"
         }
+      ],
+      "specifications": {
+        "MILEAGE": "85,400 miles",
+        "REGISTRATION": "2016 (16 reg)",
+        "OWNERS": "3",
+        "FUELTYPE": "Petrol",
+        "BODYTYPE": "SUV",
+        "ENGINESIZELITRES": "1.2L",
+        "GEARBOX": "Automatic",
+        "DOORS": "5",
+        "SEATS": "5",
+        "BODYCOLOUR": "Grey",
+        "EMISSIONCLASS": "Euro 6"
+      },
+      "sourceExtras": {
+        "stockListUrl": "https://www.autotrader.co.uk/cars/retailer/stock?advertising-location=at_cars&advertising-location=at_profile_cars&onesearchad=Used&onesearchad=Nearly%20New&onesearchad=New&postcode=HA0%204GP&retailerId=10045264&sort=price-asc",
+        "attentionGrabber": "Timing Chain Replaced - 2Keys",
+        "serviceHistory": "Service history",
+        "writeOffStatusExplicit": "Never been written off",
+        "writeOffCheck": {
+          "id": "WRITE_OFF",
+          "label": "Never been written off",
+          "status": "PASSED"
+        },
+        "vehicleCheckId": "2895f623d5bd4d098d007b689777f555",
+        "generationId": "ea169b8d2ebd26010ee582e17e2a584b",
+        "derivativeId": "2e113956b6cd42c2b7041fbe0ce8edd7",
+        "engineCC": 1197,
+        "engineLitres": 1.2,
+        "engineFormatted": "1.2L",
+        "vehicleRegisteredText": "Vehicle registered: 26/04/2016",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
+        "dealerPhone": "(07537) 122736",
+        "dealerTown": "WEMBLEY",
+        "dealerPostcode": "HA0 1ET",
+        "vehicleCheckStatus": "PASSED",
+        "vehicleCheckStatusText": "10 checks passed",
+        "marketPriceRating": {
+          "value": "LOW",
+          "label": "Lower price",
+          "comparisonDescription": "£945 below market average",
+          "goodPriceLowerBound": "£6,561",
+          "goodPriceUpperBound": "£6,896"
+        },
+        "specCategories": [
+          {
+            "category": "Performance",
+            "count": 7,
+            "items": [
+              {
+                "name": "0-62mph",
+                "value": "12.9 seconds"
+              },
+              {
+                "name": "Top speed",
+                "value": "107mph"
+              },
+              {
+                "name": "Cylinders",
+                "value": "4"
+              },
+              {
+                "name": "Valves",
+                "value": "16"
+              },
+              {
+                "name": "Engine power",
+                "value": "113BHP"
+              },
+              {
+                "name": "Engine torque",
+                "value": "165NM"
+              },
+              {
+                "name": "Miles per gallon",
+                "value": "50.4mpg"
+              }
+            ]
+          },
+          {
+            "category": "Size and dimensions",
+            "count": 9,
+            "items": [
+              {
+                "name": "Height",
+                "value": "1,590mm"
+              },
+              {
+                "name": "Length",
+                "value": "4,377mm"
+              },
+              {
+                "name": "Width",
+                "value": "2,070mm"
+              },
+              {
+                "name": "Wheelbase",
+                "value": "2,646mm"
+              },
+              {
+                "name": "Seats",
+                "value": "5"
+              },
+              {
+                "name": "Fuel tank capacity",
+                "value": "55L"
+              },
+              {
+                "name": "Boot space (seats down)",
+                "value": "860L"
+              },
+              {
+                "name": "Boot space (seats up)",
+                "value": "430L"
+              },
+              {
+                "name": "Minimum kerb weight",
+                "value": "1,451kg"
+              }
+            ]
+          }
+        ],
+        "vehicleHighlights": [
+          {
+            "key": "FuelEconomyHigh",
+            "title": "Better fuel economy",
+            "descriptionList": [
+              "50.4mpg\n\nThis vehicle gets more MPG on average than vehicles of similar age and body type."
+            ],
+            "linkDescription": "More about running costs",
+            "vehicleHighlightContext": {
+              "quantifier": "HIGH",
+              "highlightName": "FUEL_ECONOMY",
+              "index": 1
+            }
+          },
+          {
+            "key": "InsuranceGroupLow",
+            "title": "Lower insurance group",
+            "descriptionList": [
+              "15E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type."
+            ],
+            "linkDescription": "More about running costs",
+            "vehicleHighlightContext": {
+              "quantifier": "LOW",
+              "highlightName": "INSURANCE_GROUP",
+              "index": 2
+            }
+          },
+          {
+            "key": "DemandHigh",
+            "title": "Trending",
+            "descriptionList": [
+              "This type of vehicle has been getting more searches than usual over the past 7 days."
+            ],
+            "linkDescription": "How trending works",
+            "vehicleHighlightContext": {
+              "quantifier": "HIGH",
+              "highlightName": "DEMAND",
+              "index": 3
+            }
+          }
+        ],
+        "advertDescription": "The 2016 Nissan Qashqai DIG-T N-Connecta is a practical and well-equipped vehicle that offers a balanced driving experience. This model is powered by a 1.2-litre petrol engine and meets Euro 6 emission standards, making it a suitable choice for modern driving requirements. As an N-Connecta trim, it comes with a range of useful technology designed to assist the driver, including the Smart Vision Pack which provides both front and rear parking sensors. The inclusion of the Tech Pack further enhances the experience with a 360-degree camera system and Bluetooth connectivity, while the Intelligent Key system allows for convenient keyless entry.\n\nThis vehicle is designed with efficiency and ease of ownership in mind, offering a fuel economy of 50 mpg. It stands out from similar models due to its low CO2 emissions and low insurance group, which help to keep ongoing running costs manageable. Inside the cabin, passengers can enjoy a comfortable environment thanks to the dual zone climate control air conditioning, which allows for personalised temperature settings. These features combine to make this Qashqai a sensible and reliable option for those seeking a versatile car that does not compromise on modern convenience or cost-effectiveness.",
+        "featureList": [
+          "Please note:",
+          "Audio and Communications",
+          "5in High Definition Full Colour TFT Screen Combimeter",
+          "6 Speakers",
+          "AUX Socket for MP3 Player",
+          "Bluetooth",
+          "CD Radio",
+          "Drivers Assistance",
+          "Cruise Control with Speed Limiter",
+          "Drive Computer",
+          "Selectable Steering - Normal or Sport",
+          "TPMS - Tyre Pressure Monitoring System",
+          "Exterior",
+          "18in Alloy Wheels - Diamond Cut",
+          "Automatic Folding Door Mirrors",
+          "Black Honeycomb Front Grille",
+          "Body-coloured Bumpers - Handles and Mirrors",
+          "Chrome Glass Surround",
+          "Front and Rear Electric Windows",
+          "Grey exterior colour",
+          "Premium Pack",
+          "Puncture Repair Kit",
+          "Rear Privacy Glass",
+          "Illumination",
+          "Automatic Lights and Wipers",
+          "Front Fog Lamps with Chrome Ring",
+          "LED Signature Daytime Running Lights",
+          "Interior",
+          "60-40 Split Rear Folding Seats",
+          "Driver Seat Height Adjustment",
+          "Dual Zone Climate Control Air Conditioning",
+          "Front Centre Console and Armrest",
+          "Head Restraints - 3 Rear",
+          "Height Adjustable Front Head Restraints",
+          "Interior Ambient Lighting",
+          "Leather Steering Wheel",
+          "Luggage Board System",
+          "Push Start-Stop Button",
+          "Rear Seat Armrest with 2 Cupholders",
+          "Remote Audio Control",
+          "Seats - Drivers Lumbar Support",
+          "Seats - Passengers Height Adjustment",
+          "Tech Pack",
+          "Tilt and Telescopic Adjustable Steering Wheel",
+          "Performance",
+          "Electric Speed-Sensitive Power Steering",
+          "Nissan Chassis Controls",
+          "Safety and Security",
+          "3 x 3-Point Rear Seatbelts with ELR",
+          "Alarm",
+          "Driver-Passenger-Side and Curtain Airbags",
+          "Drivers Side One-touch and Anti-trap Window",
+          "ESP ABS EBD and Brake Assist",
+          "Front Seat Belt Height Adjustment",
+          "Front Seat Belts with Load Limiter and Pretensioners",
+          "Hill Start Assist",
+          "ISOFIX Child Seat Anchoring Points",
+          "Immobiliser",
+          "Intelligent Key",
+          "Rear Door Child Locks",
+          "Smart Vision Pack",
+          "e-PKB - Electric Parking Brake"
+        ],
+        "featuresHighlights": null,
+        "runningCosts": {
+          "title": "Running Costs",
+          "items": [
+            {
+              "key": "Emission",
+              "label": "CO₂ emissions",
+              "value": "133g/km"
+            },
+            {
+              "key": "Insurance",
+              "label": "Insurance group",
+              "value": "15E"
+            },
+            {
+              "key": "Tax",
+              "label": "Tax per year",
+              "value": "£200"
+            },
+            {
+              "key": "FUEL_URBAN",
+              "label": "Urban",
+              "value": "43.5mpg"
+            },
+            {
+              "key": "FUEL_EXTRA_URBAN",
+              "label": "Extra Urban",
+              "value": "54.3mpg"
+            },
+            {
+              "key": "FUEL_AVERAGE",
+              "label": "Average",
+              "value": "50.4mpg"
+            }
+          ]
+        },
+        "historyExtras": {
+          "ownersData": {
+            "title": "Owners",
+            "value": "3",
+            "key": "HAS_OWNERS"
+          },
+          "serviceHistory": {
+            "historyType": "NO_HISTORY",
+            "label": "Service history",
+            "description": "No service history",
+            "additionalItems": []
+          },
+          "historyItems": [
+            {
+              "key": "OWNERS",
+              "label": "Owners",
+              "value": "3"
+            },
+            {
+              "key": "KEYS",
+              "label": "Keys",
+              "value": "Contact seller"
+            },
+            {
+              "key": "SERVICE_HISTORY",
+              "label": "Service history",
+              "value": "None"
+            }
+          ]
+        },
+        "retailerDescription": {
+          "title": "Buying with PARAMOUNT AUTO GROUP LTD",
+          "text": [
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+          ]
+        },
+        "insuranceGroup": null,
+        "detailCapturedAt": "2026-10-02T14:07:09.636008+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
+        "detailSource": "fresh",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/06998183e2994f2e90053ea7299c3253.jpg"
       }
     },
     {
@@ -2372,9 +2372,9 @@
       "mileageText": "82,000 miles",
       "registration": "2016 (66 reg)",
       "registrationBand": "66 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
+      "plate": "YE66 PMO",
+      "vrm": "YE66 PMO",
+      "vrmVerified": true,
       "fuel": "Petrol",
       "transmission": "Manual",
       "bodyType": "Estate",
@@ -2718,9 +2718,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,146 below market average",
-          "goodPriceLowerBound": "\u00a37,371",
-          "goodPriceUpperBound": "\u00a37,747"
+          "comparisonDescription": "£1,146 below market average",
+          "goodPriceLowerBound": "£7,371",
+          "goodPriceUpperBound": "£7,747"
         },
         "specCategories": [
           {
@@ -2842,9 +2842,9 @@
           {
             "key": "InsuranceGroupLow",
             "title": "Lower insurance group",
-            "description": "17E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type.",
+            "description": "17E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type.",
             "descriptionList": [
-              "17E\n\nThis vehicle\u2019s insurance group is lower than average compared to vehicles of similar age and body type."
+              "17E\n\nThis vehicle’s insurance group is lower than average compared to vehicles of similar age and body type."
             ],
             "linkDescription": "More about running costs",
             "quantifier": "LOW",
@@ -2855,19 +2855,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 15,996 more miles than the average",
-          "vehicleDetails": "petrol MINI Clubman Cooper Estate",
-          "registrationDateFormatted": "December 2016"
-        },
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2016 Mini Clubman Cooper for sale - Top Spec -\nBrand New Steering Rack - CHILI Pack - Media Pack XL - Panoramic Glass Roof - Jhon Cooper Works Leather Steering Wheel - PDC Park Distance Control Rear - Darkened Rear Seats - Front Heated Seats - Run Flat Tyres \n\nThis 2016 MINI Clubman Cooper offers a practical yet stylish option for those seeking a compact vehicle with character. Powered by a 1.5 litre petrol engine, this model meets Euro 6 emission standards, ensuring it remains compliant with modern environmental regulations. The interior is finished with a cloth and leather combination in Carbon Black, providing a comfortable cabin environment.\n\nThe vehicle is equipped with several notable features that enhance the driving experience, including a panoramic electric glass sunroof that allows for an open and airy feel. Technology is well integrated through the Media Pack XL and enhanced Bluetooth with USB audio connectivity, making it easy to manage entertainment and communications on the move. The exterior aesthetic is complemented by 18 inch star spoke black alloy wheels. Beyond its equipment, this Clubman is an economical choice, offering a fuel economy of 55 mpg, low CO2 emissions, and a low insurance group, which helps to keep ongoing running costs manageable.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [
@@ -2877,7 +2871,7 @@
             "count": "4",
             "featureItems": [
               {
-                "description": "Valuable features are features that have increased the current valuation of this car and go beyond the standard specification for this make and model. This car\u2019s valuable features:",
+                "description": "Valuable features are features that have increased the current valuation of this car and go beyond the standard specification for this make and model. This car’s valuable features:",
                 "items": [
                   {
                     "name": "18in Alloy Wheels - Star Spoke Black"
@@ -2901,7 +2895,7 @@
             "count": "10",
             "featureItems": [
               {
-                "description": "Very rare features are only found on 10% of cars similar to this one. This car\u2019s very rare features:",
+                "description": "Very rare features are only found on 10% of cars similar to this one. This car’s very rare features:",
                 "items": [
                   {
                     "name": "18in Alloy Wheels - Star Spoke Black"
@@ -2930,7 +2924,7 @@
                 ]
               },
               {
-                "description": "Rare features are features that aren\u2019t often found on cars similar to this one. This car\u2019s rare features:",
+                "description": "Rare features are features that aren’t often found on cars similar to this one. This car’s rare features:",
                 "items": [
                   {
                     "name": "Bonnet Stripes - Black"
@@ -2948,7 +2942,7 @@
             "count": "22",
             "featureItems": [
               {
-                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car\u2019s added extras:",
+                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car’s added extras:",
                 "items": [
                   {
                     "name": "18in Alloy Wheels - Star Spoke Black"
@@ -3031,7 +3025,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "123g/km"
             },
             {
@@ -3042,7 +3036,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3170"
+              "value": "£170"
             },
             {
               "key": "FUEL_URBAN",
@@ -3091,7 +3085,11 @@
               "value": "Full (dealership)"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/d86d4cdeb7234badb00752e06f0ace8f.jpg"
       }
     },
     {
@@ -3109,9 +3107,9 @@
       "mileageText": "107,000 miles",
       "registration": "2016 (66 reg)",
       "registrationBand": "66 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
+      "plate": "LO66 ESU",
+      "vrm": "LO66 ESU",
+      "vrmVerified": true,
       "fuel": "Petrol",
       "transmission": "Manual",
       "bodyType": "Coupe",
@@ -3418,9 +3416,9 @@
         "marketPriceRating": {
           "value": "GREAT",
           "label": "Great price",
-          "comparisonDescription": "\u00a3337 below market average",
-          "goodPriceLowerBound": "\u00a36,651",
-          "goodPriceUpperBound": "\u00a36,991"
+          "comparisonDescription": "£337 below market average",
+          "goodPriceLowerBound": "£6,651",
+          "goodPriceUpperBound": "£6,991"
         },
         "specCategories": [
           {
@@ -3549,19 +3547,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 40,157 more miles than the average",
-          "vehicleDetails": "petrol BMW 2 Series M Sport Coupe",
-          "registrationDateFormatted": "November 2016"
-        },
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "This 2016 BMW 2 Series 218i M Sport offers a refined driving experience that balances performance with everyday practicality. As an M Sport variant, this vehicle features a 1.5 litre petrol engine that meets Euro 6 emission standards. The exterior is equipped with a Xenon Headlight Package, which includes automatic activation for added convenience during night driving or in low light conditions. Inside, the cabin is designed for connectivity, featuring enhanced Bluetooth telephone preparation with a USB audio interface and voice control, alongside a dedicated Bluetooth hands free facility. Parking is made simpler with the inclusion of rear Park Distance Control, which uses rear sensors to assist with manoeuvring into tight spaces.\n\nThe efficiency of this model is a significant highlight, as it achieves an impressive fuel economy of 50 mpg. This level of efficiency, combined with its low CO2 emissions, makes it a sensible choice for those looking to manage running costs without compromising on the quality associated with the BMW brand. By integrating advanced technology like the automatic headlight system and comprehensive parking assistance, this vehicle provides a modern and user friendly experience that stands out in its class.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [
@@ -3571,7 +3563,7 @@
             "count": "5",
             "featureItems": [
               {
-                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car\u2019s added extras:",
+                "description": "Added extras are additional features that previous owners have invested in. These improve the driving experience of this car and may have been fitted when the car was first purchased or at a later date. This car’s added extras:",
                 "items": [
                   {
                     "name": "Enhanced Bluetooth Telephone Preparation with USB Audio Interface and Voice Control"
@@ -3601,7 +3593,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "130g/km"
             },
             {
@@ -3612,7 +3604,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3170"
+              "value": "£170"
             },
             {
               "key": "FUEL_URBAN",
@@ -3661,7 +3653,620 @@
               "value": "None"
             }
           ]
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/94efd4e6fd14426f8f5deee4494a03c6.jpg"
+      }
+    },
+    {
+      "advertId": "202610016584574",
+      "title": "2016 Nissan Qashqai",
+      "variant": "1.2 DIG-T Acenta XTRON 2WD Euro 6 (s/s) 5dr",
+      "make": "Nissan",
+      "model": "Qashqai",
+      "trim": "Acenta",
+      "year": 2016,
+      "price": 6685,
+      "priceType": null,
+      "currency": "GBP",
+      "mileage": 49000,
+      "mileageText": "49,000 miles",
+      "registration": "2016 (16 reg)",
+      "registrationBand": "16 reg",
+      "plate": "BF16 OUX",
+      "vrm": "BF16 OUX",
+      "vrmVerified": true,
+      "fuel": "Petrol",
+      "transmission": "Automatic",
+      "bodyType": "SUV",
+      "engineSize": "1.2L",
+      "engineCC": 1197,
+      "doors": 5,
+      "seats": 5,
+      "colour": "Red",
+      "emissionClass": "Euro 6",
+      "drivetrain": "Front Wheel Drive",
+      "owners": 1,
+      "writeOffCategory": null,
+      "advertUrl": "https://www.autotrader.co.uk/car-details/202610016584574",
+      "dealerName": "PARAMOUNT AUTO GROUP LTD",
+      "dealerLocation": "Wembley",
+      "imageCount": 65,
+      "heroImage": "https://m.atcdn.co.uk/a/media/2376d4d43f8941198a1cdaae5694b48e.jpg",
+      "images": [
+        {
+          "url": "https://m.atcdn.co.uk/a/media/2376d4d43f8941198a1cdaae5694b48e.jpg",
+          "caption": "Front Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e24001958996401a9b51be7f9babe01a.jpg",
+          "caption": "Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/30facd33e3b347d0bfb4bf40a353b8fd.jpg",
+          "caption": "Front Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/17670457902a402b8f4fff4605808fda.jpg",
+          "caption": "Front Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/984a9ab114f9497d81efe288c7c9a802.jpg",
+          "caption": "Rear Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/139056216db44248a2006252f31b2d32.jpg",
+          "caption": "Front Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/ee02e8a79f1f46b1996357eaea29c6ea.jpg",
+          "caption": "Side Left"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d941a20d413040bd992a4971aa0ea9a2.jpg",
+          "caption": "Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/6ab4c8d26d3c4644bdf88e0226805dba.jpg",
+          "caption": "Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/90e6ddff02244af3929cca990728aaf2.jpg",
+          "caption": "Side Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/9258461e9154426ab2fedb2358889006.jpg",
+          "caption": "Side Right"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/ae46c163b31b4773a8e000af6220b97a.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/4ac775ddf0cc49daa6451a696331d447.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/05f5daa683c948d680fb266bb521d21f.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/0ecf9b377fd442fbb83182246224bd7b.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8db0e026767e4e98a1fa66bb678f33a1.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/f1dd4b4ecfa74cc0b518b2ce193dbb55.jpg",
+          "caption": "Interior Front"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/aff42f0415084ff6b29dbf56c8982239.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e5913e3f1c7e4805b085f7ef03e30928.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/f37e75b14cb04638a5207178908ea95a.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/09e1490f9ba7401498c777706fe96433.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/359e900daa404a868a082c2716db972b.jpg",
+          "caption": "Seat Driver"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/33cb6ffc3b6c48e480bb0983ef121270.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e7276be8a9d145bf8632049eeebe99ed.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/48ed4a11538d4181873137f912c555c4.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/4279797a0b0944d680a12e0404f4ef47.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/29c991ffe5fe47e991eee5da19348628.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/b0ac36f790a8466c8d29bbea4d166448.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/293ba06fab6840a6baf9ece57c05ed95.jpg",
+          "caption": "Seats Rear"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/7cab3234a4d142929117a162ad432bd6.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/2e14247681e24e3abbe40bd19942acc9.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/90ab3f4601b54ffcacae1e342aea1901.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/cf13441264354799ac0dd7f6f073732b.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/61e37be0946d404f8553daf9fb31b8f7.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/6ded328f4eb54503a80d7102de549ba4.jpg",
+          "caption": "Misc Controls"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/01fe1e1dac1e48ad9525349157b87551.jpg",
+          "caption": "Door Interior"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e7d3b3f7ad624db198965b44c4c12435.jpg",
+          "caption": "Wheel"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/0b5833f5046f449f9926376a265d916f.jpg",
+          "caption": "Wheel"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/7b0c0e72de07476e8edfa09d4a811517.jpg",
+          "caption": "Wheel"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/361666f86f194853be94c731c4352230.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/036ac6cbe721425089a6971a05d9e6ca.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/3200a3bf47d641c38d54a818d2f2e5c9.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c2e946211d4645e2b9d6777bbeea5237.jpg",
+          "caption": "Infotainment System"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d566fbcab81b4bd7a215deb70ba7d517.jpg",
+          "caption": "Driver Instruments"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/7af03251bd844232bc39262fe7248d80.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c76950ea2fff46dd9b239adc5f71dd51.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/ecd7f9dc5fed4612a2e342fbad0d9266.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/2e24d9efab5f40aa804e53305a2f4fef.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/de459252fff54d8e883f54f1f72f1315.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8b3d2a781bbf40bd86d65d937b391146.jpg",
+          "caption": "Wing Mirror"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c6e8ccd6c6984081b3e2c63b04c6e6d5.jpg",
+          "caption": "Steering Wheel"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/874c1144092146eeab3af376862136f1.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/d981f3d59c5a4a2eaf548df6b2af6fc1.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/4bb6a8a052d84aafbb8e843da8721548.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/a75a8dec1fe04de3b0c5ca8f256e45a1.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e53ad45e1a5a4c8a8465cf5b4e456189.jpg",
+          "caption": "Seat Front Passenger"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c59e5d148655415dbe10276ec9f212d7.jpg",
+          "caption": "Badge Exterior"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/b8208506a3ec487a8916f361cee9a02b.jpg",
+          "caption": "Door Handle Exterior"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/8ebb95d6d03944eb9a74f37fc350c61a.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/06dbd15012d0416bb3bbc667c28f85bb.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/5934fbe0f71641e69ad1df0335972dec.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e96ba42e850e48679c6da9f85a62e1fb.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/e6371b39c81f491c94a76658bcca0d85.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/9df5381b4e5c4cb09f55e44735f3c559.jpg",
+          "caption": "vehicle image"
+        },
+        {
+          "url": "https://m.atcdn.co.uk/a/media/c55667c42d844a1fb956313ff8601fe2.jpg",
+          "caption": "vehicle image"
         }
+      ],
+      "specifications": {
+        "MILEAGE": "49,000 miles",
+        "REGISTRATION": "2016 (16 reg)",
+        "OWNERS": "1",
+        "FUELTYPE": "Petrol",
+        "BODYTYPE": "SUV",
+        "ENGINESIZELITRES": "1.2L",
+        "GEARBOX": "Automatic",
+        "DOORS": "5",
+        "SEATS": "5",
+        "BODYCOLOUR": "Red",
+        "EMISSIONCLASS": "Euro 6"
+      },
+      "sourceExtras": {
+        "stockListUrl": "https://www.autotrader.co.uk/cars/retailer/stock?advertising-location=at_cars&advertising-location=at_profile_cars&onesearchad=Used&onesearchad=Nearly%20New&onesearchad=New&postcode=HA0%204GP&retailerId=10045264&sort=price-asc",
+        "attentionGrabber": "1 Owner - 2Keys - Full History",
+        "serviceHistory": "Service history",
+        "writeOffStatusExplicit": "Never been written off",
+        "writeOffCheck": {
+          "id": "WRITE_OFF",
+          "label": "Never been written off",
+          "status": "PASSED"
+        },
+        "vehicleCheckId": "295d02089b2d40d89b2b812814b9e4e7",
+        "generationId": "ea169b8d2ebd26010ee582e17e2a584b",
+        "derivativeId": "5fb33c21ab7e4cb78710a77da21f1f92",
+        "engineCC": 1197,
+        "engineLitres": 1.2,
+        "engineFormatted": "1.2L",
+        "vehicleRegisteredText": "Vehicle registered: 10/06/2016",
+        "dealerAddress": "Studio 7, 261 Ealing Road",
+        "dealerPhone": "(07537) 122736",
+        "dealerTown": "WEMBLEY",
+        "dealerPostcode": "HA0 1ET",
+        "vehicleCheckStatus": "PASSED",
+        "vehicleCheckStatusText": "10 checks passed",
+        "marketPriceRating": {
+          "value": "LOW",
+          "label": "Lower price",
+          "comparisonDescription": "£1,264 below market average",
+          "goodPriceLowerBound": "£7,790",
+          "goodPriceUpperBound": "£8,187"
+        },
+        "specCategories": [
+          {
+            "category": "Performance",
+            "count": 7,
+            "items": [
+              {
+                "name": "0-62mph",
+                "value": "12.9 seconds"
+              },
+              {
+                "name": "Top speed",
+                "value": "107mph"
+              },
+              {
+                "name": "Cylinders",
+                "value": "4"
+              },
+              {
+                "name": "Valves",
+                "value": "16"
+              },
+              {
+                "name": "Engine power",
+                "value": "113BHP"
+              },
+              {
+                "name": "Engine torque",
+                "value": "165NM"
+              },
+              {
+                "name": "Miles per gallon",
+                "value": "50.4mpg"
+              }
+            ]
+          },
+          {
+            "category": "Size and dimensions",
+            "count": 9,
+            "items": [
+              {
+                "name": "Height",
+                "value": "1,590mm"
+              },
+              {
+                "name": "Length",
+                "value": "4,377mm"
+              },
+              {
+                "name": "Width",
+                "value": "2,070mm"
+              },
+              {
+                "name": "Wheelbase",
+                "value": "2,646mm"
+              },
+              {
+                "name": "Seats",
+                "value": "5"
+              },
+              {
+                "name": "Fuel tank capacity",
+                "value": "55L"
+              },
+              {
+                "name": "Boot space (seats down)",
+                "value": "860L"
+              },
+              {
+                "name": "Boot space (seats up)",
+                "value": "430L"
+              },
+              {
+                "name": "Minimum kerb weight",
+                "value": "1,451kg"
+              }
+            ]
+          }
+        ],
+        "vehicleHighlights": [
+          {
+            "key": "MileageVeryLow",
+            "title": "Lower mileage",
+            "badge": "Lowest 25%",
+            "descriptionList": [
+              "21,511 miles below average\n\nThis vehicle's mileage is in the lowest 25% compared to similar vehicles."
+            ],
+            "linkDescription": "How mileage compares",
+            "vehicleHighlightContext": {
+              "quantifier": "VERY_LOW",
+              "highlightName": "MILEAGE",
+              "index": 1
+            }
+          },
+          {
+            "key": "NumberOwnersOnePrevious",
+            "title": "1 owner",
+            "descriptionList": [
+              "This vehicle has had one owner since it was first registered."
+            ],
+            "linkDescription": "More about owners",
+            "vehicleHighlightContext": {
+              "quantifier": "ONE_PREVIOUS",
+              "highlightName": "NUMBER_OWNERS",
+              "index": 2
+            }
+          },
+          {
+            "key": "FuelEconomyHigh",
+            "title": "Better fuel economy",
+            "descriptionList": [
+              "50.4mpg\n\nThis vehicle gets more MPG on average than vehicles of similar age and body type."
+            ],
+            "linkDescription": "More about running costs",
+            "vehicleHighlightContext": {
+              "quantifier": "HIGH",
+              "highlightName": "FUEL_ECONOMY",
+              "index": 3
+            }
+          }
+        ],
+        "advertDescription": "This 2016 Nissan Qashqai DIG-T Acenta is a practical choice for those seeking a reliable family vehicle. It is powered by a 1.2 litre petrol engine that meets Euro 6 emission standards, ensuring it remains compliant with modern environmental regulations. The vehicle has been well maintained and has covered only 49,000 miles from new. Furthermore, it has had only one owner since it was first registered, which provides clear insight into its history.\n\nThe vehicle is designed to be economical and cost effective to run, offering a fuel economy of 50 mpg alongside low CO2 emissions. It sits in a low insurance group, which helps to keep ongoing ownership costs manageable. Inside, the cabin is equipped with dual zone climate control to keep passengers comfortable, while automatic headlights adjust to changing light conditions without driver input. Bluetooth integration is also included, allowing for seamless telephone connectivity while on the move.",
+        "featureList": [
+          "Please note:",
+          "Audio and Communications",
+          "6 Speakers",
+          "AUX-In Socket",
+          "Display Screen - Colour TFT 5in",
+          "Radio-CD",
+          "Telephone - Bluetooth Integration",
+          "USB Port",
+          "Drivers Assistance",
+          "Cruise Control with Speed Limiter",
+          "TPMS - Tyre Pressure Monitoring System",
+          "Trip Computer",
+          "Exterior",
+          "17in Alloy Wheels - 5-Spoke in Silver",
+          "Black Honeycomb Front Grille",
+          "Body Coloured Handles",
+          "Bumpers - Body Coloured",
+          "Chrome Glass Surround",
+          "Door Mirrors - Body Coloured",
+          "Door Mirrors - Power Fold and Heated",
+          "Front and Rear Electric Windows",
+          "Puncture Repair Kit",
+          "Red exterior colour",
+          "Illumination",
+          "Front Fog Lights",
+          "Headlights - Auto",
+          "LED Daytime Running Lights",
+          "Interior",
+          "60-40 Split Rear Folding Seats",
+          "Armrest - Rear",
+          "Auto Rain Sensing Wipers",
+          "Climate Control - Dual Zone",
+          "Driver Seat Height Adjustment",
+          "Front Armrest",
+          "Head Restraints - Active Front",
+          "Head Restraints - Rear",
+          "Interior Ambient Lighting",
+          "Leather Steering Wheel",
+          "Luggage Board System",
+          "Lumbar Support",
+          "Pollen Filter",
+          "Rear Cupholder",
+          "Seats - Passengers Height Adjustment",
+          "Steering Wheel Mounted Audio Controls",
+          "Tilt and Telescopic Adjustable Steering Wheel",
+          "Performance",
+          "Electric Speed-Sensitive Power Steering",
+          "Safety and Security",
+          "ABS - Anti Lock Brakes",
+          "Airbag - Driver",
+          "Airbag - Passenger",
+          "Airbags - Curtain",
+          "Airbags - Side",
+          "Alarm",
+          "Brake Assist",
+          "EBD - Electronic Brakeforce Distribution",
+          "ESP - Electronic Stability Programme",
+          "Hill Start Assist",
+          "ISOFIX Childseat Anchorage Points - Middle Row Outer Seats",
+          "Immobiliser",
+          "Rear Door Child Locks",
+          "Remote Central Locking",
+          "Speed-Sensitive Autolock Function",
+          "Traction Control",
+          "e-PKB - Electric Parking Brake"
+        ],
+        "featuresHighlights": null,
+        "runningCosts": {
+          "title": "Running Costs",
+          "items": [
+            {
+              "key": "Emission",
+              "label": "CO₂ emissions",
+              "value": "129g/km"
+            },
+            {
+              "key": "Insurance",
+              "label": "Insurance group",
+              "value": "17E"
+            },
+            {
+              "key": "Tax",
+              "label": "Tax per year",
+              "value": "£170"
+            },
+            {
+              "key": "FUEL_URBAN",
+              "label": "Urban",
+              "value": "43.5mpg"
+            },
+            {
+              "key": "FUEL_EXTRA_URBAN",
+              "label": "Extra Urban",
+              "value": "54.3mpg"
+            },
+            {
+              "key": "FUEL_AVERAGE",
+              "label": "Average",
+              "value": "50.4mpg"
+            }
+          ]
+        },
+        "historyExtras": {
+          "ownersData": {
+            "title": "Owners",
+            "value": "1",
+            "key": "HAS_OWNERS"
+          },
+          "serviceHistory": {
+            "historyType": "UNKNOWN",
+            "label": "Service history",
+            "description": "Service history not provided",
+            "additionalItems": []
+          },
+          "historyItems": [
+            {
+              "key": "OWNERS",
+              "label": "Owners",
+              "value": "1"
+            },
+            {
+              "key": "KEYS",
+              "label": "Keys",
+              "value": "Contact seller"
+            },
+            {
+              "key": "SERVICE_HISTORY",
+              "label": "Service history",
+              "value": "Contact seller"
+            }
+          ]
+        },
+        "retailerDescription": {
+          "title": "Buying with PARAMOUNT AUTO GROUP LTD",
+          "text": [
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+          ]
+        },
+        "insuranceGroup": null,
+        "detailCapturedAt": "2026-10-02T08:01:34.009962+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
+        "detailSource": "cached",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/e24001958996401a9b51be7f9babe01a.jpg"
       }
     },
     {
@@ -3679,9 +4284,9 @@
       "mileageText": "38,000 miles",
       "registration": "2013 (63 reg)",
       "registrationBand": "63 reg",
-      "plate": null,
-      "vrm": null,
-      "vrmVerified": null,
+      "plate": "MV63 WDS",
+      "vrm": "MV63 WDS",
+      "vrmVerified": true,
       "fuel": "Petrol",
       "transmission": "Automatic",
       "bodyType": "SUV",
@@ -3973,9 +4578,9 @@
         "marketPriceRating": {
           "value": "LOW",
           "label": "Lower price",
-          "comparisonDescription": "\u00a31,468 below market average",
-          "goodPriceLowerBound": "\u00a38,078",
-          "goodPriceUpperBound": "\u00a38,490"
+          "comparisonDescription": "£1,468 below market average",
+          "goodPriceLowerBound": "£8,078",
+          "goodPriceUpperBound": "£8,490"
         },
         "specCategories": [
           {
@@ -4104,19 +4709,13 @@
             }
           }
         ],
-        "mileageComparison": {
-          "mileageDeviationDescription": "This vehicle has done 43,664 fewer miles than the average",
-          "vehicleDetails": "petrol Nissan Qashqai 360 SUV",
-          "registrationDateFormatted": "September 2013"
-        },
-        "lastCheckedAt": "2026-10-01T13:00:27.462708+00:00",
+        "lastCheckedAt": "2026-10-02T14:07:09.636008+00:00",
         "detailSource": "cached",
-        "detailCapturedAt": "2026-09-29T10:51:47.977810+00:00",
         "advertDescription": "Pleased to present this 2013 Nissan Qashqai we have for sale - 6 Month Warranty- Genuine Low Miles - 2 Keys - Full History - Perfect example of a clean well maintained reliable used car \n\nThis 2013 Nissan Qashqai 360 is a well-maintained example of a popular family vehicle, powered by a reliable 1.6 litre petrol engine. With only 38,000 miles on the clock, this car has covered very low mileage for its age and has been cared for by just two owners from new. Its combination of a practical body style and efficient engine makes it a sensible choice for those seeking a dependable vehicle with a proven history.\n\nThe 360 trim level offers a range of features designed to make daily driving more comfortable and convenient. The interior includes dual zone climate control to keep the cabin temperature consistent, while the panoramic glass roof, which can be opened, adds a sense of space and light to the journey. Technology is well integrated with Bluetooth telephone connectivity, and parking is made simpler thanks to the rear parking sensors. Furthermore, the automatic lighting system ensures the headlights activate when needed, and the vehicle sits in a low insurance group, which helps to keep ongoing running costs manageable compared to other similar models.",
         "retailerDescription": {
           "title": "Buying with PARAMOUNT AUTO GROUP LTD",
           "text": [
-            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" \u2013 you\u2019re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure \u2013 just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We\u2019ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we\u2019re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
+            "Paramount Auto Group:\n\n1. Stellar Reviews  \nBacked by 92% 5-star ratings for our \"hassle-free service\" and \"friendliest team in the trade\" – you’re in trusted hands.  \n\n2. 24/7 Support\nNeed answers? Our rapid-response team is available anytime.\n\n3. Total Transparency\nNo hidden fees or pressure – just honest pricing and fully transparency ask away\n\n4. Fresh Stock Daily + Unbeatable Value\nDiscover new arrivals every day, all priced below market rates \n\n5. Delivery Made Easy \nNationwide delivery to your home address to save you the convenience \n\n6. Bespoke Vehicle Sourcing\nSerious about a specific model? We’ll hunt it down for you\n \n7. Return and Refund Policy \nKindly note that all car sales are final, and we’re unable to offer returns or refunds on any car, by purchasing of us you agree to these terms and conditions. Description on these cars are made at time of sale, we are not responsible for anything after sale of vehicle but offer warranty for peace of mind. \n"
           ]
         },
         "featuresHighlights": [],
@@ -4138,7 +4737,7 @@
           "Trip Computer",
           "Exterior",
           "18in Alloy Wheels - Onyx",
-          "360\u0092 External Badge",
+          "360 External Badge",
           "Bumpers - Body Coloured",
           "Chrome-Trimmed LCD Combimeter",
           "Door Mirrors - Electric Adjustment and Heated",
@@ -4201,7 +4800,7 @@
           "items": [
             {
               "key": "Emission",
-              "label": "CO\u2082 emissions",
+              "label": "CO₂ emissions",
               "value": "149g/km"
             },
             {
@@ -4212,7 +4811,7 @@
             {
               "key": "Tax",
               "label": "Tax per year",
-              "value": "\u00a3225"
+              "value": "£225"
             },
             {
               "key": "FUEL_URBAN",
@@ -4261,7 +4860,11 @@
               "value": "Full"
             }
           ]
-        }
+        },
+        "detailCapturedAt": "2026-10-01T13:00:27.462708+00:00",
+        "plateSource": "ocr",
+        "plateCheckedAt": "2026-10-04T14:35:27.000900+00:00",
+        "plateImageUrl": "https://m.atcdn.co.uk/a/media/0d663badef1c4c0d8a65340e7116afde.jpg"
       }
     }
   ]

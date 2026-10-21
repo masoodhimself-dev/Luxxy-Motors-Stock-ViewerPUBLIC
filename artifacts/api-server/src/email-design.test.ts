@@ -16,13 +16,66 @@ const template = {
   subject: "Your car — {{customer_name}}",
   body: "Hi {{customer_name}},\n\nHere are your details.\nAnother line.\n\nThanks,\n{{dealer_name}}",
 };
+test("new layout resolves branding variables and never adds another greeting or rewrites dealer copy", () => {
+  const saved = {
+    subject: "A note from {{dealer_name}}",
+    body: "Dear {{customer_name}},\n\nPlease keep this wording exactly.\n\nKind regards,\nPat at {{dealer_name}}",
+    headline: "An update for {{customer_name}}",
+  };
+  const before = JSON.stringify(saved);
+  const rendered = renderEmailTemplate(
+    saved,
+    sampleEmailVariables,
+    [],
+    {
+      ...defaultEmailAppearance,
+      heading: "{{dealer_name}}",
+      footer: "Speak to {{dealer_name}} on {{dealer_phone}}.",
+    },
+    { templateId: "enquiry_message" },
+  );
+  assert.equal(JSON.stringify(saved), before);
+  assert.equal(rendered.subject, "A note from Example Motors");
+  assert.equal(
+    rendered.bodyText,
+    "Dear Alex Taylor,\n\nPlease keep this wording exactly.\n\nKind regards,\nPat at Example Motors",
+  );
+  assert.doesNotMatch(rendered.html, /\{\{|Hello Alex|Hi Alex/);
+  assert.equal((rendered.html.match(/Dear Alex Taylor/g) ?? []).length, 1);
+  assert.match(rendered.html, /Speak to Example Motors on 07700 900123/);
+});
+test("the layout does not add unselected car facts, attachment claims or business-state validation", () => {
+  const rendered = renderEmailTemplate(
+    {
+      subject: "A quick question",
+      body: "Has the payment received yesterday reached your account?",
+    },
+    sampleEmailVariables,
+    [
+      { label: "Amount received", value: 0 },
+      { label: "Payment status", value: "pending" },
+    ],
+    defaultEmailAppearance,
+    { templateId: "invoice" },
+  );
+  assert.match(rendered.html, /Amount received/);
+  assert.match(rendered.html, /pending/);
+  assert.doesNotMatch(
+    rendered.html,
+    /Your invoice is attached|>Attached<|Volkswagen Golf|AB22 CDE/,
+  );
+  assert.equal(
+    rendered.bodyText,
+    "Has the payment received yesterday reached your account?",
+  );
+});
 test("every template renders a complete responsive HTML email and a useful text alternative", () => {
   for (const item of defaultEmailTemplates) {
     const preview = previewEmailTemplate(item.id, item);
     assert.match(preview.html, /<!doctype html>/i);
-    assert.match(preview.html, /lang="en"/);
+    assert.match(preview.html, /lang="en-GB"/);
     assert.match(preview.html, /name="viewport"/);
-    assert.match(preview.html, /@media only screen/);
+    assert.match(preview.html, /@media screen/);
     assert.match(preview.html, /role="presentation"/);
     assert.match(preview.html, /mso/);
     assert.match(preview.html, /Example Motors/);
@@ -50,7 +103,8 @@ test("legacy internal references stay hidden while document numbers, bank refere
       reference,
       manage_url: url,
       document_number: "INV-2026-0042",
-      message: "Sale reference: SALE-2026-0008\nPayment reference: BANK-042\nWe look forward to seeing you.",
+      message:
+        "Sale reference: SALE-2026-0008\nPayment reference: BANK-042\nWe look forward to seeing you.",
     },
     [
       { label: "Reference", value: reference },
@@ -60,29 +114,53 @@ test("legacy internal references stay hidden while document numbers, bank refere
       { label: "Payment reference", value: "BANK-042" },
       { label: "Document", value: "INV-2026-0042" },
     ],
-    { ...defaultEmailAppearance, footer: "Booking reference: {{reference}}\nReply if you need help." },
+    {
+      ...defaultEmailAppearance,
+      footer: "Booking reference: {{reference}}\nReply if you need help.",
+    },
     { templateId: "booking_confirmation", attachments: ["INV-2026-0042.pdf"] },
   );
   assert.equal(rendered.subject, "Your test drive");
   for (const raw of [rendered.bodyText, rendered.text, rendered.html]) {
     const body = raw.replaceAll("&#8203;", "").replaceAll(url, "");
     assert.doesNotMatch(body, /K4QM-9TXR|ACDE-3467|SALE-2026-0008/);
-    assert.doesNotMatch(body, /Enquiry reference:|Booking reference:|Sale reference:/);
+    assert.doesNotMatch(
+      body,
+      /Enquiry reference:|Booking reference:|Sale reference:/,
+    );
     assert.match(body, /INV-2026-0042/);
     assert.match(body, /BANK-042/);
   }
-  assert.ok(rendered.html.includes(`href="${url}"`), "The original private URL remains intact");
+  assert.ok(
+    rendered.html.includes(`href="${url}"`),
+    "The original private URL remains intact",
+  );
   assert.ok(rendered.text.includes(url));
   assert.match(rendered.text, /Monday 19 October 2026 at 10:30/);
   assert.match(rendered.text, /2022 Volkswagen Golf/);
-  const referenceOnly = renderEmailTemplate({ subject: "{{reference}}", body: "Please reply with any questions." }, { reference }, [], defaultEmailAppearance, { templateId: "booking_confirmation" });
+  const referenceOnly = renderEmailTemplate(
+    { subject: "{{reference}}", body: "Please reply with any questions." },
+    { reference },
+    [],
+    defaultEmailAppearance,
+    { templateId: "booking_confirmation" },
+  );
   assert.equal(referenceOnly.subject, "Test drive confirmed");
-  const prefixed = renderEmailTemplate({
-    subject: "{{reference}} — Your appointment",
-    body: "Your booking reference is {{reference}}.\n\nYour appointment is confirmed.\nYour payment reference is BANK-042.",
-  }, { reference }, [], defaultEmailAppearance, { templateId: "booking_confirmation" });
+  const prefixed = renderEmailTemplate(
+    {
+      subject: "{{reference}} — Your appointment",
+      body: "Your booking reference is {{reference}}.\n\nYour appointment is confirmed.\nYour payment reference is BANK-042.",
+    },
+    { reference },
+    [],
+    defaultEmailAppearance,
+    { templateId: "booking_confirmation" },
+  );
   assert.equal(prefixed.subject, "Your appointment");
-  assert.equal(prefixed.bodyText, "Your appointment is confirmed.\nYour payment reference is BANK-042.");
+  assert.equal(
+    prefixed.bodyText,
+    "Your appointment is confirmed.\nYour payment reference is BANK-042.",
+  );
   assert.doesNotMatch(prefixed.text, /Your booking reference is|K4QM-9TXR/);
 });
 test("facts omit missing values but retain meaningful zeros and custom wording", () => {
@@ -160,7 +238,7 @@ test("only valid secure links become action buttons, with actions omitted after 
       defaultEmailAppearance,
       { templateId: booking.id },
     );
-    assert.ok(!rendered.html.includes('class="email-button"'));
+    assert.ok(!rendered.html.includes('class="cta"'));
   }
   const cancelled = renderEmailTemplate(
     booking,
@@ -169,7 +247,7 @@ test("only valid secure links become action buttons, with actions omitted after 
     defaultEmailAppearance,
     { templateId: "booking_cancellation" },
   );
-  assert.ok(!cancelled.html.includes('class="email-button"'));
+  assert.ok(!cancelled.html.includes('class="cta"'));
 });
 test("accent buttons keep contrasting text and copy stays readable with a bright brand colour", () => {
   const dark = renderEmailTemplate(
@@ -186,9 +264,9 @@ test("accent buttons keep contrasting text and copy stays readable with a bright
     { ...defaultEmailAppearance, brandColour: "#FFFFFF" },
     { templateId: "customer_access_link" },
   );
-  assert.match(dark.html, /background:#172033;color:#ffffff/);
-  assert.match(light.html, /background:#FFFFFF;color:#172033/);
-  assert.match(light.html, /color:#344454/);
+  assert.match(dark.html, /color:#FFFFFF;background-color:#172033/);
+  assert.match(light.html, /color:#000000;background-color:#FFFFFF/);
+  assert.match(light.html, /color:#172033/);
   const mid = renderEmailTemplate(
     template,
     sampleEmailVariables,
@@ -196,7 +274,7 @@ test("accent buttons keep contrasting text and copy stays readable with a bright
     { ...defaultEmailAppearance, brandColour: "#777777" },
     { templateId: "customer_access_link" },
   );
-  assert.match(mid.html, /background:#777777;color:#000000/);
+  assert.match(mid.html, /color:#000000;background-color:#777777/);
 });
 test("attachment card lists only supplied file names and supports image-blocked email clients", () => {
   const withFiles = renderEmailTemplate(
@@ -206,11 +284,11 @@ test("attachment card lists only supplied file names and supports image-blocked 
     defaultEmailAppearance,
     { attachments: ["INV-100.pdf", "service-book.jpg"] },
   );
-  assert.match(withFiles.html, /Included with this email/);
+  assert.match(withFiles.html, />Attached</);
   assert.match(withFiles.html, /INV-100.pdf/);
   assert.match(withFiles.text, /service-book.jpg/);
   const none = renderEmailTemplate(template, sampleEmailVariables, []);
-  assert.ok(!none.html.includes("Included with this email"));
+  assert.ok(!none.html.includes(">Attached<"));
   assert.ok(!none.html.includes("<img"));
   const branded = renderEmailTemplate(template, sampleEmailVariables, [], {
     ...defaultEmailAppearance,
@@ -280,7 +358,7 @@ test("editable copy stays separate from the fully branded plain-text alternative
   assert.ok(!rendered.bodyText.includes("Details for your records"));
   assert.match(rendered.text, /07700 900123/);
   assert.match(rendered.text, /Vehicle: Ford Focus/);
-  assert.match(rendered.html, /font-size:25px/);
+  assert.match(rendered.html, /font-size:26px/);
   assert.ok(!rendered.html.includes("font-size:32px"));
 });
 

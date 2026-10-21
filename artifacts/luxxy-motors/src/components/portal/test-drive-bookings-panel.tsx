@@ -1,3 +1,4 @@
+import { ShareQr } from "@/components/share-qr";
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
@@ -94,6 +95,7 @@ function BookingRow({ booking, now, onDecision, onMerge, canEmail, canBook, chec
       <BookingReadiness booking={booking} autoLoad={checkPreparation} />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=customers&enquiryId=${encodeURIComponent(booking.id)}`}>Open customer</Link></Button>
+        <ShareQr whatsapp label="WhatsApp QR" enquiryId={booking.id} customerName={booking.customerName} customerEmail={booking.email || ""} customerPhone={booking.phone || ""} message={`Hello ${booking.customerName}, about your test drive${booking.vehicleTitle ? ` for ${booking.vehicleTitle}` : ""}. Please let us know if you have any questions.`} />
         {canEmail && <Button variant="outline" size="sm" asChild><Link href={`/portal?section=notifications&workView=email&compose=${encodeURIComponent(booking.id)}`}>Prepare email</Link></Button>}
         {canDeclare && <Button type="button" variant="outline" size="sm" onClick={() => setDeclarationOpen(true)}><FileCheck2 className="h-4 w-4" aria-hidden="true"/>Declaration & QR</Button>}
         <details className="booking-more-tools"><summary>More options</summary><div><Button type="button" variant="ghost" size="sm" onClick={() => onMerge(booking)}>Merge records</Button><HistoryLinks vehicleId={booking.vehicleId} recordType="enquiry" recordId={booking.id} vehicle={Boolean(booking.vehicleId || booking.vehicleTitle)} /></div></details>

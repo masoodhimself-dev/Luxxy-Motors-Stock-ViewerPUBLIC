@@ -1,5 +1,4 @@
-import { ShareQr } from '@/components/share-qr';
-import { PublicVehicleVideo } from '@/components/portal/vehicle-video';
+
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import './vehicle-redesign.css';
 import { VehicleFactIcon } from '@/components/vehicle-fact-icon';
@@ -36,7 +35,7 @@ import {
 import { CarCard } from '@/components/car-card';
 import { useStock, type Car } from '@/lib/stock-context';
 import { SaveCarButton, CompareCarButton, CompareSelectionLink } from '@/components/saved-car-controls';
-import { Gallery } from '@/components/gallery';
+import { PublicVehicleGallery as Gallery } from '@/components/public-vehicle-gallery';
 import {
   formatPrice,
   formatMileage,
@@ -287,8 +286,7 @@ export default function CarDetail() {
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? openVehicleEnquiry : undefined,
               call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
             }} />
-            {new URLSearchParams(window.location.search).get("video") === "1" && <PublicVehicleVideo vehicleId={car.id} poster={car.heroImage} />}
-            <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>
+            <div className="vehicle-gallery-help"><span>Take a closer look</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
           <div className="vehicle-summary min-w-0">
@@ -334,7 +332,6 @@ export default function CarDetail() {
             </MobileActionDisclosure>}
               <div className="vehicle-utility-actions" role="group" aria-label="Vehicle tools">
                 <VehiclePrint car={car} dealer={dealerConfig} features={features} description={description} />
-                <ShareQr url={`/api/vehicles/${car.id}/brochure.pdf`} label="Car details QR" />
                 <Button variant="ghost" onClick={share} aria-label="Share this vehicle"><Share2 className="h-4 w-4" /> Share</Button>
                 <SaveCarButton car={car} variant="inline" className="vehicle-save-control border-transparent bg-transparent" />
                 {shareMessage && <span className="text-xs text-muted-foreground" role="status">{shareMessage}</span>}

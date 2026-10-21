@@ -9,7 +9,7 @@ import { dealerConfig } from '@/config/dealer';
 import { getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 
-vi.mock('@/components/portal/vehicle-video',()=>({PublicVehicleVideo:()=> <section data-testid="shared-video">Shared video</section>}));
+
 
 const featureState = vi.hoisted(() => ({
   data: { features: { testDriveBookings: false, testDriveDeclarations: false, staffAiDrafts: false, customerEmails: false, publicEnquiries: false, partExchange: false } as Record<string, boolean> },
@@ -378,10 +378,11 @@ it('keeps a separate write-off disclosure visible and shows a verified tax estim
   } finally { Object.assign(car, previous); }
 });
 
-it('hides video during normal browsing and displays it only for an explicit shared video link',()=>{
- const view=renderVehicle('with-plate');expect(screen.queryByTestId('shared-video')).toBeNull();view.unmount();
+it('opens shared published video inside the photo gallery',()=>{
  window.history.pushState({},'', '/vehicle/with-plate?video=1#walkaround');
- const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});
+ client.setQueryData(['public-car-video','with-plate'],{video:{url:'/published-video.mp4'}});
  render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail/></SavedCarsProvider></QueryClientProvider>);
- expect(screen.getByTestId('shared-video')).toBeVisible();
+ expect(screen.getByRole('button',{name:'Video'})).toHaveAttribute('aria-pressed','true');
+ expect(document.querySelector('#walkaround video')).toHaveAttribute('src','/published-video.mp4');
 });

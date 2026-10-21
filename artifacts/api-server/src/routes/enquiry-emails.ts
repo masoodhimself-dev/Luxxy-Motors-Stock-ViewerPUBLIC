@@ -15,6 +15,8 @@ import {
 import {
   defaultEmailTemplates,
   renderEmailTemplate,
+  approvedEmailLayoutVersion,
+  type EmailLayoutVersion,
   vehicleRegistrationLabel,
   type EmailFacts,
   type SaleWorkspaceDocument,
@@ -200,6 +202,7 @@ async function preview(
   config: PrivateDealerSettings,
   profile: Awaited<ReturnType<typeof dealerProfile>>,
   executor: typeof db = db,
+  layoutVersion: EmailLayoutVersion = "correspondence-v1",
 ) {
   return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
@@ -426,6 +429,7 @@ async function preview(
       config.appearance,
       {
         templateId: input.templateId ?? "enquiry_message",
+        layoutVersion,
         attachments: attachments.map((item) => item.filename),
       },
     );
@@ -474,6 +478,8 @@ export async function rebuildStaffOutboxEmail(
     input,
     config,
     await dealerProfile(),
+    db,
+    approvedEmailLayoutVersion(row.validation.layoutVersion),
   );
   if (result.previewHash !== row.validation.previewHash)
     throw new Error(
@@ -908,6 +914,7 @@ export function createEnquiryEmailRouter(
               },
               validation: {
                 input: approvedInput,
+                layoutVersion: "correspondence-v1",
                 previewHash: input.previewHash,
                 ...(!multiTenantEnabled() && req.staff!.authUserId === "machine"
                   ? {

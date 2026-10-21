@@ -1,3 +1,7 @@
+import {
+  approvedEmailLayoutVersion,
+  type EmailLayoutVersion,
+} from "@workspace/vehicle-meta";
 import { forEachActiveDealer } from "./tenant-jobs";
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { currentDealerId, multiTenantEnabled } from "./tenant-context";
@@ -188,6 +192,7 @@ async function attemptEmail({
       config,
       request: { to, subject, html, text, idempotencyKey, attachments },
       validation: {
+        layoutVersion: "correspondence-v1",
         appointmentRevision: enquiry.appointmentRevision,
         workspaceRevision: enquiry.workspaceRevision,
         version: notificationVersion(enquiry),
@@ -278,6 +283,7 @@ async function enquiryEmail(
   dealer: DealerProfile,
   audience: "customer" | "dealer",
   reminder = false,
+  layoutVersion: EmailLayoutVersion = "correspondence-v1",
 ) {
   const isViewing = enquiry.type === "viewing" && enquiry.appointmentAt != null;
   let moved = false;
@@ -363,6 +369,7 @@ async function enquiryEmail(
   ];
   return renderDealerEmail({
     templateId,
+    layoutVersion,
     variables: {
       dealer_name: dealer.identity.name,
       dealer_email: dealer.contact.email,
@@ -675,6 +682,7 @@ export async function rebuildAutomaticOutboxEmail(
     dealer,
     audience,
     row.kind === "reminder",
+    approvedEmailLayoutVersion(row.validation.layoutVersion),
   );
   const to =
     audience === "dealer"

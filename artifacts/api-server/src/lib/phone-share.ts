@@ -5,6 +5,10 @@ export type PhoneShareFile = {
   contentType: string;
 };
 export type PhoneSharePayload = {
+  confirmationScope?: "document";
+  enquiryId?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   title: string;
   message: string;
   files: PhoneShareFile[];

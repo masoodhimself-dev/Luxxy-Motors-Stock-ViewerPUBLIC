@@ -24,6 +24,9 @@ import { invoiceEmailAttachments } from "../lib/invoice-email-attachments";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { draftSchema, previewEnquiryEmail } from "./enquiry-emails";
+import { renderDealerEmail } from "../lib/email-provider";
+import { listStripeReservations } from "../lib/stripe-reservation-store";
+import { whatsappConfirmationRouter } from "../lib/whatsapp-confirmation";
 const router = Router();
 const input = z
   .object({
@@ -41,6 +44,10 @@ const input = z
             .optional(),
         })
         .strict(),
+      z.object({ kind: z.literal("reservation"), reservationId: z.string().uuid() }).strict(),
+      z.object({ kind: z.literal("enquiry-message"), enquiryId: z.string().uuid(),
+        draft: draftSchema.extend({to: z.union([z.string().trim().toLowerCase().max(254).email(), z.literal("")])}),
+      }).strict(),
       z
         .object({
           kind: z.literal("enquiry"),
@@ -63,6 +70,7 @@ router.use(["/staff/phone-shares", "/phone-shares"], (_req, res, next) => {
   next();
 });
 router.use("/staff/phone-shares", requireStaff);
+router.use("/staff/phone-shares", whatsappConfirmationRouter());
 router.post(
   "/staff/phone-shares",
   (req, res, next) =>
@@ -80,7 +88,7 @@ router.post(
         fingerprint = phoneShareHash(JSON.stringify(data.source));
       const previous = (
         await pool.query(
-          "SELECT id,token_hash,fingerprint,expires_at,revoked_at FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",
+          "SELECT id,token_hash,fingerprint,expires_at,revoked_at,payload FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",
           [dealer, data.requestId],
         )
       ).rows[0];
@@ -89,6 +97,12 @@ router.post(
         url: `${siteOrigin()}/phone-share#${data.token}`,
         expiresAt: row.expires_at,
         replayed,
+        message: row.payload?.message || "",
+        customerPhone: row.payload?.customerPhone || "",
+        hasAttachments: Boolean(row.payload?.files?.length),
+        enquiryId: row.payload?.enquiryId || undefined,
+        customerEmail: row.payload?.customerEmail || "",
+        title: row.payload?.title || "Customer message",
       });
       if (previous) {
         if (
@@ -126,15 +140,49 @@ router.post(
           fileId: randomUUID(),
           createdAt: new Date().toISOString(),
         });
+        const draft = document.snapshot.draft;
+        const branding = document.snapshot.branding;
+        const money = (pence: number) => new Intl.NumberFormat('en-GB', {style:'currency', currency:'GBP'}).format(pence / 100);
+        const rendered = await renderDealerEmail({
+          templateId: document.type === 'invoice' ? 'invoice' : document.type === 'statement' ? 'balance_statement' : document.type === 'receipt' ? 'payment_receipt' : 'document_email',
+          variables: {customer_name: draft.customer, customer_email: draft.email, dealer_name: branding.identity.name, dealer_email: branding.contact?.email, dealer_phone: branding.contact?.phone, vehicle_title: draft.vehicle, vehicle_registration: draft.registration, document_title: document.title, document_type: document.title, document_number: document.number, issued_at: document.issuedAt, amount: money(document.paymentAmountPence ?? document.snapshot.totals?.totalDue ?? 0), amount_received: money(document.snapshot.totals?.confirmedPaid ?? 0), balance: money(document.balanceAtIssue ?? 0)},
+          facts: [{label:'Document',value:`${document.title} ${document.number}`},{label:'Vehicle',value:draft.vehicle},...(draft.registration ? [{label:'Registration',value:draft.registration}] : []),...(document.issuedAt ? [{label:'Issued',value:new Date(document.issuedAt).toLocaleString('en-GB',{timeZone:'Europe/London'})}] : []),...(document.paymentAmountPence != null ? [{label:'Receipt amount',value:money(document.paymentAmountPence)}] : []),{label:'Payments recorded at issue',value:money(document.snapshot.totals?.confirmedPaid ?? 0)},{label:'Balance at issue',value:money(document.balanceAtIssue ?? 0)},...(attachments.length > 1 ? [{label:'Attachments',value:'Invoice and Road Tax guide'}] : [])],
+          attachments,
+        });
         payload = {
-          title: document.title,
-          message: `${document.snapshot.branding.identity.name}\n${document.title}\n${document.snapshot.draft.vehicle}\n${document.number}`,
+          confirmationScope: "document",
+          enquiryId: draft.sourceEnquiryId,
+          customerEmail: draft.email || "",
+          customerPhone: draft.phone || "",
+          title: rendered.subject,
+          message: rendered.text,
           files: attachments.map((file) => ({
             ...file,
             filename: file.filename.replace(/[^\w .()-]/g, "_"),
             contentType: "application/pdf",
           })),
         };
+      } else if (data.source.kind === "reservation") {
+        const reservationId = data.source.reservationId;
+        const record = (await listStripeReservations(dealer)).find(row => row.id === reservationId);
+        if (!record) throw new PhoneShareError("Reservation not found.", 404);
+        const refund = record.amountRefundedPence > 0;
+        const kind = refund ? 'reservation_refund' : record.paymentStatus === 'confirmed' ? 'reservation_payment' : 'reservation_confirmation';
+        if (refund && !['partially_refunded', 'refunded'].includes(record.paymentStatus)) throw new PhoneShareError("The refund is not confirmed. Review this reservation first.", 409);
+        const profile = await dealerProfile();
+        const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+        const files: PhoneSharePayload['files'] = [];
+        let documentNumber = '';
+        if (record.saleId && kind !== 'reservation_confirmation') {
+          const sale = (await pool.query('SELECT state FROM sale_workspace WHERE dealer_id=$1 AND id=$2::uuid', [dealer, record.saleId])).rows[0]?.state;
+          const document = [...(sale?.documents ?? [])].reverse().find((item: any) => item.type === 'receipt' && item.snapshot.payments.some((payment: any) => payment.id === item.paymentId && payment.kind === (refund ? 'refund' : 'deposit')));
+          const archive = document && sale?.documentArchives?.[document.id];
+          if (archive && document) { documentNumber = document.number; files.push({filename: `${document.number.replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`, content: archive.content, contentType: 'application/pdf'}); }
+        }
+        const rendered = await renderDealerEmail({templateId: kind,
+          variables: {dealer_name: profile.identity.name, dealer_email: profile.contact.email, dealer_phone: profile.contact.phone, customer_name: record.customerName, customer_email: record.email, reference: record.reference, vehicle_title: record.vehicleTitle, vehicle_registration: record.vehicleRegistration, amount: money(record.depositPence), amount_received: money(record.amountReceivedPence), payment_status: record.paymentStatus, reservation_status: record.status, document_number: documentNumber, expires_at: new Date(record.expiresAt).toLocaleString('en-GB', {timeZone:'Europe/London'})},
+          facts: [{label:'Vehicle',value:record.vehicleTitle},{label:'Reservation status',value:record.status.replaceAll('_',' ')},{label:'Payment status',value:record.paymentStatus.replaceAll('_',' ')},{label:'Requested deposit',value:money(record.depositPence)},{label:'Amount received',value:money(record.amountReceivedPence)},{label:'Amount refunded',value:money(record.amountRefundedPence)},...(record.mode === 'test' ? [{label:'Payment mode',value:'Stripe test payment — no real funds received'}] : [])], attachments: files });
+        payload = {title: rendered.subject, message: rendered.text, customerPhone: record.phone, customerEmail: record.email, files};
       } else {
         const prepared = await previewEnquiryEmail(
           data.source.enquiryId,
@@ -142,12 +190,15 @@ router.post(
           await dealerIntegrationsStore.readPrivate(),
           await dealerProfile(),
         );
-        if (prepared.previewHash !== data.source.previewHash)
+        if (data.source.kind === "enquiry" && prepared.previewHash !== data.source.previewHash)
           throw new PhoneShareError(
             "The message changed. Review it again before creating a QR code.",
             409,
           );
         payload = {
+          enquiryId: prepared.enquiry.id,
+          customerEmail: prepared.enquiry.email || "",
+          customerPhone: prepared.enquiry.phone || "",
           title: data.source.draft.subject,
           message: prepared.rendered.text,
           files: prepared.attachments.map((file) => ({
@@ -172,7 +223,7 @@ router.post(
         ]);
         const concurrent = (
           await client.query(
-            "SELECT id,token_hash,fingerprint,expires_at,revoked_at FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",
+            "SELECT id,token_hash,fingerprint,expires_at,revoked_at,payload FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",
             [dealer, data.requestId],
           )
         ).rows[0];
@@ -213,7 +264,7 @@ router.post(
           );
         const row = (
           await client.query(
-            "INSERT INTO customer_phone_shares(id,dealer_id,request_id,token_hash,fingerprint,payload,created_by,expires_at) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,now()+interval '1 day') RETURNING id,expires_at",
+            "INSERT INTO customer_phone_shares(id,dealer_id,request_id,token_hash,fingerprint,payload,created_by,expires_at) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,now()+interval '1 day') RETURNING id,expires_at,payload",
             [
               randomUUID(),
               dealer,
