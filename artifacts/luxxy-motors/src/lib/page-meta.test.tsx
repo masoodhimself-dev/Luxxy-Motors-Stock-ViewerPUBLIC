@@ -57,6 +57,7 @@ describe('vehiclePageMeta', () => {
 
     expect(meta.title).toBe('2009 Ford Fiesta — Price on application | Luxxy Motors');
     expect(meta.description).not.toContain('£');
+    expect(meta.description).not.toMatch(/appointment|delivery/i);
   });
 });
 
@@ -66,6 +67,7 @@ describe('showroomPageMeta and enquiryPageMeta', () => {
 
     expect(meta.title).toBe('Used cars for sale in Harrow | Luxxy Motors');
     expect(meta.description).toContain('31 used cars');
+    expect(meta.description).not.toMatch(/delivery|appointment/i);
   });
 
   it('names the vehicle being enquired about', () => {
@@ -78,6 +80,8 @@ describe('showroomPageMeta and enquiryPageMeta', () => {
 
 describe('applyPageMeta', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/');
+    document.head.querySelectorAll('[data-public-page-seo]').forEach(element => element.remove());
     document.head.querySelectorAll('[data-page-meta]').forEach((element) => element.remove());
     resetPageMeta();
   });
@@ -110,4 +114,42 @@ describe('applyPageMeta', () => {
     expect(content('meta[name="twitter:card"]')).toBe('summary');
     expect(content('meta[property="og:type"]')).toBe('website');
   });
+  it('retains the configured canonical origin on an alias and drops filter and tracking queries', () => {
+    const canonical = document.createElement('meta'); canonical.name = 'luxxy-canonical-origin'; canonical.content = 'https://preferred.example.test'; canonical.setAttribute('data-page-meta', ''); document.head.append(canonical);
+    window.history.replaceState({}, '', '/stock?make=Toyota&tracking=private');
+    applyPageMeta({ ...showroomPageMeta(dealer), url: 'https://untrusted.example/stock?tracking=private' });
+    expect(content('link[rel="canonical"]')).toBe('https://preferred.example.test/stock');
+    expect(content('meta[property="og:url"]')).toBe('https://preferred.example.test/stock');
+  });
+
+  it('keeps initial JSON-LD on the same car and removes it when navigating to a different page', () => {
+    const script = document.createElement('script'); script.type = 'application/ld+json'; script.setAttribute('data-public-page-seo', '/vehicle/first'); script.textContent = '{"@type":"Car","name":"first"}'; document.head.append(script);
+    window.history.replaceState({}, '', '/vehicle/first'); applyPageMeta(vehiclePageMeta(car, dealer));
+    expect(script.isConnected).toBe(true);
+    window.history.replaceState({}, '', '/vehicle/second'); applyPageMeta(vehiclePageMeta(car, dealer));
+    expect(script.isConnected).toBe(false);
+  });
+
+  it('never gives a private capability URL a canonical and restores public indexing only on live sites', () => {
+    const indexing = document.createElement('meta'); indexing.name = 'luxxy-site-indexing'; indexing.content = 'index'; indexing.setAttribute('data-page-meta', ''); document.head.append(indexing);
+    window.history.replaceState({}, '', '/viewing/private-token'); applyPageMeta(showroomPageMeta(dealer));
+    expect(content('link[rel="canonical"]')).toBeNull(); expect(content('meta[property="og:url"]')).toBeNull(); expect(content('meta[name="robots"]')).toMatch(/^noindex/);
+    window.history.replaceState({}, '', '/stock'); applyPageMeta(showroomPageMeta(dealer));
+    expect(content('meta[name="robots"]')).toBe('index, follow');
+    indexing.content = 'noindex'; applyPageMeta(showroomPageMeta(dealer)); expect(content('meta[name="robots"]')).toMatch(/^noindex/);
+  });
+
+  it('excludes an unavailable vehicle reached through SPA navigation even on a live site', () => {
+    const indexing = document.createElement('meta'); indexing.name = 'luxxy-site-indexing'; indexing.content = 'index'; indexing.setAttribute('data-page-meta', ''); document.head.append(indexing);
+    const script = document.createElement('script'); script.type = 'application/ld+json'; script.setAttribute('data-public-page-seo', '/vehicle/missing'); document.head.append(script);
+    window.history.replaceState({}, '', '/vehicle/missing');
+    applyPageMeta({ title: 'Vehicle not in stock', description: 'Browse our current cars.', indexable: false });
+    expect(content('link[rel="canonical"]')).toBeNull();
+    expect(content('meta[property="og:url"]')).toBeNull();
+    expect(content('meta[name="robots"]')).toMatch(/^noindex/);
+    expect(script.isConnected).toBe(false);
+    window.history.replaceState({}, '', '/stock'); applyPageMeta(showroomPageMeta(dealer));
+    expect(content('meta[name="robots"]')).toBe('index, follow');
+  });
+
 });

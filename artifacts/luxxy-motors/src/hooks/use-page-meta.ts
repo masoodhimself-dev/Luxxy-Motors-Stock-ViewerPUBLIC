@@ -14,10 +14,11 @@ export function usePageMeta(meta: PageMeta | null) {
   const image = meta?.image ?? null;
   const url = meta?.url ?? null;
   const type = meta?.type ?? 'website';
+  const indexable = meta?.indexable;
 
   useEffect(() => {
     if (!title || !description) return;
-    applyPageMeta({ title, description, image, url, type });
+    applyPageMeta({ title, description, image, url, type, indexable });
     return () => resetPageMeta();
-  }, [title, description, image, url, type]);
+  }, [title, description, image, url, type, indexable]);
 }

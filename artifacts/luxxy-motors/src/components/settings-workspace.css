@@ -78,6 +78,12 @@
 .portal-settings-premium .settings-toggle input:focus-visible + span { outline: 2px solid var(--portal-accent); outline-offset: 3px; }
 .portal-settings-premium .settings-brand-preview { border-radius: 8px; background: var(--portal-canvas); }
 .portal-settings-premium .settings-photo-group { align-items: end; padding-top: 22px; border-top: 1px solid var(--portal-border); }
+.portal-settings-premium .settings-image-field { min-width: 0; display: grid; align-content: start; gap: 9px; }
+.portal-settings-premium .settings-image-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.portal-settings-premium .settings-image-address { min-width: 0; }
+.portal-settings-premium .settings-image-address summary { min-height: 36px; font-size: 12px; color: var(--portal-muted); }
+.portal-settings-premium .settings-image-address input { margin-top: 5px; }
+.portal-settings-premium .settings-image-notice { color: #176047; font-size: 12px; line-height: 1.6; }
 .portal-settings-premium .settings-featured-row { gap: 12px; padding: 10px; border-radius: 8px; }
 .portal-settings-premium .settings-featured-row > div:first-child { gap: 12px; flex: 1; }
 .portal-settings-premium .settings-featured-row button { width: 40px; min-height: 44px; }

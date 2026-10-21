@@ -20,6 +20,7 @@ import { previewSettings } from './preview/settings';
 import { previewStock } from './preview/stock';
 import { salesPreview } from './preview/sales';
 import { brochureOrigin, createBrochureHandler } from '../api-server/src/lib/vehicle-brochure-handler';
+import { searchReadiness } from '../api-server/src/lib/search-readiness';
 
 // The same PDF renderer as production, supplied only with archived preview records.
 const previewBrochure = createBrochureHandler({
@@ -51,6 +52,15 @@ export default mergeConfig(
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
+            if (url.pathname === '/api/staff/search-visibility' && req.method === 'GET') {
+              res.end(JSON.stringify({ ...searchReadiness(await readPreviewSettings(), brochureOrigin(req.headers.host)), preview: true }));
+              return;
+            }
+            if (url.pathname === '/api/staff/website-assets' && req.method === 'POST') {
+              res.statusCode = 409;
+              res.end(JSON.stringify({ error: 'Image uploads require the authenticated server. This local preview keeps your existing image unchanged.' }));
+              return;
+            }
             if (await vehicleDescriptionPreview(req, res, url)) return;
             if (await stockChangesPreview(req, res, url)) return;
             if (await soldVehicleFollowUpsPreview(req, res, url)) return;

@@ -10,18 +10,19 @@ import type { Car } from '@/lib/stock-context';
 /**
  * Per-route document metadata for the showroom SPA.
  *
- * These tags are written by JavaScript, so they cover browsers, in-app share
- * sheets and crawlers that render pages (Googlebot). Crawlers that do not run
- * JavaScript — WhatsApp, Facebook, Slack, iMessage — are served the API
- * server's `/share/vehicle/:id` page instead; see `getVehicleShareUrl()` in
- * `cta-helpers.ts`.
+ * The server supplies the initial metadata and JSON-LD on normal public URLs.
+ * This module keeps browser metadata current during SPA navigation and removes
+ * initial vehicle JSON-LD when leaving its route. Existing /share/vehicle/:id
+ * links remain supported for messaging previews.
  */
 export interface PageMeta extends PageMetaCopy {
   /** Absolute image URL for link previews. */
   image?: string | null;
-  /** Absolute canonical URL. Defaults to the current location. */
+  /** Optional safe homepage share destination on private pages; public routes use the verified dealership origin. */
   url?: string | null;
   type?: 'website' | 'article';
+  /** False for unavailable/error pages, including when reached through SPA navigation. */
+  indexable?: boolean;
 }
 
 /** Mirrors the fallbacks hardcoded in index.html so both tell the same story. */
@@ -36,11 +37,15 @@ export const DEFAULT_PAGE_META: PageMeta = {
 const MANAGED_ATTRIBUTE = 'data-page-meta';
 
 function currentOrigin(): string {
-  return typeof window === 'undefined' ? '' : window.location.origin;
-}
-
-function currentUrl(): string {
-  return typeof window === 'undefined' ? '' : `${window.location.origin}${window.location.pathname}`;
+  if (typeof window === 'undefined') return '';
+  const configured = document.head.querySelector<HTMLMetaElement>('meta[name="luxxy-canonical-origin"][data-page-meta]')?.content;
+  if (configured) {
+    try {
+      const url = new URL(configured);
+      if (url.protocol === 'https:' && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash) return url.origin;
+    } catch { /* Ignore malformed shell metadata. */ }
+  }
+  return window.location.origin;
 }
 
 function upsertTag(selector: string, create: () => HTMLElement, content: string | null) {
@@ -83,7 +88,25 @@ export function applyPageMeta(meta: PageMeta) {
   if (typeof document === 'undefined') return;
 
   const origin = currentOrigin();
-  const url = meta.url || currentUrl();
+  // The server's canonical dealership wins over a verified alias or client URL.
+  // Search/filter queries and capability tokens never become preferred public URLs.
+  const pathname = window.location.pathname === '/index.html' ? '/' : window.location.pathname.replace(/\/$/, '') || '/';
+  const publicPage = ['/', '/stock', '/contact', '/warranty'].includes(pathname) || /^\/vehicle\/[^/]+$/.test(pathname);
+  let url = publicPage && meta.indexable !== false ? `${origin}${pathname}` : null;
+  // Existing private booking pages explicitly use the homepage for safe share
+  // previews. Preserve that behaviour without ever putting their token in tags.
+  if (!publicPage && meta.url) {
+    try {
+      const safeDestination = new URL(meta.url, origin);
+      if ([origin, window.location.origin].includes(safeDestination.origin) && safeDestination.pathname === '/' && !safeDestination.search && !safeDestination.hash && !safeDestination.username && !safeDestination.password) url = origin;
+    } catch { /* Private URLs remain excluded. */ }
+  }
+  for (const script of document.head.querySelectorAll<HTMLScriptElement>('script[data-public-page-seo]')) {
+    if (meta.indexable === false || script.getAttribute('data-public-page-seo') !== pathname) script.remove();
+  }
+  const indexing = document.head.querySelector<HTMLMetaElement>('meta[name="luxxy-site-indexing"][data-page-meta]')?.content;
+  if (indexing || meta.indexable === false) metaByName('robots', publicPage && meta.indexable !== false && indexing === 'index' ? 'index, follow' : 'noindex, nofollow, noarchive');
+  else metaByName('robots', null);
   const image = toAbsoluteUrl(meta.image ?? null, origin);
 
   document.title = meta.title;

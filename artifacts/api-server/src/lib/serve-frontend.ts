@@ -1,24 +1,40 @@
 import express, { type Express } from 'express';
 import path from 'node:path';
 import { existsSync,readFileSync } from 'node:fs';
-import { currentTenant } from './tenant-context';
-import { tenantPageHtml } from './tenant-page-meta';
+import { currentTenant, currentDealerId, type TenantContext } from './tenant-context';
+import { buildPublicPageSeo, renderPublicPageSeo, publicSeoOrigin, type PublicSeoVehicle } from './public-page-seo';
 
 /** Serve the production SPA on the API origin, with no external path router. */
-export function serveFrontend(app: Express, directory: string) {
+export type FrontendPageData = { settings?: unknown; vehicle?: PublicSeoVehicle | null };
+type FrontendOptions = { loadPageData?: (pathname: string, tenant: TenantContext | undefined) => Promise<FrontendPageData> };
+
+/** Only read published settings and the same public vehicle projection used by /api/vehicles/:id. */
+async function loadPublicPageData(pathname: string, tenant: TenantContext | undefined): Promise<FrontendPageData> {
+  if (!tenant && !publicSeoOrigin(process.env.PUBLIC_SITE_URL)) return {};
+  const { pool } = await import('@workspace/db');
+  const settings = (await pool.query('SELECT config FROM dealer_settings WHERE dealer_id=$1', [tenant?.dealerId ?? currentDealerId()])).rows[0]?.config;
+  const match = /^\/vehicle\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return { settings };
+  const { findPublicVehicle } = await import('../routes/stock');
+  return { settings, vehicle: await findPublicVehicle(match[1]) };
+}
+
+export function serveFrontend(app: Express, directory: string, options: FrontendOptions = {}) {
   const root = path.resolve(directory);
   const index = path.join(root, 'index.html');
   if (!existsSync(index)) throw new Error(`Frontend build missing at ${index}. Run pnpm build first.`);
   const html=readFileSync(index,'utf8');
-  const sendPage:express.RequestHandler=async(_req,res,next)=>{
+  const sendPage:express.RequestHandler=async(req,res,next)=>{
     try{
-      const tenant=currentTenant();
-      if(!tenant){res.sendFile(index,{cacheControl:false});return;}
-      const {pool}=await import('@workspace/db');
-      const config=(await pool.query('SELECT config FROM dealer_settings WHERE dealer_id=$1',[tenant.dealerId])).rows[0]?.config;
-      const name=typeof config?.identity?.name==='string'&&config.identity.name.trim()?config.identity.name.trim():'Our dealership';
-      const city=typeof config?.address?.city==='string'?config.address.city.trim():'';
-      res.set('Cache-Control','no-store').type('html').send(tenantPageHtml(html,name,city));
+      const tenant = currentTenant();
+      // Privileged/capability routes never need vehicle data or discoverable metadata.
+      const publicRoute = ['/', '/index.html', '/stock', '/contact', '/warranty'].includes(req.path.replace(/\/$/, '') || '/') || /^\/vehicle\/[^/]+\/?$/.test(req.path);
+      const data = publicRoute ? await (options.loadPageData ?? loadPublicPageData)(req.path, tenant) : {};
+      const seo = buildPublicPageSeo({ pathname: req.path, canonicalOrigin: tenant?.canonicalOrigin ?? process.env.PUBLIC_SITE_URL, settings: data.settings, vehicle: data.vehicle, demo: tenant?.demo });
+      // No shared HTML cache: price, availability and disclosures come from the current dealer snapshot.
+      res.set('Cache-Control','no-store');
+      if (seo.robots.startsWith('noindex')) res.set('X-Robots-Tag', seo.robots);
+      res.status(seo.status).type('html').send(renderPublicPageSeo(html, seo));
     }catch(error){next(error);}
   };
   app.get('/index.html',sendPage);

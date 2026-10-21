@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "exec node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:vehicle-descriptions && pnpm run test:stock-changes && pnpm run test:sold-follow-ups && pnpm run test:email-website-branding && pnpm run test:platform-stock-source",
+    "test": "pnpm run test:safety && pnpm run test:stock && pnpm run test:stock-feed && pnpm run test:sales && pnpm run test:leads && pnpm run test:portal && pnpm run test:settings && pnpm run test:brochure && pnpm run test:reservations && pnpm run test:portability && pnpm run test:retired-sales && pnpm run test:bookings && pnpm run test:staff-enquiries && pnpm run test:enquiry-merges && pnpm run test:callback-conversations && pnpm run test:sale-workspace && pnpm run test:dealer-improvements && pnpm run test:relationships && pnpm run test:chat && pnpm run test:tenancy && pnpm run test:platform && pnpm run test:domain && pnpm run test:email-workspace && pnpm run test:push && pnpm run test:ai-drafts && pnpm run test:email-design && pnpm run test:capacity:guards && pnpm run test:shutdown && pnpm run test:history && pnpm run test:email-recovery && pnpm run test:quick-enquiry && pnpm run test:declarations && pnpm run test:features && pnpm run test:share-origin && pnpm run test:staff-origin && pnpm run test:vehicle-descriptions && pnpm run test:stock-changes && pnpm run test:sold-follow-ups && pnpm run test:email-website-branding && pnpm run test:platform-stock-source && pnpm run test:website-assets && pnpm run test:seo && pnpm run test:search-visibility",
     "test:reservations": "node ./test-build.mjs src/online-reservations.test.ts && node --enable-source-maps --test ./dist-test/online-reservations.test.mjs",
     "test:reservations:integration": "node ./test-build.mjs src/reservations.integration.test.ts && node --enable-source-maps --test ./dist-test/reservations.integration.test.mjs",
     "test:brochure": "node ./test-build.mjs src/vehicle-brochure.test.ts && node --enable-source-maps --test ./dist-test/vehicle-brochure.test.mjs",
@@ -52,11 +52,15 @@
     "test:stock-changes": "node test-enquiry-emails-build.mjs src/stock-change-tasks.test.ts && node --test dist-test/stock-change-tasks.test.mjs",
     "test:sold-follow-ups": "node test-enquiry-emails-build.mjs src/sold-vehicle-follow-ups.test.ts && node --test dist-test/sold-vehicle-follow-ups.test.mjs",
     "test:email-website-branding": "node test-build.mjs src/email-website-branding.test.ts && node --test dist-test/email-website-branding.test.mjs",
-    "test:platform-stock-source": "node test-platform-stock-source-build.mjs && node --test .cache/platform-stock-source-tests/platform-stock-connection.test.mjs"
+    "test:platform-stock-source": "node test-platform-stock-source-build.mjs && node --test .cache/platform-stock-source-tests/platform-stock-connection.test.mjs",
+    "test:website-assets": "node test-website-assets-build.mjs && node --test .cache/website-assets-tests/dealer-website-assets.test.mjs",
+    "test:seo": "node test-seo-crawl-build.mjs && node --test .cache/seo-crawl-tests/seo-crawl.test.mjs .cache/seo-crawl-tests/indexnow.test.mjs && node test-public-page-seo-build.mjs && node --test .cache/public-page-seo-tests/public-page-seo.test.mjs",
+    "test:search-visibility": "node test-search-visibility-build.mjs && node --test .cache/search-visibility-tests/search-visibility.test.mjs"
   },
   "dependencies": {
     "@clerk/express": "^2.1.64",
     "@clerk/shared": "^4.30.2",
+    "@napi-rs/canvas": "1.0.11",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/vehicle-meta": "workspace:*",

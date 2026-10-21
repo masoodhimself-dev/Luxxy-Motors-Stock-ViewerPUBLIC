@@ -12,6 +12,9 @@ import { logger } from "./lib/logger";
 import { clerkMiddleware } from "@clerk/express";
 import { importAdmission } from './lib/stock-import-admission';
 import { serviceLifecycle } from './lib/service-lifecycle';
+import seoRouter from './routes/seo';
+import indexNowRouter from './routes/indexnow';
+import { seoPrivatePageHeaders } from './lib/seo-crawl';
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -20,6 +23,7 @@ import {
 const app: Express = express();
 // Before body buffering, tenant lookups and authentication/provider work.
 app.use(serviceLifecycle.middleware);
+app.use(seoPrivatePageHeaders);
 
 app.use(
   pinoHttp({
@@ -48,6 +52,7 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
+app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
   if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
 } }));
@@ -58,6 +63,8 @@ app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 app.use("/api/demo-onboarding", demoOnboardingRouter);
 app.use("/api/platform", platformDealersRouter);
 app.use(resolveTenant);
+app.use(seoRouter);
+app.use(indexNowRouter);
 app.use("/api", router);
 // Server-rendered link previews for shared vehicle URLs. Lives outside /api
 // because the URL is handed to buyers.
@@ -79,6 +86,7 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
   if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
     if(req.path.startsWith('/api/demo-onboarding')){res.status(413).json({error:'Onboarding request exceeds the 450 KB limit.'});return;}
     if(req.path === '/api/service-book-upload'){res.status(413).json({error:'Compressed upload exceeds the 2.2 MB request limit.'});return;}
+    if(req.path === '/api/staff/website-assets'){res.status(413).json({error:'Image upload exceeds the 3 MB request limit. Choose a smaller image.'});return;}
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });
     return;
   }

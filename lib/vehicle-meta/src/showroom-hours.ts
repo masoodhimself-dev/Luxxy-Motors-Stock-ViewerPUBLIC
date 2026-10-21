@@ -40,6 +40,20 @@ function intervalFromLabel(value: string): Interval | null | undefined {
   const open = clockMinute(range[1]); const close = clockMinute(range[2]);
   return open !== null && close !== null && close > open ? { open, close } : undefined;
 }
+/** Completeness check only: never rewrites hours or verifies the business's claims. */
+export function showroomHoursComplete(hours: readonly ShowroomHoursItem[] | null | undefined): boolean {
+  if (!hours?.length) return false;
+  const seen = new Set<number>();
+  for (const row of hours) {
+    if (!row || typeof row.days !== 'string' || typeof row.times !== 'string') return false;
+    const days = daysFromLabel(row.days);
+    if (!days || days.some(day => seen.has(day)) || new Set(days).size !== days.length) return false;
+    const interval = intervalFromLabel(row.times);
+    if (interval === undefined && !/^(?:by appointment(?: only)?|appointment only)$/i.test(row.times.trim())) return false;
+    for (const day of days) seen.add(day);
+  }
+  return seen.size === 7;
+}
 /** Convert a London calendar time without assuming GMT or BST. */
 function londonTime(year: number, month: number, day: number, minute: number): Date | null {
   const wallTime = Date.UTC(year, month - 1, day, Math.floor(minute / 60), minute % 60);

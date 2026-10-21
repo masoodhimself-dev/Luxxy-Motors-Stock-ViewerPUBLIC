@@ -371,7 +371,7 @@ export async function projectVehicles(vehicles: Vehicle[]) {
     return { id: vehicle.id, inventoryStatus: vehicle.inventoryStatus, advertId: vehicle.advertId, title: vehicle.websiteTitleOverride ?? vehicle.title, variant: vehicle.variant, make: vehicle.make, model: vehicle.model, trim: vehicle.trim, year: vehicle.year, price: vehicle.websitePriceOverride ?? vehicle.sourcePrice, priceType: vehicle.priceType, currency: vehicle.currency, mileage: vehicle.mileage, mileageText: vehicle.mileageText, registration: vehicle.registration, registrationBand: vehicle.registrationBand, plate: vehicle.plate, vrm: vehicle.vrm, vrmVerified: vehicle.vrmVerified, fuel: vehicle.fuel, transmission: vehicle.transmission, bodyType: vehicle.bodyType, engineSize: vehicle.engineSize, engineCC: vehicle.engineCC, doors: vehicle.doors, seats: vehicle.seats, colour: vehicle.colour, emissionClass: vehicle.emissionClass, drivetrain: vehicle.drivetrain, owners: vehicle.owners, writeOffCategory: vehicle.writeOffCategory, advertUrl: vehicle.advertUrl, dealerName: vehicle.dealerName, dealerLocation: vehicle.dealerLocation, imageCount: vehicle.imageCount, heroImage: hero, images: vehicleImages, specifications: specifications !== null && typeof specifications === "object" && !Array.isArray(specifications) ? specifications : null, sourceExtras: sourceExtras !== null && typeof sourceExtras === "object" && !Array.isArray(sourceExtras) ? sourceExtras : null };
   });
 }
-function visible(vehicle: Vehicle, settings: Awaited<ReturnType<typeof config>>) {
+function visible(vehicle: Pick<Vehicle, 'archivedAt' | 'inventoryStatus' | 'missingCount' | 'priceReviewRequired' | 'sourcePrice' | 'websitePriceOverride'>, settings: Awaited<ReturnType<typeof config>>) {
   return !vehicle.archivedAt && ["available", "reserved"].includes(vehicle.inventoryStatus) && vehicle.missingCount < settings.missingHideThreshold && !(vehicle.priceReviewRequired && vehicle.sourcePrice == null && vehicle.websitePriceOverride == null);
 }
 router.get("/stock", async (req, res): Promise<void> => {
@@ -391,6 +391,24 @@ router.get("/stock", async (req, res): Promise<void> => {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type PublicVehicle = Awaited<ReturnType<typeof projectVehicles>>[number];
+
+/** Read-only crawl inventory. Shares the website visibility rules, without photo/raw-data projection. */
+export async function listPublicStockSitemapEntries(): Promise<{ id: string }[]> {
+  const settings = await config();
+  const vehicles = await db.select({
+    id: vehiclesTable.id, archivedAt: vehiclesTable.archivedAt, inventoryStatus: vehiclesTable.inventoryStatus,
+    missingCount: vehiclesTable.missingCount, priceReviewRequired: vehiclesTable.priceReviewRequired,
+    sourcePrice: vehiclesTable.sourcePrice, websitePriceOverride: vehiclesTable.websitePriceOverride,
+  }).from(vehiclesTable).where(and(
+    eq(vehiclesTable.dealerId, settings.dealerId), eq(vehiclesTable.source, settings.platform),
+    inArray(vehiclesTable.inventoryStatus, ['available', 'reserved']), isNull(vehiclesTable.archivedAt),
+    lt(vehiclesTable.missingCount, settings.missingHideThreshold),
+    or(eq(vehiclesTable.priceReviewRequired, false), isNotNull(vehiclesTable.sourcePrice), isNotNull(vehiclesTable.websitePriceOverride)),
+  )).orderBy(vehiclesTable.advertId);
+  // updatedAt can change on an unchanged stock check; it is not a public content
+  // publication timestamp, so sitemap entries intentionally omit vehicle lastmod.
+  return vehicles.filter(vehicle => visible(vehicle, settings)).map(vehicle => ({ id: vehicle.id }));
+}
 
 /** Read-only brochure lookup: match /stock across every import source. */
 export async function findVisibleStockVehicle(id: string): Promise<PublicVehicle | null> {

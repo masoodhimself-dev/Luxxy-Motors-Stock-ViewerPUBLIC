@@ -132,6 +132,16 @@ it('reports a temporary stock error instead of calling the vehicle missing', () 
   expect(screen.getByRole('heading', { name: 'Vehicle details could not be loaded' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: /not found/i })).not.toBeInTheDocument();
+  expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toMatch(/^noindex/);
+  expect(document.querySelector('link[rel="canonical"]')).toBeNull();
+});
+
+it('keeps an unavailable vehicle out of search metadata when reached without a new document request', () => {
+  renderVehicle('not-in-stock');
+  expect(screen.getByRole('heading', { name: 'This car isn’t in our current stock' })).toBeInTheDocument();
+  expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toMatch(/^noindex/);
+  expect(document.querySelector('link[rel="canonical"]')).toBeNull();
+  expect(document.querySelector('meta[property="og:url"]')).toBeNull();
 });
 
 it('shares the server-rendered vehicle preview link', async () => {

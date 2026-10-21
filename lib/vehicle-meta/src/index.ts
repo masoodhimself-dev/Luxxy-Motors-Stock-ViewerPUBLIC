@@ -179,7 +179,7 @@ export function buildVehicleMeta(
   const description = joinSentences([
     where ? `${fullName} for sale at ${where}.` : `${fullName} for sale.`,
     facts.length ? `${facts.join(' · ')}.` : '',
-    'Full photos, specification and viewings by appointment.',
+    'View vehicle details and contact the showroom.',
   ]);
 
   return { name, title, description, image: pickVehicleImage(vehicle) };
@@ -203,7 +203,6 @@ export function buildShowroomMeta(
       ? `Browse ${count} used ${count === 1 ? 'car' : 'cars'} in stock at ${dealerName}${location ? ` in ${location}` : ''}.`
       : `Browse the current used car stock at ${dealerName}${location ? ` in ${location}` : ''}.`,
     'Full photos, specifications and prices on every vehicle.',
-    'Viewings by appointment, nationwide delivery available.',
   ]);
 
   return { title, description };

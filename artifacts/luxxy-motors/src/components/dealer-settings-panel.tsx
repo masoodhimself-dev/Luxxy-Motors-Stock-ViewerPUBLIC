@@ -5,6 +5,7 @@ import { editableShowroomWeek, showroomWeekRows, showroomBookingCopy, settingsSe
 import { parseReviews } from './reviews-settings';
 import { LaunchReadiness, SettingsPreview, launchChecks } from './settings-preview';
 import { ShowroomPhoto } from './showroom-photo';
+import { WebsiteImageField } from './website-image-field';
 import { ReviewsSettings } from './reviews-settings';
 import { ColourField, isValidHsl } from '@/components/brand/colour-field';
 import { DealerWordmark } from "@/components/brand/wordmark";
@@ -440,6 +441,8 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
   const [saveMessage, setSaveMessage] = useState('');
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [draftStored, setDraftStored] = useState(true);
+  const [pendingUploads, setPendingUploads] = useState(0);
+  const uploadBusyChanged = (busy: boolean) => setPendingUploads(count => Math.max(0, count + (busy ? 1 : -1)));
   const dirty = initialized && JSON.stringify(form) !== savedSnapshot;
 
   useEffect(() => {
@@ -565,7 +568,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!initialized || !settingsQuery.data || !dirty || updateSettings.isPending) return;
+    if (!initialized || !settingsQuery.data || !dirty || updateSettings.isPending || pendingUploads > 0) return;
     setSaveMessage('');
     if (savedRevision === null) { setValidationErrors({ revision: 'Your draft has no publication version. Discard the draft to reload published settings before saving.' }); return; }
     if (!validate()) return;
@@ -672,7 +675,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             <p className="mt-1 text-muted-foreground">{draftStored ? 'All dealership, website and booking edits share this draft. It stays in this browser tab for 24 hours, including when you change areas.' : 'Your draft stays while this app is open. Browser storage is unavailable; keep this tab open until you publish.'}</p>
             {settingsQuery.data && savedSnapshot !== JSON.stringify(copySettings(settingsQuery.data)) && <p className="mt-1">Published settings have changed since this draft started. Check them before publishing your draft.</p>}
           </div>
-          <Button type="button" variant="outline" onClick={() => {
+          <Button type="button" variant="outline" disabled={pendingUploads > 0 || updateSettings.isPending} onClick={() => {
             if (!window.confirm('Discard your unpublished showroom changes?')) return;
             const saved = copySettings(settingsQuery.data ?? fallbackSettings);
             setForm(saved);
@@ -708,13 +711,8 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             <Field label="Logo text" hint="Shown when no image is set">
               <Input className="h-12 w-full rounded-md border border-border bg-card px-4 font-medium text-base text-primary shadow-none transition-all focus-visible:border-accent" value={form.identity.logoText} onChange={(event) => updateNested('identity', 'logoText', event.target.value)} data-testid="input-identity-logo-text" />
             </Field>
-            <Field label="Logo image URL" hint="Optional">
-              <div className="relative">
-                <Image className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/70" />
-                <Input className="h-11 rounded-md pl-10 text-base focus-visible:border-accent" type="url" value={form.identity.logoAsset} onChange={(event) => updateNested('identity', 'logoAsset', event.target.value)} placeholder="https://…" data-testid="input-identity-logo-asset" />
-              </div>
-            </Field>
-            {([['footerLogoUrl', 'Logo for the dark footer'], ['faviconUrl', 'Browser-tab icon']] as const).map(([key, label]) => <Field key={key} label={label} hint="Optional HTTPS image URL" error={validationErrors[`presentation.${key}`]}><Input type="url" maxLength={2048} value={form.presentation?.[key] || ''} onChange={event => updatePresentation(key, event.target.value)} data-testid={`input-${key}`} /></Field>)}
+            <WebsiteImageField label="Header logo" hint="Transparent PNG works well on a light header." value={form.identity.logoAsset} onChange={url => updateNested('identity', 'logoAsset', url)} testId="input-identity-logo-asset" error={validationErrors['identity.logoAsset']} disabled={updateSettings.isPending} onBusyChange={uploadBusyChanged} />
+            {([['footerLogoUrl', 'Footer logo'], ['faviconUrl', 'Browser-tab icon']] as const).map(([key, label]) => <WebsiteImageField key={key} label={label} hint={key === 'footerLogoUrl' ? 'Choose a version that reads clearly on the dark footer.' : 'A simple square PNG works best.'} kind={key === 'faviconUrl' ? 'icon' : 'logo'} value={form.presentation?.[key] || ''} onChange={url => updatePresentation(key, url)} testId={`input-${key}`} error={validationErrors[`presentation.${key}`]} disabled={updateSettings.isPending} onBusyChange={uploadBusyChanged} />)}
             <details className="sm:col-span-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Advanced design settings</summary><p className="mb-4 text-xs text-muted-foreground">Optional brand colour overrides. The defaults are ready to use.</p>            <div className="grid gap-4 sm:grid-cols-2">
               <ColourField label="Primary colour" value={form.identity.brandColors.primaryHsl} onChange={(primaryHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, primaryHsl })} testId="input-brand-primary" />
               <ColourField label="Accent colour" value={form.identity.brandColors.accentHsl} onChange={(accentHsl) => updateNested('identity', 'brandColors', { ...form.identity.brandColors, accentHsl })} testId="input-brand-accent" />
@@ -723,7 +721,7 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
             {validationErrors['identity.colours'] && <p role="alert" className="text-sm text-destructive sm:col-span-2">{validationErrors['identity.colours']}</p>}
           </div>
           <div className="settings-logo-previews mt-5 grid gap-3 sm:grid-cols-2">{form.identity.logoAsset && <div className="rounded-md border border-border bg-white p-4"><p className="mb-3 text-xs text-slate-600">Header logo · light background</p><img src={form.identity.logoAsset} alt="Header logo preview" className="max-h-16 max-w-full object-contain" /></div>}{form.presentation?.footerLogoUrl && <div className="rounded-md bg-[#1b2526] p-4 text-white"><p className="mb-3 text-xs text-white/80">Footer logo · dark background</p><img src={form.presentation.footerLogoUrl} alt="Footer logo preview" className="max-h-16 max-w-full object-contain" /></div>}</div>
-          <p className="mt-3 text-xs text-muted-foreground">Use hosted image URLs. Direct website asset uploads are not available in this installation.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Upload PNG, JPEG or WebP files, or keep using your hosted image links. Uploaded images are public website assets. They appear on your website only after you publish the draft.</p>
           <div className="settings-brand-preview mt-6 flex flex-wrap items-center gap-4 border border-border bg-secondary/15 p-5">
             <DealerWordmark {...form.identity} />
             <div className="h-10 w-10 border border-border/50" style={{ backgroundColor: `hsl(${form.identity.brandColors.primaryHsl})` }} />
@@ -952,25 +950,17 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
           <div className="space-y-6">
             {(["hero", "team"] as const).map((subject) => (
               <div key={subject} className="settings-photo-group grid gap-4 sm:grid-cols-2">
-                <Field
-                  label={`${subject === "hero" ? "Homepage" : "Team"} photograph URL`}
-                  hint={subject === "hero" ? "HTTPS · use a landscape photograph with the whole car in frame" : "HTTPS · shown with your team introduction"}
+                <WebsiteImageField
+                  label={`${subject === "hero" ? "Homepage" : "Team"} photograph`}
+                  hint={subject === "hero" ? "Use a landscape photograph with the whole car in frame." : "Shown with your team introduction."}
                   error={validationErrors[`presentation.${subject}ImageUrl`]}
-                >
-                  <Input
-                    type="url"
-                    maxLength={2048}
-                    value={form.presentation?.[`${subject}ImageUrl`] || ""}
-                    onChange={(event) =>
-                      updatePresentation(
-                        `${subject}ImageUrl`,
-                        event.target.value,
-                      )
-                    }
-                    data-testid={`input-${subject}-image-url`}
-                    placeholder="https://…"
-                  />
-                </Field>
+                  kind="photo"
+                  value={form.presentation?.[`${subject}ImageUrl`] || ''}
+                  onChange={url => updatePresentation(`${subject}ImageUrl`, url)}
+                  testId={`input-${subject}-image-url`}
+                  disabled={updateSettings.isPending}
+                  onBusyChange={uploadBusyChanged}
+                />
                 <Field
                   label={`${subject === "hero" ? "Homepage" : "Team"} photograph description`}
                   error={validationErrors[`presentation.${subject}ImageAlt`]}
@@ -987,11 +977,11 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
                     data-testid={`input-${subject}-image-alt`}
                   />
                 </Field>
-                {form.presentation?.[`${subject}ImageUrl`]?.startsWith('https://') && <ShowroomPhoto src={form.presentation[`${subject}ImageUrl`]!} alt={form.presentation[`${subject}ImageAlt`] || `${subject} photo preview`} className="aspect-video max-w-sm sm:col-span-2" />}
+                {/^https?:\/\//.test(form.presentation?.[`${subject}ImageUrl`] || '') && <ShowroomPhoto src={form.presentation![`${subject}ImageUrl`]!} alt={form.presentation?.[`${subject}ImageAlt`] || `${subject} photo preview`} className="aspect-video max-w-sm sm:col-span-2" />}
               </div>
             ))}
             <Field label="Homepage photo focus" hint="Choose which part stays in view when the image is cropped"><select className="h-11 w-full rounded border border-input bg-card px-3" value={form.presentation?.heroImagePosition || 'center'} onChange={event => updatePresentation('heroImagePosition', event.target.value)}>{['center', 'left', 'right', 'top', 'bottom'].map(position => <option key={position} value={position}>{position[0].toUpperCase() + position.slice(1)}</option>)}</select></Field>
-            <p className="text-sm leading-6 text-muted-foreground">Use a hosted HTTPS image address. Uploading files directly is not available in this installation. Use a transparent PNG or SVG logo and a wide, clear homepage photograph. Stock photos are managed by your stock feed.</p>
+            <p className="text-sm leading-6 text-muted-foreground">Upload a clear photograph or use an existing HTTPS image link. Images are resized before uploading. These are public website photos; keep customer documents and private service records in Cars. Stock photos are managed by your stock feed.</p>
             <p className="border-l-2 border-accent pl-4 text-sm leading-6 text-muted-foreground">
               For stock photography, start with a clear front three-quarter
               view, followed by exterior, cabin, boot, wheels and condition
@@ -1173,13 +1163,13 @@ export function DealerSettingsPanel({ group = 'website', allowReviewImport = fal
                   <CircleAlert className="h-4 w-4" />{Object.values(validationErrors)[0]}</p>
               )}
             {!saveMessage && !updateSettings.isError && Object.keys(validationErrors).length === 0 && (
-                <p className="text-primary/70">{dirty ? 'Shared draft has unpublished changes.' : 'Saved — no unpublished changes.'}</p>
+                <p className="text-primary/70">{pendingUploads > 0 ? 'Wait for the image upload to finish before publishing.' : dirty ? 'Shared draft has unpublished changes.' : 'Saved — no unpublished changes.'}</p>
               )}
           </div>
           <div className="settings-save-actions grid grid-cols-2 gap-2 sm:flex">
             <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 border border-border bg-card px-2 sm:px-6 font-display text-[12px] font-semibold tracking-normal text-primary shadow-none transition-all hover:bg-primary hover:text-primary-foreground" data-testid="link-preview-showroom">
               <ExternalLink className="h-3.5 w-3.5" /> View published showroom</Link>
-            <Button type="submit" disabled={!dirty || updateSettings.isPending} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
+            <Button type="submit" disabled={!dirty || updateSettings.isPending || pendingUploads > 0} className="min-h-11 px-2 sm:px-4 rounded-md font-display text-[12px] font-semibold tracking-normal shadow-none transition-all" data-testid="button-save-settings">
               <Save className="mr-2 h-4 w-4" />
               {updateSettings.isPending ? 'Publishing…' : activeSection !== 'review' ? 'Review changes' : 'Publish showroom'}
             </Button>

@@ -102,7 +102,8 @@ export default function CarDetail() {
   }, [car?.id]);
 
 
-  usePageMeta(car ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
+  usePageMeta(!error && car && !['sold', 'archived', 'hidden'].includes(String(car.inventoryStatus)) ? vehiclePageMeta(car, dealerConfig) : isLoading ? null : {
+    indexable: false,
     title: `${error ? 'Vehicle details unavailable' : 'Vehicle not in stock'} | ${dealerConfig.identity.name}`,
     description: error ? 'Please try again to check this vehicle’s current details.' : 'Browse our current used cars or ask us about this car.',
   });

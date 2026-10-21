@@ -54,3 +54,4 @@ export * from './feature-controls';
 export * from './stock-change-tasks';
 
 export * from "./sold-vehicle-follow-ups";
+export * from './dealer-website-assets';
