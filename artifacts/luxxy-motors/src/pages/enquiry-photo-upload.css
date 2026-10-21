@@ -1,0 +1,21 @@
+.enquiry-phone-upload { min-height: 100dvh; background: #f2f5f7; padding: max(24px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom)); color: #1d2f3b; }
+.enquiry-phone-upload-card { max-width: 620px; margin: 0 auto; padding: 24px; display: grid; gap: 16px; background: white; border: 1px solid #d8e2e8; border-radius: 16px; font-size: 15px; line-height: 1.6; }
+.enquiry-phone-upload-card h1 { font-size: 26px; line-height: 1.25; font-weight: 650; }
+.enquiry-phone-upload-kicker { color: #426176; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; }
+.enquiry-phone-upload-context { display: grid; gap: 3px; padding: 12px; background: #f2f7fa; border-radius: 8px; }
+.enquiry-phone-upload-context span, .enquiry-phone-upload-hint { color: #576b79; font-size: 13px; }
+.enquiry-phone-upload-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.enquiry-phone-upload-choices label { position: relative; display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 50px; background: #245e80; color: white; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.enquiry-phone-upload-choices label:focus-within { outline: 3px solid #94c5df; outline-offset: 2px; }
+.enquiry-phone-upload-choices label:has(input:disabled) { opacity: .55; cursor: wait; }
+.enquiry-phone-upload-choices svg { width: 20px; height: 20px; flex-shrink: 0; }
+.enquiry-phone-upload-choices input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.enquiry-phone-upload-photos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.enquiry-phone-upload-photos figure { min-width: 0; }
+.enquiry-phone-upload-photos img { width: 100%; height: 180px; object-fit: contain; border: 1px solid #dbe4ea; border-radius: 9px; background: #f6f8f9; }
+.enquiry-phone-upload-photos figcaption { display: grid; gap: 6px; font-size: 12px; color: #576b79; padding-top: 6px; }
+.enquiry-phone-upload-error { color: #922118; background: #fff2ef; padding: 12px; border-radius: 8px; overflow-wrap: anywhere; }
+.enquiry-phone-upload-done { display: grid; gap: 12px; }
+.enquiry-phone-upload-done > svg { color: #267049; width: 36px; height: 36px; }
+.enquiry-phone-upload-done h2 { font-size: 22px; font-weight: 650; }
+@media(max-width:380px) { .enquiry-phone-upload-card { padding: 18px; }.enquiry-phone-upload-choices { grid-template-columns: 1fr; } }

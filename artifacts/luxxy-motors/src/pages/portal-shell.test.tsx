@@ -35,8 +35,8 @@ vi.mock("@clerk/react", () => ({
       Account
     </button>
   ),
-  SignInButton: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
+  SignInButton: ({ children, forceRedirectUrl, signUpForceRedirectUrl }: { children: React.ReactNode; forceRedirectUrl?: string; signUpForceRedirectUrl?: string }) => (
+    <div data-testid="staff-sign-in" data-return={forceRedirectUrl} data-sign-up-return={signUpForceRedirectUrl}>{children}</div>
   ),
 }));
 vi.mock("@workspace/api-client-react", () => ({
@@ -296,6 +296,15 @@ describe("portal shell access and navigation", () => {
     ).toHaveAttribute("href", "/");
     expect(state.sessionHook).not.toHaveBeenCalled();
     expect(state.salesMounts).toBe(0);
+  });
+
+  it("returns a signed-out phone QR visitor to the exact car recording screen", () => {
+    state.auth.isSignedIn = false;
+    mount("section=inventory&vehicleId=car-one&recordVideo=1");
+    const target = "/portal?section=inventory&vehicleId=car-one&recordVideo=1";
+    expect(screen.getByTestId("staff-sign-in")).toHaveAttribute("data-return", target);
+    expect(screen.getByTestId("staff-sign-in")).toHaveAttribute("data-sign-up-return", target);
+    expect(state.sessionHook).not.toHaveBeenCalled();
   });
 
   it("waits for the dealership session before mounting any workspace", () => {
@@ -785,4 +794,10 @@ describe("portal shell access and navigation", () => {
     expect(query(location).get("workView")).toBe("customers");
     expect(sale).not.toBeVisible();
   });
+});
+it('opens the recording workspace without the full portal navigation', async()=>{
+  mount('section=inventory&vehicleId=stock-car-one&recordVideo=1');
+  await screen.findByRole('region',{name:'Inventory fixture'});
+  expect(screen.queryByRole('navigation',{name:'Portal sections'})).not.toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:'Quick actions'})).not.toBeInTheDocument();
 });

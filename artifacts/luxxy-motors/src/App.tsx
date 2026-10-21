@@ -28,6 +28,7 @@ const Saved = lazy(() => import("@/pages/saved"));
 const Compare = lazy(() => import("@/pages/compare"));
 const PhoneShare = lazy(() => import('@/pages/phone-share'));
 const StaffUpload = lazy(() => import("@/pages/staff-upload"));
+const EnquiryPhotoUpload = lazy(() => import("@/pages/enquiry-photo-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
 const Contact = lazy(() => import('@/pages/contact'));
@@ -75,6 +76,7 @@ function Router() {
   // Platform administration has its own identity and no dealership navigation or chat.
   if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><PhoneShare /></Suspense></RoutedErrorBoundary>;
   if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
+  if (location === '/enquiry-photo-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><EnquiryPhotoUpload /></Suspense></RoutedErrorBoundary>;
   if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
     <><DemoNotice/><Layout>
@@ -111,7 +113,7 @@ function Router() {
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location} showCustomerHelp={location !== '/platform' && location !== '/staff-upload'}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={location} showCustomerHelp={!['/platform', '/staff-upload', '/enquiry-photo-upload'].includes(location)}>{children}</ErrorBoundary>;
 }
 
 /** Clears cached portal data when the signed-in staff member changes. */
@@ -147,6 +149,7 @@ function ClerkProviderWithRoutes() {
   const [location] = useLocation();
 
   if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><PhoneShare/></Suspense></RoutedErrorBoundary>;
+  if (location === '/enquiry-photo-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><EnquiryPhotoUpload/></Suspense></RoutedErrorBoundary>;
 
   if (location.startsWith('/test-drive-declaration/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><TestDriveDeclaration/></Suspense></RoutedErrorBoundary>;
 

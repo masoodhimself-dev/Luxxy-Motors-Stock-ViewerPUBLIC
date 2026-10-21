@@ -104,15 +104,25 @@ it("an existing published clip stays separate from a new draft", async () => {
   expect(whatsapp.href).toBe("https://dealer.example/vehicle/car?video=1#walkaround");
   expect(screen.getByRole("button",{name:"WhatsApp QR"})).toHaveAttribute("data-whatsapp","true");
   expect(
-    screen.getByRole("link", { name: "Email video link" }),
-  ).toHaveAttribute("href", expect.stringContaining("mailto:?"));
+    screen.getByRole("button", { name: "Email video link" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Email video link" })).toBeNull();
   expect(screen.getByText("Draft preview")).toBeVisible();
   expect(
-    screen.getByText(/existing shared video stays available/),
+    screen.getByText(/current published video stays available/),
   ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Video QR / share link" }),
   ).toBeVisible();
+});
+it("prepares video emails inside the dealership app instead of opening an external email client",async()=>{
+  state.videos=[{id:"live",status:"ready",published:true,revision:1,previewUrl:"/live",durationMs:1000,byteSize:1000}];
+  const view=mount(<VehicleVideoEditor vehicleId="car" writable/>);
+  fireEvent.click(await screen.findByRole("button",{name:"Email video link"}));
+  expect(await screen.findByRole("heading",{name:"Prepare customer email"})).toBeVisible();
+  expect(screen.getByRole("textbox",{name:"Customer email"})).toBeVisible();
+  expect(view.container.querySelector('a[href^="mailto:"]')).toBeNull();
+  expect(state.api.mock.calls.some(([,options])=>options?.method==="POST")).toBe(false);
 });
 it("read-only staff see previews without publication or upload controls", async () => {
   state.videos = [
@@ -177,4 +187,42 @@ it("offers an authenticated phone recording QR and no desktop recorder", async (
   expect(link.searchParams.get("recordVideo")).toBe("1");
   expect(screen.queryByRole("button",{name:"Record new video"})).not.toBeInTheDocument();
   await waitFor(() => expect(screen.getByRole("button",{name:"Upload video"})).toBeEnabled());
+});
+it("focused recording page shows capture before draft review and distinguishes published footage", async () => {
+  state.videos=[{id:'draft',status:'ready',published:false,revision:1,durationMs:2000,byteSize:1000,previewUrl:'/draft'},{id:'live',status:'ready',published:true,revision:1,durationMs:2000,byteSize:1000,previewUrl:'/live'}];
+  const view=mount(<VehicleVideoEditor vehicleId="car" writable recordingPage/>);
+  await screen.findByText('Draft preview');
+  expect(screen.getByRole('list',{name:'Video steps'})).toBeVisible();
+  expect(screen.getByText('Current published video')).toBeVisible();
+  const capture=view.container.querySelector('.video-capture-tools')!;
+  const draft=view.container.querySelector('.video-draft-card')!;
+  expect(capture.compareDocumentPosition(draft)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+it("failed file upload offers the same clip and upload ID for retry", async () => {
+  const create=document.createElement.bind(document);
+  const createSpy=vi.spyOn(document,'createElement').mockImplementation(((tag:string,options?:ElementCreationOptions)=>{
+    const element=create(tag,options);
+    if(tag==='video'){
+      Object.defineProperty(element,'duration',{value:4});
+      Object.defineProperty(element,'src',{configurable:true,set(){queueMicrotask(()=>{(element as HTMLVideoElement).onloadedmetadata?.(new Event('loadedmetadata'));});}});
+      (element as HTMLVideoElement).load=vi.fn();
+    }
+    return element;
+  }) as typeof document.createElement);
+  vi.stubGlobal('URL',Object.assign(class extends URL {},{createObjectURL:vi.fn(()=> 'blob:upload'),revokeObjectURL:vi.fn()}));
+  let attempts=0;
+  state.api.mockImplementation(async(path:string,options?:RequestInit)=>{
+    if(options?.method==='PUT'){if(++attempts===1)throw new Error('Connection lost');return{};}
+    return {enabled:true,videos:[],shareUrl:'https://dealer.example/vehicle/car'};
+  });
+  try{
+    mount(<VehicleVideoEditor vehicleId="car" writable/>);
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Upload video'})).toBeEnabled());
+    const file=new File(['clip bytes'],'car.mp4',{type:'video/mp4'});
+    fireEvent.change(screen.getByLabelText('Choose car video'),{target:{files:[file]}});
+    fireEvent.click(await screen.findByRole('button',{name:'Retry upload'}));
+    await screen.findByText('Video saved as a draft. Watch it below before publishing.');
+    const calls=state.api.mock.calls.filter(([,options])=>options?.method==='PUT');
+    expect(calls).toHaveLength(2);expect(calls[0][0]).toBe(calls[1][0]);expect(calls[0][1].body).toBe(file);expect(calls[1][1].body).toBe(file);
+  }finally{createSpy.mockRestore();vi.unstubAllGlobals();}
 });

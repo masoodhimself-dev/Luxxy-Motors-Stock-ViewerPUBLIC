@@ -15,6 +15,7 @@ const SalesDemo = lazy(() => import("@/pages/sales-demo"));
 const Platform = lazy(() => import("@/pages/platform"));
 const PhoneShare = lazy(() => import("@/pages/phone-share"));
 const StaffUpload = lazy(() => import("@/pages/staff-upload"));
+const EnquiryPhotoUpload = lazy(() => import("@/pages/enquiry-photo-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
@@ -36,7 +37,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -54,6 +55,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
                   <Route path="/phone-share" component={PhoneShare} />
                   <Route path="/staff-upload" component={StaffUpload} />
+                  <Route path="/enquiry-photo-upload" component={EnquiryPhotoUpload} />
                   <Route path="/portal" component={Portal} />
                   <Route path="/portal/leads/:id" component={Portal} />
                   <Route path="/"><Home key="home" /></Route>

@@ -9,6 +9,7 @@ const { jsPDF } = createRequire(
 )("jspdf");
 import { previewStock } from "./stock";
 import { videoRange } from "../../api-server/src/lib/media-storage";
+import { readPreviewEnquiries } from './reservations';
 const packs = new Map<string, { id: string; expiresAt: string }>();
 const demoId = "00000000-0000-4000-8000-000000000048";
 export async function mediaSharingPreview(
@@ -17,7 +18,7 @@ export async function mediaSharingPreview(
   url: URL,
 ) {
   const match =
-    /^\/api\/(?:staff\/inventory\/([^/]+)\/videos(?:\/.*)?|vehicles\/([^/]+)\/video(?:\/(media))?|staff\/phone-shares(?:\/([^/]+)\/revoke)?|staff\/phone-shares\/(?:enquiries|confirm-whatsapp)|phone-shares)$/.exec(
+    /^\/api\/(?:staff\/inventory\/([^/]+)\/videos(?:\/.*)?|vehicles\/([^/]+)\/video(?:\/(media))?|staff\/phone-shares(?:\/([^/]+)\/revoke)?|staff\/phone-shares\/(?:enquiries|confirm-whatsapp|email-enquiry)|phone-shares)$/.exec(
       url.pathname,
     );
   if (!match) return false;
@@ -115,7 +116,18 @@ export async function mediaSharingPreview(
         "Private QR packs require the authenticated server. Nothing was sent.",
     });
   if (url.pathname === "/api/staff/phone-shares/enquiries" && req.method === "GET") {
-    return send(200,{enquiries:[{id:demoId,customerName:"Fictional Alex",phone:"07700 900123",email:"alex@example.test",vehicleTitle:"Sample vehicle"}],canCreate:true});
+    const id=url.searchParams.get('id'),query=(url.searchParams.get('q')||'').toLowerCase();
+    const entries=(await readPreviewEnquiries()).filter(entry=>!entry.mergedIntoId&&(id?entry.id===id:[entry.customerName,entry.phone,entry.email].join(' ').toLowerCase().includes(query))).slice(0,20);
+    return send(200,{enquiries:entries.map(entry=>({id:entry.id,customerName:entry.customerName,phone:entry.phone,email:entry.email,vehicleTitle:entry.vehicleTitle})),canCreate:false});
+  }
+  if (url.pathname === "/api/staff/phone-shares/email-enquiry" && req.method === "POST") {
+    let body='';for await(const part of req){body+=String(part);if(body.length>32768)return send(413,{error:'Request too large.'});}
+    try {
+      const data=JSON.parse(body),entry=(await readPreviewEnquiries()).find(entry=>entry.id===data.enquiryId&&!entry.mergedIntoId);
+      if(!entry)return send(409,{error:'Save a fictional customer in Quick enquiry first, then select that enquiry for this local review.'});
+      if(data.grantId&&![...packs.values()].some(pack=>pack.id===data.grantId&&Date.parse(pack.expiresAt)>Date.now()))return send(410,{error:'This sharing link has expired. Create a new one.'});
+      return send(200,{enquiry:{id:entry.id,customerName:entry.customerName,reference:entry.reference},customerEmail:data.email||entry.email||''});
+    }catch{return send(400,{error:'Invalid preview request.'});}
   }
   if (url.pathname === "/api/staff/phone-shares/confirm-whatsapp" && req.method === "POST") {
     let body=""; for await (const part of req) {body+=String(part);if(body.length>65536)return send(413,{error:"Preview request too large."});}

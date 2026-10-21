@@ -279,3 +279,37 @@
 .quick-enquiry-dialog .quick-car-search-input input { padding-left: 40px; }
 .quick-enquiry-dialog #quick-car-search { padding-left: 40px; border-radius: 10px; }
 @media(max-width:639px) { .quick-enquiry-dialog #quick-car-search { font-size: 16px; } }
+.quick-enquiry-saved { display: grid; gap: 13px; padding: 24px; font-size: 14px; line-height: 1.6; }
+.quick-enquiry-saved h3 { font-size: 20px; font-weight: 650; }
+.quick-enquiry-saved small { color: var(--portal-muted, #596977); }
+.quick-enquiry-saved-status { padding: 9px 12px; color: #215b43; background: #edf7f0; border-radius: 8px; font-weight: 600; }
+.portal-action-dialog.quick-car-details-dialog { width: min(860px, calc(100vw - 28px)); max-width: 860px; max-height: 90dvh; display: flex; flex-direction: column; overflow: hidden; padding: 22px; gap: 16px; }
+.quick-car-details-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 18px; font-size: 14px; line-height: 1.6; }
+.quick-car-details-content > * { min-width: 0; max-width: 100%; }
+.quick-car-detail-gallery { min-width: 0; max-width: 100%; }
+.quick-car-details-content h3 { font-size: 16px; font-weight: 650; margin-bottom: 8px; }
+.quick-car-details-content section p + p { margin-top: 10px; }
+.quick-car-detail-main { display: block; width: 100%; max-width: 100%; max-height: 300px; object-fit: contain; background: #f3f5f6; border-radius: 9px; }
+.quick-car-detail-thumbs { display: flex; min-width: 0; width: 100%; max-width: 100%; gap: 8px; overflow-x: auto; margin-top: 8px; padding-bottom: 4px; }
+.quick-car-detail-thumbs button { flex: 0 0 70px; border: 2px solid transparent; padding: 2px; border-radius: 6px; }
+.quick-car-detail-thumbs button[aria-pressed=true] { border-color: var(--portal-accent, #245e80); }
+.quick-car-detail-thumbs img { width: 100%; height: 48px; object-fit: cover; }
+.quick-car-details-dialog .quick-car-details-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.quick-car-details-facts > div { border-bottom: 1px solid #e0e7ec; padding-bottom: 8px; }
+.quick-car-details-facts dt { color: #596977; font-size: 12px; }
+.quick-car-details-facts dd { font-weight: 600; text-transform: capitalize; }
+.quick-car-detail-features { columns: 2; list-style: disc; padding-left: 20px; }
+.quick-car-detail-features li { break-inside: avoid; padding-bottom: 7px; padding-right: 10px; }
+.quick-car-disclosure { background: #fff7e7; border-left: 3px solid #b98124; padding: 10px 12px; }
+.quick-car-fact-group { min-width: 0; border: 1px solid #dbe4e9; border-radius: 8px; padding: 0 12px; }
+.quick-car-fact-group summary { cursor: pointer; padding: 11px 0; font-size: 14px; font-weight: 650; }
+.quick-car-fact-group summary span { margin-left: 10px; font-size: 12px; color: #596977; font-weight: 400; }
+.quick-car-fact-group[open] > dl { padding-bottom: 12px; }
+@media (max-width:639px) {
+ .quick-enquiry-footer, .quick-enquiry-dialog[data-booking=true] .quick-enquiry-footer { display: grid; grid-template-columns: 1fr 1fr; }
+ .quick-enquiry-footer > button:first-child { grid-column: 1 / -1; min-height: 36px; }
+ .quick-enquiry-footer > button { min-width: 0; white-space: normal; height: auto; line-height: 1.4; padding: 10px; }
+ .quick-car-details-dialog .quick-car-details-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .quick-car-detail-features { columns: 1; }
+ .portal-action-dialog.quick-car-details-dialog { padding: 18px; max-height: calc(100dvh - 24px); }
+}

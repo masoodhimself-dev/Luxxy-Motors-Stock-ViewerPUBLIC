@@ -1,0 +1,20 @@
+import { beforeEach, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+const state=vi.hoisted(()=>({api:vi.fn()}));
+vi.mock("@workspace/api-client-react",()=>({customFetch:(...args:unknown[])=>state.api(...args)}));
+vi.mock("./dealer-administration",()=>({useStaffAccess:()=>({data:{permissions:["sales.manage"]}})}));
+vi.mock("./history-links",()=>({HistoryLinks:()=>null}));
+vi.mock("@/components/share-qr",()=>({ShareQr:({onEmailFallback}:{onEmailFallback?:()=>void})=><button onClick={onEmailFallback}>Use email instead</button>}));
+import { StripeReservationsPanel } from "./stripe-reservations-panel";
+const reservation={id:"reservation",vehicleId:"car",reference:"internal",vehicleTitle:"Ford Focus",customerName:"Alex",email:"alex@example.test",phone:"07700 900123",depositPence:10000,amountReceivedPence:10000,amountRefundedPence:0,paymentStatus:"confirmed",status:"reserved",mode:"live",needsReview:false};
+beforeEach(()=>{state.api.mockReset().mockResolvedValue({reservations:[reservation]});});
+it("returns WhatsApp fallback to internal reservation email controls without sending or changing the payment",async()=>{
+  const snapshot=structuredClone(reservation);
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><StripeReservationsPanel/></QueryClientProvider>);
+  fireEvent.click(await screen.findByRole("button",{name:"Use email instead"}));
+  expect(screen.getByRole("status")).toHaveTextContent("Review this reservation, then choose Email reservation details to send it through the dealership email system.");
+  expect(screen.getByRole("button",{name:"Email reservation details"})).toBeEnabled();
+  expect(state.api.mock.calls.some(([,options])=>options?.method==="POST")).toBe(false);
+  expect(reservation).toEqual(snapshot);
+});

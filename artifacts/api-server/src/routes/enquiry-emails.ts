@@ -56,6 +56,7 @@ import {
 } from "../lib/email-preparation";
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { siteOrigin } from "../lib/enquiry-links";
+import { enquiryMediaContext, selectedEnquiryMedia, EnquiryMediaError, mediaRequestIdentity } from "../lib/enquiry-media";
 
 export const draftSchema = z
   .object({
@@ -93,6 +94,9 @@ export const draftSchema = z
       .max(3)
       .refine((v) => new Set(v).size === v.length)
       .default([]),
+    customPhotoIds: z.array(z.string().uuid()).max(2).refine(v => new Set(v).size === v.length).default([]),
+    vehiclePhotoIndices: z.array(z.number().int().min(0).max(99)).max(4).refine(v => new Set(v).size === v.length).default([]),
+    includeVideo: z.boolean().default(false),
     expectedRevision: z.number().int().nonnegative(),
   })
   .strict();
@@ -124,7 +128,7 @@ const describe = (
   to: row.recipient,
   subject: row.subject,
   status: row.status,
-  photoCount: row.photoIds.length,
+  photoCount: row.photoIds.length + row.attachmentManifest.filter(a => a.filename.startsWith("enquiry-photo-")).length,
   documentCount: row.documentIds.length,
   createdAt: row.createdAt,
   finishedAt: row.finishedAt,
@@ -198,12 +202,13 @@ async function invoiceAttachments(
 }
 async function preview(
   id: string,
-  input: Draft,
+  rawInput: Omit<Draft, "customPhotoIds" | "vehiclePhotoIndices" | "includeVideo"> & Partial<Pick<Draft, "customPhotoIds" | "vehiclePhotoIndices" | "includeVideo">>,
   config: PrivateDealerSettings,
   profile: Awaited<ReturnType<typeof dealerProfile>>,
   executor: typeof db = db,
   layoutVersion: EmailLayoutVersion = "correspondence-v1",
 ) {
+  const input = {...rawInput, customPhotoIds: rawInput.customPhotoIds ?? [], vehiclePhotoIndices: rawInput.vehiclePhotoIndices ?? [], includeVideo: rawInput.includeVideo ?? false};
   return withEmailPreparation(async () => {
     const enquiry = await entry(id, executor);
     await checkSavedAiDraftFresh(
@@ -392,6 +397,9 @@ async function preview(
         });
       }
     }
+    const media = await selectedEnquiryMedia(enquiry, input, executor);
+    attachments.push(...media.attachments);
+    facts.push(...media.facts);
     if (
       attachments.reduce(
         (bytes, a) => bytes + Buffer.byteLength(a.content, "base64"),
@@ -437,6 +445,7 @@ async function preview(
       JSON.stringify({
         to: input.to,
         ...rendered,
+        ...(media.videoId ? {videoId: media.videoId} : {}),
         attachments: attachments.map((a) => ({
           id: a.id,
           filename: a.filename,
@@ -552,7 +561,7 @@ export function createEnquiryEmailRouter(
       res.set("Retry-After", "15").status(503).json({ error: error.message });
       return;
     }
-    if (error instanceof EmailError || error instanceof AiDraftError) {
+    if (error instanceof EmailError || error instanceof AiDraftError || error instanceof EnquiryMediaError) {
       res.status(error.status).json({ error: error.message });
       return;
     }
@@ -717,6 +726,7 @@ export function createEnquiryEmailRouter(
         defaults: { subject: defaults.subject, message: defaults.bodyText },
         ready,
         photos,
+        ...(await enquiryMediaContext(enquiry)),
         deliveries: deliveries.map((row) =>
           describe(row, outboxMetadata.get(row.id)),
         ),
@@ -771,7 +781,7 @@ export function createEnquiryEmailRouter(
           id = String(req.params.id),
           requestHash = hash(
             JSON.stringify({
-              ...input,
+              ...mediaRequestIdentity(input),
               documentIds: input.documentIds.length
                 ? input.documentIds
                 : undefined,
@@ -1001,7 +1011,7 @@ export function createEnquiryEmailRouter(
             channel: "email",
             staffId: req.staff!.authUserId,
             staffName: staffLabel(req),
-            note: `To: ${input.to}\nSubject: ${result!.rendered.subject}\n${result!.rendered.bodyText}\n${input.photoIds.length} vehicle photo(s) and ${input.documentIds.length} invoice(s) attached.${finished.error ? "\n" + finished.error : ""}`,
+            note: `To: ${input.to}\nSubject: ${result!.rendered.subject}\n${result!.rendered.bodyText}\n${input.photoIds.length + input.customPhotoIds.length} photo(s) and ${input.documentIds.length} invoice(s) attached.${input.vehiclePhotoIndices.length ? `\n${input.vehiclePhotoIndices.length} car photo link(s) included.` : ""}${input.includeVideo ? "\nPublished car video link included." : ""}${finished.error ? "\n" + finished.error : ""}`,
           },
         });
         res.status(201).json({

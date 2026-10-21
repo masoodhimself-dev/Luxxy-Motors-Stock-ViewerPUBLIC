@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defaultEmailAppearance, defaultEmailTemplates } from '@workspace/vehicle-meta';
 import { communicationsPreview } from './communications';
 import { previewSettings } from './settings';
+import { previewStock } from './stock';
 
 const fixture = {
   id: 'fictional-email-parity', reference: 'PREVIEW-EMAIL-TEST', customerName: 'José Example',
@@ -89,4 +90,16 @@ test('local review renders exact shared HTML, protects facts and never sends ema
   assert.equal((await call(`${path}/email`, 'POST', content)).status, 503);
   assert.equal((await call(`${path}/email-preview`, 'POST', content, fixture, 'https://untrusted.example')).status, 403);
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('local gallery choices use usable image URLs in the reviewed message', async () => {
+  const car=previewStock.cars[0];
+  const entry={...fixture,vehicleId:car.id,vehicleTitle:car.title};
+  const context=await call(`${path}/email-context`,'GET',undefined,entry);
+  assert.ok(context.data.vehiclePhotos.length>0);
+  assert.equal(typeof context.data.vehiclePhotos[0].url,'string');
+  const reviewed=await call(`${path}/email-preview`,'POST',{...content,vehiclePhotoIndices:[0],includeVideo:false},entry);
+  assert.equal(reviewed.status,200);
+  assert.ok(reviewed.data.text.includes(context.data.vehiclePhotos[0].url));
+  assert.doesNotMatch(reviewed.data.text,/\[object Object\]/);
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { SignInButton, UserButton, useAuth, useUser } from '@clerk/react';
+import { staffReturnUrl } from '@/lib/staff-return-url';
 import {
   getGetPortalSessionQueryKey,
   useGetPortalSession,
@@ -234,6 +235,10 @@ function PortalDesk() {
     setQuickEnquiryOpen(true);
   }
 
+  if (tab === 'inventory' && new URLSearchParams(search).get('recordVideo') === '1') return (
+    <div className="portal-recording-shell"><PortalInstallMetadata /><StaffInventory /></div>
+  );
+
   return (
     <div data-section={tab} className="portal-workspace portal-premium-workspace luxxy-shell min-h-[70vh] bg-background">
       <PortalInstallMetadata />
@@ -321,7 +326,7 @@ export default function Portal() {
         title="Sign in to your staff portal"
         blurb="Sign in with your dealership staff account to manage enquiries, sales drafts, appointments, reservations and dealership settings."
       >
-        <SignInButton mode="redirect">
+        <SignInButton mode="redirect" forceRedirectUrl={staffReturnUrl(window.location.href)} signUpForceRedirectUrl={staffReturnUrl(window.location.href)}>
           <Button data-testid="button-portal-sign-in">
             Sign in
           </Button>

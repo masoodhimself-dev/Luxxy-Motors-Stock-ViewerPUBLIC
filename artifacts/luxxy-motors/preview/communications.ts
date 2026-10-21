@@ -6,6 +6,7 @@ import { defaultEmailTemplates, defaultEmailAppearance, renderEmailTemplate, typ
 import { enquiryGroup } from "../src/lib/enquiry-groups";
 import { readPreviewEnquiries, readPreviewSettings } from "./reservations";
 import { previewStock } from './stock';
+import { previewEnquiryMedia } from './enquiry-media';
 const drafts = new Map<
   string,
   {
@@ -25,6 +26,9 @@ const contentSchema = z
     includeAppointment: z.boolean(),
     photoIds: z.array(z.string()).max(6),
     documentIds: z.array(z.string()).max(3),
+    customPhotoIds: z.array(z.string().uuid()).max(2).default([]),
+    vehiclePhotoIndices: z.array(z.number().int().min(0).max(99)).max(4).default([]),
+    includeVideo: z.boolean().default(false),
     expectedRevision: z.number().int().nonnegative(),
   })
   .strict();
@@ -252,6 +256,7 @@ export async function communicationsPreview(
         templates: availableTemplates.map(template => { const rendered = renderEmailTemplate(template, variables, [], { ...appearance, heading: '', footer: '' }); return { id: template.id, label: template.label, subject: rendered.subject, message: rendered.bodyText }; }),
         invoices: [],
         photos: [],
+        ...previewEnquiryMedia(entry.id,entry.vehicleId,req.headers.host||'localhost'),
         deliveries: [],
       });
       return true;
@@ -322,6 +327,13 @@ export async function communicationsPreview(
         if (parsed.data.photoIds.length || parsed.data.documentIds.length) { send(409, { error: 'Private attachments need the authenticated backend. Local preview cannot validate or send them.' }); return true; }
         if (parsed.data.includeAppointment && !entry.appointmentAt) { send(400, { error: 'There is no appointment on this enquiry.' }); return true; }
         const car = previewStock.cars.find(car => car.id === entry.vehicleId);
+        const media = previewEnquiryMedia(entry.id, entry.vehicleId, req.headers.host||'localhost');
+        const selectedPhotos = parsed.data.customPhotoIds.map(id=>media.customPhotos.find(photo=>photo.id===id));
+        if(selectedPhotos.some(photo=>!photo)){send(409,{error:'A custom photo was removed. Refresh the message before sharing.'});return true;}
+        const links:string[]=[];
+        for(const index of parsed.data.vehiclePhotoIndices){const photo=media.vehiclePhotos.find(photo=>photo.index===index);if(!photo){send(409,{error:'A car photo changed. Choose it again.'});return true;}links.push(`Car photo ${index+1}: ${photo.url}`);}
+        if(parsed.data.includeVideo){if(!media.videoAvailable||!media.videoUrl){send(409,{error:'There is no published video for this car.'});return true;}links.push(`Car video: ${media.videoUrl}`);}
+        const attachments=selectedPhotos.map(photo=>({id:photo!.id,filename:`custom-photo-${photo!.id}.jpg`,byteSize:photo!.byteSize}));
         const facts: EmailFacts = [];
         if (parsed.data.includeVehicle) {
           if (!car && !entry.vehicleTitle) { send(400, { error: 'There is no vehicle information on this enquiry.' }); return true; }
@@ -330,14 +342,14 @@ export async function communicationsPreview(
           if (car?.mileage != null) facts.push({ label: 'Mileage', value: `${car.mileage.toLocaleString('en-GB')} miles` });
         }
         if (parsed.data.includeAppointment) facts.push({ label: 'Appointment', value: appointmentTime }, { label: 'Appointment status', value: appointmentStatus }, { label: 'Showroom', value: address });
-        const rendered = renderEmailTemplate({ subject: '{{document_type}}', body: '{{message}}', headline: templateSettings.templates.find(template => template.id === (parsed.data.templateId ?? 'enquiry_message'))?.headline }, { ...variables, customer_email: parsed.data.to, document_type: parsed.data.subject, message: parsed.data.message }, facts, appearance, { templateId: parsed.data.templateId ?? 'enquiry_message' });
+        const rendered = renderEmailTemplate({ subject: '{{document_type}}', body: '{{message}}', headline: templateSettings.templates.find(template => template.id === (parsed.data.templateId ?? 'enquiry_message'))?.headline }, { ...variables, customer_email: parsed.data.to, document_type: parsed.data.subject, message: [parsed.data.message,...links].join('\n\n') }, facts, appearance, { templateId: parsed.data.templateId ?? 'enquiry_message' });
         send(200, {
           to: parsed.data.to,
           subject: rendered.subject,
           text: rendered.text,
           html: rendered.html,
-          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments: [] })).digest('hex'),
-          attachments: [],
+          previewHash: createHash('sha256').update(JSON.stringify({ to: parsed.data.to, ...rendered, attachments })).digest('hex'),
+          attachments,
         });
         return true;
       }

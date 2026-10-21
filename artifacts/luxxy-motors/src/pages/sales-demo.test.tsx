@@ -68,6 +68,7 @@ vi.mock("@/components/sales-demo/sales-document", () => ({
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
 }));
 vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
+vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback}:{source?:{documentId?:string};onEmailFallback?:()=>void})=><button data-document-id={source?.documentId} onClick={onEmailFallback}>Use email instead</button>}));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
 const initialStockCars = structuredClone(state.stock.cars);
@@ -697,6 +698,19 @@ it("offers the existing completion review for a current full invoice and still r
   expect(screen.getByRole("checkbox", { name: /I confirm the sale can proceed/ })).not.toBeChecked();
   expect(state.sales[0].completedAt).toBeUndefined();
   expect(mutations()).toHaveLength(0);
+});
+
+it("returns document WhatsApp sharing to its internal invoice email controls without sending automatically",async()=>{
+  const sale=fixtureCommand(savedSale(),{action:"issue-invoice",kind:"full",acknowledge:true});
+  const snapshot=structuredClone(sale);
+  await mountSaved(sale);
+  fireEvent.click(screen.getByRole("button",{name:"Use email instead"}));
+  expect(screen.getByRole("heading",{name:"Your invoice is ready."})).toBeVisible();
+  expect(screen.getByText("Review this saved document, then choose Email customer to send it through the dealership email system.")).toBeVisible();
+  expect(screen.getByRole("button",{name:"Email customer"})).toBeEnabled();
+  expect(mutations()).toHaveLength(0);
+  expect(state.sales[0]).toEqual(snapshot);
+  expect(state.fetch.mock.calls.some(([path])=>String(path).includes("/phone-shares/email-enquiry"))).toBe(false);
 });
 
 it('shows reminders and marks a paid car sold without final checklist writes', async () => {

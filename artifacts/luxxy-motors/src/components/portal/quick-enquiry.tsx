@@ -12,6 +12,7 @@ import {
 import { CalendarDays, LoaderCircle, MessageSquarePlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { QuickEnquiryCars } from "./quick-enquiry-cars";
+import { EnquiryEmailComposer } from "./enquiry-email-composer";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -54,6 +55,8 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
   const [booking, setBooking] = useState(false);
   const [appointmentTime, setAppointmentTime] = useState("");
   const [slotValid, setSlotValid] = useState(false);
+  const [saved, setSaved] = useState<{ result: QuickEnquiryResult; name: string; car: string } | null>(null);
+  const [messaging, setMessaging] = useState(false);
   const submitting = useRef(false);
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -63,6 +66,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
       setBooking(false);
       setAppointmentTime("");
       setSlotValid(false);
+      setSaved(null); setMessaging(false);
     }
     wasOpen.current = open;
   }, [open, initialVehicleId]);
@@ -105,6 +109,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
     setForm((current) => ({ ...current, [key]: value }));
   function dismiss(next: boolean) {
     if (submitting.current || pending) return;
+    if (!next && saved) { finishSaved(); return; }
     if (
       !next &&
       dirty &&
@@ -122,7 +127,12 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
     }
     onOpenChange(next);
   }
-  async function submit(event: FormEvent) {
+  function finishSaved() {
+    if (!saved) return;
+    const result = saved.result; setSaved(null); setMessaging(false);
+    onOpenChange(false); onCreated?.(result);
+  }
+  async function submit(event: FormEvent, messageAfter = false) {
     event.preventDefault();
     if (submitting.current || pending) return;
     setError("");
@@ -200,6 +210,8 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
       submitting.current = false;
       setSaving(false);
     }
+    const result = { id: created.id, reference: created.reference, ...(created.appointmentAt ? { appointmentAt: created.appointmentAt, appointmentStatus: created.appointmentStatus, customerNotificationStatus: created.customerNotificationStatus } : {}) };
+    if (messageAfter) setSaved({ result, name: form.name.trim(), car: selectedCar?.title || "General enquiry" });
     setForm(emptyForm);
     setError("");
     setBooking(false);
@@ -215,11 +227,10 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
         "inventory-customers",
       ].map((key) => cache.invalidateQueries({ queryKey: [key] })),
     ]);
-    onOpenChange(false);
-    onCreated?.({ id: created.id, reference: created.reference, ...(created.appointmentAt ? { appointmentAt: created.appointmentAt, appointmentStatus: created.appointmentStatus, customerNotificationStatus: created.customerNotificationStatus } : {}) });
+    if (!messageAfter) { onOpenChange(false); onCreated?.(result); }
   }
   return (
-    <Dialog open={open} onOpenChange={dismiss}>
+    <><Dialog open={open && !messaging} onOpenChange={dismiss}>
       <DialogContent
         className="portal-action-dialog quick-enquiry-dialog"
         aria-busy={pending}
@@ -241,7 +252,7 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
             {booking ? "Save the enquiry and test drive together." : "Find the car while you’re on the call, then save the customer’s details."}
           </DialogDescription>
         </DialogHeader>
-        {access.isLoading && !access.data ? (
+        {saved ? <div className="quick-enquiry-saved"><p className="quick-enquiry-saved-status" role="status">Enquiry saved{saved.result.appointmentAt ? saved.result.appointmentStatus === "pending" ? " · test drive awaiting approval" : " and test drive booked" : ""}</p><h3>{saved.name}</h3><p>{saved.car}</p><p>You can now choose car photos, add up to two custom photos or include the published video. Review your message, then choose email or WhatsApp.</p><Button type="button" onClick={() => setMessaging(true)}>Send photos or video</Button><Button type="button" variant="outline" onClick={finishSaved}>Done</Button><small>No message is sent until you approve it.</small></div> : access.isLoading && !access.data ? (
           <div className="quick-enquiry-state" role="status">
             Checking your staff access…
           </div>
@@ -346,10 +357,11 @@ export function QuickEnquiryDialog({ open, onOpenChange, onCreated, initialVehic
                 )}
                 {pending ? booking ? "Saving booking…" : "Saving enquiry…" : booking ? "Save enquiry & book test drive" : "Save enquiry"}
               </Button>
+              <Button type="button" variant="outline" disabled={pending || !directory.data || directory.isError || (booking && (!bookingEnabled || !carAvailable || !appointmentTime || !slotValid))} onClick={event => void submit(event, true)}>Save & message</Button>
             </footer>
           </form>
         )}
       </DialogContent>
-    </Dialog>
+    </Dialog>{open && saved && messaging && <EnquiryEmailComposer messageMode entry={{ id: saved.result.id, reference: saved.result.reference, customerName: saved.name }} onClose={() => setMessaging(false)} />}</>
   );
 }

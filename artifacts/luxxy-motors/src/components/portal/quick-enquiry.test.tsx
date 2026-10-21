@@ -135,6 +135,7 @@ vi.mock("@/lib/stock-context", () => ({
     error: state.stockError,
   }),
 }));
+vi.mock("./enquiry-email-composer", () => ({ EnquiryEmailComposer: ({ entry, onClose }: { entry: { id: string; customerName: string }; onClose: () => void }) => <div role="dialog" aria-label="Customer message"><p>Message for {entry.customerName}</p><p>{entry.id}</p><button onClick={onClose}>Return to saved enquiry</button></div> }));
 import { QuickEnquiryDialog } from "./quick-enquiry";
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -702,4 +703,53 @@ it("treats a general enquiry HTTP500 as uncertain rather than echoing an unsafe 
   expect(alert).not.toHaveTextContent("Please try again.");
   expect(state.create).toHaveBeenCalledTimes(1);
   expect(state.createBooking).not.toHaveBeenCalled();
+});
+
+it("saves once then opens the message composer without losing the new enquiry", async () => {
+  const view = mount(true, "car-one"); fill();
+  fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
+  expect(await screen.findByRole("button", { name: "Send photos or video" })).toBeVisible();
+  expect(state.create).toHaveBeenCalledTimes(1);
+  expect(view.onCreated).not.toHaveBeenCalled();
+  expect(view.onOpenChange).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Save enquiry" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Send photos or video" }));
+  expect(await screen.findByRole("dialog", { name: "Customer message" })).toHaveTextContent("Message for Alex Smith");
+  expect(screen.getByRole("dialog", { name: "Customer message" })).toHaveTextContent("enquiry-new");
+  fireEvent.click(screen.getByRole("button", { name: "Return to saved enquiry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Done" }));
+  expect(state.create).toHaveBeenCalledTimes(1);
+  expect(state.createBooking).not.toHaveBeenCalled();
+  expect(view.onCreated).toHaveBeenCalledExactlyOnceWith({ id: "enquiry-new", reference: "ENQ-123" });
+  expect(view.onOpenChange).toHaveBeenCalledWith(false);
+});
+
+it("Save & message creates one atomic booking and never resaves while preparing messages", async () => {
+  const view = mount(true, "car-one"); fill(); await chooseTestDrive();
+  fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
+  await screen.findByRole("button", { name: "Send photos or video" });
+  expect(screen.getByRole("status")).toHaveTextContent("test drive booked");
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(state.createBooking).toHaveBeenCalledTimes(1);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(view.onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "booking-new", appointmentAt: "2026-10-19T14:00:00.000Z" }));
+});
+
+it("does not open sharing when Save & message is not confirmed", async () => {
+  state.create.mockRejectedValue(new Error("Connection lost"));
+  const view = mount(); fill();
+  fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Check Enquiries");
+  expect(screen.queryByRole("button", { name: "Send photos or video" })).not.toBeInTheDocument();
+  expect(view.onCreated).not.toHaveBeenCalled();
+  expect(state.create).toHaveBeenCalledTimes(1);
+});
+
+it("labels an approval-mode appointment as awaiting approval in the saved message flow", async () => {
+  state.createBooking.mockResolvedValue({ id: "booking-new", reference: "ENQ-BOOK", appointmentAt: "2026-10-19T14:00:00.000Z", appointmentStatus: "pending" });
+  mount(true, "car-one"); fill(); await chooseTestDrive();
+  fireEvent.click(screen.getByRole("button", { name: "Save & message" }));
+  await screen.findByRole("button", { name: "Send photos or video" });
+  expect(screen.getByRole("status")).toHaveTextContent("test drive awaiting approval");
+  expect(screen.getByRole("status")).not.toHaveTextContent("test drive booked");
 });

@@ -1,5 +1,6 @@
 import { SignIn, SignUp } from '@clerk/react';
 import { ShieldCheck } from '@/components/icons';
+import { staffAccessReturnUrl } from '@/lib/staff-return-url';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -25,26 +26,30 @@ function AccessFrame({ children }: { children: React.ReactNode }) {
 }
 
 export function StaffSignIn() {
+  const returnUrl = staffAccessReturnUrl();
   return (
     <AccessFrame>
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        forceRedirectUrl={`${basePath}/portal`}
+        signUpUrl={`${basePath}/sign-up?redirect_url=${encodeURIComponent(returnUrl)}`}
+        forceRedirectUrl={returnUrl}
+        signUpForceRedirectUrl={returnUrl}
       />
     </AccessFrame>
   );
 }
 
 export function StaffSignUp() {
+  const returnUrl = staffAccessReturnUrl();
   return (
     <AccessFrame>
       <SignUp
         routing="path"
         path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        forceRedirectUrl={`${basePath}/portal`}
+        signInUrl={`${basePath}/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`}
+        forceRedirectUrl={returnUrl}
+        signInForceRedirectUrl={returnUrl}
       />
     </AccessFrame>
   );

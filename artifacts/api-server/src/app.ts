@@ -52,6 +52,8 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
+app.use('/api/enquiry-photo-upload', express.json({ limit: '1400kb' }));
+app.use('/api/staff/enquiries/:id/photos', express.json({ limit: '1400kb' }));
 app.use('/api/staff/phone-shares', express.json({ limit: '32kb' }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
@@ -74,7 +76,8 @@ app.use(["/api", "/share"], (_req, res) => { res.status(404).json({ error: "Not 
 if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_DIR);
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if(req.path.startsWith('/api/staff/phone-shares') || req.path.startsWith('/api/phone-shares')) req.log.warn('Private phone sharing request failed');
+  if(req.path.startsWith('/api/enquiry-photo-upload') || /^\/api\/staff\/enquiries\/[^/]+\/(?:photos|photo-upload-session)/.test(req.path)) req.log.warn('Private enquiry photo request failed');
+  else if(req.path.startsWith('/api/staff/phone-shares') || req.path.startsWith('/api/phone-shares')) req.log.warn('Private phone sharing request failed');
   else if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
   else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
   else if(req.path === '/api/service-book-upload' || req.path.startsWith('/api/staff/inventory')) req.log.warn('Private inventory request failed');
@@ -88,6 +91,7 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
   if (typeof error === "object" && error !== null && "type" in error && error.type === "entity.too.large") {
     if(req.path.startsWith('/api/demo-onboarding')){res.status(413).json({error:'Onboarding request exceeds the 450 KB limit.'});return;}
     if(req.path === '/api/service-book-upload'){res.status(413).json({error:'Compressed upload exceeds the 2.2 MB request limit.'});return;}
+    if(req.path === '/api/enquiry-photo-upload' || /^\/api\/staff\/enquiries\/[^/]+\/photos(?:\/|$)/.test(req.path)){res.status(413).json({error:'Upload one or two compressed JPEG photos under 500 KB each.'});return;}
     if(req.path === '/api/staff/website-assets'){res.status(413).json({error:'Image upload exceeds the 3 MB request limit. Choose a smaller image.'});return;}
     res.status(413).json({ ...identity, status: "rejected", errors: [{ code: "payload_too_large", message: "Request exceeds the 25 MB limit", path: null, advertId: null }] });
     return;

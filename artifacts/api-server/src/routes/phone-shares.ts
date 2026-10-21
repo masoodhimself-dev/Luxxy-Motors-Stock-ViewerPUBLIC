@@ -26,6 +26,8 @@ import { dealerProfile } from "../lib/enquiry-notifications";
 import { draftSchema, previewEnquiryEmail } from "./enquiry-emails";
 import { renderDealerEmail } from "../lib/email-provider";
 import { listStripeReservations } from "../lib/stripe-reservation-store";
+import { customerEmailPreparationRouter } from "../lib/customer-email-preparation";
+import { mediaRequestIdentity } from "../lib/enquiry-media";
 import { whatsappConfirmationRouter } from "../lib/whatsapp-confirmation";
 const router = Router();
 const input = z
@@ -70,6 +72,7 @@ router.use(["/staff/phone-shares", "/phone-shares"], (_req, res, next) => {
   next();
 });
 router.use("/staff/phone-shares", requireStaff);
+router.use("/staff/phone-shares", customerEmailPreparationRouter());
 router.use("/staff/phone-shares", whatsappConfirmationRouter());
 router.post(
   "/staff/phone-shares",
@@ -85,7 +88,7 @@ router.post(
       const data = parsed.data,
         dealer = currentDealerId(),
         tokenHash = phoneShareHash(data.token),
-        fingerprint = phoneShareHash(JSON.stringify(data.source));
+        fingerprint = phoneShareHash(JSON.stringify("draft" in data.source ? {...data.source, draft: mediaRequestIdentity(data.source.draft)} : data.source));
       const previous = (
         await pool.query(
           "SELECT id,token_hash,fingerprint,expires_at,revoked_at,payload FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",

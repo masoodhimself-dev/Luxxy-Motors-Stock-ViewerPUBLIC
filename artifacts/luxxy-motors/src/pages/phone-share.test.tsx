@@ -80,3 +80,20 @@ it('long-message handoff keeps the token private and opens WhatsApp for the staf
  expect(url.searchParams.get('text')).not.toContain('?wa=');
  expect((fetch as any).mock.calls[0][1].headers['x-phone-share-token']).toBe('a'.repeat(64));
 });
+it('shows the WhatsApp recipient and makes sending separate from recording a staff confirmation', async()=>{
+ window.history.replaceState({},'',`/phone-share#${'a'.repeat(64)}?wa=447700900123`);
+ render(<PhoneShare/>);
+ expect(await screen.findByText('+447700900123')).toBeVisible();
+ expect(screen.getByRole('link',{name:'Open WhatsApp'})).toHaveAttribute('href',expect.stringContaining('/447700900123?'));
+ expect(screen.getByText(/return to the signed-in sharing window/)).toBeVisible();
+ expect(screen.queryByRole('button',{name:'I’ve sent it'})).not.toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Other sharing options'})).toBeVisible();
+});
+it('an already-loaded expired pack does not offer downloads or WhatsApp',async()=>{
+ vi.mocked(fetch).mockResolvedValue({ok:true,json:async()=>({title:'Expired invoice',message:'Private message',customerPhone:'07700900123',expiresAt:'2000-01-01T00:00:00Z',files:[{filename:'invoice.pdf',content:btoa('pdf'),contentType:'application/pdf'}]})} as Response);
+ render(<PhoneShare/>);
+ expect(await screen.findByRole('alert')).toHaveTextContent('expired');
+ expect(screen.queryByRole('link',{name:'Open WhatsApp'})).not.toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Download invoice.pdf'})).not.toBeInTheDocument();
+ expect(screen.queryByText('Private message')).not.toBeInTheDocument();
+});

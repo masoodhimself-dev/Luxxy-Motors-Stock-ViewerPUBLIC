@@ -974,6 +974,50 @@ test("staff AI drafts: permissions, isolation, durable quotas, idempotency, stal
       },
     );
     await t.test(
+      "an expired AI draft can be explicitly replaced before WhatsApp preparation without weakening AI freshness checks",
+      async () => {
+        await reset();
+        const generated = await generate();
+        await save(0, { aiGenerationId: generated.data.generationId });
+        await db.execute(
+          sql`UPDATE staff_ai_draft_generations SET created_at=now()-interval '2 days' WHERE id=${generated.data.generationId}::uuid`,
+        );
+        const edit = await save(1, {}, draftContent("Edited AI-assisted copy"));
+        assert.equal(edit.status, 409);
+        assert.match(edit.data.error, /expired/);
+        const replacement = {
+          ...draftContent("Here are the vehicle details we discussed."),
+          templateId: "vehicle_details",
+        };
+        // Phone sharing calls the same preparation function as this route. A
+        // client template label alone must not skip the saved AI guard.
+        const unsaved = await request(
+          "POST",
+          `/staff/enquiries/${enquiryId}/email-preview`,
+          replacement,
+        );
+        assert.equal(unsaved.status, 409);
+        assert.match(unsaved.data.error, /expired/);
+        const replaced = await save(1, {}, replacement);
+        assert.equal(replaced.status, 200);
+        assert.equal(replaced.data.savedDraft.source, "template");
+        assert.equal(replaced.data.savedDraft.aiGenerationId, null);
+        const preview = await request(
+          "POST",
+          `/staff/enquiries/${enquiryId}/email-preview`,
+          replacement,
+        );
+        assert.equal(preview.status, 200);
+        assert.match(preview.data.text, /vehicle details we discussed/);
+        const manual = await save(2, {}, draftContent("A new staff-written reply"));
+        assert.equal(manual.status, 200);
+        assert.equal(manual.data.savedDraft.source, "manual");
+        assert.equal(manual.data.savedDraft.aiGenerationId, null);
+        assert.equal(calls, 1);
+        assert.equal(sent, 0);
+      },
+    );
+    await t.test(
       "unpublished cars and expired suggestions are refused, while deleting cases does not refund usage",
       async () => {
         await reset();

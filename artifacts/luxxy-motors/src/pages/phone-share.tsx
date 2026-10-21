@@ -1,4 +1,4 @@
-import { customerWhatsAppUrl } from "@/lib/customer-whatsapp";
+import { customerWhatsAppNumber, customerWhatsAppUrl } from "@/lib/customer-whatsapp";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import "@/components/share-qr.css";
@@ -21,6 +21,8 @@ export default function PhoneShare() {
   const [pack, setPack] = useState<Pack | null>(null),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
+  const [now,setNow]=useState(Date.now);
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),5000);return()=>clearInterval(timer);},[]);
   useEffect(() => {
     document.title = "Customer sharing preview";
     const token = window.location.hash.slice(1).split("?")[0];
@@ -88,10 +90,12 @@ export default function PhoneShare() {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
   const number = new URLSearchParams(window.location.hash.split('?')[1] || '').get('wa') || pack?.customerPhone || '';
-  const whatsappUrl = pack ? customerWhatsAppUrl(number, pack.message + (pack.files.length ? "\n\nView your documents and photos:\n" + window.location.href.split('?wa=')[0] : '')) : null;
+  const expired=Boolean(pack && Date.parse(pack.expiresAt)<=now);
+  const recipient=customerWhatsAppNumber(number);
+  const whatsappUrl = pack && !expired ? customerWhatsAppUrl(number, pack.message + (pack.files.length ? "\n\nView your documents and photos:\n" + window.location.href.split('?wa=')[0] : '')) : null;
   return (
     <main className="phone-share-page">
-      <p>Customer sharing preview</p>
+      <p className="phone-share-kicker">Private customer message</p>
       <h1>{pack?.title || "Open your sharing pack"}</h1>
       <p>
         This link contains customer information. Check the recipient before
@@ -100,9 +104,11 @@ export default function PhoneShare() {
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {!pack && !error && <p role="status">Opening sharing pack…</p>}
-      {pack && (
+      {expired && <p role="alert" className="phone-share-step-note">This link has expired. Ask the dealership for a fresh link.</p>}
+      {pack && !expired && (
         <>
-          <pre>{pack.message}</pre>
+          {whatsappUrl && <div className="phone-share-recipient-card"><span>WhatsApp recipient</span><strong>+{recipient}</strong><a className="phone-share-open" href={whatsappUrl} target="_blank" rel="noreferrer">Open WhatsApp</a><p>Check the number and message in WhatsApp, then tap Send yourself.</p></div>}
+          <details className="phone-share-full-message" open><summary>Message</summary><pre>{pack.message}</pre></details>
           <div className="phone-share-files">
             {pack.files.map((file) => (
               <article key={file.filename}>
@@ -115,7 +121,7 @@ export default function PhoneShare() {
             ))}
           </div>
           <div className="phone-share-actions">
-            <Button onClick={() => void share()}>Share with customer</Button>
+            <Button variant="outline" onClick={() => void share()}>Other sharing options</Button>
             <Button
               variant="outline"
               onClick={() =>
@@ -127,14 +133,9 @@ export default function PhoneShare() {
             >
               Copy message
             </Button>
-            <a
-              href={whatsappUrl || undefined}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {whatsappUrl ? "Open WhatsApp" : "No valid customer phone number — ask staff for a new QR"}
-            </a>
+            {!whatsappUrl && <p>No valid customer phone number. Ask staff for a new WhatsApp QR or use the other sharing options.</p>}
           </div>
+          <p className="phone-share-staff-note">For staff: after sending, return to the signed-in sharing window and choose “I’ve sent it” to save the message in the enquiry history. This page cannot confirm delivery.</p>
           <p>
             Link expires {new Date(pack.expiresAt).toLocaleString("en-GB")}. The
             dealership can revoke it sooner.

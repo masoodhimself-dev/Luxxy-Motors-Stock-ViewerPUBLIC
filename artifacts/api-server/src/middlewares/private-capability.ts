@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from 'express';
 
-const privateCapabilityPaths = ['/phone-share', '/api/phone-shares','/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return', '/viewing', '/api/viewings', '/test-drive-declaration', '/api/test-drive-declarations'];
+const privateCapabilityPaths = ['/enquiry-photo-upload','/api/enquiry-photo-upload','/phone-share', '/api/phone-shares','/staff-upload', '/my-purchase', '/verify-invoice', '/reserve/payment-return', '/viewing', '/api/viewings', '/test-drive-declaration', '/api/test-drive-declarations'];
 const privateCapabilityHeaders: RequestHandler = (_req, res, next) => {
   res.set({ 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' });
   next();
