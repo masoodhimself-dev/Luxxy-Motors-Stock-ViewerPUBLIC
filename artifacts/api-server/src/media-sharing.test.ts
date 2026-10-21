@@ -86,7 +86,7 @@ await exec(videoBinaries().ffmpeg, [
   "-i",
   "color=size=128x96:rate=10",
   "-t",
-  "21",
+  "31",
   "-c:v",
   "libx264",
   "-threads",
@@ -98,12 +98,12 @@ const bytes = await readFile(clip);
 test("video probe rejects long, missing and oversized streams", () => {
   assert.equal(
     validateVideoProbe({
-      format: { duration: "20" },
+      format: { duration: "30" },
       streams: [{ codec_type: "video", width: 1920, height: 1080 }],
     }).duration,
-    20,
+    30,
   );
-  for (const duration of ["20.01", "0", "NaN"])
+  for (const duration of ["30.01", "0", "NaN"])
     assert.throws(() =>
       validateVideoProbe({
         format: { duration },
@@ -137,9 +137,9 @@ test("real compression yields H264 under5MB, bounded720px, and removes private m
   );
   assert.equal(info.streams[0].codec_name, "h264");
   assert.equal(info.format.tags?.title, undefined);
-  await assert.rejects(probeVideo(long), /20 seconds/);
+  await assert.rejects(probeVideo(long), /30 seconds/);
 });
-test("twenty-second audio clips, MOV and WebM compress, while disguised playlists are rejected", async () => {
+test("thirty-second audio clips, MOV and WebM compress, while disguised playlists are rejected", async () => {
   const audio = join(dir, "audio.mov");
   await exec(videoBinaries().ffmpeg, [
     "-v",
@@ -153,7 +153,7 @@ test("twenty-second audio clips, MOV and WebM compress, while disguised playlist
     "-i",
     "sine=frequency=440:sample_rate=48000",
     "-t",
-    "20",
+    "30",
     "-c:v",
     "libx264",
     "-threads",
@@ -164,7 +164,7 @@ test("twenty-second audio clips, MOV and WebM compress, while disguised playlist
     audio,
   ]);
   const result = await compressVehicleVideo(audio, join(dir, "audio-out.mp4"));
-  assert.ok(result.duration <= 20);
+  assert.ok(result.duration <= 30);
   assert.equal(result.width, 160);
   assert.equal(result.height, 120);
   const webm = join(dir, "sample.webm");
@@ -179,6 +179,8 @@ test("twenty-second audio clips, MOV and WebM compress, while disguised playlist
     "0.5",
     "-c:v",
     "libvpx",
+    "-live",
+    "1",
     "-threads",
     "1",
     "-y",
@@ -492,6 +494,20 @@ test("isolated real HTTP media and QR workflow", async (t) => {
           "DELETE FROM vehicle_videos WHERE id=ANY($1::uuid[])",
           [failures],
         );
+      },
+    );
+    await t.test(
+      "thirty-second audio upload is accepted by the migrated database as a private draft",
+      async () => {
+        const created = await call(`${base}/${randomUUID()}`, {
+          method: "PUT",
+          body: await readFile(join(dir, "audio.mov")),
+          headers: { "content-type": "video/quicktime" },
+        });
+        assert.equal(created.status, 201, JSON.stringify(created.json));
+        assert.ok(created.json.video.durationMs > 29000);
+        assert.ok(created.json.video.durationMs <= 30000);
+        assert.equal(created.json.video.published, false);
       },
     );
     await t.test(

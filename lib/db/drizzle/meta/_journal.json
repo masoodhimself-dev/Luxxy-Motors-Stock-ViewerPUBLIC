@@ -344,6 +344,13 @@
       "when": 1792141131337,
       "tag": "0048_vehicle_video_phone_share",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792599000000,
+      "tag": "0049_vehicle_video_thirty_seconds",
+      "breakpoints": true
     }
   ]
 }

@@ -73,3 +73,13 @@
 .vehicle-video-previews video {
   max-height: 320px;
 }
+
+.video-recorder {
+  margin: 16px 0;
+}
+.video-recorder > .db-btn {
+  margin: 6px 10px 6px 0;
+}
+.vehicle-video-actions > p {
+  flex-basis: 100%;
+}

@@ -5,7 +5,7 @@ import { stat } from "node:fs/promises";
 const require = createRequire(import.meta.url);
 const exec = promisify(execFile);
 export const videoLimits = {
-  seconds: 20,
+  seconds: 30,
   sourceBytes: 200 * 1024 * 1024,
   outputBytes: 5 * 1024 * 1024,
   dailyUploads: 40,
@@ -54,7 +54,7 @@ export function validateVideoProbe(raw: unknown) {
     duration > videoLimits.seconds
   )
     throw new VideoError(
-      "Choose a video no longer than 20 seconds. Trim a longer clip before uploading.",
+      "Choose a video no longer than 30 seconds. Trim a longer clip before uploading.",
     );
   if (
     !video.width ||
@@ -87,7 +87,59 @@ export async function probeVideo(filename: string) {
       ],
       { timeout: 15000, maxBuffer: 64 * 1024, windowsHide: true },
     );
-    return validateVideoProbe(JSON.parse(stdout));
+    const metadata = JSON.parse(stdout);
+    // Browser MediaRecorder WebM often has no container duration. Inspect a
+    // bounded first 31 seconds of packet timestamps instead of trusting the MIME.
+    if (
+      !Number(metadata.format?.duration) &&
+      !metadata.streams?.some(
+        (stream: { duration?: string }) => Number(stream.duration) > 0,
+      )
+    ) {
+      const packets = await exec(
+        ffprobe,
+        [
+          "-v",
+          "error",
+          "-protocol_whitelist",
+          "file,pipe",
+          "-format_whitelist",
+          "mov,matroska,webm",
+          "-read_intervals",
+          "%+31",
+          "-show_entries",
+          "packet=pts_time,duration_time",
+          "-of",
+          "json",
+          filename,
+        ],
+        {
+          timeout: 15000,
+          maxBuffer: 1024 * 1024,
+          killSignal: "SIGKILL",
+          windowsHide: true,
+        },
+      );
+      const times = JSON.parse(packets.stdout).packets as Array<{
+        pts_time?: string;
+        duration_time?: string;
+      }>;
+      metadata.format = {
+        ...metadata.format,
+        duration: String(
+          (times || []).reduce(
+            (last, packet) =>
+              Math.max(
+                last,
+                Number(packet.pts_time || 0) +
+                  Number(packet.duration_time || 0),
+              ),
+            0,
+          ),
+        ),
+      };
+    }
+    return validateVideoProbe(metadata);
   } catch (error) {
     if (error instanceof VideoError) throw error;
     if ((error as NodeJS.ErrnoException)?.code === "ENOENT")
@@ -165,7 +217,7 @@ export async function compressVehicleVideo(input: string, output: string) {
     },
   );
   const size = (await stat(output)).size;
-  // AAC/container rounding may add a fraction of a frame. The source is strictly <=20s.
+  // AAC/container rounding may add a fraction of a frame. The source is strictly <=30s.
   if (!size || size > videoLimits.outputBytes)
     throw new VideoError(
       "The compressed clip is too large. Try a shorter clip.",

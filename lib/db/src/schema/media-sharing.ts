@@ -48,7 +48,7 @@ export const vehicleVideosTable = pgTable(
     ),
     check(
       "vehicle_videos_duration_check",
-      sql`${t.durationMs} IS NULL OR ${t.durationMs} BETWEEN 1 AND 20000`,
+      sql`${t.durationMs} IS NULL OR ${t.durationMs} BETWEEN 1 AND 30000`,
     ),
     check(
       "vehicle_videos_size_check",

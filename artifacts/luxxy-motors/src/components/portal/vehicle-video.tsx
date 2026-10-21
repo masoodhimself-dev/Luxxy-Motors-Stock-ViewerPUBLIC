@@ -4,6 +4,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ShareQr } from "@/components/share-qr";
 import "./vehicle-video.css";
+import { VideoRecorder } from "./video-recorder";
 type Video = {
   id: string;
   status: "processing" | "ready" | "failed";
@@ -36,10 +37,10 @@ export async function inspectVideoFile(file: File) {
       video.onloadedmetadata = () => {
         const seconds = video.duration;
         finish();
-        if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 20)
+        if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 30)
           reject(
             new Error(
-              "Choose a video no longer than 20 seconds. Trim it before uploading.",
+              "Choose a video no longer than 30 seconds. Trim it before uploading.",
             ),
           );
         else resolve(seconds);
@@ -84,12 +85,12 @@ export function VehicleVideoEditor({
   const input = useRef<HTMLInputElement>(null);
   const pending = useRef<AbortController | null>(null);
   useEffect(() => () => pending.current?.abort(), []);
-  async function send(file: File) {
+  async function send(file: File, recorded = false) {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
-      await inspectVideoFile(file);
+      if (!recorded) await inspectVideoFile(file);
       if (upload.current?.file !== file)
         upload.current = { file, id: crypto.randomUUID() };
       const controller = new AbortController();
@@ -151,7 +152,7 @@ export function VehicleVideoEditor({
     >
       <h3>Car video</h3>
       <p>
-        One short walkaround, up to 20 seconds. Upload an MP4, MOV or WebM clip;
+        One short walkaround, up to 30 seconds. Upload an MP4, MOV or WebM clip;
         we compress it to a phone-friendly MP4 under 5 MB. Review it before
         publishing.
       </p>
@@ -183,7 +184,7 @@ export function VehicleVideoEditor({
       <div className="vehicle-video-previews">
         {published && (
           <div>
-            <h4>Published video</h4>
+            <h4>Shareable video</h4>
             <video
               controls
               playsInline
@@ -195,13 +196,28 @@ export function VehicleVideoEditor({
                 url={query.data?.shareUrl}
                 label="Video QR / share link"
               />
+              <ShareQr
+                url={`https://wa.me/?text=${encodeURIComponent(`Here is the car video: ${query.data?.shareUrl || ""}`)}`}
+                label="WhatsApp QR"
+              />
+              <a
+                className="phone-share-open"
+                href={`mailto:?subject=${encodeURIComponent("Your car video")}&body=${encodeURIComponent(`Here is the car video: ${query.data?.shareUrl || ""}`)}`}
+              >
+                Email video link
+              </a>
+              <p>
+                Hidden during normal website browsing. Scan the WhatsApp QR on
+                your phone, choose the customer and tap Send. Email video link
+                opens your email app.
+              </p>
               {writable && (
                 <Button
                   variant="outline"
                   disabled={busy}
                   onClick={() => void change(published, false)}
                 >
-                  Remove from website
+                  Disable video link
                 </Button>
               )}
             </div>
@@ -221,7 +237,7 @@ export function VehicleVideoEditor({
               {(draft.durationMs / 1000).toFixed(1)} seconds ·{" "}
               {(draft.byteSize / 1024 / 1024).toFixed(1)} MB.{" "}
               {published
-                ? "The existing published video stays live until you publish this replacement."
+                ? "The existing shared video stays available until you publish this replacement."
                 : "This draft is not visible to customers."}
             </p>
             {writable && (
@@ -234,7 +250,8 @@ export function VehicleVideoEditor({
                       setReviewed(e.target.checked ? draft.id : "")
                     }
                   />{" "}
-                  I have reviewed this video and want it on the website.
+                  I have reviewed this video and want to make its link
+                  shareable.
                 </label>
                 <Button
                   disabled={busy || reviewed !== draft.id}
@@ -256,7 +273,13 @@ export function VehicleVideoEditor({
           is unchanged.
         </p>
       )}
-      {writable && (
+      {(writable || query.data?.preview) && (
+        <VideoRecorder
+          disabled={busy || !writable || !query.data?.enabled}
+          onRecorded={(file) => void send(file, true)}
+        />
+      )}
+      {(writable || query.data?.preview) && (
         <div className="vehicle-video-actions">
           <input
             ref={input}
@@ -264,7 +287,7 @@ export function VehicleVideoEditor({
             aria-label="Choose car video"
             type="file"
             accept="video/mp4,video/quicktime,video/webm"
-            disabled={busy || !query.data?.enabled}
+            disabled={busy || !writable || !query.data?.enabled}
             onChange={(e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
@@ -273,7 +296,7 @@ export function VehicleVideoEditor({
           />
           <Button
             variant="outline"
-            disabled={busy || !query.data?.enabled}
+            disabled={busy || !writable || !query.data?.enabled}
             onClick={() => input.current?.click()}
           >
             {published ? "Upload replacement video" : "Upload video"}

@@ -253,7 +253,7 @@ router.put("/staff/inventory/:vehicleId/videos/:uploadId", async (req, res) => {
             [
               req.params.uploadId,
               dealer,
-              Math.min(20000, Math.round(result.duration * 1000)),
+              Math.min(30000, Math.round(result.duration * 1000)),
               result.byteSize,
               result.width,
               result.height,

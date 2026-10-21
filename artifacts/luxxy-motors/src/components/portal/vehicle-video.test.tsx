@@ -11,7 +11,9 @@ vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.api(...args),
 }));
 vi.mock("@/components/share-qr", () => ({
-  ShareQr: ({ label }: { label: string }) => <button>{label}</button>,
+  ShareQr: ({ label, url }: { label: string; url?: string }) => (
+    <button data-url={url}>{label}</button>
+  ),
 }));
 function mount(node: React.ReactNode) {
   return render(
@@ -93,9 +95,23 @@ it("an existing published clip stays separate from a new draft", async () => {
     },
   ];
   mount(<VehicleVideoEditor vehicleId="car" writable />);
-  await screen.findByText("Published video");
+  await screen.findByText("Shareable video");
+  const whatsapp = new URL(
+    screen
+      .getByRole("button", { name: "WhatsApp QR" })
+      .getAttribute("data-url")!,
+  );
+  expect(whatsapp.origin).toBe("https://wa.me");
+  expect(whatsapp.searchParams.get("text")).toContain(
+    "https://dealer.example/vehicle/car?video=1#walkaround",
+  );
+  expect(
+    screen.getByRole("link", { name: "Email video link" }),
+  ).toHaveAttribute("href", expect.stringContaining("mailto:?"));
   expect(screen.getByText("Draft preview")).toBeVisible();
-  expect(screen.getByText(/existing published video stays live/)).toBeVisible();
+  expect(
+    screen.getByText(/existing shared video stays available/),
+  ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Video QR / share link" }),
   ).toBeVisible();

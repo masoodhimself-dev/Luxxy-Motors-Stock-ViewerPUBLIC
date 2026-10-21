@@ -9,6 +9,8 @@ import { dealerConfig } from '@/config/dealer';
 import { getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
 import { defaultBookingSettings } from '@/lib/test-drive-dates';
 
+vi.mock('@/components/portal/vehicle-video',()=>({PublicVehicleVideo:()=> <section data-testid="shared-video">Shared video</section>}));
+
 const featureState = vi.hoisted(() => ({
   data: { features: { testDriveBookings: false, testDriveDeclarations: false, staffAiDrafts: false, customerEmails: false, publicEnquiries: false, partExchange: false } as Record<string, boolean> },
 }));
@@ -374,4 +376,12 @@ it('keeps a separate write-off disclosure visible and shows a verified tax estim
     expect(screen.getByText(narrative, { exact: true })).toBeVisible();
     expect(screen.getByRole('complementary', { name: 'Verified vehicle tax' })).toHaveTextContent('£17.06');
   } finally { Object.assign(car, previous); }
+});
+
+it('hides video during normal browsing and displays it only for an explicit shared video link',()=>{
+ const view=renderVehicle('with-plate');expect(screen.queryByTestId('shared-video')).toBeNull();view.unmount();
+ window.history.pushState({},'', '/vehicle/with-plate?video=1#walkaround');
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ render(<QueryClientProvider client={client}><SavedCarsProvider><CarDetail/></SavedCarsProvider></QueryClientProvider>);
+ expect(screen.getByTestId('shared-video')).toBeVisible();
 });

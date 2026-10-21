@@ -287,7 +287,7 @@ export default function CarDetail() {
               onEnquiry: customerFeatures.enabled('publicEnquiries') ? openVehicleEnquiry : undefined,
               call: getPhoneHref(dealerConfig) ? <VehicleCall car={car} className="vehicle-gallery-interest-action" /> : undefined,
             }} />
-            <PublicVehicleVideo vehicleId={car.id} poster={car.heroImage} />
+            {new URLSearchParams(window.location.search).get("video") === "1" && <PublicVehicleVideo vehicleId={car.id} poster={car.heroImage} />}
             <div className="vehicle-gallery-help"><span>Swipe or select a photo to explore</span><VehicleWhatsApp car={car} walkaround /></div>
           </div>
           <div className="vehicle-summary-column min-w-0">
