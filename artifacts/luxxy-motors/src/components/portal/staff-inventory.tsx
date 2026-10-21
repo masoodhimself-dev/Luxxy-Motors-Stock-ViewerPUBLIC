@@ -527,6 +527,14 @@ export function StaffInventory({
   const selectedPhotos = (details.data?.photos ?? []).filter(
     (p) => (p.category ?? "service_book") === photoCategory,
   );
+  if (car && new URLSearchParams(search).get("recordVideo") === "1") return (
+    <section className="staff-inventory phone-recording-page">
+      <Button variant="outline" onClick={() => navigate(`/portal?section=inventory&vehicleId=${car.id}`)}>Back to car details</Button>
+      <h2>Record {car.display_title || car.title}</h2>
+      <p>{car.plate || car.vrm} · Record a landscape walkaround, up to 30 seconds.</p>
+      <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} writable={Boolean(writable)} recordingPage />
+    </section>
+  );
   return (
     <section className="staff-inventory">
       <header className="inventory-heading">

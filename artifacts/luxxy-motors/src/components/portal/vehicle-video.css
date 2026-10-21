@@ -83,3 +83,27 @@
 .vehicle-video-actions > p {
   flex-basis: 100%;
 }
+
+.video-orientation {
+  padding: 14px 16px;
+  border-left: 3px solid #b38536;
+  background: #fff8e9;
+  border-radius: 4px;
+}
+.video-recording-timer {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 22px !important;
+  font-weight: 650;
+}
+.video-recording-timer span { font-size: 14px; font-weight: 500; }
+.video-recorder video[aria-label="Camera preview"] { aspect-ratio: 16 / 9; object-fit: contain; }
+.phone-recording-page { max-width: 960px; margin: 0 auto; }
+.phone-recording-page h2 { margin: 16px 0 6px; }
+@media (max-height: 500px) and (orientation: landscape) {
+  .phone-recording-page .video-recorder video { max-height: 48dvh; }
+  .phone-recording-page .video-recorder { margin: 8px 0; }
+  .phone-recording-page .video-recording-timer { margin: 6px 0; }
+}

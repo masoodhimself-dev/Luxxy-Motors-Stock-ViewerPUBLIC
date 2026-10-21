@@ -167,3 +167,14 @@ it("client preflight refuses unsupported and oversized sources before decoding",
   Object.defineProperty(file, "size", { value: 201 * 1024 * 1024 });
   await expect(inspectVideoFile(file)).rejects.toThrow(/200 MB/);
 });
+
+it("offers an authenticated phone recording QR and no desktop recorder", async () => {
+  mount(<VehicleVideoEditor vehicleId="car" writable />);
+  const qr = await screen.findByRole("button",{name:"Record on phone · QR"});
+  const link = new URL(qr.getAttribute("data-url")!);
+  expect(link.pathname).toBe("/portal");
+  expect(link.searchParams.get("vehicleId")).toBe("car");
+  expect(link.searchParams.get("recordVideo")).toBe("1");
+  expect(screen.queryByRole("button",{name:"Record new video"})).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button",{name:"Upload video"})).toBeEnabled());
+});

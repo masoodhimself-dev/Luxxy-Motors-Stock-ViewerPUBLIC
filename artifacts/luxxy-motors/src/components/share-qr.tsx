@@ -26,6 +26,7 @@ export type PhoneShareSource =
   | { kind: "reservation"; reservationId: string };
 export function ShareQr({
   url,
+  purpose,
   source,
   label = "Share by QR",
   disabled = false,
@@ -40,6 +41,7 @@ export function ShareQr({
   customerPhone?: string;
   message?: string;
   url?: string;
+  purpose?: "record-video";
   source?: PhoneShareSource;
   label?: string;
   disabled?: boolean;
@@ -183,9 +185,9 @@ export function ShareQr({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="phone-share-dialog">
           <DialogHeader>
-            <DialogTitle>{whatsapp ? "Send on WhatsApp" : "Share from your phone"}</DialogTitle>
+            <DialogTitle>{purpose === "record-video" ? "Record on your phone" : whatsapp ? "Send on WhatsApp" : "Share from your phone"}</DialogTitle>
             <DialogDescription>
-              {whatsapp ? "Check the customer number and message, then scan with your phone camera to open WhatsApp. You still press Send yourself. QR creation does not record a sent message." : "Scan this code with your phone camera. Review the content, then choose how to share it with the customer. Nothing is sent automatically."}
+              {purpose === "record-video" ? "Scan with your phone camera, sign in as staff, then turn your phone sideways to record this car. You can pause and resume. The clip stays a draft until reviewed and published." : whatsapp ? "Check the customer number and message, then scan with your phone camera to open WhatsApp. You still press Send yourself. QR creation does not record a sent message." : "Scan this code with your phone camera. Review the content, then choose how to share it with the customer. Nothing is sent automatically."}
             </DialogDescription>
           </DialogHeader>
           {busy && <p role="status">Preparing sharing link…</p>}
@@ -210,14 +212,14 @@ export function ShareQr({
                   value={qrUrl}
                   size={220}
                   marginSize={4}
-                  title={whatsapp ? "Scan to prepare the customer WhatsApp message" : "Scan to open the sharing preview"}
+                  title={purpose === "record-video" ? "Scan to record this car on your phone" : whatsapp ? "Scan to prepare the customer WhatsApp message" : "Scan to open the sharing preview"}
                 />
               </div>}
               <p>
 
                 {grant.expiresAt
                   ? `Private link · expires ${new Date(grant.expiresAt).toLocaleString("en-GB")}. Anyone with this link can view this sharing pack until it expires or is revoked.`
-                  : grant.url ? "Anyone with this link can open it. Check the recipient before forwarding." : "Check the recipient before sending."}
+                  : purpose === "record-video" ? "Staff sign-in and permission to manage this car are required. This QR does not grant access." : grant.url ? "Anyone with this link can open it. Check the recipient before forwarding." : "Check the recipient before sending."}
               </p>
               <div className="phone-share-actions">
                 {(!whatsapp || whatsappUrl) && <><Button
@@ -241,7 +243,7 @@ export function ShareQr({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {whatsapp && whatsappUrl ? "Open WhatsApp" : "Open preview"}
+                  {purpose === "record-video" ? "Open recording page" : whatsapp && whatsappUrl ? "Open WhatsApp" : "Open preview"}
                 </a>
                 </>}
                 {grant.id && (

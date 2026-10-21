@@ -140,3 +140,12 @@ it('offers email fallback with the same message and attachment links, without se
  expect(email.protocol).toBe('mailto:');expect(email.searchParams.get('body')).toContain('Your invoice is ready.');expect(email.searchParams.get('body')).toContain('https://dealer.test/phone-share#secret');
  expect(api.mock.calls.some(([url])=>url.endsWith('/confirm-whatsapp')||url.endsWith('/email'))).toBe(false);
 });
+it("recording QR keeps staff authentication and does not create an access grant", async () => {
+  render(<ShareQr purpose="record-video" url="/portal?section=inventory&vehicleId=car&recordVideo=1" label="Record on phone · QR" />);
+  fireEvent.click(screen.getByRole("button",{name:"Record on phone · QR"}));
+  expect(await screen.findByTestId("qr")).toHaveAttribute("data-value",`${window.location.origin}/portal?section=inventory&vehicleId=car&recordVideo=1`);
+  expect(screen.getByRole("heading",{name:"Record on your phone"})).toBeVisible();
+  expect(screen.getByText(/This QR does not grant access/)).toBeVisible();
+  expect(screen.getByRole("link",{name:"Open recording page"})).toBeVisible();
+  expect(api).not.toHaveBeenCalled();
+});

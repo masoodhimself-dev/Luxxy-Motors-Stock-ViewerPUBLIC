@@ -4,7 +4,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { ShareQr } from "@/components/share-qr";
 import "./vehicle-video.css";
-import { VideoRecorder } from "./video-recorder";
+import { VideoRecorder, usePhoneCamera } from "./video-recorder";
 type Video = {
   id: string;
   status: "processing" | "ready" | "failed";
@@ -62,10 +62,14 @@ export async function inspectVideoFile(file: File) {
 export function VehicleVideoEditor({
   vehicleId,
   writable,
+  recordingPage = false,
 }: {
   vehicleId: string;
   writable: boolean;
+  recordingPage?: boolean;
 }) {
+  const phone = usePhoneCamera();
+  const recordingUrl = new URL(`/portal?section=inventory&vehicleId=${encodeURIComponent(vehicleId)}&recordVideo=1`, window.location.origin).href;
   const path = `/api/staff/inventory/${vehicleId}/videos`;
   const query = useQuery({
     queryKey: ["vehicle-videos", vehicleId],
@@ -181,8 +185,14 @@ export function VehicleVideoEditor({
           published automatically.
         </p>
       )}
+      {(writable || query.data?.preview) && phone && (
+        <VideoRecorder
+          disabled={busy || !writable || !query.data?.enabled}
+          onRecorded={(file) => void send(file, true)}
+        />
+      )}
       <div className="vehicle-video-previews">
-        {published && (
+        {published && !recordingPage && (
           <div>
             <h4>Shareable video</h4>
             <video
@@ -275,14 +285,11 @@ export function VehicleVideoEditor({
           is unchanged.
         </p>
       )}
-      {(writable || query.data?.preview) && (
-        <VideoRecorder
-          disabled={busy || !writable || !query.data?.enabled}
-          onRecorded={(file) => void send(file, true)}
-        />
-      )}
+
       {(writable || query.data?.preview) && (
         <div className="vehicle-video-actions">
+          {!recordingPage && <ShareQr purpose="record-video" url={recordingUrl} label="Record on phone · QR" disabled={busy || (!writable && !query.data?.preview)} />}
+          {!phone && <p>Scan with your phone to record in landscape with a timer and pause/resume. Sign in as staff on the phone. Uploads remain drafts until reviewed.</p>}
           <input
             ref={input}
             hidden
