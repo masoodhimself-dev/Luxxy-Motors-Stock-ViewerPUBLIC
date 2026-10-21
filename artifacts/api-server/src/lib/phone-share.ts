@@ -8,6 +8,8 @@ export type PhoneSharePayload = {
   confirmationScope?: "document";
   enquiryId?: string;
   customerEmail?: string;
+  customerName?: string;
+  vehicleId?: string;
   customerPhone?: string;
   title: string;
   message: string;

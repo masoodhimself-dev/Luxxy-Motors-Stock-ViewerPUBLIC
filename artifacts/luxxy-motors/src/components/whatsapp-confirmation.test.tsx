@@ -4,9 +4,9 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { WhatsAppConfirmation, type WhatsAppConfirmationRequest, type WhatsAppConfirmationResult } from './whatsapp-confirmation';
 const api=vi.hoisted(()=>vi.fn());
 vi.mock('@workspace/api-client-react',()=>({customFetch:(...args:unknown[])=>api(...args)}));
-function Fixture({known=true,initialPhone,onReadyChange,children}:{known?:boolean;initialPhone?:string;onReadyChange?:(ready:boolean)=>void;children?:ReactNode}){
+function Fixture({known=true,initialPhone,onReadyChange,children,document=false}:{known?:boolean;initialPhone?:string;onReadyChange?:(ready:boolean)=>void;children?:ReactNode;document?:boolean}){
  const attempt=useRef<WhatsAppConfirmationRequest|null>(null),[result,setResult]=useState<WhatsAppConfirmationResult|null>(null),[phone,setPhone]=useState(initialPhone??(known?'07700 900123':''));
- return <><output aria-label="Chosen phone">{phone}</output><input aria-label="Recipient number" value={phone} onChange={event=>setPhone(event.target.value)} /><WhatsAppConfirmation enquiryId={known?'customer-one':undefined} phone={phone} message="Exact message with https://example.test/private#token" attempt={attempt} result={result} onConfirmed={setResult} onLock={()=>{}} onPhone={setPhone} onEmail={()=>{}} onReadyChange={onReadyChange}>{children}</WhatsAppConfirmation></>;
+ return <><output aria-label="Chosen phone">{phone}</output><input aria-label="Recipient number" value={phone} onChange={event=>setPhone(event.target.value)} /><WhatsAppConfirmation enquiryId={known?'customer-one':undefined} customerName={document?'Invoice Alex':undefined} customerEmail={document?'invoice@example.test':undefined} vehicleId={document?'invoice-car':undefined} preferKnownCustomer={document} phone={phone} message="Exact message with https://example.test/private#token" attempt={attempt} result={result} onConfirmed={setResult} onLock={()=>{}} onPhone={setPhone} onEmail={()=>{}} onReadyChange={onReadyChange}>{children}</WhatsAppConfirmation></>;
 }
 beforeEach(()=>{api.mockReset().mockImplementation(async(url:string)=>url.includes('/enquiries?')?{enquiries:[{id:'customer-one',customerName:'Fictional Alex',phone:'07700 900123',email:'alex@example.test'}],canCreate:true}:{enquiryId:'customer-one',confirmedAt:'2026-10-21T12:00:00Z'});});
 it('does not record anything until staff explicitly confirm, then saves the complete message',async()=>{
@@ -121,3 +121,35 @@ it('summarises the selected customer and allows a deliberate change without repl
  expect(screen.getByLabelText('Chosen phone')).toHaveTextContent('07700 900123');
  expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeDisabled();
 });
+
+ it('prepares the invoice customer when the same number only matches a different car, without creating anything yet',async()=>{
+ render(<Fixture known={false} document initialPhone="07700 900123"/>);
+ await waitFor(()=>expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeEnabled());
+ expect(screen.getByRole('checkbox',{name:'Create a new enquiry instead'})).toBeChecked();
+ expect(screen.getByRole('textbox',{name:'Customer name'})).toHaveValue('Invoice Alex');
+ expect(api.mock.calls.filter(([url])=>url.endsWith('/confirm-whatsapp'))).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button',{name:'I’ve sent it'}));
+ await screen.findByText('WhatsApp sent — staff confirmed');
+ expect(JSON.parse(api.mock.calls.find(([url])=>url.endsWith('/confirm-whatsapp'))![1].body)).toMatchObject({newCustomer:{name:'Invoice Alex',email:'invoice@example.test'},vehicleId:'invoice-car'});
+ });
+ it('uses a single exact invoice customer and car match instead of creating a duplicate',async()=>{
+ api.mockResolvedValue({enquiries:[{id:'invoice-enquiry',customerName:'Invoice Alex',phone:'+44 7700 900123',vehicleId:'invoice-car'}],canCreate:true});
+ render(<Fixture known={false} document initialPhone="07700 900123"/>);
+ await waitFor(()=>expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeEnabled());
+ expect(screen.getByText('Invoice Alex')).toBeVisible();
+ expect(screen.queryByRole('textbox',{name:'Customer name'})).toBeNull();
+ });
+ it('requires a choice when multiple invoice enquiries match',async()=>{
+ api.mockResolvedValue({enquiries:['a','b'].map(id=>({id,customerName:'Invoice Alex',phone:'07700 900123',vehicleId:'invoice-car'})),canCreate:true});
+ render(<Fixture known={false} document initialPhone="07700 900123"/>);
+ await screen.findAllByRole('option',{name:'Invoice Alex'});
+ expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeDisabled();
+ expect(screen.getByRole('checkbox',{name:'Create a new enquiry instead'})).not.toBeChecked();
+ });
+ it('does not bypass accounts permissions when an invoice customer has no matching enquiry',async()=>{
+ api.mockResolvedValue({enquiries:[],canCreate:false});
+ render(<Fixture known={false} document initialPhone="07700 900123"/>);
+ await waitFor(()=>expect(screen.queryByText('Checking customer details…')).toBeNull());
+ expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeDisabled();
+ expect(screen.queryByRole('checkbox',{name:'Create a new enquiry instead'})).toBeNull();
+ });

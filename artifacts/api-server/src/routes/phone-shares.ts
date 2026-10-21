@@ -105,6 +105,8 @@ router.post(
         hasAttachments: Boolean(row.payload?.files?.length),
         enquiryId: row.payload?.enquiryId || undefined,
         customerEmail: row.payload?.customerEmail || "",
+        customerName: row.payload?.customerName || "",
+        vehicleId: row.payload?.vehicleId || undefined,
         title: row.payload?.title || "Customer message",
       });
       if (previous) {
@@ -156,6 +158,8 @@ router.post(
           confirmationScope: "document",
           enquiryId: draft.sourceEnquiryId,
           customerEmail: draft.email || "",
+          customerName: draft.customer,
+          vehicleId: draft.vehicleId || undefined,
           customerPhone: draft.phone || "",
           title: rendered.subject,
           message: rendered.text,
@@ -201,6 +205,8 @@ router.post(
         payload = {
           enquiryId: prepared.enquiry.id,
           customerEmail: prepared.enquiry.email || "",
+          customerName: prepared.enquiry.customerName,
+          vehicleId: prepared.enquiry.vehicleId || undefined,
           customerPhone: prepared.enquiry.phone || "",
           title: data.source.draft.subject,
           message: prepared.rendered.text,

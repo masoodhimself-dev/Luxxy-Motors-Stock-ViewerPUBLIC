@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 
-type Customer = {id:string;customerName:string;phone?:string;email?:string;vehicleTitle?:string};
+type Customer = {id:string;customerName:string;phone?:string;email?:string;vehicleTitle?:string;vehicleId?:string};
 export type WhatsAppConfirmationRequest = {requestId:string;enquiryId?:string;newCustomer?:{name:string;email?:string};vehicleId?:string;grantId?:string;phone:string;message:string;confirmed:true};
 export type WhatsAppConfirmationResult = {enquiryId:string;confirmedAt:string;preview?:boolean};
-export function WhatsAppConfirmation({enquiryId,customerName='',phone,message,grantId,vehicleId,attempt,result,onConfirmed,onLock,onPhone,onEmail,onReadyChange,onCustomerChange,children}: {
-  enquiryId?:string;customerName?:string;phone:string;message:string;grantId?:string;vehicleId?:string;
+export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail='',preferKnownCustomer=false,phone,message,grantId,vehicleId,attempt,result,onConfirmed,onLock,onPhone,onEmail,onReadyChange,onCustomerChange,children}: {
+  enquiryId?:string;customerName?:string;customerEmail?:string;preferKnownCustomer?:boolean;phone:string;message:string;grantId?:string;vehicleId?:string;
   attempt:MutableRefObject<WhatsAppConfirmationRequest|null>;result:WhatsAppConfirmationResult|null;
   onConfirmed:(value:WhatsAppConfirmationResult)=>void;onLock:(value:boolean)=>void;onPhone:(value:string)=>void;onEmail:(value:string)=>void;
   onReadyChange?:(ready:boolean)=>void;children?:ReactNode;
@@ -20,6 +20,7 @@ export function WhatsAppConfirmation({enquiryId,customerName='',phone,message,gr
   const [selected,setSelected]=useState(enquiryId||''),[search,setSearch]=useState(enquiryId?'':phone),[customers,setCustomers]=useState<Customer[]>([]);
   const [create,setCreate]=useState(false),[name,setName]=useState(customerName),[canCreate,setCanCreate]=useState(false),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState('');
   const [lookupError,setLookupError]=useState(''),[lookupRetry,setLookupRetry]=useState(0),[acknowledgedMismatch,setAcknowledgedMismatch]=useState('');
+  const initialIdentityApplied=useRef(false);
   const latestPhone=useRef(phone);
   latestPhone.current=phone;
   useEffect(()=>{
@@ -31,6 +32,15 @@ export function WhatsAppConfirmation({enquiryId,customerName='',phone,message,gr
           if(!current)return;
           const rows=data?.enquiries||[],customer=enquiryId?rows.find(item=>item.id===enquiryId):undefined;
           setCustomers(rows);setCanCreate(data?.canCreate===true);
+          // Documents already identify the customer and vehicle. Never attach an
+          // invoice to another car merely because its enquiry shares a phone.
+          if(preferKnownCustomer&&!enquiryId&&!initialIdentityApplied.current){
+            initialIdentityApplied.current=true;
+            const number=customerWhatsAppNumber(latestPhone.current);
+            const matches=rows.filter(item=>vehicleId&&item.vehicleId===vehicleId&&number&&customerWhatsAppNumber(item.phone||'')===number&&item.customerName.trim().toLocaleLowerCase()===customerName.trim().toLocaleLowerCase());
+            if(matches.length===1)setSelected(matches[0].id);
+            else if(matches.length===0&&data?.canCreate===true&&customerName.trim().length>=2)setCreate(true);
+          }
           // A delayed lookup must never replace a number staff already entered.
           if(customer?.phone&&!latestPhone.current.trim())onPhone(customer.phone);
           if(customer?.email)onEmail(customer.email);
@@ -54,7 +64,7 @@ export function WhatsAppConfirmation({enquiryId,customerName='',phone,message,gr
   useEffect(()=>{onCustomerChange?.(identityReady ? create ? {customerName:name,createNew:true} : customer ? {enquiryId:customer.id,customerName:customer.customerName} : null : null);},[identityReady,create,name,customer?.id,customer?.customerName,onCustomerChange]);
   async function confirm(){
     if(saving||result||!ready)return;
-    const request=attempt.current||{requestId:crypto.randomUUID(),...(create?{newCustomer:{name}}:{enquiryId:selectedId}),...(vehicleId?{vehicleId}:{}),...(grantId?{grantId}:{}),phone,message,confirmed:true as const};
+    const request=attempt.current||{requestId:crypto.randomUUID(),...(create?{newCustomer:{name,...(customerEmail?{email:customerEmail}:{})}}:{enquiryId:selectedId}),...(vehicleId?{vehicleId}:{}),...(grantId?{grantId}:{}),phone,message,confirmed:true as const};
     attempt.current=request;onLock(true);setSaving(true);setError('');
     try{
       const saved=await customFetch<WhatsAppConfirmationResult>('/api/staff/phone-shares/confirm-whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});

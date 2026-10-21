@@ -57,7 +57,7 @@ export function ShareQr({
       message?: string;
       customerPhone?: string;
       hasAttachments?: boolean;
-      enquiryId?: string; customerEmail?: string; title?: string;
+      enquiryId?: string; customerEmail?: string; customerName?: string; vehicleId?: string; title?: string;
     } | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -130,7 +130,7 @@ export function ShareQr({
         message?: string;
         customerPhone?: string;
         hasAttachments?: boolean;
-        enquiryId?: string; customerEmail?: string; title?: string;
+        enquiryId?: string; customerEmail?: string; customerName?: string; vehicleId?: string; title?: string;
       }>("/api/staff/phone-shares", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -213,13 +213,13 @@ export function ShareQr({
     {grant && !expired && (whatsapp ? <>
       <label className="phone-share-recipient">Customer WhatsApp number<Input type="tel" autoComplete="tel" value={phone} disabled={confirmationLocked} onChange={event=>setPhone(event.target.value)} placeholder="07… or +country code"/></label>
       {!whatsappUrl && <p role="status">Enter a valid UK number, or an international number starting with + and its country code.</p>}
-      <WhatsAppConfirmation key={shareVersion} enquiryId={enquiryId||grant.enquiryId||(source&&'enquiryId' in source?source.enquiryId:undefined)} customerName={customerName} vehicleId={vehicleId} phone={phone} message={sharedMessage} grantId={grant.id} attempt={confirmationAttempt} result={confirmationResult} onConfirmed={setConfirmationResult} onLock={setConfirmationLocked} onPhone={setPhone} onEmail={setEmail} onReadyChange={setRecipientReady} onCustomerChange={setEmailCustomer}>{qrContent}</WhatsAppConfirmation>
+      <WhatsAppConfirmation key={shareVersion} enquiryId={enquiryId||grant.enquiryId||(source&&'enquiryId' in source?source.enquiryId:undefined)} customerName={customerName || grant.customerName} customerEmail={email} preferKnownCustomer={source?.kind === "document"} vehicleId={vehicleId || grant.vehicleId} phone={phone} message={sharedMessage} grantId={grant.id} attempt={confirmationAttempt} result={confirmationResult} onConfirmed={setConfirmationResult} onLock={setConfirmationLocked} onPhone={setPhone} onEmail={setEmail} onReadyChange={setRecipientReady} onCustomerChange={setEmailCustomer}>{qrContent}</WhatsAppConfirmation>
       {confirmationResult && !source && url && new URL(url,window.location.origin).pathname.startsWith('/vehicle/') && <Button type="button" variant="outline" onClick={()=>{setConfirmationResult(null);setConfirmationLocked(false);setRecipientReady(false);confirmationAttempt.current=null;setPhone('');setEmail('');setShareVersion(value=>value+1);}}>Share with another customer</Button>}
     </> : qrContent)}
     {whatsapp && !confirmationLocked && <Button type="button" variant="outline" disabled={busy} onClick={()=>void useEmail()}>Use email instead</Button>}
     {grant?.id && !confirmationLocked && <details className="phone-share-link-options"><summary>Link options</summary><Button variant="outline" disabled={busy} onClick={()=>void revoke()}>Revoke link</Button></details>}
     {(!grant || expired) && !busy && (source||url||message) && <Button onClick={()=>void generate()}>{error?"Try again":"Create sharing link"}</Button>}
     </DialogContent></Dialog>
-    <InternalShareEmail open={emailFallback&&!confirmationLocked} onOpenChange={setEmailFallback} subject={grant?.title||"Your car enquiry"} message={sharedMessage} enquiryId={emailCustomer?.enquiryId||enquiryId||grant?.enquiryId||(source&&'enquiryId' in source?source.enquiryId:undefined)} customerName={emailCustomer?.customerName||customerName} createNew={emailCustomer?.createNew} customerEmail={email} customerPhone={phone} vehicleId={vehicleId} grantId={grant?.id} expiresAt={grant?.expiresAt} verifyBeforePrepare={beforeGenerate}/>
+    <InternalShareEmail open={emailFallback&&!confirmationLocked} onOpenChange={setEmailFallback} subject={grant?.title||"Your car enquiry"} message={sharedMessage} enquiryId={emailCustomer?.enquiryId||enquiryId||grant?.enquiryId||(source&&'enquiryId' in source?source.enquiryId:undefined)} customerName={emailCustomer?.customerName||customerName||grant?.customerName} createNew={emailCustomer?.createNew} customerEmail={email} customerPhone={phone} vehicleId={vehicleId||grant?.vehicleId} grantId={grant?.id} expiresAt={grant?.expiresAt} verifyBeforePrepare={beforeGenerate}/>
   </>;
 }

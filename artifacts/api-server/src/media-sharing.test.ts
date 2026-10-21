@@ -605,6 +605,8 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       snapshot: {
         draft: {
           customer: "Fictional buyer",
+          vehicleId: carA,
+          email: "buyer@example.test",
           phone: "07700 900123",
           vehicle: "Fictional car",
           roadTaxGuide: false,
@@ -664,6 +666,9 @@ test("isolated real HTTP media and QR workflow", async (t) => {
         assert.equal(created.status, 201, JSON.stringify(created.json));
         grant = created.json;
         assert.equal(grant.customerPhone, "07700 900123");
+        assert.equal(grant.customerName, "Fictional buyer");
+        assert.equal(grant.vehicleId, carA);
+        assert.equal(grant.customerEmail, "buyer@example.test");
         assert.equal(grant.hasAttachments, true);
         assert.match(grant.message, /Fictional car/);
         assert.match(grant.url, /\/phone-share#[a-f0-9]{64}$/);
