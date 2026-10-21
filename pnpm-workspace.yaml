@@ -5,6 +5,7 @@ packages:
   - scripts
 
 allowBuilds:
+  ffmpeg-static: true
   core-js: false
   esbuild: true
   '@clerk/shared': false

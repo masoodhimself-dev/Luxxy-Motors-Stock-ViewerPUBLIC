@@ -3,7 +3,7 @@ import type { RequestHandler } from 'express';
 /** These routes never belong in a public dealer search result. Not an auth boundary. */
 export const SEO_PRIVATE_PREFIXES = [
   '/portal', '/platform', '/sign-in', '/sign-up', '/staff-upload', '/my-purchase',
-  '/verify-invoice', '/viewing', '/test-drive-declaration', '/reserve', '/saved',
+  '/phone-share', '/verify-invoice', '/viewing', '/test-drive-declaration', '/reserve', '/saved',
   '/compare', '/enquire', '/sign', '/customer-details',
 ] as const;
 

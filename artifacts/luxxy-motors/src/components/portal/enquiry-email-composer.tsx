@@ -1,3 +1,4 @@
+import { ShareQr } from '@/components/share-qr';
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customFetch, type Enquiry } from "@workspace/api-client-react";
@@ -596,6 +597,7 @@ function EnquiryEmailEditor({
                         photos before sending.
                       </p>
                       <div className="enquiry-email-actions">
+                        {reviewedDraft && <ShareQr beforeGenerate={verifyContext} disabled={busy || Boolean(sendingRequest.current) || !!sendBlockedReason} source={{kind:"enquiry",enquiryId:entry.id,draft:reviewedDraft,previewHash:preview.previewHash}} label="Message / attachments QR" />}
                         <Button
                           disabled={busy || !data.ready || !features.enabled('customerEmails') || !!sendBlockedReason}
                           onClick={() => void send()}

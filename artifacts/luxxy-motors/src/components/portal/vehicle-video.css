@@ -1,0 +1,75 @@
+.vehicle-video-editor,
+.vehicle-video-public {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.vehicle-video-editor p,
+.vehicle-video-public p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.vehicle-video-editor video,
+.vehicle-video-public video {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  background: #162126;
+  border-radius: 8px;
+  margin: 14px 0;
+  object-fit: contain;
+}
+.vehicle-video-editor label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 14px 0;
+  line-height: 1.5;
+}
+.vehicle-video-editor label input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+}
+.vehicle-video-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.vehicle-video-public {
+  padding: 18px 0;
+  scroll-margin-top: 90px;
+}
+.vehicle-video-public h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.vehicle-video-actions .db-btn {
+  min-height: 44px;
+}
+@media (max-width: 600px) {
+  .vehicle-video-actions > * {
+    flex: 1 1 180px;
+  }
+  .vehicle-video-editor video,
+  .vehicle-video-public video {
+    max-height: 55dvh;
+  }
+}
+
+.vehicle-video-editor {
+  grid-column: 1 / -1;
+}
+.vehicle-video-previews {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.vehicle-video-previews > div {
+  min-width: 0;
+}
+.vehicle-video-previews video {
+  max-height: 320px;
+}

@@ -52,6 +52,7 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(importAdmission.middleware);
 app.use("/api/demo-onboarding", express.json({ limit: "450kb" }));
 app.use("/api/service-book-upload", express.json({ limit: "2200kb" }));
+app.use('/api/staff/phone-shares', express.json({ limit: '32kb' }));
 app.use('/api/staff/website-assets', express.json({ limit: '3mb' }));
 app.use(express.json({ limit: "25mb", verify: (req, _res, buffer) => {
   if (req.url?.split('?')[0] === '/api/reservations/stripe/webhook') (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
@@ -73,7 +74,8 @@ app.use(["/api", "/share"], (_req, res) => { res.status(404).json({ error: "Not 
 if (process.env.FRONTEND_DIST_DIR) serveFrontend(app, process.env.FRONTEND_DIST_DIR);
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
+  if(req.path.startsWith('/api/staff/phone-shares') || req.path.startsWith('/api/phone-shares')) req.log.warn('Private phone sharing request failed');
+  else if(isPrivateTestDriveDeclarationPath(req.path)) req.log.warn('Private test-drive declaration request failed');
   else if(req.path.startsWith('/api/demo-onboarding')) req.log.warn('Demo onboarding request failed');
   else if(req.path === '/api/service-book-upload' || req.path.startsWith('/api/staff/inventory')) req.log.warn('Private inventory request failed');
   else req.log.error({ err: error }, "Unhandled API error");

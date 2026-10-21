@@ -1,3 +1,5 @@
+import { ShareQr } from '@/components/share-qr';
+import { VehicleVideoEditor } from './vehicle-video';
 import { VehicleDescriptionEditor } from './vehicle-description-editor';
 import { UKNumberPlate } from '@/components/uk-number-plate';
 import { useEffect, useId, useRef, useState } from "react";
@@ -613,9 +615,7 @@ export function StaffInventory({
         <div role="status" className="inventory-feedback">
           <p>{notice}</p>
           {customerLink && (
-            <a href={customerLink} target="_blank" rel="noopener noreferrer">
-              {customerLink}
-            </a>
+            <div><a href={customerLink} target="_blank" rel="noopener noreferrer">{customerLink}</a><ShareQr url={customerLink} label="Car link QR" /></div>
           )}
         </div>
       )}
@@ -735,6 +735,7 @@ export function StaffInventory({
                 )}
               </div>
               <div className="inventory-workspace-grid">
+                <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} writable={Boolean(writable)} />
                 <VehicleDescriptionEditor key={car.id} vehicleId={car.id} writable={Boolean(writable || (details.data?.descriptionPreview && access.data?.permissions.includes("sales.manage")))} />
                 <section className="inventory-card inventory-preparation-card">
                   <h3>

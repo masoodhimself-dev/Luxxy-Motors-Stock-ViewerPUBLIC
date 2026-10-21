@@ -26,6 +26,7 @@ const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
 const Compare = lazy(() => import("@/pages/compare"));
+const PhoneShare = lazy(() => import('@/pages/phone-share'));
 const StaffUpload = lazy(() => import("@/pages/staff-upload"));
 const Portal = lazy(() => import("@/pages/portal"));
 const Enquire = lazy(() => import("@/pages/enquire"));
@@ -72,6 +73,7 @@ function Router() {
   const [location] = useLocation();
   if (location.startsWith('/verify-invoice/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><Route path="/verify-invoice/:saleId/:documentId/:token" component={InvoiceVerification}/></Suspense></RoutedErrorBoundary>;
   // Platform administration has its own identity and no dealership navigation or chat.
+  if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><PhoneShare /></Suspense></RoutedErrorBoundary>;
   if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
   if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
@@ -143,6 +145,8 @@ function DealerProviders({ children }: { children: ReactNode }) {
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
   const [location] = useLocation();
+
+  if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><PhoneShare/></Suspense></RoutedErrorBoundary>;
 
   if (location.startsWith('/test-drive-declaration/')) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading/>}><TestDriveDeclaration/></Suspense></RoutedErrorBoundary>;
 
