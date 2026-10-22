@@ -97,3 +97,15 @@ it('an already-loaded expired pack does not offer downloads or WhatsApp',async()
  expect(screen.queryByRole('button',{name:'Download invoice.pdf'})).not.toBeInTheDocument();
  expect(screen.queryByText('Private message')).not.toBeInTheDocument();
 });
+
+it('uses the exact reviewed message including attachment expiry wording for WhatsApp and copying',async()=>{
+ const copied=vi.fn().mockResolvedValue(undefined);
+ Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:copied}});
+ window.history.replaceState({},'',`/phone-share#${'a'.repeat(64)}?wa=447700900123`);
+ render(<PhoneShare/>);
+ const link=await screen.findByRole('link',{name:'Open WhatsApp'});
+ const expected=`Fictional invoice ready\n\nView your documents and photos (available for 24 hours):\n${window.location.origin}/phone-share#${'a'.repeat(64)}`;
+ expect(new URL(link.getAttribute('href')!).searchParams.get('text')).toBe(expected);
+ fireEvent.click(screen.getByRole('button',{name:'Copy message'}));
+ expect(copied).toHaveBeenCalledWith(expected);
+});

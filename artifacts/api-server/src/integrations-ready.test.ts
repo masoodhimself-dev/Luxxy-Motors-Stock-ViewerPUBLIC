@@ -11,6 +11,28 @@ import { createStripeCheckoutSession, StripeCheckoutPreparationError, validatePa
 import { previewEmailTemplate } from './lib/email-template-preview';
 const resend = { enabled: false, apiKey: 're_syntheticIntegrationTestOnly', from: 'Example Motors <hello@example.test>', replyTo: 'accounts@example.test' };
 const stripe = { enabled: false, mode: 'test' as const, publishableKey: 'pk_test_syntheticIntegrationTestOnly', secretKey: 'sk_test_syntheticIntegrationTestOnly', webhookSecret: 'whsec_syntheticIntegrationTestOnly' };
+test('phone sharing defaults on, persists per dealer, and never changes provider delivery or other private settings', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'luxxy-sharing-settings-'));
+  const a = new DealerIntegrationsStore({ filename: join(dir, 'a.json'), dealerId: 'a', production: false });
+  const b = new DealerIntegrationsStore({ filename: join(dir, 'b.json'), dealerId: 'b', production: false });
+  try {
+    assert.deepEqual(await a.readPhoneSharing(), { revision: 0, enabled: true });
+    await a.update({ expectedRevision: 0, resend });
+    const before = await a.readPrivate();
+    assert.deepEqual(await a.updatePhoneSharing({ expectedRevision: 1, enabled: false }), { revision: 2, enabled: false });
+    assert.deepEqual(await new DealerIntegrationsStore({ filename: join(dir, 'a.json'), production: false }).readPhoneSharing(), { revision: 2, enabled: false });
+    assert.deepEqual(await b.readPhoneSharing(), { revision: 0, enabled: true });
+    const after = await a.readPrivate();
+    assert.deepEqual(after.resend, before.resend); assert.deepEqual(after.stripe, before.stripe); assert.deepEqual(after.templates, before.templates);
+    assert.deepEqual(Object.keys(await a.readPhoneSharing()).sort(), ['enabled', 'revision']);
+    await assert.rejects(a.updatePhoneSharing({ expectedRevision: 1, enabled: true }), error => (error as { status: number }).status === 409);
+    await assert.rejects(a.updatePhoneSharing({ expectedRevision: 2, enabled: true, expiryHours: 300 }), /whether WhatsApp/);
+    await assert.rejects(a.updatePhoneSharing({ expectedRevision: 2, enabled: 'false' }), /whether WhatsApp/);
+    await a.updateTemplate({ id: 'invoice', expectedRevision: 2, subject: 'Saved invoice subject', body: 'Invoice attached.' });
+    assert.deepEqual(await a.readPhoneSharing(), { revision: 3, enabled: false });
+    assert.deepEqual(await a.updatePhoneSharing({ expectedRevision: 3, enabled: true }), { revision: 4, enabled: true });
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
 test('private settings default disabled; masked responses never contain any saved provider key', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'luxxy-integration-private-')); const store = new DealerIntegrationsStore({ filename: join(dir, 'settings.json'), production: false });
   try { const initial = await store.readMasked(); assert.equal(initial.resend.enabled, false); assert.equal(initial.stripe.enabled, false); assert.equal(initial.revision, 0);

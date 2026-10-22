@@ -1,5 +1,6 @@
 import { customerWhatsAppNumber, customerWhatsAppUrl } from "@/lib/customer-whatsapp";
 import { useEffect, useState } from "react";
+import { customerPhoneMessage } from "@/lib/customer-phone-message";
 import { Button } from "@/components/ui/button";
 import "@/components/share-qr.css";
 type Pack = {
@@ -59,16 +60,15 @@ export default function PhoneShare() {
     try {
       const files = pack.files.map(sharedFile);
       if (files.length && navigator.canShare?.({ files })) {
-        await navigator.share({ title: pack.title, text: pack.message, files });
+        await navigator.share({ title: pack.title, text: sharedMessage, files });
       } else if (navigator.share) {
         await navigator.share({
           title: pack.title,
-          text: pack.message,
-          url: window.location.href,
+          text: sharedMessage,
         });
       } else {
         await navigator.clipboard.writeText(
-          `${pack.message}\n\n${window.location.href}`,
+          sharedMessage,
         );
         setNotice("Message and link copied. Paste them into your chosen app.");
         return;
@@ -92,7 +92,8 @@ export default function PhoneShare() {
   const number = new URLSearchParams(window.location.hash.split('?')[1] || '').get('wa') || pack?.customerPhone || '';
   const expired=Boolean(pack && Date.parse(pack.expiresAt)<=now);
   const recipient=customerWhatsAppNumber(number);
-  const whatsappUrl = pack && !expired ? customerWhatsAppUrl(number, pack.message + (pack.files.length ? "\n\nView your documents and photos:\n" + window.location.href.split('?wa=')[0] : '')) : null;
+  const sharedMessage = pack ? customerPhoneMessage(pack.message, pack.files.length > 0, window.location.href.split('?wa=')[0]) : '';
+  const whatsappUrl = pack && !expired ? customerWhatsAppUrl(number, sharedMessage) : null;
   return (
     <main className="phone-share-page">
       <p className="phone-share-kicker">Private customer message</p>
@@ -108,7 +109,7 @@ export default function PhoneShare() {
       {pack && !expired && (
         <>
           {whatsappUrl && <div className="phone-share-recipient-card"><span>WhatsApp recipient</span><strong>+{recipient}</strong><a className="phone-share-open" href={whatsappUrl} target="_blank" rel="noreferrer">Open WhatsApp</a><p>Check the number and message in WhatsApp, then tap Send yourself.</p></div>}
-          <details className="phone-share-full-message" open><summary>Message</summary><pre>{pack.message}</pre></details>
+          <details className="phone-share-full-message" open><summary>Message</summary><pre>{sharedMessage}</pre></details>
           <div className="phone-share-files">
             {pack.files.map((file) => (
               <article key={file.filename}>
@@ -126,7 +127,7 @@ export default function PhoneShare() {
               variant="outline"
               onClick={() =>
                 void navigator.clipboard
-                  .writeText(pack.message)
+                  .writeText(sharedMessage)
                   .then(() => setNotice("Message copied."))
                   .catch(() => setError("Copy is unavailable in this browser."))
               }

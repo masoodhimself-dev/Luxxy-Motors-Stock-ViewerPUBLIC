@@ -11,7 +11,7 @@ function local(req: IncomingMessage) { const remote = (req.socket.remoteAddress 
 async function body(req: IncomingMessage) { let data = ''; for await (const chunk of req) { data += chunk; if (Buffer.byteLength(data) > 64_000) throw new IntegrationSettingsError('This settings request is too large.', 413); } try { return JSON.parse(data); } catch { throw new IntegrationSettingsError('Invalid settings request.'); } }
 function send(res: ServerResponse, status: number, value: object) { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify({ ...value, preview: true })); }
 export async function dealerIntegrationsPreview(req: IncomingMessage, res: ServerResponse, url: URL, privateStore: DealerIntegrationsStore = previewIntegrationsStore): Promise<boolean> {
-  const integrationPath = /^\/api\/(dealer-integrations|email-templates)(?:\/|$)/.test(url.pathname);
+  const integrationPath = /^\/api\/(dealer-integrations|email-templates)(?:\/|$)/.test(url.pathname) || url.pathname === '/api/staff/phone-sharing-settings';
   const paymentPath = ['/api/reservations/payment-readiness', '/api/reservations/checkout', '/api/reservations/payment-status', '/api/staff/stripe-reservations'].includes(url.pathname);
   if (!integrationPath && !paymentPath) return false;
   if (!local(req)) { send(res, 403, { error: 'Private settings are available only on the authorised local network.' }); return true; }
@@ -25,7 +25,9 @@ export async function dealerIntegrationsPreview(req: IncomingMessage, res: Serve
       else send(res, 409, { error: 'This development server uses fixed stock fixtures. Configure a real isolated backend to change the feed; existing stock is preserved.' });
       return true;
     }
-    if (req.method === 'GET' && url.pathname === '/api/reservations/payment-readiness') send(res, 200, { enabled: false, mode: null, prepared: true });
+    if (req.method === 'GET' && url.pathname === '/api/staff/phone-sharing-settings') send(res, 200, await privateStore.readPhoneSharing());
+    else if (req.method === 'PUT' && url.pathname === '/api/staff/phone-sharing-settings') send(res, 200, await privateStore.updatePhoneSharing(await body(req)));
+    else if (req.method === 'GET' && url.pathname === '/api/reservations/payment-readiness') send(res, 200, { enabled: false, mode: null, prepared: true });
     else if (req.method === 'GET' && url.pathname === '/api/staff/stripe-reservations') send(res, 200, { reservations: [] });
     else if (url.pathname === '/api/reservations/checkout' || url.pathname === '/api/reservations/payment-status') send(res, 503, { error: 'Email and payment requests are disabled on this server.' });
     else if (req.method === 'GET' && url.pathname === '/api/dealer-integrations/sales-paperwork') send(res, 200, await privateStore.readSalesPaperwork());

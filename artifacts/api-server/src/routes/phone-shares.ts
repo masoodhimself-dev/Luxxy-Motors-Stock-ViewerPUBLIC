@@ -129,6 +129,8 @@ router.post(
         res.json(result(previous, true));
         return;
       }
+      if (!(await dealerIntegrationsStore.readPhoneSharing()).enabled)
+        throw new PhoneShareError('WhatsApp QR sharing is turned off in Settings → Emails & documents → WhatsApp & QR. Use email instead.', 409);
       let payload: PhoneSharePayload;
       if (data.source.kind === "document") {
         const service = new PostgresSaleWorkspaceStore(

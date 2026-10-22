@@ -18,6 +18,7 @@ export function operationPermission(method: string, path: string): StaffPermissi
   if (path === '/dealer-operations/payments.csv') return 'finance.export';
   if (path.startsWith('/staff/settings-history') || (path === '/dealer-settings' && write)) return 'settings.publish';
   if (path === '/staff/chat/settings' && write) return 'settings.publish';
+  if (path === '/staff/phone-sharing-settings' && write) return 'integrations.manage';
   if (!write) return null;
   if (/^\/staff\/vehicle-descriptions(?:\/|$)/.test(path)) return 'sales.manage';
   if (/^\/staff\/chat(?:\/|$)/.test(path)) return 'sales.manage';

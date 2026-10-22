@@ -33,6 +33,7 @@ import { validatePhoneSharePayload } from "./lib/phone-share";
 import videos from "./routes/vehicle-videos";
 import shares from "./routes/phone-shares";
 import enquiryPhotos from "./routes/enquiry-photos";
+import integrationSettings from "./routes/dealer-integrations";
 import { createEnquiryEmailRouter } from "./routes/enquiry-emails";
 import { draftSchema, previewEnquiryEmail } from "./routes/enquiry-emails";
 import { dealerIntegrationsStore } from "./lib/dealer-integrations-store";
@@ -308,6 +309,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
   await db
     .insert(portalUsersTable)
     .values({ dealerId: a.dealerId, authUserId: "accounts", role: "accounts" });
+  await db.insert(portalUsersTable).values({ dealerId: a.dealerId, authUserId: "salesperson", role: "salesperson" });
   const app = express();
   app.use(express.json({ limit: "32kb" }));
   app.use((req, _res, next) => {
@@ -317,6 +319,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
   app.use("/api", videos);
   app.use("/api", shares);
   app.use("/api", enquiryPhotos);
+  app.use("/api", integrationSettings);
   const sentEmails: any[] = [];
   app.use("/api", createEnquiryEmailRouter({settings: async()=>({...await dealerIntegrationsStore.readPrivate(),resend:{enabled:true,apiKey:"re_fictional",from:"sales@example.test",replyTo:""}}),send:async(_settings,request)=>{sentEmails.push(request);return randomUUID();}}));
   const server = createServer(app);
@@ -383,6 +386,25 @@ test("isolated real HTTP media and QR workflow", async (t) => {
     base = `/staff/inventory/${carA}/videos`,
     upload = `${base}/${id}`;
   try {
+    await t.test('sharing settings expose only the safe flag to staff and restrict changes to the owner', async () => {
+      const path = '/staff/phone-sharing-settings';
+      assert.equal((await call(path, { user: '' })).status, 401);
+      const initial = await call(path, { user: 'salesperson' });
+      assert.equal(initial.status, 200);
+      assert.equal(initial.headers['cache-control'], 'no-store');
+      assert.deepEqual(initial.json, { revision: 0, enabled: true });
+      for (const user of ['salesperson', 'accounts']) {
+        assert.equal((await call(path, { method: 'PUT', user, body: { expectedRevision: 0, enabled: false } })).status, 403);
+      }
+      assert.equal((await call(path, { method: 'PUT', headers: { origin: b.canonicalOrigin }, body: { expectedRevision: 0, enabled: false } })).status, 403);
+      const saved = await call(path, { method: 'PUT', headers: { origin: a.canonicalOrigin }, body: { expectedRevision: 0, enabled: false } });
+      assert.equal(saved.status, 200); assert.deepEqual(saved.json, { revision: 1, enabled: false });
+      assert.deepEqual((await call(path, { user: 'accounts' })).json, { revision: 1, enabled: false });
+      assert.deepEqual((await call(path, { user: b.dealerId, host: 'b.example.test' })).json, { revision: 0, enabled: true });
+      assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 0, enabled: true } })).status, 409);
+      assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 1, enabled: true, expiryHours: 500 } })).status, 400);
+      assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 1, enabled: true } })).status, 200);
+    });
     await t.test(
       "upload is authenticated, role/origin checked and dealer scoped",
       async () => {
@@ -689,6 +711,25 @@ test("isolated real HTTP media and QR workflow", async (t) => {
         );
       },
     );
+    await t.test("turning sharing off blocks new packs but keeps issued links and retries usable", async () => {
+      await runWithTenant(a, async () => {
+        const current = await dealerIntegrationsStore.readPhoneSharing();
+        await dealerIntegrationsStore.updatePhoneSharing({expectedRevision: current.revision, enabled: false});
+      });
+      try {
+        const blocked = await call('/staff/phone-shares', {method:'POST', body:{...input,requestId:randomUUID(),token:'bc'.repeat(32)}});
+        assert.equal(blocked.status,409);
+        assert.match(blocked.json.error,/turned off/);
+        assert.equal((await call('/staff/phone-shares',{method:'POST',body:input})).json.replayed,true);
+        assert.equal((await call('/phone-shares',{user:'',headers:{'x-phone-share-token':input.token}})).status,200);
+        await runWithTenant(b, async () => assert.equal((await dealerIntegrationsStore.readPhoneSharing()).enabled,true));
+      } finally {
+        await runWithTenant(a, async () => {
+          const current=await dealerIntegrationsStore.readPhoneSharing();
+          await dealerIntegrationsStore.updatePhoneSharing({expectedRevision:current.revision,enabled:true});
+        });
+      }
+    });
     await t.test(
       "QR retries, conflicting requests, dealer isolation, revocation and expiry",
       async () => {

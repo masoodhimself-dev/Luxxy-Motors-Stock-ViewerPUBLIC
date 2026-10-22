@@ -11,6 +11,7 @@ vi.mock('@/components/dealer-integrations-settings', () => ({ DealerIntegrations
 vi.mock('@/components/email-templates-settings', () => ({ EmailTemplatesSettings: () => <p>Email editor fixture</p> }));
 vi.mock('@/components/sales-paperwork-settings', () => ({ SalesPaperworkSettings: () => <p>Invoice editor fixture</p> }));
 vi.mock('@/components/customer-chat-settings', () => ({ CustomerChatSettings: () => <p>Chat editor fixture</p> }));
+vi.mock('@/components/phone-sharing-settings', () => ({ PhoneSharingSettings: () => <p>Sharing editor fixture</p> }));
 
 const clients: QueryClient[] = [];
 const ownerPermissions = ['settings.publish', 'team.manage'];
@@ -74,6 +75,7 @@ it.each([
   ['website', 'Website', 'Website editor fixture'],
   ['emails', 'Emails & documents', 'Email editor fixture'],
   ['paperwork', 'Emails & documents', 'Invoice editor fixture'],
+  ['sharing', 'Emails & documents', 'Sharing editor fixture'],
 ] as const)('preserves a direct %s settings link', async (id, label, fixture) => {
   showSettings(`settingsTab=${id}`);
   await screen.findByText(fixture);
@@ -159,6 +161,7 @@ it('hides Team without team permission and refuses its direct URL without fetchi
 it.each([
   ['emails', 'Email editor fixture', 'Bookings'],
   ['paperwork', 'Invoice editor fixture', 'Advanced'],
+  ['sharing', 'Sharing editor fixture', 'Bookings'],
 ] as const)('protects unsaved %s changes when switching a main tab', async (id, fixture, target) => {
   vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
   showSettings(`settingsTab=${id}`);

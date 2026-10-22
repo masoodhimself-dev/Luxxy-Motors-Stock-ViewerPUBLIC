@@ -11,6 +11,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { customerWhatsAppUrl } from "@/lib/customer-whatsapp";
+import { customerPhoneMessage } from "@/lib/customer-phone-message";
+import { usePhoneSharingSettings } from "@/lib/phone-sharing-settings";
 import { Input } from "@/components/ui/input";
 import { QrCode } from "@/components/icons";
 import { InternalShareEmail, type ShareEmailCustomer } from "@/components/internal-share-email";
@@ -48,6 +50,8 @@ export function ShareQr({
   disabled?: boolean;
   beforeGenerate?: () => Promise<void>;
 }) {
+  const sharingSettings = usePhoneSharingSettings(whatsapp);
+  const sharingUnavailable = whatsapp && !sharingSettings.enabled;
   const [open, setOpen] = useState(false),
     [grant, setGrant] = useState<{
       id?: string;
@@ -89,8 +93,18 @@ export function ShareQr({
     setError("");
     setNotice("");
     if (busy) return;
+    if (sharingUnavailable) {
+      // Disabling new shares must not strand a message already prepared/sent.
+      if (grant && (!grant.expiresAt || Date.parse(grant.expiresAt) > Date.now())) return;
+      setError("WhatsApp QR sharing is unavailable. Check Settings → Emails & documents → WhatsApp & QR, or use email instead."); return;
+    }
     const expired = Boolean(grant?.expiresAt && Date.parse(grant.expiresAt) <= Date.now());
-    if (expired) { setGrant(null); attempt.current = null; }
+    if (expired) {
+      setGrant(null); attempt.current = null;
+      setConfirmationResult(null); setConfirmationLocked(false);
+      confirmationAttempt.current = null; setRecipientReady(false);
+      setEmailCustomer(null); setShareVersion(value => value + 1);
+    }
     if (grant && !expired && !beforeGenerate) return;
     const key = identity;
     if (url || (!source && message)) {
@@ -170,7 +184,7 @@ export function ShareQr({
     }
   }
   const sharedMessage = grant ? (source
-    ? `${grant.message || ''}${grant.hasAttachments ? `\n\nView your documents and photos (available for 24 hours):\n${grant.url}` : ''}`
+    ? customerPhoneMessage(grant.message || '', Boolean(grant.hasAttachments), grant.url)
     : `${message}${message && grant.url ? '\n\n' : ''}${grant.url}`) : '';
   const whatsappUrl = grant && whatsapp ? customerWhatsAppUrl(phone, sharedMessage) : null;
   // Large emails cannot fit directly into a camera QR. The secure preview opens
@@ -200,7 +214,7 @@ export function ShareQr({
     {whatsapp && grant.expiresAt && <p className="phone-share-step-note">Attachment link expires {new Date(grant.expiresAt).toLocaleString("en-GB")}. Keep the link private.</p>}
   </div>;
   return <>
-    <Button type="button" variant="outline" disabled={disabled} onClick={()=>void generate()}><QrCode size={17} aria-hidden="true"/>{label}</Button>
+    <Button type="button" variant="outline" disabled={disabled || (sharingUnavailable && (!grant || expired))} title={sharingUnavailable && (!grant || expired) ? "WhatsApp QR sharing is unavailable. Check Settings → Emails & documents → WhatsApp & QR." : undefined} onClick={()=>void generate()}><QrCode size={17} aria-hidden="true"/>{label}</Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className={`phone-share-dialog ${whatsapp?"phone-share-whatsapp-dialog":""}`}><DialogHeader>
       <DialogTitle>{purpose==="record-video"?"Record on your phone":whatsapp?"Send on WhatsApp":"Share from your phone"}</DialogTitle>
       <DialogDescription>{purpose==="record-video"?"Scan, sign in and record this car. Your video stays private until you review and publish it.":whatsapp?"Choose the customer, scan to send from your phone, then record that you’ve sent it.":"Scan to open the message and documents on your phone. You choose how to share them. Nothing sends automatically."}</DialogDescription>

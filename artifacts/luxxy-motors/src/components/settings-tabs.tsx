@@ -16,11 +16,20 @@ export function SettingsTabs({ idPrefix, label, value, items, onValueChange }: {
   const hasSelection = items.some(item => item.id === value);
   useEffect(() => {
     const strip = root.current;
-    const active = strip?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (!strip || !active || strip.scrollWidth <= strip.clientWidth) return;
-    const bounds = strip.getBoundingClientRect(), selected = active.getBoundingClientRect();
-    if (selected.left < bounds.left) strip.scrollLeft -= bounds.left - selected.left + 5;
-    else if (selected.right > bounds.right) strip.scrollLeft += selected.right - bounds.right + 5;
+    if (!strip) return;
+    const revealSelection = () => {
+      const active = strip.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!active || strip.scrollWidth <= strip.clientWidth) return;
+      const bounds = strip.getBoundingClientRect(), selected = active.getBoundingClientRect();
+      if (selected.left < bounds.left) strip.scrollLeft -= bounds.left - selected.left + 5;
+      else if (selected.right > bounds.right) strip.scrollLeft += selected.right - bounds.right + 5;
+    };
+    revealSelection();
+    // Keep the active tab visible when a phone or tablet changes orientation.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(revealSelection);
+    observer?.observe(strip);
+    window.addEventListener('resize', revealSelection);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', revealSelection); };
   }, [value]);
   function move(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;

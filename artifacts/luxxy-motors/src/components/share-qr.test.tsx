@@ -1,6 +1,8 @@
 import { beforeEach, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { ShareQr } from "./share-qr";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { phoneSharingSettingsQueryKey } from "@/lib/phone-sharing-settings";
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => api(...args),
@@ -229,4 +231,64 @@ it("recording QR keeps staff authentication and does not create an access grant"
   expect(screen.getByText(/This QR does not grant access/)).toBeVisible();
   expect(screen.getByRole("link",{name:"Open recording page"})).toBeVisible();
   expect(api).not.toHaveBeenCalled();
+});
+
+it('renewing an expired confirmed pack requires a new confirmation and shows the new link', async () => {
+ const clock=vi.spyOn(Date,'now').mockReturnValue(Date.parse('2026-10-22T12:00:00Z'));
+ let grants=0;
+ api.mockImplementation(async(url:string)=>{
+  if(url.includes('/enquiries?'))return {enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]};
+  if(url.endsWith('/confirm-whatsapp'))return {enquiryId:'enquiry',confirmedAt:'2026-10-22T12:01:00Z'};
+  return {id:`pack-${++grants}`,url:`https://dealer.test/phone-share#pack-${grants}`,message:'Your invoice',customerPhone:'07700900123',enquiryId:'enquiry',hasAttachments:true,expiresAt:grants===1?'2026-10-22T13:00:00Z':'2026-10-24T13:00:00Z'};
+ });
+ try {
+  render(<ShareQr whatsapp label="WhatsApp QR" source={{kind:'document',saleId:'sale',documentId:'doc'}}/>);
+  fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+  await screen.findByTestId('qr');
+  fireEvent.click(screen.getByRole('button',{name:'I’ve sent it'}));
+  await screen.findByText('WhatsApp sent — staff confirmed');
+  fireEvent.click(screen.getByRole('button',{name:'Close'}));
+  clock.mockReturnValue(Date.parse('2026-10-23T12:00:00Z'));
+  fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+  const qr=await screen.findByTestId('qr');
+  expect(qr.getAttribute('data-value')).toContain('pack-2');
+  expect(screen.queryByText('WhatsApp sent — staff confirmed')).toBeNull();
+  expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeEnabled();
+  expect(api.mock.calls.filter(([url])=>url.endsWith('/confirm-whatsapp'))).toHaveLength(1);
+ } finally {clock.mockRestore();}
+});
+
+it('the dealer switch disables new WhatsApp sharing while leaving phone recording QR available', async()=>{
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ client.setQueryData(phoneSharingSettingsQueryKey,{revision:1,enabled:false});
+ render(<QueryClientProvider client={client}><ShareQr whatsapp label="WhatsApp QR" source={{kind:'document',saleId:'sale',documentId:'doc'}}/><ShareQr purpose="record-video" label="Record on phone" url="/portal?recordVideo=1"/></QueryClientProvider>);
+ expect(screen.getByRole('button',{name:'WhatsApp QR'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'WhatsApp QR'})).toHaveAttribute('title',expect.stringContaining('Settings'));
+ expect(screen.getByRole('button',{name:'Record on phone'})).toBeEnabled();
+ expect(api).not.toHaveBeenCalled();
+ await act(async()=>{client.setQueryData(phoneSharingSettingsQueryKey,{revision:2,enabled:true});});
+ await waitFor(()=>expect(screen.getByRole('button',{name:'WhatsApp QR'})).toBeEnabled());
+});
+
+it('turning sharing off still lets staff reopen a prepared pack to confirm or revoke it',async()=>{
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ client.setQueryData(phoneSharingSettingsQueryKey,{revision:1,enabled:true});
+ api.mockImplementation(async(url:string)=>{
+  if(url.includes('/enquiries?'))return {enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]};
+  if(url.endsWith('/revoke'))return {revoked:true};
+  return {id:'prepared-pack',url:'https://dealer.test/phone-share#prepared',message:'Prepared message',customerPhone:'07700900123',enquiryId:'enquiry',hasAttachments:true,expiresAt:'2026-11-01T12:00:00Z'};
+ });
+ render(<QueryClientProvider client={client}><ShareQr whatsapp label="WhatsApp QR" source={{kind:'document',saleId:'sale',documentId:'doc'}}/></QueryClientProvider>);
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+ await screen.findByTestId('qr');
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ await act(async()=>{client.setQueryData(phoneSharingSettingsQueryKey,{revision:2,enabled:false});});
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+ await screen.findByTestId('qr');
+ expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeEnabled();
+ expect(api.mock.calls.filter(([url])=>url==='/api/staff/phone-shares')).toHaveLength(1);
+ fireEvent.click(screen.getByText('Link options'));
+ fireEvent.click(screen.getByRole('button',{name:'Revoke link'}));
+ await screen.findByText('Link revoked. It can no longer be opened.');
+ expect(api.mock.calls.some(([url])=>url.endsWith('/revoke'))).toBe(true);
 });

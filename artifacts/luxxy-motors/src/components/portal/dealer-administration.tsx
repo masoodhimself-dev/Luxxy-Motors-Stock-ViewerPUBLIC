@@ -1,4 +1,4 @@
-import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck, CarFront, Wallet, Store, CalendarDays } from '@/components/icons';
+import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck, CarFront, Wallet, Store, CalendarDays, QrCode } from '@/components/icons';
 import { useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch, getGetDealerSettingsQueryKey } from '@workspace/api-client-react';
@@ -13,6 +13,7 @@ import { EmailTemplatesSettings } from '@/components/email-templates-settings';
 import { SalesPaperworkSettings } from '@/components/sales-paperwork-settings';
 import { CustomerChatSettings } from '@/components/customer-chat-settings';
 import { SearchVisibilitySettings } from '@/components/search-visibility-settings';
+import { PhoneSharingSettings } from '@/components/phone-sharing-settings';
 import { customerFeaturePolicy } from '@workspace/vehicle-meta';
 import './dealer-administration.css';
 
@@ -419,11 +420,11 @@ export function DealerSettingsHub() {
   const [, navigate] = useLocation();
   const requested = new URLSearchParams(search).get('settingsTab') ?? 'dealership';
   const canTeam = access.data?.permissions.includes('team.manage') ?? false;
-  const allowed = ['dealership', 'website', 'bookings', 'emails', 'paperwork', 'team', 'integrations', 'search', 'history', ...(customerFeaturePolicy.websiteChat ? ['chat'] : [])];
+  const allowed = ['dealership', 'website', 'bookings', 'emails', 'paperwork', 'sharing', 'team', 'integrations', 'search', 'history', ...(customerFeaturePolicy.websiteChat ? ['chat'] : [])];
   const legacySection = new URLSearchParams(search).get('websiteSection');
   const selectedSection = requested === 'website' && ['contact','legal'].includes(legacySection ?? '') ? 'dealership' : requested === 'website' && legacySection === 'bookings' ? 'bookings' : allowed.includes(requested) ? requested : 'dealership';
   const dealerGroup = ['dealership', 'website', 'bookings'].includes(selectedSection);
-  const primary = ['emails', 'paperwork'].includes(selectedSection) ? 'documents' : selectedSection === 'history' ? 'website' : ['integrations', 'search', 'chat'].includes(selectedSection) ? 'advanced' : selectedSection;
+  const primary = ['emails', 'paperwork', 'sharing'].includes(selectedSection) ? 'documents' : selectedSection === 'history' ? 'website' : ['integrations', 'search', 'chat'].includes(selectedSection) ? 'advanced' : selectedSection;
   const primaryTabs = [
     { id: 'dealership', label: 'Dealership details', icon: Store },
     { id: 'website', label: 'Website', icon: Globe2 },
@@ -445,6 +446,7 @@ export function DealerSettingsHub() {
   const secondary = primary === 'documents' ? [
     { id: 'emails', label: 'Email templates', icon: Mail },
     { id: 'paperwork', label: 'Invoices & terms', icon: FileText },
+    { id: 'sharing', label: 'WhatsApp & QR', icon: QrCode },
   ] : primary === 'advanced' ? [
     { id: 'integrations', label: 'Connections', icon: PlugZap },
     { id: 'search', label: 'Search visibility', icon: Globe2 },
@@ -462,6 +464,7 @@ export function DealerSettingsHub() {
       {selectedSection === 'history' && <><Button variant="outline" onClick={() => navigate('/portal?section=settings&settingsTab=website&websiteSection=review')}>Back to review & publish</Button><PublicationHistory /></>}
       {selectedSection === 'emails' && <EmailTemplatesSettings />}
       {selectedSection === 'paperwork' && <div className="integration-settings"><SalesPaperworkSettings /></div>}
+      {selectedSection === 'sharing' && <PhoneSharingSettings />}
       {selectedSection === 'team' && (canTeam ? <TeamSettings /> : <div className="settings-access-note" role="status"><h3>Team access is managed by an authorised owner</h3><p>Your account cannot change staff access. Choose another settings tab to continue.</p></div>)}
       {selectedSection === 'integrations' && <DealerIntegrationsSettings />}
       {selectedSection === 'search' && <SearchVisibilitySettings />}

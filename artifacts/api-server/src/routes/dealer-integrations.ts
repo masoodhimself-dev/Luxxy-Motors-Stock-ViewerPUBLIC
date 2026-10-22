@@ -12,6 +12,14 @@ import { siteOrigin } from '../lib/enquiry-links';
 const router: IRouter = Router();
 router.use(['/dealer-integrations', '/email-templates'], requireStaff, requirePermission('integrations.manage'), (req, res, next) => { res.set('Cache-Control', 'no-store'); if (req.get('origin') && req.get('origin') !== siteOrigin()) { res.status(403).json({ error: 'Open private settings from the dealership website.' }); return; } next(); });
 function failure(error: unknown, res: import('express').Response) { const expected = error instanceof IntegrationSettingsError || error instanceof EmailTemplateError; res.status(expected ? error.status : 500).json({ error: expected ? error.message : 'Private settings could not be saved. Please try again.' }); }
+router.get('/staff/phone-sharing-settings', requireStaff, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try { res.json(await dealerIntegrationsStore.readPhoneSharing()); } catch (error) { failure(error, res); }
+});
+router.put('/staff/phone-sharing-settings', requireStaff, requirePermission('integrations.manage'), async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try { res.json(await dealerIntegrationsStore.updatePhoneSharing(req.body)); } catch (error) { failure(error, res); }
+});
 router.use('/dealer-integrations/stock-connection', (req, res, next) => { if (!isPlatformAdmin(req.staff?.authUserId)) { res.status(403).json({ error: 'Only the platform administrator can manage stock connections.' }); return; } next(); });
 router.get('/dealer-integrations/stock-connection', async (_req, res) => { try {
   const id = currentDealerId();

@@ -10,7 +10,7 @@ import { type InvoiceSettings, defaultInvoiceSettings, currentInvoiceSettings, i
 export class IntegrationSettingsError extends Error { constructor(message: string, readonly status = 400) { super(message); this.name = 'IntegrationSettingsError'; } }
 export type ResendSettings = { enabled: boolean; apiKey: string; from: string; replyTo: string };
 export type StripeSettings = { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey: string; webhookSecret: string };
-export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection };
+export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection; phoneSharing?: { enabled: boolean } };
 const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance }, useWebsiteBranding: true });
 export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { if(currentTenant()?.demo){ const p=demoProvisioning(); return {enabled:p.emailReady,apiKey:process.env.DEMO_RESEND_API_KEY??'',from:p.emailDomain?`${currentDealerId()} Demo <${currentDealerId()}@${p.emailDomain}>`:'',replyTo:''}; } return multiTenantEnabled() || settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
 const clean = z.string().trim().max(512).refine(value => !/[\r\n\u0000-\u001f\u007f]/.test(value), 'Use a single line without control characters.');
@@ -145,6 +145,23 @@ export class DealerIntegrationsStore {
     return this.serial(async () => { const state = await this.load(transaction); if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed. Reload before saving.', 409); state.stockConnection = parsed.data.connection; state.revision++; state.updatedAt = new Date().toISOString(); await this.save(state, transaction); return { revision: state.revision, connection: state.stockConnection }; });
   }
   async readSalesPaperwork() { const state = await this.serial(() => this.load()); return { revision: state.revision, saleTerms: state.salesPaperwork?.saleTerms || (currentTenant()?.demo ? 'SAMPLE ONLY — fictional demonstration. Not a contract of sale.' : ''), reservationTerms: state.salesPaperwork?.reservationTerms || (currentTenant()?.demo ? 'SAMPLE ONLY — no real money received.' : ''), invoiceSettings: currentInvoiceSettings(state.salesPaperwork?.invoiceSettings) }; }
+  /** Safe for staff consumers: no email credentials, branding lookup or customer data. */
+  async readPhoneSharing() {
+    const state = await this.serial(() => this.load());
+    return { revision: state.revision, enabled: state.phoneSharing?.enabled !== false };
+  }
+  async updatePhoneSharing(raw: unknown) {
+    const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), enabled: z.boolean() }).strict().safeParse(raw);
+    if (!parsed.success) throw new IntegrationSettingsError('Choose whether WhatsApp QR sharing is enabled.');
+    return this.serial(async () => {
+      const state = await this.load();
+      if (state.revision !== parsed.data.expectedRevision) throw new IntegrationSettingsError('These settings changed in another session. Reload before saving.', 409);
+      state.phoneSharing = { enabled: parsed.data.enabled };
+      state.revision++; state.updatedAt = new Date().toISOString();
+      await this.save(state);
+      return { revision: state.revision, enabled: state.phoneSharing.enabled };
+    });
+  }
   async updateSalesPaperwork(raw: unknown) {
     const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), saleTerms: z.string().trim().max(20000), reservationTerms: z.string().trim().max(20000), invoiceSettings: z.object({
       layoutVersion: z.literal('classic-ledger-v1').optional(),
