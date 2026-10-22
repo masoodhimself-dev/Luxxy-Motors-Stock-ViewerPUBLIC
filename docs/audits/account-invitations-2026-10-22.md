@@ -1,7 +1,7 @@
 # Dealership owner and staff invitations — 22 October 2026
 
 ## Delivery status
-Implemented on `codex/dealer-owner-staff-invitations`. Not deployed. No real invitations sent or production memberships changed.
+Implemented on `codex/dealer-owner-staff-invitations`. Released to Render and live-tested on 22 October 2026; see the live verification below. The original implementation verification remains documented separately.
 
 ## Operator and owner flow
 1. Platform → Add dealership defaults to **Invite owner by email**. Enter the confirmed owner email alongside the existing dealership details.
@@ -56,3 +56,17 @@ The legacy staff upsert now targets the actual tenant-scoped unique constraint `
 
 ## Test maintenance
 Three sales follow-up test files used date-sensitive October fixtures; the test clock is now fixed so unrelated tests do not expire as the calendar advances. An existing platform SEO assertion was aligned with the unchanged current title. No corresponding sales or SEO production behaviour changed.
+
+## Live release and owner invitation verification
+
+- User authorised deployment, migration and an invitation to `masoodhimself@gmail.com`.
+- Initial release `a30d0c1` deployed via `dep-dbcuki8473hc73aa1glg`; Render predeploy migration completed. The first send was correctly blocked with 503 before creating any dealer because global invitation sender configuration was absent.
+- After explicit approval, configured a new Resend sending-only credential restricted to `luxxymotors.uk`, transferred directly into Render as `RESEND_API_KEY`, with `RESEND_FROM_EMAIL=Luxxy <accounts@luxxymotors.uk>`. Existing dealer email credentials and delivery switches were unchanged. A one-time clipboard transfer failed; the unused first key was deleted after explicit approval. No credentials were printed or saved in the repository.
+- Sender configuration deployment `dep-dbcuu7d9fdbs73a06qq0` became live. Created **TEST — Owner Invitation 22 Oct**, a draft with reserved `.invalid` website and a clearly non-production stock reference. No domain activation, import credential, collection schedule or subscription was created.
+- Test invitation delivered to Gmail Inbox from the configured sender. The received HTML exposed a presentation-only default label, “Your vehicle enquiry”. Fixed by explicitly selecting `account_invitation` for invitation rendering, preserving customer templates. Added a regression assertion; isolated HTTP/PGlite suite passed **10/10** (the initial sandbox invocation could not bind a socket; rerun with permitted localhost access passed).
+- Final application release `5f93f37526964c4bc92352dd85ac393239d158d1`, deploy `dep-dbcv5trncjis73dohak0`, live **22 October 2026 11:29:53 UTC**. Render logs at **11:28:50 UTC** explicitly reported migrations applied successfully. Invitation table/API operations also succeeded.
+- A second test email from the final release arrived at **11:31:51 UTC**, with the corrected wording. Both first and final invitations were accepted through the browser with the matching verified existing account; Platform showed **Owner — Accepted**. The single provisional owner membership remained single, and no role elevation was introduced.
+- Public health and database readiness returned 200 (`ok`, `ready`) after the final deployment.
+- Live success screenshot: `/private/tmp/luxxy-owner-invitation-live-success.png`. Accepted management screenshot: `/private/tmp/luxxy-owner-invitation-live-accepted.png`.
+- The test dealership remains a labelled, unpublished draft. Luxxy and Paramount’s settings, live stock connections and schedules were not modified.
+- **Limit:** this live test used Masood’s existing Clerk account. Completely new Clerk registration, physical-device signup and a real customer’s custom-domain portal remain unverified by this run. Automated tests cover new/unregistered invitation issuance, verified-email enforcement and membership isolation.
