@@ -31,4 +31,13 @@ Templates cover enquiry replies, car details, photos, video, test-drive details,
 
 ## Release
 
-Prepared locally on a separate Codex branch. No Render deployment or migration performed for this change. Existing live delivery behaviour is unchanged. Real-device WhatsApp sending remains a staff action.
+Deployed following user approval to the existing Render service `luxxy-shared-staging` (`srv-db4jfhk9v7es73a4qhrg`), serving `https://luxxymotors.uk`.
+
+- Application commit: `e23bd1bd147182933b5f364aff0367b36f8a2bf3`.
+- Deploy: `dep-dbctgni9lscs73f2etkg`, status `live`, finished 22 October 2026 at 09:36:32 UTC.
+- Existing release branch advanced by fast-forward; auto-deploy remains off and the release was triggered manually. No service settings, secrets or new migrations were added. Render's existing pre-deploy migration command passed.
+- Post-live `/api/healthz` and `/api/readyz`: both HTTP 200. Runtime-error log query after startup returned no errors.
+- Signed-in live settings loaded all ten templates and fictional previews. No global wording was overwritten during verification.
+- Existing TEST Quick Enquiry record used to select Car details, fill customer/car variables, change one-off text and update its QR. The link prefills `447388831790` and the exact reviewed TEST ONLY message.
+- Live editor checked at 390 × 844 and 820 × 1180; no horizontal page overflow. Responsive overrides cleared after checks.
+- No WhatsApp message/email sent and no live “I’ve sent it” confirmation recorded. Existing live delivery behaviour remains unchanged; real-device sending is a staff action.
