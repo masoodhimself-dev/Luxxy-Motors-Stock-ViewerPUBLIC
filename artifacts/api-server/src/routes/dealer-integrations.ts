@@ -4,14 +4,22 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, vehiclesTable, stockImportRunsTable, dealerImportKeysTable } from "@workspace/db";
 import { isPlatformAdmin } from "../lib/platform-admin";
 import { Router, type IRouter } from 'express';
-import { EmailTemplateError, emailTemplateVariables } from '@workspace/vehicle-meta';
+import { EmailTemplateError, emailTemplateVariables, WhatsAppTemplateError, whatsappTemplateVariables } from '@workspace/vehicle-meta';
 import { requirePermission, requireStaff } from '../middlewares/staff-auth';
 import { dealerIntegrationsStore, IntegrationSettingsError } from '../lib/dealer-integrations-store';
 import { previewEmailTemplate } from '../lib/email-template-preview';
 import { siteOrigin } from '../lib/enquiry-links';
 const router: IRouter = Router();
 router.use(['/dealer-integrations', '/email-templates'], requireStaff, requirePermission('integrations.manage'), (req, res, next) => { res.set('Cache-Control', 'no-store'); if (req.get('origin') && req.get('origin') !== siteOrigin()) { res.status(403).json({ error: 'Open private settings from the dealership website.' }); return; } next(); });
-function failure(error: unknown, res: import('express').Response) { const expected = error instanceof IntegrationSettingsError || error instanceof EmailTemplateError; res.status(expected ? error.status : 500).json({ error: expected ? error.message : 'Private settings could not be saved. Please try again.' }); }
+function failure(error: unknown, res: import('express').Response) { const expected = error instanceof IntegrationSettingsError || error instanceof EmailTemplateError || error instanceof WhatsAppTemplateError; res.status(expected ? error.status : 500).json({ error: expected ? error.message : 'Private settings could not be saved. Please try again.' }); }
+router.get('/staff/whatsapp-templates', requireStaff, async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try { res.json({ ...await dealerIntegrationsStore.listWhatsAppTemplates(), variables: whatsappTemplateVariables }); } catch (error) { failure(error, res); }
+});
+router.put('/staff/whatsapp-templates', requireStaff, requirePermission('integrations.manage'), async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try { res.json({ ...await dealerIntegrationsStore.updateWhatsAppTemplate(req.body), variables: whatsappTemplateVariables }); } catch (error) { failure(error, res); }
+});
 router.get('/staff/phone-sharing-settings', requireStaff, async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   try { res.json(await dealerIntegrationsStore.readPhoneSharing()); } catch (error) { failure(error, res); }

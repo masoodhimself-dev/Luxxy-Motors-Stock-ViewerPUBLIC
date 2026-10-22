@@ -10,7 +10,9 @@ const { jsPDF } = createRequire(
 import { previewStock } from "./stock";
 import { videoRange } from "../../api-server/src/lib/media-storage";
 import { readPreviewEnquiries } from './reservations';
-const packs = new Map<string, { id: string; expiresAt: string }>();
+import { renderWhatsAppTemplate, validateWhatsAppMessage, whatsappTemplateIds, type WhatsAppTemplateId } from '@workspace/vehicle-meta';
+import { previewIntegrationsStore } from './dealer-integrations';
+const packs = new Map<string, { id: string; expiresAt: string; message: string; messageBody: string; requiredText: string; templateId: WhatsAppTemplateId; templateVariables: Record<string, string>; messageLinkRequired: boolean; hasAttachments: boolean }>();
 const demoId = "00000000-0000-4000-8000-000000000048";
 export async function mediaSharingPreview(
   req: IncomingMessage,
@@ -148,16 +150,25 @@ export async function mediaSharingPreview(
     }
     if (!/^[a-f0-9]{64}$/.test(data.token || ""))
       return send(400, { error: "Invalid preview token." });
+    const templateId: WhatsAppTemplateId = (whatsappTemplateIds as readonly string[]).includes(data.templateId) ? data.templateId : 'invoice';
+    const templateVariables = { customer_name: 'Fictional customer', dealer_name: 'Local preview showroom', vehicle_title: 'Fictional preview car', vehicle_registration: 'AB12CDE', appointment_time: 'Friday at 10:00 (UK time)', message: 'Local visual test only. This is not a real invoice or customer message.' };
+    let messageBody: string;
+    try {
+      const template = (await previewIntegrationsStore.listWhatsAppTemplates()).templates.find(item => item.id === templateId)!;
+      messageBody = data.messageBody !== undefined ? validateWhatsAppMessage(data.messageBody) : data.templateId ? renderWhatsAppTemplate(template, templateVariables) : templateVariables.message;
+    } catch (error) { return send(400, {error: error instanceof Error ? error.message : 'Check the message.'}); }
+    const requiredText = data.source?.kind === 'message' ? data.source.url || 'FICTIONAL LOCAL PREVIEW ONLY' : 'FICTIONAL LOCAL PREVIEW ONLY\nVehicle: Fictional preview car\nAttachment: fictional-invoice.pdf';
     const saved = packs.get(data.token) || {
       id: randomUUID(),
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      messageBody, requiredText, templateId, templateVariables,
+      messageLinkRequired: data.source?.kind === 'message', hasAttachments: data.source?.kind !== 'message',
+      message: [messageBody, requiredText].join('\n\n'),
     };
     packs.set(data.token, saved);
     return send(201, {
       ...saved,
-      message: "Local visual test only. This is not a real invoice or customer message.",
       customerPhone: "07700 900123",
-      hasAttachments: true,
       url: `http://${req.headers.host}/phone-share#${data.token}`,
       preview: true,
     });
@@ -180,16 +191,15 @@ export async function mediaSharingPreview(
     return send(200, {
       customerPhone: "07700 900123",
       title: "Fictional invoice sharing example",
-      message:
-        "Local visual test only. This is not a real invoice or customer message.",
+      message: pack.message,
       expiresAt: pack.expiresAt,
-      files: [
+      files: pack.hasAttachments ? [
         {
           filename: "fictional-invoice.pdf",
           content: Buffer.from(pdf.output("arraybuffer")).toString("base64"),
           contentType: "application/pdf",
         },
-      ],
+      ] : [],
     });
   }
   return send(404, { error: "Not found." });

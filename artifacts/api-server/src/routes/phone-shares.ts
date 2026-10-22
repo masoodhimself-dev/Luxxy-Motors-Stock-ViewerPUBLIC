@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v4";
+import { protectedEmailText, renderWhatsAppTemplate, validateWhatsAppMessage, whatsappTemplateIds } from '@workspace/vehicle-meta';
 import { pool } from "@workspace/db";
 import {
   requireStaff,
@@ -34,7 +35,10 @@ const input = z
   .object({
     requestId: z.string().uuid(),
     token: z.string().regex(/^[a-f0-9]{64}$/),
+    messageBody: z.string().max(4000).optional(),
+    templateId: z.enum(whatsappTemplateIds).optional(),
     source: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal('message'), message: z.string().trim().min(1).max(12000), url: z.string().max(2048).optional(), enquiryId: z.string().uuid().optional(), vehicleId: z.string().uuid().optional() }).strict(),
       z
         .object({
           kind: z.literal("document"),
@@ -88,7 +92,10 @@ router.post(
       const data = parsed.data,
         dealer = currentDealerId(),
         tokenHash = phoneShareHash(data.token),
-        fingerprint = phoneShareHash(JSON.stringify("draft" in data.source ? {...data.source, draft: mediaRequestIdentity(data.source.draft)} : data.source));
+        sourceIdentity = "draft" in data.source ? {...data.source, draft: mediaRequestIdentity(data.source.draft)} : data.source,
+        fingerprint = phoneShareHash(JSON.stringify(data.messageBody !== undefined || data.templateId !== undefined
+          ? { source: sourceIdentity, ...(data.messageBody !== undefined ? { messageBody: data.messageBody } : {}), ...(data.templateId !== undefined ? { templateId: data.templateId } : {}) }
+          : sourceIdentity));
       const previous = (
         await pool.query(
           "SELECT id,token_hash,fingerprint,expires_at,revoked_at,payload FROM customer_phone_shares WHERE dealer_id=$1 AND request_id=$2",
@@ -101,6 +108,11 @@ router.post(
         expiresAt: row.expires_at,
         replayed,
         message: row.payload?.message || "",
+        messageBody: row.payload?.messageBody ?? row.payload?.message ?? '',
+        requiredText: row.payload?.requiredText || '',
+        templateId: row.payload?.templateId,
+        templateVariables: row.payload?.templateVariables || {},
+        messageLinkRequired: row.payload?.messageLinkRequired || false,
         customerPhone: row.payload?.customerPhone || "",
         hasAttachments: Boolean(row.payload?.files?.length),
         enquiryId: row.payload?.enquiryId || undefined,
@@ -132,7 +144,34 @@ router.post(
       if (!(await dealerIntegrationsStore.readPhoneSharing()).enabled)
         throw new PhoneShareError('WhatsApp QR sharing is turned off in Settings → Emails & documents → WhatsApp & QR. Use email instead.', 409);
       let payload: PhoneSharePayload;
-      if (data.source.kind === "document") {
+      if (data.source.kind === 'message') {
+        const source = data.source;
+        const enquiry = source.enquiryId ? (await pool.query('SELECT customer_name,phone,email,vehicle_id,vehicle_title,vehicle_registration,appointment_at FROM enquiries WHERE dealer_id=$1 AND id=$2', [dealer, source.enquiryId])).rows[0] : undefined;
+        if (source.enquiryId && !enquiry) throw new PhoneShareError('Enquiry not found.', 404);
+        const vehicleId = source.vehicleId || enquiry?.vehicle_id;
+        const vehicle = vehicleId ? (await pool.query('SELECT id,title,registration FROM vehicles WHERE dealer_id=$1 AND id=$2', [dealer, vehicleId])).rows[0] : undefined;
+        if (vehicleId && !vehicle) throw new PhoneShareError('Vehicle not found.', 404);
+        let url = '';
+        if (source.url) {
+          try {
+            const target = new URL(source.url, siteOrigin());
+            if (target.origin !== siteOrigin() || target.username || target.password || !/^\/(?:vehicle|test-drive-declaration|my-purchase|viewing|customer-details)\/[A-Za-z0-9_-]+\/?$/.test(target.pathname)) throw new Error();
+            if (target.pathname.startsWith('/vehicle/')) {
+              const id = target.pathname.split('/')[2];
+              if (!z.string().uuid().safeParse(id).success || !(await pool.query('SELECT id FROM vehicles WHERE dealer_id=$1 AND id=$2', [dealer, id])).rows.length) throw new PhoneShareError('Vehicle not found.', 404);
+            }
+            url = target.href;
+          } catch (error) { if (error instanceof PhoneShareError) throw error; throw new PhoneShareError('Use a customer link from this dealership website.', 400); }
+        }
+        if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(source.message)) throw new PhoneShareError('Use plain text without control characters.', 400);
+        const profile = await dealerProfile();
+        payload = {
+          title: 'Customer message', message: [source.message, url].filter(Boolean).join('\n\n'),
+          messageBody: source.message, requiredText: url, templateId: 'enquiry', messageLinkRequired: true,
+          templateVariables: { customer_name: enquiry?.customer_name || '', dealer_name: profile.identity.name, vehicle_title: vehicle?.title || enquiry?.vehicle_title || '', vehicle_registration: vehicle?.registration || enquiry?.vehicle_registration || '', appointment_time: enquiry?.appointment_at ? new Intl.DateTimeFormat('en-GB', {timeZone:'Europe/London',dateStyle:'full',timeStyle:'short'}).format(new Date(enquiry.appointment_at)) + ' (UK time)' : '', message: source.message },
+          enquiryId: source.enquiryId, vehicleId: vehicle?.id, customerPhone: enquiry?.phone || '', customerEmail: enquiry?.email || '', customerName: enquiry?.customer_name || '', files: [],
+        };
+      } else if (data.source.kind === "document") {
         const service = new PostgresSaleWorkspaceStore(
           dealer,
           (draft, client) => readSaleWorkspaceAssets(draft, dealer, client),
@@ -165,6 +204,10 @@ router.post(
           customerPhone: draft.phone || "",
           title: rendered.subject,
           message: rendered.text,
+          messageBody: rendered.bodyText,
+          requiredText: protectedEmailText(rendered),
+          templateId: 'invoice',
+          templateVariables: { customer_name: draft.customer, dealer_name: branding.identity.name, vehicle_title: draft.vehicle, vehicle_registration: draft.registration, message: rendered.bodyText },
           files: attachments.map((file) => ({
             ...file,
             filename: file.filename.replace(/[^\w .()-]/g, "_"),
@@ -191,7 +234,7 @@ router.post(
         const rendered = await renderDealerEmail({templateId: kind,
           variables: {dealer_name: profile.identity.name, dealer_email: profile.contact.email, dealer_phone: profile.contact.phone, customer_name: record.customerName, customer_email: record.email, reference: record.reference, vehicle_title: record.vehicleTitle, vehicle_registration: record.vehicleRegistration, amount: money(record.depositPence), amount_received: money(record.amountReceivedPence), payment_status: record.paymentStatus, reservation_status: record.status, document_number: documentNumber, expires_at: new Date(record.expiresAt).toLocaleString('en-GB', {timeZone:'Europe/London'})},
           facts: [{label:'Vehicle',value:record.vehicleTitle},{label:'Reservation status',value:record.status.replaceAll('_',' ')},{label:'Payment status',value:record.paymentStatus.replaceAll('_',' ')},{label:'Requested deposit',value:money(record.depositPence)},{label:'Amount received',value:money(record.amountReceivedPence)},{label:'Amount refunded',value:money(record.amountRefundedPence)},...(record.mode === 'test' ? [{label:'Payment mode',value:'Stripe test payment — no real funds received'}] : [])], attachments: files });
-        payload = {title: rendered.subject, message: rendered.text, customerPhone: record.phone, customerEmail: record.email, files};
+        payload = {title: rendered.subject, message: rendered.text, messageBody: rendered.bodyText, requiredText: protectedEmailText(rendered), templateId: 'reservation', templateVariables: { customer_name: record.customerName, dealer_name: profile.identity.name, vehicle_title: record.vehicleTitle, vehicle_registration: record.vehicleRegistration, message: rendered.bodyText }, customerPhone: record.phone, customerEmail: record.email, customerName: record.customerName, vehicleId: record.vehicleId || undefined, files};
       } else {
         const prepared = await previewEnquiryEmail(
           data.source.enquiryId,
@@ -212,6 +255,10 @@ router.post(
           customerPhone: prepared.enquiry.phone || "",
           title: data.source.draft.subject,
           message: prepared.rendered.text,
+          messageBody: prepared.rendered.bodyText,
+          requiredText: protectedEmailText(prepared.rendered),
+          templateId: data.source.draft.includeAppointment ? 'appointment' : data.source.draft.includeVideo ? 'video' : data.source.draft.customPhotoIds.length || data.source.draft.photoIds.length || data.source.draft.vehiclePhotoIndices.length ? 'photos' : data.source.draft.includeVehicle ? 'vehicle_details' : 'enquiry',
+          templateVariables: prepared.whatsappVariables,
           files: prepared.attachments.map((file) => ({
             filename: file.filename.replace(/[^\w .()-]/g, "_"),
             content: file.content,
@@ -224,6 +271,14 @@ router.post(
                   : "image/jpeg",
           })),
         };
+      }
+      if (data.messageBody !== undefined || data.templateId !== undefined) {
+        // Only prose is editable. All factual details and files above came from the
+        // authorised source and are frozen with the new sharing pack.
+        const template = data.templateId ? (await dealerIntegrationsStore.listWhatsAppTemplates()).templates.find(item => item.id === data.templateId) : undefined;
+        payload.messageBody = validateWhatsAppMessage(data.messageBody !== undefined ? data.messageBody : renderWhatsAppTemplate(template!, payload.templateVariables ?? {}));
+        payload.templateId = data.templateId ?? payload.templateId;
+        payload.message = [payload.messageBody, payload.requiredText].filter(Boolean).join('\n\n');
       }
       validatePhoneSharePayload(payload);
       const client = await pool.connect();
@@ -362,7 +417,15 @@ router.get("/phone-shares", async (req, res) => {
         });
       return;
     }
-    res.json({ ...row.payload, expiresAt: row.expires_at });
+    // The capability page gets only the approved customer-facing pack. Template
+    // variables can retain source prose that staff deliberately edited out.
+    res.json({
+      customerPhone: row.payload.customerPhone || '',
+      title: row.payload.title,
+      message: row.payload.message,
+      files: row.payload.files,
+      expiresAt: row.expires_at,
+    });
   } catch {
     res
       .status(503)

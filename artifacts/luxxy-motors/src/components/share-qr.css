@@ -119,3 +119,5 @@
 .phone-share-selected-customer small { font-size: 11px; color: #647985; }
 .phone-share-selected-customer .db-btn { font-size: 12px; min-height: 36px; padding: 6px; flex: none; }
 .phone-share-recipient-warning { padding: 10px 12px; background: #fff7e9; color: #755425; border: 1px solid #e9d8b8; border-radius: 6px; }
+
+.whatsapp-message-editor{display:grid;gap:10px;padding:14px;background:hsl(var(--card));border:1px solid hsl(var(--border));border-radius:8px}.whatsapp-message-editor label{display:grid;gap:6px;font-size:14px;font-weight:600}.whatsapp-message-editor textarea{min-height:130px;font-weight:400;line-height:1.6}.whatsapp-message-editor small{color:hsl(var(--muted-foreground));font-size:12px;line-height:1.5}.whatsapp-message-editor summary{min-height:36px;padding:6px 0;cursor:pointer;font-size:13px;font-weight:600}.whatsapp-message-editor .phone-share-actions>*{min-height:44px}.whatsapp-message-editor .phone-share-message{max-height:180px;font-size:12px}.phone-share-whatsapp-dialog{max-width:620px}@media(max-width:480px){.whatsapp-message-editor .phone-share-actions>*{flex:1 1 100%}}

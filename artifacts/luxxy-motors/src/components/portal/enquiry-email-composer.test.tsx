@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
 vi.mock('@/lib/dealer-features', () => ({ useDealerFeatures: () => ({ data: { features: state.features }, enabled: (key: 'customerEmails' | 'staffAiDrafts') => state.features[key], isLoading: false, isError: false }) }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
+  getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
 }));
 vi.mock("./enquiry-workspace-tools", () => ({
   useRefreshDesk: () => async () => {},
@@ -110,6 +111,7 @@ beforeEach(() => {
   state.generationError = false;
   state.features = { customerEmails: true, staffAiDrafts: true };
   state.fetch.mockReset().mockImplementation(async (url: string) => {
+    if (url === '/api/staff/phone-sharing-settings') return { revision: 0, enabled: true };
     if (url.endsWith("/email-context"))
       return context(url.includes("enquiry-two"));
     if (url.endsWith("/config")) return config;
@@ -958,7 +960,7 @@ it('prepares appointment follow-up wording without sending or including old appo
 });
 it('keeps a saved draft until staff explicitly choose follow-up wording', async () => {
   const suggestedContent = { label: 'Appointment follow-up', subject: 'Follow-up subject', message: 'Gentle follow-up wording' };
-  state.fetch.mockImplementation(async (url: string) => url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'staff', content: { to: 'saved@example.test', subject: 'Saved subject', message: 'Keep my existing message', includeVehicle: true, includeAppointment: true, photoIds: ['photo-one'], documentIds: ['invoice-one'], expectedRevision: 2 } } } : url.endsWith('/config') ? config : {});
+  state.fetch.mockImplementation(async (url: string) => url === '/api/staff/phone-sharing-settings' ? { revision: 0, enabled: true } : url.endsWith('/email-context') ? { ...context(), savedDraft: { version: 4, status: 'draft', source: 'staff', content: { to: 'saved@example.test', subject: 'Saved subject', message: 'Keep my existing message', includeVehicle: true, includeAppointment: true, photoIds: ['photo-one'], documentIds: ['invoice-one'], expectedRevision: 2 } } } : url.endsWith('/config') ? config : {});
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><EnquiryEmailComposer entry={entry} suggestedContent={suggestedContent} onClose={state.close} /></QueryClientProvider>);
   expect(await screen.findByRole('textbox', { name: 'Message' })).toHaveValue('Keep my existing message');
   fireEvent.click(screen.getByRole('button', { name: 'Use appointment follow-up wording' }));

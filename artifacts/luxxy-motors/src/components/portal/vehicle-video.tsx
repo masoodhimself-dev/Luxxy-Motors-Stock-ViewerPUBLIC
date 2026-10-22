@@ -60,8 +60,8 @@ export async function inspectVideoFile(file: File) {
     URL.revokeObjectURL(url);
   }
 }
-export function VehicleVideoEditor({ vehicleId, writable, recordingPage = false }: {
-  vehicleId: string; writable: boolean; recordingPage?: boolean;
+export function VehicleVideoEditor({ vehicleId, vehicleTitle = "", writable, recordingPage = false }: {
+  vehicleId: string; vehicleTitle?: string; writable: boolean; recordingPage?: boolean;
 }) {
   const phone = usePhoneCamera();
   const recordingUrl = new URL(`/portal?section=inventory&vehicleId=${encodeURIComponent(vehicleId)}&recordVideo=1`, window.location.origin).href;
@@ -141,7 +141,7 @@ export function VehicleVideoEditor({ vehicleId, writable, recordingPage = false 
       {draftPreview}
       {published && <div className="video-published-card"><div className="video-section-heading"><h4>{recordingPage?"Current published video":"Shareable video"}</h4><span className="video-status-badge video-status-live">Published</span></div>
         <video aria-label="Published video preview" controls playsInline preload="metadata" src={published.previewUrl!}/>
-        <div className="vehicle-video-actions"><ShareQr url={query.data?.shareUrl} label="Video QR / share link"/><ShareQr whatsapp vehicleId={vehicleId} url={query.data?.shareUrl} message="Here is the car video you asked about." label="WhatsApp QR"/>
+        <div className="vehicle-video-actions"><ShareQr url={query.data?.shareUrl} label="Video QR / share link"/><ShareQr templateVariables={{vehicle_title:vehicleTitle}} whatsapp vehicleId={vehicleId} url={query.data?.shareUrl} message="Here is the car video you asked about." label="WhatsApp QR"/>
         <InternalShareEmailButton label="Email video link" subject="Your car video" message={`Here is the car video: ${query.data?.shareUrl||""}`} vehicleId={vehicleId}/>
         {writable && <Button variant="outline" disabled={busy} onClick={()=>void change(published,false)}>Disable video link</Button>}</div>
       </div>}

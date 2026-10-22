@@ -575,6 +575,14 @@ function withoutInternalEmailReferences(value: string, reference: string) {
     })
     .join("");
 }
+// Sidecar metadata keeps the established enumerable renderer output (and approved
+// email hashes) byte-for-byte compatible. No user prose is parsed to find facts.
+const protectedTextByRenderedEmail = new WeakMap<object, string>();
+export function protectedEmailText(rendered: object): string {
+  const text = protectedTextByRenderedEmail.get(rendered);
+  if (text === undefined) throw new EmailTemplateError('The message facts could not be prepared.');
+  return text;
+}
 /** One restrained, email-safe layout shared by messages, bookings and documents. */
 export function renderEmailTemplate(
   template: Pick<EmailTemplate, "subject" | "body" | "headline">,
@@ -703,7 +711,17 @@ export function renderEmailTemplate(
     address,
     formatProse: (value) => linkedEmailText(value).replaceAll("\n", "<br>"),
   });
-  return {
+  const protectedParts = [
+    heading,
+    options.templateId ? title : '',
+    actionUrl ? `${actionLabel}: ${actionUrl}` : '',
+    factText ? `${detailsHeading}\n${factText}` : '',
+    attachments.length ? 'Attachments\n' + attachments.join('\n') : '',
+    [contactEmail, phone].filter(Boolean).join(' · '),
+    address,
+    footer,
+  ].filter(Boolean);
+  const rendered = {
     subject,
     // Editable copy is separate from the fully branded text alternative.
     bodyText: prose,
@@ -722,4 +740,6 @@ export function renderEmailTemplate(
       .join("\n\n"),
     html,
   };
+  protectedTextByRenderedEmail.set(rendered, protectedParts.join('\n\n'));
+  return rendered;
 }

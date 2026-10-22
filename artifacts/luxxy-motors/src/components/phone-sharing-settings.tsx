@@ -4,6 +4,7 @@ import { customFetch } from '@workspace/api-client-react';
 import { MessageCircle, QrCode } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { WhatsAppTemplateSettings } from '@/components/whatsapp-template-settings';
 import { phoneSharingSettingsQueryKey, usePhoneSharingSettings, type PhoneSharingSettings as Settings } from '@/lib/phone-sharing-settings';
 import './integration-settings.css';
 import './phone-sharing-settings.css';
@@ -52,9 +53,10 @@ export function PhoneSharingSettings() {
         <div className="integration-actions"><Button type="submit" disabled={busy || !changed}>{busy ? 'Saving…' : 'Save sharing settings'}</Button><Button type="button" variant="outline" disabled={busy || !changed} onClick={() => { setEnabled(query.data!.enabled); setError(''); setNotice(''); }}>Undo changes</Button></div>
       </article>
     </form>}
-    <div className="integration-grid">
+    <WhatsAppTemplateSettings />
+    <details className="phone-sharing-guide"><summary>How sharing works, link expiry and upload limits</summary><div className="integration-grid">
       <article className="integration-card"><div className="integration-card-heading"><MessageCircle aria-hidden="true" /><div><h3>Sending from your phone</h3><p>Staff stay in control of every message.</p></div></div><ol className="phone-sharing-steps"><li>Check the customer number, message and selected files.</li><li>Scan the QR, open WhatsApp and tap Send.</li><li>Return to the portal and choose “I’ve sent it” to save the message in the customer’s enquiry history.</li></ol><p className="integration-footnote">Scanning never sends a message. Staff confirmation does not prove delivery or read status, and replies in a personal WhatsApp account do not appear in the portal. Use email instead when needed.</p></article>
       <article className="integration-card"><h3>Private links and phone uploads</h3><dl className="phone-sharing-limits"><div><dt>Customer file links</dt><dd>Expire after 24 hours; revoke sooner from the sharing panel.</dd></div><div><dt>Quick Enquiry photos</dt><dd>Up to 2 compressed photos. Phone-upload links last 15 minutes.</dd></div><div><dt>Vehicle recording</dt><dd>Up to 30 seconds, landscape, with pause and resume. Preview before publishing.</dd></div></dl><p className="integration-footnote">Phone upload and recording links are separate staff tools. This switch controls customer WhatsApp sharing only. Link lifetimes and upload limits are fixed for security.</p></article>
-    </div>
+    </div></details>
   </section>;
 }

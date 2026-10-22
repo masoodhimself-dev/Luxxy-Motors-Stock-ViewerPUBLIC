@@ -74,7 +74,7 @@ function ReservationRow({ reservation, selected = false }: {
       <div className="min-w-0 text-sm">
         <p className="font-medium text-primary">{reservation.customerName}</p>
         <a href={`tel:${reservation.phone}`} className="mt-1 block w-fit text-muted-foreground underline underline-offset-4">{reservation.phone}</a>
-        <ShareQr whatsapp label="WhatsApp QR" customerName={reservation.customerName} customerEmail={reservation.email || ""} vehicleId={reservation.vehicleId} customerPhone={reservation.phone} message={`Hello ${reservation.customerName}, about your reservation for ${reservation.vehicleTitle}.`} />
+        <ShareQr templateVariables={{vehicle_title:reservation.vehicleTitle || ""}} whatsapp label="WhatsApp QR" customerName={reservation.customerName} customerEmail={reservation.email || ""} vehicleId={reservation.vehicleId} customerPhone={reservation.phone} message={`Hello ${reservation.customerName}, about your reservation for ${reservation.vehicleTitle}.`} />
         <a href={`mailto:${reservation.email}`} className="mt-1 block break-all text-muted-foreground underline underline-offset-4">{reservation.email}</a>
       </div>
       <div className="min-w-0 text-sm">

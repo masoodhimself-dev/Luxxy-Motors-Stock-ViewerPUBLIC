@@ -453,7 +453,14 @@ async function preview(
         })),
       }),
     );
-    return { enquiry, rendered, attachments, previewHash };
+    return { enquiry, rendered, attachments, previewHash, whatsappVariables: {
+      customer_name: enquiry.customerName,
+      dealer_name: profile.identity.name,
+      vehicle_title: car?.websiteTitleOverride || car?.title || enquiry.vehicleTitle || '',
+      vehicle_registration: car ? vehicleRegistrationLabel(car) : enquiry.vehicleRegistration || '',
+      appointment_time: enquiry.appointmentAt ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', dateStyle: 'full', timeStyle: 'short' }).format(enquiry.appointmentAt) + ' (UK time)' : '',
+      message: rendered.bodyText,
+    } };
   });
 }
 

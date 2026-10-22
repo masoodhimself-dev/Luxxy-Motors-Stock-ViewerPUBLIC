@@ -162,6 +162,10 @@ beforeEach(() => {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   fetchMock = vi.fn(async (input: RequestInfo | URL, options: RequestInit) => {
+    if (String(input) === '/api/staff/phone-sharing-settings') {
+      expect(!options?.method || options.method === 'GET').toBe(true);
+      return Response.json({ revision: 0, enabled: true });
+    }
     expect(String(input)).toBe("/api/staff/relationships");
     expect(options.method).toBe("GET");
     return Response.json(fail ? { error: "Unavailable" } : data, {
@@ -291,7 +295,8 @@ it("responds to browser URL changes and returns to the directory without discard
   expect(new URLSearchParams(window.location.search).get("view")).toBe(
     "customers",
   );
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/staff/relationships')).toHaveLength(1);
+  expect(fetchMock.mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });
 
 it("searches registration, phone and source references, including stored spaces", async () => {

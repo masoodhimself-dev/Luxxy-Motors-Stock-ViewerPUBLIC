@@ -4,6 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PhoneSharingSettings } from './phone-sharing-settings';
 import { phoneSharingSettingsQueryKey, usePhoneSharingSettings } from '@/lib/phone-sharing-settings';
 
+vi.mock('./whatsapp-template-settings', () => ({ WhatsAppTemplateSettings: () => <div>WhatsApp template editor</div> }));
+
 const clients: QueryClient[] = [];
 beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
 afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); });

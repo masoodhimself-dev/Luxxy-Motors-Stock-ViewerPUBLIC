@@ -21,6 +21,7 @@ vi.mock("wouter", () => ({
 }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: any[]) => state.fetch(...args),
+  getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
   useGetStaffDirectory: () => ({
     data: {
       currentUserId: "staff-one",
@@ -62,6 +63,7 @@ beforeEach(() => {
   state.fetch
     .mockReset()
     .mockImplementation(async (url: string, options: any) => {
+      if (url === '/api/staff/phone-sharing-settings') return { revision: 0, enabled: true };
       if (options?.method === "PUT" || options?.method === "POST")
         return url.endsWith("/upload-session")
           ? {

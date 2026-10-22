@@ -212,6 +212,7 @@ export * from "./sale-workspace.ts";
 export * from "./registration.ts";
 export * from './customer-sale.ts';
 export * from "./email-templates.ts";
+export * from './whatsapp-templates.ts';
 export * from './dealer-relationships.ts';
 export * from './dealer-chat.ts';
 export * from './customer-feature-policy.ts';

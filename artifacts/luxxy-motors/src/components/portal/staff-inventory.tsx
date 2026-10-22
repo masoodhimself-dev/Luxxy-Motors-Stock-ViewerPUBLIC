@@ -531,7 +531,7 @@ export function StaffInventory({
     <section className="phone-recording-page" aria-label="Car recording workspace">
       <header className="recording-page-bar"><Button variant="ghost" onClick={() => navigate(`/portal?section=inventory${selected ? `&vehicleId=${encodeURIComponent(selected)}` : ""}`)}><ArrowLeft size={16} aria-hidden="true"/>Car details</Button><span>Staff only</span></header>
       {car ? <><div className="recording-car-context">{car.photo && <img src={car.photo} alt="" loading="lazy"/>}<div><p>Car video</p><h1>{car.display_title || car.title}</h1><span>{car.plate || car.vrm || "Registration not recorded"}</span></div></div>
-      <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} writable={Boolean(writable)} recordingPage /></> : <div className="inventory-card" role="status">{details.isError ? <><h1>Car could not be loaded</h1><p>Check your staff access or return to Car details and try again.</p><Button variant="outline" onClick={()=>void details.refetch()}>Retry car details</Button></> : <p>Loading this car’s recording page…</p>}</div>}
+      <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} vehicleTitle={vehicleDisplayTitle(car)} writable={Boolean(writable)} recordingPage /></> : <div className="inventory-card" role="status">{details.isError ? <><h1>Car could not be loaded</h1><p>Check your staff access or return to Car details and try again.</p><Button variant="outline" onClick={()=>void details.refetch()}>Retry car details</Button></> : <p>Loading this car’s recording page…</p>}</div>}
     </section>
   );
   return (
@@ -742,7 +742,7 @@ export function StaffInventory({
                 )}
               </div>
               <div className="inventory-workspace-grid">
-                <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} writable={Boolean(writable)} />
+                <VehicleVideoEditor key={`video-${car.id}`} vehicleId={car.id} vehicleTitle={vehicleDisplayTitle(car)} writable={Boolean(writable)} />
                 <VehicleDescriptionEditor key={car.id} vehicleId={car.id} writable={Boolean(writable || (details.data?.descriptionPreview && access.data?.permissions.includes("sales.manage")))} />
                 <section className="inventory-card inventory-preparation-card">
                   <h3>

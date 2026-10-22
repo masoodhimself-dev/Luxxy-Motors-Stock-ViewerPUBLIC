@@ -38,6 +38,7 @@ import { createEnquiryEmailRouter } from "./routes/enquiry-emails";
 import { draftSchema, previewEnquiryEmail } from "./routes/enquiry-emails";
 import { dealerIntegrationsStore } from "./lib/dealer-integrations-store";
 import { dealerProfile } from "./lib/enquiry-notifications";
+import { defaultWhatsAppTemplates, renderWhatsAppTemplate, validateWhatsAppTemplate, renderEmailTemplate, protectedEmailText } from '@workspace/vehicle-meta';
 globalThis.fetch = async () => {
   throw new Error("External requests forbidden in media tests");
 };
@@ -102,6 +103,22 @@ await exec(videoBinaries().ffmpeg, [
 ]);
 const bytes = await readFile(clip);
 const jpeg = Buffer.from([255,216,255,225,0,8,69,88,73,70,0,0,255,192,0,11,8,0,2,0,2,1,1,17,0,255,218,0,8,1,1,0,0,63,0,1,2,3,255,217]).toString("base64");
+test('WhatsApp templates validate placeholders and substitute values literally in one pass', () => {
+  for (const template of defaultWhatsAppTemplates) assert.equal(validateWhatsAppTemplate(template).body, template.body);
+  const template = {body: 'Hi {{customer_name}},\n{{message}}\n{{dealer_name}}'};
+  assert.equal(renderWhatsAppTemplate(template, {customer_name: '{{dealer_name}}', message: '<literal> {{customer_name}}', dealer_name: 'Example Motors'}), 'Hi {{dealer_name}},\n<literal> {{customer_name}}\nExample Motors');
+  assert.equal(renderWhatsAppTemplate({body:'Hi {{customer_name}}'}, {}), 'Hi there');
+  for (const body of ['', 'x'.repeat(4001), 'Hello\u0000', '{{unknown}}', '{{customer-name}}', '{{customer_name']) assert.throws(() => validateWhatsAppTemplate({body}));
+});
+test('protected sharing details are separate from prose without changing approved email JSON', () => {
+  const rendered = renderEmailTemplate({subject:'Your car',body:'{{message}}'}, {dealer_name:'Example Motors',message:'Vehicle: Fictional car'}, [{label:'Vehicle',value:'Fictional car'},{label:'Balance',value:'£0.00'}], undefined, {templateId:'invoice',attachments:['invoice.pdf']});
+  assert.equal(rendered.bodyText, 'Vehicle: Fictional car');
+  assert.match(protectedEmailText(rendered), /Vehicle: Fictional car/);
+  assert.match(protectedEmailText(rendered), /Balance: £0.00/);
+  assert.match(protectedEmailText(rendered), /invoice.pdf/);
+  assert.deepEqual(Object.keys(rendered), ['subject','bodyText','text','html']);
+  assert.deepEqual(JSON.parse(JSON.stringify(rendered)), {subject:rendered.subject,bodyText:rendered.bodyText,text:rendered.text,html:rendered.html});
+});
 test("video probe rejects long, missing and oversized streams", () => {
   assert.equal(
     validateVideoProbe({
@@ -404,6 +421,31 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 0, enabled: true } })).status, 409);
       assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 1, enabled: true, expiryHours: 500 } })).status, 400);
       assert.equal((await call(path, { method: 'PUT', body: { expectedRevision: 1, enabled: true } })).status, 200);
+    });
+    await t.test('WhatsApp wording is owner-edited, revision guarded, dealer isolated and independent from email settings', async () => {
+      const path = '/staff/whatsapp-templates';
+      assert.equal((await call(path, {user:''})).status, 401);
+      const initial = await call(path, {user:'salesperson'});
+      assert.equal(initial.status, 200);
+      assert.equal(initial.headers['cache-control'], 'no-store');
+      assert.equal(initial.json.templates.length, 10);
+      assert.equal(initial.json.resend, undefined);
+      assert.equal(initial.json.stripe, undefined);
+      const originalEmail = await runWithTenant(a, async () => (await dealerIntegrationsStore.readPrivate()).templates);
+      const update = {expectedRevision:initial.json.revision,id:'invoice',body:'Hi {{customer_name}},\nYour paperwork from {{dealer_name}} is ready.'};
+      for (const user of ['salesperson','accounts']) assert.equal((await call(path, {method:'PUT',user,body:update})).status, 403);
+      assert.equal((await call(path,{method:'PUT',body:update,headers:{origin:b.canonicalOrigin}})).status,403);
+      for (const body of ['{{unknown}}','x'.repeat(4001),'']) assert.equal((await call(path,{method:'PUT',body:{...update,body}})).status,400);
+      const changed = await call(path, {method:'PUT',body:update});
+      assert.equal(changed.status,200,JSON.stringify(changed.json));
+      assert.equal(changed.json.templates.find((item:any)=>item.id==='invoice').customised,true);
+      assert.equal((await call(path,{method:'PUT',body:update})).status,409);
+      assert.equal((await call(path,{user:'accounts'})).json.templates.find((item:any)=>item.id==='invoice').body,update.body);
+      assert.equal((await call(path,{user:b.dealerId,host:'b.example.test'})).json.templates.find((item:any)=>item.id==='invoice').customised,false);
+      await runWithTenant(a,async()=>assert.deepEqual((await dealerIntegrationsStore.readPrivate()).templates,originalEmail));
+      const reset = await call(path,{method:'PUT',body:{expectedRevision:changed.json.revision,id:'invoice',reset:true}});
+      assert.equal(reset.status,200);
+      assert.equal(reset.json.templates.find((item:any)=>item.id==='invoice').customised,false);
     });
     await t.test(
       "upload is authenticated, role/origin checked and dealer scoped",
@@ -711,6 +753,34 @@ test("isolated real HTTP media and QR workflow", async (t) => {
         );
       },
     );
+    await t.test('reviewed invoice wording preserves immutable facts and PDF, and template changes cannot rewrite an issued QR', async () => {
+      const body = {...input,requestId:randomUUID(),token:createHash('sha256').update(randomUUID()).digest('hex'),templateId:'invoice',messageBody:'Hi Fictional buyer, here is your paperwork. Literal {{dealer_name}} stays as typed.'};
+      const made = await call('/staff/phone-shares',{method:'POST',body,user:'accounts'});
+      assert.equal(made.status,201,JSON.stringify(made.json));
+      assert.equal(made.json.messageBody,body.messageBody);
+      assert.equal(made.json.templateVariables.customer_name,'Fictional buyer');
+      assert.equal(made.json.templateVariables.vehicle_title,'Fictional car');
+      assert.equal(made.json.message,[body.messageBody,made.json.requiredText].join('\n\n'));
+      assert.match(made.json.requiredText,/Payments recorded at issue/);
+      assert.match(made.json.requiredText,/Balance at issue/);
+      assert.match(made.json.requiredText,/Fictional car/);
+      const opened = await call('/phone-shares',{user:'',headers:{'x-phone-share-token':body.token}});
+      assert.equal(opened.json.message,made.json.message);
+      assert.equal(opened.json.files[0].content,pdf.toString('base64'));
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,messageBody:'Different message'},user:'accounts'})).status,409);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),requiredText:'Balance at issue: £0.00'},user:'accounts'})).status,400);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),templateVariables:{customer_name:'Another customer'}},user:'accounts'})).status,400);
+      const templates = await call('/staff/whatsapp-templates');
+      const saved = await call('/staff/whatsapp-templates',{method:'PUT',body:{id:'invoice',expectedRevision:templates.json.revision,body:'Hello {{customer_name}}, paperwork for {{vehicle_title}} from {{dealer_name}}.'}});
+      assert.equal(saved.status,200);
+      const fromTemplate = {...input,requestId:randomUUID(),token:createHash('sha256').update(randomUUID()).digest('hex'),templateId:'invoice'};
+      const templated = await call('/staff/phone-shares',{method:'POST',body:fromTemplate,user:'accounts'});
+      assert.equal(templated.status,201,JSON.stringify(templated.json));
+      assert.match(templated.json.messageBody,/Hello Fictional buyer, paperwork for Fictional car from /);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body,user:'accounts'})).json.message,made.json.message);
+      await call('/staff/whatsapp-templates',{method:'PUT',body:{id:'invoice',expectedRevision:saved.json.revision,reset:true}});
+      assert.deepEqual((await pool.query('SELECT state FROM sale_workspace WHERE id=$1',[saleId])).rows[0].state,frozen);
+    });
     await t.test("turning sharing off blocks new packs but keeps issued links and retries usable", async () => {
       await runWithTenant(a, async () => {
         const current = await dealerIntegrationsStore.readPhoneSharing();
@@ -910,6 +980,53 @@ test("isolated real HTTP media and QR workflow", async (t) => {
       assert.equal(entry.customer_name,input.newCustomer.name);assert.equal(entry.phone,input.phone);assert.equal(entry.vehicle_id,carA);assert.equal(entry.appointment_at,null);
       assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...input,requestId:randomUUID(),confirmed:false}})).status,400);
       assert.equal((await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{...input,requestId:randomUUID(),vehicleId:carB}})).status,404);
+    });
+    await t.test('anonymous sharing exposes only the approved message, never removed source prose or editing metadata', async () => {
+      const enquiryId = randomUUID();
+      await db.insert(enquiriesTable).values({id:enquiryId,dealerId:a.dealerId,type:'general',customerName:'Fictional reviewed buyer',email:'reviewed@example.test',phone:'07700 900322',vehicleId:carA,vehicleTitle:'Fictional car',message:'Question'});
+      const privateProse = 'SOURCE ONLY — REMOVE THIS PRIVATE DRAFT NOTE BEFORE SHARING';
+      const body = {requestId:randomUUID(),token:createHash('sha256').update(randomUUID()).digest('hex'),source:{kind:'enquiry-message',enquiryId,draft:{to:'',subject:'Your reviewed car details',message:privateProse,includeVehicle:true,includeAppointment:false,photoIds:[],documentIds:[],expectedRevision:0}},messageBody:'Hi, here are the car details you requested.'};
+      const made = await call('/staff/phone-shares',{method:'POST',body});
+      assert.equal(made.status,201,JSON.stringify(made.json));
+      assert.equal(made.json.templateVariables.message,privateProse);
+      assert.doesNotMatch(made.json.message,/SOURCE ONLY/);
+      const opened = await call('/phone-shares',{user:'',headers:{'x-phone-share-token':body.token}});
+      assert.equal(opened.status,200);
+      assert.deepEqual(Object.keys(opened.json).sort(), ['customerPhone','expiresAt','files','message','title']);
+      assert.equal(opened.json.customerPhone,'07700 900322');
+      assert.equal(opened.json.title,body.source.draft.subject);
+      assert.equal(opened.json.message,made.json.message);
+      assert.deepEqual(opened.json.files,[]);
+      assert.match(opened.json.message,/Fictional car/);
+      assert.doesNotMatch(JSON.stringify(opened.json),/SOURCE ONLY|REMOVE THIS PRIVATE|templateVariables|messageBody|requiredText|enquiryId|vehicleId/);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body})).json.templateVariables.message,privateProse);
+    });
+    await t.test('long direct WhatsApp handoffs freeze the exact message and public link without exposing files or crossing dealers', async () => {
+      const enquiryId = randomUUID();
+      await db.insert(enquiriesTable).values({id:enquiryId,dealerId:a.dealerId,type:'general',customerName:'Fictional direct buyer',email:'direct@example.test',phone:'07700 900321',vehicleId:carA,vehicleTitle:'Fictional car',message:'Question'});
+      const body = {requestId:randomUUID(),token:createHash('sha256').update(randomUUID()).digest('hex'),source:{kind:'message',message:'A long introduction. '.repeat(100),url:`${a.canonicalOrigin}/vehicle/${carA}?video=1#walkaround`,enquiryId,vehicleId:carA},messageBody:'Hi Fictional direct buyer, '+ 'Here is a closer look. '.repeat(100),templateId:'video'};
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body,user:''})).status,401);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body,user:'accounts'})).status,403);
+      assert.equal((await call('/staff/phone-shares',{method:'POST',body,user:b.dealerId,host:'b.example.test'})).status,404);
+      for (const url of ['https://evil.example/vehicle/'+carA,'javascript:alert(1)',a.canonicalOrigin+'/portal',a.canonicalOrigin+'/vehicle/'+carB]) {
+        const result = await call('/staff/phone-shares',{method:'POST',body:{...body,requestId:randomUUID(),source:{...body.source,url}}});
+        assert.ok([400,404].includes(result.status),JSON.stringify(result.json));
+      }
+      const made = await call('/staff/phone-shares',{method:'POST',body});
+      assert.equal(made.status,201,JSON.stringify(made.json));
+      assert.equal(made.json.customerName,'Fictional direct buyer');
+      assert.equal(made.json.customerPhone,'07700 900321');
+      assert.equal(made.json.hasAttachments,false);
+      assert.equal(made.json.messageLinkRequired,true);
+      assert.equal(made.json.requiredText,body.source.url);
+      assert.equal(made.json.message,[body.messageBody.trim(),body.source.url].join('\n\n'));
+      const opened = await call('/phone-shares',{user:'',headers:{'x-phone-share-token':body.token}});
+      assert.equal(opened.json.message,made.json.message); assert.deepEqual(opened.json.files,[]);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_events WHERE enquiry_id=$1',[enquiryId])).rows[0].count),0);
+      const confirmed = await call('/staff/phone-shares/confirm-whatsapp',{method:'POST',body:{requestId:randomUUID(),enquiryId,grantId:made.json.id,phone:'07700 900321',message:made.json.message,confirmed:true}});
+      assert.equal(confirmed.status,201,JSON.stringify(confirmed.json));
+      assert.equal((await pool.query('SELECT detail FROM enquiry_events WHERE enquiry_id=$1',[enquiryId])).rows[0].detail.message,made.json.message);
+      assert.equal(Number((await pool.query('SELECT count(*) FROM enquiry_emails')).rows[0].count),0);
     });
     await t.test("reservation sharing uses saved payment facts, includes archived receipts, and does not change payment or email records", async () => {
       const id=randomUUID();

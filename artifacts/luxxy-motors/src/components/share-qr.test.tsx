@@ -6,6 +6,7 @@ import { phoneSharingSettingsQueryKey } from "@/lib/phone-sharing-settings";
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => api(...args),
+  getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
 }));
 vi.mock("qrcode.react", () => ({
   QRCodeSVG: ({ value }: { value: string }) => (
@@ -291,4 +292,111 @@ it('turning sharing off still lets staff reopen a prepared pack to confirm or re
  fireEvent.click(screen.getByRole('button',{name:'Revoke link'}));
  await screen.findByText('Link revoked. It can no longer be opened.');
  expect(api.mock.calls.some(([url])=>url.endsWith('/revoke'))).toBe(true);
+});
+
+it('edits one customer message, hides the old QR and saves exactly the updated text in history',async()=>{
+ api.mockImplementation(async(path:string)=>path.endsWith('/confirm-whatsapp')?{enquiryId:'enquiry',confirmedAt:'2026-10-22T12:00:00Z'}:{enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]});
+ render(<ShareQr whatsapp label="WhatsApp QR" url="/vehicle/car" message="Original wording" enquiryId="enquiry" customerName="Alex" customerPhone="07700900123"/>);
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+ await screen.findByTestId('qr');
+ fireEvent.change(screen.getByRole('textbox',{name:'WhatsApp message'}),{target:{value:'Hi Alex, here is the car we discussed.'}});
+ expect(screen.queryByTestId('qr')).toBeNull();
+ expect(screen.getByRole('button',{name:'I’ve sent it'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Use email instead'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Update QR'}));
+ const qr=await screen.findByTestId('qr');
+ const exact=`Hi Alex, here is the car we discussed.\n\n${window.location.origin}/vehicle/car`;
+ expect(new URL(qr.getAttribute('data-value')!).searchParams.get('text')).toBe(exact);
+ fireEvent.click(screen.getByRole('button',{name:'I’ve sent it'}));
+ await screen.findByText('WhatsApp sent — staff confirmed');
+ const confirmation=api.mock.calls.find(([path])=>path.endsWith('/confirm-whatsapp'))!;
+ expect(JSON.parse(confirmation[1].body).message).toBe(exact);
+ expect(screen.getByRole('textbox',{name:'WhatsApp message'})).toBeDisabled();
+ expect(api.mock.calls.some(([path,options])=>options?.method==='PUT'||path.endsWith('/email'))).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Share with another customer'}));
+ expect(screen.getByRole('textbox',{name:'WhatsApp message'})).toHaveValue('Original wording');
+ expect(screen.getByRole('textbox',{name:'Customer WhatsApp number'})).toHaveValue('');
+ expect(screen.queryByTestId('qr')).toBeNull();
+});
+
+it('revalidates a signing link without losing the personalised message when reopened',async()=>{
+ const check=vi.fn().mockResolvedValue(undefined);
+ api.mockResolvedValue({enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]});
+ render(<ShareQr whatsapp label="WhatsApp QR" url="/test-drive-declaration/token" message="Please sign" enquiryId="enquiry" customerName="Alex" customerPhone="07700900123" beforeGenerate={check}/>);
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));await screen.findByTestId('qr');
+ fireEvent.change(screen.getByRole('textbox',{name:'WhatsApp message'}),{target:{value:'Hi Alex, please check and sign before your visit.'}});
+ fireEvent.click(screen.getByRole('button',{name:'Update QR'}));await screen.findByTestId('qr');
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));
+ await waitFor(()=>expect(check).toHaveBeenCalledTimes(2));
+ expect(screen.getByRole('textbox',{name:'WhatsApp message'})).toHaveValue('Hi Alex, please check and sign before your visit.');
+ expect(new URL((await screen.findByTestId('qr')).getAttribute('data-value')!).searchParams.get('text')).toContain('Hi Alex, please check and sign before your visit.');
+});
+
+it('freezes edited attachment wording into a new pack, retries safely and retains it on expiry renewal',async()=>{
+ const clock=vi.spyOn(Date,'now').mockReturnValue(Date.parse('2026-10-22T12:00:00Z'));
+ let packs=0;
+ api.mockImplementation(async(path:string,options?:RequestInit)=>{
+  if(path.includes('/enquiries?'))return {enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]};
+  const request=JSON.parse(String(options?.body));
+  if(++packs===2)throw new Error('Lost edit response');
+  const body=request.messageBody??'Original wording';
+  return {id:`pack-${packs}`,url:`https://dealer.test/phone-share#pack-${packs}`,enquiryId:'enquiry',customerPhone:'07700900123',message:`${body}\n\nInvoice INV-2026-00010`,messageBody:body,requiredText:'Invoice INV-2026-00010',hasAttachments:true,expiresAt:packs<4?'2026-10-22T13:00:00Z':'2026-10-24T13:00:00Z'};
+ });
+ try{
+  render(<ShareQr whatsapp label="WhatsApp QR" source={{kind:'document',saleId:'sale',documentId:'doc'}}/>);
+  fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));await screen.findByTestId('qr');
+  fireEvent.change(screen.getByRole('textbox',{name:'WhatsApp message'}),{target:{value:'Hi Alex, here is your reviewed invoice.'}});
+  fireEvent.click(screen.getByRole('button',{name:'Update QR'}));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lost edit response');
+  expect(screen.queryByTestId('qr')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Update QR'}));await screen.findByTestId('qr');
+  const requests=api.mock.calls.filter(([path])=>path==='/api/staff/phone-shares');
+  expect(requests[1][1].body).toBe(requests[2][1].body);
+  expect(JSON.parse(requests[0][1].body).token).not.toBe(JSON.parse(requests[1][1].body).token);
+  const text=new URL(screen.getByRole('link',{name:'Open WhatsApp'}).getAttribute('href')!).searchParams.get('text');
+  expect(text).toContain('Hi Alex, here is your reviewed invoice.\n\nInvoice INV-2026-00010');
+  expect(text).toContain('https://dealer.test/phone-share#pack-3');
+  fireEvent.click(screen.getByRole('button',{name:'Close'}));
+  clock.mockReturnValue(Date.parse('2026-10-23T12:00:00Z'));
+  fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));await screen.findByTestId('qr');
+  const renewed=api.mock.calls.filter(([path])=>path==='/api/staff/phone-shares').at(-1)!;
+  expect(JSON.parse(renewed[1].body)).toMatchObject({source:{kind:'document',saleId:'sale',documentId:'doc'},messageBody:'Hi Alex, here is your reviewed invoice.'});
+  expect(screen.getByRole('textbox',{name:'WhatsApp message'})).toHaveValue('Hi Alex, here is your reviewed invoice.');
+ }finally{clock.mockRestore();}
+});
+
+it('uses a secure phone preview for long edited public messages and keeps known template details',async()=>{
+ const link=`${window.location.origin}/vehicle/car?video=1`;
+ const long='A detailed car update. '.repeat(160);
+ api.mockImplementation(async(path:string,options?:RequestInit)=>{
+  if(path.includes('/enquiries?'))return {enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]};
+  const request=JSON.parse(String(options?.body));
+  return {id:'long-pack',url:'https://dealer.test/phone-share#long-pack',message:`${request.messageBody}\n\n${link}`,messageBody:request.messageBody,requiredText:link,templateVariables:{customer_name:'',vehicle_title:'',dealer_name:''},messageLinkRequired:true,hasAttachments:false};
+ });
+ render(<ShareQr whatsapp label="WhatsApp QR" url={link} message="Here is the video" enquiryId="enquiry" customerName="Alex" customerPhone="07700900123" templateVariables={{vehicle_title:'Nissan Qashqai',dealer_name:'Test Motors'}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));await screen.findByTestId('qr');
+ fireEvent.change(screen.getByRole('textbox',{name:'WhatsApp message'}),{target:{value:long}});
+ fireEvent.click(screen.getByRole('button',{name:'Update QR'}));
+ await waitFor(()=>expect(screen.getByTestId('qr').getAttribute('data-value')).toContain('/phone-share#long-pack'));
+ const request=api.mock.calls.find(([path])=>path==='/api/staff/phone-shares')!;
+ expect(JSON.parse(request[1].body)).toMatchObject({source:{kind:'message',message:'Here is the video',url:link,enquiryId:'enquiry'},messageBody:long.trim()});
+ const text=new URL(screen.getByRole('link',{name:'Open WhatsApp'}).getAttribute('href')!).searchParams.get('text');
+ expect(text).toBe(`${long.trim()}\n\n${link}`);
+ expect(text).not.toContain('phone-share#long-pack');
+ fireEvent.change(screen.getByRole('combobox',{name:'WhatsApp message template'}),{target:{value:'vehicle_details'}});
+ const value=(screen.getByRole('textbox',{name:'WhatsApp message'}) as HTMLTextAreaElement).value;
+ expect(value).toContain('Hi Alex');expect(value).toContain('Nissan Qashqai');expect(value).toContain('Test Motors');
+});
+
+it('passes applied WhatsApp wording to the existing internal email fallback',async()=>{
+ const fallback=vi.fn();
+ api.mockResolvedValue({enquiries:[{id:'enquiry',customerName:'Alex',phone:'07700900123'}]});
+ render(<ShareQr whatsapp label="WhatsApp QR" url="/vehicle/car" message="Original wording" enquiryId="enquiry" customerPhone="07700900123" onEmailFallback={fallback}/>);
+ fireEvent.click(screen.getByRole('button',{name:'WhatsApp QR'}));await screen.findByTestId('qr');
+ fireEvent.change(screen.getByRole('textbox',{name:'WhatsApp message'}),{target:{value:'A personalised update for Alex.'}});
+ fireEvent.click(screen.getByRole('button',{name:'Update QR'}));await screen.findByTestId('qr');
+ fireEvent.click(screen.getByRole('button',{name:'Use email instead'}));
+ await waitFor(()=>expect(fallback).toHaveBeenCalledWith('A personalised update for Alex.'));
+ expect(api.mock.calls.some(([path])=>path.endsWith('/confirm-whatsapp')||path.endsWith('/email'))).toBe(false);
 });

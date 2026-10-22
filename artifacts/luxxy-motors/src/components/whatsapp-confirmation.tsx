@@ -9,8 +9,8 @@ import { NativeSelect } from '@/components/ui/native-select';
 type Customer = {id:string;customerName:string;phone?:string;email?:string;vehicleTitle?:string;vehicleId?:string};
 export type WhatsAppConfirmationRequest = {requestId:string;enquiryId?:string;newCustomer?:{name:string;email?:string};vehicleId?:string;grantId?:string;phone:string;message:string;confirmed:true};
 export type WhatsAppConfirmationResult = {enquiryId:string;confirmedAt:string;preview?:boolean};
-export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail='',preferKnownCustomer=false,phone,message,grantId,vehicleId,attempt,result,onConfirmed,onLock,onPhone,onEmail,onReadyChange,onCustomerChange,children}: {
-  enquiryId?:string;customerName?:string;customerEmail?:string;preferKnownCustomer?:boolean;phone:string;message:string;grantId?:string;vehicleId?:string;
+export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail='',preferKnownCustomer=false,disabled=false,phone,message,grantId,vehicleId,attempt,result,onConfirmed,onLock,onPhone,onEmail,onReadyChange,onCustomerChange,children}: {
+  enquiryId?:string;customerName?:string;customerEmail?:string;preferKnownCustomer?:boolean;disabled?:boolean;phone:string;message:string;grantId?:string;vehicleId?:string;
   attempt:MutableRefObject<WhatsAppConfirmationRequest|null>;result:WhatsAppConfirmationResult|null;
   onConfirmed:(value:WhatsAppConfirmationResult)=>void;onLock:(value:boolean)=>void;onPhone:(value:string)=>void;onEmail:(value:string)=>void;
   onReadyChange?:(ready:boolean)=>void;children?:ReactNode;
@@ -59,7 +59,7 @@ export function WhatsAppConfirmation({enquiryId,customerName='',customerEmail=''
   const mismatchAccepted=!mismatch||acknowledgedMismatch===mismatchKey;
   const locked=Boolean(attempt.current);
   const identityReady=!loading&&!lookupError&&(create?canCreate&&name.trim().length>=2:Boolean(customer));
-  const ready=locked||Boolean(number&&identityReady&&mismatchAccepted);
+  const ready=!disabled&&(locked||Boolean(number&&identityReady&&mismatchAccepted));
   useEffect(()=>{onReadyChange?.(ready);},[ready,onReadyChange]);
   useEffect(()=>{onCustomerChange?.(identityReady ? create ? {customerName:name,createNew:true} : customer ? {enquiryId:customer.id,customerName:customer.customerName} : null : null);},[identityReady,create,name,customer?.id,customer?.customerName,onCustomerChange]);
   async function confirm(){

@@ -629,7 +629,7 @@ function EnquiryEmailEditor({
                         photos before sending.
                       </p>
                       <div className="enquiry-email-actions">
-                        {reviewedDraft && <ShareQr beforeGenerate={verifyContext} disabled={busy || Boolean(sendingRequest.current) || !!sendBlockedReason} source={{kind:"enquiry",enquiryId:entry.id,draft:reviewedDraft,previewHash:preview.previewHash}} whatsapp customerName={entry.customerName} onEmailFallback={() => setSaveNotice("Check the email address, then review the email before sending. Your message and attachments are kept.")} label="WhatsApp QR" />}
+                        {reviewedDraft && <ShareQr beforeGenerate={verifyContext} disabled={busy || Boolean(sendingRequest.current) || !!sendBlockedReason} source={{kind:"enquiry",enquiryId:entry.id,draft:reviewedDraft,previewHash:preview.previewHash}} whatsapp customerName={entry.customerName} onEmailFallback={body => { if (body && body !== draft.message) change({ message: body }); setSaveNotice("Check the email address, then review the email before sending. Your message and attachments are kept."); }} label="WhatsApp QR" />}
                         <Button
                           disabled={busy || !data.ready || !features.enabled('customerEmails') || !!sendBlockedReason}
                           onClick={() => void send()}
@@ -937,7 +937,7 @@ function EnquiryEmailEditor({
                         </p>
                       )}
                       <div className="enquiry-email-actions">
-                        <ShareQr whatsapp customerName={entry.customerName} onEmailFallback={() => setSaveNotice("Check the email address, then review the email before sending. Your message and attachments are kept.")} label="WhatsApp QR" beforeGenerate={prepareWhatsApp} disabled={busy || aiBusy || Boolean(sendingRequest.current) || !!sendBlockedReason || !!missingAttachment || draft.expectedRevision !== data.revision || !draft.message.trim() || !draft.subject.trim()} source={{kind:"enquiry-message",enquiryId:entry.id,draft:{...draft,to:""}}} />
+                        <ShareQr whatsapp customerName={entry.customerName} onEmailFallback={body => { if (body && body !== draft.message) change({ message: body }); setSaveNotice("Check the email address, then review the email before sending. Your message and attachments are kept."); }} label="WhatsApp QR" beforeGenerate={prepareWhatsApp} disabled={busy || aiBusy || Boolean(sendingRequest.current) || !!sendBlockedReason || !!missingAttachment || draft.expectedRevision !== data.revision || !draft.message.trim() || !draft.subject.trim()} source={{kind:"enquiry-message",enquiryId:entry.id,draft:{...draft,to:""}}} />
                         <Button
                           type="button"
                           variant="outline"

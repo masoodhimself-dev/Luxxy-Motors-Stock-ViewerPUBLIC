@@ -331,7 +331,7 @@ export function TestDriveDeclarations({
                     Expires {declarationTime(link.expiresAt)} (UK time).
                   </p>
                   <div className="declaration-staff-actions">
-                    <ShareQr whatsapp label="WhatsApp QR" enquiryId={booking.id} customerName={booking.customerName} customerEmail={booking.email || ""} customerPhone={booking.phone || ""} url={link.url} message={message.replace(link.url, '').trim()} disabled={busy || query.isFetching || query.isError} beforeGenerate={async () => {
+                    <ShareQr templateVariables={{vehicle_title:booking.vehicleTitle || ""}} whatsapp label="WhatsApp QR" enquiryId={booking.id} customerName={booking.customerName} customerEmail={booking.email || ""} customerPhone={booking.phone || ""} url={link.url} message={message.replace(link.url, '').trim()} disabled={busy || query.isFetching || query.isError} beforeGenerate={async () => {
                       const latest = await query.refetch();
                       if (latest.isError || !latest.data?.declarations.some(item => item.id === link.id && item.status === 'pending') || Date.parse(link.expiresAt) <= Date.now()) throw new Error('This declaration link is no longer available. Refresh the record before sharing.');
                     }} />

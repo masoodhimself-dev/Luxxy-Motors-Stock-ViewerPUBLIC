@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { WhatsAppTemplateId, WhatsAppTemplateVariable } from '@workspace/vehicle-meta';
 export type PhoneShareFile = {
   filename: string;
   content: string;
@@ -13,6 +14,11 @@ export type PhoneSharePayload = {
   customerPhone?: string;
   title: string;
   message: string;
+  messageBody?: string;
+  requiredText?: string;
+  templateId?: WhatsAppTemplateId;
+  templateVariables?: Partial<Record<WhatsAppTemplateVariable, string>>;
+  messageLinkRequired?: boolean;
   files: PhoneShareFile[];
 };
 export class PhoneShareError extends Error {

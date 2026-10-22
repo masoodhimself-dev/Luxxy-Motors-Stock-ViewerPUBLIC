@@ -5,12 +5,13 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod/v4';
+import { defaultWhatsAppTemplates, validateWhatsAppTemplate, WhatsAppTemplateError, type WhatsAppTemplateId } from '@workspace/vehicle-meta';
 import { type InvoiceSettings, defaultInvoiceSettings, currentInvoiceSettings, invoiceTextLimits, compactInvoiceStyle, type StockConnection, defaultEmailAppearance, defaultEmailTemplates, EmailTemplateError, validateEmailAppearance, validateEmailTemplate, type EmailAppearance, type EmailTemplate } from '@workspace/vehicle-meta';
 
 export class IntegrationSettingsError extends Error { constructor(message: string, readonly status = 400) { super(message); this.name = 'IntegrationSettingsError'; } }
 export type ResendSettings = { enabled: boolean; apiKey: string; from: string; replyTo: string };
 export type StripeSettings = { enabled: boolean; mode: 'test' | 'live'; publishableKey: string; secretKey: string; webhookSecret: string };
-export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection; phoneSharing?: { enabled: boolean } };
+export type PrivateDealerSettings = { version: 1; revision: number; updatedAt: string | null; resend: ResendSettings; stripe: StripeSettings; templates: Record<string, Pick<EmailTemplate, 'subject' | 'body' | 'headline'>>; appearance: EmailAppearance; useWebsiteBranding?: boolean; resendConfigured?: boolean; salesPaperwork?: { saleTerms: string; reservationTerms: string; invoiceSettings?: InvoiceSettings }; stockConnection?: StockConnection; phoneSharing?: { enabled: boolean }; whatsappTemplates?: Partial<Record<WhatsAppTemplateId, { body: string }>> };
 const empty = (): PrivateDealerSettings => ({ version: 1, revision: 0, updatedAt: null, resend: { enabled: false, apiKey: '', from: '', replyTo: '' }, stripe: { enabled: false, mode: 'test', publishableKey: '', secretKey: '', webhookSecret: '' }, templates: {}, appearance: { ...defaultEmailAppearance }, useWebsiteBranding: true });
 export function effectiveResendSettings(settings: PrivateDealerSettings): ResendSettings { if(currentTenant()?.demo){ const p=demoProvisioning(); return {enabled:p.emailReady,apiKey:process.env.DEMO_RESEND_API_KEY??'',from:p.emailDomain?`${currentDealerId()} Demo <${currentDealerId()}@${p.emailDomain}>`:'',replyTo:''}; } return multiTenantEnabled() || settings.resendConfigured || settings.resend.apiKey || settings.resend.from || settings.resend.replyTo || settings.resend.enabled ? settings.resend : { enabled: process.env.RESEND_ENABLED === 'true', apiKey: process.env.RESEND_API_KEY?.trim() ?? '', from: process.env.RESEND_FROM_EMAIL?.trim() ?? '', replyTo: process.env.RESEND_REPLY_TO_EMAIL?.trim() ?? '' }; }
 const clean = z.string().trim().max(512).refine(value => !/[\r\n\u0000-\u001f\u007f]/.test(value), 'Use a single line without control characters.');
@@ -149,6 +150,31 @@ export class DealerIntegrationsStore {
   async readPhoneSharing() {
     const state = await this.serial(() => this.load());
     return { revision: state.revision, enabled: state.phoneSharing?.enabled !== false };
+  }
+  /** Wording only. Staff never receive the private credentials held beside it. */
+  async listWhatsAppTemplates() {
+    return this.whatsappTemplateResponse(await this.serial(() => this.load()));
+  }
+  private whatsappTemplateResponse(state: PrivateDealerSettings) {
+    return { revision: state.revision, templates: defaultWhatsAppTemplates.map(template => ({
+      ...template, ...state.whatsappTemplates?.[template.id], customised: Boolean(state.whatsappTemplates?.[template.id]),
+    })) };
+  }
+  async updateWhatsAppTemplate(raw: unknown) {
+    const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), id: z.string(), body: z.string().optional(), reset: z.boolean().optional() }).strict().safeParse(raw);
+    if (!parsed.success || !defaultWhatsAppTemplates.some(template => template.id === parsed.data.id))
+      throw new WhatsAppTemplateError('Choose a supported WhatsApp template.');
+    const input = parsed.data, id = input.id as WhatsAppTemplateId;
+    const copy = input.reset === true ? undefined : validateWhatsAppTemplate(input);
+    return this.serial(async () => {
+      const state = await this.load();
+      if (state.revision !== input.expectedRevision) throw new WhatsAppTemplateError('These settings changed in another session. Reload before saving.', 409);
+      state.whatsappTemplates ??= {};
+      if (copy) state.whatsappTemplates[id] = copy; else delete state.whatsappTemplates[id];
+      state.revision++; state.updatedAt = new Date().toISOString();
+      await this.save(state);
+      return this.whatsappTemplateResponse(state);
+    });
   }
   async updatePhoneSharing(raw: unknown) {
     const parsed = z.object({ expectedRevision: z.number().int().nonnegative(), enabled: z.boolean() }).strict().safeParse(raw);

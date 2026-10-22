@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ fetch: vi.fn(), enabled: true }));
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: (...args: unknown[]) => state.fetch(...args),
+  getGetDealerSettingsQueryKey: () => ['/api/dealer-settings'],
 }));
 vi.mock("./enquiry-email-composer", () => ({
   EnquiryEmailComposer: ({ initialContent, sendBlockedReason }: any) => (
@@ -53,6 +54,7 @@ beforeEach(() => {
   records = [];
   state.enabled = true;
   state.fetch.mockReset().mockImplementation(async (path, options) => {
+    if (path === '/api/staff/phone-sharing-settings') return { revision: 0, enabled: true };
     if (path === "/api/features")
       return {
         features: {
