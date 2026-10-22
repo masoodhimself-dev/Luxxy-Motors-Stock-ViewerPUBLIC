@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SoldVehicleEmailComposer } from './sold-vehicle-email-composer';
@@ -58,3 +58,7 @@ it('does not prepare an inaccurate cancellation if the appointment is still acti
  expect(await screen.findByRole('alert')).toHaveTextContent('Cancel the appointment');
  expect(state.editor).not.toHaveBeenCalled();
 });
+
+// These fixture appointments are future visits; keep that independent of the wall clock.
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-20T12:00:00Z")); });
+afterEach(() => vi.restoreAllMocks());

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { beforeEach, afterEach, vi, expect, it } from 'vitest';
 import { soldVehicleEmail, soldVehicleDraftLink, type SoldVehicleFollowUpReview } from './sold-vehicle-follow-ups';
 const review: SoldVehicleFollowUpReview = { saleId: 'sale', vehicleId: 'car', vehicleTitle: 'Toyota Yaris', registration: null, imageUrl: null, sold: true, createdAt: '2026-10-20T11:00:00Z', remaining: 1, upcomingAppointments: 0,
  customers: [{ enquiryId: 'enquiry', customerName: 'Alex', email: 'alex@example.test', phone: null, preferredContact: null, kind: 'appointment', appointmentAt: '2026-10-22T10:00:00Z', appointmentRevision: 4, appointmentCancelledAt: '2026-10-20T11:00:00Z', cancelledByReview: true, status: 'pending', revision: 2, contactedAt: null, outcome: null, emailStatus: null, urgent: false }] };
@@ -29,3 +29,7 @@ it('updates a customer after a missed appointment without claiming it was cancel
  expect(result.content?.message).toContain('has now sold');
  expect(result.content?.message).not.toContain('cancelled');
 });
+
+// These fixture appointments are future visits; keep that independent of the wall clock.
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-20T12:00:00Z")); });
+afterEach(() => vi.restoreAllMocks());

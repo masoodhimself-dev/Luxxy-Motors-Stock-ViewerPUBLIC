@@ -1,3 +1,6 @@
+import { accountInvitationManagementRouter } from './account-invitations';
+import { issueAccountInvitation } from '../lib/account-invitations';
+import { invitationEmailReadiness } from '../lib/account-invitation-email';
 import platformFeaturesRouter from './platform-features';
 import platformConversionRouter from './platform-conversion';
 import platformDomainAutomationRouter from './platform-domain-automation';
@@ -28,6 +31,7 @@ router.use((req, res, next) => {
   if (!multiTenantEnabled() || normaliseTenantHost(req.get('host') ?? '') !== normaliseTenantHost(process.env.PLATFORM_ADMIN_HOST ?? '') || !isPlatformAdmin(getAuth(req).userId ?? undefined)) { res.status(403).json({ error: 'Platform administrator access required.' }); return; }
   if (req.get('origin') && req.get('origin') !== `https://${process.env.PLATFORM_ADMIN_HOST}`) { res.status(403).json({ error: 'Open platform administration on its approved domain.' }); return; } next();
 });
+router.use('/dealers/:id/invitations', accountInvitationManagementRouter('platform'));
 router.use(platformFeaturesRouter);
 router.use(platformOnboardingKeysRouter);
 router.use(platformDemosRouter);
@@ -96,7 +100,7 @@ router.get('/dealers/:id/workspace', async (req, res) => {
   res.json({ dealer, domains, members, imports, keys, effectiveStockConnection });
 });
 const origin = z.string().url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && (!u.port || u.port === '443') && !u.username && !u.password && u.pathname === '/' && !u.search && !u.hash && Boolean(normaliseTenantHost(u.host)); });
-const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional() }).strict().refine(v => Number(Boolean(v.ownerAuthUserId)) + Number(Boolean(v.ownerEmail)) + Number(v.useMyAccount === true) === 1);
+const creation = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/), name: z.string().trim().min(1).max(120), canonicalOrigin: origin, platform: z.enum(['autotrader','cazoo']), retailerId: z.string().trim().min(1).max(128), sourceUrl: z.string().url(), ownerAuthUserId: z.string().regex(/^user_[A-Za-z0-9]+$/).optional(), ownerEmail: z.string().email().optional(), useMyAccount: z.boolean().optional(), inviteOwnerEmail: z.string().trim().toLowerCase().email().max(254).optional() }).strict().refine(v => Number(Boolean(v.ownerAuthUserId)) + Number(Boolean(v.ownerEmail)) + Number(v.useMyAccount === true) + Number(Boolean(v.inviteOwnerEmail)) === 1);
 router.post('/dealers', async (req, res) => {
   const input = creation.safeParse(req.body); if (!input.success) { res.status(400).json({ error: 'Supply a valid dealership, HTTPS website, stock source and exactly one owner account option.' }); return; }
   const d = input.data, source = new URL(d.sourceUrl); const host = normaliseTenantHost(new URL(d.canonicalOrigin).host)!;
@@ -106,7 +110,8 @@ router.post('/dealers', async (req, res) => {
   let ownerAuthUserId = d.ownerAuthUserId;
   let ownerEmail: string | null = null;
   let ownerName: string | null = null;
-  if (d.useMyAccount) ownerAuthUserId = getAuth(req).userId!;
+  if (d.inviteOwnerEmail && !invitationEmailReadiness().ready) { res.status(503).json({ error: invitationEmailReadiness().message }); return; }
+  if (d.useMyAccount || d.inviteOwnerEmail) ownerAuthUserId = getAuth(req).userId!;
   if (d.ownerEmail) {
     try {
       const profiles = (await clerkClient.users.getUserList({ emailAddress: [d.ownerEmail.trim().toLowerCase()], limit: 2 })).data;
@@ -125,7 +130,9 @@ router.post('/dealers', async (req, res) => {
       const config = newDealerSettings(d.name);
       await tx.insert(dealerSettingsTable).values({ dealerId: d.id, config });
     });
-    res.status(201).json({ dealerId: d.id, status: 'draft', dns: { type: 'TXT', name: `_dealer-verification.${host}`, value: token }, next: 'Verify DNS ownership and connect the domain in Render before activation.' });
+    let ownerInvitation;
+    if (d.inviteOwnerEmail) { try { ownerInvitation = await issueAccountInvitation(d.id,d.inviteOwnerEmail,'owner',{id:getAuth(req).userId!,kind:'platform'}); } catch { ownerInvitation = {deliveryStatus:'failed',error:'Dealership created. Open Staff to send the owner invitation; no owner access has been granted to the recipient.'}; } }
+    res.status(201).json({ ...(ownerInvitation ? {ownerInvitation} : {}), dealerId: d.id, status: 'draft', dns: { type: 'TXT', name: `_dealer-verification.${host}`, value: token }, next: 'Verify DNS ownership and connect the domain in Render before activation.' });
   } catch { res.status(409).json({ error: 'Dealer ID or domain already exists. No dealer created.' }); }
 });
 router.get('/dealers/:id/domains', async (req, res) => { res.json({ domains: await db.select().from(dealerDomainsTable).where(eq(dealerDomainsTable.dealerId, req.params.id)) }); });

@@ -1,3 +1,4 @@
+import { captureInvitationToken } from '@/lib/account-invitation-token';
 import RetiredSalesPage from '@/pages/retired-sales';
 import { lazy, Suspense } from "react";
 import { RouteLoading } from "@/components/route-loading";
@@ -12,6 +13,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { StockProvider } from '@/lib/stock-context';
 import { SavedCarsProvider } from '@/lib/saved-cars-context';
 const SalesDemo = lazy(() => import("@/pages/sales-demo"));
+const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import("@/pages/platform"));
 const PhoneShare = lazy(() => import("@/pages/phone-share"));
 const StaffUpload = lazy(() => import("@/pages/staff-upload"));
@@ -37,8 +39,10 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 
 function PreviewLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  return location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
+  return location === '/join' || location === '/phone-share' || location === '/platform' || location === '/staff-upload' || location === '/enquiry-photo-upload' || location.startsWith('/verify-invoice/') || location.startsWith('/test-drive-declaration/') ? <>{children}</> : <Layout>{children}</Layout>;
 }
+
+captureInvitationToken();
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
@@ -53,6 +57,7 @@ createRoot(document.getElementById('root')!).render(
                   <Switch>
                   <Route path="/portal/sales-demo" component={SalesDemo} />
                   <Route path="/platform"><div role="note" className="mx-6 mt-5 rounded-lg bg-secondary p-4 text-sm">Example dealerships · Domain activation and import credentials require the real backend.</div><Platform /></Route>
+                  <Route path="/join" component={JoinDealership} />
                   <Route path="/phone-share" component={PhoneShare} />
                   <Route path="/staff-upload" component={StaffUpload} />
                   <Route path="/enquiry-photo-upload" component={EnquiryPhotoUpload} />

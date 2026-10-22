@@ -19,6 +19,7 @@ function mockAccess(permissions = ownerPermissions) {
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url === '/api/staff/access') return Response.json({ role: 'owner', permissions, user: {} });
+    if (url === '/api/staff/team/invitations') return Response.json({invitations:[],email:{ready:true,message:'Ready'}});
     if (url === '/api/staff/team') return Response.json({ members: [] });
     if (url === '/api/staff/settings-history') return Response.json({ revision: 1, versions: [] });
     throw new Error(`Unexpected settings request: ${url}`);

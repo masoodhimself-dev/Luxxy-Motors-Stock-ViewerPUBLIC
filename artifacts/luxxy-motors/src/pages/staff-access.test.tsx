@@ -67,3 +67,11 @@ it("defaults ordinary sign-in to the portal and rejects an external query destin
   expect(staffAccessReturnUrl("?redirect_url=https%3A%2F%2Fother.example%2Fportal"))
     .toBe("/portal");
 });
+
+it("returns both invitation account flows to the join page without putting the token in a redirect", () => {
+  expect(staffReturnUrl("/join", "https://admin.example.test", "")).toBe("/join");
+  expect(staffReturnUrl("https://evil.example/join", "https://admin.example.test", "")).toBe("/portal");
+  window.history.replaceState({}, "", "/sign-up?redirect_url=%2Fjoin");
+  render(<StaffSignUp />);
+  expect(screen.getByTestId("sign-up")).toHaveAttribute("data-return", "/join");
+});

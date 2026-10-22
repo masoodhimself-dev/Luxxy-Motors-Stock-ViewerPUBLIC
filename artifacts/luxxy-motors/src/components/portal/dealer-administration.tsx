@@ -1,3 +1,4 @@
+import { AccountInvitations } from '@/components/account-invitations';
 import { Globe2, Mail, PlugZap, FileText, Users, History, MessageCircle, SlidersHorizontal, ShieldCheck, CarFront, Wallet, Store, CalendarDays, QrCode } from '@/components/icons';
 import { useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -368,7 +369,6 @@ export function DealerDashboard({
 type Member = { id: string; email: string | null; name: string | null; role: Role; active: boolean };
 function TeamSettings() {
   const query = useQuery({ queryKey: ['staff-team'], queryFn: () => request<{ members: Member[] }>('/api/staff/team') });
-  const [email, setEmail] = useState(''), [role, setRole] = useState<Role>('salesperson');
   const [roles, setRoles] = useState<Record<string, Role>>({});
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const pendingRoles = query.data?.members.some(member => roles[member.id] && roles[member.id] !== member.role) ?? false;
@@ -376,23 +376,17 @@ function TeamSettings() {
     setBusy(true); setError(''); setNotice('');
     try {
       await request(url, method, body);
-      if (method === 'POST') setEmail('');
       if (url.startsWith('/api/staff/team/') && body && typeof body === 'object' && 'role' in body) setRoles(current => { const next = { ...current }; delete next[url.split('/').at(-1)!]; return next; });
       await query.refetch();
       setNotice('Team access updated.');
     } catch (cause) { setError(message(cause)); } finally { setBusy(false); }
   }
-  return <section className="dealer-admin" data-settings-dirty={Boolean(email.trim()) || pendingRoles}>
+  return <section className="dealer-admin" data-settings-dirty={pendingRoles}>
     <header className="admin-heading"><div><h2>Your team</h2><p>Give each member of staff their own account and the access they need.</p></div></header>
     <Feedback error={query.error} />{error && <p role="alert" className="admin-error">{error}</p>}{notice && <p role="status" className="integration-notice">{notice}</p>}
     <details className="admin-role-help"><summary>What each role can do</summary><ul><li><strong>Owner:</strong> dealership settings, team access, customers and sales.</li><li><strong>Salesperson:</strong> stock, customer enquiries, appointments and sales.</li><li><strong>Accounts:</strong> record and refund payments, view sales and export the payment ledger.</li></ul></details>
-    <div className="admin-card"><h3>Add staff access</h3><p>The staff member must first create their own sign-in account using the email below. This adds dealership access; it does not send an invitation.</p>
-      <form className="admin-inline-form" onSubmit={event => { event.preventDefault(); void save('/api/staff/team', 'POST', { email: email.trim(), role }); }}>
-        <label>Email<Input type="email" required disabled={busy} value={email} onChange={event => setEmail(event.target.value)} /></label>
-        <label>Role<NativeSelect disabled={busy} value={role} onChange={event => setRole(event.target.value as Role)}><option value="salesperson">Salesperson</option><option value="accounts">Accounts</option><option value="owner">Owner</option></NativeSelect></label>
-        <Button disabled={busy || !email.trim()}>Add staff access</Button>
-      </form><p className="admin-muted">Staff sign in with their own account. The last active owner cannot be removed.</p>
-    </div>
+    <AccountInvitations />
+    <p className="admin-muted">Staff sign in with their own account. The last active owner cannot be removed.</p>
     <div className="admin-team-list">{query.isLoading && <p role="status" className="admin-muted">Loading team access…</p>}{query.data?.members.length === 0 && <p className="admin-card admin-muted">No staff access records to show.</p>}
       {query.data?.members.map(member => {
         const nextRole = roles[member.id] ?? member.role, changed = nextRole !== member.role;

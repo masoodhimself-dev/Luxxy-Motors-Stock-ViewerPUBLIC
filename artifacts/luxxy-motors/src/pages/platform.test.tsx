@@ -1,8 +1,12 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render as baseRender, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 const auth = vi.hoisted(() => ({ signedIn: true }));
 vi.mock('@clerk/react', () => ({ useAuth: () => ({ isSignedIn: auth.signedIn }), SignInButton: ({ children, mode, forceRedirectUrl, signUpForceRedirectUrl }: { children: React.ReactNode; mode: string; forceRedirectUrl: string; signUpForceRedirectUrl: string }) => <div data-testid="platform-sign-in" data-mode={mode} data-return={forceRedirectUrl} data-sign-up-return={signUpForceRedirectUrl}>{children}</div> }));
 import Platform from './platform';
+const clients: QueryClient[]=[];
+function render(node:React.ReactNode){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});clients.push(client);return baseRender(<QueryClientProvider client={client}>{node}</QueryClientProvider>);}
+afterEach(()=>clients.splice(0).forEach(client=>client.clear()));
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); auth.signedIn = true; });
 const dealer = { id:'example-dealer', name:'Example Dealer', canonicalOrigin:'https://dealer.example.test', status:'draft', stockPlatform:'autotrader', retailerId:'example', sourceUrl:'https://www.autotrader.co.uk/example', domains:[], activeKeyCount:0, latestImport:null,lastSuccessfulImport:null };
 const workspace = { dealer, domains:[{hostname:'dealer.example.test',verified:false,verificationToken:'fixture-token'}],members:[],imports:[],keys:[] };
@@ -45,6 +49,7 @@ it('guides draft creation using the current account and real DNS instructions', 
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   fireEvent.change(screen.getByLabelText(/^Website origin/),{target:{value:dealer.canonicalOrigin}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  fireEvent.change(screen.getByLabelText('Owner account'),{target:{value:'self'}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   fireEvent.change(screen.getByLabelText(/^Grok retailer reference/),{target:{value:'example'}});
   fireEvent.change(screen.getByLabelText('Authorised stock source URL'),{target:{value:dealer.sourceUrl}});
@@ -283,4 +288,22 @@ it('supports keyboard navigation between dealer workspace tabs and labels the vi
   expect(setup).toHaveFocus();
   expect(screen.getByRole('tabpanel', { name: 'Setup' })).toHaveTextContent('Onboarding checklist');
   expect(screen.getByRole('button', { name: 'Dealerships' })).toHaveAttribute('aria-current', 'page');
+});
+
+it('creates a draft with an invitation for an owner who has not registered yet', async () => {
+ const writes: any[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(path,init)=>{
+  if(init?.method==='POST'){writes.push(JSON.parse(init.body));return Response.json({dealerId:dealer.id,ownerInvitation:{deliveryStatus:'sent'}},{status:201});}
+  if(String(path).endsWith('/workspace'))return Response.json(workspace);
+  return Response.json({dealers:[],activity:[]});
+ }));
+ render(<Platform/>);await waitFor(()=>expect(screen.getAllByRole('button',{name:'Add dealership'})[0]).toBeEnabled());
+ fireEvent.click(screen.getAllByRole('button',{name:'Add dealership'})[0]);
+ fireEvent.change(screen.getByLabelText('Dealership name'),{target:{value:'Example Dealer'}});fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ fireEvent.change(screen.getByLabelText(/^Website origin/),{target:{value:dealer.canonicalOrigin}});fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ expect(screen.getByLabelText('Owner account')).toHaveValue('invite');
+ fireEvent.change(screen.getByLabelText(/^Owner email/),{target:{value:'new-owner@example.test'}});fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ fireEvent.change(screen.getByLabelText(/^Grok retailer reference/),{target:{value:'example'}});fireEvent.change(screen.getByLabelText('Authorised stock source URL'),{target:{value:dealer.sourceUrl}});fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ expect(writes).toHaveLength(0);fireEvent.click(screen.getByRole('button',{name:'Create & invite owner'}));await screen.findByText(/owner invitation sent/);
+ expect(writes).toHaveLength(1);expect(writes[0]).toMatchObject({inviteOwnerEmail:'new-owner@example.test'});expect(writes[0].ownerAuthUserId).toBeUndefined();expect(writes[0].useMyAccount).toBeUndefined();
 });

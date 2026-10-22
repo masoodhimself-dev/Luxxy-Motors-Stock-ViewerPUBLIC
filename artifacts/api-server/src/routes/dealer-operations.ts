@@ -1,3 +1,4 @@
+import { accountInvitationManagementRouter } from './account-invitations';
 import { and as tenantAnd, eq as tenantEq } from "drizzle-orm";
 import { recordPublishedStockPrice } from '../lib/stock-change-tasks';
 import { randomUUID } from 'node:crypto';
@@ -87,6 +88,7 @@ router.get('/staff/access', requireStaff, (req, res) => {
   res.setHeader('Cache-Control', 'no-store'); res.json({ role: req.staff!.role, permissions: req.staff!.permissions, user: { authUserId: req.staff!.authUserId, name: req.staff!.name, email: req.staff!.email } });
 });
 function member(row: Record<string, any>) { return { id: row.id, authUserId: row.auth_user_id, name: row.name, email: row.email, role: row.role, active: !row.disabled_at, createdAt: row.created_at, lastSeenAt: row.last_seen_at }; }
+router.use('/staff/team/invitations', requireStaff, requirePermission('team.manage'), accountInvitationManagementRouter('staff'));
 router.get('/staff/team', requireStaff, requirePermission('team.manage'), async (req, res) => {
   try { const result = await pool.query('SELECT * FROM portal_users WHERE dealer_id=$1 ORDER BY created_at', [dealerId()]); res.setHeader('Cache-Control','no-store'); res.json({ members: result.rows.map(member) }); } catch (error) { fail(req,res,error); }
 });
@@ -101,7 +103,7 @@ router.post('/staff/team', requireStaff, requirePermission('team.manage'), async
     if (!profile) throw new OperationError('This account has not registered yet. Ask the staff member to register, then add their email here.',404);
     const primaryEmail = profile.primaryEmailAddress?.emailAddress ?? profile.emailAddresses[0]?.emailAddress ?? null;
     const name = [profile.firstName,profile.lastName].filter(Boolean).join(' ') || profile.username || primaryEmail;
-    const result = await pool.query('INSERT INTO portal_users (dealer_id,auth_user_id,email,name,role) VALUES($1,$2,$3,$4,$5) ON CONFLICT (auth_user_id) DO NOTHING RETURNING *', [dealerId(), profile.id,primaryEmail,name,role]);
+    const result = await pool.query('INSERT INTO portal_users (dealer_id,auth_user_id,email,name,role) VALUES($1,$2,$3,$4,$5) ON CONFLICT (dealer_id,auth_user_id) DO NOTHING RETURNING *', [dealerId(), profile.id,primaryEmail,name,role]);
     if (!result.rows[0]) throw new OperationError('That account is already on the staff list. Change its role from the existing row.',409);
     res.status(201).json({ member: member(result.rows[0]) });
   } catch(error) { fail(req,res,error); }

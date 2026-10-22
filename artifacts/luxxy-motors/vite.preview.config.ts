@@ -1,3 +1,4 @@
+import { accountInvitationsPreview } from './preview/account-invitations';
 import { mediaSharingPreview } from './preview/media-sharing';
 import { enquiryMediaPreview } from './preview/enquiry-media';
 import { vehicleDescriptionPreview } from './preview/vehicle-descriptions';
@@ -50,7 +51,7 @@ export default mergeConfig(
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = new URL(req.url ?? '/', 'http://localhost');
-            if ((url.pathname === '/phone-share' || url.pathname === '/enquiry-photo-upload' || url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
+            if ((url.pathname === '/join' || url.pathname === '/phone-share' || url.pathname === '/enquiry-photo-upload' || url.pathname.startsWith('/my-purchase/') || url.pathname.startsWith('/verify-invoice/') || url.pathname === '/reserve/payment-return')) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); }
             if (!url.pathname.startsWith('/api/')) return next();
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Cache-Control', 'no-store');
@@ -63,6 +64,7 @@ export default mergeConfig(
               res.end(JSON.stringify({ error: 'Image uploads require the authenticated server. This local preview keeps your existing image unchanged.' }));
               return;
             }
+            if (await accountInvitationsPreview(req, res, url)) return;
             if (await enquiryMediaPreview(req, res, url)) return;
             if (await mediaSharingPreview(req, res, url)) return;
             if (await vehicleDescriptionPreview(req, res, url)) return;

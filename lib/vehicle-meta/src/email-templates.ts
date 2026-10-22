@@ -405,6 +405,9 @@ export function approvedEmailLayoutVersion(value: unknown): EmailLayoutVersion {
   throw new Error("The approved email layout version is unavailable.");
 }
 export type EmailRenderOptions = {
+  /** Explicit account invitation action; absent on existing customer emails. */
+  actionUrl?: string;
+  actionLabel?: string;
   layoutVersion?: EmailLayoutVersion;
   templateId?: string;
   attachments?: readonly string[];
@@ -652,16 +655,16 @@ export function renderEmailTemplate(
     .join("\n");
   const attachments = (options.attachments ?? []).filter((name) => name.trim());
   const actionUrl =
-    options.templateId === "customer_access_link"
+    options.actionUrl ? secureEmailLink(options.actionUrl) : options.templateId === "customer_access_link"
       ? secureEmailLink(variables.portal_url)
       : options.templateId?.startsWith("booking_") &&
           options.templateId !== "booking_cancellation"
         ? secureEmailLink(variables.manage_url)
         : undefined;
   const actionLabel =
-    options.templateId === "customer_access_link"
+    options.actionLabel?.trim() || (options.templateId === "customer_access_link"
       ? "Open your private page"
-      : "Manage your test drive";
+      : "Manage your test drive");
   const contactEmail =
     typeof variables.dealer_email === "string" &&
     /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(variables.dealer_email)

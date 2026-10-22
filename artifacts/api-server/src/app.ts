@@ -1,3 +1,4 @@
+import accountInvitationsRouter from './routes/account-invitations';
 import demoOnboardingRouter from './routes/demo-onboarding';
 import platformDealersRouter from "./routes/platform-dealers";
 import { resolveTenant } from "./middlewares/tenant";
@@ -65,6 +66,7 @@ app.use(clerkMiddleware({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY }));
 
 app.use("/api/demo-onboarding", demoOnboardingRouter);
 app.use("/api/platform", platformDealersRouter);
+app.use('/api/account-invitations', accountInvitationsRouter);
 app.use(resolveTenant);
 app.use(seoRouter);
 app.use(indexNowRouter);

@@ -12,10 +12,10 @@ function AccessFrame({ children }: { children: React.ReactNode }) {
           <ShieldCheck className="h-4 w-4" /> Staff entrance
         </p>
         <h1 className="font-display text-4xl font-semibold tracking-[-.05em] text-primary">
-          Luxxy Motors portal
+          Your staff account
         </h1>
         <p className="mt-4 border-l-2 border-accent pl-4 text-left text-[13px] font-medium leading-relaxed text-primary/70">
-          The sales desk — enquiries, viewings, deals and paperwork. Use your authorised staff account to continue.
+          Sign in or create your account using your work email. New staff need to accept their dealership invitation before portal access is added.
         </p>
       </div>
       <div className="rounded-lg border border-primary/10 bg-card shadow-none">

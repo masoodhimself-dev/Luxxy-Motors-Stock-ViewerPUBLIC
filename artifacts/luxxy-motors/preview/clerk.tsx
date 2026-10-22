@@ -13,3 +13,5 @@ export const UserButton = () => (
   </span>
 );
 export const SignInButton = ({ children }: { children: ReactNode }) => <>{children}</>;
+
+export const useClerk = () => ({signOut:async()=>{},addListener:()=>()=>{}});

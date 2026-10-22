@@ -280,7 +280,7 @@ test('platform onboarding and operational views preserve access checks and omit 
    const {serveFrontend}=await import('./lib/serve-frontend');
    const frontend=express();serveFrontend(frontend,temp);app.use('/raw-tenant-test',frontend);
    const raw=await request('/raw-tenant-test/','GET',undefined,'','bot-example.demo.example.test');
-   assert.equal(raw.status,200);const html=await raw.text();assert.ok(!html.includes('Luxxy'));assert.match(html,/Bot Example — Used cars in Corrected Town/);assert.equal(raw.headers.get('cache-control'),'no-store');
+   assert.equal(raw.status,200);const html=await raw.text();assert.ok(!html.includes('Luxxy'));assert.match(html,/Used cars for sale in Corrected Town \| Bot Example/);assert.equal(raw.headers.get('cache-control'),'no-store');
    const other=await request('/raw-tenant-test/index.html','GET',undefined,'','rollback-demo.demo.example.test');assert.equal(other.status,200);assert.ok(!(await other.text()).includes('Corrected Town'));
   }finally{await rm(temp,{recursive:true,force:true});}
   // Promotion preserves genuine stock/credentials while ending demo-only behaviour.

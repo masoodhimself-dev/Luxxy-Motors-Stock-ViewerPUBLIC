@@ -22,6 +22,7 @@ import { Layout } from '@/components/layout';
 import { RouteScrollReset } from '@/components/route-scroll-reset';
 import { clearPortalPushSubscription } from '@/lib/portal-push';
 import Home from '@/pages/home';
+const JoinDealership = lazy(() => import('@/pages/join'));
 const Platform = lazy(() => import('@/pages/platform'));
 const CarDetail = lazy(() => import("@/pages/car-detail"));
 const Saved = lazy(() => import("@/pages/saved"));
@@ -77,6 +78,9 @@ function Router() {
   if (location === '/phone-share') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><PhoneShare /></Suspense></RoutedErrorBoundary>;
   if (location === '/staff-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffUpload /></Suspense></RoutedErrorBoundary>;
   if (location === '/enquiry-photo-upload') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><EnquiryPhotoUpload /></Suspense></RoutedErrorBoundary>;
+  if (/^\/sign-in(?:\/|$)/.test(location)) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffSignIn /></Suspense></RoutedErrorBoundary>;
+  if (/^\/sign-up(?:\/|$)/.test(location)) return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><StaffSignUp /></Suspense></RoutedErrorBoundary>;
+  if (location === '/join') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><JoinDealership /></Suspense></RoutedErrorBoundary>;
   if (location === '/platform') return <RoutedErrorBoundary><Suspense fallback={<RouteLoading />}><Platform /></Suspense></RoutedErrorBoundary>;
   return (
     <><DemoNotice/><Layout>
@@ -113,7 +117,7 @@ function Router() {
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location} showCustomerHelp={!['/platform', '/staff-upload', '/enquiry-photo-upload'].includes(location)}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={location} showCustomerHelp={!['/join', '/platform', '/staff-upload', '/enquiry-photo-upload'].includes(location)}>{children}</ErrorBoundary>;
 }
 
 /** Clears cached portal data when the signed-in staff member changes. */
@@ -141,7 +145,7 @@ function ClerkQueryClientCacheInvalidator() {
 
 function DealerProviders({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
+  return /^\/sign-(?:in|up)(?:\/|$)/.test(location) || location === '/join' || location === '/platform' || location === '/staff-upload' || location.startsWith('/verify-invoice/') ? <>{children}</> : <StockProvider><SavedCarsProvider>{children}</SavedCarsProvider></StockProvider>;
 }
 
 function ClerkProviderWithRoutes() {

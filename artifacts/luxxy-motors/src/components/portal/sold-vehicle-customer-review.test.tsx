@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SoldVehicleCustomerReview, SoldVehicleFollowUpTasks } from './sold-vehicle-customer-review';
@@ -179,3 +179,7 @@ it('keeps an expired uncancelled visit actionable without offering an impossible
   expect(writes).toHaveLength(1);
   expect(JSON.parse(writes[0][1].body).action).toBe('complete');
 });
+
+// These fixture appointments are future visits; keep that independent of the wall clock.
+beforeEach(() => { vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-20T12:00:00Z")); });
+afterEach(() => vi.restoreAllMocks());

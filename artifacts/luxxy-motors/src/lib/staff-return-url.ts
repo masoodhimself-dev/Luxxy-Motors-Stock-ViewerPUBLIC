@@ -12,7 +12,7 @@ export function staffReturnUrl(
       !["http:", "https:"].includes(url.protocol) ||
       url.origin !== origin ||
       url.username || url.password ||
-      url.pathname !== fallback
+      (url.pathname !== fallback && url.pathname !== `${basePath}/join`)
     ) return fallback;
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
