@@ -78,3 +78,18 @@ One intermediate browser run lost its shared preview server after another test p
 ## Limits
 
 No live customer messages, invoices, payments, bookings, stock changes, settings publications, credential changes or new access grants were made. Live SMTP delivery, real WhatsApp sending, native iOS/Android camera behavior, device push delivery, physical A4 printing, valid private-document grants, full cross-role/cross-tenant API security and production load were not retested end-to-end here. The platform dashboard was not part of this customer/staff rendered-page pass.
+
+## Approved release — live verification
+
+At the user's request, release `4993d33dcbed95ef65daef8f8a4d3b1e42b419d0` was pushed to the existing `codex/multi-tenant-foundation` release branch and deployed to `luxxy-shared-staging`.
+
+- Render deploy `dep-dbdo7nt9fdbs73bqgkn0` reached **live** at 16:00:25 UTC, 23 October 2026 (17:00 UK).
+- Included the parent change storing one dealership Google review URL in Settings. No new schema migration; existing pre-deploy command completed successfully.
+- Shore Drive and Luxxy `/api/healthz` returned `ok`; `/api/readyz` returned `ready`.
+- No error-level logs were returned for the post-live verification window.
+- Live Shore Drive phone check: viewport and document width both 390px; Today, Inbox and Test drives all within the viewport.
+- Live Shore Drive tablet Website Settings: viewport and document width both 834px.
+- Google review link field confirmed under Dealership details → Contact & hours, without editing or publishing settings.
+- Live Sales heading and Luxxy public booking guidance confirmed.
+- No customer emails, WhatsApp messages, bookings, payments, invoices or reminders were created during release verification. Staff review and manual sending remain in place.
+- Browser viewport reset; user left on Shore Drive Inbox. Screenshot `/private/tmp/shore-audit-release-phone.jpg`.
