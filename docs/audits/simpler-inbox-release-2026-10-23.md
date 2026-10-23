@@ -14,7 +14,7 @@
 ## Validation
 
 - Production build, including workspace typechecking: passed.
-- Focused frontend tests: 180 passed; additional WhatsApp/QR, booking, Home, merge/navigation tests: 104 passed (includes four overlapping reply-attention tests; 280 unique tests across 17 files).
+- Focused frontend tests: 180 passed; additional WhatsApp/QR, booking, Home, merge/navigation tests: 104 passed (includes four overlapping reply-attention tests; plus two permission/cache regression tests; 282 unique tests across 18 files).
 - Backend receiving/reply integration suite: 12 passed, including dealer isolation, new aggregate counts, original reply handling, idempotency, authentication and sending behaviour.
 - New responsive browser checks: 3 passed at 390, 834 and 1440px, blocking all writes. Validates reply and no-task counts, selection, quoted-history folding, visible actions and no horizontal document overflow.
 - Browser inspection of local rendered Inbox and compact contact/car/actions at desktop, tablet and phone viewports.
