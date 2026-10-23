@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID, createHash } from "node:crypto";
@@ -258,8 +258,14 @@ test("private packs reject executable files, unsafe filenames, invalid base64 an
 test("registered enquiry-photo migration upgrades an existing database without changing its enquiry", async () => {
   const source = "../../lib/db/drizzle";
   const journal = JSON.parse(await readFile(join(source,"meta/_journal.json"),"utf8"));
-  assert.equal(journal.entries.at(-1).tag,"0050_enquiry_photos");
-  const earlier = journal.entries.slice(0,-1);
+  const photoMigrationIndex = journal.entries.findIndex((entry: {tag: string}) => entry.tag === "0050_enquiry_photos");
+  assert.ok(photoMigrationIndex > 0);
+  const earlier = journal.entries.slice(0,photoMigrationIndex);
+  // Keep this upgrade test scoped to the photo migration, not later migrations.
+  const migrationFolder = await mkdtemp(join(tmpdir(),"luxxy-photo-migration-"));
+  await mkdir(join(migrationFolder,"meta"));
+  await writeFile(join(migrationFolder,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,photoMigrationIndex+1)}));
+  for (const item of journal.entries.slice(0,photoMigrationIndex+1)) await writeFile(join(migrationFolder,`${item.tag}.sql`),await readFile(join(source,`${item.tag}.sql`)));
   const local = new PGlite(), database = drizzle(local), id=randomUUID();
   try {
     // Older migrations contain multi-command batches supported by PostgreSQL,
@@ -271,12 +277,12 @@ test("registered enquiry-photo migration upgrades an existing database without c
     await local.query("INSERT INTO dealerships(id,name,status,canonical_origin,stock_platform,retailer_id,source_url) VALUES('migration-photos','Fictional migration dealer','active','https://migration.example.test','autotrader','fictional','https://www.autotrader.co.uk/fictional')");
     await local.query("INSERT INTO enquiries(id,dealer_id,type,customer_name,message)VALUES($1,'migration-photos','general','Preserved buyer','Keep this enquiry')",[id]);
     const before=(await local.query("SELECT * FROM enquiries WHERE id=$1",[id])).rows[0];
-    await migrate(database,{migrationsFolder:source});
+    await migrate(database,{migrationsFolder:migrationFolder});
     assert.deepEqual((await local.query("SELECT * FROM enquiries WHERE id=$1",[id])).rows[0],before);
     for (const name of ['enquiry_photos','enquiry_photo_upload_sessions','customer_email_preparations']) assert.equal((await local.query<{name:string}>("SELECT to_regclass($1) AS name",[name])).rows[0].name,name);
-    await migrate(database,{migrationsFolder:source});
+    await migrate(database,{migrationsFolder:migrationFolder});
     assert.equal(Number((await local.query<{n:number}>("SELECT count(*) AS n FROM drizzle.__drizzle_migrations")).rows[0].n),2);
-  } finally {await local.close();}
+  } finally {await local.close();await rm(migrationFolder,{recursive:true,force:true});}
 });
 test("isolated real HTTP media and QR workflow", async (t) => {
   for (const file of (await readdir("../../lib/db/drizzle"))
@@ -673,7 +679,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
           email: "buyer@example.test",
           phone: "07700 900123",
           vehicle: "Fictional car",
-          roadTaxGuide: false,
+          roadTaxGuide: true,
         },
         branding: { identity: { name: "Fictional Motors" } },
       },
@@ -699,7 +705,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
     };
     let grant: any;
     await t.test(
-      "invoice sharing permits accounts staff and gives exactly the immutable PDF without sending",
+      "invoice with a Road Tax guide shares exactly the immutable PDF without a green-slip reference or sending",
       async () => {
         assert.equal(
           (
@@ -741,6 +747,7 @@ test("isolated real HTTP media and QR workflow", async (t) => {
           headers: { "x-phone-share-token": input.token },
         });
         assert.equal(opened.status, 200);
+        assert.equal(opened.json.files.length, 1);
         assert.equal(opened.json.files[0].content, pdf.toString("base64"));
         assert.equal(opened.headers["cache-control"], "no-store");
         assert.deepEqual(

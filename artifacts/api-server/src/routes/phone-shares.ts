@@ -21,7 +21,6 @@ import {
   PostgresSaleWorkspaceStore,
   readSaleWorkspaceAssets,
 } from "../lib/sale-workspace-store";
-import { invoiceEmailAttachments } from "../lib/invoice-email-attachments";
 import { dealerIntegrationsStore } from "../lib/dealer-integrations-store";
 import { dealerProfile } from "../lib/enquiry-notifications";
 import { draftSchema, previewEnquiryEmail } from "./enquiry-emails";
@@ -181,11 +180,9 @@ router.post(
           data.source.saleId,
           data.source.documentId,
         );
-        const attachments = invoiceEmailAttachments(document, archive.content, {
-          reference: data.source.taxReference,
-          fileId: randomUUID(),
-          createdAt: new Date().toISOString(),
-        });
+        // WhatsApp shares the issued PDF only. The Road Tax guide belongs to
+        // the invoice email flow and must not block sharing an existing invoice.
+        const attachments = [{ filename: `${document.number}.pdf`, content: archive.content }];
         const draft = document.snapshot.draft;
         const branding = document.snapshot.branding;
         const money = (pence: number) => new Intl.NumberFormat('en-GB', {style:'currency', currency:'GBP'}).format(pence / 100);

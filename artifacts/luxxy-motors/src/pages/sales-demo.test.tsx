@@ -68,7 +68,7 @@ vi.mock("@/components/sales-demo/sales-document", () => ({
   openSaleDocumentPdf: (...args: unknown[]) => state.pdf(...args),
 }));
 vi.mock('@/components/portal/sold-vehicle-customer-review', () => ({ SoldVehicleCustomerReview: () => null }));
-vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback}:{source?:{documentId?:string};onEmailFallback?:()=>void})=><button data-document-id={source?.documentId} onClick={onEmailFallback}>Use email instead</button>}));
+vi.mock('@/components/share-qr',()=>({ShareQr:({source,onEmailFallback,disabled}:{source?:{documentId?:string};onEmailFallback?:()=>void;disabled?:boolean})=><button disabled={disabled} data-document-id={source?.documentId} onClick={onEmailFallback}>Use email instead</button>}));
 import { SalesWorkspace } from "./sales-demo";
 import { emptyDraft } from "@/components/sales-demo/model";
 const initialStockCars = structuredClone(state.stock.cars);
@@ -877,4 +877,14 @@ it('sends the tax reference only with the issued full invoice email, never on cr
  const sent=state.fetch.mock.calls.filter(([url])=>String(url).endsWith('/email'));expect(sent).toHaveLength(1);
  expect(JSON.parse(sent[0][1].body).taxGuide).toEqual({reference:'012345678901'});
  expect(screen.getByLabelText('Green slip document number (V5C/2)')).toHaveValue('');expect(JSON.stringify(state.sales)).not.toContain('012345678901');
+});
+
+ it("keeps saved full-invoice WhatsApp available when its email includes a Road Tax guide",async()=>{
+  const sale=fixtureCommand(savedSale(),{action:"issue-invoice",kind:"full",acknowledge:true});
+  sale.documents.at(-1)!.snapshot.draft.roadTaxGuide=true;
+  const original=structuredClone(sale);
+  await mountSaved(sale);
+  expect(screen.getByRole("button",{name:"Use email instead"})).toBeEnabled();
+  expect(state.sales[0]).toEqual(original);
+  expect(mutations()).toHaveLength(0);
 });
