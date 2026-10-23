@@ -1,6 +1,6 @@
 # Post-sale Google review reminders
 
-Implemented on `codex/sale-review-reminders`. Not deployed; no live buyer records or outgoing messages were created for this feature. No database migration is needed.
+Implemented on `codex/sale-review-reminders`. Deployed to Render on 23 October 2026; no live buyer records or outgoing review messages were created during release verification. No database migration is needed.
 
 ## Staff flow
 
@@ -29,3 +29,11 @@ Cancellation uses `cancel: true` with the normal request ID and expected sale re
 - Workspace typecheck and production build passed. Existing build warnings about bundle size and sourcemaps remain.
 
 Actual delivery from a dealership and physical iPhone/iPad behavior remain unverified for this new feature; no real review invitation was sent. The normal existing email permission/configuration checks still apply.
+
+## Render release verification
+
+Commit `06b70e14283230036c4ebbc03bd78d0ccdc1a586` deployed successfully through `dep-dbdndm1srm7s73cbpqtg` on the existing shared service. Render reported live; Shore Drive health returned `status: ok`, and the initial error-level app log query contained no entries. No new migration, credentials or environment changes were required.
+
+Opened the existing completed Shore Drive sale in the signed-in browser. Verified the reminder is unchecked by default. Toggling it locally exposed the 30 October 2026 10:00 UK default, Google review URL input and disabled Save until a link is supplied. Checked live layouts at 390 and 834 CSS pixels with no horizontal overflow. Returned the checkbox to unchecked and restored the viewport. No reminder was saved, no buyer enquiry was created, no Google link was fabricated, and no review email was sent.
+
+Staff must explicitly save a reminder and later review/send the email through the normal composer. Deployment does not enable automatic review sending. The full reminder persistence/send-preview flow remains covered by the isolated tests; physical iPhone/iPad testing is for the operator.
