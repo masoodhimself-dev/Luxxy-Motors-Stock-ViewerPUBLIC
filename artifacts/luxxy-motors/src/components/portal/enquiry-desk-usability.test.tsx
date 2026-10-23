@@ -259,3 +259,13 @@ it('prepares a follow-up for the selected missed appointment without sending or 
  expect(email).not.toHaveBeenCalled();
  expect(vi.mocked(customFetch).mock.calls.every(([, options]) => !options?.method || options.method === 'GET')).toBe(true);
 });
+
+it('keeps call notes and email replies accessible when a phone enquiry receives a new email', () => {
+ const selected={...entry('reply-phone',{preferredContact:'phone',callOutcome:'information_given'}),pendingEmailReplies:1};
+ const note=vi.fn(),email=vi.fn();
+ const actions:EnquiryRecordActions={onEmail:email,onConversation:note,onUpdate:vi.fn(),onFollowUp:vi.fn(),onAppointment:vi.fn(),onBook:vi.fn(),onVehicle:vi.fn()};
+ show(<EnquiryRecordBrowser entries={[selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions}/>);
+ const detail=screen.getByRole('region',{name:'Selected enquiry: Customer reply-phone'});
+ fireEvent.click(within(detail).getByRole('button',{name:'Add call note'}));expect(note).toHaveBeenCalledWith(selected);
+ fireEvent.click(within(detail).getByRole('button',{name:/^Reply$/}));expect(email).toHaveBeenCalledWith(selected);
+});

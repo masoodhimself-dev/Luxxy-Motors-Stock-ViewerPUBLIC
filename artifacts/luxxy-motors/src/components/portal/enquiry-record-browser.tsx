@@ -87,9 +87,9 @@ function EnquiryDetail({ entry, car, actions }: { entry: Enquiry; car?: Car; act
       {entry.appointmentAt && !entry.appointmentCancelledAt && !visitFinished && <p>Test drive: {appointmentLabel(entry.appointmentAt)} · {entry.appointmentStatus === 'pending' ? 'Awaiting approval' : 'Confirmed'}</p>}
     </div>}
     <div className="enquiry-detail-actions" aria-label="Selected enquiry actions">
-      {!(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response")) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Add call note</Button>}
+      {(pendingReply || !(presentation.action === "conversation" || (presentation.action === "respond" && actionLabel === "Record the response"))) && <Button size="sm" variant="outline" onClick={() => actions.onConversation(entry)}>Add call note</Button>}
       {showAppointmentEmail && <Button size="sm" variant="outline" onClick={() => actions.onAppointmentFollowUp?.(entry)}>Follow-up email</Button>}
-      {actions.onEmail && !showAppointmentEmail && (pendingReply || actionLabel !== 'Reply') && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Reply</Button>}
+      {actions.onEmail && (!showAppointmentEmail || pendingReply) && (pendingReply || actionLabel !== 'Reply') && <Button size="sm" variant="outline" onClick={() => actions.onEmail?.(entry)}>Reply</Button>}
       {presentation.action !== 'follow_up' && <Button size="sm" variant="outline" onClick={() => actions.onFollowUp(entry)}>{outstanding ? 'Manage follow-up' : 'Set follow-up'}</Button>}
     </div>
       <div className="enquiry-detail-actions" aria-label="Appointment actions">{future && !visitFinished && <Button variant="outline" size="sm" onClick={() => actions.onAppointment(entry)}><CalendarDays aria-hidden className="mr-1 h-4 w-4" />Change appointment</Button>}{canBook && <Button variant="outline" size="sm" disabled={actions.canBook === false} onClick={() => actions.onBook(entry)}>{entry.appointmentAt ? 'Book another test drive' : 'Book test drive'}</Button>}</div>
