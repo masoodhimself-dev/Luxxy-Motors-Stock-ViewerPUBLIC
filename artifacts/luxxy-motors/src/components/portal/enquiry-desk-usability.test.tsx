@@ -61,11 +61,11 @@ it('passes the selected original record to the email action and keeps occasional
   show(<EnquiryRecordBrowser entries={[first, selected]} cars={[]} selectedId={selected.id} onSelect={vi.fn()} onBack={vi.fn()} actions={actions} />);
   const detail = screen.getByRole('region', { name: 'Selected enquiry: Customer selected' });
   expect(detail).not.toHaveTextContent('CALL-selected');
-  fireEvent.click(within(detail).getByRole('button', { name: 'Prepare reply' }));
+  fireEvent.click(within(detail).getByRole('button', { name: 'Reply' }));
   expect(email).toHaveBeenCalledWith(selected);
-  const more = within(detail).getByText('More options', { exact: true }).closest('details')!;
+  const more = within(detail).getByText('Customer details & more', { exact: true }).closest('details')!;
   expect(more).not.toHaveAttribute('open');
-  fireEvent.click(within(detail).getByText('More options', { exact: true }));
+  fireEvent.click(within(detail).getByText('Customer details & more', { exact: true }));
   fireEvent.click(within(detail).getByRole('button', { name: 'Update enquiry' }));
   expect(update).toHaveBeenCalledWith(selected);
   expect(within(detail).getByRole('link', { name: 'Start sale' })).toHaveAttribute('href', '/portal?section=sales&enquiryId=selected');

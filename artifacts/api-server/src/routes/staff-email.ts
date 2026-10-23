@@ -178,7 +178,24 @@ export function createStaffEmailRouter(
     });
   });
   router.get('/staff/email/reply-attention',async(req,res)=>{
-    const id=String(req.query.enquiryId||'');if(!z.string().uuid().safeParse(id).success){res.sendStatus(400);return;}
+    const id=String(req.query.enquiryId||'');
+    if (!id) {
+      // One tenant-scoped aggregate for the whole Inbox; never one request per row.
+      const rows = await db.execute(sql`WITH attention AS (
+        SELECT enquiry_id, count(*)::int AS pending, count(*) FILTER(WHERE status<>'received')::int AS review, false AS responded
+        FROM enquiry_email_replies WHERE dealer_id=${currentDealerId()} AND resolved_at IS NULL GROUP BY enquiry_id
+        UNION ALL SELECT enquiry_id,0,0,true FROM enquiry_emails
+        WHERE dealer_id=${currentDealerId()} AND status='sent' GROUP BY enquiry_id
+      ), grouped AS (SELECT enquiry_id,sum(pending)::int AS pending,sum(review)::int AS review,bool_or(responded) AS responded FROM attention GROUP BY enquiry_id)
+      SELECT grouped.enquiry_id AS "enquiryId",grouped.pending,grouped.review,grouped.responded,
+        latest.message AS "latestReplyText" FROM grouped LEFT JOIN LATERAL (
+          SELECT left(message,240) AS message FROM enquiry_email_replies
+          WHERE dealer_id=${currentDealerId()} AND enquiry_id=grouped.enquiry_id AND status='received' AND resolved_at IS NULL
+          ORDER BY received_at DESC,id DESC LIMIT 1
+        ) latest ON true`);
+      res.json({ enquiries: rows.rows }); return;
+    }
+    if(!z.string().uuid().safeParse(id).success){res.sendStatus(400);return;}
     const ids=await enquiryCaseIds(currentDealerId(),id);
     if(!ids.length){res.sendStatus(404);return;}
     const row=(await db.execute(sql`SELECT count(*)::int AS pending,count(*) FILTER(WHERE status<>'received')::int AS review FROM enquiry_email_replies WHERE dealer_id=${currentDealerId()} AND enquiry_id IN (${sql.join(ids.map(i=>sql`${i}::uuid`),sql`,`)}) AND resolved_at IS NULL`)).rows[0];

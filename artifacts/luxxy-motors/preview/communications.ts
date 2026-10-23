@@ -43,6 +43,7 @@ export async function communicationsPreview(
       "/api/staff/notifications",
       "/api/staff/email-drafts",
       "/api/staff/email",
+      "/api/staff/email/reply-attention",
       "/api/staff/push",
       "/api/staff/ai-drafts/config",
     ].includes(url.pathname) ||
@@ -214,6 +215,7 @@ export async function communicationsPreview(
       });
       return true;
     }
+    if (req.method === "GET" && url.pathname === "/api/staff/email/reply-attention") { send(200, url.searchParams.has("enquiryId") ? {pending:0,review:0} : {enquiries:[]}); return true; }
     if (req.method === "GET" && url.pathname === "/api/staff/email") {
       send(200, { messages: [], hasMore: false, replyTo: null });
       return true;

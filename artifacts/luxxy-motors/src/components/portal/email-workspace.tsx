@@ -1,3 +1,4 @@
+import { ConversationMessage } from './conversation-message';
 import { enquiryGroup, primaryEnquiry } from "@/lib/enquiry-groups";
 import { useEnquirySummaries as useGetEnquiries } from "@/lib/enquiry-summary-query";
 import { useEffect, useState, useRef, useMemo } from "react";
@@ -626,7 +627,7 @@ export function EmailWorkspace({
           </>
         ) : (
           <>
-            <p className="email-inbox-note">
+            <details className="email-inbox-note"><summary>Email connection details</summary>
               <Mail size={16} aria-hidden="true" />
               <span>
                 {history.data?.repliesConnected ? "Reply routing is connected. Previous emails still use " : "Replies go to "}
@@ -637,7 +638,7 @@ export function EmailWorkspace({
                 )}
                 . {history.data?.repliesConnected ? "Customer replies to new emails appear in the same conversation and on Home." : "Inbox replies are not connected here yet."}
               </span>
-            </p>
+            </details>
             <div
               className={`email-columns${conversation ? " has-selection" : ""}`}
             >
@@ -963,7 +964,7 @@ export function EmailWorkspace({
                                 <h4>{message.subject}</h4>
                                 {incoming && status === "review" && <p role="status" className="email-note">This reply needs checking before you treat it as a customer message. Confirm the sender and details. No booking or sale has been changed.</p>}
                                 {body ? (
-                                  <p className="email-bubble-text">{body}</p>
+                                  <ConversationMessage text={body} />
                                 ) : active && detail.isLoading ? (
                                   <p role="status" className="email-note">
                                     Loading message…
@@ -1048,7 +1049,7 @@ export function EmailWorkspace({
                                       disabled={busy || (!incoming && !message.provider_id)}
                                       onClick={() => void (async()=>{
                                         if(!incoming){await checkStatus();return;}
-                                        try{setBusy(true);await customFetch(`/api/staff/email/replies/${encodeURIComponent(message.key.slice(6))}/handled`,{method:'POST'});await cache.invalidateQueries({queryKey:['staff-notifications']});await history.refetch();await thread.refetch();setSelected(null);}catch(cause){setError(workspaceError(cause));}finally{setBusy(false);}
+                                        try{setBusy(true);await customFetch(`/api/staff/email/replies/${encodeURIComponent(message.key.slice(6))}/handled`,{method:'POST'});await cache.invalidateQueries({queryKey:['staff-notifications']});await cache.invalidateQueries({queryKey:['reply-attention']});await history.refetch();await thread.refetch();setSelected(null);}catch(cause){setError(workspaceError(cause));}finally{setBusy(false);}
                                       })()}
                                     >
                                       <RefreshCw size={15} aria-hidden="true" />

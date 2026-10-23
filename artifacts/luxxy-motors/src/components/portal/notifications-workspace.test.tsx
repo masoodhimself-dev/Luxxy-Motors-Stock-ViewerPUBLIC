@@ -47,9 +47,8 @@ it("opens Needs attention by default with one integrated navigation", () => {
   expect(screen.getByRole("region", { name: "Attention panel" })).toBeVisible();
   for (const name of [
     "Today",
-    "Customers & enquiries",
+    "Inbox",
     "Test drives",
-    "Email",
   ]) {
     expect(screen.getByRole("button", { name: new RegExp(`^${name}`) })).toBeVisible();
   }
@@ -191,7 +190,7 @@ it("clears stale email actions when navigating to customer records", () => {
   const location = mount(
     "section=notifications&workView=email&compose=enquiry-1&draft=enquiry-1&view=drafts",
   );
-  fireEvent.click(screen.getByRole("button", { name: /^Customers & enquiries/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Inbox/ }));
   const query = currentQuery(location);
   expect(query.get("section")).toBe("notifications");
   expect(query.get("workView")).toBe("customers");
@@ -205,7 +204,7 @@ it("retains customer context across views and clears it when returning to Needs 
   const location = mount("section=notifications&workView=customers&enquiryId=enquiry-1");
   fireEvent.click(screen.getByRole("button", { name: /^Test drives/ }));
   expect(currentQuery(location).get("enquiryId")).toBe("enquiry-1");
-  fireEvent.click(screen.getByRole("button", { name: /^Customers & enquiries/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Inbox/ }));
   expect(currentQuery(location).get("enquiryId")).toBe("enquiry-1");
   fireEvent.click(screen.getByRole("button", { name: /^Today/ }));
   expect(currentQuery(location).get("workView")).toBe("attention");
@@ -234,7 +233,7 @@ it("switches workspaces without sending emails, creating bookings or making netw
   const fetch = vi.fn();
   vi.stubGlobal("fetch", fetch);
   mount("section=notifications");
-  for (const name of ["Customers & enquiries", "Test drives", "Email", "Today"]) {
+  for (const name of ["Inbox", "Email records & drafts", "Test drives", "Today"]) {
     fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${name}`) }));
   }
   expect(fetch).not.toHaveBeenCalled();

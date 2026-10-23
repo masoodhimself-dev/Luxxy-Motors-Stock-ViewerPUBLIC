@@ -49,3 +49,9 @@
   .enquiry-history-vehicle .enquiry-history-facts > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
   .enquiry-history-contact-review button { width: 100%; }
 }
+
+.enquiry-conversation-history .enquiry-conversation-entry { padding:12px; margin:10px 0; border:1px solid var(--portal-border,#dce3e8); border-radius:8px; background:#f5f7f9; }
+.enquiry-conversation-history .enquiry-conversation-entry[data-kind="customer"] { margin-right:6%; background:#edf5fb; border-left:3px solid #28648c; }
+.enquiry-conversation-history .enquiry-conversation-entry[data-kind="whatsapp"] { background:#f0f8f2; border-left:3px solid #387b4b; }
+.conversation-original summary { cursor:pointer; min-height:44px; align-content:center; font-size:12px; text-decoration:underline; }
+.conversation-original > p { border-left:2px solid #d5dce2; padding-left:10px; color:var(--portal-muted,#586976); }

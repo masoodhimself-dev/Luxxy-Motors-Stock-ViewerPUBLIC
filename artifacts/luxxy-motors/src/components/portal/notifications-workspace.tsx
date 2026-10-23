@@ -31,7 +31,7 @@ const views = [
   },
   {
     id: "customers",
-    label: "Customers & enquiries",
+    label: "Inbox",
     description: "Conversations and follow-ups",
     icon: CustomerEnquiry,
     tone: "info",
@@ -45,7 +45,7 @@ const views = [
   },
   {
     id: "email",
-    label: "Email",
+    label: "Inbox",
     description: "Drafts and delivery",
     icon: Mail,
     tone: "violet",
@@ -147,7 +147,7 @@ export function NotificationsWorkspace({
         aria-label="Notifications views"
       >
         {views
-          .filter((item) => item.id !== "email" || canEmail)
+          .filter((item) => item.id !== "email")
           .map((item) => {
             const Icon = item.icon;
             return (
@@ -156,7 +156,7 @@ export function NotificationsWorkspace({
                 id={`customer-view-${item.id}`}
                 key={item.id}
                 data-tone={item.tone}
-                aria-current={view === item.id ? "page" : undefined}
+                aria-current={view === item.id || (item.id === "customers" && view === "email") ? "page" : undefined}
                 aria-controls="customer-workspace-content"
                 onClick={() => choose(item.id)}
               >
@@ -169,6 +169,10 @@ export function NotificationsWorkspace({
             );
           })}
       </nav>
+      {(view === 'customers' || view === 'email') && canEmail && <nav className="inbox-mode-nav" aria-label="Inbox views">
+        <Button size="sm" variant={view === 'customers' ? 'default' : 'ghost'} aria-pressed={view === 'customers'} onClick={() => choose('customers')}>Conversations</Button>
+        <Button size="sm" variant={view === 'email' ? 'default' : 'ghost'} aria-pressed={view === 'email'} onClick={() => choose('email')}>Email records &amp; drafts</Button>
+      </nav>}
       <div
         id="customer-workspace-content"
         className="customer-workspace-content"

@@ -487,6 +487,13 @@ test("receiving routes and enquiry history are durable, tenant isolated and neve
           ).status,
           404,
         );
+        response = await call('/api/staff/email/reply-attention');
+        assert.equal(response.status, 200);
+        const attention = (await response.json()) as any;
+        assert.ok(attention.enquiries.some((row: any) => row.enquiryId === a && row.pending > 0));
+        assert.ok(attention.enquiries.every((row: any) => row.enquiryId !== b));
+        const foreignAttention = await call('/api/staff/email/reply-attention', {headers:{'x-dealer':'reply-b'}});
+        assert.ok(!JSON.stringify(await foreignAttention.json()).includes(a));
         response = await call("/api/staff/notifications");
         assert.equal(response.status, 200);
         assert.ok(

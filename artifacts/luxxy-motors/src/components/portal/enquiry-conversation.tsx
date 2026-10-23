@@ -1,3 +1,4 @@
+import { ConversationMessage } from './conversation-message';
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { customFetch, getGetEnquiriesQueryKey, useLogEnquiryConversation, type Enquiry } from '@workspace/api-client-react';
@@ -83,13 +84,13 @@ export function ConversationHistory({ entry, loadOnDemand = false }: { entry: En
 function ConversationHistoryView({ entry, total, status, footer }: { entry: Enquiry; total?: number; status?: ReactNode; footer?: ReactNode }) {
   const conversations = (entry.events ?? []).filter(event => event.kind === 'conversation_logged').sort((a, b) => (Date.parse(b.occurredAt) || 0) - (Date.parse(a.occurredAt) || 0));
   return <section className="enquiry-conversation-history enquiry-history-conversations" aria-label="Conversation history">
-    <header className="enquiry-history-heading"><h4>Conversation history{(total ?? conversations.length) ? ` · ${total ?? conversations.length}` : ''}</h4><p>Latest conversations first. Notes are for staff only.</p></header>
+    <header className="enquiry-history-heading"><h4>Conversation{(total ?? conversations.length) ? ` · ${total ?? conversations.length}` : ''}</h4><p>Latest first. Call notes are private; emails and confirmed WhatsApp messages are labelled.</p></header>
     {conversations.map(event => {
       const title = event.callOutcome ? callOutcomes[event.callOutcome as CallOutcome] || event.callOutcome : event.summary;
       const note = event.note || event.summary;
-      return <article className="enquiry-conversation-entry" key={event.id} data-testid={`conversation-${event.id}`} data-kind="conversation">
+      return <article className="enquiry-conversation-entry" key={event.id} data-testid={`conversation-${event.id}`} data-kind={event.actor === 'customer' ? 'customer' : event.summary === "WhatsApp sent — staff confirmed" ? 'whatsapp' : 'staff'}>
         <header><span className="enquiry-history-type">{event.summary === "WhatsApp sent — staff confirmed" ? "WhatsApp" : event.actor === "customer" && event.summary === "Customer email received" ? "Customer email" : "Conversation"}</span><time dateTime={event.occurredAt}>{appointmentLabel(event.occurredAt)}</time></header>
-        {title && <h5>{title}</h5>}{note && note !== title && <p className="enquiry-history-copy">{note}</p>}
+        {title && <h5>{title}</h5>}{note && note !== title && <ConversationMessage text={note} />}
         <p className="enquiry-conversation-author">{event.actor === 'customer' ? `From ${entry.customerName}` : `Recorded by ${event.staffName || 'Staff member'}`}</p>
         {event.followUpAt && <p className="enquiry-conversation-followup">Follow-up arranged for {appointmentLabel(event.followUpAt)}</p>}
       </article>;

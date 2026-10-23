@@ -149,3 +149,25 @@
 .enquiries-premium-workspace .enquiry-linked-work > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .enquiries-premium-workspace .enquiry-linked-work p { font-size: 12px; margin-top: 5px; overflow-wrap: anywhere; }
 .enquiries-premium-workspace .enquiry-linked-original { scroll-margin-top: 90px; }
+
+/* The conversation is the main surface; details expand on demand. */
+.enquiries-premium-workspace .enquiry-record-detail-pane { gap:12px; padding:16px; border-radius:8px; }
+.enquiries-premium-workspace .enquiry-detail-customer { gap:5px; }
+.enquiries-premium-workspace .enquiry-detail-car { padding:10px; gap:10px; border-radius:6px; }
+.enquiries-premium-workspace .enquiry-detail-car-photo { width:72px; height:54px; }
+.enquiries-premium-workspace .enquiry-action-plan { padding:10px 12px; }
+.enquiries-premium-workspace .enquiry-detail-contact { align-items:center; }
+.enquiries-premium-workspace .enquiry-detail-customer > button { justify-self:start; }
+.enquiries-premium-workspace .enquiry-detail-record-meta { padding:10px 0; }
+.enquiries-premium-workspace .enquiry-record-row-message { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+@media(min-width:900px) { .enquiries-premium-workspace .enquiry-record-browser { grid-template-columns:minmax(250px,.65fr) minmax(0,1.35fr); } }
+@media(max-width:899px) { .enquiries-premium-workspace .enquiry-record-detail-pane { padding:12px; } }
+.enquiries-premium-workspace .enquiry-detail-contact > button { min-height:36px; padding:6px 10px; }
+.enquiries-premium-workspace .enquiry-detail-contact { gap:4px 12px; }
+.enquiries-premium-workspace .enquiry-detail-car-copy { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
+.enquiries-premium-workspace .enquiry-detail-car-copy h4 { flex-basis:100%; }
+.enquiries-premium-workspace .enquiry-detail-owner { gap:5px 10px; }
+.enquiries-premium-workspace .enquiry-action-plan .enquiry-action-label { display:none; }
+.enquiries-premium-workspace .enquiry-action-plan h4 { font-size:14px; }
+.enquiries-premium-workspace .enquiry-context-details > summary { cursor:pointer; min-height:44px; align-content:center; font-size:13px; font-weight:600; }
+.enquiries-premium-workspace .enquiry-context-details[open] { display:grid; gap:12px; }

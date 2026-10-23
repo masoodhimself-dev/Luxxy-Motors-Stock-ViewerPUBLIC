@@ -1,3 +1,4 @@
+import type { InboxEnquiry } from './enquiry-reply-attention';
 import type { Enquiry } from '@workspace/api-client-react';
 
 export type EnquiryAction = 'follow_up' | 'appointment' | 'conversation' | 'respond' | 'update' | 'none';
@@ -63,18 +64,24 @@ export function enquirySourceLabel(entry: Enquiry): string {
 }
 
 /**
- * Explains existing recorded work. It does not infer unread emails, customer intent,
+ * Explains existing recorded work, including explicit server reply attention. It does not infer customer intent,
  * appointment attendance or a required response from the original message text.
  * A closed case can still have an explicitly scheduled task: closing does not
  * cancel follow-ups or appointments in the existing API.
  */
-export function enquiryPresentation(entry: Enquiry, now = Date.now()): EnquiryPresentation {
+export function enquiryPresentation(entry: InboxEnquiry, now = Date.now()): EnquiryPresentation {
   const common = { purpose: enquiryPurpose(entry), source: enquirySourceLabel(entry) };
   const present = (details: Omit<EnquiryPresentation, 'purpose' | 'source'>) => ({ ...common, ...details });
   const followUp = !entry.followUpCompletedAt ? timestamp(entry.followUpAt) : null;
   const appointment = !entry.appointmentCancelledAt ? timestamp(entry.appointmentAt) : null;
   const activeVisit = appointment !== null && entry.attendance !== 'completed' && entry.attendance !== 'no_show';
 
+  if ((entry.pendingEmailReplies ?? 0) > 0) return present({
+    state: entry.emailRepliesToReview ? 'Email needs review' : 'Customer replied', tone: entry.emailRepliesToReview ? 'warning' : 'info', priority: -1,
+    nextAction: entry.emailRepliesToReview ? 'Review incoming email' : 'Reply to customer',
+    reason: entry.emailRepliesToReview ? 'Check the sender before replying. Other scheduled work remains in place.' : 'Read the latest message and reply, or mark it handled. Other scheduled work remains in place.',
+    action: 'respond', dueAt: null,
+  });
   if (followUp !== null && followUp <= now) return present({
     state: 'Follow-up overdue', tone: 'danger', priority: 0,
     nextAction: 'Complete follow-up', reason: entry.followUpNote?.trim() || 'A scheduled follow-up is still outstanding.',
@@ -135,6 +142,10 @@ export function enquiryPresentation(entry: Enquiry, now = Date.now()): EnquiryPr
     state: 'Visit completed', tone: 'success', priority: 9,
     nextAction: 'No task scheduled', reason: 'The visit is complete and no follow-up is scheduled.',
     action: 'none', dueAt: null,
+  });
+  if (entry.staffEmailSent && entry.status === 'new' && !entry.callOutcome) return present({
+    state: 'Replied', tone: 'muted', priority: 9, nextAction: 'No task scheduled',
+    reason: 'A staff email was submitted. No new customer reply or scheduled task is outstanding.', action: 'none', dueAt: null,
   });
   if (entry.callOutcome === 'information_given' || entry.followUpCompletedAt) return present({
     state: entry.followUpCompletedAt ? 'Follow-up done' : 'Information given', tone: 'success', priority: 9,

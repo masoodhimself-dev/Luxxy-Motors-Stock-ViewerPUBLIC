@@ -328,6 +328,7 @@ function EnquiryEmailEditor({
     await Promise.all([
       cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
       cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
+      cache.invalidateQueries({ queryKey: ['reply-attention'] }),
     ]);
   }
   async function saveDraft() {
@@ -426,6 +427,7 @@ function EnquiryEmailEditor({
         refresh(),
         cache.invalidateQueries({ queryKey: ["staff-email-drafts"] }),
         cache.invalidateQueries({ queryKey: ["staff-notifications"] }),
+        cache.invalidateQueries({ queryKey: ['reply-attention'] }),
         cache.invalidateQueries({ queryKey: ["staff-email"] }),
       ]);
     } catch (cause) {

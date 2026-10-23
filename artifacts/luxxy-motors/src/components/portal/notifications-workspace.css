@@ -363,3 +363,11 @@
  .customer-notifications-workspace:has(.compact-dealer-desk) > .device-notifications { grid-column:1/-1; }
 }
 .customer-notifications-workspace:has(.compact-dealer-desk) > .customer-workspace-heading > h2 { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); margin:0; }
+
+/* One Inbox entry, with secondary delivery/draft tools. */
+.inbox-mode-nav { display:flex; flex-wrap:wrap; gap:6px; margin: 0 0 10px; }
+.customer-notifications-workspace .customer-workspace-heading { margin-bottom:10px; }
+.customer-notifications-workspace .customer-workspace-views { margin-bottom:10px; }
+.inbox-attention-error { padding:10px; border-left:3px solid #b7791f; background:#fff8e8; font-size:13px; }
+
+@media(min-width:640px) { .customer-workspace-views { grid-template-columns:repeat(3,minmax(0,1fr)); } }
