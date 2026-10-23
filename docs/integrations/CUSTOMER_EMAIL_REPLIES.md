@@ -29,6 +29,10 @@ Resend webhook ID: `1add4ee6-e9e0-4e12-a1a1-87e60f3ed45d` (only `email.received`
 
 The mapping initially enables only `shore-drive-limited`. No stock-worker delivery flags or schedules are changed. Settings are saved in the Render Dashboard, not duplicated in Blueprint values; future Blueprint syncs must preserve these keys.
 
+## Device notifications
+
+The live check found Web Push had never been configured. A generated VAPID key pair is stored privately in Render, using `WEB_PUSH_ENABLED`, `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, and `WEB_PUSH_DEALER_IDS=shore-drive-limited`. The pilot allowlist hides configuration and prevents sends for all other dealerships. It does not enrol a browser or request notification permission automatically. Staff must enable Device alerts on each device. On iPhone/iPad this uses the existing Home Screen installation flow.
+
 ## Recovery and limits
 
 - Migration `0052_customer_email_replies.sql` is additive.

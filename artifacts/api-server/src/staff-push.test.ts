@@ -34,6 +34,11 @@ test('Web Push secure configuration, allowed vendor hosts and generic lock-scree
   const message=pushMessage(randomUUID(),'bookings','event:fictional',randomUUID());assert.equal(message.title,'Dealership update');assert.ok(message.url.startsWith('/portal?'));assert.ok(!JSON.stringify(message).includes('customer@example'));
 });
 
+test('device notification pilots expose keys and send only for explicitly enabled dealerships',()=>{
+  configure();process.env.WEB_PUSH_DEALER_IDS='a';
+  try{assert.ok(pushConfiguration());assert.ok(runA(()=>pushConfiguration()));assert.equal(runWithTenant({...tenant,dealerId:'b'},()=>pushConfiguration()),null);}finally{delete process.env.WEB_PUSH_DEALER_IDS;}
+});
+
 test('visible push copy omits internal identifiers while routing and deduplication keep them',()=>{
   for(const category of ['enquiries','bookings','reminders','followups','emailFailures','test'] as const) {
     const message=pushMessage('event-internal-id',category,'private-window-key','enquiry-internal-id');

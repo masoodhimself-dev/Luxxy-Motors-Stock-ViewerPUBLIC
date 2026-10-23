@@ -5,7 +5,7 @@ import webpush from 'web-push';
 import { sql } from 'drizzle-orm';
 import { db } from '@workspace/db';
 import type { Logger } from 'pino';
-import { currentDealerId } from './tenant-context';
+import { currentDealerId, currentTenant } from './tenant-context';
 import { forEachActiveDealer } from './tenant-jobs';
 import { roleHasPermission, isStaffRole } from './staff-permissions';
 
@@ -19,6 +19,9 @@ export type PushSender = (subscription: Subscription, message: PushMessage, ttl:
 
 /** Keys stay server-side. Unconfigured development/staging must never send. */
 export function pushConfiguration() {
+  const pilot=(process.env.WEB_PUSH_DEALER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const tenant=currentTenant();
+  if(pilot.length&&tenant&&!pilot.includes(tenant.dealerId))return null;
   const publicKey=process.env.WEB_PUSH_PUBLIC_KEY?.trim(), privateKey=process.env.WEB_PUSH_PRIVATE_KEY?.trim(), subject=process.env.WEB_PUSH_SUBJECT?.trim();
   if(process.env.WEB_PUSH_ENABLED!=='true' || !publicKey || !privateKey || !subject) return null;
   if(!validKey(publicKey,65) || !validKey(privateKey,32)) return null;

@@ -784,7 +784,7 @@ export function EmailWorkspace({
                         </span>
                         <div>
                           <h3>{conversation.customer}</h3>
-                          <p>{conversation.recipient}</p>
+                          <p>{conversation.recipient === "No email address supplied" ? threadMessages.at(-1)?.recipient || conversation.recipient : conversation.recipient}</p>
                         </div>
                       </div>
                       <p className="email-thread-car">
@@ -1053,7 +1053,7 @@ export function EmailWorkspace({
                                     >
                                       <RefreshCw size={15} aria-hidden="true" />
                                       {busy
-                                        ? "Checking…"
+                                        ? incoming ? "Saving…" : "Checking…"
                                         : incoming ? "Mark handled" : "Check delivery status"}
                                     </Button>
                                     {selected?.checked_at && (
